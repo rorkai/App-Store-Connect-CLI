@@ -10,9 +10,11 @@ import (
 	"image/png"
 	"net/http"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -693,6 +695,101 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
+	const tolerance = time.Second
+	timeoutEnv := []string{"ASC_TIMEOUT", "ASC_TIMEOUT_SECONDS", "ASC_UPLOAD_TIMEOUT", "ASC_UPLOAD_TIMEOUT_SECONDS"}
+
+	tests := []struct {
+		name        string
+		env         map[string]string
+		config      string
+		wantRequest time.Duration
+		wantUpload  time.Duration
+	}{
+		{name: "unset", wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
+		{name: "ASC_TIMEOUT", env: map[string]string{"ASC_TIMEOUT": "7s"}, wantRequest: 7 * time.Second, wantUpload: asc.DefaultUploadTimeout},
+		{name: "ASC_TIMEOUT_SECONDS", env: map[string]string{"ASC_TIMEOUT_SECONDS": "9"}, wantRequest: 9 * time.Second, wantUpload: asc.DefaultUploadTimeout},
+		{name: "ASC_UPLOAD_TIMEOUT", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second},
+		{name: "ASC_UPLOAD_TIMEOUT_SECONDS", env: map[string]string{"ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 45 * time.Second},
+		{name: "ASC_UPLOAD_TIMEOUT wins over its seconds form", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second},
+		{name: "invalid ASC_UPLOAD_TIMEOUT keeps the default", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "soon", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
+		{name: "empty ASC_UPLOAD_TIMEOUT keeps the default", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
+		{name: "config timeouts", config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 11 * time.Second, wantUpload: 75 * time.Second},
+		{name: "config seconds timeouts", config: `{"timeout_seconds":"13","upload_timeout_seconds":"50"}`, wantRequest: 13 * time.Second, wantUpload: 50 * time.Second},
+		{name: "environment wins over config", env: map[string]string{"ASC_TIMEOUT": "7s", "ASC_UPLOAD_TIMEOUT": "90s"}, config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 7 * time.Second, wantUpload: 90 * time.Second},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for _, name := range timeoutEnv {
+				t.Setenv(name, "")
+				os.Unsetenv(name)
+			}
+			for name, value := range test.env {
+				t.Setenv(name, value)
+			}
+			configPath := filepath.Join(t.TempDir(), "config.json")
+			if test.config != "" {
+				if err := os.WriteFile(configPath, []byte(test.config), 0o600); err != nil {
+					t.Fatalf("write config: %v", err)
+				}
+			}
+			t.Setenv("ASC_CONFIG_PATH", configPath)
+			asc.ResetConfigCacheForTest()
+			t.Cleanup(asc.ResetConfigCacheForTest)
+
+			d := DefaultDeps()
+			pairs := []struct {
+				name    string
+				process func(context.Context) (context.Context, context.CancelFunc)
+				deps    func(context.Context) (context.Context, context.CancelFunc)
+				want    time.Duration
+			}{
+				{"Timeout", ContextWithTimeout, d.Timeout, test.wantRequest},
+				{"UploadTimeout", ContextWithUploadTimeout, d.UploadTimeout, test.wantUpload},
+				{"DownloadTimeout", ContextWithDownloadTimeout, d.DownloadTimeout, test.wantUpload},
+			}
+			for _, pair := range pairs {
+				start := time.Now()
+				processCtx, processCancel := pair.process(context.Background())
+				depsCtx, depsCancel := pair.deps(context.Background())
+				processDeadline, processOK := processCtx.Deadline()
+				depsDeadline, depsOK := depsCtx.Deadline()
+				_, liftedOK := ContextWithoutTimeout(depsCtx).Deadline()
+				processCancel()
+				depsCancel()
+
+				if !processOK || !depsOK {
+					t.Fatalf("%s: process deadline set = %v, deps deadline set = %v, want both", pair.name, processOK, depsOK)
+				}
+				if got := processDeadline.Sub(start); got < pair.want || got > pair.want+tolerance {
+					t.Fatalf("%s: process deadline in %v, want %v", pair.name, got, pair.want)
+				}
+				if diff := depsDeadline.Sub(processDeadline); diff < -tolerance || diff > tolerance {
+					t.Fatalf("%s: deps deadline differs from process deadline by %v", pair.name, diff)
+				}
+				if liftedOK {
+					t.Fatalf("%s: ContextWithoutTimeout kept the deps deadline", pair.name)
+				}
+			}
+		})
+	}
+
+	t.Run("DownloadTimeout uses d.UploadTimeout", func(t *testing.T) {
+		const injected = 3 * time.Minute
+		d := &Deps{UploadTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return ContextWithTimeoutDuration(ctx, injected)
+		}}
+		start := time.Now()
+		ctx, cancel := d.DownloadTimeout(context.Background())
+		defer cancel()
+		deadline, ok := ctx.Deadline()
+		if got := deadline.Sub(start); !ok || got < injected || got > injected+tolerance {
+			t.Fatalf("deadline in %v (set = %v), want %v", got, ok, injected)
+		}
+	})
 }
 
 type emptyBuildPreflightClient struct{}
