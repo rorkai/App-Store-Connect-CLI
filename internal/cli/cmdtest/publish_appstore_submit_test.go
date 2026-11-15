@@ -124,6 +124,8 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 			return jsonResponse(http.StatusNoContent, "")
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
+			return jsonResponse(http.StatusOK, submitPreflightAppInfosJSON("app-1", completeAgeRatingAttributes))
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
 			return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
@@ -359,6 +361,22 @@ func TestPublishAppStoreSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t
 }
 
 func TestPublishAppStoreSubmitLocalizationPreflightUsesCanonicalGuidance(t *testing.T) {
+	runPublishAppStoreSubmitPreflightFailure(t, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`, "", "submission-blocking localization fields are missing")
+}
+
+func TestPublishAppStoreSubmitAgeRatingPreflightStopsBeforeSubmission(t *testing.T) {
+	runPublishAppStoreSubmitPreflightFailure(
+		t,
+		`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`,
+		submitPreflightAppInfosJSON("app-1", strings.Replace(completeAgeRatingAttributes, `"socialMediaAgeRestricted":false,`, "", 1)),
+		"socialMediaAgeRestricted: age rating field is missing (age_rating.missing_field)",
+	)
+}
+
+// runPublishAppStoreSubmitPreflightFailure runs publish appstore --submit with
+// the given preflight reads and fails if any submission request is made.
+func runPublishAppStoreSubmitPreflightFailure(t *testing.T, localizations, appInfos, wantStderr string) {
+	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -415,9 +433,11 @@ func TestPublishAppStoreSubmitLocalizationPreflightUsesCanonicalGuidance(t *test
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
 			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`)
+			return jsonResponse(http.StatusOK, localizations)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos" && appInfos != "":
+			return jsonResponse(http.StatusOK, appInfos)
 		default:
-			t.Fatalf("unexpected request during localization preflight failure: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			t.Fatalf("unexpected request during submit preflight failure: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
 			return nil, nil
 		}
 	}))
@@ -443,7 +463,10 @@ func TestPublishAppStoreSubmitLocalizationPreflightUsesCanonicalGuidance(t *test
 		runErr = root.Run(context.Background())
 	})
 	if runErr == nil {
-		t.Fatal("expected localization preflight error, got nil")
+		t.Fatal("expected submit preflight error, got nil")
+	}
+	if !strings.Contains(stderr, wantStderr) {
+		t.Fatalf("expected stderr to contain %q, got %q", wantStderr, stderr)
 	}
 	if !strings.Contains(runErr.Error(), "publish appstore: submit preflight failed") {
 		t.Fatalf("expected publish appstore preflight error, got %v", runErr)
@@ -714,6 +737,8 @@ func TestPublishAppStoreSubmitUsesFreshTimeoutBudgetsForPreflightAndSubmission(t
 				return nil, err
 			}
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
+			return jsonResponse(http.StatusOK, submitPreflightAppInfosJSON("app-1", completeAgeRatingAttributes))
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
 			return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
@@ -805,6 +830,8 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 
 	var localizationBudget time.Duration
 	var subscriptionBudget time.Duration
+	var appInfosBudget time.Duration
+	var versionBudget time.Duration
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if resp, err, ok := respondToPublishAppLookup(t, req); ok {
@@ -858,6 +885,22 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 			}
 			localizationBudget = time.Until(deadline)
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
+			deadline, _ := req.Context().Deadline()
+			appInfosBudget = time.Until(deadline)
+			timer := time.NewTimer(600 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			case <-timer.C:
+			}
+			appInfos := strings.Replace(submitPreflightAppInfosJSON("app-1", completeAgeRatingAttributes), `],"included"`, `,{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_DISTRIBUTION"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}},"appInfoLocalizations":{"data":[]},"primaryCategory":{"data":null}}}],"included"`, 1)
+			return jsonResponse(http.StatusOK, appInfos)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			deadline, _ := req.Context().Deadline()
+			versionBudget = time.Until(deadline)
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
 			deadline, ok := req.Context().Deadline()
 			if !ok {
@@ -914,6 +957,9 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 	}
 	if localizationBudget < 700*time.Millisecond {
 		t.Fatalf("expected localization preflight to use publish timeout budget, got %v", localizationBudget)
+	}
+	if appInfosBudget < 700*time.Millisecond || versionBudget < 700*time.Millisecond {
+		t.Fatalf("expected each age rating preflight request to get its own publish timeout budget, got app infos %v, version %v", appInfosBudget, versionBudget)
 	}
 	if subscriptionBudget < 700*time.Millisecond {
 		t.Fatalf("expected subscription preflight to use publish timeout budget, got %v", subscriptionBudget)
@@ -985,6 +1031,8 @@ func TestPublishAppStoreSubmitDefaultPathHonorsASCTimeout(t *testing.T) {
 			}
 			localizationBudget = time.Until(deadline)
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
+			return jsonResponse(http.StatusOK, submitPreflightAppInfosJSON("app-1", completeAgeRatingAttributes))
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
 			deadline, ok := req.Context().Deadline()
 			if !ok {
@@ -1120,6 +1168,8 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 			case <-timer.C:
 			}
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
+			return jsonResponse(http.StatusOK, submitPreflightAppInfosJSON("app-1", completeAgeRatingAttributes))
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
 			deadline, ok := req.Context().Deadline()
 			if !ok {
