@@ -8,9 +8,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func renderSearchPlanTable(report SearchPlanReport) error {
-	shared.RenderSection("Search Optimization Plan", []string{"Field", "Value"}, searchPlanCompactSummaryRows(report), false)
-	shared.RenderSection("Search Plan", searchPlanCompactHeaders(), searchPlanCompactRows(report.Rows), false)
+func renderSearchPlanTable(d *shared.Deps, report SearchPlanReport) error {
+	d.RenderSection("Search Optimization Plan", []string{"Field", "Value"}, searchPlanCompactSummaryRows(report), false)
+	d.RenderSection("Search Plan", searchPlanCompactHeaders(), searchPlanCompactRows(report.Rows), false)
 
 	sourceRows := make([][]string, 0, len(report.Sources))
 	for _, source := range report.Sources {
@@ -20,14 +20,14 @@ func renderSearchPlanTable(report SearchPlanReport) error {
 			strconv.Itoa(source.Count),
 		})
 	}
-	shared.RenderSection("Sources", []string{"Source", "Status", "Rows"}, sourceRows, false)
+	d.RenderSection("Sources", []string{"Source", "Status", "Rows"}, sourceRows, false)
 
 	if len(report.Notices) > 0 {
 		noticeRows := make([][]string, 0, len(report.Notices))
 		for index, notice := range report.Notices {
 			noticeRows = append(noticeRows, []string{strconv.Itoa(index + 1), compactSearchPlanDiagnostic(notice)})
 		}
-		shared.RenderSection("Notices", []string{"#", "Notice"}, noticeRows, false)
+		d.RenderSection("Notices", []string{"#", "Notice"}, noticeRows, false)
 	}
 
 	if len(report.Artifacts) > 0 {
@@ -35,13 +35,13 @@ func renderSearchPlanTable(report SearchPlanReport) error {
 		for _, artifact := range report.Artifacts {
 			artifactRows = append(artifactRows, []string{artifact})
 		}
-		shared.RenderSection("Artifacts", []string{"Path"}, artifactRows, false)
+		d.RenderSection("Artifacts", []string{"Path"}, artifactRows, false)
 	}
 	return nil
 }
 
-func renderSearchPlanMarkdown(report SearchPlanReport) error {
-	renderSearchPlanHuman(report, true)
+func renderSearchPlanMarkdown(d *shared.Deps, report SearchPlanReport) error {
+	renderSearchPlanHuman(d, report, true)
 	return nil
 }
 
@@ -191,8 +191,8 @@ func searchPlanRows(rows []SearchPlanRow) [][]string {
 	return result
 }
 
-func renderSearchPlanHuman(report SearchPlanReport, markdown bool) {
-	shared.RenderSection("Summary", []string{"Field", "Value"}, [][]string{
+func renderSearchPlanHuman(d *shared.Deps, report SearchPlanReport, markdown bool) {
+	d.RenderSection("Summary", []string{"Field", "Value"}, [][]string{
 		{"App", report.AppID},
 		{"Version", report.Version},
 		{"Platform", report.Platform},
@@ -210,24 +210,24 @@ func renderSearchPlanHuman(report SearchPlanReport, markdown bool) {
 	for _, source := range report.Sources {
 		sourceRows = append(sourceRows, []string{source.Name, source.Status, strconv.Itoa(source.Count), source.Error})
 	}
-	shared.RenderSection("Sources", []string{"Source", "Status", "Count", "Error"}, sourceRows, markdown)
+	d.RenderSection("Sources", []string{"Source", "Status", "Count", "Error"}, sourceRows, markdown)
 
 	if len(report.Notices) > 0 {
 		noticeRows := make([][]string, 0, len(report.Notices))
 		for index, notice := range report.Notices {
 			noticeRows = append(noticeRows, []string{strconv.Itoa(index + 1), notice})
 		}
-		shared.RenderSection("Notices", []string{"#", "Notice"}, noticeRows, markdown)
+		d.RenderSection("Notices", []string{"#", "Notice"}, noticeRows, markdown)
 	}
 
-	shared.RenderSection("Search Plan", searchPlanHeaders(), searchPlanRows(report.Rows), markdown)
+	d.RenderSection("Search Plan", searchPlanHeaders(), searchPlanRows(report.Rows), markdown)
 
 	if len(report.Artifacts) > 0 {
 		artifactRows := make([][]string, 0, len(report.Artifacts))
 		for _, artifact := range report.Artifacts {
 			artifactRows = append(artifactRows, []string{artifact})
 		}
-		shared.RenderSection("Artifacts", []string{"Path"}, artifactRows, markdown)
+		d.RenderSection("Artifacts", []string{"Path"}, artifactRows, markdown)
 	}
 }
 
