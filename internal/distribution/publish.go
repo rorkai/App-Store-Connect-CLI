@@ -1088,12 +1088,13 @@ func NewHTTPVerifier(client *http.Client, timeout time.Duration) *HTTPVerifier {
 	return &HTTPVerifier{client: &clone, timeout: timeout}
 }
 
-// NewHTTPVerifierWithEnvironmentTrust builds a verifier that honors the same
-// AWS_CA_BUNDLE trust override used by the S3 SDK for private endpoints.
-func NewHTTPVerifierWithEnvironmentTrust(timeout time.Duration) (*HTTPVerifier, error) {
+// NewHTTPVerifierWithEnvironmentTrust builds a verifier that sends through
+// transport and honors the same AWS_CA_BUNDLE trust override used by the S3
+// SDK for private endpoints.
+func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout time.Duration) (*HTTPVerifier, error) {
 	caPath := strings.TrimSpace(os.Getenv("AWS_CA_BUNDLE"))
 	if caPath == "" {
-		return NewHTTPVerifier(nil, timeout), nil
+		return NewHTTPVerifier(&http.Client{Transport: transport}, timeout), nil
 	}
 	file, err := os.Open(caPath)
 	if err != nil {
@@ -1115,11 +1116,11 @@ func NewHTTPVerifierWithEnvironmentTrust(timeout time.Duration) (*HTTPVerifier, 
 	if !roots.AppendCertsFromPEM(pemBytes) {
 		return nil, fmt.Errorf("custom CA bundle contains no certificates")
 	}
-	transport, ok := http.DefaultTransport.(*http.Transport)
+	base, ok := transport.(*http.Transport)
 	if !ok {
 		return nil, fmt.Errorf("default HTTP transport is unavailable")
 	}
-	clone := transport.Clone()
+	clone := base.Clone()
 	clone.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
 	return NewHTTPVerifier(&http.Client{Transport: clone}, timeout), nil
 }

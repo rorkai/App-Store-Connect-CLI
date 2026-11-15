@@ -47,12 +47,12 @@ type privatePublishVerificationRequest struct {
 // reverifyPrivatePublish verifies an existing private publication without
 // creating directories, repairing receipts, refreshing links, or contacting
 // the object store through any mutating operation.
-func reverifyPrivatePublish(ctx context.Context, request privatePublishVerificationRequest) (publishExecutionResult, error) {
+func reverifyPrivatePublish(ctx context.Context, d *shared.Deps, request privatePublishVerificationRequest) (publishExecutionResult, error) {
 	if strings.TrimSpace(request.BundleDir) == "" || strings.TrimSpace(request.ReceiptPath) == "" || strings.TrimSpace(request.LinkPath) == "" {
-		return publishExecutionResult{}, shared.UsageError("bundle directory, receipt, and link paths are required")
+		return publishExecutionResult{}, d.UsageError("bundle directory, receipt, and link paths are required")
 	}
 	if request.VerifyTimeout <= 0 {
-		return publishExecutionResult{}, shared.UsageError("verify timeout must be positive")
+		return publishExecutionResult{}, d.UsageError("verify timeout must be positive")
 	}
 	bundleDir := strings.TrimSpace(request.BundleDir)
 	receiptPath := strings.TrimSpace(request.ReceiptPath)
@@ -63,7 +63,7 @@ func reverifyPrivatePublish(ctx context.Context, request privatePublishVerificat
 	}
 	defer bundleRoot.Close()
 	if err := rejectBundleContainedArtifacts(bundleRoot, receiptPath, linkPath); err != nil {
-		return publishExecutionResult{}, shared.UsageErrorf("publish artifacts: %v", err)
+		return publishExecutionResult{}, d.UsageErrorf("publish artifacts: %v", err)
 	}
 	artifacts, err := openExistingArtifactPaths(receiptPath, linkPath)
 	if err != nil {
@@ -88,11 +88,11 @@ func reverifyPrivatePublish(ctx context.Context, request privatePublishVerificat
 	if err := artifacts.verifyExactReceipt(state.Receipt); err != nil {
 		return publishExecutionResult{}, fmt.Errorf("verify publication receipt: %w", err)
 	}
-	verifier, err := newPublicationVerifier(request.VerifyTimeout)
+	verifier, err := newPublicationVerifier(d, request.VerifyTimeout)
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("configure publication verifier: %w", err)
 	}
-	if err := reverifyPublication(ctx, verifier, state.Receipt, state.Links, time.Now().UTC()); err != nil {
+	if err := reverifyPublication(ctx, verifier, state.Receipt, state.Links, d.Now().UTC()); err != nil {
 		return publishExecutionResult{}, fmt.Errorf("reverify publication: %w", err)
 	}
 	return publishExecutionResult{Receipt: state.Receipt, Recovered: true}, nil

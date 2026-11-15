@@ -45,21 +45,22 @@ const (
 type publicationVerifier struct {
 	delegate        core.Verifier
 	documentTimeout time.Duration
+	uploadTimeout   func(context.Context) (context.Context, context.CancelFunc)
 }
 
-func newPublicationVerifier(documentTimeout time.Duration) (*publicationVerifier, error) {
-	delegate, err := core.NewHTTPVerifierWithEnvironmentTrust(0)
+func newPublicationVerifier(d *shared.Deps, documentTimeout time.Duration) (*publicationVerifier, error) {
+	delegate, err := core.NewHTTPVerifierWithEnvironmentTrust(d.HTTPTransport(), 0)
 	if err != nil {
 		return nil, err
 	}
-	return &publicationVerifier{delegate: delegate, documentTimeout: documentTimeout}, nil
+	return &publicationVerifier{delegate: delegate, documentTimeout: documentTimeout, uploadTimeout: d.UploadTimeout}, nil
 }
 
 func (verifier *publicationVerifier) Verify(ctx context.Context, request core.VerifyRequest) error {
 	var verifyCtx context.Context
 	var cancel context.CancelFunc
 	if request.Kind == core.VerifyIPA {
-		verifyCtx, cancel = shared.ContextWithUploadTimeout(ctx)
+		verifyCtx, cancel = verifier.uploadTimeout(ctx)
 	} else {
 		verifyCtx, cancel = context.WithTimeout(ctx, verifier.documentTimeout)
 	}
@@ -67,9 +68,9 @@ func (verifier *publicationVerifier) Verify(ctx context.Context, request core.Ve
 	return verifier.delegate.Verify(verifyCtx, request)
 }
 
-// PublishCommand returns the provider-neutral S3-compatible publisher.
-func PublishCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("distribute publish", flag.ExitOnError)
+// newPublishCommand returns the provider-neutral S3-compatible publisher.
+func newPublishCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("distribute publish", flag.ExitOnError)
 	bundleDir := fs.String("bundle-dir", "", "Prepared distribution bundle directory (required)")
 	endpoint := fs.String("endpoint", "", "S3-compatible HTTPS API endpoint (required)")
 	region := fs.String("region", "", "S3 signing region (required)")
@@ -84,7 +85,7 @@ func PublishCommand() *ffcli.Command {
 	verifyTimeout := fs.Duration("verify-timeout", 30*time.Second, "Timeout for manifest and install-page verification; IPA verification uses ASC_UPLOAD_TIMEOUT")
 	receiptPath := fs.String("receipt", "", "Redacted JSON receipt path outside the prepared bundle (required)")
 	linkPath := fs.String("link-path", "", "Mode-0600 sensitive link path (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "publish",
@@ -111,94 +112,94 @@ Examples:
   asc distribute publish --bundle-dir .asc/distribution/com.example.app/1.2-3-abcd1234 --endpoint https://objects.example.com --region auto --bucket ios-builds --prefix team/app --receipt .asc/publishes/app-1.2-3.json --link-path .asc/publishes/app-1.2-3-link.json --output json
   asc distribute publish --bundle-dir .asc/distribution/com.example.app/1.2-3-abcd1234 --endpoint https://objects.example.com --region auto --bucket ios-builds --prefix team/app --access public --public-base-url https://downloads.example.com/ios --receipt .asc/publishes/app-1.2-3.json --link-path .asc/publishes/app-1.2-3-link.json --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			required := []struct{ name, value string }{
 				{"bundle-dir", *bundleDir}, {"endpoint", *endpoint}, {"region", *region}, {"bucket", *bucket}, {"prefix", *prefix},
 			}
 			for _, item := range required {
 				if strings.TrimSpace(item.value) == "" {
-					fmt.Fprintf(os.Stderr, "Error: --%s is required\n", item.name)
+					fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", item.name)
 					return shared.MissingRequiredUsageError("--" + item.name)
 				}
 			}
 			if _, err := core.ValidateEndpoint(*endpoint); err != nil {
-				return shared.UsageErrorf("--endpoint: %v", err)
+				return d.UsageErrorf("--endpoint: %v", err)
 			}
 			if strings.TrimSpace(*downloadEndpoint) != "" {
 				if _, err := core.ValidateEndpoint(*downloadEndpoint); err != nil {
-					return shared.UsageErrorf("--download-endpoint: %v", err)
+					return d.UsageErrorf("--download-endpoint: %v", err)
 				}
 			}
 			if *addressingStyle != "path" && *addressingStyle != "virtual" {
-				return shared.UsageErrorf("--addressing-style must be path or virtual")
+				return d.UsageErrorf("--addressing-style must be path or virtual")
 			}
 			accessMode := core.Access(strings.ToLower(strings.TrimSpace(*access)))
 			if accessMode != core.AccessPrivate && accessMode != core.AccessPublic {
-				return shared.UsageErrorf("--access must be private or public")
+				return d.UsageErrorf("--access must be private or public")
 			}
 			if accessMode == core.AccessPublic {
 				if strings.TrimSpace(*publicBaseURL) == "" {
-					return shared.UsageErrorf("--public-base-url is required with --access public")
+					return d.UsageErrorf("--public-base-url is required with --access public")
 				}
 				if _, err := core.ValidatePublicBaseURL(*publicBaseURL); err != nil {
-					return shared.UsageErrorf("--public-base-url: %v", err)
+					return d.UsageErrorf("--public-base-url: %v", err)
 				}
 				if flagWasSet(fs, "url-ttl") || flagWasSet(fs, "download-grace") || flagWasSet(fs, "download-endpoint") {
-					return shared.UsageErrorf("--url-ttl, --download-grace, and --download-endpoint are only valid with --access private")
+					return d.UsageErrorf("--url-ttl, --download-grace, and --download-endpoint are only valid with --access private")
 				}
 			} else if strings.TrimSpace(*publicBaseURL) != "" {
-				return shared.UsageErrorf("--public-base-url is only valid with --access public")
+				return d.UsageErrorf("--public-base-url is only valid with --access public")
 			}
 			if *urlTTL <= 0 {
-				return shared.UsageErrorf("--url-ttl must be positive")
+				return d.UsageErrorf("--url-ttl must be positive")
 			}
 			if *downloadGrace < 0 {
-				return shared.UsageErrorf("--download-grace must not be negative")
+				return d.UsageErrorf("--download-grace must not be negative")
 			}
 			if accessMode == core.AccessPrivate {
 				if *urlTTL > maxPrivateLinkLifetime {
-					return shared.UsageErrorf("--url-ttl must not exceed 7d")
+					return d.UsageErrorf("--url-ttl must not exceed 7d")
 				}
 				if *downloadGrace > maxPrivateLinkLifetime {
-					return shared.UsageErrorf("--download-grace must not exceed 7d")
+					return d.UsageErrorf("--download-grace must not exceed 7d")
 				}
 				if *urlTTL > maxPrivateLinkLifetime-*downloadGrace {
-					return shared.UsageErrorf("--url-ttl plus --download-grace must not exceed 7d")
+					return d.UsageErrorf("--url-ttl plus --download-grace must not exceed 7d")
 				}
 			}
 			if *verifyTimeout <= 0 {
-				return shared.UsageErrorf("--verify-timeout must be positive")
+				return d.UsageErrorf("--verify-timeout must be positive")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageErrorf("%v", err)
+				return d.UsageErrorf("%v", err)
 			}
 			if _, err := core.NormalizePrefix(*prefix); err != nil {
-				return shared.UsageErrorf("--prefix: %v", err)
+				return d.UsageErrorf("--prefix: %v", err)
 			}
 			if !regionPattern.MatchString(*region) {
-				return shared.UsageErrorf("--region must be 1-100 letters, digits, dots, underscores, or hyphens")
+				return d.UsageErrorf("--region must be 1-100 letters, digits, dots, underscores, or hyphens")
 			}
 			if err := core.ValidateBucket(*bucket); err != nil {
-				return shared.UsageErrorf("--bucket: %v", err)
+				return d.UsageErrorf("--bucket: %v", err)
 			}
 			resolvedReceiptPath := strings.TrimSpace(*receiptPath)
 			resolvedLinkPath := strings.TrimSpace(*linkPath)
 			if resolvedReceiptPath == "" || resolvedLinkPath == "" {
-				return shared.UsageErrorf("--receipt and --link-path are required and must be outside --bundle-dir")
+				return d.UsageErrorf("--receipt and --link-path are required and must be outside --bundle-dir")
 			}
-			bundleRoot, err := rootfs.New(strings.TrimSpace(*bundleDir))
+			bundleRoot, err := rootfs.New(d.OSPath(strings.TrimSpace(*bundleDir)))
 			if err != nil {
 				return fmt.Errorf("distribute publish: open prepared bundle: %w", err)
 			}
 			defer bundleRoot.Close()
-			artifacts, err := inspectArtifactPaths(resolvedReceiptPath, resolvedLinkPath)
+			artifacts, err := inspectArtifactPaths(d.OSPath(resolvedReceiptPath), d.OSPath(resolvedLinkPath))
 			if err != nil {
-				return shared.UsageErrorf("publish artifacts: %v", err)
+				return d.UsageErrorf("publish artifacts: %v", err)
 			}
 			defer artifacts.close()
 			if err := rejectAnchoredBundleContainedArtifacts(bundleRoot, artifacts); err != nil {
-				return shared.UsageErrorf("publish artifacts: %v", err)
+				return d.UsageErrorf("publish artifacts: %v", err)
 			}
 			resolvedReceiptPath = artifacts.receiptPath
 			resolvedLinkPath = artifacts.linkPath
@@ -212,7 +213,7 @@ Examples:
 			}
 			if !stateFound {
 				if err := artifacts.preflightNew(); err != nil {
-					return shared.UsageErrorf("publish artifacts: %v", err)
+					return d.UsageErrorf("publish artifacts: %v", err)
 				}
 			}
 			bundle, err := loadPreparedBundle(ctx, bundleRoot)
@@ -225,11 +226,11 @@ Examples:
 				if err := validateRecoveredState(recoveredState, bundle, validatedEndpoint.String(), effectiveDownloadEndpoint(*endpoint, *downloadEndpoint), normalizedPublicBase(*publicBaseURL), *region, *addressingStyle, *bucket, *prefix, accessMode, *urlTTL, *downloadGrace, resolvedReceiptPath, resolvedLinkPath); err != nil {
 					return fmt.Errorf("distribute publish: %w", err)
 				}
-				verifier, err := newPublicationVerifier(*verifyTimeout)
+				verifier, err := newPublicationVerifier(d, *verifyTimeout)
 				if err != nil {
 					return fmt.Errorf("configure publication verifier: %w", err)
 				}
-				if err := reverifyPublication(ctx, verifier, recoveredState.Receipt, recoveredState.Links, time.Now().UTC()); err != nil {
+				if err := reverifyPublication(ctx, verifier, recoveredState.Receipt, recoveredState.Links, d.Now().UTC()); err != nil {
 					return fmt.Errorf("reverify recovered publication: %w", err)
 				}
 				if artifacts.receiptExists {
@@ -239,7 +240,7 @@ Examples:
 				} else if err := artifacts.publishReceipt(recoveredState.Receipt); err != nil {
 					return fmt.Errorf("recover publish receipt: %w", err)
 				}
-				return printPublishReceipt(recoveredState.Receipt, *output.Output, *output.Pretty, resolvedReceiptPath, resolvedLinkPath)
+				return printPublishReceipt(d, recoveredState.Receipt, *output.Output, *output.Pretty, resolvedReceiptPath, resolvedLinkPath)
 			}
 			staged, err := artifacts.stagePair()
 			if err != nil {
@@ -247,10 +248,10 @@ Examples:
 			}
 			defer staged.cleanup()
 
-			setupCtx, setupCancel := shared.ContextWithUploadTimeout(ctx)
+			setupCtx, setupCancel := d.UploadTimeout(ctx)
 			store, credentialLimit, err := newObjectStore(setupCtx, core.S3StoreConfig{
 				Endpoint: *endpoint, DownloadEndpoint: *downloadEndpoint, Region: *region, Bucket: *bucket,
-				AddressingStyle: *addressingStyle, RequestTimeout: asc.ResolveUploadTimeout(),
+				AddressingStyle: *addressingStyle, RequestTimeout: d.ResolveTimeout(shared.UploadTimeoutSetting, asc.DefaultUploadTimeout),
 			})
 			setupCancel()
 			if err != nil {
@@ -260,8 +261,8 @@ Examples:
 			if provider, ok := store.(interface{ CredentialSource() string }); ok {
 				credentialSource = provider.CredentialSource()
 			}
-			fmt.Fprintf(os.Stderr, "Publishing to endpoint=%s download-endpoint=%s bucket=%s region=%s addressing=%s prefix=%s access=%s credentials=%s\n", endpointOrigin(*endpoint), effectiveDownloadEndpoint(*endpoint, *downloadEndpoint), *bucket, *region, *addressingStyle, *prefix, accessMode, credentialSource)
-			verifier, err := newPublicationVerifier(*verifyTimeout)
+			fmt.Fprintf(d.IO.ErrOut, "Publishing to endpoint=%s download-endpoint=%s bucket=%s region=%s addressing=%s prefix=%s access=%s credentials=%s\n", endpointOrigin(*endpoint), effectiveDownloadEndpoint(*endpoint, *downloadEndpoint), *bucket, *region, *addressingStyle, *prefix, accessMode, credentialSource)
+			verifier, err := newPublicationVerifier(d, *verifyTimeout)
 			if err != nil {
 				return fmt.Errorf("configure publication verifier: %w", err)
 			}
@@ -289,7 +290,7 @@ Examples:
 				return fmt.Errorf("write sensitive install link: %w", err)
 			}
 
-			return printPublishReceipt(receipt, *output.Output, *output.Pretty, resolvedReceiptPath, resolvedLinkPath)
+			return printPublishReceipt(d, receipt, *output.Output, *output.Pretty, resolvedReceiptPath, resolvedLinkPath)
 		},
 	}
 }
@@ -658,15 +659,15 @@ func validateRecoveredState(state publishState, bundle *core.PreparedBundle, end
 	return nil
 }
 
-func printPublishReceipt(receipt core.PublishReceipt, format string, pretty bool, receiptPath, linkPath string) error {
-	return shared.PrintOutputWithRenderers(
+func printPublishReceipt(d *shared.Deps, receipt core.PublishReceipt, format string, pretty bool, receiptPath, linkPath string) error {
+	return d.PrintOutputWithRenderers(
 		receipt, format, pretty,
 		func() error {
-			asc.RenderTable([]string{"field", "value"}, publishRows(receipt, receiptPath, linkPath))
+			asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, publishRows(receipt, receiptPath, linkPath))
 			return nil
 		},
 		func() error {
-			asc.RenderMarkdown([]string{"field", "value"}, publishRows(receipt, receiptPath, linkPath))
+			asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, publishRows(receipt, receiptPath, linkPath))
 			return nil
 		},
 	)
