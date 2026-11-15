@@ -113,11 +113,3 @@ func addLimit(values url.Values, limit int) {
 		values.Set("limit", strconv.Itoa(limit))
 	}
 }
-
-func addValue(values url.Values, key string, value string) {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return
-	}
-	values.Set(key, value)
-}
