@@ -50,7 +50,7 @@ func TestMigrateExportReviewInformationRoundTrip(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			outputDir := filepath.Join(t.TempDir(), "fastlane")
+			outputDir := filepath.Join(t.TempDir(), "exported")
 
 			reg := asctest.NewRegistry(t)
 			reg.Install()

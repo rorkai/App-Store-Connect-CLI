@@ -243,9 +243,9 @@ func fetchExportReviewDetail(ctx context.Context, client *asc.Client, versionID 
 	return &resp.Data.Attributes, nil
 }
 
-// writeExportReviewInformation writes the files readFastlaneReviewInformation
-// reads, except the demo account password, which is never written in clear
-// text.
+// writeExportReviewInformation writes the review information files that
+// import reads, except the demo account password, which is never written in
+// clear text.
 func writeExportReviewInformation(root rootfs.Root, attrs *asc.AppStoreReviewDetailAttributes) (int, error) {
 	if attrs == nil {
 		return 0, nil
