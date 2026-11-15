@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,9 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 			"/reports":   `{"data":[{"type":"analyticsReports","id":"report-1"}],"links":{}}`,
 			"/instances": `{"data":[{"type":"analyticsReportInstances","id":"INSTANCE_ID"}],"links":{}}`,
 			"/segments":  `{"data":[{"type":"analyticsReportSegments","id":"segment-1","attributes":{"url":"https://mzstatic.com/report.csv.gz"}}],"links":{}}`,
+			"/builds/DSYM_BUILD_ID": `{"data":{"type":"builds","id":"DSYM_BUILD_ID","attributes":{"version":"42","processingState":"VALID"}},` +
+				`"included":[{"type":"buildBundles","id":"bundle-1","attributes":{"bundleId":"com.example.app","dSYMUrl":"https://downloads.example.com/app.dSYM.zip"}}]}`,
+			"/betaTesters": `{"data":[],"links":{}}`,
 		}
 		for suffix, page := range analyticsPages {
 			if strings.HasSuffix(req.URL.Path, suffix) {
@@ -42,6 +46,16 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 		_, _ = w.Write(compressed.Bytes())
 	}))
 	t.Cleanup(server.Close)
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+	serverTransport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(cloned)
+	})
 
 	tests := []struct {
 		name    string
@@ -94,6 +108,16 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 			args:    []string{"iap", "import", "--app", "123456789", "--file", "iap.json", "--dry-run"},
 			files:   map[string]string{"iap.json": `{"products":[]}`},
 			wantErr: func(string) string { return "the import file must contain at least one product" },
+		},
+		{
+			name: "builds dsyms",
+			args: []string{"builds", "dsyms", "--build-id", "DSYM_BUILD_ID", "--output-dir", "dsyms", "--output", "json"},
+			want: map[string]string{filepath.Join("dsyms", "com.example.app-42.dSYM.zip"): compressed.String()},
+		},
+		{
+			name:  "testflight testers export",
+			args:  []string{"testflight", "testers", "export", "--app", "123456789", "--output", "testers.csv"},
+			exist: []string{"testers.csv"},
 		},
 		{
 			name:    "reviews digest",
@@ -156,6 +180,7 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 
 			d, _, stderr := newTestDeps(t, stubServerClient(t, server))
 			d.Getwd = func() (string, error) { return depsDir, nil }
+			d.HTTPTransport = func() http.RoundTripper { return serverTransport }
 			root := rootcmd.RootCommandWithDeps("1.2.3", d)
 			if err := root.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
