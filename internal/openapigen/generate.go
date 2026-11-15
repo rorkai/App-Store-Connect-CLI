@@ -775,7 +775,7 @@ func (m *method) checkParamArg(i int, typ string) error {
 	arg := m.b.Args[i]
 	switch {
 	case typ != "string" || arg.Type != "":
-		return fmt.Errorf("arg %s: a param arg sets a string attribute as a string", arg.Name)
+		return fmt.Errorf("arg %s: a param arg needs a string attribute and no Go type of its own", arg.Name)
 	case slices.ContainsFunc(m.b.Args[:i], func(a ArgBind) bool { return !a.Param }):
 		return fmt.Errorf("arg %s: param args come before the other args", arg.Name)
 	case m.b.Check == checkInline:
