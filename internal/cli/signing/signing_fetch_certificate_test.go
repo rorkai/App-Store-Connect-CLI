@@ -197,9 +197,6 @@ func TestSigningFetchCreatesCertificateThenSkipsOnRerun(t *testing.T) {
 			return nil
 		}
 	})
-	clientFactory := func() (*asc.Client, error) {
-		return client, nil
-	}
 	output := t.TempDir()
 	password := filepath.Join(t.TempDir(), "password")
 	if err := os.WriteFile(password, []byte("secret\n"), 0o600); err != nil {
@@ -209,7 +206,7 @@ func TestSigningFetchCreatesCertificateThenSkipsOnRerun(t *testing.T) {
 	secondOutput := filepath.Join(output, "second")
 	run := func(dir string) (string, error) {
 		d, depsStdout, _ := newSigningTestDeps()
-		d.Client = clientFactory
+		d.Client = func() (*asc.Client, error) { return client, nil }
 		cmd := newSigningFetchCommand(d)
 		cmd.FlagSet.SetOutput(io.Discard)
 		if err := cmd.Parse([]string{
