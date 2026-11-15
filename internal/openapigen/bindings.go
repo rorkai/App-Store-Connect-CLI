@@ -125,6 +125,10 @@ type ArgBind struct {
 	Name      string `json:"name"`
 	Attribute string `json:"attribute,omitempty"` // default Name
 	Type      string `json:"type,omitempty"`      // Go type; default the attribute's, "int64" may replace "int"
+	// Param declares a string argument with the Params, after them in their
+	// group of the signature, and checks it with their check style. Param
+	// args come first.
+	Param bool `json:"param,omitempty"`
 }
 
 // Deviation is one problem text of the contract test that the method is known

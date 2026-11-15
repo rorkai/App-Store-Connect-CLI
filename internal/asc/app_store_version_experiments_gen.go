@@ -173,6 +173,40 @@ func (c *Client) GetAppStoreVersionExperimentTreatments(ctx context.Context, exp
 	})
 }
 
+// CreateAppStoreVersionExperiment sends POST /v1/appStoreVersionExperiments (appStoreVersionExperiments_createInstance).
+func (c *Client) CreateAppStoreVersionExperiment(ctx context.Context, versionID, name string, trafficProportion int) (*AppStoreVersionExperimentResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	name = strings.TrimSpace(name)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	if name == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	payload := AppStoreVersionExperimentCreateRequest{
+		Data: AppStoreVersionExperimentCreateData{
+			Type: ResourceTypeAppStoreVersionExperiments,
+			Attributes: AppStoreVersionExperimentCreateAttributes{
+				Name:              name,
+				TrafficProportion: trafficProportion,
+			},
+			Relationships: &AppStoreVersionExperimentCreateRelationships{
+				AppStoreVersion: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppStoreVersionExperimentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appStoreVersionExperiments",
+		Payload: payload,
+	})
+}
+
 // DeleteAppStoreVersionExperiment sends DELETE /v1/appStoreVersionExperiments/{id} (appStoreVersionExperiments_deleteInstance).
 func (c *Client) DeleteAppStoreVersionExperiment(ctx context.Context, experimentID string) error {
 	experimentID = strings.TrimSpace(experimentID)

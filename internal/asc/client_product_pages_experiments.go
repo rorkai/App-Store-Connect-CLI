@@ -50,34 +50,6 @@ type AppStoreVersionExperimentTreatmentLocalizationCreateRelationships struct {
 	AppStoreVersionExperimentTreatment *Relationship `json:"appStoreVersionExperimentTreatment"`
 }
 
-// CreateAppStoreVersionExperiment creates an experiment (v1).
-func (c *Client) CreateAppStoreVersionExperiment(ctx context.Context, versionID, name string, trafficProportion int) (*AppStoreVersionExperimentResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	name = strings.TrimSpace(name)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	if name == "" {
-		return nil, fmt.Errorf("name is required")
-	}
-
-	payload := AppStoreVersionExperimentCreateRequest{
-		Data: AppStoreVersionExperimentCreateData{
-			Type:       ResourceTypeAppStoreVersionExperiments,
-			Attributes: AppStoreVersionExperimentCreateAttributes{Name: name, TrafficProportion: trafficProportion},
-			Relationships: &AppStoreVersionExperimentCreateRelationships{
-				AppStoreVersion: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppStoreVersions,
-						ID:   versionID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppStoreVersionExperimentResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionExperiments", Payload: payload})
-}
-
 // CreateAppStoreVersionExperimentV2 creates an experiment (v2).
 func (c *Client) CreateAppStoreVersionExperimentV2(ctx context.Context, appID string, platform Platform, name string, trafficProportion int) (*AppStoreVersionExperimentV2Response, error) {
 	appID = strings.TrimSpace(appID)
@@ -154,32 +126,4 @@ func (c *Client) GetAppStoreVersionExperimentTreatmentLocalization(ctx context.C
 		return nil, fmt.Errorf("localizationID is required")
 	}
 	return getJSON[AppStoreVersionExperimentTreatmentLocalizationResponse](ctx, c, readRequest{Path: localizationReadPath(fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), opts)})
-}
-
-// CreateAppStoreVersionExperimentTreatmentLocalization creates a treatment localization.
-func (c *Client) CreateAppStoreVersionExperimentTreatmentLocalization(ctx context.Context, treatmentID, locale string) (*AppStoreVersionExperimentTreatmentLocalizationResponse, error) {
-	treatmentID = strings.TrimSpace(treatmentID)
-	locale = strings.TrimSpace(locale)
-	if treatmentID == "" {
-		return nil, fmt.Errorf("treatmentID is required")
-	}
-	if locale == "" {
-		return nil, fmt.Errorf("locale is required")
-	}
-
-	payload := AppStoreVersionExperimentTreatmentLocalizationCreateRequest{
-		Data: AppStoreVersionExperimentTreatmentLocalizationCreateData{
-			Type:       ResourceTypeAppStoreVersionExperimentTreatmentLocalizations,
-			Attributes: AppStoreVersionExperimentTreatmentLocalizationCreateAttributes{Locale: locale},
-			Relationships: &AppStoreVersionExperimentTreatmentLocalizationCreateRelationships{
-				AppStoreVersionExperimentTreatment: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppStoreVersionExperimentTreatments,
-						ID:   treatmentID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppStoreVersionExperimentTreatmentLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionExperimentTreatmentLocalizations", Payload: payload})
 }
