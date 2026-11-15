@@ -1,0 +1,358 @@
+package cmdtest
+
+import (
+	"strings"
+	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+)
+
+// Every list command reports a --limit or --next mistake with the same text
+// and in the same order: --limit, --next, flags given with --next, the parent
+// flag, then filters.
+
+type paginationMistakeCase struct {
+	args    []string
+	wantErr string // the first stderr line without "Error: "
+}
+
+// runPaginationMistakeCases runs each invalid invocation and requires exit
+// code 2, no stdout, and wantErr as the only "Error:" line. It reads both
+// os.Stderr and the deps streams, so a row keeps working when its command
+// moves onto shared.Deps.
+func runPaginationMistakeCases(t *testing.T, cases []paginationMistakeCase) {
+	t.Helper()
+
+	setupUsageExitCodeEnv(t)
+	for _, tc := range cases {
+		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
+			var depsStdout, depsStderr string
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				depsStdout, depsStderr, runErr = runRootWithDeps(t, nil, tc.args...)
+			})
+			if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, runErr)
+			}
+			if stdout+depsStdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout+depsStdout)
+			}
+			assertUsageErrorStderr(t, stderr+depsStderr, tc.wantErr)
+		})
+	}
+}
+
+const paginationMistakeNextURL = "https://api.appstoreconnect.apple.com/v1/apps?cursor=AAA&limit=50"
+
+func TestListsReportLimitWithTheirOwnPath(t *testing.T) {
+	runPaginationMistakeCases(t, []paginationMistakeCase{
+		{args: []string{"app-events", "localizations", "placements", "list", "--localization-id", "123456789", "--limit", "500"}, wantErr: "app-events localizations placements list: --limit must be between 1 and 200"},
+		{args: []string{"apps", "info", "view", "--app", "123456789", "--limit", "500"}, wantErr: "apps info view: --limit must be between 1 and 200"},
+		{args: []string{"apps", "list", "--limit", "500"}, wantErr: "apps list: --limit must be between 1 and 200"},
+		{args: []string{"apps", "public", "search", "--term", "123456789", "--limit", "0"}, wantErr: "apps public search: --limit must be between 1 and 200"},
+		{args: []string{"apps", "wall", "--limit", "500"}, wantErr: "apps wall: --limit must be between 1 and 200"},
+		{args: []string{"asset-library", "images", "list", "--library-id", "123456789", "--limit", "500"}, wantErr: "asset-library images list: --limit must be between 1 and 200"},
+		{args: []string{"asset-library", "images", "placements", "--id", "123456789", "--limit", "500"}, wantErr: "asset-library images placements: --limit must be between 1 and 200"},
+		{args: []string{"asset-library", "videos", "list", "--library-id", "123456789", "--limit", "500"}, wantErr: "asset-library videos list: --limit must be between 1 and 200"},
+		{args: []string{"asset-library", "videos", "placements", "--id", "123456789", "--limit", "500"}, wantErr: "asset-library videos placements: --limit must be between 1 and 200"},
+		{args: []string{"builds", "list", "--app", "123456789", "--limit", "500"}, wantErr: "builds list: --limit must be between 1 and 200"},
+		{args: []string{"builds", "metrics", "beta-usages", "--build-id", "123456789", "--limit", "500"}, wantErr: "builds metrics beta-usages: --limit must be between 1 and 200"},
+		{args: []string{"builds", "uploads", "list", "--app", "123456789", "--limit", "500"}, wantErr: "builds uploads list: --limit must be between 1 and 200"},
+		{args: []string{"bundle-ids", "list", "--limit", "500"}, wantErr: "bundle-ids list: --limit must be between 1 and 200"},
+		{args: []string{"categories", "subcategories", "--category-id", "123456789", "--limit", "500"}, wantErr: "categories subcategories: --limit must be between 1 and 200"},
+		{args: []string{"iap", "pricing", "availabilities", "available-territories", "--id", "123456789", "--limit", "500"}, wantErr: "iap pricing availabilities available-territories: --limit must be between 1 and 200"},
+		{args: []string{"iap", "pricing", "price-points", "list", "--iap-id", "123456789", "--limit", "500"}, wantErr: "iap pricing price-points list: --limit must be between 1 and 200"},
+		{args: []string{"iap", "promoted-purchases", "list", "--app", "123456789", "--limit", "500"}, wantErr: "iap promoted-purchases list: --limit must be between 1 and 200"},
+		{args: []string{"localizations", "placements", "list", "--localization-id", "123456789", "--limit", "500"}, wantErr: "localizations placements list: --limit must be between 1 and 200"},
+		{args: []string{"performance", "download", "--app", "123456789", "--limit", "500"}, wantErr: "performance download: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "list", "--app", "123456789", "--limit", "500"}, wantErr: "product-pages custom-pages list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "list", "--custom-page-version-id", "123456789", "--limit", "500"}, wantErr: "product-pages custom-pages localizations list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "placements", "list", "--localization-id", "123456789", "--limit", "500"}, wantErr: "product-pages custom-pages localizations placements list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--localization-id", "123456789", "--limit", "500"}, wantErr: "product-pages custom-pages localizations preview-sets list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--limit", "500"}, wantErr: "product-pages custom-pages localizations screenshot-sets list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "versions", "list", "--custom-page-id", "123456789", "--limit", "500"}, wantErr: "product-pages custom-pages versions list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "experiments", "list", "--version-id", "123456789", "--limit", "500"}, wantErr: "product-pages experiments list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "experiments", "treatments", "list", "--experiment-id", "123456789", "--limit", "500"}, wantErr: "product-pages experiments treatments list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "list", "--treatment-id", "123456789", "--limit", "500"}, wantErr: "product-pages experiments treatments localizations list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "placements", "list", "--localization-id", "123456789", "--limit", "500"}, wantErr: "product-pages experiments treatments localizations placements list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "list", "--localization-id", "123456789", "--limit", "500"}, wantErr: "product-pages experiments treatments localizations preview-sets list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--limit", "500"}, wantErr: "product-pages experiments treatments localizations screenshot-sets list: --limit must be between 1 and 200"},
+		{args: []string{"review", "history", "--app", "123456789", "--limit", "500"}, wantErr: "review history: --limit must be between 1 and 200"},
+		{args: []string{"review", "items", "list", "--submission", "123456789", "--limit", "500"}, wantErr: "review items list: --limit must be between 1 and 200"},
+		{args: []string{"review", "items-list", "--submission", "123456789", "--limit", "500"}, wantErr: "review items-list: --limit must be between 1 and 200"},
+		{args: []string{"review", "submissions", "list", "--app", "123456789", "--limit", "500"}, wantErr: "review submissions list: --limit must be between 1 and 200"},
+		{args: []string{"review", "submissions-items-ids", "--id", "123456789", "--limit", "500"}, wantErr: "review submissions-items-ids: --limit must be between 1 and 200"},
+		{args: []string{"review", "submissions-list", "--app", "123456789", "--limit", "500"}, wantErr: "review submissions-list: --limit must be between 1 and 200"},
+		{args: []string{"reviews", "list", "--app", "123456789", "--limit", "500"}, wantErr: "reviews list: --limit must be between 1 and 200"},
+		{args: []string{"screenshots", "list", "--limit", "500", "--set-id", "123456789"}, wantErr: "screenshots list: --limit must be between 1 and 200"},
+		{args: []string{"storekit", "groups", "members", "--group-id", "123456789", "--environment", "123456789", "--limit", "0"}, wantErr: "storekit groups members: --limit must be between 1 and 100"},
+		{args: []string{"subscriptions", "promoted-purchases", "list", "--app", "123456789", "--limit", "500"}, wantErr: "subscriptions promoted-purchases list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "images", "links", "--version-id", "123456789", "--limit", "500"}, wantErr: "subscriptions versions images links: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "images", "list", "--version-id", "123456789", "--limit", "500"}, wantErr: "subscriptions versions images list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "links", "--subscription-id", "123456789", "--limit", "500"}, wantErr: "subscriptions versions links: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "list", "--subscription-id", "123456789", "--limit", "500"}, wantErr: "subscriptions versions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "localizations", "links", "--version-id", "123456789", "--limit", "500"}, wantErr: "subscriptions versions localizations links: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "localizations", "list", "--version-id", "123456789", "--limit", "500"}, wantErr: "subscriptions versions localizations list: --limit must be between 1 and 200"},
+		{args: []string{"testflight", "agreements", "list", "--limit", "500"}, wantErr: "testflight agreements list: --limit must be between 1 and 200"},
+		{args: []string{"testflight", "groups", "list", "--app", "123456789", "--limit", "500"}, wantErr: "testflight groups list: --limit must be between 1 and 200"},
+		{args: []string{"testflight", "metrics", "app-testers", "--app", "123456789", "--limit", "500"}, wantErr: "testflight metrics app-testers: --limit must be between 1 and 200"},
+		{args: []string{"testflight", "testers", "list", "--app", "123456789", "--limit", "500"}, wantErr: "testflight testers list: --limit must be between 1 and 200"},
+		{args: []string{"testflight", "testers", "metrics", "--tester-id", "123456789", "--app", "123456789", "--limit", "500"}, wantErr: "testflight testers metrics: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "actions", "list", "--run-id", "123456789", "--limit", "500"}, wantErr: "xcode-cloud actions list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "build-runs", "list", "--workflow-id", "123456789", "--limit", "500"}, wantErr: "xcode-cloud build-runs list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "macos-versions", "list", "--limit", "500"}, wantErr: "xcode-cloud macos-versions list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "products", "list", "--limit", "500"}, wantErr: "xcode-cloud products list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "scm", "providers", "list", "--limit", "500"}, wantErr: "xcode-cloud scm providers list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "scm", "repositories", "list", "--limit", "500"}, wantErr: "xcode-cloud scm repositories list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "workflows", "list", "--app", "123456789", "--limit", "500"}, wantErr: "xcode-cloud workflows list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "xcode-versions", "list", "--limit", "500"}, wantErr: "xcode-cloud xcode-versions list: --limit must be between 1 and 200"},
+	})
+}
+
+func TestListsReportNextWithTheirOwnPath(t *testing.T) {
+	runPaginationMistakeCases(t, []paginationMistakeCase{
+		{args: []string{"apps", "info", "view", "--app", "123456789", "--next", "bad"}, wantErr: "apps info view: --next must be an App Store Connect URL"},
+		{args: []string{"apps", "list", "--next", "bad"}, wantErr: "apps list: --next must be an App Store Connect URL"},
+		{args: []string{"asset-library", "images", "list", "--library-id", "123456789", "--next", "bad"}, wantErr: "asset-library images list: --next must be an App Store Connect URL"},
+		{args: []string{"asset-library", "images", "placements", "--id", "123456789", "--next", "bad"}, wantErr: "asset-library images placements: --next must be an App Store Connect URL"},
+		{args: []string{"asset-library", "videos", "list", "--library-id", "123456789", "--next", "bad"}, wantErr: "asset-library videos list: --next must be an App Store Connect URL"},
+		{args: []string{"asset-library", "videos", "placements", "--id", "123456789", "--next", "bad"}, wantErr: "asset-library videos placements: --next must be an App Store Connect URL"},
+		{args: []string{"builds", "list", "--app", "123456789", "--next", "bad"}, wantErr: "builds list: --next must be an App Store Connect URL"},
+		{args: []string{"iap", "pricing", "availabilities", "available-territories", "--id", "123456789", "--next", "bad"}, wantErr: "iap pricing availabilities available-territories: --next must be an App Store Connect URL"},
+		{args: []string{"iap", "pricing", "price-points", "list", "--iap-id", "123456789", "--next", "bad"}, wantErr: "iap pricing price-points list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "custom-pages", "list", "--app", "123456789", "--next", "bad"}, wantErr: "product-pages custom-pages list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "list", "--custom-page-version-id", "123456789", "--next", "bad"}, wantErr: "product-pages custom-pages localizations list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--localization-id", "123456789", "--next", "bad"}, wantErr: "product-pages custom-pages localizations preview-sets list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", "bad"}, wantErr: "product-pages custom-pages localizations screenshot-sets list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "custom-pages", "versions", "list", "--custom-page-id", "123456789", "--next", "bad"}, wantErr: "product-pages custom-pages versions list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "experiments", "list", "--version-id", "123456789", "--next", "bad"}, wantErr: "product-pages experiments list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "experiments", "treatments", "list", "--experiment-id", "123456789", "--next", "bad"}, wantErr: "product-pages experiments treatments list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "list", "--treatment-id", "123456789", "--next", "bad"}, wantErr: "product-pages experiments treatments localizations list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "list", "--localization-id", "123456789", "--next", "bad"}, wantErr: "product-pages experiments treatments localizations preview-sets list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", "bad"}, wantErr: "product-pages experiments treatments localizations screenshot-sets list: --next must be an App Store Connect URL"},
+		{args: []string{"reviews", "list", "--app", "123456789", "--next", "bad"}, wantErr: "reviews list: --next must be an App Store Connect URL"},
+		{args: []string{"testflight", "agreements", "list", "--next", "bad"}, wantErr: "testflight agreements list: --next must be an App Store Connect URL"},
+		{args: []string{"testflight", "groups", "list", "--app", "123456789", "--next", "bad"}, wantErr: "testflight groups list: --next must be an App Store Connect URL"},
+		{args: []string{"testflight", "testers", "list", "--app", "123456789", "--next", "bad"}, wantErr: "testflight testers list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "actions", "list", "--run-id", "123456789", "--next", "bad"}, wantErr: "xcode-cloud actions list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "build-runs", "list", "--workflow-id", "123456789", "--next", "bad"}, wantErr: "xcode-cloud build-runs list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "macos-versions", "list", "--next", "bad"}, wantErr: "xcode-cloud macos-versions list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "products", "list", "--next", "bad"}, wantErr: "xcode-cloud products list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "scm", "providers", "list", "--next", "bad"}, wantErr: "xcode-cloud scm providers list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "scm", "repositories", "list", "--next", "bad"}, wantErr: "xcode-cloud scm repositories list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "workflows", "list", "--app", "123456789", "--next", "bad"}, wantErr: "xcode-cloud workflows list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "xcode-versions", "list", "--next", "bad"}, wantErr: "xcode-cloud xcode-versions list: --next must be an App Store Connect URL"},
+	})
+}
+
+func TestListsReportNextConflictsWithTheirOwnPath(t *testing.T) {
+	runPaginationMistakeCases(t, []paginationMistakeCase{
+		{args: []string{"apps", "info", "view", "--app", "123456789", "--next", paginationMistakeNextURL, "--age-rating-fields", "123456789"}, wantErr: "apps info view: --next cannot be combined with --age-rating-fields"},
+		{args: []string{"apps", "list", "--next", paginationMistakeNextURL, "--app-info-fields", "123456789"}, wantErr: "apps list: --next cannot be combined with --app-info-fields"},
+		{args: []string{"asset-library", "images", "list", "--library-id", "123456789", "--next", paginationMistakeNextURL, "--category", "123456789"}, wantErr: "asset-library images list: --next cannot be combined with --category"},
+		{args: []string{"asset-library", "images", "placements", "--id", "123456789", "--next", paginationMistakeNextURL, "--custom-page-localization", "123456789"}, wantErr: "asset-library images placements: --next cannot be combined with --custom-page-localization"},
+		{args: []string{"asset-library", "videos", "list", "--library-id", "123456789", "--next", paginationMistakeNextURL, "--category", "123456789"}, wantErr: "asset-library videos list: --next cannot be combined with --category"},
+		{args: []string{"asset-library", "videos", "placements", "--id", "123456789", "--next", paginationMistakeNextURL, "--custom-page-localization", "123456789"}, wantErr: "asset-library videos placements: --next cannot be combined with --custom-page-localization"},
+		{args: []string{"iap", "pricing", "price-points", "list", "--iap-id", "123456789", "--next", paginationMistakeNextURL, "--include", "123456789"}, wantErr: "iap pricing price-points list: --next cannot be combined with --include"},
+		{args: []string{"iap", "promoted-purchases", "list", "--app", "123456789", "--next", paginationMistakeNextURL, "--iap-fields", "123456789"}, wantErr: "iap promoted-purchases list: --next cannot be combined with --iap-fields"},
+		{args: []string{"product-pages", "custom-pages", "list", "--app", "123456789", "--next", paginationMistakeNextURL, "--app-fields", "123456789"}, wantErr: "product-pages custom-pages list: --next cannot be combined with --app-fields"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "list", "--custom-page-version-id", "123456789", "--next", paginationMistakeNextURL, "--include", "123456789"}, wantErr: "product-pages custom-pages localizations list: --next cannot be combined with --include"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", paginationMistakeNextURL, "--include-screenshots"}, wantErr: "product-pages custom-pages localizations screenshot-sets list: --next cannot be combined with --include-screenshots"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "list", "--treatment-id", "123456789", "--next", paginationMistakeNextURL, "--include", "123456789"}, wantErr: "product-pages experiments treatments localizations list: --next cannot be combined with --include"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", paginationMistakeNextURL, "--include-screenshots"}, wantErr: "product-pages experiments treatments localizations screenshot-sets list: --next cannot be combined with --include-screenshots"},
+		{args: []string{"reviews", "list", "--app", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "reviews list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "groups", "list", "--app", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions groups list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "groups", "versions", "list", "--group-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions groups versions list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "groups", "versions", "localizations", "list", "--version-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions groups versions localizations list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "list", "--group-id", "123456789", "--next", paginationMistakeNextURL, "--app", "123456789"}, wantErr: "subscriptions list: --next cannot be combined with --app"},
+		{args: []string{"subscriptions", "offers", "introductory", "list", "--subscription-id", "123456789", "--next", paginationMistakeNextURL, "--include", "123456789"}, wantErr: "subscriptions offers introductory list: --next cannot be combined with --include"},
+		{args: []string{"subscriptions", "offers", "offer-codes", "list", "--subscription-id", "123456789", "--next", paginationMistakeNextURL, "--subscription-fields", "123456789"}, wantErr: "subscriptions offers offer-codes list: --next cannot be combined with --subscription-fields"},
+		{args: []string{"subscriptions", "offers", "offer-codes", "prices", "--offer-code-id", "123456789", "--next", paginationMistakeNextURL, "--price-point-fields", "123456789"}, wantErr: "subscriptions offers offer-codes prices: --next cannot be combined with --price-point-fields"},
+		{args: []string{"subscriptions", "offers", "promotional", "list", "--subscription-id", "123456789", "--next", paginationMistakeNextURL, "--subscription-fields", "123456789"}, wantErr: "subscriptions offers promotional list: --next cannot be combined with --subscription-fields"},
+		{args: []string{"subscriptions", "offers", "promotional", "prices", "--id", "123456789", "--next", paginationMistakeNextURL, "--price-point-fields", "123456789"}, wantErr: "subscriptions offers promotional prices: --next cannot be combined with --price-point-fields"},
+		{args: []string{"subscriptions", "offers", "retention", "list", "--subscription-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions offers retention list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "offers", "retention", "presented", "list", "--subscription-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions offers retention presented list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "offers", "retention", "prices", "list", "--id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions offers retention prices list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--price-point-id", "123456789", "--upfront-price-point-id", "123456789", "--plan-type", "MONTHLY", "--next", paginationMistakeNextURL, "--paginate"}, wantErr: "subscriptions pricing price-points adjusted-equalizations: --next cannot be combined with --upfront-price-point-id"},
+		{args: []string{"subscriptions", "pricing", "price-points", "equalizations", "--price-point-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions pricing price-points equalizations: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions pricing price-points list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "pricing", "prices", "list", "--subscription-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions pricing prices list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "promoted-purchases", "list", "--app", "123456789", "--next", paginationMistakeNextURL, "--iap-fields", "123456789"}, wantErr: "subscriptions promoted-purchases list: --next cannot be combined with --iap-fields"},
+		{args: []string{"subscriptions", "versions", "images", "list", "--version-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions versions images list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "versions", "list", "--subscription-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions versions list: --next cannot be combined with --fields"},
+		{args: []string{"subscriptions", "versions", "localizations", "list", "--version-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "subscriptions versions localizations list: --next cannot be combined with --fields"},
+		{args: []string{"testflight", "groups", "list", "--app", "123456789", "--next", paginationMistakeNextURL, "--app-fields", "123456789"}, wantErr: "testflight groups list: --next cannot be combined with --app-fields"},
+		{args: []string{"versions", "customer-reviews", "list", "--version-id", "123456789", "--next", paginationMistakeNextURL, "--fields", "123456789"}, wantErr: "versions customer-reviews list: --next cannot be combined with --fields"},
+		{args: []string{"xcode-cloud", "products", "list", "--next", paginationMistakeNextURL, "--app-fields", "123456789"}, wantErr: "xcode-cloud products list: --next cannot be combined with --app-fields"},
+	})
+}
+
+func TestListsCheckLimitFirst(t *testing.T) {
+	runPaginationMistakeCases(t, []paginationMistakeCase{
+		{args: []string{"accessibility", "list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "accessibility list: --limit must be between 1 and 200"},
+		{args: []string{"actors", "list", "--id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "actors list: --limit must be between 1 and 200"},
+		{args: []string{"agreements", "territories", "list", "--limit", "500"}, wantErr: "agreements territories list: --limit must be between 1 and 200"},
+		{args: []string{"alternative-distribution", "packages", "versions", "deltas", "--limit", "500"}, wantErr: "alternative-distribution packages versions deltas: --limit must be between 1 and 200"},
+		{args: []string{"alternative-distribution", "packages", "versions", "list", "--limit", "500"}, wantErr: "alternative-distribution packages versions list: --limit must be between 1 and 200"},
+		{args: []string{"alternative-distribution", "packages", "versions", "variants", "--limit", "500"}, wantErr: "alternative-distribution packages versions variants: --limit must be between 1 and 200"},
+		{args: []string{"analytics", "view", "--limit", "500"}, wantErr: "analytics view: --limit must be between 1 and 200"},
+		{args: []string{"analytics", "view", "--request-id", "123456789", "--limit", "500"}, wantErr: "analytics view: --limit must be between 1 and 200"},
+		{args: []string{"android-ios-mapping", "list", "--limit", "500"}, wantErr: "android-ios-mapping list: --limit must be between 1 and 200"},
+		{args: []string{"app-events", "list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "app-events list: --limit must be between 1 and 200"},
+		{args: []string{"app-events", "localizations", "list", "--limit", "500"}, wantErr: "app-events localizations list: --limit must be between 1 and 200"},
+		{args: []string{"app-tags", "territories", "--limit", "500"}, wantErr: "app-tags territories: --limit must be between 1 and 200"},
+		{args: []string{"app-tags", "territories-links", "--limit", "500"}, wantErr: "app-tags territories-links: --limit must be between 1 and 200"},
+		{args: []string{"apps", "public", "search", "--limit", "500"}, wantErr: "apps public search: --limit must be between 1 and 200"},
+		{args: []string{"background-assets", "list", "--limit", "500"}, wantErr: "background-assets list: --limit must be between 1 and 200"},
+		{args: []string{"background-assets", "upload-files", "list", "--limit", "500"}, wantErr: "background-assets upload-files list: --limit must be between 1 and 200"},
+		{args: []string{"background-assets", "versions", "list", "--limit", "500"}, wantErr: "background-assets versions list: --limit must be between 1 and 200"},
+		{args: []string{"bundle-ids", "list", "--limit", "500", "--next", "bad"}, wantErr: "bundle-ids list: --limit must be between 1 and 200"},
+		{args: []string{"bundle-ids", "profiles", "list", "--limit", "500"}, wantErr: "bundle-ids profiles list: --limit must be between 1 and 200"},
+		{args: []string{"categories", "list", "--limit", "500", "--next", "bad"}, wantErr: "categories list: --limit must be between 1 and 200"},
+		{args: []string{"categories", "subcategories", "--category-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "categories subcategories: --limit must be between 1 and 200"},
+		{args: []string{"certificates", "list", "--limit", "500", "--next", "bad"}, wantErr: "certificates list: --limit must be between 1 and 200"},
+		{args: []string{"iap", "list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "iap list: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "images", "list", "--limit", "500"}, wantErr: "iap versions images list: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "images", "list", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "iap versions images list: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "links", "images", "--limit", "500"}, wantErr: "iap versions links images: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "links", "images", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "iap versions links images: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "links", "localizations", "--limit", "500"}, wantErr: "iap versions links localizations: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "links", "localizations", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "iap versions links localizations: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "links", "versions", "--limit", "500"}, wantErr: "iap versions links versions: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "links", "versions", "--iap-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "iap versions links versions: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "list", "--limit", "500"}, wantErr: "iap versions list: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "list", "--iap-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "iap versions list: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "localizations", "list", "--limit", "500"}, wantErr: "iap versions localizations list: --limit must be between 1 and 200"},
+		{args: []string{"iap", "versions", "localizations", "list", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "iap versions localizations list: --limit must be between 1 and 200"},
+		{args: []string{"localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--limit", "500", "--include", "123456789"}, wantErr: "localizations screenshot-sets list: --limit must be between 1 and 200"},
+		{args: []string{"merchant-ids", "certificates", "list", "--limit", "500"}, wantErr: "merchant-ids certificates list: --limit must be between 1 and 200"},
+		{args: []string{"merchant-ids", "certificates", "view", "--limit", "500"}, wantErr: "merchant-ids certificates view: --limit must be between 1 and 200"},
+		{args: []string{"merchant-ids", "list", "--limit", "500", "--next", "bad"}, wantErr: "merchant-ids list: --limit must be between 1 and 200"},
+		{args: []string{"pass-type-ids", "list", "--limit", "500", "--next", "bad"}, wantErr: "pass-type-ids list: --limit must be between 1 and 200"},
+		{args: []string{"performance", "diagnostics", "list", "--limit", "500"}, wantErr: "performance diagnostics list: --limit must be between 1 and 200"},
+		{args: []string{"performance", "diagnostics", "view", "--limit", "500"}, wantErr: "performance diagnostics view: --limit must be between 1 and 200"},
+		{args: []string{"performance", "download", "--limit", "500"}, wantErr: "performance download: --limit must be between 1 and 200"},
+		{args: []string{"performance", "download", "--app", "123456789", "--limit", "500", "--build-id", "123456789"}, wantErr: "performance download: --limit must be between 1 and 200"},
+		{args: []string{"pricing", "availability", "territory-availabilities", "--app", "123456789", "--limit", "500", "--availability", "123456789"}, wantErr: "pricing availability territory-availabilities: --limit must be between 1 and 200"},
+		{args: []string{"pricing", "price-points", "equalizations", "--price-point", "123456789", "--limit", "500", "--include", "123456789"}, wantErr: "pricing price-points equalizations: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "product-pages custom-pages list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--limit", "500"}, wantErr: "product-pages custom-pages localizations preview-sets list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--limit", "500"}, wantErr: "product-pages custom-pages localizations screenshot-sets list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "preview-sets", "list", "--limit", "500"}, wantErr: "product-pages experiments treatments localizations preview-sets list: --limit must be between 1 and 200"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list", "--limit", "500"}, wantErr: "product-pages experiments treatments localizations screenshot-sets list: --limit must be between 1 and 200"},
+		{args: []string{"profiles", "links", "certificates", "--limit", "500"}, wantErr: "profiles links certificates: --limit must be between 1 and 200"},
+		{args: []string{"profiles", "links", "devices", "--limit", "500"}, wantErr: "profiles links devices: --limit must be between 1 and 200"},
+		{args: []string{"profiles", "list", "--limit", "500", "--include-stale"}, wantErr: "profiles list: --limit must be between 1 and 200"},
+		{args: []string{"profiles", "list", "--limit", "500", "--next", "bad"}, wantErr: "profiles list: --limit must be between 1 and 200"},
+		{args: []string{"review", "attachments-list", "--review-detail", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "review attachments-list: --limit must be between 1 and 200"},
+		{args: []string{"review", "items", "list", "--submission", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "review items list: --limit must be between 1 and 200"},
+		{args: []string{"review", "items-list", "--submission", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "review items-list: --limit must be between 1 and 200"},
+		{args: []string{"review", "submissions", "list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "review submissions list: --limit must be between 1 and 200"},
+		{args: []string{"review", "submissions-items-ids", "--limit", "500"}, wantErr: "review submissions-items-ids: --limit must be between 1 and 200"},
+		{args: []string{"review", "submissions-items-ids", "--id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "review submissions-items-ids: --limit must be between 1 and 200"},
+		{args: []string{"review", "submissions-list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "review submissions-list: --limit must be between 1 and 200"},
+		{args: []string{"reviews", "--limit", "500"}, wantErr: "reviews: --limit must be between 1 and 200"},
+		{args: []string{"reviews", "--limit", "500", "--next", "bad"}, wantErr: "reviews: --limit must be between 1 and 200"},
+		{args: []string{"reviews", "list", "--limit", "500"}, wantErr: "reviews list: --limit must be between 1 and 200"},
+		{args: []string{"reviews", "list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "reviews list: --limit must be between 1 and 200"},
+		{args: []string{"reviews", "summarizations", "--app", "123456789", "--platform", "IOS", "--limit", "500", "--next", "bad"}, wantErr: "reviews summarizations: --limit must be between 1 and 200"},
+		{args: []string{"screenshots", "list", "--limit", "500"}, wantErr: "screenshots list: --limit must be between 1 and 200"},
+		{args: []string{"storekit", "groups", "members", "--limit", "500"}, wantErr: "storekit groups members: --limit must be between 1 and 100"},
+		{args: []string{"subscriptions", "groups", "versions", "links", "localizations", "--limit", "500"}, wantErr: "subscriptions groups versions links localizations: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "groups", "versions", "links", "localizations", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions groups versions links localizations: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "groups", "versions", "links", "versions", "--limit", "500"}, wantErr: "subscriptions groups versions links versions: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "groups", "versions", "links", "versions", "--group-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions groups versions links versions: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "groups", "versions", "list", "--limit", "500"}, wantErr: "subscriptions groups versions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "groups", "versions", "list", "--group-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions groups versions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "groups", "versions", "localizations", "list", "--limit", "500"}, wantErr: "subscriptions groups versions localizations list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "groups", "versions", "localizations", "list", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions groups versions localizations list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions pricing price-points list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "links", "localizations", "--limit", "500"}, wantErr: "subscriptions retention-messages links localizations: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "links", "localizations", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions retention-messages links localizations: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "links", "messages", "--limit", "500"}, wantErr: "subscriptions retention-messages links messages: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "links", "messages", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions retention-messages links messages: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "links", "subscriptions", "--limit", "500"}, wantErr: "subscriptions retention-messages links subscriptions: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "links", "subscriptions", "--message-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions retention-messages links subscriptions: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "links", "versions", "--limit", "500"}, wantErr: "subscriptions retention-messages links versions: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "links", "versions", "--message-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions retention-messages links versions: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "list", "--limit", "500"}, wantErr: "subscriptions retention-messages list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions retention-messages list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "list", "--app", "123456789", "--limit", "500", "--fields", "123456789"}, wantErr: "subscriptions retention-messages list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "localizations", "list", "--limit", "500"}, wantErr: "subscriptions retention-messages localizations list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "localizations", "list", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions retention-messages localizations list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "localizations", "list", "--version-id", "123456789", "--limit", "500", "--fields", "123456789"}, wantErr: "subscriptions retention-messages localizations list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "subscriptions", "list", "--limit", "500"}, wantErr: "subscriptions retention-messages subscriptions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "subscriptions", "list", "--message-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions retention-messages subscriptions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "subscriptions", "list", "--message-id", "123456789", "--limit", "500", "--fields", "123456789"}, wantErr: "subscriptions retention-messages subscriptions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "versions", "list", "--limit", "500"}, wantErr: "subscriptions retention-messages versions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "versions", "list", "--message-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions retention-messages versions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "retention-messages", "versions", "list", "--message-id", "123456789", "--limit", "500", "--fields", "123456789"}, wantErr: "subscriptions retention-messages versions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "images", "links", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions versions images links: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "images", "list", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions versions images list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "links", "--subscription-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions versions links: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "list", "--subscription-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions versions list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "localizations", "links", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions versions localizations links: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "versions", "localizations", "list", "--version-id", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "subscriptions versions localizations list: --limit must be between 1 and 200"},
+		{args: []string{"testflight", "review", "submissions", "list", "--limit", "500"}, wantErr: "testflight review submissions list: --limit must be between 1 and 200"},
+		{args: []string{"users", "invites", "visible-apps", "list", "--limit", "500"}, wantErr: "users invites visible-apps list: --limit must be between 1 and 200"},
+		{args: []string{"users", "list", "--limit", "500", "--next", "bad"}, wantErr: "users list: --limit must be between 1 and 200"},
+		{args: []string{"users", "visible-apps", "list", "--limit", "500"}, wantErr: "users visible-apps list: --limit must be between 1 and 200"},
+		{args: []string{"users", "visible-apps", "view", "--limit", "500"}, wantErr: "users visible-apps view: --limit must be between 1 and 200"},
+		{args: []string{"webhooks", "deliveries", "--limit", "500"}, wantErr: "webhooks deliveries: --limit must be between 1 and 200"},
+		{args: []string{"webhooks", "deliveries", "links", "--limit", "500"}, wantErr: "webhooks deliveries links: --limit must be between 1 and 200"},
+		{args: []string{"webhooks", "list", "--limit", "500"}, wantErr: "webhooks list: --limit must be between 1 and 200"},
+		{args: []string{"webhooks", "list", "--app", "123456789", "--limit", "500", "--next", "bad"}, wantErr: "webhooks list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "actions", "--limit", "500"}, wantErr: "xcode-cloud actions: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "actions", "list", "--limit", "500"}, wantErr: "xcode-cloud actions list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "artifacts", "list", "--action-id", "123456789", "--limit", "500", "--run-id", "123456789"}, wantErr: "xcode-cloud artifacts list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "build-runs", "--limit", "500"}, wantErr: "xcode-cloud build-runs: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "build-runs", "--limit", "500", "--sort", "-createdDate"}, wantErr: "xcode-cloud build-runs: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "build-runs", "builds", "--limit", "500"}, wantErr: "xcode-cloud build-runs builds: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "build-runs", "list", "--limit", "500"}, wantErr: "xcode-cloud build-runs list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "build-runs", "list", "--workflow-id", "123456789", "--limit", "500", "--sort", "-createdDate"}, wantErr: "xcode-cloud build-runs list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "issues", "list", "--action-id", "123456789", "--limit", "500", "--run-id", "123456789"}, wantErr: "xcode-cloud issues list: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "test-results", "list", "--action-id", "123456789", "--limit", "500", "--run-id", "123456789"}, wantErr: "xcode-cloud test-results list: --limit must be between 1 and 200"},
+	})
+}
+
+func TestListsCheckNextBeforeConflictsParentAndFilters(t *testing.T) {
+	runPaginationMistakeCases(t, []paginationMistakeCase{
+		{args: []string{"analytics", "view", "--request-id", "123456789", "--next", "bad"}, wantErr: "analytics view: --next must be an App Store Connect URL"},
+		{args: []string{"apps", "app-encryption-declarations", "list", "--id", "123456789", "--next", "bad", "--build-limit", "123456789"}, wantErr: "apps app-encryption-declarations list: --next must be an App Store Connect URL"},
+		{args: []string{"apps", "app-encryption-declarations", "list", "--id", "123456789", "--next", paginationMistakeNextURL, "--build-limit", "123456789"}, wantErr: "apps app-encryption-declarations list: --next cannot be combined with --build-limit"},
+		{args: []string{"apps", "list", "--next", paginationMistakeNextURL, "--sort", "-createdDate"}, wantErr: "apps list: --next cannot be combined with --sort"},
+		{args: []string{"builds", "list", "--app", "123456789", "--next", paginationMistakeNextURL, "--processing-state", "123456789"}, wantErr: "builds list: --next cannot be combined with --processing-state"},
+		{args: []string{"encryption", "declarations", "list", "--app", "123456789", "--next", "bad", "--build-limit", "123456789"}, wantErr: "encryption declarations list: --next must be an App Store Connect URL"},
+		{args: []string{"encryption", "declarations", "list", "--app", "123456789", "--next", paginationMistakeNextURL, "--build-limit", "123456789"}, wantErr: "encryption declarations list: --next cannot be combined with --build-limit"},
+		{args: []string{"iap", "pricing", "price-points", "equalizations", "--id", "123456789", "--next", "bad", "--territory-fields", "123456789"}, wantErr: "iap pricing price-points equalizations: --next must be an App Store Connect URL"},
+		{args: []string{"iap", "pricing", "price-points", "equalizations", "--id", "123456789", "--next", "bad", "--include", "123456789"}, wantErr: "iap pricing price-points equalizations: --next must be an App Store Connect URL"},
+		{args: []string{"iap", "pricing", "price-points", "equalizations", "--id", "123456789", "--next", paginationMistakeNextURL, "--include", "123456789"}, wantErr: "iap pricing price-points equalizations: --next cannot be combined with --include"},
+		{args: []string{"iap", "versions", "images", "list", "--version-id", "123456789", "--next", "bad", "--image-fields", "123456789"}, wantErr: "iap versions images list: --next must be an App Store Connect URL"},
+		{args: []string{"iap", "versions", "list", "--iap-id", "123456789", "--next", "bad", "--iap-fields", "123456789"}, wantErr: "iap versions list: --next must be an App Store Connect URL"},
+		{args: []string{"iap", "versions", "localizations", "list", "--version-id", "123456789", "--next", "bad", "--include", "123456789"}, wantErr: "iap versions localizations list: --next must be an App Store Connect URL"},
+		{args: []string{"localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", "bad", "--screenshot-fields", "123456789"}, wantErr: "localizations screenshot-sets list: --next must be an App Store Connect URL"},
+		{args: []string{"localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", "bad", "--include", "123456789"}, wantErr: "localizations screenshot-sets list: --next must be an App Store Connect URL"},
+		{args: []string{"localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", paginationMistakeNextURL, "--include", "123456789"}, wantErr: "localizations screenshot-sets list: --next cannot be combined with --include"},
+		{args: []string{"performance", "diagnostics", "list", "--build-id", "123456789", "--next", "bad", "--diagnostic-type", "123456789"}, wantErr: "performance diagnostics list: --next must be an App Store Connect URL"},
+		{args: []string{"performance", "diagnostics", "list", "--next", "bad"}, wantErr: "performance diagnostics list: --next must be an App Store Connect URL"},
+		{args: []string{"pricing", "availability", "territory-availabilities", "--app", "123456789", "--next", "bad", "--availability", "123456789"}, wantErr: "pricing availability territory-availabilities: --next must be an App Store Connect URL"},
+		{args: []string{"pricing", "price-points", "equalizations", "--price-point", "123456789", "--next", "bad", "--territory-fields", "123456789"}, wantErr: "pricing price-points equalizations: --next must be an App Store Connect URL"},
+		{args: []string{"pricing", "price-points", "equalizations", "--price-point", "123456789", "--next", "bad", "--include", "123456789"}, wantErr: "pricing price-points equalizations: --next must be an App Store Connect URL"},
+		{args: []string{"pricing", "price-points", "equalizations", "--price-point", "123456789", "--next", paginationMistakeNextURL, "--include", "123456789"}, wantErr: "pricing price-points equalizations: --next cannot be combined with --include"},
+		{args: []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", "bad", "--include-screenshots"}, wantErr: "product-pages custom-pages localizations screenshot-sets list: --next must be an App Store Connect URL"},
+		{args: []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list", "--localization-id", "123456789", "--next", "bad", "--include-screenshots"}, wantErr: "product-pages experiments treatments localizations screenshot-sets list: --next must be an App Store Connect URL"},
+		{args: []string{"subscriptions", "groups", "versions", "list", "--group-id", "123456789", "--next", "bad", "--fields", "123456789"}, wantErr: "subscriptions groups versions list: --next must be an App Store Connect URL"},
+		{args: []string{"subscriptions", "groups", "versions", "localizations", "list", "--version-id", "123456789", "--next", "bad", "--fields", "123456789"}, wantErr: "subscriptions groups versions localizations list: --next must be an App Store Connect URL"},
+		{args: []string{"subscriptions", "list", "--group-id", "123456789", "--next", paginationMistakeNextURL, "--versions-limit", "123456789"}, wantErr: "subscriptions list: --next cannot be combined with --versions-limit"},
+		{args: []string{"subscriptions", "versions", "images", "list", "--version-id", "123456789", "--next", "bad", "--fields", "123456789"}, wantErr: "subscriptions versions images list: --next must be an App Store Connect URL"},
+		{args: []string{"subscriptions", "versions", "list", "--subscription-id", "123456789", "--next", "bad", "--fields", "123456789"}, wantErr: "subscriptions versions list: --next must be an App Store Connect URL"},
+		{args: []string{"subscriptions", "versions", "localizations", "list", "--version-id", "123456789", "--next", "bad", "--fields", "123456789"}, wantErr: "subscriptions versions localizations list: --next must be an App Store Connect URL"},
+		{args: []string{"testflight", "review", "submissions", "list", "--next", "bad"}, wantErr: "testflight review submissions list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "artifacts", "list", "--action-id", "123456789", "--next", "bad", "--run-id", "123456789"}, wantErr: "xcode-cloud artifacts list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "build-runs", "--next", "bad", "--sort", "-createdDate"}, wantErr: "xcode-cloud build-runs: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "build-runs", "list", "--workflow-id", "123456789", "--next", "bad", "--sort", "-createdDate"}, wantErr: "xcode-cloud build-runs list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "build-runs", "list", "--workflow-id", "123456789", "--next", paginationMistakeNextURL, "--sort", "-createdDate"}, wantErr: "xcode-cloud build-runs list: --next cannot be combined with --sort"},
+		{args: []string{"xcode-cloud", "issues", "list", "--action-id", "123456789", "--next", "bad", "--run-id", "123456789"}, wantErr: "xcode-cloud issues list: --next must be an App Store Connect URL"},
+		{args: []string{"xcode-cloud", "test-results", "list", "--action-id", "123456789", "--next", "bad", "--run-id", "123456789"}, wantErr: "xcode-cloud test-results list: --next must be an App Store Connect URL"},
+	})
+}
