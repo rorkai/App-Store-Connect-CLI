@@ -258,7 +258,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return telemetrycmd.NewTelemetryCommand(d)
 		}),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
-			return searchcmd.SearchCommand(catalog.All)
+			return searchcmd.NewSearchCommand(d, catalog.All)
 		}),
 		commandFactory("snitch", "Report CLI friction as a GitHub issue.", func() *ffcli.Command {
 			return snitch.SnitchCommand(version)
