@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -827,6 +828,8 @@ func detectXcodeContainer(fs *flag.FlagSet, workspacePath, projectPath *string, 
 			projects = append(projects, entry.Name())
 		}
 	}
+	slices.Sort(workspaces)
+	slices.Sort(projects)
 	for _, kind := range []struct {
 		name  string
 		found []string
