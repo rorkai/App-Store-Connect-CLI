@@ -25,12 +25,22 @@ import (
 // `make test`, and by the first test binary for the helper processes it starts.
 const isolatedVariable = "ASC_TEST_ENV_ISOLATED"
 
-// keptVariables are the test switches that `make test` also passes through
-// (TEST_ENV_PASSTHROUGH in the Makefile).
-var keptVariables = map[string]bool{
-	"ASC_UPDATE_GOLDEN":                      true,
-	"ASC_SIGNING_RUN_LIVE_TEST":              true,
-	"ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST": true,
+// credentialVariables carry credentials, select an account, app or config,
+// or name a destination that receives data. Names ending in "_" are prefixes.
+var credentialVariables = []string{
+	"ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY", "ASC_KEY_TYPE", "ASC_BEARER_TOKEN",
+	"ASC_PROFILE", "ASC_CONFIG_PATH", "ASC_APP_ID", "ASC_VENDOR_NUMBER", "ASC_ANALYTICS_VENDOR_NUMBER",
+	"ASC_DEMO_ACCOUNT_PASSWORD", "ASC_SIGNING_SYNC_PASSWORD", "ASC_SLACK_WEBHOOK", "ASC_TELEMETRY_ENDPOINT",
+	"ASC_PRIVATE_KEY_", "ASC_BEARER_TOKEN_", "ASC_ADS_", "ASC_STOREKIT_", "ASC_WEB_", "ASC_S3_",
+}
+
+func isCredentialVariable(name string) bool {
+	for _, credential := range credentialVariables {
+		if name == credential || strings.HasSuffix(credential, "_") && strings.HasPrefix(name, credential) {
+			return true
+		}
+	}
+	return false
 }
 
 var active = testing.Testing() && !integrationBuild
@@ -45,12 +55,10 @@ func init() {
 	}
 	if os.Getenv(isolatedVariable) == "" {
 		for _, entry := range os.Environ() {
-			name, _, _ := strings.Cut(entry, "=")
-			if strings.HasPrefix(name, "ASC_") && !keptVariables[name] {
+			if name, _, _ := strings.Cut(entry, "="); isCredentialVariable(name) {
 				_ = os.Unsetenv(name)
 			}
 		}
-		_ = os.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		_ = os.Setenv(isolatedVariable, "1")
 	}
 

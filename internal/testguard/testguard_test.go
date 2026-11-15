@@ -54,7 +54,7 @@ func TestOpenKeyringRefusesTheSystemKeychain(t *testing.T) {
 
 const reportVariable = "TESTGUARD_REPORT_ENV"
 
-func TestTestBinaryDropsInheritedASCVariablesOnce(t *testing.T) {
+func TestTestBinaryDropsInheritedCredentialVariablesOnce(t *testing.T) {
 	if os.Getenv(reportVariable) == "1" {
 		report := map[string]string{}
 		for _, entry := range os.Environ() {
@@ -74,7 +74,7 @@ func TestTestBinaryDropsInheritedASCVariablesOnce(t *testing.T) {
 	}
 	run := func(env ...string) map[string]string {
 		t.Helper()
-		cmd := exec.Command(os.Args[0], "-test.run=^TestTestBinaryDropsInheritedASCVariablesOnce$")
+		cmd := exec.Command(os.Args[0], "-test.run=^TestTestBinaryDropsInheritedCredentialVariablesOnce$")
 		cmd.Env = append(append(append([]string(nil), inherited...), reportVariable+"=1"), env...)
 		var stdout bytes.Buffer
 		cmd.Stdout = &stdout
@@ -88,14 +88,16 @@ func TestTestBinaryDropsInheritedASCVariablesOnce(t *testing.T) {
 		return report
 	}
 
-	fromShell := run("ASC_KEY_ID=developer-key", "ASC_CONFIG_PATH=/developer/config.json", "ASC_BYPASS_KEYCHAIN=0", "ASC_UPDATE_GOLDEN=1")
-	want := map[string]string{"ASC_BYPASS_KEYCHAIN": "1", isolatedVariable: "1", "ASC_UPDATE_GOLDEN": "1"}
+	fromShell := run("ASC_KEY_ID=developer-key", "ASC_PRIVATE_KEY_PATH=/developer/key.p8", "ASC_CONFIG_PATH=/developer/config.json",
+		"ASC_APP_ID=developer-app", "ASC_ADS_CLIENT_ID=developer-ads", "ASC_WEB_APPLE_ID=developer@example.com",
+		"ASC_BYPASS_KEYCHAIN=0", "ASC_UPDATE_GOLDEN=1", "ASC_EXAMPLE_HELPER_PROCESS=1")
+	want := map[string]string{isolatedVariable: "1", "ASC_BYPASS_KEYCHAIN": "0", "ASC_UPDATE_GOLDEN": "1", "ASC_EXAMPLE_HELPER_PROCESS": "1"}
 	if !maps.Equal(fromShell, want) {
 		t.Errorf("environment inherited from a shell = %v, want %v", fromShell, want)
 	}
 
-	fromTest := run(isolatedVariable+"=1", "ASC_EXAMPLE_HELPER_PROCESS=1", "ASC_CONFIG_PATH=/test/config.json")
-	want = map[string]string{isolatedVariable: "1", "ASC_EXAMPLE_HELPER_PROCESS": "1", "ASC_CONFIG_PATH": "/test/config.json"}
+	fromTest := run(isolatedVariable+"=1", "ASC_CONFIG_PATH=/test/config.json", "ASC_EXAMPLE_HELPER_PROCESS=1")
+	want = map[string]string{isolatedVariable: "1", "ASC_CONFIG_PATH": "/test/config.json", "ASC_EXAMPLE_HELPER_PROCESS": "1"}
 	if !maps.Equal(fromTest, want) {
 		t.Errorf("environment set by a test for its helper process = %v, want %v", fromTest, want)
 	}
