@@ -11,12 +11,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-// IO holds the streams a command reads and writes, and whether its stdout and
-// stderr are terminals.
+// IO holds the streams a command reads and writes, and whether its stdin,
+// stdout and stderr are terminals.
 type IO struct {
 	In        io.Reader
 	Out       io.Writer
 	ErrOut    io.Writer
+	StdinTTY  bool
 	StdoutTTY bool
 	StderrTTY bool
 }
@@ -39,6 +40,7 @@ func DefaultDeps() *Deps {
 			In:        processStdin{},
 			Out:       processStdout{},
 			ErrOut:    processStderr{},
+			StdinTTY:  isTerminal(int(os.Stdin.Fd())),
 			StdoutTTY: isTerminal(int(os.Stdout.Fd())),
 			StderrTTY: isTerminal(int(os.Stderr.Fd())),
 		},
