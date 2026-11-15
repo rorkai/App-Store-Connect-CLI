@@ -134,11 +134,11 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			names = append(names, strings.TrimPrefix(r.Type, "*"))
 		}
 		for _, name := range names {
-			if typ := view.goType(name); typ != name {
+			if typ := view.goType(name); typ != goTypeName(name) {
 				fmt.Fprintf(report, "%s\ttype %s\tis Go type %s\n", tag, name, typ)
 				continue
 			}
-			d, ok := p.types[name]
+			d, ok := p.types[goTypeName(name)]
 			if !ok || d.adopted {
 				continue
 			}
@@ -312,7 +312,16 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 		case i == 0 && typ == "context.Context":
 		case typ == "string":
 			for _, n := range field.Names {
-				b.Params = append(b.Params, n.Name)
+				if argFields[n.Name] == "" {
+					b.Params = append(b.Params, n.Name)
+					continue
+				}
+				arg, reason := deriveArg(spec, op, n.Name, argFields[n.Name], typ)
+				if reason != "" {
+					return nil, reason
+				}
+				arg.Param = true
+				b.Args = append(b.Args, arg)
 			}
 		case typ == "[]string" && op.Method == "GET":
 		case typ == "[]string" && len(field.Names) == 1:
@@ -361,7 +370,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 				}
 			}
 		case *ast.IndexExpr:
-			if fun := exprString(n.X); (fun == "getJSON" || fun == "sendJSON") && exprString(n.Index) != op.Response {
+			if fun := exprString(n.X); (fun == "getJSON" || fun == "sendJSON") && exprString(n.Index) != goTypeName(op.Response) {
 				b.Response = exprString(n.Index)
 			}
 		case *ast.AssignStmt:
@@ -388,7 +397,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 		}
 		return true
 	})
-	if !trimmed && len(b.Params) > 0 {
+	if !trimmed && len(b.stringParams()) > 0 {
 		b.Check = checkRaw
 	}
 	if *list != (IDList{}) {
@@ -401,7 +410,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 		b.Attrs = attrsValue
 	}
 	for i, msg := range messages {
-		if i >= len(b.Params) || msg != b.Params[i]+" is required" {
+		if params := b.stringParams(); i >= len(params) || msg != params[i]+" is required" {
 			b.Messages = messages
 			break
 		}
@@ -435,16 +444,17 @@ func (p *pkg) withVersionGoTypes(spec *Spec, fam *Family, op *Operation, d *decl
 	}
 	for _, name := range []string{op.Request, base + "Data", base + "Attributes"} {
 		unversioned := withoutVersion(name)
-		if unversioned == name || trial.goType(name) != name || slices.Contains(fam.Types, name) || !idents[unversioned] || idents[name] {
+		typ := goTypeName(unversioned)
+		if unversioned == name || trial.goType(name) != goTypeName(name) || slices.Contains(fam.Types, name) || !idents[typ] || idents[goTypeName(name)] {
 			continue
 		}
 		if !sameShape(typeSchema(spec, name), typeSchema(spec, unversioned)) {
 			continue
 		}
-		if strings.HasSuffix(name, "Attributes") && !p.carries(spec, unversioned, attributesOf(spec, name)) {
+		if strings.HasSuffix(name, "Attributes") && !p.carries(spec, typ, attributesOf(spec, name)) {
 			continue
 		}
-		trial.GoTypes = append(trial.GoTypes, &GoType{Schema: name, Type: unversioned})
+		trial.GoTypes = append(trial.GoTypes, &GoType{Schema: name, Type: typ})
 	}
 	return &trial
 }
@@ -540,11 +550,12 @@ func (p *pkg) recordResourceGoType(spec *Spec, fam *Family, b *OpBind) {
 	}
 	resource, _, ok := spec.resourceOf(op.Response)
 	name := resource + "Attributes"
-	if !ok || fam.goType(name) != name || slices.Contains(fam.Types, name) {
+	if !ok || fam.goType(name) != goTypeName(name) || slices.Contains(fam.Types, name) {
 		return
 	}
 	attrs := p.responseAttributes(spec, b.Response)
-	if attrs != name && attrs == withoutVersion(name) && sameShape(attributesOf(spec, name), attributesOf(spec, attrs)) && p.carries(spec, attrs, attributesOf(spec, name)) {
+	unversioned := withoutVersion(name)
+	if unversioned != name && attrs == goTypeName(unversioned) && sameShape(attributesOf(spec, name), attributesOf(spec, unversioned)) && p.carries(spec, attrs, attributesOf(spec, name)) {
 		fam.GoTypes = append(fam.GoTypes, &GoType{Schema: name, Type: attrs})
 	}
 }
@@ -563,7 +574,7 @@ func (p *pkg) responseAttributes(spec *Spec, response string) string {
 		return ""
 	}
 	if resource, _, ok := spec.resourceOf(response); ok {
-		return resource + "Attributes"
+		return goTypeName(resource + "Attributes")
 	}
 	return ""
 }
@@ -597,7 +608,7 @@ func (p *pkg) recordRelationships(spec *Spec, ops []*Operation, fam *Family) {
 		if op.Method != "POST" || err != nil || data.Properties.Get("relationships") == nil || recorded {
 			continue
 		}
-		d, ok := p.types[name]
+		d, ok := p.types[goTypeName(name)]
 		if !ok {
 			continue
 		}
@@ -647,7 +658,7 @@ func refTypesOf(spec *Spec, fam *Family, fixed map[string]string, name string, d
 		if typ == current {
 			continue
 		}
-		if current != schema {
+		if current != goTypeName(schema) {
 			return nil, fmt.Sprintf("schema %s is %s here and %s in another field", schema, typ, current)
 		}
 		r := &RefType{Schema: schema, Type: typ}

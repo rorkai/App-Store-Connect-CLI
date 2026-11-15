@@ -633,16 +633,8 @@ Examples:
 
 // GameCenterAchievementLocalizationsCreateCommand returns the localizations create subcommand.
 func GameCenterAchievementLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
-	locale := fs.String("locale", "", "Locale code (e.g., en-US)")
-	name := fs.String("name", "", "Display name")
-	beforeEarnedDescription := fs.String("before-earned-description", "", "Description shown before achievement is earned")
-	afterEarnedDescription := fs.String("after-earned-description", "", "Description shown after achievement is earned")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterAchievementLocalizationCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center achievements localizations create [flags]",
 		ShortHelp:  "Create a new Game Center achievement localization.",
@@ -651,70 +643,25 @@ func GameCenterAchievementLocalizationsCreateCommand() *ffcli.Command {
 Examples:
   asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale en-US --name "First Win" --before-earned-description "Win your first game" --after-earned-description "You won!"
   asc game-center achievements localizations create --achievement-id "ACHIEVEMENT_ID" --locale de-DE --name "Erster Sieg" --before-earned-description "Gewinne dein erstes Spiel" --after-earned-description "Du hast gewonnen!"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			achID := strings.TrimSpace(*achievementID)
-			if achID == "" {
-				return shared.RequiredFlag("--achievement-id")
-			}
-
-			localeVal := strings.TrimSpace(*locale)
-			if localeVal == "" {
-				return shared.RequiredFlag("--locale")
-			}
-
-			nameVal := strings.TrimSpace(*name)
-			if nameVal == "" {
-				return shared.RequiredFlag("--name")
-			}
-
-			beforeVal := strings.TrimSpace(*beforeEarnedDescription)
-			if beforeVal == "" {
-				return shared.RequiredFlag("--before-earned-description")
-			}
-
-			afterVal := strings.TrimSpace(*afterEarnedDescription)
-			if afterVal == "" {
-				return shared.RequiredFlag("--after-earned-description")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			attrs := asc.GameCenterAchievementLocalizationCreateAttributes{
-				Locale:                  localeVal,
-				Name:                    nameVal,
-				BeforeEarnedDescription: beforeVal,
-				AfterEarnedDescription:  afterVal,
-			}
-
-			resp, err := client.CreateGameCenterAchievementLocalization(requestCtx, achID, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "achievement-id",
+		IDUsage: "Game Center achievement ID",
+		IDType:  "gameCenterAchievements",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale code (e.g., en-US)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Display name"),
+			shared.RequiredStringFlag(&attrs.BeforeEarnedDescription, "before-earned-description", "Description shown before achievement is earned"),
+			shared.RequiredStringFlag(&attrs.AfterEarnedDescription, "after-earned-description", "Description shown after achievement is earned"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterAchievementLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterAchievementLocalizationsUpdateCommand returns the localizations update subcommand.
 func GameCenterAchievementLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
-	name := fs.String("name", "", "Display name")
-	beforeEarnedDescription := fs.String("before-earned-description", "", "Description shown before achievement is earned")
-	afterEarnedDescription := fs.String("after-earned-description", "", "Description shown after achievement is earned")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterAchievementLocalizationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center achievements localizations update [flags]",
 		ShortHelp:  "Update a Game Center achievement localization.",
@@ -723,55 +670,17 @@ func GameCenterAchievementLocalizationsUpdateCommand() *ffcli.Command {
 Examples:
   asc game-center achievements localizations update --id "LOC_ID" --name "New Name"
   asc game-center achievements localizations update --id "LOC_ID" --before-earned-description "Win a game" --after-earned-description "Winner!"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			attrs := asc.GameCenterAchievementLocalizationUpdateAttributes{}
-			hasUpdate := false
-
-			if strings.TrimSpace(*name) != "" {
-				nameVal := strings.TrimSpace(*name)
-				attrs.Name = &nameVal
-				hasUpdate = true
-			}
-
-			if strings.TrimSpace(*beforeEarnedDescription) != "" {
-				beforeVal := strings.TrimSpace(*beforeEarnedDescription)
-				attrs.BeforeEarnedDescription = &beforeVal
-				hasUpdate = true
-			}
-
-			if strings.TrimSpace(*afterEarnedDescription) != "" {
-				afterVal := strings.TrimSpace(*afterEarnedDescription)
-				attrs.AfterEarnedDescription = &afterVal
-				hasUpdate = true
-			}
-
-			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, name, beforeEarnedDescription, afterEarnedDescription)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterAchievementLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Game Center achievement localization ID",
+		IDType:  "gameCenterAchievementLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.Name, "name", "Display name"),
+			shared.OptionalStringFlag(&attrs.BeforeEarnedDescription, "before-earned-description", "Description shown before achievement is earned"),
+			shared.OptionalStringFlag(&attrs.AfterEarnedDescription, "after-earned-description", "Description shown after achievement is earned"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterAchievementLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterAchievementLocalizationsDeleteCommand returns the localizations delete subcommand.

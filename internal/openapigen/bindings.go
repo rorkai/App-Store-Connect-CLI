@@ -135,6 +135,10 @@ type ArgBind struct {
 	Name      string `json:"name"`
 	Attribute string `json:"attribute,omitempty"` // default Name
 	Type      string `json:"type,omitempty"`      // Go type; default the attribute's, "int64" may replace "int"
+	// Param declares a string argument with the Params, after them in their
+	// group of the signature, and checks it with their check style. Param
+	// args come first.
+	Param bool `json:"param,omitempty"`
 }
 
 // Deviation is one problem text of the contract test that the method is known
@@ -301,18 +305,18 @@ func (f *Family) refType(schema string) string {
 			return r.Type
 		}
 	}
-	return schema
+	return goTypeName(schema)
 }
 
 // goType is the Go type of a type named after a schema: the one the family
-// records, or the name itself.
+// records, or the schema's Go name.
 func (f *Family) goType(name string) string {
 	for _, g := range f.GoTypes {
 		if g.Schema == name {
 			return g.Type
 		}
 	}
-	return name
+	return goTypeName(name)
 }
 
 // Family returns the family for a tag, adding it if missing.

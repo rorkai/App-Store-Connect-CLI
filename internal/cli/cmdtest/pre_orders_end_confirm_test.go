@@ -1,18 +1,14 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 )
 
 func TestPreOrdersEndWithConfirmPostsExpectedPayload(t *testing.T) {
-	setupAuth(t)
-
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
@@ -63,33 +59,15 @@ func TestPreOrdersEndWithConfirmPostsExpectedPayload(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse server URL: %v", err)
-	}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server),
 		"pre-orders", "end",
 		"--territory-availability", "ta-1,ta-2",
 		"--confirm",
 		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if requestCount != 1 {
 		t.Fatalf("expected one request, got %d", requestCount)
 	}

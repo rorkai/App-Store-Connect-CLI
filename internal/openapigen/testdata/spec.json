@@ -288,6 +288,53 @@
         }
       }
     },
+    "/v1/zoneIds": {
+      "get": {
+        "tags": ["ZoneIds"],
+        "operationId": "zoneIds_getCollection",
+        "parameters": [
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
+        ],
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZoneIdsResponse"}}}}
+        }
+      },
+      "post": {
+        "tags": ["ZoneIds"],
+        "operationId": "zoneIds_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZoneIdCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZoneIdResponse"}}}}
+        }
+      }
+    },
+    "/v1/zoneIds/{id}": {
+      "get": {
+        "tags": ["ZoneIds"],
+        "operationId": "zoneIds_getInstance",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZoneIdResponse"}}}}
+        }
+      },
+      "patch": {
+        "tags": ["ZoneIds"],
+        "operationId": "zoneIds_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZoneIdUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZoneIdResponse"}}}}
+        }
+      }
+    },
+    "/v1/wristbands": {
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "wristbands_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WristbandCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WristbandResponse"}}}}
+        }
+      }
+    },
     "/v1/zebras": {
       "post": {
         "tags": ["Zebras"],
@@ -672,6 +719,123 @@
             }
           }
         }
+      },
+      "ZoneIdKind": {"type": "string", "enum": ["PRIMARY", "SPARE"]},
+      "ZoneId": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "enum": ["zoneIds"]},
+          "id": {"type": "string"},
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "identifier": {"type": "string"},
+              "kind": {"$ref": "#/components/schemas/ZoneIdKind"}
+            }
+          }
+        },
+        "required": ["id", "type"]
+      },
+      "ZoneIdResponse": {
+        "type": "object",
+        "properties": {"data": {"$ref": "#/components/schemas/ZoneId"}},
+        "required": ["data"]
+      },
+      "ZoneIdsResponse": {
+        "type": "object",
+        "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/ZoneId"}}},
+        "required": ["data"]
+      },
+      "ZoneIdCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["zoneIds"]},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "identifier": {"type": "string"},
+                  "kind": {"$ref": "#/components/schemas/ZoneIdKind"}
+                },
+                "required": ["identifier"]
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "widget": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["widgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}, "required": ["data"]}
+                },
+                "required": ["widget"]
+              }
+            },
+            "required": ["attributes", "relationships", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "ZoneIdUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["zoneIds"]},
+              "id": {"type": "string"},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "kind": {"$ref": "#/components/schemas/ZoneIdKind"}
+                }
+              }
+            },
+            "required": ["id", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "WristbandResponse": {"type": "object"},
+      "WristbandCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["wristbands"]},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "label": {"type": "string"},
+                  "color": {"type": "string", "enum": ["RED", "BLUE"]},
+                  "size": {"type": "integer"}
+                },
+                "required": ["label", "color", "size"]
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "widget": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "type": {"type": "string", "enum": ["widgets"]},
+                          "id": {"type": "string"}
+                        },
+                        "required": ["id", "type"]
+                      }
+                    },
+                    "required": ["data"]
+                  }
+                },
+                "required": ["widget"]
+              }
+            },
+            "required": ["relationships", "attributes", "type"]
+          }
+        },
+        "required": ["data"]
       },
       "Zebra": {
         "type": "object",

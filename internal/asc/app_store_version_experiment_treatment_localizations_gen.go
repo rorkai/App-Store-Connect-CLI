@@ -65,6 +65,39 @@ func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets
 	})
 }
 
+// CreateAppStoreVersionExperimentTreatmentLocalization sends POST /v1/appStoreVersionExperimentTreatmentLocalizations (appStoreVersionExperimentTreatmentLocalizations_createInstance).
+func (c *Client) CreateAppStoreVersionExperimentTreatmentLocalization(ctx context.Context, treatmentID, locale string) (*AppStoreVersionExperimentTreatmentLocalizationResponse, error) {
+	treatmentID = strings.TrimSpace(treatmentID)
+	locale = strings.TrimSpace(locale)
+	if treatmentID == "" {
+		return nil, fmt.Errorf("treatmentID is required")
+	}
+	if locale == "" {
+		return nil, fmt.Errorf("locale is required")
+	}
+	payload := AppStoreVersionExperimentTreatmentLocalizationCreateRequest{
+		Data: AppStoreVersionExperimentTreatmentLocalizationCreateData{
+			Type: ResourceTypeAppStoreVersionExperimentTreatmentLocalizations,
+			Attributes: AppStoreVersionExperimentTreatmentLocalizationCreateAttributes{
+				Locale: locale,
+			},
+			Relationships: &AppStoreVersionExperimentTreatmentLocalizationCreateRelationships{
+				AppStoreVersionExperimentTreatment: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersionExperimentTreatments,
+						ID:   treatmentID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppStoreVersionExperimentTreatmentLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appStoreVersionExperimentTreatmentLocalizations",
+		Payload: payload,
+	})
+}
+
 // DeleteAppStoreVersionExperimentTreatmentLocalization sends DELETE /v1/appStoreVersionExperimentTreatmentLocalizations/{id} (appStoreVersionExperimentTreatmentLocalizations_deleteInstance).
 func (c *Client) DeleteAppStoreVersionExperimentTreatmentLocalization(ctx context.Context, localizationID string) error {
 	localizationID = strings.TrimSpace(localizationID)

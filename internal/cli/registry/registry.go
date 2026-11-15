@@ -212,7 +212,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return agreements.NewAgreementsCommand(d)
 		}),
 		commandFactory("pricing", "Manage app pricing and availability.", pricing.PricingCommand),
-		commandFactory("pre-orders", "Manage app pre-orders.", preorders.PreOrdersCommand),
+		commandFactory("pre-orders", "Manage app pre-orders.", func() *ffcli.Command {
+			return preorders.NewPreOrdersCommand(d)
+		}),
 		commandFactory("localizations", "Manage App Store localization metadata.", localizations.LocalizationsCommand),
 		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", metadata.MetadataCommand),
 		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),
@@ -247,7 +249,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", gamecenter.GameCenterCommand),
-		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", capabilities.Command),
+		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", func() *ffcli.Command {
+			return capabilities.NewCommand(d)
+		}),
 		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", func() *ffcli.Command {
 			return schema.NewSchemaCommand(d)
 		}),
@@ -256,7 +260,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return telemetrycmd.NewTelemetryCommand(d)
 		}),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
-			return searchcmd.SearchCommand(catalog.All)
+			return searchcmd.NewSearchCommand(d, catalog.All)
 		}),
 		commandFactory("snitch", "Report CLI friction as a GitHub issue.", func() *ffcli.Command {
 			return snitch.SnitchCommand(version)

@@ -14,6 +14,7 @@
   "operations": [
     {"operation":"appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets","params":["localizationID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery","nextContext":"appPreviewSets"},
     {"operation":"appStoreVersionExperimentTreatmentLocalizations_appScreenshotSets_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets","params":["localizationID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery","nextContext":"appScreenshotSets"},
+    {"operation":"appStoreVersionExperimentTreatmentLocalizations_createInstance","name":"CreateAppStoreVersionExperimentTreatmentLocalization","params":["treatmentID"],"check":"require","links":["appStoreVersionExperimentTreatment"],"args":[{"name":"locale","param":true}]},
     {"operation":"appStoreVersionExperimentTreatmentLocalizations_deleteInstance","name":"DeleteAppStoreVersionExperimentTreatmentLocalization","params":["localizationID"],"check":"require"}
   ],
   "queries": [

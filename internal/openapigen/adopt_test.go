@@ -702,6 +702,89 @@ func TestAdoptBindsScalarArgumentsToAttributes(t *testing.T) {
 	}
 }
 
+const handWrittenWristbands = `package asc
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+)
+
+// WristbandCreateData is the data of a wristband create.
+type WristbandCreateData struct {
+	Type          ResourceType                  ` + "`json:\"type\"`" + `
+	Attributes    WristbandCreateAttributes     ` + "`json:\"attributes\"`" + `
+	Relationships *WristbandCreateRelationships ` + "`json:\"relationships\"`" + `
+}
+
+// CreateWristband creates a wristband for a widget.
+func (c *Client) CreateWristband(ctx context.Context, widgetID, label string, color WristbandColor, size int) (*WristbandResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	label = strings.TrimSpace(label)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widget ID is required")
+	}
+	if label == "" {
+		return nil, fmt.Errorf("label is required")
+	}
+
+	payload := WristbandCreateRequest{Data: WristbandCreateData{
+		Type:       ResourceTypeWristbands,
+		Attributes: WristbandCreateAttributes{Label: label, Color: color, Size: size},
+		Relationships: &WristbandCreateRelationships{
+			Widget: &Relationship{Data: ResourceData{Type: ResourceTypeWidgets, ID: widgetID}},
+		},
+	}}
+	return sendJSON[WristbandResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/wristbands", Payload: payload})
+}
+`
+
+func TestAdoptBindsStringArgumentsCheckedWithTheIDs(t *testing.T) {
+	tests := []struct {
+		name string
+		edit func(string) string
+		want string
+	}{
+		{
+			name: "arguments declared and checked with the ID",
+			edit: func(s string) string { return s },
+			want: `{"operation":"wristbands_createInstance","name":"CreateWristband","params":["widgetID"],"check":"require","messages":["widget ID is required","label is required"],"links":["widget"],"args":[{"name":"label","param":true},{"name":"color","type":"WristbandColor"},{"name":"size"}]}`,
+		},
+		{
+			name: "an argument trimmed but not required",
+			edit: func(s string) string {
+				return strings.Replace(s, "\tif label == \"\" {\n\t\treturn nil, fmt.Errorf(\"label is required\")\n\t}\n", "", 1)
+			},
+			want: "Widgets\twristbands_createInstance\tCreateWristband\tkept: differs at token",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := tt.edit(handWrittenWristbands)
+			if src == handWrittenWristbands && tt.name != tests[0].name {
+				t.Fatal("edit changed nothing")
+			}
+			dir := writeHandWritten(t, map[string]string{"wristbands.go": src})
+			var report strings.Builder
+			if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", false, &report); err != nil {
+				t.Fatal(err)
+			}
+			got := report.String()
+			if bindings, err := LoadBindings(filepath.Join(dir, "bindings")); err == nil && len(bindings.Families) == 1 {
+				encoded, err := bindings.Families[0].Encode()
+				if err != nil {
+					t.Fatal(err)
+				}
+				got += string(encoded)
+			}
+			if !strings.Contains(got, tt.want) {
+				t.Errorf("report and bindings lack %s:\n%s", tt.want, got)
+			}
+		})
+	}
+}
+
 const handWrittenYoyoAttributes = `
 // YoyoAttributes describes a yoyo.
 type YoyoAttributes struct {
@@ -942,5 +1025,28 @@ func TestAdoptRecordsNoGoTypeForATypeTheFamilyGenerates(t *testing.T) {
 		if g.Schema == "ZebraV2Attributes" {
 			t.Errorf("recorded Go type %s for ZebraV2Attributes, which the family generates", g.Type)
 		}
+	}
+}
+
+func TestAdoptSpellsIdAsIDInTypeNames(t *testing.T) {
+	golden := readFile(t, filepath.Join("testdata", "zone_ids_gen.go.golden"))
+	dir := writeHandWritten(t, map[string]string{"zone_ids.go": strings.Replace(golden, header+"\n\n", "", 1)})
+	var report strings.Builder
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "ZoneIds", false, &report); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(report.String(), "\n") {
+		if strings.Contains(line, "\tkept: ") && !strings.Contains(line, "\tquery ") {
+			t.Errorf("adopt kept code it should generate: %s", line)
+		}
+	}
+	if got, want := readFile(t, filepath.Join(dir, "bindings", "ZoneIds.json")), readFile(t, filepath.Join("testdata", "bindings", "ZoneIds.json")); got != want {
+		t.Errorf("bindings after adopt:\n%s\nwant:\n%s", got, want)
+	}
+	if got := readFile(t, filepath.Join(dir, "zone_ids_gen.go")); got != golden {
+		t.Errorf("zone_ids_gen.go after adopt:\n%s", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "zone_ids.go")); !os.IsNotExist(err) {
+		t.Errorf("zone_ids.go should be deleted once empty, stat err = %v", err)
 	}
 }
