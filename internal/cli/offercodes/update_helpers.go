@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -28,11 +27,17 @@ type ActiveUpdateCommandConfig struct {
 	// --active false requires --confirm.
 	ConfirmOff string
 	Update     func(context.Context, *asc.Client, string, *bool) (any, error)
+	// Deps is what the command is built on. It defaults to shared.DefaultDeps().
+	Deps *shared.Deps
 }
 
 // NewActiveUpdateCommand builds a command that updates a resource's active attribute.
 func NewActiveUpdateCommand(config ActiveUpdateCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	d := config.Deps
+	if d == nil {
+		d = shared.DefaultDeps()
+	}
+	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, config.IDFlag, config.IDType, config.IDUsage)
 	active := fs.String("active", "", "Set active (true/false)")
@@ -40,7 +45,7 @@ func NewActiveUpdateCommand(config ActiveUpdateCommandConfig) *ffcli.Command {
 	if config.ConfirmOff != "" {
 		confirm = fs.Bool("confirm", false, "Confirm --active false, which is permanent")
 	}
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       config.Name,
@@ -52,27 +57,27 @@ func NewActiveUpdateCommand(config ActiveUpdateCommandConfig) *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --%s is required\n", config.IDFlag)
+				fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", config.IDFlag)
 				return shared.MissingRequiredUsageError("--" + config.IDFlag)
 			}
 
 			activeValue, err := shared.ParseOptionalBoolFlag("--active", *active)
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "%s: %v", config.ErrorPrefix, err)
+				return d.UsageErrorfCtx(ctx, "%s: %v", config.ErrorPrefix, err)
 			}
 			if activeValue == nil {
-				return shared.RequiredFlag("--active")
+				return d.RequiredFlag("--active")
 			}
 			if confirm != nil && !*activeValue && !*confirm {
-				return shared.UsageErrorf("--confirm is required to turn off %s; turning it off is permanent", config.ConfirmOff)
+				return d.UsageErrorf("--confirm is required to turn off %s; turning it off is permanent", config.ConfirmOff)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := config.Update(requestCtx, client, trimmedID, activeValue)
@@ -80,7 +85,7 @@ func NewActiveUpdateCommand(config ActiveUpdateCommandConfig) *ffcli.Command {
 				return fmt.Errorf("%s: failed to update: %w", config.ErrorPrefix, err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
