@@ -236,6 +236,26 @@ func ValidateTestOptions(opts TestOptions) error {
 		if opts.TestIterations > 0 {
 			return fmt.Errorf("--test-iterations cannot be used with --action build-for-testing")
 		}
+		if opts.ParallelTestingWorkers > 0 {
+			return fmt.Errorf("--parallel-testing-workers cannot be used with --action build-for-testing")
+		}
+	}
+	if TestAction(opts.Action) == TestActionTestWithoutBuilding {
+		for _, sanitizer := range []struct {
+			set  bool
+			flag string
+		}{
+			{opts.AddressSanitizer, "--address-sanitizer"},
+			{opts.ThreadSanitizer, "--thread-sanitizer"},
+			{opts.UndefinedBehaviorSanitizer, "--undefined-behavior-sanitizer"},
+		} {
+			if sanitizer.set {
+				return fmt.Errorf("%s cannot be used with --action test-without-building", sanitizer.flag)
+			}
+		}
+	}
+	if opts.ParallelTestingWorkers > 0 && opts.ParallelTesting != nil && !*opts.ParallelTesting {
+		return fmt.Errorf("--parallel-testing-workers cannot be combined with --parallel-testing=false")
 	}
 	if opts.AddressSanitizer && opts.ThreadSanitizer {
 		return fmt.Errorf("--address-sanitizer and --thread-sanitizer cannot be used together")

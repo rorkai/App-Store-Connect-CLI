@@ -353,6 +353,9 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 		{name: "typed and raw retry", args: []string{"--retry-tests-on-failure", "--xcodebuild-flag=-retry-tests-on-failure"}, wantErr: `--retry-tests-on-failure conflicts with --xcodebuild-flag "-retry-tests-on-failure"; use one`},
 		{name: "retry while building for testing", action: "build-for-testing", args: []string{"--retry-tests-on-failure"}, wantErr: "--retry-tests-on-failure cannot be used with --action build-for-testing"},
 		{name: "iterations while building for testing", action: "build-for-testing", args: []string{"--test-iterations", "2"}, wantErr: "--test-iterations cannot be used with --action build-for-testing"},
+		{name: "workers while building for testing", action: "build-for-testing", args: []string{"--parallel-testing-workers", "2"}, wantErr: "--parallel-testing-workers cannot be used with --action build-for-testing"},
+		{name: "workers with parallel testing off", args: []string{"--parallel-testing=false", "--parallel-testing-workers", "2"}, wantErr: "--parallel-testing-workers cannot be combined with --parallel-testing=false"},
+		{name: "sanitizer without building", action: "test-without-building", args: []string{"--thread-sanitizer"}, wantErr: "--thread-sanitizer cannot be used with --action test-without-building"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -397,11 +400,16 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 			}
 			derivedDataPath := filepath.Join(t.TempDir(), "DerivedData")
 			resultBundlePath := filepath.Join(t.TempDir(), "Demo.xcresult")
-			args := append([]string{
-				"xcode", "test", "--action", action,
-				"--project", projectPath, "--scheme", "Demo", "--destination", "platform=macOS",
-				"--derived-data-path", derivedDataPath, "--result-bundle-path", resultBundlePath, "--output", "json",
-			}, test.args...)
+			selector := []string{"--project", projectPath, "--scheme", "Demo", "--derived-data-path", derivedDataPath}
+			if action == "test-without-building" {
+				xctestrunPath := filepath.Join(t.TempDir(), "Demo.xctestrun")
+				if err := os.WriteFile(xctestrunPath, []byte("<plist/>"), 0o644); err != nil {
+					t.Fatalf("write xctestrun: %v", err)
+				}
+				selector = []string{"--xctestrun", xctestrunPath}
+			}
+			args := append([]string{"xcode", "test", "--action", action, "--destination", "platform=macOS", "--result-bundle-path", resultBundlePath, "--output", "json"}, selector...)
+			args = append(args, test.args...)
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
