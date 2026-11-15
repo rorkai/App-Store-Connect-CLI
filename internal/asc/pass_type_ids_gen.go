@@ -117,6 +117,114 @@ func (c *Client) UpdatePassTypeID(ctx context.Context, id string, attrs PassType
 	})
 }
 
+// PassTypeIDsOption sets the query of GET /v1/passTypeIds (passTypeIds_getCollection).
+type PassTypeIDsOption func(*passTypeIDsQuery)
+
+type passTypeIDsQuery struct {
+	listQuery
+	ids               string
+	identifier        string
+	name              string
+	sort              string
+	fields            []string
+	certificateFields []string
+	include           []string
+	certificatesLimit int
+}
+
+// WithPassTypeIDsFilterIDs sets filter[id].
+func WithPassTypeIDsFilterIDs(ids []string) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		normalized := normalizeList(ids)
+		if len(normalized) > 0 {
+			q.ids = strings.Join(normalized, ",")
+		}
+	}
+}
+
+// WithPassTypeIDsFilterIdentifier sets filter[identifier].
+func WithPassTypeIDsFilterIdentifier(identifier string) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		normalized := normalizeCSVString(identifier)
+		if normalized != "" {
+			q.identifier = normalized
+		}
+	}
+}
+
+// WithPassTypeIDsFilterName sets filter[name].
+func WithPassTypeIDsFilterName(name string) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		normalized := normalizeCSVString(name)
+		if normalized != "" {
+			q.name = normalized
+		}
+	}
+}
+
+// WithPassTypeIDsSort sets sort.
+func WithPassTypeIDsSort(sort string) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithPassTypeIDsFields sets fields[passTypeIds].
+func WithPassTypeIDsFields(fields []string) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithPassTypeIDsCertificateFields sets fields[certificates].
+func WithPassTypeIDsCertificateFields(fields []string) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		q.certificateFields = normalizeList(fields)
+	}
+}
+
+// WithPassTypeIDsInclude sets include.
+func WithPassTypeIDsInclude(include []string) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithPassTypeIDsCertificatesLimit sets limit[certificates].
+func WithPassTypeIDsCertificatesLimit(limit int) PassTypeIDsOption {
+	return func(q *passTypeIDsQuery) {
+		if limit > 0 {
+			q.certificatesLimit = limit
+		}
+	}
+}
+
+func buildPassTypeIDsQuery(query *passTypeIDsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.ids) != "" {
+		values.Set("filter[id]", strings.TrimSpace(query.ids))
+	}
+	if strings.TrimSpace(query.identifier) != "" {
+		values.Set("filter[identifier]", strings.TrimSpace(query.identifier))
+	}
+	if strings.TrimSpace(query.name) != "" {
+		values.Set("filter[name]", strings.TrimSpace(query.name))
+	}
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addCSV(values, "fields[passTypeIds]", query.fields)
+	addCSV(values, "fields[certificates]", query.certificateFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.certificatesLimit > 0 {
+		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
+	}
+	return values.Encode()
+}
+
 // PassTypeIDOption sets the query of GET /v1/passTypeIds/{id} (passTypeIds_getInstance).
 type PassTypeIDOption func(*passTypeIDQuery)
 

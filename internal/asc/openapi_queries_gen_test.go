@@ -710,6 +710,43 @@ var generatedQueries = map[string]generatedQuery{
 			"fields[marketplaceWebhooks]": WithMarketplaceWebhooksFields,
 		},
 	},
+	"merchantIds_getCollection": {
+		build: buildMerchantIDsQuery,
+		options: map[string]any{
+			"filter[name]":         WithMerchantIDsFilterName,
+			"filter[identifier]":   WithMerchantIDsFilterIdentifier,
+			"sort":                 WithMerchantIDsSort,
+			"fields[merchantIds]":  WithMerchantIDsFields,
+			"fields[certificates]": WithMerchantIDsCertificateFields,
+			"include":              WithMerchantIDsInclude,
+			"limit[certificates]":  WithMerchantIDsCertificatesLimit,
+		},
+	},
+	"merchantIds_getInstance": {
+		build: buildMerchantIDsQuery,
+		options: map[string]any{
+			"filter[name]":         WithMerchantIDsFilterName,
+			"filter[identifier]":   WithMerchantIDsFilterIdentifier,
+			"sort":                 WithMerchantIDsSort,
+			"fields[merchantIds]":  WithMerchantIDsFields,
+			"fields[certificates]": WithMerchantIDsCertificateFields,
+			"include":              WithMerchantIDsInclude,
+			"limit[certificates]":  WithMerchantIDsCertificatesLimit,
+		},
+	},
+	"passTypeIds_getCollection": {
+		build: buildPassTypeIDsQuery,
+		options: map[string]any{
+			"filter[id]":           WithPassTypeIDsFilterIDs,
+			"filter[identifier]":   WithPassTypeIDsFilterIdentifier,
+			"filter[name]":         WithPassTypeIDsFilterName,
+			"sort":                 WithPassTypeIDsSort,
+			"fields[passTypeIds]":  WithPassTypeIDsFields,
+			"fields[certificates]": WithPassTypeIDsCertificateFields,
+			"include":              WithPassTypeIDsInclude,
+			"limit[certificates]":  WithPassTypeIDsCertificatesLimit,
+		},
+	},
 	"passTypeIds_getInstance": {
 		build: buildPassTypeIDQuery,
 		options: map[string]any{
