@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,9 +18,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-// DistributeCommand returns the local distribution command group.
-func DistributeCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("distribute", flag.ExitOnError)
+// NewDistributeCommand returns the local distribution command group, built
+// on d.
+func NewDistributeCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("distribute", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "distribute",
 		ShortUsage: "asc distribute <subcommand> [flags]",
@@ -38,8 +40,8 @@ Examples:
   asc distribute publish --help`,
 		FlagSet: fs,
 		Subcommands: []*ffcli.Command{
-			inspectCommand(),
-			prepareCommand(),
+			inspectCommand(d),
+			prepareCommand(d),
 			PublishCommand(),
 			distributionPlanCommand(),
 			distributionApplyCommand(),
@@ -47,16 +49,16 @@ Examples:
 			distributionStatusCommand(),
 			distributionVerifyCommand(),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec:      func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func inspectCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("inspect", flag.ExitOnError)
+func inspectCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("inspect", flag.ExitOnError)
 	ipaPath := fs.String("ipa", "", "Path to the IPA to inspect")
 	includeDevices := fs.Bool("include-devices", false, "Include raw registered-device UDIDs in inspection output")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "inspect",
 		ShortUsage: "asc distribute inspect --ipa PATH [--include-devices] [flags]",
@@ -73,18 +75,18 @@ Examples:
   asc distribute inspect --ipa "./App.ipa"
   asc distribute inspect --ipa "./App.ipa" --include-devices --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
 			if strings.TrimSpace(*ipaPath) == "" {
-				return shared.UsageError("--ipa is required")
+				return d.UsageError("--ipa is required")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			file, size, err := openIPA(*ipaPath)
+			file, size, err := openIPA(d, *ipaPath)
 			if err != nil {
 				return fmt.Errorf("distribute inspect: %w", err)
 			}
@@ -96,20 +98,20 @@ Examples:
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			return printInspection(result, *output.Output, *output.Pretty)
+			return printInspection(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func prepareCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prepare", flag.ExitOnError)
+func prepareCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("prepare", flag.ExitOnError)
 	ipaPath := fs.String("ipa", "", "Path to the IPA to prepare")
 	outputDir := fs.String("output-dir", "", "Exact output bundle directory (default: deterministic path under .asc/distribution)")
 	title := fs.String("title", "", "Override the app title in bundle metadata")
 	channel := fs.String("channel", "", "Logical build channel recorded as provenance")
 	sourceRevision := fs.String("source-revision", "", "Source revision recorded as provenance")
 	sourceURL := fs.String("source-url", "", "Absolute HTTPS source URL without credentials")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "prepare",
 		ShortUsage: "asc distribute prepare --ipa PATH [--output-dir DIR] [flags]",
@@ -131,28 +133,28 @@ Examples:
   asc distribute prepare --ipa "./App.ipa" --channel "pull-request-42" --source-revision "abc123"
   asc distribute prepare --ipa "./App.ipa" --output-dir "./artifacts/install-bundle"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
 			if strings.TrimSpace(*ipaPath) == "" {
-				return shared.UsageError("--ipa is required")
+				return d.UsageError("--ipa is required")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			prepareOptions := distribution.PrepareOptions{
 				Title: *title, Channel: *channel, SourceRevision: *sourceRevision, SourceURL: *sourceURL,
 			}
 			if err := distribution.ValidatePrepareOptions(prepareOptions); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			root, relativeOutput, err := resolveOutput(*outputDir)
+			root, relativeOutput, err := resolveOutput(d, *outputDir)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			file, size, err := openIPA(*ipaPath)
+			file, size, err := openIPA(d, *ipaPath)
 			if err != nil {
 				return fmt.Errorf("distribute prepare: %w", err)
 			}
@@ -166,13 +168,13 @@ Examples:
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			return printPrepareResult(result, *output.Output, *output.Pretty)
+			return printPrepareResult(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func openIPA(pathValue string) (*os.File, int64, error) {
-	absolute, err := filepath.Abs(strings.TrimSpace(pathValue))
+func openIPA(d *shared.Deps, pathValue string) (*os.File, int64, error) {
+	absolute, err := d.Abs(strings.TrimSpace(pathValue))
 	if err != nil {
 		return nil, 0, fmt.Errorf("resolve IPA path: %w", err)
 	}
@@ -193,17 +195,17 @@ func openIPA(pathValue string) (*os.File, int64, error) {
 	return file, info.Size(), nil
 }
 
-func resolveOutput(requested string) (string, string, error) {
+func resolveOutput(d *shared.Deps, requested string) (string, string, error) {
 	requested = strings.TrimSpace(requested)
 	if requested == "" {
-		cwd, err := os.Getwd()
+		cwd, err := d.Getwd()
 		return cwd, "", err
 	}
 	if !filepath.IsAbs(requested) {
 		if err := rootfs.ValidateRelative(requested); err != nil {
 			return "", "", fmt.Errorf("invalid --output-dir: %w", err)
 		}
-		cwd, err := os.Getwd()
+		cwd, err := d.Getwd()
 		return cwd, filepath.Clean(requested), err
 	}
 	absolute := filepath.Clean(requested)
@@ -235,18 +237,18 @@ func resolveOutput(requested string) (string, string, error) {
 	}
 }
 
-func printInspection(result distribution.Inspection, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printInspection(d *shared.Deps, result distribution.Inspection, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result, format, pretty,
-		func() error { return renderInspection(result, false) },
-		func() error { return renderInspection(result, true) },
+		func() error { return renderInspection(d.IO.Out, result, false) },
+		func() error { return renderInspection(d.IO.Out, result, true) },
 	)
 }
 
-func renderInspection(result distribution.Inspection, markdown bool) error {
-	render := asc.RenderTable
+func renderInspection(w io.Writer, result distribution.Inspection, markdown bool) error {
+	render := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		render = asc.RenderMarkdownTo
 	}
 	rows := [][]string{
 		{"Metadata Eligible", fmt.Sprintf("%t", result.Preparation.MetadataEligible)},
@@ -270,24 +272,24 @@ func renderInspection(result distribution.Inspection, markdown bool) error {
 		[]string{"IPA SHA-256", result.Artifact.SHA256},
 		[]string{"Issues", strings.Join(result.Preparation.Issues, "; ")},
 	)
-	render([]string{"Field", "Value"}, rows)
+	render(w, []string{"Field", "Value"}, rows)
 	return nil
 }
 
-func printPrepareResult(result distribution.PrepareResult, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printPrepareResult(d *shared.Deps, result distribution.PrepareResult, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result, format, pretty,
-		func() error { return renderPrepareResult(result, false) },
-		func() error { return renderPrepareResult(result, true) },
+		func() error { return renderPrepareResult(d.IO.Out, result, false) },
+		func() error { return renderPrepareResult(d.IO.Out, result, true) },
 	)
 }
 
-func renderPrepareResult(result distribution.PrepareResult, markdown bool) error {
-	render := asc.RenderTable
+func renderPrepareResult(w io.Writer, result distribution.PrepareResult, markdown bool) error {
+	render := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		render = asc.RenderMarkdownTo
 	}
-	render([]string{"Field", "Value"}, [][]string{
+	render(w, []string{"Field", "Value"}, [][]string{
 		{"Bundle Path", result.BundlePath},
 		{"Reused", fmt.Sprintf("%t", result.Reused)},
 		{"Bundle ID", result.Descriptor.App.BundleID},
