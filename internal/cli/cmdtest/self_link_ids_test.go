@@ -31,6 +31,7 @@ func TestSelfLinkWrongTypeIsUsageErrorBeforeAuthOrRequest(t *testing.T) {
 		flag    string
 		value   string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "builds info rejects apps link",
@@ -84,6 +85,7 @@ func TestSelfLinkWrongTypeIsUsageErrorBeforeAuthOrRequest(t *testing.T) {
 		{
 			name:    "testflight groups view rejects other host",
 			args:    []string{"testflight", "groups", "view"},
+			deps:    true,
 			flag:    "id",
 			value:   "https://appstoreconnect.apple.com/v1/betaGroups/group-1",
 			wantErr: "api.appstoreconnect.apple.com",
@@ -93,12 +95,21 @@ func TestSelfLinkWrongTypeIsUsageErrorBeforeAuthOrRequest(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			args := append(append([]string(nil), test.args...), "--"+test.flag, test.value)
-			stdout, stderr := captureOutput(t, func() {
-				code := rootcmd.Run(args, "1.2.3")
+			var stdout, stderr string
+			if test.deps {
+				var code int
+				stdout, stderr, code = runWithDeps(t, nil, args...)
 				if code != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 				}
-			})
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					code := rootcmd.Run(args, "1.2.3")
+					if code != rootcmd.ExitUsage {
+						t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+					}
+				})
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

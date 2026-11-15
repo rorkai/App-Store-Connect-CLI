@@ -11,15 +11,13 @@ import (
 
 // TestBetaGroupsListSortPropagates proves --sort reaches the API.
 func TestBetaGroupsListSortPropagates(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups", "filter[app]=app-1", "sort=-createdDate"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--sort", "-createdDate")
+	stdout, stderr := runBetaGroupsList(t, reg, "--app", "app-1", "--sort", "-createdDate")
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -32,15 +30,13 @@ func TestBetaGroupsListSortPropagates(t *testing.T) {
 // TestBetaGroupsListGlobalNameAndSortPropagate proves --name and --sort reach
 // the global endpoint together.
 func TestBetaGroupsListGlobalNameAndSortPropagate(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups", "filter[name]=QA Testers", "sort=name"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	_, stderr := runBetaGroupsList(t, "--global", "--name", "QA Testers", "--sort", "name")
+	_, stderr := runBetaGroupsList(t, reg, "--global", "--name", "QA Testers", "--sort", "name")
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -52,7 +48,6 @@ func TestBetaGroupsListGlobalNameAndSortPropagate(t *testing.T) {
 // a name typed with ASCII spaces finds Apple's default group, whose name has a
 // non-breaking space, with one extra lookup and no extra request on an exact match.
 func TestBetaGroupsListNameFilterUsesTopLevelEndpoint(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const appGroups = `{"data":[` +
@@ -99,7 +94,6 @@ func TestBetaGroupsListNameFilterUsesTopLevelEndpoint(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for _, want := range test.requests {
 				query := []string{"fields[betaGroups]=name", "limit=200"}
 				if want.path == "/v1/betaGroups" {
@@ -108,7 +102,7 @@ func TestBetaGroupsListNameFilterUsesTopLevelEndpoint(t *testing.T) {
 				reg.Register(asctest.GET(want.path, query...), asctest.JSON(http.StatusOK, want.body))
 			}
 
-			stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--name", test.nameFlag, "--output", "json")
+			stdout, stderr := runBetaGroupsList(t, reg, "--app", "app-1", "--name", test.nameFlag, "--output", "json")
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -130,8 +124,9 @@ func TestBetaGroupsListInvalidSortIsUsageError(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	assertUsageExit(
+	assertUsageExitWithDeps(
 		t,
+		nil,
 		[]string{"testflight", "groups", "list", "--app", "app-1", "--sort", "nope"},
 		"--sort must be one of: name, -name, createdDate, -createdDate, publicLinkEnabled, -publicLinkEnabled, publicLinkLimit, -publicLinkLimit",
 	)
@@ -154,7 +149,7 @@ func TestBetaGroupsListBlankSortAndNameAreUsageErrors(t *testing.T) {
 		{[]string{"testflight", "groups", "list", "--app", "app-1", "--name", "   "}, "--name cannot be empty"},
 	}
 	for _, test := range tests {
-		assertUsageExit(t, test.args, test.wantErr)
+		assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 	}
 }
 
@@ -170,6 +165,6 @@ func TestBetaGroupsListSortAndNameRejectedWithBuildID(t *testing.T) {
 		{"testflight", "groups", "list", "--build-id", "build-1", "--name", "Beta Testers"},
 	}
 	for _, args := range tests {
-		assertUsageExit(t, args, "Error: --name and --sort cannot be used with --build-id")
+		assertUsageExitWithDeps(t, nil, args, "Error: --name and --sort cannot be used with --build-id")
 	}
 }

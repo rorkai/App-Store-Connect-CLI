@@ -380,7 +380,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			buildIDs, err := parseCreateRelationshipIDs(buildID, "--build-id")
+			buildIDs, err := parseCreateRelationshipIDs(shared.DefaultDeps(), buildID, "--build-id")
 			if err != nil {
 				return err
 			}

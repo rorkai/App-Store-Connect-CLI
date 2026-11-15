@@ -1,11 +1,9 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -17,16 +15,14 @@ import (
 )
 
 func TestBetaGroupsCreateInternalSetsAttributeOnCreate(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/betaGroups").JSONBody(`{"data":{"type":"betaGroups","attributes":{"name":"Internal Testers","isInternalGroup":true},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Internal Testers","isInternalGroup":true}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Internal Testers", "--internal"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "groups", "create", "--app", "app-1", "--name", "Internal Testers", "--internal")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -40,16 +36,14 @@ func TestBetaGroupsCreateInternalSetsAttributeOnCreate(t *testing.T) {
 }
 
 func TestBetaGroupsCreateWithoutInternalMakesOneCall(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/betaGroups").JSONBody(`{"data":{"type":"betaGroups","attributes":{"name":"Beta"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-2","attributes":{"name":"Beta"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "groups", "create", "--app", "app-1", "--name", "Beta")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -96,16 +90,14 @@ func TestBetaGroupsCreateSendsDistributionControls(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.POST("/v1/betaGroups").JSONBody(`{"data":{"type":"betaGroups","attributes":`+test.wantAttributes+`,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
 				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-3","attributes":{"name":"Public Preview"}}}`))
 
-			_, stderr, err := runCommand(t, append([]string{"testflight", "groups", "create", "--app", "app-1"}, test.args...))
+			_, stderr, err := runRootWithDeps(t, stubClient(t, reg), append([]string{"testflight", "groups", "create", "--app", "app-1"}, test.args...)...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -121,12 +113,10 @@ func TestBetaGroupsCreateSendsDistributionControls(t *testing.T) {
 }
 
 func TestBetaGroupsCreateRejectsInternalPublicLinkControlsBeforeRequest(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
 	tests := []struct {
 		name string
@@ -139,18 +129,9 @@ func TestBetaGroupsCreateRejectsInternalPublicLinkControlsBeforeRequest(t *testi
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
 			args := []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Internal", "--internal"}
 			args = append(args, tt.args...)
-			var runErr error
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			_, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
 
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -170,27 +151,17 @@ func TestBetaGroupsCreateRejectsInternalPublicLinkControlsBeforeRequest(t *testi
 }
 
 func TestBetaGroupsCreateRejectsInvalidPublicLinkLimitBeforeRequest(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	asctest.NewRegistry(t).Install()
+	reg := asctest.NewRegistry(t)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "groups", "create",
-			"--app", "app-1",
-			"--name", "Beta",
-			"--public-link-limit", "10001",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, stderr, runErr := runRootWithDeps(t, stubClient(t, reg),
+		"testflight", "groups", "create",
+		"--app", "app-1",
+		"--name", "Beta",
+		"--public-link-limit", "10001",
+	)
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -219,7 +190,6 @@ func createRequestRelationships(t *testing.T, body []byte) string {
 }
 
 func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -253,7 +223,6 @@ func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			if len(test.args) > 0 {
 				reg.Register(asctest.GET("/v1/betaGroups", "filter[app]=app-1", "filter[name]=Beta", "limit=200"),
 					asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
@@ -262,7 +231,7 @@ func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
 				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Beta"}}}`))
 
 			args := append([]string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta"}, test.args...)
-			if _, _, err := runCommand(t, args); err != nil {
+			if _, _, err := runRootWithDeps(t, stubClient(t, reg), args...); err != nil {
 				t.Fatalf("run error: %v", err)
 			}
 			callCount := 0
@@ -286,7 +255,6 @@ func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
 // failed with 404 for a missing build, so the error must name that group. A
 // same-name group that existed before the create must never be called new.
 func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -377,7 +345,6 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			wantBefore := max(test.getsBefore, 1)
 			for index, lookup := range test.lookups {
 				if index == wantBefore {
@@ -397,10 +364,10 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 				registerBetaGroupsCreateWithRelationships(reg, test.createStatus, test.createBody)
 			}
 
-			_, _, err := runCommand(t, []string{
+			_, _, err := runRootWithDeps(t, stubClient(t, reg),
 				"testflight", "groups", "create", "--app", "app-1", "--name", "Beta",
 				"--build-id", "missing-build", "--tester", "tester-1",
-			})
+			)
 			if err == nil {
 				t.Fatal("expected error")
 			}

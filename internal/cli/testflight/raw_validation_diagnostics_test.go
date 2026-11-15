@@ -13,12 +13,15 @@ import (
 
 func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 	tests := []struct {
-		name      string
-		command   func() *ffcli.Command
-		args      []string
-		wantError string
-		wantCode  shared.DiagnosticCode
-		wantParam string
+		name    string
+		command func() *ffcli.Command
+		// depsCommand builds a command on shared.Deps; see
+		// runTestFlightDiagnosticCommand.
+		depsCommand func(*shared.Deps) *ffcli.Command
+		args        []string
+		wantError   string
+		wantCode    shared.DiagnosticCode
+		wantParam   string
 		// usageError marks a pre-request flag check that reports its own
 		// diagnostic and exits with usage semantics (#518). The raw command
 		// renders the command path it was written with; the re-parented tree
@@ -26,22 +29,22 @@ func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 		usageError bool
 	}{
 		{
-			name:       "beta groups list limit",
-			command:    BetaGroupsListCommand,
-			args:       []string{"--limit", "201"},
-			wantError:  "testflight beta-groups list: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta groups list limit",
+			depsCommand: newBetaGroupsListCommand,
+			args:        []string{"--limit", "201"},
+			wantError:   "testflight beta-groups list: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
-			name:       "beta groups relationships limit",
-			command:    BetaGroupsRelationshipsGetCommand,
-			args:       []string{"--group-id", "group-1", "--type", "betaTesters", "--limit", "201"},
-			wantError:  "testflight beta-groups relationships view: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta groups relationships limit",
+			depsCommand: newBetaGroupsRelationshipsGetCommand,
+			args:        []string{"--group-id", "group-1", "--type", "betaTesters", "--limit", "201"},
+			wantError:   "testflight beta-groups relationships view: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
 			name:       "beta license agreements list limit",
@@ -134,36 +137,36 @@ func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 			usageError: true,
 		},
 		{
-			name:       "beta groups relationship aliases conflict",
-			command:    BetaGroupsRelationshipsGetCommand,
-			args:       []string{"--group-id", "group-1", "--id", "group-2", "--type", "betaTesters"},
-			wantError:  "testflight beta-groups relationships view: --group-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta groups relationship aliases conflict",
+			depsCommand: newBetaGroupsRelationshipsGetCommand,
+			args:        []string{"--group-id", "group-1", "--id", "group-2", "--type", "betaTesters"},
+			wantError:   "testflight beta-groups relationships view: --group-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta group app aliases conflict",
-			command:    BetaGroupsAppGetCommand,
-			args:       []string{"--group-id", "group-1", "--id", "group-2"},
-			wantError:  "testflight beta-groups app view: --group-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta group app aliases conflict",
+			depsCommand: newBetaGroupsAppGetCommand,
+			args:        []string{"--group-id", "group-1", "--id", "group-2"},
+			wantError:   "testflight beta-groups app view: --group-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta group recruitment criteria aliases conflict",
-			command:    BetaGroupsRecruitmentCriteriaGetCommand,
-			args:       []string{"--group-id", "group-1", "--id", "group-2"},
-			wantError:  "testflight beta-groups beta-recruitment-criteria view: --group-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta group recruitment criteria aliases conflict",
+			depsCommand: newBetaGroupsRecruitmentCriteriaGetCommand,
+			args:        []string{"--group-id", "group-1", "--id", "group-2"},
+			wantError:   "testflight beta-groups beta-recruitment-criteria view: --group-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta group compatible build aliases conflict",
-			command:    BetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand,
-			args:       []string{"--group-id", "group-1", "--id", "group-2"},
-			wantError:  "testflight beta-groups beta-recruitment-criterion-compatible-build-check view: --group-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta group compatible build aliases conflict",
+			depsCommand: newBetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand,
+			args:        []string{"--group-id", "group-1", "--id", "group-2"},
+			wantError:   "testflight beta-groups beta-recruitment-criterion-compatible-build-check view: --group-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
 			name:       "beta tester apps aliases conflict",
@@ -236,15 +239,7 @@ func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := test.command()
-			if err := cmd.FlagSet.Parse(test.args); err != nil {
-				t.Fatalf("parse flags: %v", err)
-			}
-
-			var runErr error
-			stderr := captureTestFlightDiagnosticStderr(t, func() {
-				runErr = cmd.Exec(context.Background(), nil)
-			})
+			stderr, runErr := runTestFlightDiagnosticCommand(t, test.command, test.depsCommand, test.args)
 			if runErr == nil {
 				t.Fatal("expected validation error")
 			}
