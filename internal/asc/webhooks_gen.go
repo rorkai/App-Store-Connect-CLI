@@ -68,6 +68,30 @@ type WebhookUpdateRequest struct {
 	Data WebhookUpdateData `json:"data"`
 }
 
+// CreateWebhook sends POST /v1/webhooks (webhooks_createInstance).
+func (c *Client) CreateWebhook(ctx context.Context, appID string, attrs WebhookCreateAttributes) (*WebhookResponse, error) {
+	payload := WebhookCreateRequest{
+		Data: WebhookCreateData{
+			Type:       ResourceTypeWebhooks,
+			Attributes: attrs,
+			Relationships: WebhookCreateRelationships{
+				App: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   strings.TrimSpace(appID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[WebhookResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/webhooks",
+		Payload:  payload,
+		ParseErr: "failed to parse webhook response",
+	})
+}
+
 // DeleteWebhook sends DELETE /v1/webhooks/{id} (webhooks_deleteInstance).
 func (c *Client) DeleteWebhook(ctx context.Context, webhookID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/webhooks/%s", strings.TrimSpace(webhookID)), nil)
@@ -102,6 +126,24 @@ func (c *Client) GetWebhook(ctx context.Context, webhookID string) (*WebhookResp
 	webhookID = strings.TrimSpace(webhookID)
 	return getJSON[WebhookResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/webhooks/%s", webhookID),
+		ParseErr: "failed to parse webhook response",
+	})
+}
+
+// UpdateWebhook sends PATCH /v1/webhooks/{id} (webhooks_updateInstance).
+func (c *Client) UpdateWebhook(ctx context.Context, webhookID string, attrs WebhookUpdateAttributes) (*WebhookResponse, error) {
+	webhookID = strings.TrimSpace(webhookID)
+	payload := WebhookUpdateRequest{
+		Data: WebhookUpdateData{
+			Type:       ResourceTypeWebhooks,
+			ID:         webhookID,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[WebhookResponse](ctx, c, writeRequest{
+		Method:   http.MethodPatch,
+		Path:     fmt.Sprintf("/v1/webhooks/%s", webhookID),
+		Payload:  payload,
 		ParseErr: "failed to parse webhook response",
 	})
 }

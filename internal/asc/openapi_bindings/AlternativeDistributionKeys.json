@@ -14,6 +14,7 @@
     {"data":"AlternativeDistributionKeyCreateData","type":"*AlternativeDistributionKeyCreateRelationships","omitempty":true}
   ],
   "operations": [
+    {"operation":"alternativeDistributionKeys_createInstance","name":"CreateAlternativeDistributionKey","params":["appID"],"check":"require","parseErr":"failed to parse alternative distribution key response","links":["app"],"args":[{"name":"publicKey","param":true}]},
     {"operation":"alternativeDistributionKeys_deleteInstance","name":"DeleteAlternativeDistributionKey","params":["keyID"],"check":"require"},
     {"operation":"alternativeDistributionKeys_getCollection","name":"GetAlternativeDistributionKeys","options":"AlternativeDistributionKeysOption","query":"buildAlternativeDistributionKeysQuery","nextContext":"alternativeDistributionKeys","parseErr":"failed to parse alternative distribution keys response"},
     {"operation":"alternativeDistributionKeys_getInstance","name":"GetAlternativeDistributionKey","params":["keyID"],"check":"require","parseErr":"failed to parse alternative distribution key response"}
