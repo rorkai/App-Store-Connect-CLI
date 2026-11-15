@@ -60,6 +60,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/webhooks/webhook-1": `{"data":{"type":"webhooks","id":"webhook-1","attributes":{"name":"Build updates","url":"https://example.com/hook","enabled":true}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "app-events view",
@@ -164,6 +165,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appClipDefaultExperiences/experience-1/appClipDefaultExperienceLocalizations": `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"clip-localization-1","attributes":{"locale":"en-US","subtitle":"Order"}}]}`,
 			},
+			deps: true,
 		},
 	}
 
@@ -251,6 +253,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type webhooks, got apps",
+			deps:    true,
 		},
 		{
 			name:    "webhooks view rejects relationship path",
@@ -258,6 +261,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/webhooks/webhook-1/relationships/app",
 			wantErr: "/v1/<type>/<id>",
+			deps:    true,
 		},
 		{
 			name:    "marketplace webhooks view rejects webhooks link",
@@ -373,6 +377,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "experience-id",
 			value:   selfLinkTestBase + "/v1/appClips/clip-1",
 			wantErr: "expected a self-link of type appClipDefaultExperiences, got appClips",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages view rejects version link",

@@ -57,6 +57,9 @@ type webhookServeEvent struct {
 }
 
 type webhookServeRuntime struct {
+	stderrMu     sync.Mutex
+	stderr       io.Writer
+	now          func() time.Time
 	dir          string
 	execCommand  string
 	maxBodyBytes int64
@@ -68,9 +71,9 @@ type webhookServeRuntime struct {
 	fileCounter  uint64
 }
 
-// WebhooksServeCommand returns the webhooks serve subcommand.
-func WebhooksServeCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("serve", flag.ExitOnError)
+// newWebhooksServeCommand returns the webhooks serve subcommand.
+func newWebhooksServeCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("serve", flag.ExitOnError)
 
 	host := fs.String("host", webhooksServeDefaultHost, "Host to bind the local webhook receiver")
 	allowRemote := fs.Bool("allow-remote", false, "Allow binding to non-loopback hosts")
@@ -100,17 +103,17 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			bindHost := strings.TrimSpace(*host)
 			if bindHost == "" {
-				return shared.RequiredFlag("--host")
+				return d.RequiredFlag("--host")
 			}
 			if !*allowRemote && !isLoopbackWebhookBindHost(bindHost) {
-				return shared.UsageErrorf("binding to non-loopback host %q requires --allow-remote", bindHost)
+				return d.UsageErrorf("binding to non-loopback host %q requires --allow-remote", bindHost)
 			}
 			if *port < 0 || *port > 65535 {
-				fmt.Fprintln(os.Stderr, "Error: --port must be between 0 and 65535")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --port must be between 0 and 65535")
 				return flag.ErrHelp
 			}
 			if *maxBodyBytes < 1 {
-				fmt.Fprintln(os.Stderr, "Error: --max-body-bytes must be greater than 0")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --max-body-bytes must be greater than 0")
 				return flag.ErrHelp
 			}
 
@@ -119,7 +122,7 @@ Examples:
 				outputFormat = "text"
 			}
 			if outputFormat != "text" && outputFormat != "json" {
-				fmt.Fprintln(os.Stderr, "Error: --output must be one of: text, json")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --output must be one of: text, json")
 				return flag.ErrHelp
 			}
 
@@ -149,6 +152,8 @@ Examples:
 			}
 
 			runtime := &webhookServeRuntime{
+				stderr:       d.IO.ErrOut,
+				now:          d.Now,
 				dir:          eventsDir,
 				execCommand:  strings.TrimSpace(*execCommand),
 				maxBodyBytes: *maxBodyBytes,
@@ -176,11 +181,11 @@ Examples:
 			}()
 
 			if outputFormat == "json" {
-				if err := asc.PrintJSON(startup); err != nil {
+				if err := asc.PrintJSONTo(d.IO.Out, startup); err != nil {
 					return fmt.Errorf("webhooks serve: %w", err)
 				}
 			} else {
-				fmt.Fprintf(os.Stdout, "Listening for webhook events on %s\n", startup.URL)
+				fmt.Fprintf(d.IO.Out, "Listening for webhook events on %s\n", startup.URL)
 			}
 
 			select {
@@ -230,14 +235,13 @@ func (r *webhookServeRuntime) newHandler() http.Handler {
 
 		eventType, eventID := extractWebhookServeEventMetadata(req.Header, payload)
 		event := webhookServeEvent{
-			ReceivedAt: time.Now().UTC(),
+			ReceivedAt: r.now().UTC(),
 			Payload:    payload,
 			EventType:  eventType,
 			EventID:    eventID,
 		}
 
-		fmt.Fprintf(
-			os.Stderr,
+		r.logf(
 			"webhooks serve: received event type=%s id=%s bytes=%d\n",
 			firstNonEmpty(strings.TrimSpace(event.EventType), "unknown"),
 			firstNonEmpty(strings.TrimSpace(event.EventID), "unknown"),
@@ -306,9 +310,9 @@ func (r *webhookServeRuntime) processEvent(event webhookServeEvent) {
 	if r.dir != "" {
 		path, err := r.writeEventFile(event)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "webhooks serve: failed to persist event id=%s: %v\n", firstNonEmpty(event.EventID, "unknown"), err)
+			r.logf("webhooks serve: failed to persist event id=%s: %v\n", firstNonEmpty(event.EventID, "unknown"), err)
 		} else {
-			fmt.Fprintf(os.Stderr, "webhooks serve: wrote event payload to %s\n", path)
+			r.logf("webhooks serve: wrote event payload to %s\n", path)
 		}
 	}
 
@@ -321,9 +325,15 @@ func (r *webhookServeRuntime) processEvent(event webhookServeEvent) {
 		err := runWebhookExecCommand(execCtx, r.execCommand, event.Payload)
 		cancel()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "webhooks serve: exec failed for event id=%s: %v\n", firstNonEmpty(event.EventID, "unknown"), err)
+			r.logf("webhooks serve: exec failed for event id=%s: %v\n", firstNonEmpty(event.EventID, "unknown"), err)
 		}
 	}
+}
+
+func (r *webhookServeRuntime) logf(format string, args ...any) {
+	r.stderrMu.Lock()
+	defer r.stderrMu.Unlock()
+	fmt.Fprintf(r.stderr, format, args...)
 }
 
 func (r *webhookServeRuntime) writeEventFile(event webhookServeEvent) (string, error) {

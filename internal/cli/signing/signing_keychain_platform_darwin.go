@@ -15,13 +15,16 @@ import (
 
 type persistentSigningUtilityRunner func(context.Context, []byte, ...string) ([]byte, []byte, error)
 
-func platformSigningKeychainInstallDeps() signingKeychainInstallDeps {
+func platformSigningKeychainInstallDeps(lockOnSleep bool) signingKeychainInstallDeps {
 	runDeps := platformSigningRunDeps()
+	createKeychain := func(ctx context.Context, keychainPath string, password []byte) (bool, error) {
+		return createPersistentSigningKeychain(ctx, keychainPath, password, lockOnSleep)
+	}
 	return signingKeychainInstallDeps{
 		GOOS:                      "darwin",
 		SecurityAvailable:         signingRunSecurityAvailable(),
 		AcquireLock:               runDeps.AcquireLock,
-		CreateKeychain:            createPersistentSigningKeychain,
+		CreateKeychain:            createKeychain,
 		ImportIdentity:            importPersistentSigningIdentity,
 		KeychainSearchList:        runDeps.KeychainSearchList,
 		SetKeychainSearchList:     runDeps.SetKeychainSearchList,
@@ -67,7 +70,7 @@ func importPersistentSigningCertificate(
 	return nil
 }
 
-func createPersistentSigningKeychain(ctx context.Context, keychainPath string, password []byte) (bool, error) {
+func createPersistentSigningKeychain(ctx context.Context, keychainPath string, password []byte, lockOnSleep bool) (bool, error) {
 	if len(password) == 0 {
 		return false, fmt.Errorf("keychain password is empty")
 	}
@@ -75,7 +78,7 @@ func createPersistentSigningKeychain(ctx context.Context, keychainPath string, p
 	if err != nil {
 		return created, err
 	}
-	if err := configurePersistentSigningKeychain(ctx, keychainPath, runSigningUtility); err != nil {
+	if err := configurePersistentSigningKeychain(ctx, keychainPath, runSigningUtility, lockOnSleep); err != nil {
 		return true, err
 	}
 	return true, nil
@@ -85,8 +88,13 @@ func configurePersistentSigningKeychain(
 	ctx context.Context,
 	keychainPath string,
 	runUtility persistentSigningUtilityRunner,
+	lockOnSleep bool,
 ) error {
-	_, stderr, err := runUtility(ctx, nil, "set-keychain-settings", "-l", keychainPath)
+	args := []string{"set-keychain-settings"}
+	if lockOnSleep {
+		args = append(args, "-l")
+	}
+	_, stderr, err := runUtility(ctx, nil, append(args, keychainPath)...)
 	if err != nil {
 		return utilityFailure("configure persistent keychain", stderr, err)
 	}

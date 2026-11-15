@@ -10,15 +10,19 @@ import (
 	"strings"
 )
 
-type (
-	IAPVersionsOption             func(*iapVersionsQuery)
-	IAPVersionGetOption           func(*iapVersionGetQuery)
-	IAPVersionImageOption         func(*iapImageFieldsQuery)
-	IAPVersionImagesOption        func(*iapVersionImagesQuery)
-	IAPVersionLocalizationsOption func(*iapVersionLocalizationsQuery)
-	IAPLocalizationV2Option       func(*iapLocalizationV2Query)
-	IAPImageV2Option              func(*iapImageFieldsQuery)
-)
+type IAPVersionsOption func(*iapVersionsQuery)
+
+type IAPVersionGetOption func(*iapVersionGetQuery)
+
+type IAPVersionImageOption func(*iapImageFieldsQuery)
+
+type IAPVersionImagesOption func(*iapVersionImagesQuery)
+
+type IAPVersionLocalizationsOption func(*iapVersionLocalizationsQuery)
+
+type IAPLocalizationV2Option func(*iapLocalizationV2Query)
+
+type IAPImageV2Option func(*iapImageFieldsQuery)
 
 type iapVersionsQuery struct {
 	listQuery

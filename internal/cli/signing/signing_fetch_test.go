@@ -843,13 +843,13 @@ func TestResolveSigningCertificateTypesIncludesCompatibleCertificatesForIOSAndTV
 		profileType string
 		want        string
 	}{
-		{profileType: "IOS_APP_DEVELOPMENT", want: "IOS_DEVELOPMENT,DEVELOPMENT"},
-		{profileType: "IOS_APP_STORE", want: "IOS_DISTRIBUTION,DISTRIBUTION"},
-		{profileType: "IOS_APP_ADHOC", want: "IOS_DISTRIBUTION,DISTRIBUTION"},
+		{profileType: "IOS_APP_DEVELOPMENT", want: "DEVELOPMENT,IOS_DEVELOPMENT"},
+		{profileType: "IOS_APP_STORE", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
+		{profileType: "IOS_APP_ADHOC", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
 		{profileType: "IOS_APP_INHOUSE", want: "IOS_DISTRIBUTION,DISTRIBUTION"},
-		{profileType: "TVOS_APP_DEVELOPMENT", want: "IOS_DEVELOPMENT,DEVELOPMENT"},
-		{profileType: "TVOS_APP_STORE", want: "IOS_DISTRIBUTION,DISTRIBUTION"},
-		{profileType: "TVOS_APP_ADHOC", want: "IOS_DISTRIBUTION,DISTRIBUTION"},
+		{profileType: "TVOS_APP_DEVELOPMENT", want: "DEVELOPMENT,IOS_DEVELOPMENT"},
+		{profileType: "TVOS_APP_STORE", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
+		{profileType: "TVOS_APP_ADHOC", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
 		{profileType: "TVOS_APP_INHOUSE", want: "IOS_DISTRIBUTION,DISTRIBUTION"},
 	}
 
@@ -1137,8 +1137,8 @@ func TestResolveSigningAssetsPreservesEligibleDevelopmentCertificates(t *testing
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/bundleIds/bundle-main/profiles":
 			signingFetchWriteJSON(t, w, http.StatusOK, `{"data":[]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/certificates":
-			if got := req.URL.Query().Get("filter[certificateType]"); got != "IOS_DEVELOPMENT,DEVELOPMENT" {
-				t.Errorf("certificate type filter = %q, want IOS_DEVELOPMENT,DEVELOPMENT", got)
+			if got := req.URL.Query().Get("filter[certificateType]"); got != "DEVELOPMENT,IOS_DEVELOPMENT" {
+				t.Errorf("certificate type filter = %q, want DEVELOPMENT,IOS_DEVELOPMENT", got)
 			}
 			signingFetchWriteJSON(t, w, http.StatusOK, `{
 				"data":[

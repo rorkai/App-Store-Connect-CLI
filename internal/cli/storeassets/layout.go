@@ -236,6 +236,38 @@ func ReadPreviews(base string) (previews []PreviewLayout, err error) {
 	return previews, nil
 }
 
+// PreviewsOutsideDeviceFolders lists, relative to base, the video files kept
+// directly in a locale folder, which ReadPreviews does not read.
+func PreviewsOutsideDeviceFolders(base string) ([]string, error) {
+	root, err := rootfs.New(base)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	locales, _, err := readDirOptional(root, "app_previews")
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, localeEntry := range locales {
+		if !localeEntry.IsDir() {
+			continue
+		}
+		localeDir := filepath.Join("app_previews", localeEntry.Name())
+		entries, err := readDir(root, localeDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range entries {
+			ext := strings.ToLower(filepath.Ext(entry.Name()))
+			if !entry.IsDir() && (ext == ".mp4" || ext == ".mov" || ext == ".m4v") {
+				paths = append(paths, filepath.Join(localeDir, entry.Name()))
+			}
+		}
+	}
+	return paths, nil
+}
+
 // previewReference identifies a remote preview whose original video App Store
 // Connect does not expose; exports save its HLS playlist beside this sidecar.
 type previewReference struct {

@@ -225,3 +225,16 @@ func buildIAPLocalizationsQuery(query *iapLocalizationsQuery) string {
 	addLimit(values, query.limit)
 	return values.Encode()
 }
+
+// IAPOfferCodesOption sets the query of GET /v2/inAppPurchases/{id}/offerCodes (inAppPurchasesV2_offerCodes_getToManyRelated).
+type IAPOfferCodesOption func(*iapOfferCodesQuery)
+
+type iapOfferCodesQuery struct {
+	listQuery
+}
+
+func buildIAPOfferCodesQuery(query *iapOfferCodesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}

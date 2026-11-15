@@ -244,6 +244,7 @@ func TestListsRejectNextURLWithEmptyParentID(t *testing.T) {
 			args:    []string{"webhooks", "deliveries", "links"},
 			next:    "https://api.appstoreconnect.apple.com/v1/webhooks//relationships/deliveries?cursor=AQ",
 			wantErr: "webhooks deliveries links: invalid --next URL",
+			deps:    true,
 		},
 	}
 
