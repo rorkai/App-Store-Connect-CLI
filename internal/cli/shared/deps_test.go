@@ -777,7 +777,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			_, wantStderr := captureOutput(t, func() { wantValue, wantErr = test.process() })
 
 			var stdout, stderr bytes.Buffer
-			d := &Deps{IO: &IO{Out: &stdout, ErrOut: &stderr}}
+			d := &Deps{IO: &IO{Out: &stdout, ErrOut: &stderr}, LookupEnv: os.LookupEnv}
 			var gotValue any
 			var gotErr error
 			processStdout, processStderr := captureOutput(t, func() { gotValue, gotErr = test.deps(d) })

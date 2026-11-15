@@ -299,6 +299,7 @@ func newBuilderTestDeps(stdout, stderr *bytes.Buffer) *Deps {
 		Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return context.WithCancel(ctx)
 		},
+		LookupEnv: os.LookupEnv,
 	}
 }
 
