@@ -6,7 +6,8 @@ import (
 )
 
 func TestSubscriptionsAvailabilityCommandMentionsAPIDeprecation(t *testing.T) {
-	cmd := SubscriptionsAvailabilityCommand()
+	d, _ := newSubscriptionsTestDeps()
+	cmd := NewSubscriptionsAvailabilityCommand(d)
 
 	if !strings.Contains(cmd.ShortHelp, "deprecated") {
 		t.Fatalf("expected ShortHelp to mention deprecation, got %q", cmd.ShortHelp)

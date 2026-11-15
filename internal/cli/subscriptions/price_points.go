@@ -14,11 +14,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var subscriptionPricePointsClientFactory = shared.GetASCClient
-
-// SubscriptionsPricePointsCommand returns the subscription price points command group.
-func SubscriptionsPricePointsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("price-points", flag.ExitOnError)
+// newSubscriptionsPricePointsCommand returns the subscription price points command group.
+func newSubscriptionsPricePointsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("price-points", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "price-points",
@@ -32,12 +30,12 @@ Examples:
   asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"
   asc subscriptions price-points adjusted-equalizations --price-point-id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsPricePointsListCommand(),
-			SubscriptionsPricePointsGetCommand(),
-			SubscriptionsPricePointsEqualizationsCommand(),
-			SubscriptionsPricePointsAdjustedEqualizationsCommand(),
+			newSubscriptionsPricePointsListCommand(d),
+			newSubscriptionsPricePointsGetCommand(d),
+			newSubscriptionsPricePointsEqualizationsCommand(d),
+			newSubscriptionsPricePointsAdjustedEqualizationsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -45,9 +43,9 @@ Examples:
 	}
 }
 
-// SubscriptionsPricePointsListCommand returns the price points list subcommand.
-func SubscriptionsPricePointsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("price-points list", flag.ExitOnError)
+// newSubscriptionsPricePointsListCommand returns the price points list subcommand.
+func newSubscriptionsPricePointsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("price-points list", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -64,7 +62,7 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	stream := fs.Bool("stream", false, "Stream pages as NDJSON (requires --paginate; explicit --output must be json; incompatible with --pretty)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -96,9 +94,9 @@ Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID" --territory "DE" --paginate --min-price "1.00" --max-price "9.99"
   asc subscriptions price-points list --subscription-id "SUB_ID" --paginate --stream`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(
+			if err := d.ValidatePaginationFlags(
 				ctx, fs, "subscriptions price-points list", 200,
 				"territory", "price", "min-price", "max-price",
 				"upfront-price-point-id", "plan-type", "fields", "territory-fields", "include", "limit",
@@ -108,21 +106,21 @@ Examples:
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.UsageError("--subscription-id is required")
+				return d.UsageError("--subscription-id is required")
 			}
 
 			if *stream && !*paginate {
-				return shared.UsageError("--stream requires --paginate")
+				return d.UsageError("--stream requires --paginate")
 			}
 			streamOutput := shared.NormalizeOutputFormat(*output.Output)
 			if streamOutput == "" {
 				streamOutput = "json"
 			}
 			if *stream && flagWasProvided(fs, "output") && streamOutput != "json" {
-				return shared.UsageError("--stream requires --output json")
+				return d.UsageError("--stream requires --output json")
 			}
 			if *stream && *output.Pretty {
-				return shared.UsageError("--stream cannot be combined with --pretty")
+				return d.UsageError("--stream cannot be combined with --pretty")
 			}
 
 			priceFilter := shared.PriceFilter{
@@ -131,10 +129,10 @@ Examples:
 				MaxPrice: strings.TrimSpace(*maxPrice),
 			}
 			if err := priceFilter.Validate(); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if priceFilter.HasFilter() && *stream {
-				return shared.UsageError("price filtering is not supported with --stream")
+				return d.UsageError("price filtering is not supported with --stream")
 			}
 
 			territoryFilter := strings.TrimSpace(*territory)
@@ -142,49 +140,49 @@ Examples:
 				var err error
 				territoryFilter, err = ascterritory.Normalize(territoryFilter)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 			upfrontIDs, err := normalizeOptionalCSVFilter(fs, "upfront-price-point-id", *upfrontPricePointIDs, false)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			plans, err := normalizeOptionalSubscriptionPlanTypes(fs, "plan-type", *planTypes)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			selectedFields, err := normalizeOptionalSelection(fs, "fields", *fields, subscriptionPricePointFields)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if priceFilter.HasFilter() && selectedFields != nil && !slices.Contains(selectedFields, "customerPrice") {
 				selectedFields = append(selectedFields, "customerPrice")
 			}
 			selectedTerritoryFields, err := normalizeOptionalSelection(fs, "territory-fields", *territoryFields, []string{"currency"})
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory"})
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if len(selectedTerritoryFields) != 0 && !slices.Contains(selectedIncludes, "territory") {
 				selectedIncludes = append(selectedIncludes, "territory")
 			}
 			selectedFields = ensureTerritoryInSparsePricePointFields(selectedFields, selectedIncludes)
-			client, err := subscriptionPricePointsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points list: %w", err)
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			baseOpts := []asc.SubscriptionPricePointsOption{
@@ -203,7 +201,7 @@ Examples:
 				if strings.TrimSpace(*next) == "" {
 					paginateOpts = append(baseOpts, asc.WithSubscriptionPricePointsLimit(200))
 				}
-				firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
+				firstPageCtx, firstPageCancel := d.Timeout(ctx)
 				page, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
 				firstPageCancel()
 				if err != nil {
@@ -213,7 +211,7 @@ Examples:
 					ctx,
 					page,
 					func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
+						pageCtx, pageCancel := d.Timeout(ctx)
 						defer pageCancel()
 						pageOpts := []asc.SubscriptionPricePointsOption{asc.WithSubscriptionPricePointsNextURL(nextURL)}
 						return client.GetSubscriptionPricePoints(pageCtx, id, pageOpts...)
@@ -223,7 +221,7 @@ Examples:
 						if !ok {
 							return fmt.Errorf("unexpected pagination response type %T", page)
 						}
-						return shared.PrintStreamPage(typed)
+						return d.PrintStreamPage(typed)
 					},
 				); err != nil {
 					return fmt.Errorf("subscriptions price-points list: %w", err)
@@ -236,7 +234,7 @@ Examples:
 				if strings.TrimSpace(*next) == "" {
 					paginateOpts = append(baseOpts, asc.WithSubscriptionPricePointsLimit(200))
 				}
-				firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
+				firstPageCtx, firstPageCancel := d.Timeout(ctx)
 				firstPage, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
 				firstPageCancel()
 				if err != nil {
@@ -244,7 +242,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
+					pageCtx, pageCancel := d.Timeout(ctx)
 					defer pageCancel()
 					pageOpts := []asc.SubscriptionPricePointsOption{asc.WithSubscriptionPricePointsNextURL(nextURL)}
 					return client.GetSubscriptionPricePoints(pageCtx, id, pageOpts...)
@@ -256,11 +254,11 @@ Examples:
 				if priceFilter.HasFilter() {
 					if typed, ok := resp.(*asc.SubscriptionPricePointsResponse); ok {
 						filterSubscriptionPricePoints(typed, priceFilter)
-						return shared.PrintOutput(typed, *output.Output, *output.Pretty)
+						return d.PrintOutput(typed, *output.Output, *output.Pretty)
 					}
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionPricePoints(requestCtx, id, opts...)
@@ -272,7 +270,7 @@ Examples:
 				filterSubscriptionPricePoints(resp, priceFilter)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -310,13 +308,13 @@ func filterSubscriptionPricePoints(resp *asc.SubscriptionPricePointsResponse, pf
 	resp.Data = filtered
 }
 
-// SubscriptionsPricePointsGetCommand returns the price points get subcommand.
-func SubscriptionsPricePointsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("price-points view", flag.ExitOnError)
+// newSubscriptionsPricePointsGetCommand returns the price points get subcommand.
+func newSubscriptionsPricePointsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("price-points view", flag.ExitOnError)
 
 	pricePointID := shared.BindResourceIDFlag(fs, "price-point-id", "subscriptionPricePoints", "Subscription price point ID")
 	fields := fs.String("fields", "", "Subscription price point fields (comma-separated)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -327,23 +325,23 @@ func SubscriptionsPricePointsGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions price-points view --price-point-id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			selectedFields, err := normalizeSparseFieldsFlag(fs, "", "fields", *fields, subscriptionPricePointFieldsList())
+			selectedFields, err := normalizeSparseFieldsFlagWith(d, fs, "", "fields", *fields, subscriptionPricePointFieldsList())
 			if err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
-				return shared.RequiredFlag("--price-point-id")
+				return d.RequiredFlag("--price-point-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionPricePoint(requestCtx, id, asc.WithSubscriptionPricePointFields(selectedFields))
@@ -351,26 +349,26 @@ Examples:
 				return fmt.Errorf("subscriptions price-points view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsPricePointsEqualizationsCommand returns the price point equalizations subcommand.
-func SubscriptionsPricePointsEqualizationsCommand() *ffcli.Command {
-	return buildSubscriptionPricePointEqualizationsCommand("equalizations", false)
+// newSubscriptionsPricePointsEqualizationsCommand returns the price point equalizations subcommand.
+func newSubscriptionsPricePointsEqualizationsCommand(d *shared.Deps) *ffcli.Command {
+	return buildSubscriptionPricePointEqualizationsCommand(d, "equalizations", false)
 }
 
-// SubscriptionsPricePointsAdjustedEqualizationsCommand returns the adjusted equalizations subcommand.
-func SubscriptionsPricePointsAdjustedEqualizationsCommand() *ffcli.Command {
-	return buildSubscriptionPricePointEqualizationsCommand("adjusted-equalizations", true)
+// newSubscriptionsPricePointsAdjustedEqualizationsCommand returns the adjusted equalizations subcommand.
+func newSubscriptionsPricePointsAdjustedEqualizationsCommand(d *shared.Deps) *ffcli.Command {
+	return buildSubscriptionPricePointEqualizationsCommand(d, "adjusted-equalizations", true)
 }
 
 var subscriptionPricePointFields = subscriptionPricePointFieldsList()
 
-func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool) *ffcli.Command {
+func buildSubscriptionPricePointEqualizationsCommand(d *shared.Deps, name string, adjusted bool) *ffcli.Command {
 	flagSetName := "price-points " + name
-	fs := flag.NewFlagSet(flagSetName, flag.ExitOnError)
+	fs := d.NewFlagSet(flagSetName, flag.ExitOnError)
 	pricePointID := shared.BindResourceIDFlag(fs, "price-point-id", "subscriptionPricePoints", "Subscription price point ID")
 	territory := fs.String("territory", "", "Filter by territory IDs or names (comma-separated)")
 	// Comma-separated ID filters stay bare-ID: the self-link normalizer takes a
@@ -393,7 +391,7 @@ func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool)
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(8000))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	adjective := ""
 	if adjusted {
@@ -429,7 +427,7 @@ Examples:
   %s
   %s --paginate`, adjective, requirementHelp, baseUsage, baseUsage, subscriptionExample, baseUsage),
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 	}
 	usageErrorPrefix := func() string {
 		prefix := strings.TrimSpace(strings.SplitN(cmd.ShortUsage, " --", 2)[0])
@@ -437,7 +435,7 @@ Examples:
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		if err := shared.ValidatePaginationFlags(
+		if err := d.ValidatePaginationFlags(
 			ctx, fs, usageErrorPrefix(), 8000,
 			"territory", "subscription-id", "upfront-price-point-id",
 			"plan-type", "fields", "territory-fields", "include", "limit",
@@ -447,64 +445,64 @@ Examples:
 
 		id := strings.TrimSpace(*pricePointID)
 		if id == "" && strings.TrimSpace(*next) == "" {
-			return shared.UsageError("--price-point-id is required")
+			return d.UsageError("--price-point-id is required")
 		}
 
 		territories, err := normalizeOptionalTerritoryFilter(fs, "territory", *territory)
 		if err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		subscriptions, err := normalizeOptionalCSVFilter(fs, "subscription-id", *subscriptionIDs, false)
 		if err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		upfrontIDs, err := normalizeOptionalCSVFilter(fs, "upfront-price-point-id", *upfrontPricePointIDs, false)
 		if err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		plans, err := normalizeOptionalSubscriptionPlanTypes(fs, "plan-type", *planTypes)
 		if err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		if adjusted {
 			// OpenAPI leaves planType unconstrained, but the live adjusted
 			// equalizations endpoint reports MONTHLY as its only supported value.
 			for _, plan := range plans {
 				if plan != string(asc.SubscriptionPlanTypeMonthly) {
-					return shared.UsageError("--plan-type must be MONTHLY for adjusted equalizations")
+					return d.UsageError("--plan-type must be MONTHLY for adjusted equalizations")
 				}
 			}
 		}
 		selectedFields, err := normalizeOptionalSelection(fs, "fields", *fields, subscriptionPricePointFields)
 		if err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		selectedTerritoryFields, err := normalizeOptionalSelection(fs, "territory-fields", *territoryFields, []string{"currency"})
 		if err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory"})
 		if err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		if adjusted && strings.TrimSpace(*next) == "" {
 			if len(upfrontIDs) == 0 {
-				return shared.UsageError("--upfront-price-point-id is required for adjusted equalizations")
+				return d.UsageError("--upfront-price-point-id is required for adjusted equalizations")
 			}
 			if len(plans) == 0 {
-				return shared.UsageError("--plan-type is required for adjusted equalizations")
+				return d.UsageError("--plan-type is required for adjusted equalizations")
 			}
 		}
 		if len(selectedTerritoryFields) != 0 && !slices.Contains(selectedIncludes, "territory") {
 			selectedIncludes = append(selectedIncludes, "territory")
 		}
 		selectedFields = ensureTerritoryInSparsePricePointFields(selectedFields, selectedIncludes)
-		client, err := subscriptionPricePointsClientFactory()
+		client, err := d.Client()
 		if err != nil {
 			return fmt.Errorf("%s: %w", errorPrefix, err)
 		}
 
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
 
 		fetchPage := func(pageCtx context.Context, nextURL string, pageLimit int) (asc.PaginatedResponse, error) {
@@ -534,7 +532,7 @@ Examples:
 			if firstLimit == 0 {
 				firstLimit = 8000
 			}
-			resp, err := shared.PaginateWithSpinner(
+			resp, err := d.PaginateWithSpinner(
 				requestCtx,
 				func(pageCtx context.Context) (asc.PaginatedResponse, error) {
 					return fetchPage(pageCtx, *next, firstLimit)
@@ -546,14 +544,14 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		}
 
 		resp, err := fetchPage(requestCtx, *next, *limit)
 		if err != nil {
 			return fmt.Errorf("%s: %w", errorPrefix, err)
 		}
-		return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		return d.PrintOutput(resp, *output.Output, *output.Pretty)
 	}
 	return cmd
 }

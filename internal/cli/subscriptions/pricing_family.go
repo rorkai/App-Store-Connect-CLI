@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsPricingCommand returns the canonical pricing family.
-func SubscriptionsPricingCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing", flag.ExitOnError)
+// newSubscriptionsPricingCommand returns the canonical pricing family.
+func newSubscriptionsPricingCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "pricing",
@@ -31,12 +31,12 @@ Examples:
   asc subscriptions pricing derive --source-subscription-id "MONTHLY_ID" --target-subscription-id "YEARLY_ID" --multiplier "10" --dry-run
   asc subscriptions pricing ppp --subscription-id "SUB_ID" --base-price "9.99" --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsPricingSummaryCommand(),
-			SubscriptionsPricingPricesCommand(),
-			SubscriptionsPricingPricePointsCommand(),
-			SubscriptionsPricingAvailabilityCommand(),
+			newSubscriptionsPricingSummaryCommand(d),
+			newSubscriptionsPricingPricesCommand(d),
+			newSubscriptionsPricingPricePointsCommand(d),
+			newSubscriptionsPricingAvailabilityCommand(d),
 			SubscriptionsPricingPlanAvailabilityCommand(),
 			SubscriptionsPricingMonthlyCommitmentCommand(),
 			SubscriptionsPricingEqualizeCommand(),
@@ -49,9 +49,9 @@ Examples:
 	}
 }
 
-// SubscriptionsPricingPricesCommand returns the canonical prices subgroup.
-func SubscriptionsPricingPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing prices", flag.ExitOnError)
+// newSubscriptionsPricingPricesCommand returns the canonical prices subgroup.
+func newSubscriptionsPricingPricesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing prices", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "prices",
@@ -65,31 +65,31 @@ Examples:
   asc subscriptions pricing prices import --subscription-id "SUB_ID" --input "./prices.csv" --confirm
   asc subscriptions pricing prices delete --price-id "PRICE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			wrapSubscriptionsCommand(
-				SubscriptionsPricesListCommand(),
+				newSubscriptionsPricesListCommand(d),
 				"asc subscriptions prices list",
 				"asc subscriptions pricing prices list",
 				"",
 				"",
 			),
 			wrapSubscriptionsCommand(
-				SubscriptionsPricesAddCommand(),
+				newSubscriptionsPricesAddCommand(d),
 				"asc subscriptions prices add",
 				"asc subscriptions pricing prices set",
 				"set",
 				"Set a subscription price.",
 			),
 			wrapSubscriptionsCommand(
-				SubscriptionsPricesImportCommand(),
+				newSubscriptionsPricesImportCommand(d),
 				"asc subscriptions prices import",
 				"asc subscriptions pricing prices import",
 				"",
 				"",
 			),
 			wrapSubscriptionsCommand(
-				SubscriptionsPricesDeleteCommand(),
+				newSubscriptionsPricesDeleteCommand(d),
 				"asc subscriptions prices delete",
 				"asc subscriptions pricing prices delete",
 				"",
@@ -102,10 +102,10 @@ Examples:
 	}
 }
 
-// SubscriptionsPricingPricePointsCommand returns the canonical price points subgroup.
-func SubscriptionsPricingPricePointsCommand() *ffcli.Command {
+// newSubscriptionsPricingPricePointsCommand returns the canonical price points subgroup.
+func newSubscriptionsPricingPricePointsCommand(d *shared.Deps) *ffcli.Command {
 	return wrapSubscriptionsCommand(
-		SubscriptionsPricePointsCommand(),
+		newSubscriptionsPricePointsCommand(d),
 		"asc subscriptions price-points",
 		"asc subscriptions pricing price-points",
 		"price-points",
@@ -113,9 +113,9 @@ func SubscriptionsPricingPricePointsCommand() *ffcli.Command {
 	)
 }
 
-// SubscriptionsPricingAvailabilityCommand returns the canonical availability subgroup.
-func SubscriptionsPricingAvailabilityCommand() *ffcli.Command {
-	cmd := SubscriptionsAvailabilityCommand()
+// newSubscriptionsPricingAvailabilityCommand returns the canonical availability subgroup.
+func newSubscriptionsPricingAvailabilityCommand(d *shared.Deps) *ffcli.Command {
+	cmd := NewSubscriptionsAvailabilityCommand(d)
 	cmd.ShortHelp = "Manage subscription availability."
 	return cmd
 }

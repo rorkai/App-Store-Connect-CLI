@@ -131,9 +131,9 @@ var subscriptionPricesImportKnownColumns = map[string]string{
 	"plan_type":              "plan_type",
 }
 
-// SubscriptionsPricesImportCommand returns the subscriptions prices import subcommand.
-func SubscriptionsPricesImportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices import", flag.ExitOnError)
+// newSubscriptionsPricesImportCommand returns the subscriptions prices import subcommand.
+func newSubscriptionsPricesImportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("prices import", flag.ExitOnError)
 
 	subID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -144,7 +144,7 @@ func SubscriptionsPricesImportCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Validate and resolve price points without creating subscription prices")
 	confirm := fs.Bool("confirm", false, "Confirm creating subscription prices (required unless --dry-run)")
 	continueOnError := fs.Bool("continue-on-error", true, "Continue processing rows after failures (default true)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "import",
@@ -175,23 +175,23 @@ Examples:
   asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --preserved --confirm
   asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --plan-type MONTHLY --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
 			inputValue := strings.TrimSpace(*inputPath)
 			if inputValue == "" {
-				return shared.RequiredFlag("--input")
+				return d.RequiredFlag("--input")
 			}
 
 			defaultStartDate := ""
 			if strings.TrimSpace(*startDate) != "" {
 				normalized, err := shared.NormalizeDate(*startDate, "--start-date")
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				defaultStartDate = normalized
 			}
@@ -200,16 +200,16 @@ Examples:
 				return err
 			}
 
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 
-			rows, err := readSubscriptionPricesImportCSV(inputValue)
+			rows, err := readSubscriptionPricesImportCSV(d, inputValue)
 			if err != nil {
 				return fmt.Errorf("subscriptions prices import: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices import: %w", err)
 			}
@@ -225,8 +225,8 @@ Examples:
 				Total:           len(rows),
 			}
 
-			summary.SubscriptionID, err = shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (string, error) {
-				return resolveSubscriptionLookupID(requestCtx, client, *appID, summary.SubscriptionID)
+			summary.SubscriptionID, err = shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (string, error) {
+				return resolveSubscriptionLookupIDWith(requestCtx, d, client, *appID, summary.SubscriptionID)
 			})
 			if err != nil {
 				return err
@@ -256,7 +256,7 @@ Examples:
 
 				pricePointID := resolvedRow.pricePointID
 				if pricePointID == "" {
-					pricePointID, rowErr = lookupCache.lookupPricePointID(ctx, client, summary.SubscriptionID, resolvedRow.territoryID, resolvedRow.priceKey, resolvedRow.price)
+					pricePointID, rowErr = lookupCache.lookupPricePointID(ctx, d, client, summary.SubscriptionID, resolvedRow.territoryID, resolvedRow.priceKey, resolvedRow.price)
 					if rowErr != nil {
 						appendSubscriptionPriceImportFailure(summary, resolvedRow, rowErr)
 						if !*continueOnError {
@@ -343,7 +343,7 @@ Examples:
 			}
 
 			if summary.Failed > 0 {
-				artifactPath, artifactErr := writeSubscriptionPriceImportFailureArtifact(summary)
+				artifactPath, artifactErr := writeSubscriptionPriceImportFailureArtifact(d, summary)
 				if artifactErr != nil {
 					summary.FailureArtifactError = artifactErr.Error()
 				} else {
@@ -351,7 +351,7 @@ Examples:
 				}
 			}
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				summary,
 				*output.Output,
 				*output.Pretty,
@@ -613,7 +613,7 @@ func (index *subscriptionPriceImportStateIndex) add(target subscriptionPriceImpo
 	})
 }
 
-func writeSubscriptionPriceImportFailureArtifact(summary *subscriptionPriceImportSummary) (string, error) {
+func writeSubscriptionPriceImportFailureArtifact(d *shared.Deps, summary *subscriptionPriceImportSummary) (string, error) {
 	failures := make([]subscriptionPriceImportResultItem, 0, summary.Failed)
 	for _, result := range summary.Results {
 		if result.Status == "failed" {
@@ -626,21 +626,21 @@ func writeSubscriptionPriceImportFailureArtifact(summary *subscriptionPriceImpor
 		SubscriptionID: summary.SubscriptionID,
 		InputFile:      summary.InputFile,
 		Failed:         summary.Failed,
-		GeneratedAt:    time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt:    d.Now().UTC().Format(time.RFC3339),
 		Results:        failures,
 	}
 	data, err := json.MarshalIndent(artifact, "", "  ")
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(".asc", "reports", "subscription-prices-import", fmt.Sprintf("failures-%d.json", time.Now().UTC().UnixNano()))
+	path := filepath.Join(".asc", "reports", "subscription-prices-import", fmt.Sprintf("failures-%d.json", d.Now().UTC().UnixNano()))
 	if _, err := shared.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
 		return "", err
 	}
 	return path, nil
 }
 
-func readSubscriptionPricesImportCSV(path string) ([]subscriptionPriceImportCSVRow, error) {
+func readSubscriptionPricesImportCSV(d *shared.Deps, path string) ([]subscriptionPriceImportCSVRow, error) {
 	file, err := shared.OpenExistingNoFollow(path)
 	if err != nil {
 		return nil, err
@@ -654,12 +654,12 @@ func readSubscriptionPricesImportCSV(path string) ([]subscriptionPriceImportCSVR
 	header, err := reader.Read()
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return nil, shared.UsageError("CSV file is empty")
+			return nil, d.UsageError("CSV file is empty")
 		}
 		return nil, fmt.Errorf("read header: %w", err)
 	}
 
-	columnIdx, err := parseSubscriptionPricesImportCSVHeader(header)
+	columnIdx, err := parseSubscriptionPricesImportCSVHeader(d, header)
 	if err != nil {
 		return nil, err
 	}
@@ -679,7 +679,7 @@ func readSubscriptionPricesImportCSV(path string) ([]subscriptionPriceImportCSVR
 		}
 		dataRowNumber++
 
-		row, rowErr := parseSubscriptionPricesImportCSVRow(record, columnIdx, dataRowNumber)
+		row, rowErr := parseSubscriptionPricesImportCSVRow(d, record, columnIdx, dataRowNumber)
 		if rowErr != nil {
 			return nil, rowErr
 		}
@@ -689,9 +689,9 @@ func readSubscriptionPricesImportCSV(path string) ([]subscriptionPriceImportCSVR
 	return rows, nil
 }
 
-func parseSubscriptionPricesImportCSVHeader(header []string) (map[string]int, error) {
+func parseSubscriptionPricesImportCSVHeader(d *shared.Deps, header []string) (map[string]int, error) {
 	if len(header) == 0 {
-		return nil, shared.UsageError("CSV header row is required")
+		return nil, d.UsageError("CSV header row is required")
 	}
 
 	knownIdx := make(map[string]int)
@@ -702,21 +702,21 @@ func parseSubscriptionPricesImportCSVHeader(header []string) (map[string]int, er
 			continue
 		}
 		if _, exists := knownIdx[canonical]; exists {
-			return nil, shared.UsageErrorf("duplicate CSV column %q", canonical)
+			return nil, d.UsageErrorf("duplicate CSV column %q", canonical)
 		}
 		knownIdx[canonical] = idx
 	}
 
 	if _, ok := knownIdx["territory"]; !ok {
-		return nil, shared.UsageError(`CSV header must include required column "territory"`)
+		return nil, d.UsageError(`CSV header must include required column "territory"`)
 	}
 	if _, ok := knownIdx["price"]; !ok {
-		return nil, shared.UsageError(`CSV header must include required column "price"`)
+		return nil, d.UsageError(`CSV header must include required column "price"`)
 	}
 	return knownIdx, nil
 }
 
-func parseSubscriptionPricesImportCSVRow(record []string, columnIdx map[string]int, rowNumber int) (subscriptionPriceImportCSVRow, error) {
+func parseSubscriptionPricesImportCSVRow(d *shared.Deps, record []string, columnIdx map[string]int, rowNumber int) (subscriptionPriceImportCSVRow, error) {
 	get := func(col string) string {
 		idx, ok := columnIdx[col]
 		if !ok || idx < 0 || idx >= len(record) {
@@ -729,27 +729,27 @@ func parseSubscriptionPricesImportCSVRow(record []string, columnIdx map[string]i
 	if startDate != "" {
 		normalized, err := normalizeSubscriptionPriceImportDate(startDate)
 		if err != nil {
-			return subscriptionPriceImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+			return subscriptionPriceImportCSVRow{}, d.UsageErrorf("row %d: %v", rowNumber, err)
 		}
 		startDate = normalized
 	}
 
 	currencyCode := strings.ToUpper(strings.TrimSpace(get("currency_code")))
 	if currencyCode != "" && !isISO4217Code(currencyCode) {
-		return subscriptionPriceImportCSVRow{}, shared.UsageErrorf("row %d: currency_code must be a 3-letter ISO 4217 code", rowNumber)
+		return subscriptionPriceImportCSVRow{}, d.UsageErrorf("row %d: currency_code must be a 3-letter ISO 4217 code", rowNumber)
 	}
 
 	preserved, preservedSet, err := parseSubscriptionPriceImportBool(get("preserved"))
 	if err != nil {
-		return subscriptionPriceImportCSVRow{}, shared.UsageErrorf("row %d: preserved must be true or false", rowNumber)
+		return subscriptionPriceImportCSVRow{}, d.UsageErrorf("row %d: preserved must be true or false", rowNumber)
 	}
 	preserveCurrentPrice, preserveCurrentPriceSet, err := parseSubscriptionPriceImportBool(get("preserve_current_price"))
 	if err != nil {
-		return subscriptionPriceImportCSVRow{}, shared.UsageErrorf("row %d: preserve_current_price must be true or false", rowNumber)
+		return subscriptionPriceImportCSVRow{}, d.UsageErrorf("row %d: preserve_current_price must be true or false", rowNumber)
 	}
 	switch {
 	case preservedSet && preserveCurrentPriceSet && preserved != preserveCurrentPrice:
-		return subscriptionPriceImportCSVRow{}, shared.UsageErrorf("row %d: preserved and preserve_current_price must match when both are provided", rowNumber)
+		return subscriptionPriceImportCSVRow{}, d.UsageErrorf("row %d: preserved and preserve_current_price must match when both are provided", rowNumber)
 	case preserveCurrentPriceSet:
 		preserved = preserveCurrentPrice
 		preservedSet = true
@@ -759,7 +759,7 @@ func parseSubscriptionPricesImportCSVRow(record []string, columnIdx map[string]i
 	if value := get("plan_type"); value != "" {
 		planType, err = normalizeSubscriptionPlanType(value)
 		if err != nil {
-			return subscriptionPriceImportCSVRow{}, shared.UsageErrorf("row %d: plan_type must be one of: MONTHLY, UPFRONT", rowNumber)
+			return subscriptionPriceImportCSVRow{}, d.UsageErrorf("row %d: plan_type must be one of: MONTHLY, UPFRONT", rowNumber)
 		}
 	}
 
@@ -820,6 +820,7 @@ func resolveSubscriptionPriceImportRow(
 
 func (c *subscriptionPricePointLookupCache) lookupPricePointID(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	subscriptionID string,
 	territoryID string,
@@ -831,7 +832,7 @@ func (c *subscriptionPricePointLookupCache) lookupPricePointID(
 	c.mu.Unlock()
 
 	if !ok {
-		fetched, err := fetchSubscriptionPricePointsByTerritory(ctx, client, subscriptionID, territoryID)
+		fetched, err := fetchSubscriptionPricePointsByTerritory(ctx, d, client, subscriptionID, territoryID)
 		if err != nil {
 			return "", err
 		}
@@ -854,6 +855,7 @@ func (c *subscriptionPricePointLookupCache) lookupPricePointID(
 
 func fetchSubscriptionPricePointsByTerritory(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	subscriptionID string,
 	territoryID string,
@@ -866,7 +868,7 @@ func fetchSubscriptionPricePointsByTerritory(
 	}
 	fetchPage := func(nextURL string) (*asc.SubscriptionPricePointsResponse, error) {
 		if nextURL == "" {
-			return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricePointsResponse, error) {
+			return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionPricePointsResponse, error) {
 				return client.GetSubscriptionPricePoints(
 					requestCtx,
 					subscriptionID,
@@ -880,7 +882,7 @@ func fetchSubscriptionPricePointsByTerritory(
 		if err != nil {
 			return nil, err
 		}
-		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricePointsResponse, error) {
+		return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionPricePointsResponse, error) {
 			return client.GetSubscriptionPricePoints(
 				requestCtx,
 				subscriptionID,

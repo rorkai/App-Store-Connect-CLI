@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func pricingGroupsClient(t testing.TB, transport resolvedPricesRoundTripFunc) *asc.Client {
@@ -58,7 +59,7 @@ func TestFetchSubscriptionPricingGroupsOverlapsBoundedWave(t *testing.T) {
 		}
 		return resolvedPricesJSONResponse(`{"data":[],"links":{}}`), nil
 	})
-	_, err := fetchSubscriptionPricingGroups(ctx, client, pricingGroupsFixture(9))
+	_, err := fetchSubscriptionPricingGroups(ctx, shared.DefaultDeps(), client, pricingGroupsFixture(9))
 	if err != nil {
 		t.Fatalf("four requests did not overlap: %v (started %d)", err, started.Load())
 	}
@@ -98,7 +99,7 @@ func TestFetchSubscriptionPricingGroupsPreservesGroupAndPageOrder(t *testing.T) 
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	items, err := fetchSubscriptionPricingGroups(ctx, client, pricingGroupsFixture(3))
+	items, err := fetchSubscriptionPricingGroups(ctx, shared.DefaultDeps(), client, pricingGroupsFixture(3))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +152,10 @@ func TestFetchSubscriptionPricingGroupsOrderedErrorCancelsPeers(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { _, err := fetchSubscriptionPricingGroups(ctx, client, pricingGroupsFixture(5)); done <- err }()
+	go func() {
+		_, err := fetchSubscriptionPricingGroups(ctx, shared.DefaultDeps(), client, pricingGroupsFixture(5))
+		done <- err
+	}()
 	select {
 	case err := <-done:
 		if err == nil || (!strings.Contains(err.Error(), "group g0:") || !strings.Contains(err.Error(), "first group failure")) {
@@ -182,7 +186,10 @@ func TestFetchSubscriptionPricingGroupsCallerCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { _, err := fetchSubscriptionPricingGroups(ctx, client, pricingGroupsFixture(4)); done <- err }()
+	go func() {
+		_, err := fetchSubscriptionPricingGroups(ctx, shared.DefaultDeps(), client, pricingGroupsFixture(4))
+		done <- err
+	}()
 	<-started
 	cancel()
 	select {
@@ -213,7 +220,7 @@ func BenchmarkFetchSubscriptionPricingGroupsLatency(b *testing.B) {
 	groups := pricingGroupsFixture(12)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := fetchSubscriptionPricingGroups(context.Background(), client, groups); err != nil {
+		if _, err := fetchSubscriptionPricingGroups(context.Background(), shared.DefaultDeps(), client, groups); err != nil {
 			b.Fatal(err)
 		}
 	}

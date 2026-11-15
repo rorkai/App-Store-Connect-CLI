@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestReadSubscriptionPricesImportCSV_SupportsHeaderAliases(t *testing.T) {
@@ -21,7 +22,7 @@ func TestReadSubscriptionPricesImportCSV_SupportsHeaderAliases(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	rows, err := readSubscriptionPricesImportCSV(path)
+	rows, err := readSubscriptionPricesImportCSV(shared.DefaultDeps(), path)
 	if err != nil {
 		t.Fatalf("readSubscriptionPricesImportCSV() error: %v", err)
 	}
@@ -45,7 +46,7 @@ func TestReadSubscriptionPricesImportCSV_DuplicateKnownColumnReturnsUsageError(t
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readSubscriptionPricesImportCSV(path)
+	_, err := readSubscriptionPricesImportCSV(shared.DefaultDeps(), path)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", err)
 	}
@@ -60,7 +61,7 @@ func TestReadSubscriptionPricesImportCSV_InvalidDateReturnsUsageError(t *testing
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readSubscriptionPricesImportCSV(path)
+	_, err := readSubscriptionPricesImportCSV(shared.DefaultDeps(), path)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", err)
 	}
@@ -75,7 +76,7 @@ func TestReadSubscriptionPricesImportCSV_InvalidBooleanReturnsUsageError(t *test
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readSubscriptionPricesImportCSV(path)
+	_, err := readSubscriptionPricesImportCSV(shared.DefaultDeps(), path)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", err)
 	}
@@ -127,7 +128,7 @@ func TestWriteSubscriptionPriceImportFailureArtifact_ReturnsWriteError(t *testin
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := writeSubscriptionPriceImportFailureArtifact(&subscriptionPriceImportSummary{
+	_, err := writeSubscriptionPriceImportFailureArtifact(shared.DefaultDeps(), &subscriptionPriceImportSummary{
 		Failed:  1,
 		Results: []subscriptionPriceImportResultItem{{Status: "failed"}},
 	})
