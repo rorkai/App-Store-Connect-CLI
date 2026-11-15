@@ -149,7 +149,7 @@ Examples:
 				return err
 			}
 
-			workDir, err := d.Getwd()
+			workDir, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("migrate import: %w", err)
 			}
@@ -1506,7 +1506,7 @@ Examples:
 				return d.RequiredFlag("--fastlane-dir")
 			}
 
-			workDir, err := d.Getwd()
+			workDir, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("migrate validate: %w", err)
 			}
