@@ -1164,6 +1164,7 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 							StdinTTY: stdinTTY, StdoutTTY: tty.stdout, StderrTTY: tty.stderr,
 						},
 						Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) { return context.WithCancel(ctx) },
+						After:   time.After,
 					}
 					processStdout, processStderr := captureOutput(t, func() {
 						withTTYStub(t, false, false)
@@ -1474,7 +1475,7 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 	const processTimeout, injectedTimeout = 7 * time.Second, 3 * time.Minute
 	injected := &Deps{Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 		return ContextWithTimeoutDuration(ctx, injectedTimeout)
-	}}
+	}, After: time.After}
 
 	budget := func(ctx context.Context) time.Duration {
 		deadline, ok := ctx.Deadline()
