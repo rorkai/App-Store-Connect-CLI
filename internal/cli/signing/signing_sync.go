@@ -808,60 +808,56 @@ func syncPullCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("signing sync pull: %w", err)
 			}
-			var targets []SyncTargetResult
-			if selectionRequested {
-				decrypted, targets, err = selectSigningPullFiles(decrypted, selectedBundleIDs, profile)
-				if err != nil {
-					return fmt.Errorf("signing sync pull: %w", err)
-				}
-			}
-
-			if err := os.MkdirAll(outDir, 0o755); err != nil {
-				return fmt.Errorf("signing sync pull: create output dir: %w", err)
-			}
-			outputRoot, err := rootfs.New(outDir)
+			result, err := writeSigningPullFiles(SyncResult{Operation: "pull", RepoURL: transport.Locator(), Storage: transport.Storage()},
+				decrypted, outDir, selectedBundleIDs, profile, targetsProvided)
 			if err != nil {
-				return fmt.Errorf("signing sync pull: create output root: %w", err)
-			}
-			defer outputRoot.Close()
-			if err := preflightSigningPullFilesInRoot(outputRoot, decrypted); err != nil {
-				return fmt.Errorf("signing sync pull: %w", err)
-			}
-
-			var files []string
-			var sensitiveFiles []string
-			identityPresent := false
-			for _, file := range decrypted {
-				if err := writeDecryptedOutputFileInRoot(outputRoot, file.RelativePath, file.Plaintext, file.Sensitive); err != nil {
-					return fmt.Errorf("signing sync pull: %w", err)
-				}
-
-				files = append(files, file.RelativePath)
-				if file.Sensitive {
-					sensitiveFiles = append(sensitiveFiles, file.RelativePath)
-				}
-				if file.Identity {
-					identityPresent = true
-				}
-				fmt.Fprintf(os.Stderr, "  Decrypted %s\n", file.RelativePath)
-			}
-
-			fmt.Fprintf(os.Stderr, "Done — %d files written to %s\n", len(files), outDir)
-
-			result := SyncResult{
-				Operation:       "pull",
-				RepoURL:         transport.Locator(),
-				Storage:         transport.Storage(),
-				Files:           files,
-				IdentityPresent: identityPresent,
-				SensitiveFiles:  sensitiveFiles,
-			}
-			if selectionRequested {
-				applySigningPullSelectionResult(&result, profile, selectedBundleIDs, targets, targetsProvided)
+				return err
 			}
 			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// writeSigningPullFiles applies the bundle selection, checks every
+// destination, and then writes the decrypted files under outDir.
+func writeSigningPullFiles(result SyncResult, decrypted []decryptedSigningFile, outDir string, bundleIDs []string, profileType string, batch bool) (SyncResult, error) {
+	var targets []SyncTargetResult
+	if len(bundleIDs) > 0 {
+		var err error
+		decrypted, targets, err = selectSigningPullFiles(decrypted, bundleIDs, profileType)
+		if err != nil {
+			return SyncResult{}, fmt.Errorf("signing sync pull: %w", err)
+		}
+	}
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return SyncResult{}, fmt.Errorf("signing sync pull: create output dir: %w", err)
+	}
+	outputRoot, err := rootfs.New(outDir)
+	if err != nil {
+		return SyncResult{}, fmt.Errorf("signing sync pull: create output root: %w", err)
+	}
+	defer outputRoot.Close()
+	if err := preflightSigningPullFilesInRoot(outputRoot, decrypted); err != nil {
+		return SyncResult{}, fmt.Errorf("signing sync pull: %w", err)
+	}
+	for _, file := range decrypted {
+		if err := writeDecryptedOutputFileInRoot(outputRoot, file.RelativePath, file.Plaintext, file.Sensitive); err != nil {
+			return SyncResult{}, fmt.Errorf("signing sync pull: %w", err)
+		}
+		result.Files = append(result.Files, file.RelativePath)
+		if file.Sensitive {
+			result.SensitiveFiles = append(result.SensitiveFiles, file.RelativePath)
+		}
+		if file.Identity {
+			result.IdentityPresent = true
+		}
+		fmt.Fprintf(os.Stderr, "  Decrypted %s\n", file.RelativePath)
+	}
+	fmt.Fprintf(os.Stderr, "Done — %d files written to %s\n", len(result.Files), outDir)
+	if len(bundleIDs) > 0 {
+		applySigningPullSelectionResult(&result, profileType, bundleIDs, targets, batch)
+	}
+	return result, nil
 }
 
 func applySigningPullSelectionResult(result *SyncResult, profileType string, bundleIDs []string, targets []SyncTargetResult, batch bool) {
@@ -956,9 +952,19 @@ func loadAndValidateSigningFiles(store *signingpkg.GitStore, encryptedFiles []st
 			Identity:     identity,
 		})
 	}
-	activeIdentityPaths, err := validateIdentityArtifactGraph(decrypted)
+	activeIdentityPaths, err := validateDecryptedSigningFiles(decrypted, password)
 	if err != nil {
 		return nil, nil, err
+	}
+	return decrypted, activeIdentityPaths, nil
+}
+
+// validateDecryptedSigningFiles checks the identity links between decrypted
+// files and returns the active identity paths, each currently valid.
+func validateDecryptedSigningFiles(decrypted []decryptedSigningFile, password string) (map[string]struct{}, error) {
+	activeIdentityPaths, err := validateIdentityArtifactGraph(decrypted)
+	if err != nil {
+		return nil, err
 	}
 	for _, file := range decrypted {
 		if file.Metadata.Kind != "pkcs12-identity" {
@@ -970,13 +976,13 @@ func loadAndValidateSigningFiles(store *signingpkg.GitStore, encryptedFiles []st
 		}
 		_, certificate, err := modernpkcs12.Decode(file.Plaintext, password)
 		if err != nil || certificate == nil {
-			return nil, nil, fmt.Errorf("active identity core is not a decodable PKCS#12 identity")
+			return nil, fmt.Errorf("active identity core is not a decodable PKCS#12 identity")
 		}
 		if now := time.Now(); now.Before(certificate.NotBefore) || !now.Before(certificate.NotAfter) {
-			return nil, nil, fmt.Errorf("active identity certificate is not currently valid")
+			return nil, fmt.Errorf("active identity certificate is not currently valid")
 		}
 	}
-	return decrypted, activeIdentityPaths, nil
+	return activeIdentityPaths, nil
 }
 
 func validateIdentityArtifactGraph(files []decryptedSigningFile) (map[string]struct{}, error) {
