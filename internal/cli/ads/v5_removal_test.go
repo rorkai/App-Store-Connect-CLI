@@ -7,7 +7,7 @@ import (
 )
 
 func TestAdsV5RemovalGuidanceNamesRegisteredCommands(t *testing.T) {
-	root := AdsCommand()
+	root := NewAdsCommand(newAdsTestDeps())
 	if findCommand(root, adsV5RemovedCommand) != nil {
 		t.Fatal("asc ads v5 must stay unregistered so the removal error is reachable")
 	}

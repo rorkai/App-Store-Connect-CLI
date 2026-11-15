@@ -160,36 +160,43 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center activities localizations update",
 			args:  []string{"game-center", "activities", "localizations", "update", "--id", "ID"},
 			flags: "--name, --description",
+			deps:  true,
 		},
 		{
 			name:  "game-center activities update",
 			args:  []string{"game-center", "activities", "update", "--id", "ID"},
 			flags: "--reference-name, --play-style, --min-players, --max-players, --supports-party-code, --archived, --properties",
+			deps:  true,
 		},
 		{
 			name:  "game-center challenges localizations update",
 			args:  []string{"game-center", "challenges", "localizations", "update", "--id", "ID"},
 			flags: "--name, --description",
+			deps:  true,
 		},
 		{
 			name:  "game-center challenges update",
 			args:  []string{"game-center", "challenges", "update", "--id", "ID"},
 			flags: "--reference-name, --repeatable, --archived, --leaderboard-id",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboard-sets localizations update",
 			args:  []string{"game-center", "leaderboard-sets", "localizations", "update", "--id", "ID"},
 			flags: "--name",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboard-sets update",
 			args:  []string{"game-center", "leaderboard-sets", "update", "--id", "ID"},
 			flags: "--reference-name",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboard-sets v2 update",
 			args:  []string{"game-center", "leaderboard-sets", "v2", "update", "--id", "ID"},
 			flags: "--reference-name",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboards localizations update",
@@ -213,21 +220,25 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center matchmaking queues update",
 			args:  []string{"game-center", "matchmaking", "queues", "update", "--id", "ID"},
 			flags: "--rule-set-id, --experiment-rule-set-id, --classic-bundle-ids",
+			deps:  true,
 		},
 		{
 			name:  "game-center matchmaking rule-sets update",
 			args:  []string{"game-center", "matchmaking", "rule-sets", "update", "--id", "ID"},
 			flags: "--min-players, --max-players",
+			deps:  true,
 		},
 		{
 			name:  "game-center matchmaking rules update",
 			args:  []string{"game-center", "matchmaking", "rules", "update", "--id", "ID"},
 			flags: "--description, --expression, --weight",
+			deps:  true,
 		},
 		{
 			name:  "game-center matchmaking teams update",
 			args:  []string{"game-center", "matchmaking", "teams", "update", "--id", "ID"},
 			flags: "--min-players, --max-players",
+			deps:  true,
 		},
 		{
 			name:  "iap promoted-purchases update",
@@ -253,11 +264,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "localizations update",
 			args:  []string{"localizations", "update", "--locale", "en-US"},
 			flags: "--description, --keywords, --whats-new, --promotional-text, --clear-promotional-text, --support-url, --marketing-url",
+			deps:  true,
 		},
 		{
 			name:  "localizations update app-info",
 			args:  []string{"localizations", "update", "--type", "app-info", "--locale", "en-US"},
 			flags: "--name, --subtitle, --clear-subtitle, --privacy-policy-url, --clear-privacy-policy-url, --privacy-choices-url, --privacy-policy-text",
+			deps:  true,
 		},
 		{
 			name:  "marketplace search-details update",

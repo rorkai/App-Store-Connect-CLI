@@ -71,6 +71,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersionLocalizations/loc-1/appPreviewSets": `{"data":[{"type":"appPreviewSets","id":"preview-set-1","attributes":{"previewType":"IPHONE_67"}}],"links":{}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations preview-sets links",
@@ -80,6 +81,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersionLocalizations/loc-1/relationships/appPreviewSets": `{"data":[{"type":"appPreviewSets","id":"preview-set-1"}],"links":{}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations preview-sets view",
@@ -89,6 +91,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appPreviewSets/preview-set-1": `{"data":{"type":"appPreviewSets","id":"preview-set-1","attributes":{"previewType":"IPHONE_67"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations screenshot-sets list",
@@ -98,6 +101,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets": `{"data":[{"type":"appScreenshotSets","id":"screenshot-set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_67"}}],"links":{}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations screenshot-sets view",
@@ -107,6 +111,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appScreenshotSets/screenshot-set-1": `{"data":{"type":"appScreenshotSets","id":"screenshot-set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_67"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations screenshot-sets delete",
@@ -116,6 +121,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appScreenshotSets/screenshot-set-1": ``,
 			},
+			deps: true,
 		},
 		{
 			name:     "video-previews list",
@@ -147,6 +153,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersions/version-1/appStoreVersionLocalizations": `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"links":{}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "subscriptions groups view",
@@ -405,17 +412,17 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		deps     bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		// Localization media sets and the asset commands that read them.
-		{args: []string{"localizations", "preview-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
-		{args: []string{"localizations", "preview-sets", "links"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
-		{args: []string{"localizations", "preview-sets", "view"}, flag: "id", wantType: "appPreviewSets"},
-		{args: []string{"localizations", "screenshot-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
-		{args: []string{"localizations", "screenshot-sets", "links"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
-		{args: []string{"localizations", "screenshot-sets", "view"}, flag: "id", wantType: "appScreenshotSets"},
-		{args: []string{"localizations", "screenshot-sets", "delete"}, flag: "id", wantType: "appScreenshotSets"},
-		{args: []string{"localizations", "create"}, flag: "version", wantType: "appStoreVersions"},
-		{args: []string{"localizations", "update"}, flag: "version", wantType: "appStoreVersions"},
-		{args: []string{"localizations", "update"}, flag: "app-info", wantType: "appInfos"},
-		{args: []string{"localizations", "supported-locales"}, flag: "version", wantType: "appStoreVersions"},
+		{args: []string{"localizations", "preview-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations", deps: true},
+		{args: []string{"localizations", "preview-sets", "links"}, flag: "localization-id", wantType: "appStoreVersionLocalizations", deps: true},
+		{args: []string{"localizations", "preview-sets", "view"}, flag: "id", wantType: "appPreviewSets", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "links"}, flag: "localization-id", wantType: "appStoreVersionLocalizations", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "view"}, flag: "id", wantType: "appScreenshotSets", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "delete"}, flag: "id", wantType: "appScreenshotSets", deps: true},
+		{args: []string{"localizations", "create"}, flag: "version", wantType: "appStoreVersions", deps: true},
+		{args: []string{"localizations", "update"}, flag: "version", wantType: "appStoreVersions", deps: true},
+		{args: []string{"localizations", "update"}, flag: "app-info", wantType: "appInfos", deps: true},
+		{args: []string{"localizations", "supported-locales"}, flag: "version", wantType: "appStoreVersions", deps: true},
 		{args: []string{"screenshots", "list"}, flag: "version-localization", wantType: "appStoreVersionLocalizations"},
 		{args: []string{"screenshots", "upload"}, flag: "version-localization", wantType: "appStoreVersionLocalizations"},
 		{args: []string{"screenshots", "download"}, flag: "version-localization", wantType: "appStoreVersionLocalizations"},
@@ -474,7 +481,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"builds", "uploads", "files", "list"}, flag: "upload", wantType: "buildUploads"},
 		{args: []string{"bundle-ids", "capabilities", "update"}, flag: "id", wantType: "bundleIdCapabilities", deps: true},
 		{args: []string{"bundle-ids", "capabilities", "reconcile", "plan"}, flag: "bundle", wantType: "bundleIds", deps: true},
-		{args: []string{"certificates", "view"}, flag: "id", wantType: "certificates"},
+		{args: []string{"certificates", "view"}, flag: "id", wantType: "certificates", deps: true},
 		{args: []string{"devices", "view"}, flag: "id", wantType: "devices", deps: true},
 		{args: []string{"encryption", "declarations", "view"}, flag: "id", wantType: "appEncryptionDeclarations", deps: true},
 		{args: []string{"encryption", "documents", "view"}, flag: "id", wantType: "appEncryptionDeclarationDocuments", deps: true},
@@ -482,14 +489,14 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"eula", "view"}, flag: "id", wantType: "endUserLicenseAgreements", deps: true},
 		{args: []string{"game-center", "achievements", "view"}, flag: "id", wantType: "gameCenterAchievements", deps: true},
 		{args: []string{"game-center", "achievements", "v2", "localizations", "view"}, flag: "id", wantType: "gameCenterAchievementLocalizations", deps: true},
-		{args: []string{"game-center", "activities", "releases", "delete"}, flag: "id", wantType: "gameCenterActivityVersionReleases"},
-		{args: []string{"game-center", "app-versions", "view"}, flag: "id", wantType: "gameCenterAppVersions"},
-		{args: []string{"game-center", "challenges", "images", "view"}, flag: "id", wantType: "gameCenterChallengeImages"},
-		{args: []string{"game-center", "details", "view"}, flag: "id", wantType: "gameCenterDetails"},
-		{args: []string{"game-center", "groups", "view"}, flag: "id", wantType: "gameCenterGroups"},
-		{args: []string{"game-center", "leaderboard-sets", "member-localizations", "view"}, flag: "id", wantType: "gameCenterLeaderboardSetMemberLocalizations"},
+		{args: []string{"game-center", "activities", "releases", "delete"}, flag: "id", wantType: "gameCenterActivityVersionReleases", deps: true},
+		{args: []string{"game-center", "app-versions", "view"}, flag: "id", wantType: "gameCenterAppVersions", deps: true},
+		{args: []string{"game-center", "challenges", "images", "view"}, flag: "id", wantType: "gameCenterChallengeImages", deps: true},
+		{args: []string{"game-center", "details", "view"}, flag: "id", wantType: "gameCenterDetails", deps: true},
+		{args: []string{"game-center", "groups", "view"}, flag: "id", wantType: "gameCenterGroups", deps: true},
+		{args: []string{"game-center", "leaderboard-sets", "member-localizations", "view"}, flag: "id", wantType: "gameCenterLeaderboardSetMemberLocalizations", deps: true},
 		{args: []string{"game-center", "leaderboards", "view"}, flag: "id", wantType: "gameCenterLeaderboards", deps: true},
-		{args: []string{"game-center", "matchmaking", "teams", "update"}, flag: "id", wantType: "gameCenterMatchmakingTeams"},
+		{args: []string{"game-center", "matchmaking", "teams", "update"}, flag: "id", wantType: "gameCenterMatchmakingTeams", deps: true},
 		{args: []string{"iap", "pricing", "availabilities", "view"}, flag: "id", wantType: "inAppPurchaseAvailabilities"},
 		{args: []string{"iap", "versions", "submit"}, flag: "submission", wantType: "reviewSubmissions"},
 		{args: []string{"nominations", "view"}, flag: "id", wantType: "nominations", deps: true},

@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -226,21 +224,20 @@ func TestValidateURLTargetsIncludesAllSupportedFields(t *testing.T) {
 func TestRunValidatePassesCheckURLsToReadinessAndPrintsReport(t *testing.T) {
 	previous := buildReadinessReportFn
 	var received ReadinessOptions
-	buildReadinessReportFn = func(_ context.Context, opts ReadinessOptions) (validation.Report, error) {
+	buildReadinessReportFn = func(_ context.Context, _ *shared.Deps, opts ReadinessOptions) (validation.Report, error) {
 		received = opts
 		return validation.Report{AppID: opts.AppID, VersionID: opts.VersionID, Checks: []validation.CheckResult{}}, nil
 	}
 	t.Cleanup(func() { buildReadinessReportFn = previous })
 
-	var runErr error
-	stdout := captureValidateStdout(t, func() {
-		runErr = runValidate(context.Background(), validateOptions{
-			AppID:     "app-1",
-			VersionID: "version-1",
-			CheckURLs: true,
-			Output:    "json",
-		})
+	d, stdoutBuf, _ := validateTestDeps()
+	runErr := runValidate(context.Background(), d, validateOptions{
+		AppID:     "app-1",
+		VersionID: "version-1",
+		CheckURLs: true,
+		Output:    "json",
 	})
+	stdout := stdoutBuf.String()
 	if runErr != nil {
 		t.Fatalf("runValidate() error: %v", runErr)
 	}
@@ -255,7 +252,7 @@ func TestRunValidatePassesCheckURLsToReadinessAndPrintsReport(t *testing.T) {
 
 func TestRunValidatePrintsReportBeforeValidationError(t *testing.T) {
 	previous := buildReadinessReportFn
-	buildReadinessReportFn = func(_ context.Context, _ ReadinessOptions) (validation.Report, error) {
+	buildReadinessReportFn = func(_ context.Context, _ *shared.Deps, _ ReadinessOptions) (validation.Report, error) {
 		return validation.Report{
 			AppID:     "app-1",
 			VersionID: "version-1",
@@ -270,16 +267,16 @@ func TestRunValidatePrintsReportBeforeValidationError(t *testing.T) {
 	}
 	t.Cleanup(func() { buildReadinessReportFn = previous })
 
-	stdout := captureValidateStdout(t, func() {
-		err := runValidate(context.Background(), validateOptions{
-			AppID:     "app-1",
-			VersionID: "version-1",
-			Output:    "json",
-		})
-		if err == nil || !shared.IsValidationError(err) {
-			t.Fatalf("runValidate() error = %v, want a reported validation error", err)
-		}
+	d, stdoutBuf, _ := validateTestDeps()
+	err := runValidate(context.Background(), d, validateOptions{
+		AppID:     "app-1",
+		VersionID: "version-1",
+		Output:    "json",
 	})
+	if err == nil || !shared.IsValidationError(err) {
+		t.Fatalf("runValidate() error = %v, want a reported validation error", err)
+	}
+	stdout := stdoutBuf.String()
 	if !strings.Contains(stdout, "metadata.minimum.name") {
 		t.Fatalf("report was not printed before validation error: %q", stdout)
 	}
@@ -288,17 +285,17 @@ func TestRunValidatePrintsReportBeforeValidationError(t *testing.T) {
 func TestRunValidateDefaultsToOfflineURLChecks(t *testing.T) {
 	previous := buildReadinessReportFn
 	var received ReadinessOptions
-	buildReadinessReportFn = func(_ context.Context, opts ReadinessOptions) (validation.Report, error) {
+	buildReadinessReportFn = func(_ context.Context, _ *shared.Deps, opts ReadinessOptions) (validation.Report, error) {
 		received = opts
 		return validation.Report{}, nil
 	}
 	t.Cleanup(func() { buildReadinessReportFn = previous })
 
-	stdout := captureValidateStdout(t, func() {
-		if err := runValidate(context.Background(), validateOptions{AppID: "app-1", VersionID: "version-1", Output: "json"}); err != nil {
-			t.Fatalf("runValidate() error: %v", err)
-		}
-	})
+	d, stdoutBuf, _ := validateTestDeps()
+	if err := runValidate(context.Background(), d, validateOptions{AppID: "app-1", VersionID: "version-1", Output: "json"}); err != nil {
+		t.Fatalf("runValidate() error: %v", err)
+	}
+	stdout := stdoutBuf.String()
 	if received.CheckURLs {
 		t.Fatal("default validation unexpectedly enabled URL checks")
 	}
@@ -326,26 +323,4 @@ func equalValidateStrings(left, right []string) bool {
 		}
 	}
 	return true
-}
-
-func captureValidateStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	oldStdout := os.Stdout
-	readPipe, writePipe, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe() error: %v", err)
-	}
-	os.Stdout = writePipe
-
-	fn()
-
-	if err := writePipe.Close(); err != nil {
-		t.Fatalf("close write pipe: %v", err)
-	}
-	os.Stdout = oldStdout
-	data, err := io.ReadAll(readPipe)
-	if err != nil {
-		t.Fatalf("read stdout pipe: %v", err)
-	}
-	return string(data)
 }

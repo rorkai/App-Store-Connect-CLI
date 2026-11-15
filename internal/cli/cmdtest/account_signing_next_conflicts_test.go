@@ -18,8 +18,8 @@ func TestAccountSigningListsRejectNextQueryFlagsBeforeAuth(t *testing.T) {
 		wantErr string
 		deps    bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
-		{name: "certificate type before next", args: []string{"certificates", "list", "--certificate-type", "IOS_DISTRIBUTION", "--next", nextURL}, wantErr: "certificates list: --next cannot be combined with --certificate-type"},
-		{name: "certificate explicit zero limit after next", args: []string{"certificates", "list", "--next", nextURL, "--limit", "0"}, wantErr: "certificates list: --next cannot be combined with --limit"},
+		{name: "certificate type before next", args: []string{"certificates", "list", "--certificate-type", "IOS_DISTRIBUTION", "--next", nextURL}, wantErr: "certificates list: --next cannot be combined with --certificate-type", deps: true},
+		{name: "certificate explicit zero limit after next", args: []string{"certificates", "list", "--next", nextURL, "--limit", "0"}, wantErr: "certificates list: --next cannot be combined with --limit", deps: true},
 		{name: "user explicit empty email before next", args: []string{"users", "list", "--email", "", "--next", nextURL}, wantErr: "users list: --next cannot be combined with --email", deps: true},
 		{name: "user role after next", args: []string{"users", "list", "--next", nextURL, "--role", "ADMIN"}, wantErr: "users list: --next cannot be combined with --role", deps: true},
 		{name: "user limit", args: []string{"users", "list", "--next", nextURL, "--limit", "25"}, wantErr: "users list: --next cannot be combined with --limit", deps: true},
@@ -35,14 +35,14 @@ func TestAccountSigningListsRejectNextQueryFlagsBeforeAuth(t *testing.T) {
 		{name: "pass type include", args: []string{"pass-type-ids", "list", "--next", nextURL, "--include", "certificates"}, wantErr: "pass-type-ids list: --next cannot be combined with --include", deps: true},
 		{name: "pass type explicit zero certificate limit", args: []string{"pass-type-ids", "list", "--next", nextURL, "--limit-certificates", "0"}, wantErr: "pass-type-ids list: --next cannot be combined with --limit-certificates", deps: true},
 		{name: "pass type limit", args: []string{"pass-type-ids", "list", "--next", nextURL, "--limit", "25"}, wantErr: "pass-type-ids list: --next cannot be combined with --limit", deps: true},
-		{name: "merchant identifier", args: []string{"merchant-ids", "list", "--next", nextURL, "--identifier", "merchant.example"}, wantErr: "merchant-ids list: --next cannot be combined with --identifier"},
-		{name: "merchant name", args: []string{"merchant-ids", "list", "--next", nextURL, "--name", "Example"}, wantErr: "merchant-ids list: --next cannot be combined with --name"},
-		{name: "merchant sort", args: []string{"merchant-ids", "list", "--next", nextURL, "--sort", "name"}, wantErr: "merchant-ids list: --next cannot be combined with --sort"},
-		{name: "merchant fields", args: []string{"merchant-ids", "list", "--next", nextURL, "--fields", "name"}, wantErr: "merchant-ids list: --next cannot be combined with --fields"},
-		{name: "merchant certificate fields", args: []string{"merchant-ids", "list", "--next", nextURL, "--certificate-fields", "name"}, wantErr: "merchant-ids list: --next cannot be combined with --certificate-fields"},
-		{name: "merchant include", args: []string{"merchant-ids", "list", "--next", nextURL, "--include", "certificates"}, wantErr: "merchant-ids list: --next cannot be combined with --include"},
-		{name: "merchant certificate limit", args: []string{"merchant-ids", "list", "--next", nextURL, "--certificates-limit", "25"}, wantErr: "merchant-ids list: --next cannot be combined with --certificates-limit"},
-		{name: "merchant limit", args: []string{"merchant-ids", "list", "--next", nextURL, "--limit", "25"}, wantErr: "merchant-ids list: --next cannot be combined with --limit"},
+		{name: "merchant identifier", args: []string{"merchant-ids", "list", "--next", nextURL, "--identifier", "merchant.example"}, wantErr: "merchant-ids list: --next cannot be combined with --identifier", deps: true},
+		{name: "merchant name", args: []string{"merchant-ids", "list", "--next", nextURL, "--name", "Example"}, wantErr: "merchant-ids list: --next cannot be combined with --name", deps: true},
+		{name: "merchant sort", args: []string{"merchant-ids", "list", "--next", nextURL, "--sort", "name"}, wantErr: "merchant-ids list: --next cannot be combined with --sort", deps: true},
+		{name: "merchant fields", args: []string{"merchant-ids", "list", "--next", nextURL, "--fields", "name"}, wantErr: "merchant-ids list: --next cannot be combined with --fields", deps: true},
+		{name: "merchant certificate fields", args: []string{"merchant-ids", "list", "--next", nextURL, "--certificate-fields", "name"}, wantErr: "merchant-ids list: --next cannot be combined with --certificate-fields", deps: true},
+		{name: "merchant include", args: []string{"merchant-ids", "list", "--next", nextURL, "--include", "certificates"}, wantErr: "merchant-ids list: --next cannot be combined with --include", deps: true},
+		{name: "merchant certificate limit", args: []string{"merchant-ids", "list", "--next", nextURL, "--certificates-limit", "25"}, wantErr: "merchant-ids list: --next cannot be combined with --certificates-limit", deps: true},
+		{name: "merchant limit", args: []string{"merchant-ids", "list", "--next", nextURL, "--limit", "25"}, wantErr: "merchant-ids list: --next cannot be combined with --limit", deps: true},
 	}
 
 	for _, test := range tests {
@@ -75,11 +75,11 @@ func TestAccountSigningListsValidateNextBeforeQueryConflicts(t *testing.T) {
 		args []string
 		deps bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
-		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "5"}},
+		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "5"}, deps: true},
 		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "5"}, deps: true},
 		{name: "actors", args: []string{"actors", "list", "--next", invalidNext, "--limit", "5"}, deps: true},
 		{name: "pass type ids", args: []string{"pass-type-ids", "list", "--next", invalidNext, "--limit", "5"}, deps: true},
-		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "5"}},
+		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "5"}, deps: true},
 	}
 
 	for _, test := range tests {

@@ -15,7 +15,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
-var reviewReadinessReportBuilder = validatecli.BuildReadinessReport
+var reviewReadinessReportBuilder = validatecli.BuildReadinessReportWith
 
 type reviewVersionContext struct {
 	ID          string `json:"id"`
@@ -182,7 +182,7 @@ Examples:
 
 			var report validation.Report
 			if snapshot.Version != nil {
-				report, err = reviewReadinessReportBuilder(requestCtx, validatecli.ReadinessOptions{
+				report, err = reviewReadinessReportBuilder(requestCtx, d, validatecli.ReadinessOptions{
 					AppID:     resolvedAppID,
 					VersionID: snapshot.Version.ID,
 					Platform:  snapshot.Version.Platform,

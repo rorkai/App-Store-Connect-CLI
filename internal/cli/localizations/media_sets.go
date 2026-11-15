@@ -13,8 +13,8 @@ import (
 )
 
 // LocalizationsPreviewSetsCommand returns the preview sets command group.
-func LocalizationsPreviewSetsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("preview-sets", flag.ExitOnError)
+func newLocalizationsPreviewSetsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("preview-sets", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "preview-sets",
@@ -27,11 +27,11 @@ Examples:
   asc localizations preview-sets view --id "PREVIEW_SET_ID"
   asc localizations preview-sets links --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			LocalizationsPreviewSetsListCommand(),
-			LocalizationsPreviewSetsGetCommand(),
-			LocalizationsPreviewSetsRelationshipsCommand(),
+			newLocalizationsPreviewSetsListCommand(d),
+			newLocalizationsPreviewSetsGetCommand(d),
+			newLocalizationsPreviewSetsRelationshipsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -40,8 +40,9 @@ Examples:
 }
 
 // LocalizationsPreviewSetsListCommand returns the preview sets list subcommand.
-func LocalizationsPreviewSetsListCommand() *ffcli.Command {
+func newLocalizationsPreviewSetsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations preview-sets list",
 		Name:        "list",
 		ShortUsage:  "asc localizations preview-sets list --localization-id \"LOCALIZATION_ID\"",
@@ -70,8 +71,9 @@ Examples:
 }
 
 // LocalizationsPreviewSetsGetCommand returns the preview sets get subcommand.
-func LocalizationsPreviewSetsGetCommand() *ffcli.Command {
+func newLocalizationsPreviewSetsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations preview-sets view",
 		Name:        "view",
 		ShortUsage:  "asc localizations preview-sets view --id \"PREVIEW_SET_ID\"",
@@ -91,8 +93,9 @@ Examples:
 }
 
 // LocalizationsPreviewSetsRelationshipsCommand returns the preview sets links subcommand.
-func LocalizationsPreviewSetsRelationshipsCommand() *ffcli.Command {
+func newLocalizationsPreviewSetsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations preview-sets links",
 		Name:        "links",
 		ShortUsage:  "asc localizations preview-sets links --localization-id \"LOCALIZATION_ID\"",
@@ -121,8 +124,8 @@ Examples:
 }
 
 // LocalizationsScreenshotSetsCommand returns the screenshot sets command group.
-func LocalizationsScreenshotSetsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshot-sets", flag.ExitOnError)
+func newLocalizationsScreenshotSetsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("screenshot-sets", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "screenshot-sets",
@@ -136,12 +139,12 @@ Examples:
   asc localizations screenshot-sets delete --id "SCREENSHOT_SET_ID" --confirm
   asc localizations screenshot-sets links --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			LocalizationsScreenshotSetsListCommand(),
-			LocalizationsScreenshotSetsGetCommand(),
-			LocalizationsScreenshotSetsDeleteCommand(),
-			LocalizationsScreenshotSetsRelationshipsCommand(),
+			newLocalizationsScreenshotSetsListCommand(d),
+			newLocalizationsScreenshotSetsGetCommand(d),
+			newLocalizationsScreenshotSetsDeleteCommand(d),
+			newLocalizationsScreenshotSetsRelationshipsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -150,8 +153,9 @@ Examples:
 }
 
 // LocalizationsScreenshotSetsGetCommand returns the screenshot sets get subcommand.
-func LocalizationsScreenshotSetsGetCommand() *ffcli.Command {
+func newLocalizationsScreenshotSetsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations screenshot-sets view",
 		Name:        "view",
 		ShortUsage:  "asc localizations screenshot-sets view --id \"SCREENSHOT_SET_ID\"",
@@ -171,8 +175,9 @@ Examples:
 }
 
 // LocalizationsScreenshotSetsDeleteCommand returns the screenshot sets delete subcommand.
-func LocalizationsScreenshotSetsDeleteCommand() *ffcli.Command {
+func newLocalizationsScreenshotSetsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations screenshot-sets delete",
 		Name:        "delete",
 		ShortUsage:  "asc localizations screenshot-sets delete --id \"SCREENSHOT_SET_ID\" --confirm",
@@ -196,10 +201,11 @@ Examples:
 }
 
 // LocalizationsScreenshotSetsListCommand returns the screenshot sets list subcommand.
-func LocalizationsScreenshotSetsListCommand() *ffcli.Command {
+func newLocalizationsScreenshotSetsListCommand(d *shared.Deps) *ffcli.Command {
 	include := new(string)
 	var included asc.IncludedFields
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations screenshot-sets list",
 		Name:        "list",
 		ShortUsage:  "asc localizations screenshot-sets list --localization-id \"LOCALIZATION_ID\" [--include appScreenshots]",
@@ -224,13 +230,13 @@ Examples:
 				next := fs.Lookup("next").Value.String()
 				*include = strings.TrimSpace(*include)
 				if *include != "" && strings.TrimSpace(next) != "" {
-					return shared.UsageError("localizations screenshot-sets list: --next cannot be combined with --include")
+					return d.UsageError("localizations screenshot-sets list: --next cannot be combined with --include")
 				}
 				if *include != "" && *include != "appScreenshots" {
-					return shared.UsageError("localizations screenshot-sets list: --include must be appScreenshots")
+					return d.UsageError("localizations screenshot-sets list: --include must be appScreenshots")
 				}
 				var err error
-				included, err = includedFields.Resolve("localizations screenshot-sets list", next, shared.SplitCSV(*include))
+				included, err = includedFields.ResolveWith(d, "localizations screenshot-sets list", next, shared.SplitCSV(*include))
 				return err
 			}
 		},
@@ -252,8 +258,9 @@ Examples:
 }
 
 // LocalizationsScreenshotSetsRelationshipsCommand returns the screenshot sets links subcommand.
-func LocalizationsScreenshotSetsRelationshipsCommand() *ffcli.Command {
+func newLocalizationsScreenshotSetsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations screenshot-sets links",
 		Name:        "links",
 		ShortUsage:  "asc localizations screenshot-sets links --localization-id \"LOCALIZATION_ID\"",

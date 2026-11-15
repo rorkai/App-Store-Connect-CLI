@@ -23,7 +23,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 		resourceType string
 		wantBody     string
 		wantRequests int
-		deps         bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:         "achievement v1",
@@ -32,7 +31,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterAchievements",
 			wantBody:     `{"data":{"type":"gameCenterAchievements","attributes":{"referenceName":"First Win","vendorIdentifier":"com.example.firstwin","points":10,"showBeforeEarned":true,"repeatable":false},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}}}}}`,
 			wantRequests: 2,
-			deps:         true,
 		},
 		{
 			name:         "achievement v2",
@@ -41,7 +39,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterAchievements",
 			wantBody:     `{"data":{"type":"gameCenterAchievements","attributes":{"referenceName":"Group Win","vendorIdentifier":"grp.com.example.groupwin","points":10,"showBeforeEarned":true,"repeatable":false},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterAchievementVersions","id":"${achVer1}"}]}}},"included":[{"type":"gameCenterAchievementVersions","id":"${achVer1}"}]}`,
 			wantRequests: 1,
-			deps:         true,
 		},
 		{
 			name:         "leaderboard v1",
@@ -50,7 +47,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboards",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}}}}}`,
 			wantRequests: 2,
-			deps:         true,
 		},
 		{
 			name:         "leaderboard v2",
@@ -59,7 +55,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboards",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"Group Score","vendorIdentifier":"grp.com.example.groupscore","defaultFormatter":"MONEY_YEN","scoreSortType":"DESC","submissionType":"BEST_SCORE"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}`,
 			wantRequests: 1,
-			deps:         true,
 		},
 		{
 			name:         "leaderboard v1 with recurrence",
@@ -68,7 +63,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboards",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE","recurrenceStartDate":"2026-12-01T00:00:00Z","recurrenceDuration":"PT168H","recurrenceRule":"FREQ=DAILY;INTERVAL=7"},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}}}}}`,
 			wantRequests: 2,
-			deps:         true,
 		},
 		{
 			name:         "leaderboard v2 with recurrence",
@@ -77,7 +71,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboards",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"Group Score","vendorIdentifier":"grp.com.example.groupscore","defaultFormatter":"MONEY_YEN","scoreSortType":"DESC","submissionType":"BEST_SCORE","recurrenceStartDate":"2026-12-01T00:00:00Z","recurrenceDuration":"PT12H","recurrenceRule":"FREQ=HOURLY;INTERVAL=12"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}`,
 			wantRequests: 1,
-			deps:         true,
 		},
 		{
 			name:         "achievement v1 activity properties",
@@ -86,7 +79,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterAchievements",
 			wantBody:     `{"data":{"type":"gameCenterAchievements","attributes":{"referenceName":"First Win","vendorIdentifier":"com.example.firstwin","points":10,"showBeforeEarned":true,"repeatable":false,"activityProperties":{"mode":"ranked"}},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}}}}}`,
 			wantRequests: 2,
-			deps:         true,
 		},
 		{
 			name:         "achievement v2 activity properties",
@@ -95,7 +87,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterAchievements",
 			wantBody:     `{"data":{"type":"gameCenterAchievements","attributes":{"referenceName":"Group Win","vendorIdentifier":"grp.com.example.groupwin","points":10,"showBeforeEarned":true,"repeatable":false,"activityProperties":{"mode":"ranked"}},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterAchievementVersions","id":"${achVer1}"}]}}},"included":[{"type":"gameCenterAchievementVersions","id":"${achVer1}"}]}`,
 			wantRequests: 1,
-			deps:         true,
 		},
 		{
 			name:         "leaderboard v1 visibility and activity properties",
@@ -104,7 +95,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboards",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE","visibility":"HIDE_FOR_ALL","activityProperties":{"mode":"ranked"}},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}}}}}`,
 			wantRequests: 2,
-			deps:         true,
 		},
 		{
 			name:         "leaderboard v2 visibility and activity properties",
@@ -113,7 +103,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboards",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"Group Score","vendorIdentifier":"grp.com.example.groupscore","defaultFormatter":"MONEY_YEN","scoreSortType":"DESC","submissionType":"BEST_SCORE","visibility":"SHOW_FOR_ALL","activityProperties":{"mode":"ranked"}},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}`,
 			wantRequests: 1,
-			deps:         true,
 		},
 		{
 			name:         "activity properties",
@@ -148,7 +137,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboards",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"},"relationships":{"gameCenterLeaderboardSets":{"data":[{"type":"gameCenterLeaderboardSets","id":"set-2"},{"type":"gameCenterLeaderboardSets","id":"set-1"}]}}}}`,
 			wantRequests: 1,
-			deps:         true,
 		},
 		{
 			name:         "leaderboard v2 with set ids inherits parent",
@@ -157,7 +145,6 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboards",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboards","attributes":{"referenceName":"High Score","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"},"relationships":{"gameCenterLeaderboardSets":{"data":[{"type":"gameCenterLeaderboardSets","id":"set-2"},{"type":"gameCenterLeaderboardSets","id":"set-1"}]},"versions":{"data":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardVersions","id":"${lbVer1}"}]}`,
 			wantRequests: 1,
-			deps:         true,
 		},
 		{
 			// Apple returns 409 when gameCenterLeaderboards is sent with gameCenterDetail or gameCenterGroup.
@@ -193,14 +180,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			reg.Register(asctest.POST(test.postPath).JSONBody(test.wantBody),
 				asctest.JSON(http.StatusCreated, fmt.Sprintf(`{"data":{"type":%q,"id":"created","attributes":{}}}`, test.resourceType)))
 
-			var stdout, stderr string
-			var err error
-			if test.deps {
-				stdout, stderr, err = runRootWithDeps(t, stubClient(t, reg), test.args...)
-			} else {
-				reg.Install()
-				stdout, stderr, err = runCommand(t, test.args)
-			}
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -235,7 +215,6 @@ func TestGameCenterCreateMembersRejectExplicitParent(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
-		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "leaderboard set v1 app",
@@ -256,31 +235,19 @@ func TestGameCenterCreateMembersRejectExplicitParent(t *testing.T) {
 			name:    "leaderboard v1 app",
 			args:    []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "Score", "--vendor-id", "com.example.score", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--set-ids", "set-1"},
 			wantErr: "Error: --app cannot be used with --set-ids; " + leaderboardInherits,
-			deps:    true,
 		},
 		{
 			name:    "leaderboard v2 group",
 			args:    []string{"game-center", "leaderboards", "create", "--group-id", "GROUP_ID", "--reference-name", "Score", "--vendor-id", "grp.com.example.score", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE", "--set-ids", "set-1"},
 			wantErr: "Error: --group-id cannot be used with --set-ids; " + leaderboardInherits,
-			deps:    true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var stdout, stderr string
-			if test.deps {
-				var exitCode int
-				stdout, stderr, exitCode = runWithDeps(t, nil, test.args...)
-				if exitCode != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", exitCode, rootcmd.ExitUsage)
-				}
-			} else {
-				stdout, stderr = captureOutput(t, func() {
-					if exitCode := rootcmd.Run(test.args, "1.2.3"); exitCode != rootcmd.ExitUsage {
-						t.Fatalf("exit code = %d, want %d", exitCode, rootcmd.ExitUsage)
-					}
-				})
+			stdout, stderr, exitCode := runWithDeps(t, nil, test.args...)
+			if exitCode != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", exitCode, rootcmd.ExitUsage)
 			}
 
 			if stdout != "" {
@@ -305,7 +272,6 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 		patchPath     string
 		resourceType  string
 		wantAttribute string
-		deps          bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:          "achievement v1 activity properties",
@@ -313,7 +279,6 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			patchPath:     "/v1/gameCenterAchievements/res-1",
 			resourceType:  "gameCenterAchievements",
 			wantAttribute: `{"activityProperties":{"mode":"ranked"}}`,
-			deps:          true,
 		},
 		{
 			name:          "achievement v2 activity properties from a file",
@@ -321,7 +286,6 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			patchPath:     "/v2/gameCenterAchievements/res-1",
 			resourceType:  "gameCenterAchievements",
 			wantAttribute: `{"activityProperties":{"mode":"casual"}}`,
-			deps:          true,
 		},
 		{
 			name:          "leaderboard v1 visibility and activity properties",
@@ -329,7 +293,6 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			patchPath:     "/v1/gameCenterLeaderboards/res-1",
 			resourceType:  "gameCenterLeaderboards",
 			wantAttribute: `{"visibility":"HIDE_FOR_ALL","activityProperties":{"mode":"ranked"}}`,
-			deps:          true,
 		},
 		{
 			name:          "leaderboard v2 visibility",
@@ -337,7 +300,6 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			patchPath:     "/v2/gameCenterLeaderboards/res-1",
 			resourceType:  "gameCenterLeaderboards",
 			wantAttribute: `{"visibility":"SHOW_FOR_ALL"}`,
-			deps:          true,
 		},
 		{
 			name:          "activity properties",
@@ -359,7 +321,6 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			patchPath:     "/v1/gameCenterLeaderboards/res-1",
 			resourceType:  "gameCenterLeaderboards",
 			wantAttribute: `{"referenceName":"New Name"}`,
-			deps:          true,
 		},
 	}
 
@@ -372,20 +333,9 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			reg.Register(asctest.PATCH(test.patchPath).JSONBody(fmt.Sprintf(`{"data":{"type":%q,"id":"res-1","attributes":%s}}`, test.resourceType, test.wantAttribute)),
 				asctest.JSON(http.StatusOK, fmt.Sprintf(`{"data":{"type":%q,"id":"res-1","attributes":{}}}`, test.resourceType)))
 
-			var stderr string
-			if test.deps {
-				var code int
-				_, stderr, code = runWithDeps(t, stubClient(t, reg), test.args...)
-				if code != rootcmd.ExitSuccess {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-				}
-			} else {
-				reg.Install()
-				_, stderr = captureOutput(t, func() {
-					if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitSuccess {
-						t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-					}
-				})
+			_, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
+			if code != rootcmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
 			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)

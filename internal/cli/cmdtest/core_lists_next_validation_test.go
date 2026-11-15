@@ -155,7 +155,7 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 
 func TestCoreListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"certificates", "list"}, wantErr: "certificates list: --next"},
+		{args: []string{"certificates", "list"}, wantErr: "certificates list: --next", deps: true},
 		{args: []string{"nominations", "list", "--status", "DRAFT"}, wantErr: "nominations list: --next", deps: true},
 		{args: []string{"accessibility", "list"}, wantErr: "accessibility list: --next", deps: true},
 		{args: []string{"actors", "list"}, wantErr: "actors list: --next", deps: true},
@@ -170,6 +170,7 @@ func TestCoreListsPaginateFromNext(t *testing.T) {
 	runPaginateFromNextCases(t, []paginateFromNextCase{
 		{
 			args:     []string{"certificates", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/certificates?cursor=AQ&limit=200",
 			dataType: "certificates",
 		},

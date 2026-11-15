@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// CertificatesRelationshipsCommand returns the links command group.
-func CertificatesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("links", flag.ExitOnError)
+// newCertificatesRelationshipsCommand returns the links command group.
+func newCertificatesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("links", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "links",
@@ -25,7 +25,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			CertificatesRelationshipsPassTypeIDCommand(),
+			newCertificatesRelationshipsPassTypeIDCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -33,12 +33,12 @@ Examples:
 	}
 }
 
-// CertificatesRelationshipsPassTypeIDCommand returns the pass-type-id links command.
-func CertificatesRelationshipsPassTypeIDCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pass-type-id", flag.ExitOnError)
+// newCertificatesRelationshipsPassTypeIDCommand returns the pass-type-id links command.
+func newCertificatesRelationshipsPassTypeIDCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pass-type-id", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "certificates", "Certificate ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "pass-type-id",
@@ -53,15 +53,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("certificates links pass-type-id: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetCertificatePassTypeIDRelationship(requestCtx, idValue)
@@ -69,7 +69,7 @@ Examples:
 				return fmt.Errorf("certificates links pass-type-id: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

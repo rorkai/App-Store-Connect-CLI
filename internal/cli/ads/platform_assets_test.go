@@ -14,7 +14,7 @@ import (
 )
 
 func TestPlatformAssetsUploadIsOneCustomCommand(t *testing.T) {
-	assets := findCommand(AdsCommand(), "assets")
+	assets := findCommand(NewAdsCommand(newAdsTestDeps()), "assets")
 	if assets == nil {
 		t.Fatal("missing assets group")
 	}
@@ -62,9 +62,9 @@ func TestPlatformMapDeleteCommandsRequireConfirmationBeforeOtherWork(t *testing.
 			if !ok {
 				t.Fatalf("missing spec %s", strings.Join(path, " "))
 			}
-			fs, flags := bindEndpointFlags(spec, "test")
+			fs, flags := bindEndpointFlags(newAdsTestDeps(), spec, "test")
 			setRequiredPathParams(t, fs, spec)
-			err := executeEndpoint(context.Background(), spec, flags)
+			err := executeEndpoint(context.Background(), newAdsTestDeps(), spec, flags)
 			if err == nil || !strings.Contains(err.Error(), "--confirm is required") {
 				t.Fatalf("error = %v", err)
 			}
@@ -83,9 +83,9 @@ func TestPlatformLocationGroupUpdateRequiresRiskConfirmationBeforeOtherWork(t *t
 	if !spec.RiskConfirm || spec.RiskConfirmBodyField != "" {
 		t.Fatalf("location-groups update risk metadata = %+v, want unconditional confirmation", spec)
 	}
-	_, flags := bindEndpointFlags(spec, "location-groups update")
+	_, flags := bindEndpointFlags(newAdsTestDeps(), spec, "location-groups update")
 	*flags.pathStrings["id"] = "GROUP"
-	err := executeEndpoint(context.Background(), spec, flags)
+	err := executeEndpoint(context.Background(), newAdsTestDeps(), spec, flags)
 	if !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "--confirm is required") {
 		t.Fatalf("location-groups update error = %v, want pre-auth confirmation usage error", err)
 	}
@@ -103,7 +103,7 @@ func TestPlatformLocationGroupUpdateRequiresRiskConfirmationBeforeOtherWork(t *t
 		if other.RiskConfirm || other.RequiresConfirm {
 			t.Fatalf("%s confirmation metadata = %+v, want confirmation-free", strings.Join(path, " "), other)
 		}
-		otherCommand := findCommand(AdsCommand(), path...)
+		otherCommand := findCommand(NewAdsCommand(newAdsTestDeps()), path...)
 		if otherCommand == nil || otherCommand.FlagSet.Lookup("confirm") != nil {
 			t.Fatalf("%s must remain confirmation-free", strings.Join(path, " "))
 		}
@@ -189,7 +189,7 @@ func TestOpenPlatformAssetUploadFileValidation(t *testing.T) {
 func TestPlatformAssetUploadMissingFlagsFailBeforeAuth(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing-config.json"))
 	setAdsResolverTestEnv(t)
-	command := PlatformAssetUploadCommand()
+	command := newPlatformAssetUploadCommand(newAdsTestDeps())
 	if err := command.FlagSet.Parse([]string{"--brand", "BRAND", "--ad-account", "ACCOUNT"}); err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +224,7 @@ func TestPlatformAssetUploadValidatesOutputBeforeMutation(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			command := PlatformAssetUploadCommand()
+			command := newPlatformAssetUploadCommand(newAdsTestDeps())
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatal(err)
 			}
@@ -267,7 +267,7 @@ func TestPlatformAssetUploadRejectsUnsafeFilesBeforeAuth(t *testing.T) {
 		{name: "unsupported", path: unsupported, want: "must be PNG, JPEG, or HEIC"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			command := PlatformAssetUploadCommand()
+			command := newPlatformAssetUploadCommand(newAdsTestDeps())
 			if err := command.FlagSet.Parse([]string{"--file", test.path, "--brand", "BRAND", "--ad-account", "ACCOUNT"}); err != nil {
 				t.Fatal(err)
 			}

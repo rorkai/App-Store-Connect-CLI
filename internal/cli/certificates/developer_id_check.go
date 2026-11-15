@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -29,8 +28,6 @@ const (
 	developerIDEvidenceNone            = "none"
 )
 
-var developerIDCheckNow = time.Now
-
 // developerIDCheckTypes lists every Developer ID type the certificates endpoint
 // accepts. It has no Developer ID Installer type.
 var developerIDCheckTypes = []string{
@@ -40,12 +37,12 @@ var developerIDCheckTypes = []string{
 	"DEVELOPER_ID_KEXT_G2",
 }
 
-// CertificatesDeveloperIDCheckCommand returns the certificates developer-id-check subcommand.
-func CertificatesDeveloperIDCheckCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("developer-id-check", flag.ExitOnError)
+// newCertificatesDeveloperIDCheckCommand returns the certificates developer-id-check subcommand.
+func newCertificatesDeveloperIDCheckCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("developer-id-check", flag.ExitOnError)
 
 	strict := fs.Bool("strict", false, "Exit non-zero when an unexpired certificate is not proven unaffected")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "developer-id-check",
@@ -74,18 +71,18 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := getCertificatesASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("certificates developer-id-check: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			paginated, err := shared.PaginateWithSpinner(
+			paginated, err := d.PaginateWithSpinner(
 				requestCtx,
 				func(ctx context.Context) (asc.PaginatedResponse, error) {
 					return client.GetCertificates(ctx, asc.WithCertificatesTypes(developerIDCheckTypes), asc.Limit[asc.CertificatesOption](200))
@@ -102,15 +99,15 @@ Examples:
 				return fmt.Errorf("certificates developer-id-check: unexpected response type %T", paginated)
 			}
 
-			result := buildDeveloperIDCheck(response.Data, developerIDCheckNow())
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			result := buildDeveloperIDCheck(response.Data, d.Now())
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if !result.ActionRequired {
 				return nil
 			}
 			pending := developerIDCheckPending(result)
-			fmt.Fprintf(os.Stderr, "Warning: certificates developer-id-check: %d certificate(s) may stop working on February 1, 2027; replace them with certificates from %s\n", pending, artifacts.DeveloperIDReplacementAuthority)
+			fmt.Fprintf(d.IO.ErrOut, "Warning: certificates developer-id-check: %d certificate(s) may stop working on February 1, 2027; replace them with certificates from %s\n", pending, artifacts.DeveloperIDReplacementAuthority)
 			if *strict {
 				return shared.NewReportedError(fmt.Errorf("certificates developer-id-check: %d certificate(s) need replacement or review", pending))
 			}

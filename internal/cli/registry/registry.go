@@ -132,13 +132,15 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("account", "Inspect account-level health and access signals.", func() *ffcli.Command {
 			return account.NewAccountCommand(d)
 		}),
-		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", install.InstallSkillsCommand),
+		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", func() *ffcli.Command { return install.NewInstallSkillsCommand(d) }),
 		commandFactory("init", "Initialize asc helper docs in the current repo.", initcmd.InitCommand),
 		commandFactory("docs", "Access embedded documentation guides and reference helpers.", docs.DocsCommand),
 		commandFactory("diff", "Generate deterministic non-mutating diff plans.", func() *ffcli.Command {
 			return diffcmd.NewDiffCommand(d)
 		}),
-		commandFactory("system-status", "Check Apple Developer service health.", systemstatus.Command),
+		commandFactory("system-status", "Check Apple Developer service health.", func() *ffcli.Command {
+			return systemstatus.NewCommand(d)
+		}),
 		commandFactory("status", "Show a release pipeline dashboard for an app.", status.StatusCommand),
 		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", func() *ffcli.Command {
 			return insights.NewInsightsCommand(d)
@@ -153,7 +155,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("analytics", "Request and download analytics and sales reports.", func() *ffcli.Command {
 			return analytics.NewAnalyticsCommand(d)
 		}),
-		commandFactory("ads", "Manage Apple Ads API resources.", ads.AdsCommand),
+		commandFactory("ads", "Manage Apple Ads API resources.", func() *ffcli.Command {
+			return ads.NewAdsCommand(d)
+		}),
 		commandFactory("optimize", "Build cross-API optimization plans.", optimize.OptimizeCommand),
 		commandFactory("performance", "Access performance metrics and diagnostic logs.", func() *ffcli.Command {
 			return performance.NewPerformanceCommand(d)
@@ -185,8 +189,8 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", func() *ffcli.Command {
 			return bundleids.NewBundleIDsCommand(d)
 		}),
-		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", merchantids.MerchantIDsCommand),
-		commandFactory("certificates", "Manage signing certificates.", certificates.CertificatesCommand),
+		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", func() *ffcli.Command { return merchantids.NewMerchantIDsCommand(d) }),
+		commandFactory("certificates", "Manage signing certificates.", func() *ffcli.Command { return certificates.NewCertificatesCommand(d) }),
 		commandFactory("pass-type-ids", "Manage pass type IDs.", func() *ffcli.Command {
 			return passtypeids.NewPassTypeIDsCommand(d)
 		}),
@@ -239,7 +243,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("pre-orders", "Manage app pre-orders.", func() *ffcli.Command {
 			return preorders.NewPreOrdersCommand(d)
 		}),
-		commandFactory("localizations", "Manage App Store localization metadata.", localizations.LocalizationsCommand),
+		commandFactory("localizations", "Manage App Store localization metadata.", func() *ffcli.Command {
+			return localizations.NewLocalizationsCommand(d)
+		}),
 		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", metadata.MetadataCommand),
 		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),
 		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
@@ -258,13 +264,15 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
 		commandFactory("notarization", "Manage macOS notarization submissions.", notarization.NotarizationCommand),
 		commandFactory("iap", "Manage in-app purchases in App Store Connect.", iap.IAPCommand),
-		commandFactory("storekit", "Manage StoreKit server APIs with In-App Purchase API keys.", storekitcmd.Command),
+		commandFactory("storekit", "Manage StoreKit server APIs with In-App Purchase API keys.", func() *ffcli.Command {
+			return storekitcmd.NewCommand(d)
+		}),
 		commandFactory("app-events", "Manage App Store in-app events.", app_events.Command),
 		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", subscriptions.SubscriptionsCommand),
 		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", func() *ffcli.Command {
 			return submit.NewSubmitCommand(d)
 		}),
-		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
+		commandFactory("validate", "Canonical App Store submission readiness report.", func() *ffcli.Command { return validate.NewValidateCommand(d) }),
 		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", func() *ffcli.Command {
 			return xcodecloud.NewXcodeCloudCommand(d)
 		}),

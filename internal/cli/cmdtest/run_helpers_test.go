@@ -90,6 +90,7 @@ func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps
 		Timeout:        shared.ContextWithTimeout,
 		UploadTimeout:  shared.ContextWithUploadTimeout,
 		ResolveTimeout: shared.ResolveTimeoutSetting,
+		After:          time.After,
 	}, &stdout, &stderr
 }
 

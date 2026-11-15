@@ -11,6 +11,15 @@ type generatedQuery struct {
 
 // generatedQueries lists the generated queries by operation for the schema test.
 var generatedQueries = map[string]generatedQuery{
+	"teeth_getInstance": {
+		build: buildZipperToothQuery,
+		options: map[string]any{
+			"filter[pitch]":   WithZipperTeethPitches,
+			"fields[widgets]": WithZipperTeethFields,
+			"sort":            WithZipperTeethSort,
+			"limit[gears]":    WithZipperTeethGearsLimit,
+		},
+	},
 	"widgets_getCollection": {
 		build: buildWidgetsQuery,
 		options: map[string]any{
@@ -58,6 +67,15 @@ var generatedQueries = map[string]generatedQuery{
 			"fields[widgets]": WithWidgetSprocketsFields,
 			"exists[owner]":   WithWidgetSprocketsOwnerExists,
 			"limit[teeth]":    WithWidgetSprocketsTeethLimit,
+		},
+	},
+	"zippers_teeth_getToManyRelated": {
+		build: buildZipperTeethQuery,
+		options: map[string]any{
+			"filter[pitch]":   WithZipperTeethPitches,
+			"fields[widgets]": WithZipperTeethFields,
+			"sort":            WithZipperTeethSort,
+			"limit[gears]":    WithZipperTeethGearsLimit,
 		},
 	},
 }

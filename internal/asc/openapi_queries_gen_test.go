@@ -42,6 +42,12 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildAnalyticsReportSegmentsQuery,
 		options: map[string]any{},
 	},
+	"androidToIosAppMappingDetails_getInstance": {
+		build: buildAndroidToIosAppMappingDetailQuery,
+		options: map[string]any{
+			"fields[androidToIosAppMappingDetails]": WithAndroidToIosAppMappingDetailsFields,
+		},
+	},
 	"appClipDefaultExperiences_appClipDefaultExperienceLocalizations_getToManyRelated": {
 		build: buildAppClipDefaultExperienceLocalizationsQuery,
 		options: map[string]any{
@@ -168,6 +174,12 @@ var generatedQueries = map[string]generatedQuery{
 			"filter[deviceFamily]":              WithAccessibilityDeclarationsDeviceFamilies,
 			"filter[state]":                     WithAccessibilityDeclarationsStates,
 			"fields[accessibilityDeclarations]": WithAccessibilityDeclarationsFields,
+		},
+	},
+	"apps_androidToIosAppMappingDetails_getToManyRelated": {
+		build: buildAndroidToIosAppMappingDetailsQuery,
+		options: map[string]any{
+			"fields[androidToIosAppMappingDetails]": WithAndroidToIosAppMappingDetailsFields,
 		},
 	},
 	"apps_appClips_getToManyRelated": {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -30,13 +29,12 @@ type SubscriptionsOptions struct {
 	Strict bool
 }
 
-// ValidateSubscriptionsCommand returns the asc validate subscriptions subcommand.
-func ValidateSubscriptionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("subscriptions", flag.ExitOnError)
+func newValidateSubscriptionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("subscriptions", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	strict := fs.Bool("strict", false, "Treat warnings as errors (exit non-zero)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "subscriptions",
@@ -59,11 +57,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			return runValidateSubscriptions(ctx, validateSubscriptionsOptions{
+			return runValidateSubscriptions(ctx, d, validateSubscriptionsOptions{
 				AppID:  resolvedAppID,
 				Strict: *strict,
 				Output: *output.Output,
@@ -73,13 +71,13 @@ Examples:
 	}
 }
 
-func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOptions) error {
-	client, err := clientFactory()
+func runValidateSubscriptions(ctx context.Context, d *shared.Deps, opts validateSubscriptionsOptions) error {
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("validate subscriptions: %w", err)
 	}
 
-	report, err := buildSubscriptionsReport(ctx, client, SubscriptionsOptions{
+	report, err := buildSubscriptionsReport(withReadinessRequestTimeout(ctx, d.Timeout), client, SubscriptionsOptions{
 		AppID:  opts.AppID,
 		Strict: opts.Strict,
 	})
@@ -87,7 +85,7 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 		return err
 	}
 
-	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
+	if err := d.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
 		return err
 	}
 
@@ -101,11 +99,17 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 // BuildSubscriptionsReport fetches live subscription state and returns the same
 // structured report emitted by `asc validate subscriptions` without printing it.
 func BuildSubscriptionsReport(ctx context.Context, opts SubscriptionsOptions) (validation.SubscriptionsReport, error) {
-	client, err := clientFactory()
+	return BuildSubscriptionsReportWith(ctx, shared.DefaultDeps(), opts)
+}
+
+// BuildSubscriptionsReportWith is BuildSubscriptionsReport with the client and
+// request timeout taken from d.
+func BuildSubscriptionsReportWith(ctx context.Context, d *shared.Deps, opts SubscriptionsOptions) (validation.SubscriptionsReport, error) {
+	client, err := d.Client()
 	if err != nil {
 		return validation.SubscriptionsReport{}, fmt.Errorf("validate subscriptions: %w", err)
 	}
-	return buildSubscriptionsReport(ctx, client, opts)
+	return buildSubscriptionsReport(withReadinessRequestTimeout(ctx, d.Timeout), client, opts)
 }
 
 func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts SubscriptionsOptions) (validation.SubscriptionsReport, error) {

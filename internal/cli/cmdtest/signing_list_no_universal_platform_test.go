@@ -53,7 +53,7 @@ func TestProfilesAndCertificatesListNeverSendPlatformFilter(t *testing.T) {
 	}
 
 	certificates := certificatesListQuerySurfaceStub(t)
-	if _, certStderr, err := runCertificatesListQuerySurface(t, "certificates", "list", "--certificate-type", "IOS_DISTRIBUTION", "--output", "json"); err != nil {
+	if _, certStderr, err := runCertificatesListQuerySurface(t, certificates, "certificates", "list", "--certificate-type", "IOS_DISTRIBUTION", "--output", "json"); err != nil {
 		t.Fatalf("certificates list: %v (stderr=%q)", err, certStderr)
 	}
 	if got, present := certificates.query["filter[platform]"]; present {

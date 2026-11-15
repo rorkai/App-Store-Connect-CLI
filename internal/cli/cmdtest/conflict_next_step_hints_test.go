@@ -44,6 +44,7 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 			args:     []string{"localizations", "update", "--id", "loc-1", "--description", "Description"},
 			request:  asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Description"}}}`),
 			wantHint: "Hint: Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
+			deps:     true,
 		},
 		{
 			args:     []string{"testflight", "testers", "add", "--email", "tester@example.com", "--build-id", "build-1"},

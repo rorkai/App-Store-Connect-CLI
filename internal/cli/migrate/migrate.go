@@ -1252,6 +1252,13 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 		if dirName == "review_information" || dirName == "app_clip" {
 			continue // Skip special directories
 		}
+		if dirName == "app_clip_review_information" {
+			skipped = append(skipped, SkippedItem{
+				Path:   filepath.Join(metadataDir, dirName),
+				Reason: "App Clip review information is not imported; set invocation URLs with asc app-clips review-details",
+			})
+			continue
+		}
 
 		if err := rootfs.ValidateRelative(dirName); err != nil {
 			return nil, nil, err
@@ -1518,7 +1525,10 @@ Examples:
 			}
 
 			metadataDir := inputs.MetadataDir
-			if inputs.DeliverfileConfig.SkipMetadata && metadataDir != "" {
+			if metadataDir == "" {
+				return fmt.Errorf("migrate validate: metadata directory not found: %s", filepath.Join(*fastlaneDir, "metadata"))
+			}
+			if inputs.DeliverfileConfig.SkipMetadata {
 				skipped = append(skipped, SkippedItem{
 					Path:   metadataDir,
 					Reason: "skip_metadata in Deliverfile",

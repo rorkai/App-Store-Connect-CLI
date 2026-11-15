@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterLeaderboardSetsCommand returns the leaderboard-sets command group.
-func GameCenterLeaderboardSetsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboard-sets", flag.ExitOnError)
+// newGameCenterLeaderboardSetsCommand returns the leaderboard-sets command group.
+func newGameCenterLeaderboardSetsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboard-sets", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboard-sets",
@@ -44,18 +43,18 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetsListCommand(),
-			GameCenterLeaderboardSetsGetCommand(),
-			GameCenterLeaderboardSetGroupLeaderboardSetCommand(),
-			GameCenterLeaderboardSetsCreateCommand(),
-			GameCenterLeaderboardSetsUpdateCommand(),
-			GameCenterLeaderboardSetsDeleteCommand(),
-			GameCenterLeaderboardSetsV2Command(),
-			GameCenterLeaderboardSetMembersCommand(),
-			GameCenterLeaderboardSetMemberLocalizationsCommand(),
-			GameCenterLeaderboardSetReleasesCommand(),
-			GameCenterLeaderboardSetImagesCommand(),
-			GameCenterLeaderboardSetLocalizationsCommand(),
+			newGameCenterLeaderboardSetsListCommand(d),
+			newGameCenterLeaderboardSetsGetCommand(d),
+			newGameCenterLeaderboardSetGroupLeaderboardSetCommand(d),
+			newGameCenterLeaderboardSetsCreateCommand(d),
+			newGameCenterLeaderboardSetsUpdateCommand(d),
+			newGameCenterLeaderboardSetsDeleteCommand(d),
+			newGameCenterLeaderboardSetsV2Command(d),
+			newGameCenterLeaderboardSetMembersCommand(d),
+			newGameCenterLeaderboardSetMemberLocalizationsCommand(d),
+			newGameCenterLeaderboardSetReleasesCommand(d),
+			newGameCenterLeaderboardSetImagesCommand(d),
+			newGameCenterLeaderboardSetLocalizationsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -63,9 +62,9 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetLocalizationsCommand returns the localizations command group.
-func GameCenterLeaderboardSetLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations", flag.ExitOnError)
+// newGameCenterLeaderboardSetLocalizationsCommand returns the localizations command group.
+func newGameCenterLeaderboardSetLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "localizations",
@@ -83,12 +82,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetLocalizationsListCommand(),
-			GameCenterLeaderboardSetLocalizationsGetCommand(),
-			GameCenterLeaderboardSetLocalizationsCreateCommand(),
-			GameCenterLeaderboardSetLocalizationsUpdateCommand(),
-			GameCenterLeaderboardSetLocalizationsDeleteCommand(),
-			GameCenterLeaderboardSetLocalizationImageCommand(),
+			newGameCenterLeaderboardSetLocalizationsListCommand(d),
+			newGameCenterLeaderboardSetLocalizationsGetCommand(d),
+			newGameCenterLeaderboardSetLocalizationsCreateCommand(d),
+			newGameCenterLeaderboardSetLocalizationsUpdateCommand(d),
+			newGameCenterLeaderboardSetLocalizationsDeleteCommand(d),
+			newGameCenterLeaderboardSetLocalizationImageCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -96,8 +95,8 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetLocalizationsListCommand returns the localizations list subcommand.
-func GameCenterLeaderboardSetLocalizationsListCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetLocalizationsListCommand returns the localizations list subcommand.
+func newGameCenterLeaderboardSetLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center leaderboard-sets localizations list --set-id \"SET_ID\"",
@@ -117,11 +116,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardSetLocalizations(ctx, setId, asc.Limit[asc.GCLeaderboardSetLocalizationsOption](limit), asc.NextURL[asc.GCLeaderboardSetLocalizationsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetLocalizationsGetCommand returns the localizations get subcommand.
-func GameCenterLeaderboardSetLocalizationsGetCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetLocalizationsGetCommand returns the localizations get subcommand.
+func newGameCenterLeaderboardSetLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center leaderboard-sets localizations view --id \"LOC_ID\"",
@@ -136,11 +136,12 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetLocalization(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetLocalizationsCreateCommand returns the localizations create subcommand.
-func GameCenterLeaderboardSetLocalizationsCreateCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetLocalizationsCreateCommand returns the localizations create subcommand.
+func newGameCenterLeaderboardSetLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.GameCenterLeaderboardSetLocalizationCreateAttributes
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
@@ -161,11 +162,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateGameCenterLeaderboardSetLocalization(ctx, id, attrs)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetLocalizationsUpdateCommand returns the localizations update subcommand.
-func GameCenterLeaderboardSetLocalizationsUpdateCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetLocalizationsUpdateCommand returns the localizations update subcommand.
+func newGameCenterLeaderboardSetLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.GameCenterLeaderboardSetLocalizationUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -183,11 +185,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateGameCenterLeaderboardSetLocalization(ctx, id, attrs)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetLocalizationsDeleteCommand returns the localizations delete subcommand.
-func GameCenterLeaderboardSetLocalizationsDeleteCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetLocalizationsDeleteCommand returns the localizations delete subcommand.
+func newGameCenterLeaderboardSetLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center leaderboard-sets localizations delete --id \"LOC_ID\" --confirm",
@@ -206,11 +209,12 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetsListCommand returns the leaderboard-sets list subcommand.
-func GameCenterLeaderboardSetsListCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetsListCommand returns the leaderboard-sets list subcommand.
+func newGameCenterLeaderboardSetsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center leaderboard-sets list [flags]",
@@ -231,11 +235,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardSets(ctx, gcDetailID, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetsGetCommand returns the leaderboard-sets get subcommand.
-func GameCenterLeaderboardSetsGetCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetsGetCommand returns the leaderboard-sets get subcommand.
+func newGameCenterLeaderboardSetsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center leaderboard-sets view --id \"SET_ID\"",
@@ -250,18 +255,19 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSet(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetsCreateCommand returns the leaderboard-sets create subcommand.
-func GameCenterLeaderboardSetsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterLeaderboardSetsCreateCommand returns the leaderboard-sets create subcommand.
+func newGameCenterLeaderboardSetsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env); not used with --leaderboard-ids")
 	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard set")
 	vendorID := fs.String("vendor-id", "", "Vendor identifier (e.g., com.example.set)")
 	leaderboardIDs := shared.BindOnceCSVFlag(fs, "leaderboard-ids", "Comma-separated member leaderboard IDs; the set inherits its parent from them")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -281,13 +287,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			ids := shared.SplitUniqueCSV(leaderboardIDs.String())
 			if leaderboardIDs.Provided() && len(ids) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --leaderboard-ids must include at least one ID")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --leaderboard-ids must include at least one ID")
 				return flag.ErrHelp
 			}
 			// Apple returns 409 when gameCenterLeaderboards is sent with gameCenterDetail
 			// or gameCenterGroup; the set inherits its parent from the leaderboards.
 			if len(ids) > 0 && strings.TrimSpace(*appID) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --app cannot be used with --leaderboard-ids; the set inherits its parent from the member leaderboards")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app cannot be used with --leaderboard-ids; the set inherits its parent from the member leaderboards")
 				return flag.ErrHelp
 			}
 
@@ -295,27 +301,27 @@ Examples:
 			if len(ids) == 0 {
 				resolvedAppID = shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
-					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 					return shared.MissingRequiredUsageError("--app")
 				}
 			}
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 
 			vendor := strings.TrimSpace(*vendorID)
 			if vendor == "" {
-				return shared.RequiredFlag("--vendor-id")
+				return d.RequiredFlag("--vendor-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			gcDetailID := ""
@@ -336,13 +342,13 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterLeaderboardSetsUpdateCommand returns the leaderboard-sets update subcommand.
-func GameCenterLeaderboardSetsUpdateCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetsUpdateCommand returns the leaderboard-sets update subcommand.
+func newGameCenterLeaderboardSetsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.GameCenterLeaderboardSetUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -360,11 +366,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateGameCenterLeaderboardSet(ctx, id, attrs)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetsDeleteCommand returns the leaderboard-sets delete subcommand.
-func GameCenterLeaderboardSetsDeleteCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetsDeleteCommand returns the leaderboard-sets delete subcommand.
+func newGameCenterLeaderboardSetsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center leaderboard-sets delete --id \"SET_ID\" --confirm",
@@ -383,12 +390,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetReleasesCommand returns the leaderboard-sets releases command group.
-func GameCenterLeaderboardSetReleasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("releases", flag.ExitOnError)
+// newGameCenterLeaderboardSetReleasesCommand returns the leaderboard-sets releases command group.
+func newGameCenterLeaderboardSetReleasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("releases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "releases",
@@ -405,9 +413,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetReleasesListCommand(),
-			GameCenterLeaderboardSetReleasesCreateCommand(),
-			GameCenterLeaderboardSetReleasesDeleteCommand(),
+			newGameCenterLeaderboardSetReleasesListCommand(d),
+			newGameCenterLeaderboardSetReleasesCreateCommand(d),
+			newGameCenterLeaderboardSetReleasesDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -415,8 +423,8 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetReleasesListCommand returns the leaderboard-sets releases list subcommand.
-func GameCenterLeaderboardSetReleasesListCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetReleasesListCommand returns the leaderboard-sets releases list subcommand.
+func newGameCenterLeaderboardSetReleasesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center leaderboard-sets releases list --set-id \"SET_ID\"",
@@ -436,16 +444,17 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardSetReleases(ctx, setId, asc.Limit[asc.GCLeaderboardSetReleasesOption](limit), asc.NextURL[asc.GCLeaderboardSetReleasesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetReleasesCreateCommand returns the leaderboard-sets releases create subcommand.
-func GameCenterLeaderboardSetReleasesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterLeaderboardSetReleasesCreateCommand returns the leaderboard-sets releases create subcommand.
+func newGameCenterLeaderboardSetReleasesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -462,21 +471,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			id := strings.TrimSpace(*setID)
 			if id == "" {
-				return shared.RequiredFlag("--set-id")
+				return d.RequiredFlag("--set-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets releases create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			// Get Game Center detail ID first
@@ -490,13 +499,13 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets releases create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterLeaderboardSetReleasesDeleteCommand returns the leaderboard-sets releases delete subcommand.
-func GameCenterLeaderboardSetReleasesDeleteCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetReleasesDeleteCommand returns the leaderboard-sets releases delete subcommand.
+func newGameCenterLeaderboardSetReleasesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center leaderboard-sets releases delete --id \"RELEASE_ID\" --confirm",
@@ -515,12 +524,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetGroupLeaderboardSetCommand returns the group leaderboard set command group.
-func GameCenterLeaderboardSetGroupLeaderboardSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("group-leaderboard-set", flag.ExitOnError)
+// newGameCenterLeaderboardSetGroupLeaderboardSetCommand returns the group leaderboard set command group.
+func newGameCenterLeaderboardSetGroupLeaderboardSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("group-leaderboard-set", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "group-leaderboard-set",
@@ -533,7 +543,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetGroupLeaderboardSetGetCommand(),
+			newGameCenterLeaderboardSetGroupLeaderboardSetGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -541,8 +551,8 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetGroupLeaderboardSetGetCommand returns the group leaderboard set get subcommand.
-func GameCenterLeaderboardSetGroupLeaderboardSetGetCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetGroupLeaderboardSetGetCommand returns the group leaderboard set get subcommand.
+func newGameCenterLeaderboardSetGroupLeaderboardSetGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center leaderboard-sets group-leaderboard-set view --id \"SET_ID\"",
@@ -557,12 +567,13 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetGroupLeaderboardSet(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetLocalizationImageCommand returns the localization image command group.
-func GameCenterLeaderboardSetLocalizationImageCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("image", flag.ExitOnError)
+// newGameCenterLeaderboardSetLocalizationImageCommand returns the localization image command group.
+func newGameCenterLeaderboardSetLocalizationImageCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("image", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "image",
@@ -575,7 +586,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetLocalizationImageGetCommand(),
+			newGameCenterLeaderboardSetLocalizationImageGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -583,8 +594,8 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetLocalizationImageGetCommand returns the localization image get subcommand.
-func GameCenterLeaderboardSetLocalizationImageGetCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetLocalizationImageGetCommand returns the localization image get subcommand.
+func newGameCenterLeaderboardSetLocalizationImageGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center leaderboard-sets localizations image view --id \"LOC_ID\"",
@@ -599,12 +610,13 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetLocalizationImage(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsCommand returns the member localizations command group.
-func GameCenterLeaderboardSetMemberLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("member-localizations", flag.ExitOnError)
+// newGameCenterLeaderboardSetMemberLocalizationsCommand returns the member localizations command group.
+func newGameCenterLeaderboardSetMemberLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("member-localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "member-localizations",
@@ -623,13 +635,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetMemberLocalizationsListCommand(),
-			GameCenterLeaderboardSetMemberLocalizationsGetCommand(),
-			GameCenterLeaderboardSetMemberLocalizationsCreateCommand(),
-			GameCenterLeaderboardSetMemberLocalizationsUpdateCommand(),
-			GameCenterLeaderboardSetMemberLocalizationsDeleteCommand(),
-			GameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand(),
-			GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand(),
+			newGameCenterLeaderboardSetMemberLocalizationsListCommand(d),
+			newGameCenterLeaderboardSetMemberLocalizationsGetCommand(d),
+			newGameCenterLeaderboardSetMemberLocalizationsCreateCommand(d),
+			newGameCenterLeaderboardSetMemberLocalizationsUpdateCommand(d),
+			newGameCenterLeaderboardSetMemberLocalizationsDeleteCommand(d),
+			newGameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand(d),
+			newGameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -637,8 +649,8 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsListCommand returns the member localizations list subcommand.
-func GameCenterLeaderboardSetMemberLocalizationsListCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetMemberLocalizationsListCommand returns the member localizations list subcommand.
+func newGameCenterLeaderboardSetMemberLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 	var leaderboardID *string
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
@@ -662,7 +674,7 @@ Examples:
 			next := fs.Lookup("next").Value
 			return func() error {
 				if strings.TrimSpace(next.String()) == "" && strings.TrimSpace(*leaderboardID) == "" {
-					return shared.RequiredFlag("--leaderboard-id")
+					return d.RequiredFlag("--leaderboard-id")
 				}
 				return nil
 			}
@@ -680,11 +692,12 @@ Examples:
 			}
 			return client.GetGameCenterLeaderboardSetMemberLocalizations(ctx, opts...)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsGetCommand returns the member localization view subcommand.
-func GameCenterLeaderboardSetMemberLocalizationsGetCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetMemberLocalizationsGetCommand returns the member localization view subcommand.
+func newGameCenterLeaderboardSetMemberLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center leaderboard-sets member-localizations view --id \"LOCALIZATION_ID\"",
@@ -703,18 +716,19 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetMemberLocalization(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsCreateCommand returns the member localizations create subcommand.
-func GameCenterLeaderboardSetMemberLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterLeaderboardSetMemberLocalizationsCreateCommand returns the member localizations create subcommand.
+func newGameCenterLeaderboardSetMemberLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	leaderboardSetID := shared.BindResourceIDFlag(fs, "leaderboard-set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
 	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	locale := fs.String("locale", "", "Locale code (e.g., en-US, de-DE)")
 	name := fs.String("name", "", "Display name for the member localization")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -730,30 +744,30 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			setID := strings.TrimSpace(*leaderboardSetID)
 			if setID == "" {
-				return shared.RequiredFlag("--leaderboard-set-id")
+				return d.RequiredFlag("--leaderboard-set-id")
 			}
 
 			lbID := strings.TrimSpace(*leaderboardID)
 			if lbID == "" {
-				return shared.RequiredFlag("--leaderboard-id")
+				return d.RequiredFlag("--leaderboard-id")
 			}
 
 			localeVal := strings.TrimSpace(*locale)
 			if localeVal == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
 
 			nameVal := strings.TrimSpace(*name)
 			if nameVal == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets member-localizations create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.GameCenterLeaderboardSetMemberLocalizationCreateAttributes{
@@ -766,13 +780,13 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets member-localizations create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsUpdateCommand returns the member localizations update subcommand.
-func GameCenterLeaderboardSetMemberLocalizationsUpdateCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetMemberLocalizationsUpdateCommand returns the member localizations update subcommand.
+func newGameCenterLeaderboardSetMemberLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.GameCenterLeaderboardSetMemberLocalizationUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -790,11 +804,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateGameCenterLeaderboardSetMemberLocalization(ctx, id, attrs)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsDeleteCommand returns the member localizations delete subcommand.
-func GameCenterLeaderboardSetMemberLocalizationsDeleteCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetMemberLocalizationsDeleteCommand returns the member localizations delete subcommand.
+func newGameCenterLeaderboardSetMemberLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center leaderboard-sets member-localizations delete --id \"LOCALIZATION_ID\" --confirm",
@@ -813,12 +828,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand returns the member localization leaderboard command group.
-func GameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboard", flag.ExitOnError)
+// newGameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand returns the member localization leaderboard command group.
+func newGameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboard", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboard",
@@ -831,7 +847,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand(),
+			newGameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -839,8 +855,8 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand returns the member localization leaderboard get subcommand.
-func GameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand returns the member localization leaderboard get subcommand.
+func newGameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center leaderboard-sets member-localizations leaderboard view --id \"LOCALIZATION_ID\"",
@@ -855,12 +871,13 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetMemberLocalizationLeaderboard(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand returns the member localization leaderboard set command group.
-func GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboard-set", flag.ExitOnError)
+// newGameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand returns the member localization leaderboard set command group.
+func newGameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboard-set", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboard-set",
@@ -873,7 +890,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand(),
+			newGameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -881,8 +898,8 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand returns the member localization leaderboard set get subcommand.
-func GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand returns the member localization leaderboard set get subcommand.
+func newGameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center leaderboard-sets member-localizations leaderboard-set view --id \"LOCALIZATION_ID\"",
@@ -897,5 +914,6 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet(ctx, id)
 		},
+		Deps: d,
 	})
 }

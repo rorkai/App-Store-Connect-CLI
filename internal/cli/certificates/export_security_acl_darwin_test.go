@@ -129,7 +129,7 @@ func TestRunCertificateExportStripsACLInheritedFromDestinationDirectory(t *testi
 	}
 	p12Path := filepath.Join(destination, "push.p12")
 
-	if _, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	if _, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,

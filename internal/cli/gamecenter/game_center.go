@@ -47,14 +47,14 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementsCommand(d),
 			newGameCenterLeaderboardsCommand(d),
-			GameCenterLeaderboardSetsCommand(),
-			GameCenterChallengesCommand(),
-			GameCenterActivitiesCommand(),
-			GameCenterGroupsCommand(),
-			GameCenterAppVersionsCommand(),
-			GameCenterEnabledVersionsCommand(),
-			GameCenterDetailsCommand(),
-			GameCenterMatchmakingCommand(),
+			newGameCenterLeaderboardSetsCommand(d),
+			newGameCenterChallengesCommand(d),
+			newGameCenterActivitiesCommand(d),
+			newGameCenterGroupsCommand(d),
+			newGameCenterAppVersionsCommand(d),
+			newGameCenterEnabledVersionsCommand(d),
+			newGameCenterDetailsCommand(d),
+			newGameCenterMatchmakingCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

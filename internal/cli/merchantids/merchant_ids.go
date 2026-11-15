@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// MerchantIDsCommand returns the merchant IDs command with subcommands.
-func MerchantIDsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("merchant-ids", flag.ExitOnError)
+// NewMerchantIDsCommand returns the merchant IDs command with subcommands.
+func NewMerchantIDsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("merchant-ids", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "merchant-ids",
@@ -33,12 +32,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			MerchantIDsListCommand(),
-			MerchantIDsGetCommand(),
-			MerchantIDsCreateCommand(),
-			MerchantIDsUpdateCommand(),
-			MerchantIDsDeleteCommand(),
-			MerchantIDsCertificatesCommand(),
+			newMerchantIDsListCommand(d),
+			newMerchantIDsGetCommand(d),
+			newMerchantIDsCreateCommand(d),
+			newMerchantIDsUpdateCommand(d),
+			newMerchantIDsDeleteCommand(d),
+			newMerchantIDsCertificatesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -46,8 +45,8 @@ Examples:
 	}
 }
 
-// MerchantIDsListCommand returns the merchant IDs list subcommand.
-func MerchantIDsListCommand() *ffcli.Command {
+// newMerchantIDsListCommand returns the merchant IDs list subcommand.
+func newMerchantIDsListCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		identifier             *string
 		name                   *string
@@ -73,6 +72,7 @@ Examples:
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
 		NextConflicts:        []string{"identifier", "name", "sort", "fields", "certificate-fields", "include", "certificates-limit", "limit"},
+		Deps:                 d,
 		Flags: func(fs *flag.FlagSet) func() error {
 			identifier = fs.String("identifier", "", "Filter by merchant ID identifier(s), comma-separated")
 			name = fs.String("name", "", "Filter by merchant ID name(s), comma-separated")
@@ -83,31 +83,31 @@ Examples:
 			certificatesLimit = fs.Int("certificates-limit", 0, "Maximum included certificates per merchant ID (1-50)")
 			return func() error {
 				if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-					return shared.UsageError("merchant-ids list: --certificates-limit must be between 1 and 50")
+					return d.UsageError("merchant-ids list: --certificates-limit must be between 1 and 50")
 				}
 				if err := shared.ValidateSort(*sort, merchantIDSortValues...); err != nil {
-					return shared.UsageErrorf("merchant-ids list: %v", err)
+					return d.UsageErrorf("merchant-ids list: %v", err)
 				}
 
 				var err error
 				fieldsValue, err = normalizeMerchantIDFields(*fields, "--fields")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids list: %v", err)
+					return d.UsageErrorf("merchant-ids list: %v", err)
 				}
 				certificateFieldsValue, err = normalizeCertificateFields(*certificateFields, "--certificate-fields")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids list: %v", err)
+					return d.UsageErrorf("merchant-ids list: %v", err)
 				}
 				includeValue, err = normalizeMerchantIDInclude(*include, "--include")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids list: %v", err)
+					return d.UsageErrorf("merchant-ids list: %v", err)
 				}
 				if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
-					fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
 					return flag.ErrHelp
 				}
 				if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
-					fmt.Fprintln(os.Stderr, "Error: --certificates-limit requires --include certificates")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --certificates-limit requires --include certificates")
 					return flag.ErrHelp
 				}
 				return nil
@@ -134,8 +134,8 @@ Examples:
 	})
 }
 
-// MerchantIDsGetCommand returns the merchant IDs get subcommand.
-func MerchantIDsGetCommand() *ffcli.Command {
+// newMerchantIDsGetCommand returns the merchant IDs get subcommand.
+func newMerchantIDsGetCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		fieldsValue, certificateFieldsValue, includeValue []string
 		certificatesLimit                                 *int
@@ -153,6 +153,7 @@ Examples:
 		IDUsage:            "Merchant ID",
 		IDType:             "merchantIds",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Flags: func(fs *flag.FlagSet) func() error {
 			fields := fs.String("fields", "", "Fields to include: "+strings.Join(merchantIDFieldsList(), ", "))
 			certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
@@ -160,26 +161,26 @@ Examples:
 			certificatesLimit = fs.Int("certificates-limit", 0, "Maximum included certificates per merchant ID (1-50)")
 			return func() (err error) {
 				if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-					return shared.UsageError("merchant-ids view: --certificates-limit must be between 1 and 50")
+					return d.UsageError("merchant-ids view: --certificates-limit must be between 1 and 50")
 				}
 				fieldsValue, err = normalizeMerchantIDFields(*fields, "--fields")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids view: %v", err)
+					return d.UsageErrorf("merchant-ids view: %v", err)
 				}
 				certificateFieldsValue, err = normalizeCertificateFields(*certificateFields, "--certificate-fields")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids view: %v", err)
+					return d.UsageErrorf("merchant-ids view: %v", err)
 				}
 				includeValue, err = normalizeMerchantIDInclude(*include, "--include")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids view: %v", err)
+					return d.UsageErrorf("merchant-ids view: %v", err)
 				}
 				if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
-					fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
 					return flag.ErrHelp
 				}
 				if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
-					fmt.Fprintln(os.Stderr, "Error: --certificates-limit requires --include certificates")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --certificates-limit requires --include certificates")
 					return flag.ErrHelp
 				}
 				return nil
@@ -198,8 +199,8 @@ Examples:
 	})
 }
 
-// MerchantIDsCreateCommand returns the merchant IDs create subcommand.
-func MerchantIDsCreateCommand() *ffcli.Command {
+// newMerchantIDsCreateCommand returns the merchant IDs create subcommand.
+func newMerchantIDsCreateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.MerchantIDCreateAttributes
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
@@ -214,20 +215,21 @@ Examples:
 			shared.RequiredStringFlag(&attrs.Identifier, "identifier", "Merchant ID identifier (e.g., merchant.com.example)"),
 			shared.RequiredStringFlag(&attrs.Name, "name", "Merchant ID name"),
 		},
+		Deps: d,
 		Send: func(ctx context.Context, client *asc.Client, _ string) (any, error) {
 			return client.CreateMerchantID(ctx, attrs)
 		},
 	})
 }
 
-// MerchantIDsUpdateCommand returns the merchant IDs update subcommand.
-func MerchantIDsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newMerchantIDsUpdateCommand returns the merchant IDs update subcommand.
+func newMerchantIDsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
 	name := fs.String("name", "", "Merchant ID name")
 	clearName := fs.Bool("clear-name", false, "Clear the merchant ID name")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -242,23 +244,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" {
-				return shared.RequiredFlag("--merchant-id")
+				return d.RequiredFlag("--merchant-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" && !*clearName {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			if nameValue != "" && *clearName {
-				fmt.Fprintln(os.Stderr, "Error: --name cannot be used with --clear-name")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --name cannot be used with --clear-name")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("merchant-ids update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var name *string
@@ -271,13 +273,13 @@ Examples:
 				return fmt.Errorf("merchant-ids update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// MerchantIDsDeleteCommand returns the merchant IDs delete subcommand.
-func MerchantIDsDeleteCommand() *ffcli.Command {
+// newMerchantIDsDeleteCommand returns the merchant IDs delete subcommand.
+func newMerchantIDsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc merchant-ids delete --merchant-id \"MERCHANT_ID\" --confirm",
@@ -290,6 +292,7 @@ Examples:
 		IDUsage:            "Merchant ID",
 		IDType:             "merchantIds",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteMerchantID(ctx, id)
 		},

@@ -6,6 +6,6 @@ import (
 )
 
 // LocalizationsPlacementsCommand exposes localized header and search placements.
-func LocalizationsPlacementsCommand() *ffcli.Command {
-	return shared.CreativePlacementsCommand("appStoreVersionLocalizations", "localizations", "an App Store version localization")
+func newLocalizationsPlacementsCommand(d *shared.Deps) *ffcli.Command {
+	return d.CreativePlacementsCommand("appStoreVersionLocalizations", "localizations", "an App Store version localization")
 }

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -11,7 +10,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
@@ -26,20 +24,7 @@ const (
 func runValidateWithFixture(t *testing.T, fixture validateFixture, args ...string) (string, string, error) {
 	t.Helper()
 	client := newValidateTestClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restore)
-
-	root := RootCommand("1.2.3")
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
+	return runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, args...)
 }
 
 func TestValidateDefaultsToEditableVersionWhenVersionOmitted(t *testing.T) {
