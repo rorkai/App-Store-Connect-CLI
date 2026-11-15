@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AdsCommand returns the Apple Ads root command.
-func AdsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads", flag.ExitOnError)
+// NewAdsCommand returns the Apple Ads root command.
+func NewAdsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "ads",
 		ShortUsage: "asc ads <subcommand> [flags]",
@@ -28,12 +28,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: append([]*ffcli.Command{
-			AuthCommand(),
-			PlatformAPICommand(),
-		}, platformEndpointCommands()...),
+			newAuthCommand(d),
+			newPlatformAPICommand(d),
+		}, platformEndpointCommands(d)...),
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 && args[0] == adsV5RemovedCommand {
-				return removedAdsV5UsageError(args[1:])
+				return removedAdsV5UsageError(d, args[1:])
 			}
 			return flag.ErrHelp
 		},
