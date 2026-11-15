@@ -106,7 +106,10 @@ func TestWebDeveloperTeamFlagAcceptedOnPortalCommands(t *testing.T) {
 			d, _, _ := newWebTestDeps()
 			return newWebAppGroupsCreateCommand(d).FlagSet
 		}},
-		{"agreements status", func() *flag.FlagSet { return WebAgreementsStatusCommand().FlagSet }},
+		{"agreements status", func() *flag.FlagSet {
+			d, _, _ := newWebTestDeps()
+			return newWebAgreementsStatusCommand(d).FlagSet
+		}},
 	}
 	for _, test := range commands {
 		t.Run(test.name, func(t *testing.T) {

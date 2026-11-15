@@ -181,18 +181,16 @@ func TestWebAgreementsDownloadRunWritesAgreementAndRefusesOverwrite(t *testing.T
 	installWebAgreementsPortal(t, portal)
 
 	outPath := filepath.Join(t.TempDir(), "agreement.pdf")
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "agreements", "download",
-			"--agreement-id", "XG8DNV4HYY",
-			"--out", outPath,
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "agreements", "download",
+		"--agreement-id", "XG8DNV4HYY",
+		"--out", outPath,
+		"--output", "json",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -224,17 +222,15 @@ func TestWebAgreementsDownloadRunWritesAgreementAndRefusesOverwrite(t *testing.T
 		t.Fatalf("unexpected receipt size/type: %+v", payload)
 	}
 
-	stdout, stderr = captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "agreements", "download",
-			"--agreement-id", "XG8DNV4HYY",
-			"--out", outPath,
-		}, "1.0.0")
-		if code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code = runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "agreements", "download",
+		"--agreement-id", "XG8DNV4HYY",
+		"--out", outPath,
+	)
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
@@ -259,17 +255,15 @@ func TestWebAgreementsDownloadRunRejectsCrossOriginRedirectWithoutLeakingURL(t *
 	installWebAgreementsPortal(t, portal)
 
 	outPath := filepath.Join(t.TempDir(), "agreement.pdf")
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "agreements", "download",
-			"--agreement-id", "XG8DNV4HYY",
-			"--out", outPath,
-		}, "1.0.0")
-		if code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "agreements", "download",
+		"--agreement-id", "XG8DNV4HYY",
+		"--out", outPath,
+	)
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
@@ -291,18 +285,16 @@ func TestWebAgreementsAcceptRunVerifiesFromHistoryWhenContractMessagesFail(t *te
 	portal.contractMessagesStatus = http.StatusServiceUnavailable
 	installWebAgreementsPortal(t, portal)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "agreements", "accept",
-			"--agreement-id", "XG8DNV4HYY",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "agreements", "accept",
+		"--agreement-id", "XG8DNV4HYY",
+		"--confirm",
+		"--output", "json",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -321,19 +313,17 @@ func TestWebAgreementsAcceptRunSendsOneRequestForRepeatedAgreementIDs(t *testing
 	portal := newWebAgreementsPortal("XG8DNV4HYY", "AB12CD34EF")
 	installWebAgreementsPortal(t, portal)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "agreements", "accept",
-			"--agreement-id", "XG8DNV4HYY",
-			"--agreement-id", "AB12CD34EF",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "agreements", "accept",
+		"--agreement-id", "XG8DNV4HYY",
+		"--agreement-id", "AB12CD34EF",
+		"--confirm",
+		"--output", "json",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -383,7 +373,7 @@ func TestWebAgreementsAcceptRunRequiresConfirmBeforeHTTP(t *testing.T) {
 	portal := newWebAgreementsPortal("XG8DNV4HYY")
 	installWebAgreementsPortal(t, portal)
 
-	assertUsageExit(t, []string{
+	assertUsageExitWithDeps(t, nil, []string{
 		"--profile", "test-web",
 		"web", "agreements", "accept",
 		"--agreement-id", "XG8DNV4HYY",
@@ -400,19 +390,17 @@ func TestWebAgreementsAcceptRunFailsWhenAgreementStaysPending(t *testing.T) {
 	portal.stayPending["AB12CD34EF"] = true
 	installWebAgreementsPortal(t, portal)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "agreements", "accept",
-			"--agreement-id", "XG8DNV4HYY",
-			"--agreement-id", "AB12CD34EF",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "agreements", "accept",
+		"--agreement-id", "XG8DNV4HYY",
+		"--agreement-id", "AB12CD34EF",
+		"--confirm",
+		"--output", "json",
+	)
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}

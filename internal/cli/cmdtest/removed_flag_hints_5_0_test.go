@@ -87,6 +87,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			name: "web --two-factor-code matches a historical web command",
 			args: []string{"web", "agreements", "status", "--two-factor-code", "PRIVATE_VALUE"},
 			want: "Error: `--two-factor-code` was removed in 5.0.0; use `--two-factor-code-command` or `ASC_WEB_2FA_CODE_COMMAND` (see migrate-to-5-0)\nFor help:\n  asc web agreements status --help\n",
+			deps: true,
 		},
 	}
 

@@ -45,7 +45,7 @@ Examples:
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebAuthCommand(),
-			WebAgreementsCommand(),
+			newWebAgreementsCommand(d),
 			WebBusinessCommand(),
 			WebFinanceCommand(),
 			newWebIAPCommand(d),
