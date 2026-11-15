@@ -1,9 +1,11 @@
 package migrate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -222,6 +224,57 @@ func parseReviewRequiredValue(path, value string, exists bool) (*bool, error) {
 	default:
 		return nil, fmt.Errorf("review_information %s must be true or false", path)
 	}
+}
+
+// fetchExportReviewDetail returns nil when the version has no App Review detail.
+func fetchExportReviewDetail(ctx context.Context, client *asc.Client, versionID string) (*asc.AppStoreReviewDetailAttributes, error) {
+	requestCtx, cancel := migrateRequestContext(ctx)
+	defer cancel()
+	resp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, versionID)
+	if err != nil {
+		if isNotFoundReviewDetail(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to fetch review information: %w", err)
+	}
+	if resp == nil {
+		return nil, nil
+	}
+	return &resp.Data.Attributes, nil
+}
+
+// writeExportReviewInformation writes the files readFastlaneReviewInformation
+// reads, except the demo account password, which is never written in clear
+// text.
+func writeExportReviewInformation(root rootfs.Root, attrs *asc.AppStoreReviewDetailAttributes) (int, error) {
+	if attrs == nil {
+		return 0, nil
+	}
+	dir := filepath.Join("metadata", reviewInformationDir)
+	if err := root.MkdirAll(dir, 0o755); err != nil {
+		return 0, fmt.Errorf("failed to create review information directory: %w", err)
+	}
+	files := []struct {
+		name    string
+		content string
+	}{
+		{"first_name.txt", attrs.ContactFirstName},
+		{"last_name.txt", attrs.ContactLastName},
+		{"phone_number.txt", attrs.ContactPhone},
+		{"email_address.txt", attrs.ContactEmail},
+		{"demo_user.txt", attrs.DemoAccountName},
+		{"demo_required.txt", strconv.FormatBool(attrs.DemoAccountRequired)},
+		{"notes.txt", attrs.Notes},
+	}
+	total := 0
+	for _, file := range files {
+		written, err := writeAndCount(root, filepath.Join(dir, file.name), file.content)
+		if err != nil {
+			return 0, err
+		}
+		total += written
+	}
+	return total, nil
 }
 
 func reviewInformationRelativePath(file string) string {
