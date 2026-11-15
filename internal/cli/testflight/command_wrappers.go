@@ -114,6 +114,9 @@ func rewriteCommandStrings(cmd *ffcli.Command, replacements []textReplacement) {
 	}
 	if cmd.FlagSet != nil {
 		cmd.FlagSet.VisitAll(func(f *flag.Flag) {
+			if f.Usage == shared.NextFlagUsage || f.Usage == shared.PaginateFlagUsage {
+				return
+			}
 			f.Usage = applyTextReplacements(f.Usage, replacements)
 		})
 	}

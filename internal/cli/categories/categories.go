@@ -46,9 +46,9 @@ Examples:
 func newCategoriesListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("categories list", flag.ExitOnError)
 
-	limit := fs.Int("limit", 200, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 200, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

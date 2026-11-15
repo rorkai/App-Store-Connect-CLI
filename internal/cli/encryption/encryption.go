@@ -85,10 +85,10 @@ func newEncryptionDeclarationsListCommand(d *shared.Deps) *ffcli.Command {
 	documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(encryptionDeclarationIncludeList(), ", "))
 	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"app": "apps", "builds": "builds"})
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

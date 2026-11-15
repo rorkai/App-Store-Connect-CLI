@@ -77,9 +77,9 @@ func newProfilesListCommand(d *shared.Deps) *ffcli.Command {
 	include := fs.String("include", "", "Include related resources: "+strings.Join(profileIncludeList(), ", "))
 	devicesLimit := fs.Int("limit-devices", 0, "Maximum included devices (1-50)")
 	certificatesLimit := fs.Int("limit-certificates", 0, "Maximum included certificates (1-50)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

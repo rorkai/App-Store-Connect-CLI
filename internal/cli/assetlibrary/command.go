@@ -83,8 +83,8 @@ func readCommand(parent, name, help, selector, path string, collection bool) *ff
 	var paginate bool
 	if collection {
 		fs.IntVar(&limit, "limit", 0, "Maximum results per page (1-200; 0 uses server default)")
-		fs.StringVar(&next, "next", "", "Fetch a links.next URL instead of selecting a resource")
-		fs.BoolVar(&paginate, "paginate", false, "Fetch all pages and aggregate the collection")
+		fs.StringVar(&next, "next", "", shared.NextFlagUsage)
+		fs.BoolVar(&paginate, "paginate", false, shared.PaginateFlagUsage)
 	}
 	var filters *libraryListFilters
 	if name == "list" && selector == "library-id" {

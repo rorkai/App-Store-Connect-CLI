@@ -110,9 +110,9 @@ func AppClipAdvancedExperiencesListCommand() *ffcli.Command {
 	action := fs.String("action", "", "Filter by action(s): OPEN, VIEW, PLAY (comma-separated)")
 	status := fs.String("status", "", "Filter by status(es), comma-separated")
 	placeStatus := fs.String("place-status", "", "Filter by place status(es), comma-separated")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

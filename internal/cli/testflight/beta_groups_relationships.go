@@ -53,9 +53,9 @@ func BetaGroupsRelationshipsGetCommand() *ffcli.Command {
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "betaGroups", "Beta group ID")
 	aliasID := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID (alias of --group-id)")
 	relType := fs.String("type", "", shared.RelationshipTypeFlagUsage(relationshipTypeList(betaGroupRelationshipKinds)))
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

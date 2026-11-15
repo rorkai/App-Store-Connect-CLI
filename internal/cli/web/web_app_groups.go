@@ -86,7 +86,7 @@ Examples:
 // WebAppGroupsListCommand lists App Groups for the selected Developer Portal team.
 func WebAppGroupsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web app-groups list", flag.ExitOnError)
-	paginate := fs.Bool("paginate", false, "Fetch all pages")
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
 	output := shared.BindOutputFlags(fs)

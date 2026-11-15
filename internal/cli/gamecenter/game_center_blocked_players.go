@@ -21,9 +21,9 @@ func gameCenterBlockedPlayersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "detail-id", "gameCenterDetails", "Game Center detail ID")
 	fields := fs.String("fields", "", "Fields: nickname, blocked, bundleId")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "list", ShortUsage: "asc " + command + " --detail-id ID [flags]", ShortHelp: "List only blocked players for a Game Center detail.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		provided := map[string]bool{}
