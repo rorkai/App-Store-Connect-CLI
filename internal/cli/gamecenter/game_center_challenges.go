@@ -56,15 +56,7 @@ Examples:
 
 // GameCenterChallengesListCommand returns the challenges list subcommand.
 func GameCenterChallengesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center challenges list [flags]",
 		ShortHelp:  "List Game Center challenges for an app.",
@@ -74,67 +66,17 @@ Examples:
   asc game-center challenges list --app "APP_ID"
   asc game-center challenges list --app "APP_ID" --limit 50
   asc game-center challenges list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "game-center challenges list", 200); err != nil {
-				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			nextURL := strings.TrimSpace(*next)
-			if resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			gcDetailID := ""
-			if nextURL == "" {
-				var err error
-				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-				if err != nil {
-					return fmt.Errorf("game-center challenges list: failed to get Game Center detail: %w", err)
-				}
-			}
-
-			opts := []asc.GCChallengesOption{
-				asc.Limit[asc.GCChallengesOption](*limit),
-				asc.NextURL[asc.GCChallengesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.GCChallengesOption](200))
-				firstPage, err := client.GetGameCenterChallenges(requestCtx, gcDetailID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center challenges list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterChallenges(ctx, gcDetailID, asc.NextURL[asc.GCChallengesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center challenges list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterChallenges(requestCtx, gcDetailID, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center challenges list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		LookupParent:         gameCenterDetailParent("game-center challenges list"),
+		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterChallenges(ctx, gcDetailID, asc.Limit[asc.GCChallengesOption](limit), asc.NextURL[asc.GCChallengesOption](next))
 		},
-	}
+	})
 }
 
 // GameCenterChallengesGetCommand returns the challenges get subcommand.
