@@ -72,7 +72,7 @@ func TestAccessibilityListInvalidNextPrecedesLimitConflict(t *testing.T) {
 	stdout, stderr, code := runWithDeps(t, nil,
 		"accessibility", "list",
 		"--next", "http://api.appstoreconnect.apple.com/v1/apps/app-1/accessibilityDeclarations?cursor=next",
-		"--limit", "201",
+		"--limit", "5",
 	)
 	if code != rootcmd.ExitUsage {
 		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)

@@ -35,11 +35,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("iap offer-codes prices: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("iap offer-codes prices: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "iap offer-codes prices", 200); err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*offerCodeID)

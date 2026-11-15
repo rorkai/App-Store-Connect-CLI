@@ -131,14 +131,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "subscriptions groups list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "subscriptions groups list: %v", err)
-			}
-			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "limit", "include", "fields", "version-fields", "subscription-fields", "localization-fields", "versions-limit") {
-				return shared.UsageError("subscriptions groups list: --next cannot be combined with query flags")
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions groups list", 200, "limit", "include", "fields", "version-fields", "subscription-fields", "localization-fields", "versions-limit"); err != nil {
+				return err
 			}
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return shared.UsageError("subscriptions groups list: --versions-limit must be between 1 and 50")
@@ -454,11 +448,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "subscriptions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "subscriptions list: %v", err)
+			conflicts := append([]string{"app", "fields", "version-fields", "include", "versions-limit", "limit"}, subscriptionRelatedFieldFlagNames()...)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions list", 200, conflicts...); err != nil {
+				return err
 			}
 			if err := validateRelationshipLimit("--versions-limit", *versionsLimit); err != nil {
 				return err
@@ -469,20 +461,6 @@ Examples:
 			nextURL := strings.TrimSpace(*next)
 			if id != "" && appFlag != "" {
 				return shared.UsageError("--group-id and --app are mutually exclusive")
-			}
-			if err := validateNextFlagConflicts(
-				nextURL,
-				flagConflict{"--app", flagWasProvided(fs, "app")},
-				flagConflict{"--fields", flagWasProvided(fs, "fields")},
-				flagConflict{"--version-fields", flagWasProvided(fs, "version-fields")},
-				flagConflict{"--include", flagWasProvided(fs, "include")},
-				flagConflict{"--versions-limit", flagWasProvided(fs, "versions-limit")},
-				flagConflict{"--limit", flagWasProvided(fs, "limit")},
-			); err != nil {
-				return err
-			}
-			if err := validateNextExclusiveFlags(fs, nextURL, subscriptionRelatedFieldFlagNames()...); err != nil {
-				return err
 			}
 			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionFieldsList())
 			if err != nil {
@@ -1002,18 +980,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "subscriptions prices list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "subscriptions prices list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions prices list", 200, "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
+				return err
 			}
 			if *resolved && strings.TrimSpace(*next) != "" {
 				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
 				return flag.ErrHelp
-			}
-			if err := validateNextExclusiveFlags(fs, *next, "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
-				return err
 			}
 			if *resolved {
 				for _, name := range []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "include"} {
@@ -1667,13 +1639,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorf("subscriptions pricing availability available-territories: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("subscriptions pricing availability available-territories: %v", err)
-			}
-			if err := validateNextExclusiveFlags(fs, *next, "limit"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions pricing availability available-territories", 200, "limit"); err != nil {
 				return err
 			}
 

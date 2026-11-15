@@ -115,13 +115,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("versions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("versions list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "versions list", "version", "platform", "state"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "versions list", 200, "version", "platform", "state"); err != nil {
 				return err
 			}
 			if *latest && strings.TrimSpace(*next) != "" {

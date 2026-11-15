@@ -38,7 +38,7 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 		{
 			name: "reviews invalid limit",
 			run: func() error {
-				return executeReviewsList(context.Background(), "app-1", "json", false, &ReviewFilterFlags{ResponseState: reviewResponseStateAny}, 201, "", false)
+				return ReviewsCommand().ParseAndRun(context.Background(), []string{"--app", "app-1", "--limit", "201"})
 			},
 			wantError:  "reviews: --limit must be between 1 and 200",
 			wantStderr: "Error: reviews: --limit must be between 1 and 200\n",

@@ -310,15 +310,14 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 		secondPageURL = "https://api.appstoreconnect.apple.com/v1/items?cursor=BB"
 	)
 	tests := []struct {
-		name            string
-		topLevel        bool
-		nextBeforeLimit bool
-		args            []string
-		failCall        int
-		wantErr         string
-		wantStderr      string
-		wantCalls       []builderTestCall
-		wantStdout      string
+		name       string
+		topLevel   bool
+		args       []string
+		failCall   int
+		wantErr    string
+		wantStderr string
+		wantCalls  []builderTestCall
+		wantStdout string
 	}{
 		{
 			name:       "missing parent reports the required diagnostic before flag validation",
@@ -371,18 +370,10 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 			wantStderr: "Error: items list: --limit must be between 1 and 200\n",
 		},
 		{
-			name:            "next and its conflicts are checked before limit on request",
-			nextBeforeLimit: true,
-			args:            []string{"--next", nextURL, "--filter", "value", "--limit", "500"},
-			wantErr:         "items list: --next cannot be combined with --filter",
-			wantStderr:      "Error: items list: --next cannot be combined with --filter\n",
-		},
-		{
-			name:            "limit is still checked after next on request",
-			nextBeforeLimit: true,
-			args:            []string{"--id", "parent-1", "--limit", "500"},
-			wantErr:         "items list: --limit must be between 1 and 200",
-			wantStderr:      "Error: items list: --limit must be between 1 and 200\n",
+			name:       "limit is checked before next conflicts",
+			args:       []string{"--next", nextURL, "--filter", "value", "--limit", "500"},
+			wantErr:    "items list: --limit must be between 1 and 200",
+			wantStderr: "Error: items list: --limit must be between 1 and 200\n",
 		},
 		{
 			name:       "top-level collection has no parent flag",
@@ -405,7 +396,6 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 				ShortUsage:           "asc items list [flags]",
 				ParentFlag:           "id",
 				TopLevel:             tt.topLevel,
-				NextBeforeLimit:      tt.nextBeforeLimit,
 				RequiredDiagnostic:   true,
 				PaginateIgnoresLimit: true,
 				NoSpinner:            true,

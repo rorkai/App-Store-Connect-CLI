@@ -31,9 +31,6 @@ func executeScreenshotSetListCommand(ctx context.Context, setID, fields string, 
 		}
 		query.Set("fields[appScreenshots]", strings.Join(values, ","))
 	}
-	if limit < 0 || limit > 200 {
-		return shared.UsageError("screenshots list: --limit must be between 1 and 200 (0 uses server default)")
-	}
 	if paginate && limit == 0 {
 		limit = 200
 	}

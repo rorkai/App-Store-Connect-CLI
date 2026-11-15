@@ -61,10 +61,10 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 		{"list requires group", []string{"subscriptions", "groups", "versions", "list"}, "--group-id is required"},
 		{"list validates state", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-1", "--state", "NOPE"}, "--state must be one of"},
 		{"list validates include", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-1", "--include", "subscriptions"}, "--include must be one of"},
-		{"list rejects query flags with next", []string{"subscriptions", "groups", "versions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/versions?cursor=next", "--state", "READY_FOR_REVIEW"}, "--next cannot be combined with query flags"},
+		{"list rejects query flags with next", []string{"subscriptions", "groups", "versions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/versions?cursor=next", "--state", "READY_FOR_REVIEW"}, "subscriptions groups versions list: --next cannot be combined with --state"},
 		{"view requires version", []string{"subscriptions", "groups", "versions", "view"}, "--version-id is required"},
 		{"localizations list requires version", []string{"subscriptions", "groups", "versions", "localizations", "list"}, "--version-id is required"},
-		{"localizations list rejects query flags with next", []string{"subscriptions", "groups", "versions", "localizations", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroupVersions/version-1/localizations?cursor=next", "--include", "version"}, "--next cannot be combined with query flags"},
+		{"localizations list rejects query flags with next", []string{"subscriptions", "groups", "versions", "localizations", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroupVersions/version-1/localizations?cursor=next", "--include", "version"}, "subscriptions groups versions localizations list: --next cannot be combined with --include"},
 		{"localization create requires version", []string{"subscriptions", "groups", "versions", "localizations", "create", "--name", "Premium", "--locale", "en-US"}, "--version-id is required"},
 		{"localization view requires id", []string{"subscriptions", "groups", "versions", "localizations", "view"}, "--id is required"},
 		{"localization update requires a change", []string{"subscriptions", "groups", "versions", "localizations", "update", "--id", "loc-1"}, "at least one update flag is required"},
@@ -120,7 +120,7 @@ func TestSubscriptionGroupsListRejectsVersionQueryFlagsWithNext(t *testing.T) {
 			t.Fatalf("expected ErrHelp, got %v", err)
 		}
 	})
-	if !strings.Contains(stderr, "--next cannot be combined with query flags") {
+	if !strings.Contains(stderr, "subscriptions groups list: --next cannot be combined with --include") {
 		t.Fatalf("unexpected stderr: %q", stderr)
 	}
 }

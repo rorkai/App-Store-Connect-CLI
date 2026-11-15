@@ -30,7 +30,7 @@ func TestTestFlightMetricsAppTestersValidationErrors(t *testing.T) {
 		{
 			name:    "limit out of range",
 			args:    []string{"testflight", "metrics", "app-testers", "--app", "APP_ID", "--limit", "500"},
-			wantErr: "Error: --limit must be between 1 and 200",
+			wantErr: "Error: testflight metrics app-testers: --limit must be between 1 and 200",
 		},
 	}
 

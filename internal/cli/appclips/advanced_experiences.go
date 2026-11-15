@@ -127,13 +127,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("app-clips advanced-experiences list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-clips advanced-experiences list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "app-clips advanced-experiences list", "action", "status", "place-status"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-clips advanced-experiences list", 200, "action", "status", "place-status"); err != nil {
 				return err
 			}
 

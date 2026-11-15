@@ -214,11 +214,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("builds icons list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("builds icons list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "builds icons list", 200); err != nil {
+				return err
 			}
 
 			nextValue := strings.TrimSpace(*next)

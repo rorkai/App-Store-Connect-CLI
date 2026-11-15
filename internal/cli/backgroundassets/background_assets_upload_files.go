@@ -65,15 +65,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "background-assets upload-files list", backgroundAssetsMaxLimit); err != nil {
+				return err
+			}
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--version-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
-				return shared.UsageErrorf("background-assets upload-files list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("background-assets upload-files list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

@@ -60,6 +60,9 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n", strings.TrimSpace(args[0]))
 				return flag.ErrHelp
 			}
+			if err := shared.ValidatePaginationFlags(ctx, fs, "apps wall", 200); err != nil {
+				return err
+			}
 			return appsCommunityWall(ctx, *output.Output, *output.Pretty, *sortBy, *limit)
 		},
 	}
@@ -73,10 +76,6 @@ func appsWallFlags(fs *flag.FlagSet) (output shared.OutputFlags, sortBy *string,
 }
 
 func appsCommunityWall(ctx context.Context, output string, pretty bool, sortBy string, limit int) error {
-	if limit != 0 && (limit < 1 || limit > 200) {
-		fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
-		return flag.ErrHelp
-	}
 	if err := shared.ValidateSort(sortBy, "name", "-name"); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 		return flag.ErrHelp

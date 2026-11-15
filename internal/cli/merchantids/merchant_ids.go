@@ -76,19 +76,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("merchant-ids list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(
-				fs,
-				*next,
-				"merchant-ids list",
-				"identifier", "name", "sort", "fields", "certificate-fields", "include", "certificates-limit", "limit",
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "merchant-ids list", 200, "identifier", "name", "sort", "fields", "certificate-fields", "include", "certificates-limit", "limit"); err != nil {
 				return err
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("merchant-ids list: --limit must be between 1 and 200")
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
 				return shared.UsageError("merchant-ids list: --certificates-limit must be between 1 and 50")

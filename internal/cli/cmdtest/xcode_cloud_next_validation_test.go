@@ -4,29 +4,29 @@ import "testing"
 
 func TestXcodeCloudListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"xcode-cloud", "build-runs", "list"}, wantErr: "xcode-cloud build-runs: --next"},
+		{args: []string{"xcode-cloud", "build-runs", "list"}, wantErr: "xcode-cloud build-runs list: --next"},
 		{args: []string{"xcode-cloud", "build-runs", "builds"}, wantErr: "xcode-cloud build-runs builds: --next"},
 		{args: []string{"xcode-cloud", "issues", "list"}, wantErr: "xcode-cloud issues list: --next"},
 		{args: []string{"xcode-cloud", "test-results", "list"}, wantErr: "xcode-cloud test-results list: --next"},
 		{args: []string{"xcode-cloud", "artifacts", "list"}, wantErr: "xcode-cloud artifacts list: --next"},
-		{args: []string{"xcode-cloud", "products", "list"}, wantErr: "xcode-cloud products: --next"},
+		{args: []string{"xcode-cloud", "products", "list"}, wantErr: "xcode-cloud products list: --next"},
 		{args: []string{"xcode-cloud", "products", "build-runs"}, wantErr: "xcode-cloud products build-runs: --next"},
 		{args: []string{"xcode-cloud", "products", "workflows"}, wantErr: "xcode-cloud products workflows: --next"},
 		{args: []string{"xcode-cloud", "products", "primary-repositories"}, wantErr: "xcode-cloud products primary-repositories: --next"},
 		{args: []string{"xcode-cloud", "products", "additional-repositories"}, wantErr: "xcode-cloud products additional-repositories: --next"},
-		{args: []string{"xcode-cloud", "macos-versions", "list"}, wantErr: "xcode-cloud macos-versions: --next"},
-		{args: []string{"xcode-cloud", "xcode-versions", "list"}, wantErr: "xcode-cloud xcode-versions: --next"},
+		{args: []string{"xcode-cloud", "macos-versions", "list"}, wantErr: "xcode-cloud macos-versions list: --next"},
+		{args: []string{"xcode-cloud", "xcode-versions", "list"}, wantErr: "xcode-cloud xcode-versions list: --next"},
 		{args: []string{"xcode-cloud", "macos-versions", "xcode-versions"}, wantErr: "xcode-cloud macos-versions xcode-versions: --next"},
 		{args: []string{"xcode-cloud", "xcode-versions", "macos-versions"}, wantErr: "xcode-cloud xcode-versions macos-versions: --next"},
-		{args: []string{"xcode-cloud", "scm", "providers", "list"}, wantErr: "xcode-cloud scm providers: --next"},
-		{args: []string{"xcode-cloud", "scm", "repositories", "list"}, wantErr: "xcode-cloud scm repositories: --next"},
+		{args: []string{"xcode-cloud", "scm", "providers", "list"}, wantErr: "xcode-cloud scm providers list: --next"},
+		{args: []string{"xcode-cloud", "scm", "repositories", "list"}, wantErr: "xcode-cloud scm repositories list: --next"},
 		{args: []string{"xcode-cloud", "scm", "providers", "repositories"}, wantErr: "xcode-cloud scm providers repositories: --next"},
 		{args: []string{"xcode-cloud", "scm", "repositories", "git-references"}, wantErr: "xcode-cloud scm repositories git-references: --next"},
 		{args: []string{"xcode-cloud", "scm", "repositories", "pull-requests"}, wantErr: "xcode-cloud scm repositories pull-requests: --next"},
 		{args: []string{"xcode-cloud", "scm", "repositories", "links", "git-references"}, wantErr: "xcode-cloud scm repositories links git-references: --next"},
 		{args: []string{"xcode-cloud", "scm", "repositories", "links", "pull-requests"}, wantErr: "xcode-cloud scm repositories links pull-requests: --next"},
-		{args: []string{"xcode-cloud", "workflows", "list"}, wantErr: "xcode-cloud workflows: --next"},
-		{args: []string{"xcode-cloud", "actions", "list"}, wantErr: "xcode-cloud actions: --next"},
+		{args: []string{"xcode-cloud", "workflows", "list"}, wantErr: "xcode-cloud workflows list: --next"},
+		{args: []string{"xcode-cloud", "actions", "list"}, wantErr: "xcode-cloud actions list: --next"},
 	})
 }
 

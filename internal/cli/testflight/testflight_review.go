@@ -67,15 +67,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight review view: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight review view: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight review view", 200); err != nil {
+				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -353,19 +346,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight review submissions list", 200); err != nil {
+				return err
+			}
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
 				return shared.RequiredFlag("--build-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight review submissions list: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight review submissions list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -521,15 +507,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight beta-details view: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight beta-details view: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-details view", 200); err != nil {
+				return err
 			}
 
 			trimmedBuildID := strings.TrimSpace(*buildID)
@@ -734,17 +713,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight recruitment options: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight recruitment options: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "testflight recruitment options", "fields"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight recruitment options", 200, "fields"); err != nil {
 				return err
 			}
 

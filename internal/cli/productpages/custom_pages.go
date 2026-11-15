@@ -77,15 +77,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("custom-pages list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(
-				fs,
-				*next,
-				"custom-pages list",
-				"visible", "fields", "app-fields", "version-fields", "include", "versions-limit", "limit",
-			); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages list", productPagesMaxLimit, "visible", "fields", "app-fields", "version-fields", "include", "versions-limit", "limit"); err != nil {
 				return err
 			}
 			providedQueryFlags := make(map[string]bool)
@@ -105,9 +97,6 @@ Examples:
 				if providedQueryFlags[queryFlag.name] && len(shared.SplitCSV(queryFlag.value)) == 0 {
 					return d.UsageError(fmt.Sprintf("custom-pages list: --%s must not be empty", queryFlag.name))
 				}
-			}
-			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return d.UsageErrorf("custom-pages list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
 			if providedQueryFlags["versions-limit"] && (*versionsLimit < 1 || *versionsLimit > customPagesMaxVersionsLimit) {
 				return d.UsageError(fmt.Sprintf("custom-pages list: --versions-limit must be between 1 and %d", customPagesMaxVersionsLimit))

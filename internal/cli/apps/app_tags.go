@@ -89,13 +89,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorf("app-tags list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-tags list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "app-tags list", "visible-in-app-store", "sort", "fields", "include", "territory-fields", "territory-limit"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-tags list", 200, "visible-in-app-store", "sort", "fields", "include", "territory-fields", "territory-limit"); err != nil {
 				return err
 			}
 			if err := shared.ValidateSort(*sort, "name", "-name"); err != nil {
@@ -417,18 +411,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-tags territories", 200, "fields"); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("app-tags territories: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-tags territories: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "app-tags territories", "fields"); err != nil {
-				return err
 			}
 
 			fieldsValue, err := normalizeTerritoryFields(*fields)
@@ -505,15 +493,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-tags territories-links", 200); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("app-tags territories-links: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-tags territories-links: %v", err)
 			}
 
 			warnAppTagTerritoryDeprecation()
@@ -583,11 +568,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("app-tags links: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-tags links: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-tags links", 200); err != nil {
+				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)

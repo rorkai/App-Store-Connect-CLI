@@ -6,10 +6,10 @@ func TestIAPListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
 		{args: []string{"iap", "offer-codes", "custom-codes", "list"}, wantErr: "iap offer-codes custom-codes list: --next"},
 		{args: []string{"iap", "offer-codes", "one-time-codes", "list"}, wantErr: "iap offer-codes one-time-codes list: --next"},
-		{args: []string{"iap", "pricing", "price-points", "list"}, wantErr: "iap price-points list: --next"},
+		{args: []string{"iap", "pricing", "price-points", "list"}, wantErr: "iap pricing price-points list: --next"},
 		{args: []string{"iap", "pricing", "schedules", "automatic-prices"}, wantErr: "iap pricing schedules automatic-prices: --next"},
 		{args: []string{"iap", "pricing", "schedules", "manual-prices"}, wantErr: "iap pricing schedules manual-prices: --next"},
-		{args: []string{"iap", "pricing", "availabilities", "available-territories"}, wantErr: "iap availabilities available-territories: --next"},
+		{args: []string{"iap", "pricing", "availabilities", "available-territories"}, wantErr: "iap pricing availabilities available-territories: --next"},
 	})
 }
 

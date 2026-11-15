@@ -96,11 +96,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("builds links view: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("builds links view: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "builds links view", 200); err != nil {
+				return err
 			}
 
 			relationshipType := strings.TrimSpace(*relType)

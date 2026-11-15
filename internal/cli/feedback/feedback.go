@@ -86,13 +86,7 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *fl
 		prefix = "feedback"
 	}
 
-	if *flags.limit != 0 && (*flags.limit < 1 || *flags.limit > 200) {
-		return shared.UsageErrorf("%s: --limit must be between 1 and 200", prefix)
-	}
-	if err := shared.ValidateNextURL(*flags.next); err != nil {
-		return shared.UsageErrorf("%s: %v", prefix, err)
-	}
-	if err := shared.RejectNextFlagConflicts(fs, *flags.next, prefix, "include-screenshots", "device-model", "os-version", "app-platform", "device-platform", "build-id", "build-pre-release-version", "tester", "include", "sort"); err != nil {
+	if err := shared.ValidatePaginationFlags(ctx, fs, prefix, 200, "include-screenshots", "device-model", "os-version", "app-platform", "device-platform", "build-id", "build-pre-release-version", "tester", "include", "sort"); err != nil {
 		return err
 	}
 	if err := shared.ValidateSort(*flags.sort, "createdDate", "-createdDate"); err != nil {

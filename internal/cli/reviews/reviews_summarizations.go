@@ -42,19 +42,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			nextValue := strings.TrimSpace(*next)
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("reviews summarizations: %v", err)), shared.DiagnosticInvalidInput, "--next")
-			}
-			if err := rejectReviewNextFlagConflicts(
-				fs, *next, "reviews summarizations",
-				"platform", "territory", "fields", "territory-fields", "include", "limit",
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "reviews summarizations", 200, "platform", "territory", "fields", "territory-fields", "include", "limit"); err != nil {
 				return err
 			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageError("reviews summarizations: --limit must be between 1 and 200")), shared.DiagnosticInvalidInput, "--limit")
-			}
+			nextValue := strings.TrimSpace(*next)
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextValue == "" {

@@ -81,7 +81,7 @@ func TestCategoriesInvalidNextPrecedesLimitConflict(t *testing.T) {
 		{command: "subcategories", next: "http://api.appstoreconnect.apple.com/v1/appCategories/GAMES/subcategories?cursor=next"},
 	} {
 		t.Run(test.command, func(t *testing.T) {
-			stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "categories", test.command, "--next", test.next, "--limit", "201")
+			stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "categories", test.command, "--next", test.next, "--limit", "5")
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 			}

@@ -47,6 +47,9 @@ Examples:
 			if err := shared.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
 				return err
 			}
+			if err := shared.ValidatePaginationFlags(ctx, fs, "performance download", 200); err != nil {
+				return err
+			}
 			appFlag := strings.TrimSpace(*appID)
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			trimmedDiagnosticID := strings.TrimSpace(*diagnosticID)
@@ -71,9 +74,6 @@ Examples:
 			}
 			if selectionCount > 1 {
 				return shared.UsageError("--app, --build-id, and --diagnostic-id are mutually exclusive")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("--limit must be between 1 and 200")
 			}
 			if trimmedDiagnosticID != "" && (strings.TrimSpace(*platform) != "" || strings.TrimSpace(*metricType) != "" || strings.TrimSpace(*deviceType) != "") {
 				return shared.UsageError("metric filters are not valid with --diagnostic-id")

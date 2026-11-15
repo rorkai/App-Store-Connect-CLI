@@ -121,41 +121,21 @@ func BindReviewSelectionFlags(fs *flag.FlagSet) *ReviewSelectionFlags {
 	return selection
 }
 
-// ValidateReviewNextFlagConflicts rejects query flags that a links.next URL
-// already encodes. Inspecting the FlagSet preserves explicit empty and zero
-// values, which must not be silently ignored either.
-func ValidateReviewNextFlagConflicts(next string, fs *flag.FlagSet) error {
-	if strings.TrimSpace(next) == "" || fs == nil {
-		return nil
-	}
-
-	setFlags := make(map[string]struct{})
-	fs.Visit(func(f *flag.Flag) {
-		setFlags[f.Name] = struct{}{}
-	})
-	for _, name := range []string{
-		"stars",
-		"territory",
-		"review-territory",
-		"sort",
-		"response-state",
-		"only-unresponded",
-		"include-response",
-		"fields",
-		"include",
-		"response-fields",
-		"territory-fields",
-		"limit",
-	} {
-		if _, ok := setFlags[name]; ok {
-			return shared.WithDiagnostic(
-				shared.UsageErrorf("--next cannot be combined with --%s", name),
-				shared.DiagnosticConflictingInput,
-				"",
-			)
-		}
-	}
-	return nil
+// ReviewNextConflicts names the query flags that a links.next URL already
+// encodes, so the customer review lists reject them with --next.
+var ReviewNextConflicts = []string{
+	"stars",
+	"territory",
+	"review-territory",
+	"sort",
+	"response-state",
+	"only-unresponded",
+	"include-response",
+	"fields",
+	"include",
+	"response-fields",
+	"territory-fields",
+	"limit",
 }
 
 // ReviewOptions validates the bound flags and returns the matching query

@@ -72,18 +72,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "background-assets versions list", backgroundAssetsMaxLimit, "locale", "platform", "state", "version", "internal-beta-state", "external-beta-state", "app-store-state", "sort"); err != nil {
+				return err
+			}
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--background-asset-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
-				return shared.UsageErrorf("background-assets versions list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("background-assets versions list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "background-assets versions list", "locale", "platform", "state", "version", "internal-beta-state", "external-beta-state", "app-store-state", "sort"); err != nil {
-				return err
 			}
 			platforms, err := parseBackgroundAssetEnumCSV("--platform", *platform, shared.PlatformList())
 			if err != nil {

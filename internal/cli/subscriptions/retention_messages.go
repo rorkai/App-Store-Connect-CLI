@@ -99,9 +99,6 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 			if next != nil {
 				nextURL = strings.TrimSpace(*next)
 			}
-			if err := shared.ValidateNextURL(nextURL); err != nil {
-				return shared.UsageErrorf("%s: %v", command, err)
-			}
 			conflicts := []string{"fields", "include", "limit"}
 			for _, l := range r.limits {
 				conflicts = append(conflicts, l.flag)
@@ -109,7 +106,7 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 			for _, f := range r.filters {
 				conflicts = append(conflicts, f.flag)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, nextURL, command, conflicts...); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, conflicts...); err != nil {
 				return err
 			}
 			if r.ownerType == "apps" && nextURL == "" {
@@ -160,9 +157,6 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 				opts = append(opts, asc.WithRetentionMessagesQuery(f.param, values...))
 			}
 			if limit != nil {
-				if *limit != 0 && (*limit < 1 || *limit > 200) {
-					return shared.UsageErrorf("%s: --limit must be between 1 and 200", command)
-				}
 				pageLimit := *limit
 				if *paginate && pageLimit == 0 {
 					pageLimit = 200

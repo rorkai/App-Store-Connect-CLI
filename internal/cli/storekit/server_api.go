@@ -367,11 +367,11 @@ Get Group Members endpoint.
 Examples:
   asc storekit groups members --group-id 900000000000000000 --environment sandbox --paginate`, fs,
 		func(ctx context.Context, args []string) error {
+			if flagWasSet(fs, "limit") && (*limit < 1 || *limit > 100) {
+				return shared.UsageError("storekit groups members: --limit must be between 1 and 100")
+			}
 			if err := validateServerRead(flags, requiredFlag{"--group-id", *groupID}); err != nil {
 				return err
-			}
-			if flagWasSet(fs, "limit") && (*limit < 1 || *limit > 100) {
-				return shared.UsageError("--limit must be between 1 and 100")
 			}
 			raw, err := serverRequest(ctx, fs.Name(), flags.common, func(ctx context.Context, client *storekitapi.Client) (json.RawMessage, error) {
 				return fetchServerPages(func(token string) (json.RawMessage, error) {

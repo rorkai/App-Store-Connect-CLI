@@ -298,15 +298,29 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "beta-groups list: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "beta-groups list: %v", err)
+			// Both beta group reads follow a links.next URL verbatim, so any
+			// query-shaping flag passed alongside --next would be dropped
+			// without a trace. Reject the combination instead: the cursor URL
+			// already carries the filters and sort of the query it came from.
+			if err := shared.ValidatePaginationFlags(
+				ctx,
+				fs,
+				"testflight beta-groups list",
+				200,
+				"id",
+				"public-link-enabled",
+				"public-link-limit-enabled",
+				"public-link",
+				"fields",
+				"app-fields",
+				"build-fields",
+				"tester-fields",
+				"recruitment-criteria-fields",
+				"include",
+				"testers-limit",
+				"builds-limit",
+			); err != nil {
+				return err
 			}
 
 			appIDSet := false
@@ -387,30 +401,7 @@ Examples:
 				return shared.UsageError(command + ": --name cannot be empty")
 			}
 
-			// Both beta group reads follow a links.next URL verbatim, so any
-			// query-shaping flag passed alongside --next would be dropped
-			// without a trace. Reject the combination instead: the cursor URL
-			// already carries the filters and sort of the query it came from.
 			if strings.TrimSpace(*next) != "" {
-				if err := shared.RejectNextFlagConflicts(
-					fs,
-					*next,
-					command,
-					"id",
-					"public-link-enabled",
-					"public-link-limit-enabled",
-					"public-link",
-					"fields",
-					"app-fields",
-					"build-fields",
-					"tester-fields",
-					"recruitment-criteria-fields",
-					"include",
-					"testers-limit",
-					"builds-limit",
-				); err != nil {
-					return err
-				}
 				for _, conflict := range []struct {
 					set  bool
 					name string
@@ -421,7 +412,7 @@ Examples:
 					{sortSet, "--sort"},
 				} {
 					if conflict.set {
-						return shared.UsageError(command + ": --next cannot be combined with " + conflict.name)
+						return shared.UsageError(shared.RewriteUsageMessage(ctx, "testflight beta-groups list") + ": --next cannot be combined with " + conflict.name)
 					}
 				}
 			}

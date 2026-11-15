@@ -116,15 +116,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("categories subcategories: %v", err)
-			}
-			if err := rejectCategorySubcategoriesNextFlagConflicts(d, fs, *next, "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "categories subcategories", 200, "limit"); err != nil {
 				return err
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --limit must be between 1 and 200")
-				return flag.ErrHelp
 			}
 
 			trimmedID := strings.TrimSpace(*categoryID)
@@ -169,20 +162,4 @@ Examples:
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
-}
-
-func rejectCategorySubcategoriesNextFlagConflicts(d *shared.Deps, fs *flag.FlagSet, next string, names ...string) error {
-	if strings.TrimSpace(next) == "" {
-		return nil
-	}
-	provided := make(map[string]struct{}, len(names))
-	fs.Visit(func(f *flag.Flag) {
-		provided[f.Name] = struct{}{}
-	})
-	for _, name := range names {
-		if _, ok := provided[name]; ok {
-			return d.UsageErrorf("categories subcategories: --next cannot be combined with --%s", name)
-		}
-	}
-	return nil
 }
