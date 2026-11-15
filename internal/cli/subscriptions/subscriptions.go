@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -46,7 +45,7 @@ Examples:
   asc subscriptions review screenshots create --subscription-id "SUB_ID" --file "./review.png"
   asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsGroupsCommand(d),
 			newSubscriptionsListCommand(d),
@@ -55,7 +54,7 @@ Examples:
 			newSubscriptionsGetCommand(d),
 			newSubscriptionsUpdateCommand(d),
 			newSubscriptionsDeleteCommand(d),
-			SubscriptionsPricingCommand(),
+			newSubscriptionsPricingCommand(d),
 			newSubscriptionsOffersCommand(d),
 			newSubscriptionsReviewCommand(d),
 			newSubscriptionsPromotedPurchasesCommand(d),
@@ -85,7 +84,7 @@ Examples:
   asc subscriptions groups view --id "GROUP_ID"
   asc subscriptions groups delete --id "GROUP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsGroupsListCommand(d),
 			newSubscriptionsGroupsCreateCommand(d),
@@ -191,7 +190,7 @@ func newSubscriptionsGroupsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc subscriptions groups create --app "APP_ID" --reference-name "Premium"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -372,7 +371,7 @@ Examples:
   asc subscriptions list --group-id "GROUP_ID" --paginate
   asc subscriptions list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			conflicts := append([]string{"app", "fields", "version-fields", "include", "versions-limit", "limit"}, subscriptionRelatedFieldFlagNames()...)
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions list", 200, conflicts...); err != nil {
@@ -545,7 +544,7 @@ Examples:
   asc subscriptions create --group-id "GROUP_ID" --reference-name "Family" --product-id "com.example.sub.family" --family-sharable
   asc subscriptions create --group-id "GROUP_ID" --reference-name "Yearly" --product-id "com.example.sub.yearly" --group-level 1 --review-note "Same paywall structure, design may differ"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group == "" {
@@ -699,7 +698,7 @@ Examples:
   asc subscriptions update --id "SUB_ID" --family-sharable
   asc subscriptions update --id "SUB_ID" --market-settings APP_STORE,APPLE_BUSINESS`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
@@ -852,9 +851,9 @@ Examples:
 	})
 }
 
-// SubscriptionsPricesListCommand returns the subscriptions prices list subcommand.
-func SubscriptionsPricesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices list", flag.ExitOnError)
+// newSubscriptionsPricesListCommand returns the subscriptions prices list subcommand.
+func newSubscriptionsPricesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("prices list", flag.ExitOnError)
 
 	subID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -869,7 +868,7 @@ func SubscriptionsPricesListCommand() *ffcli.Command {
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	resolved := fs.Bool("resolved", false, "Return the current effective price per territory")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -892,26 +891,26 @@ Examples:
   asc subscriptions prices list --subscription-id "SUB_ID" --plan-type MONTHLY
   asc subscriptions prices list --subscription-id "SUB_ID" --price-point-id "PRICE_POINT_ID" --include subscriptionPricePoint --price-point-fields customerPrice`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions prices list", 200, "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions prices list", 200, "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
 				return err
 			}
 			if *resolved && strings.TrimSpace(*next) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --resolved cannot be combined with --next")
 				return flag.ErrHelp
 			}
 			if *resolved {
 				for _, name := range []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "include"} {
 					if flagWasProvided(fs, name) {
-						return shared.UsageErrorf("--resolved cannot be combined with --%s", name)
+						return d.UsageErrorf("--resolved cannot be combined with --%s", name)
 					}
 				}
 			}
 
 			id := strings.TrimSpace(*subID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
 			var planTypeFilter asc.SubscriptionPlanType
@@ -923,40 +922,40 @@ Examples:
 			})
 			if planTypeProvided {
 				if strings.TrimSpace(*planType) == "" {
-					return shared.UsageError("invalid value for --plan-type: cannot be empty")
+					return d.UsageError("invalid value for --plan-type: cannot be empty")
 				}
 				normalized, err := normalizeSubscriptionPlanType(*planType)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				planTypeFilter = normalized
 			}
 
 			selectedTerritories, err := normalizeOptionalTerritoryFilter(fs, "territory", *territory)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			territoryFilter := strings.Join(selectedTerritories, ",")
 
 			selectedPricePointIDs, err := normalizeOptionalCSVFilter(fs, "price-point-id", *pricePointIDs, false)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			selectedPriceFields, err := normalizeOptionalSelection(fs, "fields", *fields, subscriptionPriceFieldsList())
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			selectedTerritoryFields, err := normalizeOptionalSelection(fs, "territory-fields", *territoryFields, []string{"currency"})
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			selectedPricePointFields, err := normalizeOptionalSelection(fs, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory", "subscriptionPricePoint"})
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if slices.Contains(selectedPriceFields, "territory") || len(selectedTerritoryFields) != 0 {
 				selectedIncludes = appendIncludeForFields(selectedIncludes, []string{"territory"}, "territory")
@@ -972,27 +971,27 @@ Examples:
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices list: %w", err)
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}
 			}
 
 			if *resolved {
-				resp, err := fetchResolvedSubscriptionPrices(ctx, client, id, *limit, *next, subscriptionPricingToday(), planTypeFilter, territoryFilter)
+				resp, err := fetchResolvedSubscriptionPricesWith(ctx, d, client, id, *limit, *next, subscriptionPricingToday(), planTypeFilter, territoryFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices list: failed to resolve: %w", err)
 				}
-				return shared.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
+				return d.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			nextURL := strings.TrimSpace(*next)
@@ -1045,7 +1044,7 @@ Examples:
 					return fmt.Errorf("subscriptions prices list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionPrices(requestCtx, id, opts...)
@@ -1053,7 +1052,7 @@ Examples:
 				return fmt.Errorf("subscriptions prices list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -1219,9 +1218,9 @@ func subscriptionPriceMatchesTarget(price asc.Resource[asc.SubscriptionPriceAttr
 	return true
 }
 
-// SubscriptionsPricesAddCommand returns the subscriptions prices add subcommand.
-func SubscriptionsPricesAddCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices add", flag.ExitOnError)
+// newSubscriptionsPricesAddCommand returns the subscriptions prices add subcommand.
+func newSubscriptionsPricesAddCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("prices add", flag.ExitOnError)
 
 	subID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", subscriptionLookupAppUsage)
@@ -1234,7 +1233,7 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 	planType := fs.String("plan-type", "", "Billing plan: MONTHLY or UPFRONT (default Apple's UPFRONT)")
 	force := fs.Bool("force", false, "Re-save the complete equalized price matrix even when the selected price is unchanged")
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
@@ -1257,11 +1256,11 @@ equalized price matrix when repairing Apple's MISSING_METADATA state.
 --plan-type MONTHLY sets a Monthly with 12-Month Commitment price. It cannot be
 combined with --force or USA, and it needs MONTHLY plan availability.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
 			pricePoint := strings.TrimSpace(*pricePointID)
@@ -1269,11 +1268,11 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			priceValue := strings.TrimSpace(*price)
 
 			if err := shared.ValidatePriceSelectionFlags(pricePoint, tierValue, priceValue); err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err)
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 				return flag.ErrHelp
 			}
 			if err := shared.ValidateFinitePriceFlag("--price", priceValue); err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err)
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 				return flag.ErrHelp
 			}
 
@@ -1281,18 +1280,18 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			if territoryID != "" {
 				normalizedTerritory, normalizeErr := ascterritory.Normalize(territoryID)
 				if normalizeErr != nil {
-					return shared.UsageError(normalizeErr.Error())
+					return d.UsageError(normalizeErr.Error())
 				}
 				territoryID = normalizedTerritory
 			}
 			if tierValue > 0 || priceValue != "" {
 				if territoryID == "" {
-					fmt.Fprintln(os.Stderr, "Error: --territory is required when using --tier or --price")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --territory is required when using --tier or --price")
 					return shared.MissingRequiredUsageError("--territory")
 				}
 			}
 			if *force && territoryID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory is required with --force")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory is required with --force")
 				return shared.MissingRequiredUsageError("--territory")
 			}
 			planTypeValue, err := parseSubscriptionPricePlanType(fs, *planType)
@@ -1300,25 +1299,25 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return err
 			}
 			if err := validatePlanTypeTerritory(planTypeValue, territoryID, "--territory"); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if *force && planTypeValue == asc.SubscriptionPlanTypeMonthly {
-				return shared.UsageError("--force only repairs UPFRONT prices")
+				return d.UsageError("--force only repairs UPFRONT prices")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: %w", err)
 			}
 
-			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}
 
 			if tierValue > 0 || priceValue != "" {
-				tierCtx, tierCancel := shared.ContextWithTimeout(ctx)
-				tiers, err := shared.ResolveSubscriptionTiers(tierCtx, client, id, territoryID, *refresh)
+				tierCtx, tierCancel := d.Timeout(ctx)
+				tiers, err := d.ResolveSubscriptionTiers(tierCtx, client, id, territoryID, *refresh)
 				tierCancel()
 				if err != nil {
 					return fmt.Errorf("subscriptions prices add: resolve tiers: %w", err)
@@ -1334,7 +1333,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				}
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			// Check if the subscription already has prices.
@@ -1361,7 +1360,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				if err != nil {
 					return fmt.Errorf("subscriptions prices add: failed to set initial price: %w", err)
 				}
-				return shared.PrintOutput(subResp, *output.Output, *output.Pretty)
+				return d.PrintOutput(subResp, *output.Output, *output.Pretty)
 			}
 
 			matchingPrice, err := findMatchingSubscriptionPrice(requestCtx, client, id, pricePoint, territoryID, attrs)
@@ -1369,7 +1368,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return fmt.Errorf("subscriptions prices add: failed to check matching price: %w", err)
 			}
 			if matchingPrice != nil && !*force {
-				return shared.PrintOutput(matchingPrice, *output.Output, *output.Pretty)
+				return d.PrintOutput(matchingPrice, *output.Output, *output.Pretty)
 			}
 			if matchingPrice != nil && *force {
 				equalizations, equalizationsErr := fetchEqualizations(requestCtx, client, pricePoint, territoryID)
@@ -1389,7 +1388,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				if matrixErr != nil {
 					return fmt.Errorf("subscriptions prices add: failed to re-save price matrix: %w", matrixErr)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			// Existing prices: use POST /v1/subscriptionPrices for a price change
@@ -1398,14 +1397,15 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return fmt.Errorf("subscriptions prices add: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsPricesDeleteCommand returns the subscriptions prices delete subcommand.
-func SubscriptionsPricesDeleteCommand() *ffcli.Command {
+// newSubscriptionsPricesDeleteCommand returns the subscriptions prices delete subcommand.
+func newSubscriptionsPricesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "prices delete",
 		Name:        "delete",
 		ShortUsage:  "asc subscriptions prices delete --price-id \"PRICE_ID\" --confirm",
@@ -1427,9 +1427,9 @@ Examples:
 	})
 }
 
-// SubscriptionsAvailabilityCommand returns the subscriptions pricing availability command group.
-func SubscriptionsAvailabilityCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availability", flag.ExitOnError)
+// NewSubscriptionsAvailabilityCommand returns the subscriptions pricing availability command group.
+func NewSubscriptionsAvailabilityCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("availability", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "availability",
@@ -1448,11 +1448,11 @@ Examples:
   asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "US,Canada"
   asc subscriptions pricing availability available-territories --availability-id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsAvailabilityViewCommand(),
-			SubscriptionsAvailabilityAvailableTerritoriesCommand(),
-			SubscriptionsAvailabilityEditCommand(),
+			newSubscriptionsAvailabilityViewCommand(d),
+			newSubscriptionsAvailabilityAvailableTerritoriesCommand(d),
+			newSubscriptionsAvailabilityEditCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1460,14 +1460,14 @@ Examples:
 	}
 }
 
-// SubscriptionsAvailabilityViewCommand returns the availability view subcommand.
-func SubscriptionsAvailabilityViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availability view", flag.ExitOnError)
+// newSubscriptionsAvailabilityViewCommand returns the availability view subcommand.
+func newSubscriptionsAvailabilityViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("availability view", flag.ExitOnError)
 
 	availabilityID := shared.BindResourceIDFlag(fs, "availability-id", "subscriptionAvailabilities", "Subscription availability ID")
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -1479,41 +1479,41 @@ Examples:
   asc subscriptions pricing availability view --availability-id "AVAILABILITY_ID"
   asc subscriptions pricing availability view --subscription-id "SUB_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			availabilityValue := strings.TrimSpace(*availabilityID)
 			subscriptionValue := strings.TrimSpace(*subscriptionID)
 			if availabilityValue == "" && subscriptionValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --availability-id or --subscription-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --availability-id or --subscription-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if availabilityValue != "" && subscriptionValue != "" {
-				fmt.Fprintln(os.Stderr, "Error: --availability-id and --subscription-id are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --availability-id and --subscription-id are mutually exclusive")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing availability view: %w", err)
 			}
 
 			if availabilityValue != "" {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 
 				resp, err := client.GetSubscriptionAvailability(requestCtx, availabilityValue)
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing availability view: failed to fetch: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, subscriptionValue)
+			subscriptionValue, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, subscriptionValue)
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionAvailabilityForSubscription(requestCtx, subscriptionValue)
@@ -1521,14 +1521,14 @@ Examples:
 				return fmt.Errorf("subscriptions pricing availability view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsAvailabilityAvailableTerritoriesCommand returns the available territories subcommand.
-func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availability available-territories", flag.ExitOnError)
+// newSubscriptionsAvailabilityAvailableTerritoriesCommand returns the available territories subcommand.
+func newSubscriptionsAvailabilityAvailableTerritoriesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("availability available-territories", flag.ExitOnError)
 
 	availabilityID := shared.BindResourceIDFlag(fs, "availability-id", "subscriptionAvailabilities", "Subscription availability ID")
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
@@ -1536,7 +1536,7 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "available-territories",
@@ -1551,40 +1551,40 @@ Examples:
   asc subscriptions pricing availability available-territories --subscription-id "SUB_ID"
   asc subscriptions pricing availability available-territories --availability-id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions pricing availability available-territories", 200, "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions pricing availability available-territories", 200, "limit"); err != nil {
 				return err
 			}
 
 			availabilityValue := strings.TrimSpace(*availabilityID)
 			subscriptionValue := strings.TrimSpace(*subscriptionID)
 			if availabilityValue == "" && subscriptionValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --availability-id or --subscription-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --availability-id or --subscription-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if availabilityValue != "" && subscriptionValue != "" {
-				return shared.UsageError("--availability-id and --subscription-id are mutually exclusive")
+				return d.UsageError("--availability-id and --subscription-id are mutually exclusive")
 			}
 			if subscriptionValue == "" && flagWasProvided(fs, "app") {
-				return shared.UsageError("--app requires --subscription-id")
+				return d.UsageError("--app requires --subscription-id")
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
-			if err := shared.RequireAppForStableSelector(resolvedAppID, subscriptionValue, "--subscription-id"); err != nil {
+			if err := d.RequireAppForStableSelector(resolvedAppID, subscriptionValue, "--subscription-id"); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 			}
 			if subscriptionValue != "" && strings.TrimSpace(*next) == "" {
-				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, resolvedAppID, subscriptionValue)
+				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, resolvedAppID, subscriptionValue)
 				if err != nil {
 					return err
 				}
 
-				availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+				availabilityCtx, availabilityCancel := d.Timeout(ctx)
 				availability, fetchErr := client.GetSubscriptionAvailabilityForSubscription(availabilityCtx, subscriptionValue)
 				availabilityCancel()
 				if fetchErr != nil {
@@ -1596,7 +1596,7 @@ Examples:
 				availabilityValue = strings.TrimSpace(availability.Data.ID)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionAvailabilityTerritoriesOption{
@@ -1618,7 +1618,7 @@ Examples:
 					return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityValue, opts...)
@@ -1626,14 +1626,14 @@ Examples:
 				return fmt.Errorf("subscriptions pricing availability available-territories: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsAvailabilityEditCommand returns the availability edit subcommand.
-func SubscriptionsAvailabilityEditCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availability edit", flag.ExitOnError)
+// newSubscriptionsAvailabilityEditCommand returns the availability edit subcommand.
+func newSubscriptionsAvailabilityEditCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("availability edit", flag.ExitOnError)
 
 	subID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -1644,7 +1644,7 @@ func SubscriptionsAvailabilityEditCommand() *ffcli.Command {
 	billingMode := fs.String("billing-mode", string(subscriptionBillingModeUpfront), "Billing mode: upfront or monthly-commitment")
 	confirmFlag := bindVisitedBoolFlag(fs, lastBool, "confirm", "Confirm monthly-commitment availability changes")
 	confirm := &confirmFlag.value
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "edit",
@@ -1658,7 +1658,7 @@ Examples:
 
 Confirmation is required when --billing-mode monthly-commitment is selected.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			var trailingBool *bool
 			switch lastBool.name {
@@ -1667,52 +1667,52 @@ Confirmation is required when --billing-mode monthly-commitment is selected.`,
 			case "confirm":
 				trailingBool = confirm
 			}
-			if err := shared.RecoverBoolFlagTailArgs(fs, args, trailingBool); err != nil {
+			if err := d.RecoverBoolFlagTailArgs(fs, args, trailingBool); err != nil {
 				return err
 			}
 
 			id := strings.TrimSpace(*subID)
 			if id == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
 			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territories)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if len(territoryIDs) == 0 {
-				return shared.RequiredFlag("--territories")
+				return d.RequiredFlag("--territories")
 			}
 			normalizedBillingMode, err := normalizeSubscriptionBillingMode(*billingMode)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if normalizedBillingMode == subscriptionBillingModeMonthlyCommitment {
 				if *availableInNew {
-					return shared.UsageError("--available-in-new-territories is not supported for MONTHLY plan availability")
+					return d.UsageError("--available-in-new-territories is not supported for MONTHLY plan availability")
 				}
 				territoryIDs, excluded := filterMonthlyCommitmentTerritories(territoryIDs)
 				if len(territoryIDs) == 0 {
-					return shared.UsageError("no eligible monthly-commitment territories remain after excluding USA")
+					return d.UsageError("no eligible monthly-commitment territories remain after excluding USA")
 				}
 				if !*confirm {
-					return shared.UsageError("--confirm is required for monthly-commitment availability changes")
+					return d.UsageError("--confirm is required for monthly-commitment availability changes")
 				}
-				printMonthlyCommitmentTerritoryWarning(excluded)
+				printMonthlyCommitmentTerritoryWarning(d, excluded)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing availability edit: %w", err)
 			}
 
-			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}
 
 			if normalizedBillingMode == subscriptionBillingModeMonthlyCommitment {
-				listCtx, listCancel := shared.ContextWithTimeout(ctx)
+				listCtx, listCancel := d.Timeout(ctx)
 				existing, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(listCtx, id)
 				listCancel()
 				if err != nil {
@@ -1721,11 +1721,11 @@ Confirmation is required when --billing-mode monthly-commitment is selected.`,
 
 				var resp *asc.SubscriptionPlanAvailabilityResponse
 				if monthlyPlan, ok := findMonthlySubscriptionPlanAvailability(existing); ok {
-					updateCtx, updateCancel := shared.ContextWithTimeout(ctx)
+					updateCtx, updateCancel := d.Timeout(ctx)
 					resp, err = client.UpdateSubscriptionPlanAvailability(updateCtx, monthlyPlan.ID, territoryIDs, nil)
 					updateCancel()
 				} else {
-					createCtx, createCancel := shared.ContextWithTimeout(ctx)
+					createCtx, createCancel := d.Timeout(ctx)
 					resp, err = client.CreateSubscriptionPlanAvailability(createCtx, id, territoryIDs, asc.SubscriptionPlanAvailabilityAttributes{
 						PlanType: asc.SubscriptionPlanTypeMonthly,
 					})
@@ -1734,10 +1734,10 @@ Confirmation is required when --billing-mode monthly-commitment is selected.`,
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing availability edit: failed to set monthly-commitment plan availability: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionAvailabilityAttributes{
@@ -1749,7 +1749,7 @@ Confirmation is required when --billing-mode monthly-commitment is selected.`,
 				return fmt.Errorf("subscriptions pricing availability edit: failed to set: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

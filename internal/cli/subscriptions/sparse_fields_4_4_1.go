@@ -8,10 +8,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func normalizeSparseFieldsFlag(fs *flag.FlagSet, next, name, value string, allowed []string) ([]string, error) {
-	return normalizeSparseFieldsFlagWith(shared.DefaultDeps(), fs, next, name, value, allowed)
-}
-
 func normalizeSparseFieldsFlagWith(d *shared.Deps, fs *flag.FlagSet, next, name, value string, allowed []string) ([]string, error) {
 	if strings.TrimSpace(next) != "" && flagWasProvided(fs, name) {
 		return nil, d.UsageErrorf("--next cannot be combined with --%s", name)

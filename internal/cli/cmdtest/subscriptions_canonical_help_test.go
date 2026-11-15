@@ -17,7 +17,7 @@ import (
 
 func TestSubscriptionsAvailabilityHelpMatchesRegisteredPath(t *testing.T) {
 	root := RootCommand("1.2.3")
-	source := subscriptions.SubscriptionsAvailabilityCommand()
+	source := subscriptions.NewSubscriptionsAvailabilityCommand(shared.DefaultDeps())
 
 	tests := []struct {
 		name          string

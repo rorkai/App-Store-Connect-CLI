@@ -41,6 +41,7 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 		{
 			name: "subscription prices import",
 			args: []string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "6000000001", "--input", pricesCSV},
+			deps: true,
 		},
 		{
 			name: "introductory offers import",
@@ -106,6 +107,7 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 		{
 			name: "subscription prices import",
 			args: []string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "6000000001", "--input", missingInput},
+			deps: true,
 		},
 		{
 			name: "introductory offers import",

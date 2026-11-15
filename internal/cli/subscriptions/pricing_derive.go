@@ -150,7 +150,7 @@ Examples:
 
 			fmt.Fprintln(os.Stderr, "Fetching current source and target subscription prices...")
 			sourcePrices, err := fetchResolvedSubscriptionPrices(
-				ctx, client, sourceID, 200, "", subscriptionPricingToday(), asc.SubscriptionPlanTypeUpfront, territoryID,
+				ctx, client, sourceID, subscriptionPricingToday(), asc.SubscriptionPlanTypeUpfront, territoryID,
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing derive: fetch source prices: %w", err)
@@ -159,7 +159,7 @@ Examples:
 				return fmt.Errorf("subscriptions pricing derive: source subscription has no current UPFRONT territory prices")
 			}
 			targetPrices, err := fetchResolvedSubscriptionPrices(
-				ctx, client, targetID, 200, "", effectiveAt, asc.SubscriptionPlanTypeUpfront, territoryID,
+				ctx, client, targetID, effectiveAt, asc.SubscriptionPlanTypeUpfront, territoryID,
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing derive: fetch target prices: %w", err)
@@ -167,7 +167,7 @@ Examples:
 			targetHasPricing := len(targetPrices.Prices) > 0
 			if !targetHasPricing && territoryID != "" {
 				globalTargetPrices, preflightErr := fetchResolvedSubscriptionPrices(
-					ctx, client, targetID, 200, "", effectiveAt, asc.SubscriptionPlanTypeUpfront, "",
+					ctx, client, targetID, effectiveAt, asc.SubscriptionPlanTypeUpfront, "",
 				)
 				if preflightErr != nil {
 					return fmt.Errorf("subscriptions pricing derive: fetch target pricing preflight: %w", preflightErr)
@@ -357,8 +357,6 @@ func verifySubscriptionPriceDeriveRows(
 		ctx,
 		client,
 		targetSubscriptionID,
-		200,
-		"",
 		effectiveAt,
 		asc.SubscriptionPlanTypeUpfront,
 		territory,

@@ -246,6 +246,7 @@ Examples:
 				baseTarget := allTerritories[0]
 				_, err := runReconciledMutation(
 					ctx,
+					shared.DefaultDeps(),
 					func(readbackCtx context.Context) (bool, error) {
 						reconciled, _, readErr := reconcileEqualizeFailures(
 							readbackCtx,
@@ -414,7 +415,7 @@ var errEqualizePriceNotApplied = errors.New("price not applied")
 func verifyEqualizedPrices(ctx context.Context, client *asc.Client, subID string, targets []equalization, submissionFailures []equalizeAttemptFailure, effectiveAt time.Time, planType asc.SubscriptionPlanType) (int, []equalizeAttemptFailure, error) {
 	fmt.Fprintf(os.Stderr, "Verifying %d territory price(s) on %s...\n", len(targets), effectiveAt.Format(equalizeDateLayout))
 
-	resolved, err := fetchResolvedSubscriptionPrices(ctx, client, subID, 200, "", effectiveAt, planType, "")
+	resolved, err := fetchResolvedSubscriptionPrices(ctx, client, subID, effectiveAt, planType, "")
 	if err != nil {
 		return 0, nil, err
 	}
@@ -639,7 +640,7 @@ func reconcileEqualizeFailures(ctx context.Context, client *asc.Client, subID st
 
 	fmt.Fprintf(os.Stderr, "Verifying %d territory update(s) against current prices...\n", len(failures))
 
-	resolved, err := fetchResolvedSubscriptionPrices(ctx, client, subID, 200, "", effectiveAt, planType, "")
+	resolved, err := fetchResolvedSubscriptionPrices(ctx, client, subID, effectiveAt, planType, "")
 	if err != nil {
 		return 0, failures, err
 	}

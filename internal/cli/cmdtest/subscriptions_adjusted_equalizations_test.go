@@ -14,7 +14,6 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
-	subscriptionscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 )
 
 func TestSubscriptionsAdjustedEqualizationsSendsExactFilters(t *testing.T) {
@@ -306,13 +305,6 @@ func TestSubscriptionsPricePointEqualizationsKeepTerritoryInSparseFields(t *test
 			if err != nil {
 				t.Fatalf("new test client: %v", err)
 			}
-			restore := subscriptionscli.SetPricePointsClientFactory(func() (*asc.Client, error) {
-				return client, nil
-			})
-			t.Cleanup(restore)
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := []string{
 				"subscriptions", "pricing", "price-points", test.command,
 				"--price-point-id", "base-1",
@@ -320,14 +312,10 @@ func TestSubscriptionsPricePointEqualizationsKeepTerritoryInSparseFields(t *test
 				"--output", "json",
 			}
 			args = append(args, test.args...)
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run: %v", err)
-				}
-			})
+			_, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, args...)
+			if err != nil {
+				t.Fatalf("run: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -396,13 +384,12 @@ func TestSubscriptionsAdjustedEqualizationsRequiresLiveFiltersBeforeClient(t *te
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := subscriptionscli.SetPricePointsClientFactory(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("poison price-points client factory called")
-			})
-			t.Cleanup(restore)
+			}
 
-			assertUsageExit(t, test.args, test.want)
+			assertUsageExitWithDeps(t, client, test.args, test.want)
 			if clientFactoryCalled {
 				t.Fatal("missing adjusted-equalizations filters reached the price-points client factory")
 			}
@@ -531,14 +518,13 @@ func TestSubscriptionsPricePointCommandsRejectAllOpaqueNextConflictsBeforeClient
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := subscriptionscli.SetPricePointsClientFactory(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("poison price-points client factory called")
-			})
-			t.Cleanup(restore)
+			}
 
 			args := append(append(append([]string{}, test.command...), "--next", test.nextURL), test.conflict...)
-			assertUsageExit(t, args, "--next cannot be combined")
+			assertUsageExitWithDeps(t, client, args, "--next cannot be combined")
 			if clientFactoryCalled {
 				t.Fatal("next conflict reached the price-points client factory")
 			}

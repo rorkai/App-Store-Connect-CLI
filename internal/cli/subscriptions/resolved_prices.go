@@ -25,6 +25,18 @@ func fetchResolvedSubscriptionPrices(
 	ctx context.Context,
 	client *asc.Client,
 	subscriptionID string,
+	date time.Time,
+	planType asc.SubscriptionPlanType,
+	territory string,
+) (*shared.ResolvedPricesResult, error) {
+	return fetchResolvedSubscriptionPricesWith(ctx, shared.DefaultDeps(), client, subscriptionID, 200, "", date, planType, territory)
+}
+
+func fetchResolvedSubscriptionPricesWith(
+	ctx context.Context,
+	d *shared.Deps,
+	client *asc.Client,
+	subscriptionID string,
 	limit int,
 	nextURL string,
 	date time.Time,
@@ -50,7 +62,7 @@ func fetchResolvedSubscriptionPrices(
 		opts = append(opts, asc.WithSubscriptionPricesTerritory(territory))
 	}
 
-	firstPage, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
+	firstPage, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
 		return client.GetSubscriptionPrices(requestCtx, subscriptionID, opts...)
 	})
 	if err != nil {
@@ -63,7 +75,7 @@ func fetchResolvedSubscriptionPrices(
 		if err != nil {
 			return nil, err
 		}
-		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
+		return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
 			return client.GetSubscriptionPrices(
 				requestCtx,
 				subscriptionID,

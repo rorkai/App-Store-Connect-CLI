@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -48,9 +47,9 @@ type subMoney struct {
 	Currency string `json:"currency"`
 }
 
-// SubscriptionsPricingSummaryCommand returns the pricing summary subcommand.
-func SubscriptionsPricingSummaryCommand() *ffcli.Command {
-	return buildSubscriptionsPricingSummaryCommand(
+// newSubscriptionsPricingSummaryCommand returns the pricing summary subcommand.
+func newSubscriptionsPricingSummaryCommand(d *shared.Deps) *ffcli.Command {
+	return buildSubscriptionsPricingSummaryCommand(d,
 		"summary",
 		"asc subscriptions pricing summary [flags]",
 		"Show consolidated subscription pricing summary.",
@@ -67,18 +66,18 @@ Examples:
 	)
 }
 
-func buildSubscriptionsPricingSummaryCommand(
+func buildSubscriptionsPricingSummaryCommand(d *shared.Deps,
 	name string,
 	shortUsage string,
 	shortHelp string,
 	longHelp string,
 ) *ffcli.Command {
-	fs := flag.NewFlagSet(name, flag.ExitOnError)
+	fs := d.NewFlagSet(name, flag.ExitOnError)
 
 	appID := fs.String("app", "", subscriptionLookupAppUsage)
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	territory := fs.String("territory", "USA", "Territory for pricing (accepts alpha-2, alpha-3, or exact English country name)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
@@ -86,13 +85,13 @@ func buildSubscriptionsPricingSummaryCommand(
 		ShortHelp:  shortHelp,
 		LongHelp:   longHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			requestedSubID := strings.TrimSpace(*subscriptionID)
 			requestedAppID := strings.TrimSpace(*appID)
 			resolvedAppID := shared.ResolveAppID(requestedAppID)
 			if requestedSubID == "" && resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app or --subscription-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --subscription-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -102,10 +101,10 @@ func buildSubscriptionsPricingSummaryCommand(
 			}
 			territoryFilter, err := ascterritory.Normalize(territoryInput)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing: %w", err)
 			}
@@ -113,14 +112,14 @@ func buildSubscriptionsPricingSummaryCommand(
 			var subs []subWithGroup
 
 			if requestedSubID != "" {
-				resolveCtx, resolveCancel := shared.ContextWithTimeout(ctx)
-				requestedSubID, err = resolveSubscriptionLookupID(resolveCtx, client, requestedAppID, requestedSubID)
+				resolveCtx, resolveCancel := d.Timeout(ctx)
+				requestedSubID, err = resolveSubscriptionLookupIDWith(resolveCtx, d, client, requestedAppID, requestedSubID)
 				resolveCancel()
 				if err != nil {
 					return err
 				}
 
-				subCtx, subCancel := shared.ContextWithTimeout(ctx)
+				subCtx, subCancel := d.Timeout(ctx)
 				resp, err := client.GetSubscription(subCtx, requestedSubID)
 				subCancel()
 				if err != nil {
@@ -128,7 +127,7 @@ func buildSubscriptionsPricingSummaryCommand(
 				}
 				subs = []subWithGroup{{Sub: resp.Data, GroupName: ""}}
 			} else {
-				groupsCtx, groupsCancel := shared.ContextWithTimeout(ctx)
+				groupsCtx, groupsCancel := d.Timeout(ctx)
 				groupsResp, err := client.GetSubscriptionGroups(groupsCtx, resolvedAppID, asc.Limit[asc.SubscriptionGroupsOption](200))
 				groupsCancel()
 				if err != nil {
@@ -136,7 +135,7 @@ func buildSubscriptionsPricingSummaryCommand(
 				}
 
 				paginatedGroups, err := asc.PaginateAll(ctx, groupsResp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
+					pageCtx, pageCancel := d.Timeout(ctx)
 					defer pageCancel()
 					return client.GetSubscriptionGroups(pageCtx, resolvedAppID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 				})
@@ -149,35 +148,35 @@ func buildSubscriptionsPricingSummaryCommand(
 					return fmt.Errorf("subscriptions pricing: unexpected groups response type %T", paginatedGroups)
 				}
 
-				subs, err = fetchSubscriptionPricingGroups(ctx, client, groups.Data)
+				subs, err = fetchSubscriptionPricingGroups(ctx, d, client, groups.Data)
 				if err != nil {
 					return err
 				}
 			}
 
 			if len(subs) == 0 {
-				return printSubscriptionPricingResult(&subscriptionPricingResult{Subscriptions: []subscriptionPriceSummary{}}, *output.Output, *output.Pretty)
+				return printSubscriptionPricingResult(d, &subscriptionPricingResult{Subscriptions: []subscriptionPriceSummary{}}, *output.Output, *output.Pretty)
 			}
 
-			summaries, err := resolveSubscriptionPriceSummaries(ctx, client, subs, territoryFilter)
+			summaries, err := resolveSubscriptionPriceSummaries(ctx, d, client, subs, territoryFilter)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing: %w", err)
 			}
 
-			return printSubscriptionPricingResult(&subscriptionPricingResult{Subscriptions: summaries}, *output.Output, *output.Pretty)
+			return printSubscriptionPricingResult(d, &subscriptionPricingResult{Subscriptions: summaries}, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func fetchSubscriptionPricingGroup(ctx context.Context, client *asc.Client, group asc.Resource[asc.SubscriptionGroupAttributes]) ([]subWithGroup, error) {
-	subsCtx, subsCancel := shared.ContextWithTimeout(ctx)
+func fetchSubscriptionPricingGroup(ctx context.Context, d *shared.Deps, client *asc.Client, group asc.Resource[asc.SubscriptionGroupAttributes]) ([]subWithGroup, error) {
+	subsCtx, subsCancel := d.Timeout(ctx)
 	subsResp, err := client.GetSubscriptions(subsCtx, group.ID, asc.Limit[asc.SubscriptionsOption](200))
 	subsCancel()
 	if err != nil {
 		return nil, fmt.Errorf("subscriptions pricing: failed to fetch subscriptions for group %s: %w", group.ID, err)
 	}
 	paginatedSubs, err := asc.PaginateAll(ctx, subsResp, func(pageParent context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		pageCtx, pageCancel := shared.ContextWithTimeout(pageParent)
+		pageCtx, pageCancel := d.Timeout(pageParent)
 		defer pageCancel()
 		return client.GetSubscriptions(pageCtx, group.ID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 	})
@@ -195,7 +194,7 @@ func fetchSubscriptionPricingGroup(ctx context.Context, client *asc.Client, grou
 	return result, nil
 }
 
-func fetchSubscriptionPricingGroups(ctx context.Context, client *asc.Client, groups []asc.Resource[asc.SubscriptionGroupAttributes]) ([]subWithGroup, error) {
+func fetchSubscriptionPricingGroups(ctx context.Context, d *shared.Deps, client *asc.Client, groups []asc.Resource[asc.SubscriptionGroupAttributes]) ([]subWithGroup, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -215,7 +214,7 @@ func fetchSubscriptionPricingGroups(ctx context.Context, client *asc.Client, gro
 		for index := range completions {
 			completions[index] = make(chan groupResult, 1)
 			wg.Go(func() {
-				items, err := fetchSubscriptionPricingGroup(waveCtx, client, groups[start+index])
+				items, err := fetchSubscriptionPricingGroup(waveCtx, d, client, groups[start+index])
 				completions[index] <- groupResult{items: items, err: err}
 			})
 		}
@@ -238,6 +237,7 @@ func fetchSubscriptionPricingGroups(ctx context.Context, client *asc.Client, gro
 
 func resolveSubscriptionPriceSummaries(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	subs []subWithGroup,
 	territory string,
@@ -270,7 +270,7 @@ func resolveSubscriptionPriceSummaries(
 			}
 			defer func() { <-sem }()
 
-			summary, err := resolveSubscriptionPriceSummary(ctx, client, subs[idx], territory)
+			summary, err := resolveSubscriptionPriceSummaryWith(ctx, d, client, subs[idx], territory)
 			if err != nil {
 				once.Do(cancel)
 				errs <- fmt.Errorf("resolve %s: %w", subs[idx].Sub.ID, err)
@@ -563,17 +563,17 @@ func territoryToCurrency(territory string) string {
 	return territory
 }
 
-func printSubscriptionPricingResult(result *subscriptionPricingResult, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printSubscriptionPricingResult(d *shared.Deps, result *subscriptionPricingResult, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		format,
 		pretty,
-		func() error { return printSubscriptionPricingTable(result) },
-		func() error { return printSubscriptionPricingMarkdown(result) },
+		func() error { return printSubscriptionPricingTable(d, result) },
+		func() error { return printSubscriptionPricingMarkdown(d, result) },
 	)
 }
 
-func printSubscriptionPricingTable(result *subscriptionPricingResult) error {
+func printSubscriptionPricingTable(d *shared.Deps, result *subscriptionPricingResult) error {
 	headers := []string{"ID", "Name", "Product ID", "Period", "State", "Group", "Current Price", "Proceeds", "Proceeds Y2"}
 	rows := make([][]string, 0, len(result.Subscriptions))
 	for _, item := range result.Subscriptions {
@@ -589,11 +589,11 @@ func printSubscriptionPricingTable(result *subscriptionPricingResult) error {
 			formatSubMoney(item.ProceedsYear2),
 		})
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }
 
-func printSubscriptionPricingMarkdown(result *subscriptionPricingResult) error {
+func printSubscriptionPricingMarkdown(d *shared.Deps, result *subscriptionPricingResult) error {
 	headers := []string{"ID", "Name", "Product ID", "Period", "State", "Group", "Current Price", "Proceeds", "Proceeds Y2"}
 	rows := make([][]string, 0, len(result.Subscriptions))
 	for _, item := range result.Subscriptions {
@@ -609,7 +609,7 @@ func printSubscriptionPricingMarkdown(result *subscriptionPricingResult) error {
 			formatSubMoney(item.ProceedsYear2),
 		})
 	}
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 	return nil
 }
 

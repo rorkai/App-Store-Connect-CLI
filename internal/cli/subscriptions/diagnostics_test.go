@@ -129,19 +129,19 @@ func TestSubscriptionsAlternativeSelectorsLeaveDiagnosticParameterEmpty(t *testi
 		},
 		{
 			name: "availability view",
-			command: func() interface {
+			depsCommand: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return SubscriptionsAvailabilityViewCommand()
+				return newSubscriptionsAvailabilityViewCommand(d)
 			},
 			wantMessage: "Error: --availability-id or --subscription-id is required\n",
 		},
 		{
 			name: "availability territories",
-			command: func() interface {
+			depsCommand: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return SubscriptionsAvailabilityAvailableTerritoriesCommand()
+				return newSubscriptionsAvailabilityAvailableTerritoriesCommand(d)
 			},
 			wantMessage: "Error: --availability-id or --subscription-id is required\n",
 		},

@@ -45,6 +45,17 @@ func TestSubscriptionsUsageErrorsWriteToDepsStderr(t *testing.T) {
 		{[]string{"offers", "offer-codes", "custom-codes", "view"}, "Error: --custom-code-id is required\n"},
 		{[]string{"offers", "win-back", "delete"}, "Error: --id is required\n"},
 		{[]string{"offers", "win-back", "prices-links"}, "Error: --id is required\n"},
+		{[]string{"pricing", "availability", "available-territories"}, "Error: --availability-id or --subscription-id is required\n"},
+		{[]string{"pricing", "availability", "edit"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "availability", "view"}, "Error: --availability-id or --subscription-id is required\n"},
+		{[]string{"pricing", "price-points", "adjusted-equalizations"}, "Error: --price-point-id is required\n"},
+		{[]string{"pricing", "price-points", "equalizations"}, "Error: --price-point-id is required\n"},
+		{[]string{"pricing", "price-points", "list"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "price-points", "view"}, "Error: --price-point-id is required\n"},
+		{[]string{"pricing", "prices", "delete"}, "Error: --price-id is required\n"},
+		{[]string{"pricing", "prices", "import"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "prices", "list"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "prices", "set"}, "Error: --subscription-id is required\n"},
 	}
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
@@ -86,5 +97,19 @@ func TestSubscriptionsStableSelectorWithoutAppWritesToDepsStderr(t *testing.T) {
 				t.Fatalf("deps stderr = %q, want it to start with %q", got, want)
 			}
 		})
+	}
+}
+
+func TestSubscriptionPriceImportSummaryRendersToDepsStdout(t *testing.T) {
+	for _, markdown := range []bool{false, true} {
+		var stdout bytes.Buffer
+		d := &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &bytes.Buffer{}}}
+		summary := &subscriptionPriceImportSummary{SubscriptionID: "sub-1", InputFile: "prices.csv", Total: 1, Created: 1}
+		if err := renderSubscriptionPriceImportSummaryTables(d, summary, markdown); err != nil {
+			t.Fatalf("render (markdown=%v): %v", markdown, err)
+		}
+		if !strings.Contains(stdout.String(), "sub-1") || !strings.Contains(stdout.String(), "prices.csv") {
+			t.Fatalf("deps stdout (markdown=%v) = %q, want the summary row", markdown, stdout.String())
+		}
 	}
 }

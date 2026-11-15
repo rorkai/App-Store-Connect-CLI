@@ -227,7 +227,7 @@ Examples:
 			if err := shared.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			printMonthlyCommitmentTerritoryWarning(excludedTerritoryIDs)
+			printMonthlyCommitmentTerritoryWarning(shared.DefaultDeps(), excludedTerritoryIDs)
 
 			client, err := shared.GetASCClient()
 			if err != nil {

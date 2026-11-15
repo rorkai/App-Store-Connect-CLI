@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
-	"os"
 	"strings"
 	"time"
 
@@ -131,7 +130,7 @@ Examples:
 				return shared.UsageError("--territories is required")
 			}
 			territoryIDs, excluded := filterMonthlyCommitmentTerritories(territoryIDs)
-			printMonthlyCommitmentTerritoryWarning(excluded)
+			printMonthlyCommitmentTerritoryWarning(shared.DefaultDeps(), excluded)
 			if len(territoryIDs) == 0 {
 				return shared.UsageError("no eligible monthly-commitment territories remain after excluding USA")
 			}
@@ -275,7 +274,7 @@ Examples:
 				return shared.UsageError("--territories is required")
 			}
 			territoryIDs, excluded := filterMonthlyCommitmentTerritories(territoryIDs)
-			printMonthlyCommitmentTerritoryWarning(excluded)
+			printMonthlyCommitmentTerritoryWarning(shared.DefaultDeps(), excluded)
 			if len(territoryIDs) == 0 {
 				return shared.UsageError("no eligible monthly-commitment territories remain after excluding USA")
 			}
@@ -479,11 +478,11 @@ func filterMonthlyCommitmentTerritories(territories []string) ([]string, []strin
 	return eligible, excluded
 }
 
-func printMonthlyCommitmentTerritoryWarning(excluded []string) {
+func printMonthlyCommitmentTerritoryWarning(d *shared.Deps, excluded []string) {
 	if len(excluded) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Warning: monthly-commitment billing is unavailable in %s; removed from --territories.\n", strings.Join(excluded, ","))
+	fmt.Fprintf(d.IO.ErrOut, "Warning: monthly-commitment billing is unavailable in %s; removed from --territories.\n", strings.Join(excluded, ","))
 }
 
 func validateMonthlyCommitmentPriceRange(monthlyPrice string, upfrontPrice string) error {
@@ -537,8 +536,6 @@ func validateMonthlyCommitmentUpfrontPrices(
 		ctx,
 		client,
 		subscriptionID,
-		200,
-		"",
 		subscriptionPricingToday(),
 		asc.SubscriptionPlanTypeUpfront,
 		"",
@@ -594,8 +591,6 @@ func prepareMonthlySubscriptionPrices(
 		ctx,
 		client,
 		subscriptionID,
-		200,
-		"",
 		effectiveAt,
 		asc.SubscriptionPlanTypeMonthly,
 		"",
