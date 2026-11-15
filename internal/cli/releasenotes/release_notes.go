@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"text/tabwriter"
 
@@ -14,9 +13,9 @@ import (
 	notes "github.com/rudrankriyam/App-Store-Connect-CLI/internal/releasenotes"
 )
 
-// ReleaseNotesCommand returns the release-notes command group.
-func ReleaseNotesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("release-notes", flag.ExitOnError)
+// NewCommand returns the release-notes command group.
+func NewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("release-notes", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "release-notes",
@@ -31,7 +30,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ReleaseNotesGenerateCommand(),
+			newGenerateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -51,9 +50,8 @@ type releaseNotesGenerateResult struct {
 	Commits       []notes.Commit `json:"commits,omitempty"`
 }
 
-// ReleaseNotesGenerateCommand returns the generate subcommand.
-func ReleaseNotesGenerateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("generate", flag.ExitOnError)
+func newGenerateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("generate", flag.ExitOnError)
 
 	sinceTag := fs.String("since-tag", "", "Start from tag (exclusive), e.g. v1.2.2")
 	sinceRef := fs.String("since-ref", "", "Start from ref/SHA (exclusive), e.g. origin/main")
@@ -61,7 +59,7 @@ func ReleaseNotesGenerateCommand() *ffcli.Command {
 	format := fs.String("format", "plain", "Notes format: plain (default), markdown")
 	maxChars := fs.Int("max-chars", 4000, "Maximum characters in generated notes")
 	includeMerges := fs.Bool("include-merges", false, "Include merge commits")
-	output := shared.BindOutputFlagsWithAllowed(fs, "output", shared.DefaultOutputFormat(), "Output format: json, text, table, markdown", "json", "text", "table", "markdown")
+	output := shared.BindOutputFlagsWithAllowed(fs, "output", d.DefaultOutputFormat(), "Output format: json, text, table, markdown", "json", "text", "table", "markdown")
 
 	return &ffcli.Command{
 		Name:       "generate",
@@ -81,17 +79,17 @@ Examples:
 			sinceTagValue := strings.TrimSpace(*sinceTag)
 			sinceRefValue := strings.TrimSpace(*sinceRef)
 			if sinceTagValue != "" && sinceRefValue != "" {
-				fmt.Fprintln(os.Stderr, "Error: --since-tag and --since-ref are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --since-tag and --since-ref are mutually exclusive")
 				return flag.ErrHelp
 			}
 			if sinceTagValue == "" && sinceRefValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: one of --since-tag or --since-ref is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: one of --since-tag or --since-ref is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
 			until := strings.TrimSpace(*untilRef)
 			if until == "" {
-				return shared.RequiredFlag("--until-ref")
+				return d.RequiredFlag("--until-ref")
 			}
 
 			formatValue := strings.ToLower(strings.TrimSpace(*format))
@@ -101,12 +99,12 @@ Examples:
 			case "markdown":
 				// ok
 			default:
-				fmt.Fprintln(os.Stderr, "Error: --format must be one of: plain, markdown")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --format must be one of: plain, markdown")
 				return flag.ErrHelp
 			}
 
 			if *maxChars < 1 {
-				fmt.Fprintln(os.Stderr, "Error: --max-chars must be greater than 0")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --max-chars must be greater than 0")
 				return flag.ErrHelp
 			}
 
@@ -115,7 +113,7 @@ Examples:
 				since = sinceTagValue
 			}
 
-			repoDir, err := os.Getwd()
+			repoDir, err := d.Getwd()
 			if err != nil {
 				return fmt.Errorf("release-notes generate: %w", err)
 			}
@@ -152,17 +150,17 @@ Examples:
 
 			switch normalizedOutput {
 			case "json":
-				return shared.PrintOutput(&result, "json", *output.Pretty)
+				return d.PrintOutput(&result, "json", *output.Pretty)
 			case "text", "markdown":
 				// Notes body output (markdown is a bullet list).
 				body := shared.SanitizeTerminal(truncatedNotes)
 				if strings.TrimSpace(body) == "" {
 					return nil
 				}
-				_, err := fmt.Fprintln(os.Stdout, body)
+				_, err := fmt.Fprintln(d.IO.Out, body)
 				return err
 			case "table":
-				tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+				tw := tabwriter.NewWriter(d.IO.Out, 0, 2, 2, ' ', 0)
 				fmt.Fprintln(tw, "SHA\tSUBJECT")
 				for _, c := range commits {
 					sha := shared.SanitizeTerminal(strings.TrimSpace(c.SHA))

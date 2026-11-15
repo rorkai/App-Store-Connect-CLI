@@ -20,19 +20,11 @@ func TestReleaseNotesGenerate_JSON(t *testing.T) {
 
 	repo := initTempGitRepo(t)
 
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd error: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
-	if err := os.Chdir(repo); err != nil {
-		t.Fatalf("Chdir repo error: %v", err)
-	}
+	d, stdoutBuffer, stderrBuffer := newTestDeps(t, nil)
+	d.Getwd = func() (string, error) { return repo, nil }
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"release-notes", "generate", "--since-tag", "v1.0.0", "--output", "json"}, "1.0.0")
-	})
+	code := cmd.RunWithDeps([]string{"release-notes", "generate", "--since-tag", "v1.0.0", "--output", "json"}, "1.0.0", d)
+	stdout, stderr := stdoutBuffer.String(), stderrBuffer.String()
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
 	}
@@ -82,12 +74,11 @@ func TestReleaseNotesGenerate_MissingSinceIsUsage(t *testing.T) {
 	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
 
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"release-notes", "generate"}, "1.0.0")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
+	d, _, stderrBuffer := newTestDeps(t, nil)
+	if code := cmd.RunWithDeps([]string{"release-notes", "generate"}, "1.0.0", d); code != cmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+	}
+	stderr := stderrBuffer.String()
 	if !strings.Contains(stderr, "one of --since-tag or --since-ref is required") {
 		t.Fatalf("expected stderr to contain missing since error, got %q", stderr)
 	}
@@ -101,21 +92,12 @@ func TestReleaseNotesGenerate_NotGitRepoReturnsError(t *testing.T) {
 
 	dir := t.TempDir()
 
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd error: %v", err)
+	d, _, stderrBuffer := newTestDeps(t, nil)
+	d.Getwd = func() (string, error) { return dir, nil }
+	if code := cmd.RunWithDeps([]string{"release-notes", "generate", "--since-ref", "HEAD~1"}, "1.0.0", d); code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
 	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("Chdir error: %v", err)
-	}
-
-	_, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"release-notes", "generate", "--since-ref", "HEAD~1"}, "1.0.0")
-		if code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stderr := stderrBuffer.String()
 	if !strings.Contains(strings.ToLower(stderr), "not a git repository") {
 		t.Fatalf("expected stderr to mention non-git repo, got %q", stderr)
 	}
@@ -129,24 +111,16 @@ func TestReleaseNotesGenerate_TruncatesToMaxChars(t *testing.T) {
 
 	repo := initTempGitRepo(t)
 
-	oldwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd error: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
-	if err := os.Chdir(repo); err != nil {
-		t.Fatalf("Chdir repo error: %v", err)
-	}
+	d, stdoutBuffer, stderrBuffer := newTestDeps(t, nil)
+	d.Getwd = func() (string, error) { return repo, nil }
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"release-notes", "generate",
-			"--since-tag", "v1.0.0",
-			"--max-chars", "10",
-			"--output", "json",
-		}, "1.0.0")
-	})
+	code := cmd.RunWithDeps([]string{
+		"release-notes", "generate",
+		"--since-tag", "v1.0.0",
+		"--max-chars", "10",
+		"--output", "json",
+	}, "1.0.0", d)
+	stdout, stderr := stdoutBuffer.String(), stderrBuffer.String()
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
 	}

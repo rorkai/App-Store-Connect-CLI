@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/docs"
 )
 
 func TestDocsInitCreatesReferenceAndLinks(t *testing.T) {
 	args := []string{"docs", "init"}
-	root := RootCommand("1.2.3")
 
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
@@ -36,25 +36,16 @@ func TestDocsInitCreatesReferenceAndLinks(t *testing.T) {
 		t.Fatalf("write CLAUDE.md error: %v", err)
 	}
 
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("get working dir error: %v", err)
+	d, stdoutBuffer, stderrBuffer := newTestDeps(t, nil)
+	d.Getwd = func() (string, error) { return subDir, nil }
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
 	}
-	defer func() {
-		_ = os.Chdir(originalWD)
-	}()
-	if err := os.Chdir(subDir); err != nil {
-		t.Fatalf("chdir error: %v", err)
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr := stdoutBuffer.String(), stderrBuffer.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -131,7 +122,8 @@ func TestDocsInitCreatesReferenceAndLinks(t *testing.T) {
 
 func TestDocsInitSubdirectoryPathUsesRelativeAgentLinks(t *testing.T) {
 	args := []string{"docs", "init"}
-	root := RootCommand("1.2.3")
+	d, stdoutBuffer, stderrBuffer := newTestDeps(t, nil)
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
 
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
@@ -165,14 +157,13 @@ func TestDocsInitSubdirectoryPathUsesRelativeAgentLinks(t *testing.T) {
 	}
 
 	fullArgs := append(append([]string{}, args...), "--path", "./subdir/ASC.md")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(fullArgs); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Parse(fullArgs); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := stdoutBuffer.String(), stderrBuffer.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -221,7 +212,8 @@ func TestDocsInitSubdirectoryPathUsesRelativeAgentLinks(t *testing.T) {
 
 func TestDocsInitRewritesLegacyRootAgentLinks(t *testing.T) {
 	args := []string{"docs", "init"}
-	root := RootCommand("1.2.3")
+	d, stdoutBuffer, stderrBuffer := newTestDeps(t, nil)
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
 
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
@@ -258,14 +250,13 @@ func TestDocsInitRewritesLegacyRootAgentLinks(t *testing.T) {
 	}
 
 	fullArgs := append(append([]string{}, args...), "--path", "./subdir/ASC.md", "--force")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(fullArgs); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Parse(fullArgs); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := stdoutBuffer.String(), stderrBuffer.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -311,7 +302,6 @@ func TestDocsInitRewritesLegacyRootAgentLinks(t *testing.T) {
 
 func TestDocsInitRequiresForceToOverwrite(t *testing.T) {
 	args := []string{"docs", "init"}
-	root := RootCommand("1.2.3")
 
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
@@ -324,29 +314,20 @@ func TestDocsInitRequiresForceToOverwrite(t *testing.T) {
 		t.Fatalf("write ASC.md error: %v", err)
 	}
 
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("get working dir error: %v", err)
+	d, stdoutBuffer, stderrBuffer := newTestDeps(t, nil)
+	d.Getwd = func() (string, error) { return repoRoot, nil }
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
 	}
-	defer func() {
-		_ = os.Chdir(originalWD)
-	}()
-	if err := os.Chdir(repoRoot); err != nil {
-		t.Fatalf("chdir error: %v", err)
+	err := root.Run(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !errors.Is(err, docs.ErrASCReferenceExists) {
-			t.Fatalf("expected ErrASCReferenceExists, got %v", err)
-		}
-	})
+	if !errors.Is(err, docs.ErrASCReferenceExists) {
+		t.Fatalf("expected ErrASCReferenceExists, got %v", err)
+	}
+	stdout, stderr := stdoutBuffer.String(), stderrBuffer.String()
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -384,7 +365,8 @@ func TestInitCommandsRejectInvalidOutputPath(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
+			d, stdoutBuffer, stderrBuffer := newTestDeps(t, nil)
+			root := rootcmd.RootCommandWithDeps("1.2.3", d)
 
 			tempDir := t.TempDir()
 			repoRoot := filepath.Join(tempDir, "repo")
@@ -408,18 +390,17 @@ func TestInitCommandsRejectInvalidOutputPath(t *testing.T) {
 				t.Fatalf("chdir error: %v", err)
 			}
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(tc.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if !errors.Is(err, docs.ErrInvalidASCReferencePath) {
-					t.Fatalf("expected ErrInvalidASCReferencePath, got %v", err)
-				}
-			})
+			if err := root.Parse(tc.args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			err = root.Run(context.Background())
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !errors.Is(err, docs.ErrInvalidASCReferencePath) {
+				t.Fatalf("expected ErrInvalidASCReferencePath, got %v", err)
+			}
+			stdout, stderr := stdoutBuffer.String(), stderrBuffer.String()
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)

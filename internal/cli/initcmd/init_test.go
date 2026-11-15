@@ -3,16 +3,18 @@ package initcmd
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/docs"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestInitCommandMetadata(t *testing.T) {
-	cmd := InitCommand()
+	cmd := NewInitCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}, Getwd: os.Getwd})
 	if cmd == nil {
 		t.Fatal("expected init command")
 		return
@@ -37,7 +39,7 @@ func TestInitCommandPrefixesErrors(t *testing.T) {
 		t.Fatalf("write ASC.md: %v", err)
 	}
 
-	cmd := InitCommand()
+	cmd := NewInitCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}, Getwd: os.Getwd})
 	if err := cmd.FlagSet.Parse([]string{"--path", repo}); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
