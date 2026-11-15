@@ -896,3 +896,26 @@ func TestAdoptRecordsTheGoTypesOfReferencedSchemas(t *testing.T) {
 		})
 	}
 }
+
+func TestAdoptSpellsIdAsIDInTypeNames(t *testing.T) {
+	golden := readFile(t, filepath.Join("testdata", "zone_ids_gen.go.golden"))
+	dir := writeHandWritten(t, map[string]string{"zone_ids.go": strings.Replace(golden, header+"\n\n", "", 1)})
+	var report strings.Builder
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "ZoneIds", false, &report); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(report.String(), "\n") {
+		if strings.Contains(line, "\tkept: ") && !strings.Contains(line, "\tquery ") {
+			t.Errorf("adopt kept code it should generate: %s", line)
+		}
+	}
+	if got, want := readFile(t, filepath.Join(dir, "bindings", "ZoneIds.json")), readFile(t, filepath.Join("testdata", "bindings", "ZoneIds.json")); got != want {
+		t.Errorf("bindings after adopt:\n%s\nwant:\n%s", got, want)
+	}
+	if got := readFile(t, filepath.Join(dir, "zone_ids_gen.go")); got != golden {
+		t.Errorf("zone_ids_gen.go after adopt:\n%s", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "zone_ids.go")); !os.IsNotExist(err) {
+		t.Errorf("zone_ids.go should be deleted once empty, stat err = %v", err)
+	}
+}

@@ -123,7 +123,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			names = append(names, strings.TrimPrefix(r.Type, "*"))
 		}
 		for _, name := range names {
-			d, ok := p.types[name]
+			d, ok := p.types[goTypeName(name)]
 			if !ok || d.adopted {
 				continue
 			}
@@ -354,7 +354,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 				}
 			}
 		case *ast.IndexExpr:
-			if fun := exprString(n.X); (fun == "getJSON" || fun == "sendJSON") && exprString(n.Index) != op.Response {
+			if fun := exprString(n.X); (fun == "getJSON" || fun == "sendJSON") && exprString(n.Index) != goTypeName(op.Response) {
 				b.Response = exprString(n.Index)
 			}
 		case *ast.AssignStmt:
@@ -439,7 +439,7 @@ func (p *pkg) recordRelationships(spec *Spec, ops []*Operation, fam *Family) {
 		if op.Method != "POST" || err != nil || data.Properties.Get("relationships") == nil || recorded {
 			continue
 		}
-		d, ok := p.types[name]
+		d, ok := p.types[goTypeName(name)]
 		if !ok {
 			continue
 		}
@@ -489,7 +489,7 @@ func refTypesOf(spec *Spec, fam *Family, fixed map[string]string, name string, d
 		if typ == current {
 			continue
 		}
-		if current != schema {
+		if current != goTypeName(schema) {
 			return nil, fmt.Sprintf("schema %s is %s here and %s in another field", schema, typ, current)
 		}
 		r := &RefType{Schema: schema, Type: typ}

@@ -287,7 +287,7 @@ func (f *Family) refType(schema string) string {
 			return r.Type
 		}
 	}
-	return schema
+	return goTypeName(schema)
 }
 
 // Family returns the family for a tag, adding it if missing.

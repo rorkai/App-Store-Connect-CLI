@@ -9,6 +9,41 @@ import (
 	"strings"
 )
 
+// PassTypeIDCreateAttributes is the data.attributes object of the PassTypeIdCreateRequest schema.
+type PassTypeIDCreateAttributes struct {
+	Name       string `json:"name"`
+	Identifier string `json:"identifier"`
+}
+
+// PassTypeIDCreateData is the data object of the PassTypeIdCreateRequest schema.
+type PassTypeIDCreateData struct {
+	Type       ResourceType               `json:"type"`
+	Attributes PassTypeIDCreateAttributes `json:"attributes"`
+}
+
+// PassTypeIDCreateRequest is the PassTypeIdCreateRequest schema.
+type PassTypeIDCreateRequest struct {
+	Data PassTypeIDCreateData `json:"data"`
+}
+
+// PassTypeIDResponse is the PassTypeIdResponse schema.
+type PassTypeIDResponse = SingleResponse[PassTypeIDAttributes]
+
+// PassTypeIDUpdateData is the data object of the PassTypeIdUpdateRequest schema.
+type PassTypeIDUpdateData struct {
+	Type       ResourceType                `json:"type"`
+	ID         string                      `json:"id"`
+	Attributes *PassTypeIDUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// PassTypeIDUpdateRequest is the PassTypeIdUpdateRequest schema.
+type PassTypeIDUpdateRequest struct {
+	Data PassTypeIDUpdateData `json:"data"`
+}
+
+// PassTypeIDsResponse is the PassTypeIdsResponse schema.
+type PassTypeIDsResponse = Response[PassTypeIDAttributes]
+
 // GetPassTypeIDCertificates sends GET /v1/passTypeIds/{id}/certificates (passTypeIds_certificates_getToManyRelated).
 func (c *Client) GetPassTypeIDCertificates(ctx context.Context, passTypeID string, opts ...PassTypeIDCertificatesOption) (*CertificatesResponse, error) {
 	passTypeID = strings.TrimSpace(passTypeID)
@@ -18,6 +53,21 @@ func (c *Client) GetPassTypeIDCertificates(ctx context.Context, passTypeID strin
 		Query:       buildPassTypeIDCertificatesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "passTypeIdCertificates",
+	})
+}
+
+// CreatePassTypeID sends POST /v1/passTypeIds (passTypeIds_createInstance).
+func (c *Client) CreatePassTypeID(ctx context.Context, attrs PassTypeIDCreateAttributes) (*PassTypeIDResponse, error) {
+	payload := PassTypeIDCreateRequest{
+		Data: PassTypeIDCreateData{
+			Type:       ResourceTypePassTypeIds,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[PassTypeIDResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/passTypeIds",
+		Payload: payload,
 	})
 }
 
@@ -45,5 +95,22 @@ func (c *Client) GetPassTypeID(ctx context.Context, id string, opts ...PassTypeI
 	return getJSON[PassTypeIDResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/passTypeIds/%s", id),
 		Query: buildPassTypeIDQuery(query),
+	})
+}
+
+// UpdatePassTypeID sends PATCH /v1/passTypeIds/{id} (passTypeIds_updateInstance).
+func (c *Client) UpdatePassTypeID(ctx context.Context, id string, attrs PassTypeIDUpdateAttributes) (*PassTypeIDResponse, error) {
+	id = strings.TrimSpace(id)
+	payload := PassTypeIDUpdateRequest{
+		Data: PassTypeIDUpdateData{
+			Type:       ResourceTypePassTypeIds,
+			ID:         id,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[PassTypeIDResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/passTypeIds/%s", id),
+		Payload: payload,
 	})
 }
