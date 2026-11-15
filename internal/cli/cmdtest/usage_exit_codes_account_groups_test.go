@@ -872,6 +872,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "signing resign output given a format",
 			args:    []string{"signing", "resign", "--output", "markdown"},
 			wantErr: "--output takes a path in this command, not an output format; use --format markdown to choose the format, or --output ./markdown to write to a path named markdown",
+			deps:    true,
 		},
 	}
 

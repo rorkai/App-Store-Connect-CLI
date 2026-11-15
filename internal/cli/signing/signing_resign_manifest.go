@@ -185,7 +185,7 @@ func validateSigningResignBundleID(value string) error {
 	return nil
 }
 
-func readSigningResignProfiles(manifestPath string, manifest signingResignManifest) (map[string]signingResignProfile, error) {
+func readSigningResignProfiles(manifestPath string, manifest signingResignManifest, clock func() time.Time) (map[string]signingResignProfile, error) {
 	manifestPath = filepath.Clean(manifestPath)
 	root, err := rootfs.New(filepath.Dir(manifestPath))
 	if err != nil {
@@ -215,7 +215,7 @@ func readSigningResignProfiles(manifestPath string, manifest signingResignManife
 			clear(data)
 			return nil, fmt.Errorf("profiles[%d] for bundle %s exceeds %d bytes", index, entry.BundleID, signingResignProfileMaxBytes)
 		}
-		profile, err := inspectSigningResignProfile(data, signingResignNowFn())
+		profile, err := inspectSigningResignProfile(data, clock())
 		if err != nil {
 			clear(data)
 			return nil, fmt.Errorf("validate profile for bundle %s failed", entry.BundleID)

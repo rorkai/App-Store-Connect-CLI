@@ -23,6 +23,7 @@ import (
 
 	"howett.net/plist"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/infoplist"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
@@ -57,7 +58,7 @@ var ErrSigningResignPublicationAmbiguous = errors.New("re-signed IPA publication
 // deterministic.
 var signingResignBeforePublishedHashFn = func() {}
 
-func executeSigningResignImplementation(ctx context.Context, options signingResignOptions) (result signingResignResult, resultErr error) {
+func executeSigningResignImplementation(ctx context.Context, d *shared.Deps, options signingResignOptions) (result signingResignResult, resultErr error) {
 	publicStage := signingResignStagePreparation
 	publicCode := signingResignCodeFilesystem
 	defer func() {
@@ -221,7 +222,7 @@ func executeSigningResignImplementation(ctx context.Context, options signingResi
 		}
 		return result, err
 	}
-	profiles, err := readSigningResignProfiles(manifestPath, manifest)
+	profiles, err := readSigningResignProfiles(manifestPath, manifest, d.Now)
 	if err != nil {
 		return result, err
 	}
@@ -243,7 +244,7 @@ func executeSigningResignImplementation(ctx context.Context, options signingResi
 	}
 	identityPassword := bytes.TrimSuffix(passwordData, []byte("\n"))
 	identityPassword = bytes.TrimSuffix(identityPassword, []byte("\r"))
-	identity, err := inspectSigningRunIdentity(identityData, identityPassword, signingRunNowFn())
+	identity, err := inspectSigningRunIdentity(identityData, identityPassword, d.Now())
 	if err != nil {
 		return result, fmt.Errorf("inspect signing identity: %w", err)
 	}
@@ -311,7 +312,7 @@ func executeSigningResignImplementation(ctx context.Context, options signingResi
 	var outputArtifact signingResignArtifactResult
 	publicStage = signingResignStageEnvironment
 	publicCode = signingResignCodeEnvironment
-	if err := runSigningResignEnvironment(ctx, identity, func(signingContext context.Context, keychainPath string) error {
+	if err := runSigningResignEnvironment(ctx, d, identity, func(signingContext context.Context, keychainPath string) error {
 		publicStage = signingResignStageSigning
 		publicCode = signingResignCodeSigning
 		if err := signSigningResignTree(signingContext, treeRoot.Path(), prepared, identity.CertificateSHA1, keychainPath); err != nil {
