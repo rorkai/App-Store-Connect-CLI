@@ -129,49 +129,51 @@ func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
 }
 
 func IAPVersionLocalizationsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations view", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "localization-id", "inAppPurchaseLocalizations", "Localization ID")
-	include := fs.String("include", "", "Include relationship: version")
-	localizationFields := fs.String("localization-fields", "", "fields[inAppPurchaseLocalizations] (comma-separated)")
-	versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated)")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "view", ShortUsage: `asc iap versions localizations view --localization-id "LOCALIZATION_ID"`, ShortHelp: "View a version-scoped IAP localization.", LongHelp: "View a version-scoped IAP localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			value := strings.TrimSpace(*id)
-			if value == "" {
-				return shared.RequiredFlag("--localization-id")
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
+
+	var includes, localizationFieldValues, versionFieldValues []string
+
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName:        "versions localizations view",
+		Name:               "view",
+		ShortUsage:         `asc iap versions localizations view --localization-id "LOCALIZATION_ID"`,
+		ShortHelp:          "View a version-scoped IAP localization.",
+		LongHelp:           "View a version-scoped IAP localization.",
+		IDFlag:             "localization-id",
+		IDUsage:            "Localization ID",
+		IDType:             "inAppPurchaseLocalizations",
+		RequiredDiagnostic: true,
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := fs.String("include", "", "Include relationship: version")
+			localizationFields := fs.String("localization-fields", "", "fields[inAppPurchaseLocalizations] (comma-separated)")
+			versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated)")
+			return func() (err error) {
+				includes, err = shared.NormalizeSelection(*include, []string{"version"}, "--include")
+				if err != nil {
+					return shared.UsageError("iap versions localizations view: " + err.Error())
+				}
+				localizationFieldValues, err = shared.NormalizeSelection(*localizationFields, iapVersionLocalizationFields, "--localization-fields")
+				if err != nil {
+					return shared.UsageError("iap versions localizations view: " + err.Error())
+				}
+				versionFieldValues, err = shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
+				if err != nil {
+					return shared.UsageError("iap versions localizations view: " + err.Error())
+				}
+				return nil
 			}
-			includes, err := shared.NormalizeSelection(*include, []string{"version"}, "--include")
-			if err != nil {
-				return shared.UsageError("iap versions localizations view: " + err.Error())
-			}
-			localizationFieldValues, err := shared.NormalizeSelection(*localizationFields, iapVersionLocalizationFields, "--localization-fields")
-			if err != nil {
-				return shared.UsageError("iap versions localizations view: " + err.Error())
-			}
-			versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
-			if err != nil {
-				return shared.UsageError("iap versions localizations view: " + err.Error())
-			}
-			client, err := iapVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("iap versions localizations view: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.GetInAppPurchaseLocalizationV2(
-				requestCtx, value,
+		},
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetInAppPurchaseLocalizationV2(
+				ctx, id,
 				asc.WithIAPLocalizationV2Include(includes),
 				asc.WithIAPLocalizationV2Fields(localizationFieldValues),
 				asc.WithIAPLocalizationV2VersionFields(versionFieldValues),
 			)
-			if err != nil {
-				return fmt.Errorf("iap versions localizations view: failed to fetch: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	})
 }
 
 func flagSet(fs *flag.FlagSet, name string) bool {

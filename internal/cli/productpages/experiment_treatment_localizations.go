@@ -129,49 +129,38 @@ Examples:
 
 // newExperimentTreatmentLocalizationsGetCommand returns the treatment localizations get subcommand.
 func newExperimentTreatmentLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("treatment-localizations view", flag.ExitOnError)
+	var (
+		includeValues   []string
+		placementsLimit int
+	)
 
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
-	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", treatmentLocalizationIncludeList())
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc product-pages experiments treatments localizations view --localization-id \"LOCALIZATION_ID\"",
-		ShortHelp:  "View a treatment localization by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "treatment-localizations view",
+		Name:        "view",
+		ShortUsage:  "asc product-pages experiments treatments localizations view --localization-id \"LOCALIZATION_ID\"",
+		ShortHelp:   "View a treatment localization by ID.",
 		LongHelp: `View a treatment localization by ID.
 
 Examples:
   asc product-pages experiments treatments localizations view --localization-id "LOCALIZATION_ID"
   asc product-pages experiments treatments localizations view --localization-id "LOCALIZATION_ID" --include placements --placements-limit 50`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*localizationID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--localization-id")
-			}
-			includeValues, placementsLimit, err := include.Resolve()
-			if err != nil {
+		IDFlag:             "localization-id",
+		IDUsage:            "Treatment localization ID",
+		IDType:             "appStoreVersionExperimentTreatmentLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "experiments treatments localizations view",
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", treatmentLocalizationIncludeList())
+			return func() (err error) {
+				includeValues, placementsLimit, err = include.Resolve()
 				return err
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("experiments treatments localizations view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
-			if err != nil {
-				return fmt.Errorf("experiments treatments localizations view: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppStoreVersionExperimentTreatmentLocalization(ctx, id, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
+		},
+	})
 }
 
 // newExperimentTreatmentLocalizationsCreateCommand returns the treatment localizations create subcommand.
