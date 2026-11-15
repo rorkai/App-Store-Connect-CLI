@@ -3,7 +3,6 @@ package backgroundassets
 import (
 	"context"
 	"flag"
-	"fmt"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
