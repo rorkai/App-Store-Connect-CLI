@@ -1534,6 +1534,11 @@ Examples:
 					return fmt.Errorf("migrate validate: %w", err)
 				}
 
+				_, copyrightSkipped, err := readCopyrightFile(metadataDir)
+				if err != nil {
+					return fmt.Errorf("migrate validate: %w", err)
+				}
+				skipped = append(skipped, copyrightSkipped...)
 			}
 			var clip *AppClipLayout
 			if metadataDir != "" {
