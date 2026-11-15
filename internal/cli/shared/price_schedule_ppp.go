@@ -590,12 +590,34 @@ func CollectPricePointsByTerritory[A any](
 	fetch func(ctx context.Context, next string) (*asc.Response[A], error),
 	customerPrice func(A) string,
 ) (map[string][]PriceLadderCandidate, error) {
+	return collectPricePointsByTerritory(ctx, ContextWithTimeout, territories, fetch, customerPrice)
+}
+
+// CollectPricePointsByTerritoryWith is CollectPricePointsByTerritory with each
+// page read's deadline from d.Timeout.
+func CollectPricePointsByTerritoryWith[A any](
+	ctx context.Context,
+	d *Deps,
+	territories []string,
+	fetch func(ctx context.Context, next string) (*asc.Response[A], error),
+	customerPrice func(A) string,
+) (map[string][]PriceLadderCandidate, error) {
+	return collectPricePointsByTerritory(ctx, d.Timeout, territories, fetch, customerPrice)
+}
+
+func collectPricePointsByTerritory[A any](
+	ctx context.Context,
+	timeout func(context.Context) (context.Context, context.CancelFunc),
+	territories []string,
+	fetch func(ctx context.Context, next string) (*asc.Response[A], error),
+	customerPrice func(A) string,
+) (map[string][]PriceLadderCandidate, error) {
 	wanted := make(map[string]bool, len(territories))
 	for _, territory := range territories {
 		wanted[territory] = true
 	}
 	read := func(next string) (*asc.Response[A], error) {
-		return RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.Response[A], error) {
+		return retryReadWithFreshTimeout(ctx, timeout, func(requestCtx context.Context) (*asc.Response[A], error) {
 			return fetch(requestCtx, next)
 		})
 	}

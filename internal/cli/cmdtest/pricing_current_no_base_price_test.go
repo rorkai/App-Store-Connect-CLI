@@ -1,11 +1,15 @@
 package cmdtest
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 const pricingCurrentScheduleBody = `{"data":{"type":"appPriceSchedules","id":"schedule-1","attributes":{}}}`
@@ -92,14 +96,13 @@ func TestPricingCurrentNoBaseTerritoryPriceIsExpectedNegative(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			fixPricingClock(t, mustParseRFC3339(t, "2026-03-01T20:00:00Z"))
-			useServerTransport(t, newPricingCurrentScheduleServer(t, appPricesBody(test.prices...)))
+			server := newPricingCurrentScheduleServer(t, appPricesBody(test.prices...))
 
 			output := test.output
 			if output == "" {
 				output = "json"
 			}
-			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", output})
+			stdout, stderr, runErr := runPricingCurrentAt(t, server, mustParseRFC3339(t, "2026-03-01T20:00:00Z"), "pricing", "current", "--app", "app-1", "--output", output)
 
 			assertNotConfiguredExpectedNegative(t, runErr)
 			for _, want := range test.wantTable {
@@ -126,10 +129,10 @@ func TestPricingCurrentNoBaseTerritoryPriceIsExpectedNegative(t *testing.T) {
 func TestPricingCurrentUsesUSPacificDayAtUTCMidnight(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	useServerTransport(t, newPricingCurrentScheduleServer(t, appPricesBody(
+	server := newPricingCurrentScheduleServer(t, appPricesBody(
 		appPriceResource("price-1", "pp-free", "", "2026-03-01"),
 		appPriceResource("price-2", "pp-paid", "2026-03-01", ""),
-	)))
+	))
 
 	tests := []struct {
 		now  string
@@ -140,9 +143,7 @@ func TestPricingCurrentUsesUSPacificDayAtUTCMidnight(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.now, func(t *testing.T) {
-			fixPricingClock(t, mustParseRFC3339(t, test.now))
-
-			stdout, stderr, runErr := runRootCommand(t, []string{"pricing", "current", "--app", "app-1", "--output", "json"})
+			stdout, stderr, runErr := runPricingCurrentAt(t, server, mustParseRFC3339(t, test.now), "pricing", "current", "--app", "app-1", "--output", "json")
 			if runErr != nil {
 				t.Fatalf("run error: %v (stderr %q)", runErr, stderr)
 			}
@@ -151,4 +152,18 @@ func TestPricingCurrentUsesUSPacificDayAtUTCMidnight(t *testing.T) {
 			}
 		})
 	}
+}
+
+// runPricingCurrentAt runs args on test deps whose client sends every request
+// to server and whose clock reads now.
+func runPricingCurrentAt(t *testing.T, server *httptest.Server, now time.Time, args ...string) (string, string, error) {
+	t.Helper()
+	d, stdout, stderr := newTestDeps(t, stubServerClient(t, server))
+	d.Now = func() time.Time { return now }
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	err := root.Run(context.Background())
+	return stdout.String(), stderr.String(), err
 }
