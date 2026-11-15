@@ -483,9 +483,9 @@ func renderPublicAppFieldMarkdown(d *shared.Deps, rows [][]string) error {
 }
 
 func renderPublicSearchTable(d *shared.Deps, payload publicSearchOutput) error {
-	fmt.Printf("\nTerm: %s\n", payload.Term)
-	fmt.Printf("Country: %s\n", payload.Country)
-	fmt.Printf("Limit: %d\n\n", payload.Limit)
+	fmt.Fprintf(d.IO.Out, "\nTerm: %s\n", payload.Term)
+	fmt.Fprintf(d.IO.Out, "Country: %s\n", payload.Country)
+	fmt.Fprintf(d.IO.Out, "Limit: %d\n\n", payload.Limit)
 
 	headers := []string{
 		"App ID",
@@ -511,13 +511,13 @@ func renderPublicSearchTable(d *shared.Deps, payload publicSearchOutput) error {
 }
 
 func renderPublicSearchMarkdown(d *shared.Deps, payload publicSearchOutput) error {
-	fmt.Printf("## Search Results\n\n")
+	fmt.Fprintf(d.IO.Out, "## Search Results\n\n")
 	asc.RenderMarkdownTo(d.IO.Out, []string{"Field", "Value"}, [][]string{
 		{"Term", payload.Term},
 		{"Country", payload.Country},
 		{"Limit", strconv.Itoa(payload.Limit)},
 	})
-	fmt.Println()
+	fmt.Fprintln(d.IO.Out)
 
 	headers := []string{
 		"App ID",

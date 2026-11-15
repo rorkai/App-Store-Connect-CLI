@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -12,6 +13,8 @@ import (
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestCollectCommunityWallSubmitInputAllowsAppIDOnlyWhenNonInteractive(t *testing.T) {
@@ -239,7 +242,6 @@ func TestAppsWallSubmitCommandPassesCountryFlagToDryRunLookup(t *testing.T) {
 	previousAPIBase := communityWallGitHubAPIBase
 	previousHTTPClient := communityWallGitHubClient
 	previousLookupDetails := communityWallLookupAppDetails
-	previousNow := communityWallNow
 	communityWallPromptEnabled = func() bool { return false }
 	communityWallGHCommandRunner = func(ctx context.Context, args ...string) ([]byte, []byte, error) {
 		switch strings.Join(args, " ") {
@@ -262,9 +264,6 @@ func TestAppsWallSubmitCommandPassesCountryFlagToDryRunLookup(t *testing.T) {
 				Icon: "https://example.com/paypay.png",
 			},
 		}, nil
-	}
-	communityWallNow = func() time.Time {
-		return time.Date(2026, time.March, 10, 12, 0, 0, 0, time.UTC)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -300,18 +299,18 @@ func TestAppsWallSubmitCommandPassesCountryFlagToDryRunLookup(t *testing.T) {
 		communityWallGitHubAPIBase = previousAPIBase
 		communityWallGitHubClient = previousHTTPClient
 		communityWallLookupAppDetails = previousLookupDetails
-		communityWallNow = previousNow
 	})
 
-	cmd := AppsWallSubmitCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stderr := captureAppsCreateOutput(t, func() {
-		if err := cmd.Parse([]string{"--dry-run", "--country", "JP", "--app", "1435783608"}); err != nil {
-			t.Fatalf("parse command: %v", err)
-		}
-		runErr = cmd.Run(context.Background())
+	d, stderrBuf := newWallSubmitTestDeps(func() time.Time {
+		return time.Date(2026, time.March, 10, 12, 0, 0, 0, time.UTC)
 	})
+	cmd := newAppsWallSubmitCommand(d)
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.Parse([]string{"--dry-run", "--country", "JP", "--app", "1435783608"}); err != nil {
+		t.Fatalf("parse command: %v", err)
+	}
+	runErr := cmd.Run(context.Background())
+	stderr := stderrBuf.String()
 
 	if runErr != nil {
 		t.Fatalf("run command: %v", runErr)
@@ -393,7 +392,6 @@ func TestSubmitCommunityWallEntryDryRunReturnsPlan(t *testing.T) {
 	previousAPIBase := communityWallGitHubAPIBase
 	previousHTTPClient := communityWallGitHubClient
 	previousLookupDetails := communityWallLookupAppDetails
-	previousNow := communityWallNow
 	communityWallGitHubAPIBase = server.URL
 	communityWallGitHubClient = func() *http.Client { return server.Client() }
 	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
@@ -405,17 +403,16 @@ func TestSubmitCommunityWallEntryDryRunReturnsPlan(t *testing.T) {
 			},
 		}, nil
 	}
-	communityWallNow = func() time.Time {
-		return time.Date(2026, time.March, 10, 12, 0, 0, 0, time.UTC)
-	}
 	t.Cleanup(func() {
 		communityWallGitHubAPIBase = previousAPIBase
 		communityWallGitHubClient = previousHTTPClient
 		communityWallLookupAppDetails = previousLookupDetails
-		communityWallNow = previousNow
 	})
 
-	result, err := submitCommunityWallEntry(context.Background(), communityWallSubmitRequest{
+	d, _ := newWallSubmitTestDeps(func() time.Time {
+		return time.Date(2026, time.March, 10, 12, 0, 0, 0, time.UTC)
+	})
+	result, err := submitCommunityWallEntry(context.Background(), d, communityWallSubmitRequest{
 		Input: communityWallSubmitInput{
 			AppID: "1234567890",
 		},
@@ -505,7 +502,7 @@ func TestSubmitCommunityWallEntryRejectsDuplicateAppID(t *testing.T) {
 		communityWallLookupAppDetails = previousLookupDetails
 	})
 
-	_, err := submitCommunityWallEntry(context.Background(), communityWallSubmitRequest{
+	_, err := submitCommunityWallEntry(context.Background(), systemWallSubmitTestDeps(), communityWallSubmitRequest{
 		Input: communityWallSubmitInput{
 			AppID: "1234567890",
 		},
@@ -576,7 +573,7 @@ func TestSubmitCommunityWallEntryAcceptsTransferredForkParent(t *testing.T) {
 		communityWallLookupAppDetails = previousLookupDetails
 	})
 
-	result, err := submitCommunityWallEntry(context.Background(), communityWallSubmitRequest{
+	result, err := submitCommunityWallEntry(context.Background(), systemWallSubmitTestDeps(), communityWallSubmitRequest{
 		Input: communityWallSubmitInput{
 			AppID: "1234567890",
 		},
@@ -650,7 +647,7 @@ func TestSubmitCommunityWallEntryRejectsMalformedExistingSource(t *testing.T) {
 		communityWallLookupAppDetails = previousLookupDetails
 	})
 
-	_, err := submitCommunityWallEntry(context.Background(), communityWallSubmitRequest{
+	_, err := submitCommunityWallEntry(context.Background(), systemWallSubmitTestDeps(), communityWallSubmitRequest{
 		Input: communityWallSubmitInput{
 			AppID: "1234567890",
 		},
@@ -694,7 +691,7 @@ func TestSubmitCommunityWallEntryRejectsExistingNonForkRepo(t *testing.T) {
 		communityWallLookupAppDetails = previousLookupDetails
 	})
 
-	_, err := submitCommunityWallEntry(context.Background(), communityWallSubmitRequest{
+	_, err := submitCommunityWallEntry(context.Background(), systemWallSubmitTestDeps(), communityWallSubmitRequest{
 		Input: communityWallSubmitInput{
 			AppID: "1234567890",
 		},
@@ -773,21 +770,20 @@ func TestWaitForRepoReturnsFriendlyTimeoutAfterSleepCancellation(t *testing.T) {
 
 	previousAPIBase := communityWallGitHubAPIBase
 	previousHTTPClient := communityWallGitHubClient
-	previousSleep := communityWallSleep
 	communityWallGitHubAPIBase = server.URL
 	communityWallGitHubClient = func() *http.Client { return server.Client() }
 	t.Cleanup(func() {
 		communityWallGitHubAPIBase = previousAPIBase
 		communityWallGitHubClient = previousHTTPClient
-		communityWallSleep = previousSleep
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	communityWallSleep = func(time.Duration) {
+	client := communityWallGitHubClientAPI{Token: "token", after: func(time.Duration) <-chan time.Time {
 		cancel()
-	}
-
-	client := communityWallGitHubClientAPI{Token: "token"}
+		fired := make(chan time.Time, 1)
+		fired <- time.Time{}
+		return fired
+	}}
 	err := client.waitForRepo(ctx, "tester", "App-Store-Connect-CLI")
 	if err == nil {
 		t.Fatal("expected timeout error")
@@ -888,4 +884,21 @@ func TestCommunityWallIconForLinkUsesStorefrontCountry(t *testing.T) {
 	if iconURL != "https://example.com/tamloot.png" {
 		t.Fatalf("icon URL = %q, want storefront lookup result", iconURL)
 	}
+}
+
+// newWallSubmitTestDeps returns deps with the given clock, real timers and
+// request timeout, stdout discarded and stderr in a buffer.
+func newWallSubmitTestDeps(now func() time.Time) (*shared.Deps, *bytes.Buffer) {
+	var stderr bytes.Buffer
+	return &shared.Deps{
+		IO:      &shared.IO{Out: io.Discard, ErrOut: &stderr},
+		Now:     now,
+		Timeout: shared.ContextWithTimeout,
+		After:   time.After,
+	}, &stderr
+}
+
+func systemWallSubmitTestDeps() *shared.Deps {
+	d, _ := newWallSubmitTestDeps(time.Now)
+	return d
 }
