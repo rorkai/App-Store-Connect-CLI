@@ -23,6 +23,7 @@ func TestSigningRelationshipsValidationErrors(t *testing.T) {
 		{
 			name:    "certificates links pass-type-id missing id",
 			args:    []string{"certificates", "links", "pass-type-id"},
+			deps:    true,
 			wantErr: "Error: --id is required",
 		},
 		{

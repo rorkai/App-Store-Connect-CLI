@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,31 +13,23 @@ import (
 // create command must reject it locally instead of writing a private key and
 // posting an invalid type to App Store Connect.
 func TestCertificatesCreate_RejectsUnknownCertificateType(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	dir := t.TempDir()
 	keyOut := filepath.Join(dir, "installer.key")
 	csrOut := filepath.Join(dir, "installer.csr")
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "create",
-			"--certificate-type", "DEVELOPER_ID_INSTALLER",
-			"--generate-csr",
-			"--key-out", keyOut,
-			"--csr-out", csrOut,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected flag.ErrHelp for an unknown certificate type, got %v", err)
-		}
-		if !isUsageClassError(err) {
-			t.Fatalf("expected usage-class error, got %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil,
+		"certificates", "create",
+		"--certificate-type", "DEVELOPER_ID_INSTALLER",
+		"--generate-csr",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+	)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for an unknown certificate type, got %v", err)
+	}
+	if !isUsageClassError(err) {
+		t.Fatalf("expected usage-class error, got %v", err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -59,21 +49,13 @@ func TestCertificatesCreate_RejectsUnknownCertificateType(t *testing.T) {
 }
 
 func TestCertificatesCreate_AcceptsSupportedCertificateTypeCasing(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "create",
-			"--certificate-type", "mac_installer_distribution",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected flag.ErrHelp for the missing CSR, got %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil,
+		"certificates", "create",
+		"--certificate-type", "mac_installer_distribution",
+	)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for the missing CSR, got %v", err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -97,31 +79,23 @@ func TestCertificatesCreate_RejectsApplePayTypesWithoutMerchantIDBeforeGeneratin
 		"APPLE_PAY_RSA",
 	} {
 		t.Run(certificateType, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
 			dir := t.TempDir()
 			keyOut := filepath.Join(dir, "applepay.key")
 			csrOut := filepath.Join(dir, "applepay.csr")
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"certificates", "create",
-					"--certificate-type", certificateType,
-					"--generate-csr",
-					"--key-out", keyOut,
-					"--csr-out", csrOut,
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected flag.ErrHelp for an Apple Pay certificate type, got %v", err)
-				}
-				if !isUsageClassError(err) {
-					t.Fatalf("expected usage-class error, got %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil,
+				"certificates", "create",
+				"--certificate-type", certificateType,
+				"--generate-csr",
+				"--key-out", keyOut,
+				"--csr-out", csrOut,
+			)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp for an Apple Pay certificate type, got %v", err)
+			}
+			if !isUsageClassError(err) {
+				t.Fatalf("expected usage-class error, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -142,20 +116,13 @@ func TestCertificatesCreate_RejectsApplePayTypesWithoutMerchantIDBeforeGeneratin
 // Non-Apple-Pay types must keep working: the guard is create-specific and must
 // not narrow the certificate types the command already supports.
 func TestCertificatesCreate_ApplePayGuardLeavesOtherTypesAlone(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "create",
-			"--certificate-type", "DEVELOPER_ID_APPLICATION_G2",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected flag.ErrHelp for the missing CSR, got %v", err)
-		}
-	})
+	_, stderr, err := runRootWithDeps(t, nil,
+		"certificates", "create",
+		"--certificate-type", "DEVELOPER_ID_APPLICATION_G2",
+	)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp for the missing CSR, got %v", err)
+	}
 
 	if strings.Contains(stderr, "Error: --merchant-id") {
 		t.Fatalf("Apple Pay guard should not reject DEVELOPER_ID_APPLICATION_G2, got %q", stderr)

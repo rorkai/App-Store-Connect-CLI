@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -39,7 +38,7 @@ func writeApplePayCSR(t *testing.T) string {
 
 // captureCertificateCreateRequest serves POST /v1/certificates and records the
 // decoded request body so the tests can assert the merchantId relationship.
-func captureCertificateCreateRequest(t *testing.T, payload *asc.CertificateCreateRequest) {
+func captureCertificateCreateRequest(t *testing.T, payload *asc.CertificateCreateRequest) func() (*asc.Client, error) {
 	t.Helper()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -59,7 +58,7 @@ func captureCertificateCreateRequest(t *testing.T, payload *asc.CertificateCreat
 	}))
 	t.Cleanup(server.Close)
 
-	installDefaultTransportForServer(t, server)
+	return stubServerClient(t, server)
 }
 
 func assertMerchantIDRelationship(t *testing.T, payload asc.CertificateCreateRequest, certificateType, merchantID string) {
@@ -115,20 +114,11 @@ func TestCertificatesCreate_SendsMerchantIDRelationship(t *testing.T) {
 			setupAuth(t)
 
 			var payload asc.CertificateCreateRequest
-			captureCertificateCreateRequest(t, &payload)
+			client := captureCertificateCreateRequest(t, &payload)
 
 			csrPath := writeApplePayCSR(t)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(append(test.args, "--csr", csrPath, "--output", "json")); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, client, append(test.args, "--csr", csrPath, "--output", "json")...)
 			if runErr != nil {
 				t.Fatalf("run: %v; stderr=%q", runErr, stderr)
 			}
@@ -153,30 +143,21 @@ func TestMerchantIDsCertificatesCreate_GeneratesCSR(t *testing.T) {
 	setupAuth(t)
 
 	var payload asc.CertificateCreateRequest
-	captureCertificateCreateRequest(t, &payload)
+	client := captureCertificateCreateRequest(t, &payload)
 
 	dir := t.TempDir()
 	keyOut := filepath.Join(dir, "merchant.key")
 	csrOut := filepath.Join(dir, "merchant.csr")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"merchant-ids", "certificates", "create",
-			"--merchant-id", "merchant-3",
-			"--certificate-type", "APPLE_PAY_RSA",
-			"--generate-csr",
-			"--key-out", keyOut,
-			"--csr-out", csrOut,
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, stderr, runErr := runRootWithDeps(t, client,
+		"merchant-ids", "certificates", "create",
+		"--merchant-id", "merchant-3",
+		"--certificate-type", "APPLE_PAY_RSA",
+		"--generate-csr",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+		"--output", "json",
+	)
 	if runErr != nil {
 		t.Fatalf("run: %v; stderr=%q", runErr, stderr)
 	}
@@ -236,21 +217,13 @@ func TestCertificatesCreateMerchantIDUsageErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected flag.ErrHelp, got %v", err)
-				}
-				if !isUsageClassError(err) {
-					t.Fatalf("expected usage-class error, got %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, test.args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+			if !isUsageClassError(err) {
+				t.Fatalf("expected usage-class error, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -268,24 +241,17 @@ func TestMerchantIDsCertificatesCreate_RejectsNonApplePayTypeBeforeGeneratingFil
 	keyOut := filepath.Join(dir, "merchant.key")
 	csrOut := filepath.Join(dir, "merchant.csr")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"merchant-ids", "certificates", "create",
-			"--merchant-id", "merchant-1",
-			"--certificate-type", "IOS_DISTRIBUTION",
-			"--generate-csr",
-			"--key-out", keyOut,
-			"--csr-out", csrOut,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); !isUsageClassError(err) {
-			t.Fatalf("expected usage-class error, got %v", err)
-		}
-	})
+	_, stderr, err := runRootWithDeps(t, nil,
+		"merchant-ids", "certificates", "create",
+		"--merchant-id", "merchant-1",
+		"--certificate-type", "IOS_DISTRIBUTION",
+		"--generate-csr",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+	)
+	if !isUsageClassError(err) {
+		t.Fatalf("expected usage-class error, got %v", err)
+	}
 
 	if !strings.Contains(stderr, "--merchant-id can only be used with") {
 		t.Fatalf("expected the Apple Pay pairing error, got %q", stderr)

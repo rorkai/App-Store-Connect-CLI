@@ -38,7 +38,7 @@ func TestRunCertificateExportCreatesPKCS12Identity(t *testing.T) {
 	p12Path := filepath.Join(dir, "push.p12")
 	writeCertificateExportTestFiles(t, certificatePath, privateKeyPath, csrPath, passwordPath, artifacts, []byte("correct-password\r\n"))
 
-	result, err := runCertificateExport(context.Background(), certificateExportOptions{
+	result, err := runCertificateExport(context.Background(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		CSRPath:         csrPath,
@@ -107,7 +107,7 @@ func TestRunCertificateExportAcceptsPEMCertificateWithoutCSR(t *testing.T) {
 		t.Fatalf("write password: %v", err)
 	}
 
-	result, err := runCertificateExport(context.Background(), certificateExportOptions{
+	result, err := runCertificateExport(context.Background(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -130,7 +130,7 @@ func TestRunCertificateExportPreservesWhitespaceInPaths(t *testing.T) {
 	p12Path := filepath.Join(dir, " identity.p12 ")
 	writeCertificateExportTestFiles(t, certificatePath, privateKeyPath, "", passwordPath, artifacts, []byte("password\n"))
 
-	result, err := runCertificateExport(context.Background(), certificateExportOptions{
+	result, err := runCertificateExport(context.Background(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -219,7 +219,7 @@ func TestRunCertificateExportRejectsInvalidInputsBeforeWriting(t *testing.T) {
 			passwordPath := filepath.Join(dir, "password")
 			p12Path := filepath.Join(dir, "push.p12")
 			writeCertificateExportTestFiles(t, certificatePath, privateKeyPath, csrPath, passwordPath, artifacts, test.password)
-			_, err := runCertificateExport(context.Background(), certificateExportOptions{
+			_, err := runCertificateExport(context.Background(), certificatesTestDeps(nil), certificateExportOptions{
 				CertificatePath: certificatePath,
 				PrivateKeyPath:  privateKeyPath,
 				CSRPath:         csrPath,
@@ -249,7 +249,7 @@ func TestRunCertificateExportRefusesExistingDestinationAndPreservesIt(t *testing
 		t.Fatalf("write existing p12: %v", err)
 	}
 
-	_, err := runCertificateExport(context.Background(), certificateExportOptions{
+	_, err := runCertificateExport(context.Background(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -266,7 +266,7 @@ func TestRunCertificateExportRefusesExistingDestinationAndPreservesIt(t *testing
 		t.Fatalf("existing p12 changed: %q", got)
 	}
 
-	if _, err := runCertificateExport(context.Background(), certificateExportOptions{
+	if _, err := runCertificateExport(context.Background(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -336,7 +336,7 @@ func TestRunCertificateExportRejectsCACertificate(t *testing.T) {
 	p12Path := filepath.Join(dir, "ca.p12")
 	writeCertificateExportTestFiles(t, certificatePath, privateKeyPath, "", passwordPath, artifacts, []byte("password"))
 
-	_, err = runCertificateExport(context.Background(), certificateExportOptions{
+	_, err = runCertificateExport(context.Background(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,

@@ -18,11 +18,13 @@ func TestIDsListsPaginateFromNext(t *testing.T) {
 	runPaginateFromNextCases(t, []paginateFromNextCase{
 		{
 			args:     []string{"merchant-ids", "certificates", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/certificates?cursor=AQ&limit=200",
 			dataType: "certificates",
 		},
 		{
 			args:     []string{"merchant-ids", "certificates", "view"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/relationships/certificates?cursor=AQ&limit=200",
 			dataType: "certificates",
 		},
@@ -34,6 +36,7 @@ func TestIDsListsPaginateFromNext(t *testing.T) {
 		},
 		{
 			args:     []string{"merchant-ids", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/merchantIds?cursor=AQ&limit=200",
 			dataType: "merchantIds",
 		},

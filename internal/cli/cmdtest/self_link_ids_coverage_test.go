@@ -479,7 +479,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"builds", "uploads", "files", "list"}, flag: "upload", wantType: "buildUploads"},
 		{args: []string{"bundle-ids", "capabilities", "update"}, flag: "id", wantType: "bundleIdCapabilities", deps: true},
 		{args: []string{"bundle-ids", "capabilities", "reconcile", "plan"}, flag: "bundle", wantType: "bundleIds", deps: true},
-		{args: []string{"certificates", "view"}, flag: "id", wantType: "certificates"},
+		{args: []string{"certificates", "view"}, flag: "id", wantType: "certificates", deps: true},
 		{args: []string{"devices", "view"}, flag: "id", wantType: "devices", deps: true},
 		{args: []string{"encryption", "declarations", "view"}, flag: "id", wantType: "appEncryptionDeclarations", deps: true},
 		{args: []string{"encryption", "documents", "view"}, flag: "id", wantType: "appEncryptionDeclarationDocuments", deps: true},
