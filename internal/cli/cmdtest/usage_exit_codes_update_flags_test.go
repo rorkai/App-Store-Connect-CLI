@@ -409,6 +409,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "webhooks update",
 			args:  []string{"webhooks", "update", "--webhook-id", "ID"},
 			flags: "--name, --url, --secret, --events, --enabled",
+			deps:  true,
 		},
 		{
 			name:  "xcode version edit",

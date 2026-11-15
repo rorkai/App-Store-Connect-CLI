@@ -60,6 +60,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/webhooks/webhook-1": `{"data":{"type":"webhooks","id":"webhook-1","attributes":{"name":"Build updates","url":"https://example.com/hook","enabled":true}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "app-events view",
@@ -250,6 +251,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type webhooks, got apps",
+			deps:    true,
 		},
 		{
 			name:    "webhooks view rejects relationship path",
@@ -257,6 +259,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/webhooks/webhook-1/relationships/app",
 			wantErr: "/v1/<type>/<id>",
+			deps:    true,
 		},
 		{
 			name:    "marketplace webhooks view rejects webhooks link",

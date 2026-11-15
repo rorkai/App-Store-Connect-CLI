@@ -77,7 +77,7 @@ func TestListsAcceptParentFlagWithNext(t *testing.T) {
 		{args: []string{"testflight", "groups", "testers", "list", "--group-id", "group-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/betaTesters?cursor=AQ&limit=200", dataType: "betaTesters"},
 		{args: []string{"versions", "customer-reviews", "list", "--version-id", "ver-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/customerReviews?cursor=AQ&limit=200", dataType: "customerReviews"},
 		{args: []string{"versions", "list", "--app", "app-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=AQ&limit=200", dataType: "appStoreVersions"},
-		{args: []string{"webhooks", "list", "--app", "app-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/webhooks?cursor=AQ&limit=200", dataType: "webhooks"},
+		{args: []string{"webhooks", "list", "--app", "app-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/webhooks?cursor=AQ&limit=200", dataType: "webhooks", deps: true},
 	})
 }
 
