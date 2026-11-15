@@ -48,7 +48,7 @@ GOVULNCHECK_VERSION ?= v1.6.0
 # Tests that need any of these inputs set them with t.Setenv. TEST_AFFECTED_BY
 # and MAKEFLAGS are unset too, so tests that run make get the whole suite.
 TEST_ENV_PASSTHROUGH := ASC_UPDATE_GOLDEN ASC_SIGNING_RUN_LIVE_TEST ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST
-TEST_ENV = env $(foreach var,$(sort $(filter-out $(TEST_ENV_PASSTHROUGH),$(filter ASC_%,$(.VARIABLES)))),-u $(var)) -u DO_NOT_TRACK -u TEST_AFFECTED_BY -u MAKEFLAGS ASC_BYPASS_KEYCHAIN=1
+TEST_ENV = env $(foreach var,$(sort $(filter-out $(TEST_ENV_PASSTHROUGH),$(filter ASC_%,$(.VARIABLES)))),-u $(var)) -u DO_NOT_TRACK -u TEST_AFFECTED_BY -u MAKEFLAGS ASC_BYPASS_KEYCHAIN=1 ASC_TEST_ENV_ISOLATED=1
 
 # $(call run_isolated_tests,<go test arguments>[,<test command>])
 # The test command defaults to `go test`.

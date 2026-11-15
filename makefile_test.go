@@ -282,7 +282,8 @@ exit 0
 			}
 
 			for name, want := range map[string]string{
-				"ASC_BYPASS_KEYCHAIN": "1",
+				"ASC_BYPASS_KEYCHAIN":   "1",
+				"ASC_TEST_ENV_ISOLATED": "1",
 				// Opt-in test switches pass through so an explicitly requested
 				// golden update or gated live test still runs under make.
 				"ASC_UPDATE_GOLDEN":                      "1",
