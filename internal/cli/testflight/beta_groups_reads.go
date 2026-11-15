@@ -112,15 +112,15 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, errPrefix, 200, "fields", "limit"); err != nil {
 				return err
 			}
-			fieldValues, err := shared.NormalizeSelection(*fields, config.fieldValues, "--fields")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
-				return shared.InvalidValueUsageError("--fields")
-			}
 			groupValue := strings.TrimSpace(*groupID)
 			nextValue := strings.TrimSpace(*next)
 			if groupValue == "" && nextValue == "" {
 				return shared.RequiredFlag("--group-id")
+			}
+			fieldValues, err := shared.NormalizeSelection(*fields, config.fieldValues, "--fields")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				return shared.InvalidValueUsageError("--fields")
 			}
 
 			client, err := shared.GetASCClient()

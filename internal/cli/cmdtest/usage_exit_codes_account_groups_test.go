@@ -386,7 +386,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 		},
 		{
 			name:    "nominations list in-app-events-limit",
-			args:    []string{"nominations", "list", "--in-app-events-limit", "51"},
+			args:    []string{"nominations", "list", "--status", "DRAFT", "--in-app-events-limit", "51"},
 			deps:    true,
 			wantErr: "nominations list: --in-app-events-limit must be between 1 and 50",
 		},
@@ -404,13 +404,13 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 		},
 		{
 			name:    "nominations list related-apps-limit",
-			args:    []string{"nominations", "list", "--related-apps-limit", "51"},
+			args:    []string{"nominations", "list", "--status", "DRAFT", "--related-apps-limit", "51"},
 			deps:    true,
 			wantErr: "nominations list: --related-apps-limit must be between 1 and 50",
 		},
 		{
 			name:    "nominations list supported-territories-limit",
-			args:    []string{"nominations", "list", "--supported-territories-limit", "201"},
+			args:    []string{"nominations", "list", "--status", "DRAFT", "--supported-territories-limit", "201"},
 			deps:    true,
 			wantErr: "nominations list: --supported-territories-limit must be between 1 and 200",
 		},
@@ -652,7 +652,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 		},
 		{
 			name:    "testflight crashes list sort",
-			args:    []string{"testflight", "crashes", "list", "--sort", "bogus"},
+			args:    []string{"testflight", "crashes", "list", "--app", "123456789", "--sort", "bogus"},
 			wantErr: "testflight crashes list: --sort must be one of: createdDate, -createdDate",
 		},
 		{
@@ -667,7 +667,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 		},
 		{
 			name:    "testflight feedback list sort",
-			args:    []string{"testflight", "feedback", "list", "--sort", "bogus"},
+			args:    []string{"testflight", "feedback", "list", "--app", "123456789", "--sort", "bogus"},
 			wantErr: "testflight feedback list: --sort must be one of: createdDate, -createdDate",
 		},
 		{

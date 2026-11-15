@@ -143,6 +143,13 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "iap list", 200, "product-id", "name", "state", "type", "sort", "limit", "include", "include-versions", "versions-limit", "fields", "version-fields"); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return shared.UsageError("iap list: --versions-limit must be between 1 and 50")
 			}
@@ -215,11 +222,6 @@ Examples:
 				return shared.UsageError("iap list: " + err.Error())
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
 			client, err := iapQueryClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap list: %w", err)

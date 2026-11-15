@@ -122,6 +122,12 @@ Examples:
 				return shared.UsageError("versions list: --latest fetches all pages itself and cannot be combined with --next")
 			}
 
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
 				return shared.UsageErrorf("versions list: %v", err)
@@ -144,12 +150,6 @@ Examples:
 			included, err := includedFields.Resolve("versions list", *next, includeValues)
 			if err != nil {
 				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := shared.GetASCClient()

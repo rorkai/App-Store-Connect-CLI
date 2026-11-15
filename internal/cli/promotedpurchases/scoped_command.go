@@ -125,6 +125,12 @@ Examples:
 		if err := d.ValidatePaginationFlags(ctx, cmd.FlagSet, errorPrefix, 200, "iap-fields", "subscription-fields"); err != nil {
 			return err
 		}
+
+		if appID == "" && strings.TrimSpace(next) == "" {
+			fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
+			return shared.MissingRequiredUsageError("--app")
+		}
+
 		if err := validateExplicitPromotedPurchaseFields(cmd.FlagSet); err != nil {
 			return d.UsageError(errorPrefix + ": " + err.Error())
 		}
@@ -135,10 +141,6 @@ Examples:
 		subscriptionFields, err := shared.NormalizeSelection(subscriptionFieldsValue, promotedPurchaseSubscriptionFields, "--subscription-fields")
 		if err != nil {
 			return d.UsageError(errorPrefix + ": " + err.Error())
-		}
-		if appID == "" && strings.TrimSpace(next) == "" {
-			fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-			return shared.MissingRequiredUsageError("--app")
 		}
 
 		client, err := d.Client()

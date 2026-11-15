@@ -125,6 +125,10 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions list", 200, "state", "fields", "subscription-fields", "image-fields", "localization-fields", "include", "images-limit", "localizations-limit", "limit"); err != nil {
 				return err
 			}
+			id := strings.TrimSpace(*subscriptionID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				return shared.RequiredFlag("--subscription-id")
+			}
 			if err := validateVersionListLimits(*imagesLimit, *localizationsLimit); err != nil {
 				return err
 			}
@@ -154,10 +158,6 @@ Examples:
 			states, err := parseSubscriptionVersionStates(*state)
 			if err != nil {
 				return shared.UsageErrorf("subscriptions versions list: %v", err)
-			}
-			id := strings.TrimSpace(*subscriptionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--subscription-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {

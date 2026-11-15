@@ -134,6 +134,13 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions groups list", 200, "limit", "include", "fields", "version-fields", "subscription-fields", "localization-fields", "versions-limit"); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return shared.UsageError("subscriptions groups list: --versions-limit must be between 1 and 50")
 			}
@@ -156,12 +163,6 @@ Examples:
 			includedLocalizationFields, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
 			if err != nil {
 				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := subscriptionGroupVersionClientFactory()
@@ -424,13 +425,21 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions list", 200, conflicts...); err != nil {
 				return err
 			}
-			if err := validateRelationshipLimit("--versions-limit", *versionsLimit); err != nil {
-				return err
-			}
 
 			id := strings.TrimSpace(*groupID)
 			appFlag := strings.TrimSpace(*appID)
 			nextURL := strings.TrimSpace(*next)
+			resolvedAppID := ""
+			if appFlag != "" || (id == "" && nextURL == "") {
+				resolvedAppID = shared.ResolveAppID(*appID)
+			}
+			if id == "" && resolvedAppID == "" && nextURL == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id or --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("")
+			}
+			if err := validateRelationshipLimit("--versions-limit", *versionsLimit); err != nil {
+				return err
+			}
 			if id != "" && appFlag != "" {
 				return shared.UsageError("--group-id and --app are mutually exclusive")
 			}
@@ -450,16 +459,8 @@ Examples:
 			if err != nil {
 				return err
 			}
-			resolvedAppID := ""
-			if appFlag != "" || (id == "" && nextURL == "") {
-				resolvedAppID = shared.ResolveAppID(*appID)
-			}
 			if resolvedAppID != "" && (strings.TrimSpace(*fields) != "" || strings.TrimSpace(*versionFields) != "" || strings.TrimSpace(*include) != "" || *versionsLimit != 0 || flagWasProvided(fs, subscriptionRelatedFieldFlagNames()...)) {
 				return shared.UsageError("--fields, --version-fields, --include, --versions-limit, and included resource field flags require --group-id")
-			}
-			if id == "" && resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id or --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("")
 			}
 
 			client, err := subscriptionQueryClientFactory()

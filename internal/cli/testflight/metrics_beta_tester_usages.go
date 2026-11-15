@@ -107,17 +107,17 @@ Examples:
 				return err
 			}
 
-			periodValue, err := normalizeBetaTesterUsagePeriod(*period)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
-				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--period")
-			}
-
 			resolvedAppID := shared.ResolveAppID(*appID)
 			nextValue := strings.TrimSpace(*next)
 			if nextValue == "" && resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
+			}
+
+			periodValue, err := normalizeBetaTesterUsagePeriod(*period)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--period")
 			}
 
 			client, err := shared.GetASCClient()

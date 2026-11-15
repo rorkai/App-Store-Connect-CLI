@@ -79,14 +79,15 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions offer-codes list", 200, "limit", "subscription-fields"); err != nil {
 				return err
 			}
-			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
-			if err != nil {
-				return err
-			}
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--subscription-id")
+			}
+
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			if err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -577,14 +578,15 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions offer-codes prices", 200, "limit", "price-point-fields"); err != nil {
 				return err
 			}
-			selectedPricePointFields, err := normalizeSparseFieldsFlag(fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
-			if err != nil {
-				return err
-			}
 
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--offer-code-id")
+			}
+
+			selectedPricePointFields, err := normalizeSparseFieldsFlag(fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
+			if err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

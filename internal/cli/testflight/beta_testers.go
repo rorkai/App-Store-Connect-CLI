@@ -146,6 +146,13 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-testers list", 200); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			if err := shared.ValidateSort(*sortBy, betaTesterSortValues...); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 				return shared.InvalidValueUsageError("--sort")
@@ -180,12 +187,6 @@ Examples:
 					shared.DiagnosticConflictingInput,
 					"",
 				)
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := shared.GetASCClient()
