@@ -38,7 +38,7 @@ var ageRatingFields = []metadataSettingField{
 	{name: "violenceCartoonOrFantasy", values: ageRatingContentLevels},
 	{name: "violenceRealistic", values: ageRatingContentLevels},
 	{name: "violenceRealisticProlongedGraphicOrSadistic", values: ageRatingContentLevels},
-	{name: "kidsAgeBand", values: []string{"FIVE_AND_UNDER", "SIX_TO_EIGHT", "NINE_TO_ELEVEN"}},
+	{name: "kidsAgeBand", values: []string{"FIVE_AND_UNDER", "SIX_TO_EIGHT", "NINE_TO_ELEVEN"}, nullUnset: true},
 	{name: "ageRatingOverride", values: []string{"NONE", "NINE_PLUS", "THIRTEEN_PLUS", "SIXTEEN_PLUS", "SEVENTEEN_PLUS", "UNRATED"}},
 	{name: "ageRatingOverrideV2", values: []string{"NONE", "NINE_PLUS", "THIRTEEN_PLUS", "SIXTEEN_PLUS", "EIGHTEEN_PLUS", "UNRATED"}},
 	{name: "koreaAgeRatingOverride", values: []string{"NONE", "ALL", "TWELVE_PLUS", "FIFTEEN_PLUS", "NINETEEN_PLUS"}},
