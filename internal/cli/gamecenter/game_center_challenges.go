@@ -436,12 +436,7 @@ Examples:
 
 // GameCenterChallengeVersionsCreateCommand returns the challenge versions create subcommand.
 func GameCenterChallengeVersionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	challengeID := shared.BindResourceIDFlag(fs, "challenge-id", "gameCenterChallenges", "Game Center challenge ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center challenges versions create --challenge-id \"CHALLENGE_ID\"",
 		ShortHelp:  "Create a Game Center challenge version.",
@@ -449,30 +444,13 @@ func GameCenterChallengeVersionsCreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges versions create --challenge-id "CHALLENGE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*challengeID)
-			if id == "" {
-				return shared.RequiredFlag("--challenge-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges versions create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterChallengeVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center challenges versions create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "challenge-id",
+		IDUsage: "Game Center challenge ID",
+		IDType:  "gameCenterChallenges",
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterChallengeVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterChallengeLocalizationsCommand returns the challenge localizations command group.
@@ -552,15 +530,8 @@ Examples:
 
 // GameCenterChallengeLocalizationsCreateCommand returns the challenge localizations create subcommand.
 func GameCenterChallengeLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterChallengeVersions", "Game Center challenge version ID")
-	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
-	name := fs.String("name", "", "Localized name")
-	description := fs.String("description", "", "Localized description")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterChallengeLocalizationCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center challenges localizations create --version-id \"VERSION_ID\" --locale en-US --name \"Weekly\" --description \"Win weekly\"",
 		ShortHelp:  "Create a challenge localization.",
@@ -568,60 +539,24 @@ func GameCenterChallengeLocalizationsCreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges localizations create --version-id "VERSION_ID" --locale en-US --name "Weekly" --description "Win weekly"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-			loc := strings.TrimSpace(*locale)
-			if loc == "" {
-				return shared.RequiredFlag("--locale")
-			}
-			nameValue := strings.TrimSpace(*name)
-			if nameValue == "" {
-				return shared.RequiredFlag("--name")
-			}
-			descriptionValue := strings.TrimSpace(*description)
-			if descriptionValue == "" {
-				return shared.RequiredFlag("--description")
-			}
-
-			attrs := asc.GameCenterChallengeLocalizationCreateAttributes{
-				Locale:      loc,
-				Name:        nameValue,
-				Description: descriptionValue,
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterChallengeLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "version-id",
+		IDUsage: "Game Center challenge version ID",
+		IDType:  "gameCenterChallengeVersions",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Locale, "locale", "Localization locale (e.g., en-US)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Localized name"),
+			shared.RequiredStringFlag(&attrs.Description, "description", "Localized description"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterChallengeLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterChallengeLocalizationsUpdateCommand returns the challenge localizations update subcommand.
 func GameCenterChallengeLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeLocalizations", "Game Center challenge localization ID")
-	name := fs.String("name", "", "Localized name")
-	description := fs.String("description", "", "Localized description")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterChallengeLocalizationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center challenges localizations update --id \"LOCALIZATION_ID\" [flags]",
 		ShortHelp:  "Update a challenge localization.",
@@ -629,48 +564,16 @@ func GameCenterChallengeLocalizationsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges localizations update --id "LOCALIZATION_ID" --name "New Name"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			attrs := asc.GameCenterChallengeLocalizationUpdateAttributes{}
-			hasUpdate := false
-
-			if strings.TrimSpace(*name) != "" {
-				value := strings.TrimSpace(*name)
-				attrs.Name = &value
-				hasUpdate = true
-			}
-			if strings.TrimSpace(*description) != "" {
-				value := strings.TrimSpace(*description)
-				attrs.Description = &value
-				hasUpdate = true
-			}
-
-			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, name, description)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterChallengeLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Game Center challenge localization ID",
+		IDType:  "gameCenterChallengeLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.Name, "name", "Localized name"),
+			shared.OptionalStringFlag(&attrs.Description, "description", "Localized description"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterChallengeLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterChallengeLocalizationsDeleteCommand returns the challenge localizations delete subcommand.
@@ -872,12 +775,7 @@ Examples:
 
 // GameCenterChallengeReleasesCreateCommand returns the challenge releases create subcommand.
 func GameCenterChallengeReleasesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterChallengeVersions", "Game Center challenge version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center challenges releases create --version-id \"VERSION_ID\"",
 		ShortHelp:  "Create a Game Center challenge release.",
@@ -885,30 +783,13 @@ func GameCenterChallengeReleasesCreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges releases create --version-id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges releases create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterChallengeVersionRelease(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center challenges releases create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "version-id",
+		IDUsage: "Game Center challenge version ID",
+		IDType:  "gameCenterChallengeVersions",
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterChallengeVersionRelease(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterChallengeReleasesDeleteCommand returns the challenge releases delete subcommand.

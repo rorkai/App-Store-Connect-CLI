@@ -203,12 +203,7 @@ Examples:
 
 // GameCenterAchievementVersionsV2CreateCommand returns the achievement versions v2 create subcommand.
 func GameCenterAchievementVersionsV2CreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	achievementID := shared.BindResourceIDFlag(fs, "achievement-id", "gameCenterAchievements", "Game Center achievement ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center achievements v2 versions create --achievement-id \"ACH_ID\"",
 		ShortHelp:  "Create a new Game Center achievement version (v2).",
@@ -216,30 +211,13 @@ func GameCenterAchievementVersionsV2CreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center achievements v2 versions create --achievement-id "ACH_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*achievementID)
-			if id == "" {
-				return shared.RequiredFlag("--achievement-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterAchievementVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "achievement-id",
+		IDUsage: "Game Center achievement ID",
+		IDType:  "gameCenterAchievements",
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterAchievementVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAchievementLocalizationsV2Command returns the achievement localizations v2 command group.
