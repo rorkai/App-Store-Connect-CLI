@@ -49,7 +49,7 @@ Examples:
 			WebBusinessCommand(),
 			WebFinanceCommand(),
 			WebIAPCommand(),
-			WebAPIKeysCommand(),
+			newWebAPIKeysCommand(d),
 			newWebSandboxCommand(d),
 			newWebAppsCommand(d),
 			newWebRemovedAppsCommand(d),

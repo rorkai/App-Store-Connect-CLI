@@ -22,7 +22,8 @@ import (
 )
 
 func TestWebAPIKeysRegistersIndividualCreateCommand(t *testing.T) {
-	command := WebAPIKeysCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCommand(d)
 	for _, subcommand := range command.Subcommands {
 		if subcommand.Name == "create-individual" {
 			if subcommand.UsageFunc == nil {
@@ -42,7 +43,8 @@ func TestWebAPIKeysCreateIndividualRequiresConfirmBeforeSession(t *testing.T) {
 	})
 	t.Cleanup(restore)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--user-id", "USER-UUID",
 		"--output-dir", t.TempDir(),
@@ -51,7 +53,7 @@ func TestWebAPIKeysCreateIndividualRequiresConfirmBeforeSession(t *testing.T) {
 	}
 
 	var execErr error
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = command.Exec(context.Background(), nil)
 	})
 	if !errors.Is(execErr, flag.ErrHelp) {
@@ -104,7 +106,8 @@ func TestWebAPIKeysCreateIndividualUnsupportedPublicationDoesNotCreate(t *testin
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--user-id", "USER-UUID",
 		"--output-dir", outputDir,
@@ -186,7 +189,8 @@ func testWebAPIKeysCreateIndividualGeneratesAndRegistersP8(t *testing.T, outputD
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--user-id", "USER-UUID",
 		"--output-dir", outputDir,
@@ -197,7 +201,7 @@ func testWebAPIKeysCreateIndividualGeneratesAndRegistersP8(t *testing.T, outputD
 	}
 
 	var execErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = command.Exec(context.Background(), nil)
 	})
 	if execErr != nil {
@@ -271,7 +275,8 @@ func TestWebAPIKeysCreateIndividualRejectsAmbiguousPostList(t *testing.T) {
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", outputDir, "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -326,7 +331,8 @@ func TestWebAPIKeysCreateIndividualRejectsAlreadyRegisteredNewKey(t *testing.T) 
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", outputDir, "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -385,7 +391,8 @@ func TestWebAPIKeysCreateIndividualRejectsDifferentPostReadPublicKey(t *testing.
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", outputDir, "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -453,7 +460,8 @@ func TestWebAPIKeysCreateIndividualAcceptsEquivalentPostReadPublicKeyPEM(t *test
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", outputDir, "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -499,7 +507,8 @@ func TestWebAPIKeysCreateIndividualStagesPrivateKeyBeforeRemoteCreate(t *testing
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", outputDir, "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -553,7 +562,8 @@ func TestWebAPIKeysCreateIndividualFinalRenamePreservesExistingCanonicalFile(t *
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", outputDir, "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -647,7 +657,8 @@ func TestWebAPIKeysCreateIndividualVerifiedOutputFailurePreservesReceipt(t *test
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--user-id", "USER-UUID",
 		"--output-dir", outputDir,
@@ -663,10 +674,8 @@ func TestWebAPIKeysCreateIndividualVerifiedOutputFailurePreservesReceipt(t *test
 	if err := closedStdout.Close(); err != nil {
 		t.Fatalf("close stdout fixture: %v", err)
 	}
-	originalStdout := os.Stdout
-	os.Stdout = closedStdout
+	d.IO.Out = closedStdout
 	execErr := command.Exec(context.Background(), nil)
-	os.Stdout = originalStdout
 	if execErr == nil {
 		t.Fatal("expected output failure after verified registration")
 	}
@@ -711,7 +720,8 @@ func TestWebAPIKeysCreateIndividualIdentityMismatchDoesNotCreate(t *testing.T) {
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", t.TempDir(), "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -754,7 +764,8 @@ func TestWebAPIKeysCreateIndividualActiveKeyDoesNotCreate(t *testing.T) {
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", t.TempDir(), "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -801,7 +812,8 @@ func TestWebAPIKeysCreateIndividualRetainsArtifactWhenPatchFails(t *testing.T) {
 	})
 	t.Cleanup(restoreClient)
 
-	command := WebAPIKeysCreateIndividualCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAPIKeysCreateIndividualCommand(d)
 	if err := command.FlagSet.Parse([]string{"--user-id", "USER-UUID", "--output-dir", outputDir, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}

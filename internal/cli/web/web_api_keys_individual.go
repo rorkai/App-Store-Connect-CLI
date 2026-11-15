@@ -27,16 +27,16 @@ var checkIndividualAPIKeyOutputPublicationFn = func(root rootfs.Root, probeName 
 	return root.CheckCreateNewFileAtomic(probeName, 0o600)
 }
 
-// WebAPIKeysCreateIndividualCommand creates and registers an individual API
+// newWebAPIKeysCreateIndividualCommand creates and registers an individual API
 // key for the authenticated Apple Account user.
-func WebAPIKeysCreateIndividualCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web api-keys create-individual", flag.ExitOnError)
+func newWebAPIKeysCreateIndividualCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web api-keys create-individual", flag.ExitOnError)
 
 	userID := fs.String("user-id", "", "App Store Connect user UUID")
 	outputDir := fs.String("output-dir", "", "Directory for ApiKey_<KEY_ID>.p8")
 	confirm := fs.Bool("confirm", false, "Confirm creation of an individual API key")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create-individual",
@@ -76,26 +76,26 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			userIDValue := strings.TrimSpace(*userID)
 			if userIDValue == "" {
-				return shared.UsageError("--user-id is required")
+				return d.UsageError("--user-id is required")
 			}
 			outputDirValue := strings.TrimSpace(*outputDir)
 			if outputDirValue == "" {
-				return shared.UsageError("--output-dir is required")
+				return d.UsageError("--output-dir is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			outputRoot, err := rootfs.New(outputDirValue)
+			outputRoot, err := rootfs.New(d.OSPath(outputDirValue))
 			if err != nil {
-				return shared.UsageErrorf("invalid --output-dir: %v", err)
+				return d.UsageErrorf("invalid --output-dir: %v", err)
 			}
 			defer outputRoot.Close()
 			if err := outputRoot.MkdirAll(".", 0o700); err != nil {
@@ -109,7 +109,7 @@ Examples:
 				return fmt.Errorf("verify individual API key output directory supports atomic no-replace private-key publication; remote create was not attempted: %w", err)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -121,7 +121,7 @@ Examples:
 			sessionEmail := strings.TrimSpace(session.UserEmail)
 
 			var user *webcore.WebUser
-			err = withWebSpinner("Verifying App Store Connect user", func() error {
+			err = withWebSpinnerWith(d, "Verifying App Store Connect user", func() error {
 				var getErr error
 				user, getErr = client.GetWebUser(requestCtx, userIDValue)
 				return getErr
@@ -137,7 +137,7 @@ Examples:
 			}
 
 			var existing []webcore.IndividualAPIKey
-			err = withWebSpinner("Checking existing individual API keys", func() error {
+			err = withWebSpinnerWith(d, "Checking existing individual API keys", func() error {
 				var listErr error
 				existing, listErr = client.ListIndividualAPIKeysForUser(requestCtx, userIDValue)
 				return listErr
@@ -166,7 +166,7 @@ Examples:
 				return fmt.Errorf("stage individual API key private artifact at %q; remote create was not attempted: %w", stagedPath, err)
 			}
 
-			err = withWebSpinner("Creating individual API key", func() error {
+			err = withWebSpinnerWith(d, "Creating individual API key", func() error {
 				return client.CreateIndividualAPIKey(requestCtx)
 			})
 			if err != nil {
@@ -174,7 +174,7 @@ Examples:
 			}
 
 			var createdKeys []webcore.IndividualAPIKey
-			err = withWebSpinner("Locating created individual API key", func() error {
+			err = withWebSpinnerWith(d, "Locating created individual API key", func() error {
 				var listErr error
 				createdKeys, listErr = client.ListIndividualAPIKeysForUser(requestCtx, userIDValue)
 				return listErr
@@ -197,7 +197,7 @@ Examples:
 				return fmt.Errorf("individual API key %q was created, but its public key has not been registered because final private-key materialization was not confirmed without replacing %q; the private-key artifact may be at the staged path %q or canonical path %q; inspect both paths and inspect or revoke key %q before starting another create; no automatic retry was sent: %w", keyID, p8Path, stagedPath, p8Path, keyID, err)
 			}
 
-			err = withWebSpinner("Registering individual API key public key", func() error {
+			err = withWebSpinnerWith(d, "Registering individual API key public key", func() error {
 				return client.RegisterIndividualAPIKey(requestCtx, keyID, string(publicPEM))
 			})
 			if err != nil {
@@ -205,7 +205,7 @@ Examples:
 			}
 
 			var verified []webcore.IndividualAPIKey
-			err = withWebSpinner("Verifying individual API key", func() error {
+			err = withWebSpinnerWith(d, "Verifying individual API key", func() error {
 				var verifyErr error
 				verified, verifyErr = client.ListIndividualAPIKeysForUser(requestCtx, userIDValue)
 				return verifyErr
@@ -234,7 +234,7 @@ Examples:
 				Active:     verifiedKey.Active,
 				Registered: verifiedKey.PublicKeyPresent,
 			}
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return fmt.Errorf("individual API key %q was created and its public key was registered; private key artifact saved to %q; output failed; do not retry automatically: %w", keyID, p8Path, err)
 			}
 			return nil
