@@ -10,6 +10,7 @@
     "GameCenterAchievementLocalizationUpdateAttributes",
     "GameCenterAchievementLocalizationUpdateData",
     "GameCenterAchievementLocalizationUpdateRequest",
+    "GameCenterAchievementLocalizationV2CreateData",
     "GameCenterAchievementLocalizationV2CreateRequest",
     "GameCenterAchievementLocalizationV2Relationships"
   ],
@@ -18,14 +19,24 @@
     {"data":"GameCenterAchievementLocalizationV2CreateData","type":"*GameCenterAchievementLocalizationV2Relationships","omitempty":true}
   ],
   "operations": [
+    {"operation":"gameCenterAchievementLocalizationsV2_createInstance","name":"CreateGameCenterAchievementLocalizationV2","params":["versionID"],"response":"GameCenterAchievementLocalizationResponse","links":["version"]},
     {"operation":"gameCenterAchievementLocalizationsV2_deleteInstance","name":"DeleteGameCenterAchievementLocalizationV2","params":["localizationID"]},
-    {"operation":"gameCenterAchievementLocalizationsV2_getInstance","name":"GetGameCenterAchievementLocalizationV2","params":["localizationID"],"response":"GameCenterAchievementLocalizationResponse","deviations":[{"problem":"result data holds asc.GameCenterAchievementLocalizationAttributes, not the attributes of resource GameCenterAchievementLocalizationV2","reason":"GameCenterAchievementLocalizationAttributes is the hand-written attributes type, named without the version suffix of GameCenterAchievementLocalizationV2; the attribute names check passes for GameCenterAchievementLocalizationV2."}]},
-    {"operation":"gameCenterAchievementLocalizationsV2_image_getToOneRelated","name":"GetGameCenterAchievementLocalizationImageV2","params":["localizationID"],"response":"GameCenterAchievementImageResponse","deviations":[{"problem":"result data holds asc.GameCenterAchievementImageAttributes, not the attributes of resource GameCenterAchievementImageV2","reason":"GameCenterAchievementImageAttributes is the hand-written attributes type, named without the version suffix of GameCenterAchievementImageV2; the attribute names check passes for GameCenterAchievementImageV2."}]},
+    {"operation":"gameCenterAchievementLocalizationsV2_getInstance","name":"GetGameCenterAchievementLocalizationV2","params":["localizationID"],"response":"GameCenterAchievementLocalizationResponse"},
+    {"operation":"gameCenterAchievementLocalizationsV2_image_getToOneRelated","name":"GetGameCenterAchievementLocalizationImageV2","params":["localizationID"],"response":"GameCenterAchievementImageResponse"},
+    {"operation":"gameCenterAchievementLocalizationsV2_updateInstance","name":"UpdateGameCenterAchievementLocalizationV2","params":["localizationID"],"response":"GameCenterAchievementLocalizationResponse"},
     {"operation":"gameCenterAchievementLocalizations_createInstance","name":"CreateGameCenterAchievementLocalization","params":["achievementID"],"links":["gameCenterAchievement"]},
     {"operation":"gameCenterAchievementLocalizations_deleteInstance","name":"DeleteGameCenterAchievementLocalization","params":["localizationID"]},
     {"operation":"gameCenterAchievementLocalizations_gameCenterAchievementImage_getToOneRelated","name":"GetGameCenterAchievementLocalizationImage","params":["localizationID"]},
     {"operation":"gameCenterAchievementLocalizations_gameCenterAchievement_getToOneRelated","name":"GetGameCenterAchievementLocalizationAchievement","params":["localizationID"]},
     {"operation":"gameCenterAchievementLocalizations_getInstance","name":"GetGameCenterAchievementLocalization","params":["localizationID"]},
     {"operation":"gameCenterAchievementLocalizations_updateInstance","name":"UpdateGameCenterAchievementLocalization","params":["localizationID"]}
+  ],
+  "goTypes": [
+    {"schema":"GameCenterAchievementImageV2Attributes","type":"GameCenterAchievementImageAttributes"},
+    {"schema":"GameCenterAchievementLocalizationV2Attributes","type":"GameCenterAchievementLocalizationAttributes"},
+    {"schema":"GameCenterAchievementLocalizationV2CreateAttributes","type":"GameCenterAchievementLocalizationCreateAttributes"},
+    {"schema":"GameCenterAchievementLocalizationV2UpdateAttributes","type":"GameCenterAchievementLocalizationUpdateAttributes"},
+    {"schema":"GameCenterAchievementLocalizationV2UpdateData","type":"GameCenterAchievementLocalizationUpdateData"},
+    {"schema":"GameCenterAchievementLocalizationV2UpdateRequest","type":"GameCenterAchievementLocalizationUpdateRequest"}
   ]
 }

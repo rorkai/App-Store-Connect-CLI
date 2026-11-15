@@ -15,7 +15,8 @@
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardsV2_deleteInstance","name":"DeleteGameCenterLeaderboardV2","params":["leaderboardID"]},
-    {"operation":"gameCenterLeaderboardsV2_getInstance","name":"GetGameCenterLeaderboardV2","params":["leaderboardID"],"response":"GameCenterLeaderboardResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardAttributes, not the attributes of resource GameCenterLeaderboardV2","reason":"GameCenterLeaderboardAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardV2; the attribute names check passes for GameCenterLeaderboardV2."}]},
+    {"operation":"gameCenterLeaderboardsV2_getInstance","name":"GetGameCenterLeaderboardV2","params":["leaderboardID"],"response":"GameCenterLeaderboardResponse"},
+    {"operation":"gameCenterLeaderboardsV2_updateInstance","name":"UpdateGameCenterLeaderboardV2","params":["leaderboardID"],"response":"GameCenterLeaderboardResponse"},
     {"operation":"gameCenterLeaderboardsV2_versions_getToManyRelated","name":"GetGameCenterLeaderboardVersions","params":["leaderboardID"],"options":"GCLeaderboardVersionsOption","query":"buildGCLeaderboardVersionsQuery","nextContext":"game-center-leaderboard-versions","response":"GameCenterLeaderboardVersionsResponse"},
     {"operation":"gameCenterLeaderboards_deleteInstance","name":"DeleteGameCenterLeaderboard","params":["leaderboardID"]},
     {"operation":"gameCenterLeaderboards_getInstance","name":"GetGameCenterLeaderboard","params":["leaderboardID"]},
@@ -26,5 +27,11 @@
   ],
   "queries": [
     {"operation":"gameCenterLeaderboardsV2_versions_getToManyRelated","name":"GCLeaderboardVersions","deviations":[{"problem":"query parameters [fields[gameCenterLeaderboardLocalizations] fields[gameCenterLeaderboardVersions] fields[gameCenterLeaderboards] include limit[localizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
+  ],
+  "goTypes": [
+    {"schema":"GameCenterLeaderboardV2Attributes","type":"GameCenterLeaderboardAttributes"},
+    {"schema":"GameCenterLeaderboardV2UpdateAttributes","type":"GameCenterLeaderboardUpdateAttributes"},
+    {"schema":"GameCenterLeaderboardV2UpdateData","type":"GameCenterLeaderboardUpdateData"},
+    {"schema":"GameCenterLeaderboardV2UpdateRequest","type":"GameCenterLeaderboardUpdateRequest"}
   ]
 }

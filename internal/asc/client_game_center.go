@@ -293,19 +293,6 @@ func (c *Client) CreateGameCenterAchievementV2(ctx context.Context, gcDetailID s
 	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/gameCenterAchievements", Payload: payload})
 }
 
-// UpdateGameCenterAchievementV2 updates an existing v2 Game Center achievement.
-func (c *Client) UpdateGameCenterAchievementV2(ctx context.Context, achievementID string, attrs GameCenterAchievementUpdateAttributes) (*GameCenterAchievementResponse, error) {
-	payload := GameCenterAchievementUpdateRequest{
-		Data: GameCenterAchievementUpdateData{
-			Type:       ResourceTypeGameCenterAchievements,
-			ID:         strings.TrimSpace(achievementID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/gameCenterAchievements/%s", strings.TrimSpace(achievementID)), Payload: payload})
-}
-
 // CreateGameCenterLeaderboardV2 creates a new v2 Game Center leaderboard.
 func (c *Client) CreateGameCenterLeaderboardV2(ctx context.Context, gcDetailID string, groupID string, attrs GameCenterLeaderboardCreateAttributes, setIDs []string) (*GameCenterLeaderboardResponse, error) {
 	const initialVersionID = "${lbVer1}"
@@ -348,17 +335,4 @@ func (c *Client) CreateGameCenterLeaderboardV2(ctx context.Context, gcDetailID s
 	}
 
 	return sendJSON[GameCenterLeaderboardResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/gameCenterLeaderboards", Payload: payload})
-}
-
-// UpdateGameCenterLeaderboardV2 updates an existing v2 Game Center leaderboard.
-func (c *Client) UpdateGameCenterLeaderboardV2(ctx context.Context, leaderboardID string, attrs GameCenterLeaderboardUpdateAttributes) (*GameCenterLeaderboardResponse, error) {
-	payload := GameCenterLeaderboardUpdateRequest{
-		Data: GameCenterLeaderboardUpdateData{
-			Type:       ResourceTypeGameCenterLeaderboards,
-			ID:         strings.TrimSpace(leaderboardID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID)), Payload: payload})
 }

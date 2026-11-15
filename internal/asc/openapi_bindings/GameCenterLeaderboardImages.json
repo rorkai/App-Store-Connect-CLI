@@ -18,10 +18,17 @@
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardImagesV2_deleteInstance","name":"DeleteGameCenterLeaderboardImageV2","params":["imageID"]},
-    {"operation":"gameCenterLeaderboardImagesV2_getInstance","name":"GetGameCenterLeaderboardImageV2","params":["imageID"],"response":"GameCenterLeaderboardImageResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardImageAttributes, not the attributes of resource GameCenterLeaderboardImageV2","reason":"GameCenterLeaderboardImageAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardImageV2; the attribute names check passes for GameCenterLeaderboardImageV2."}]},
+    {"operation":"gameCenterLeaderboardImagesV2_getInstance","name":"GetGameCenterLeaderboardImageV2","params":["imageID"],"response":"GameCenterLeaderboardImageResponse"},
+    {"operation":"gameCenterLeaderboardImagesV2_updateInstance","name":"UpdateGameCenterLeaderboardImageV2","params":["imageID"],"response":"GameCenterLeaderboardImageResponse","args":[{"name":"uploaded"}]},
     {"operation":"gameCenterLeaderboardImages_createInstance","name":"CreateGameCenterLeaderboardImage","params":["localizationID"],"links":["gameCenterLeaderboardLocalization"],"args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
     {"operation":"gameCenterLeaderboardImages_deleteInstance","name":"DeleteGameCenterLeaderboardImage","params":["imageID"]},
     {"operation":"gameCenterLeaderboardImages_getInstance","name":"GetGameCenterLeaderboardImage","params":["imageID"]},
     {"operation":"gameCenterLeaderboardImages_updateInstance","name":"UpdateGameCenterLeaderboardImage","params":["imageID"],"args":[{"name":"uploaded"}]}
+  ],
+  "goTypes": [
+    {"schema":"GameCenterLeaderboardImageV2Attributes","type":"GameCenterLeaderboardImageAttributes"},
+    {"schema":"GameCenterLeaderboardImageV2UpdateAttributes","type":"GameCenterLeaderboardImageUpdateAttributes"},
+    {"schema":"GameCenterLeaderboardImageV2UpdateData","type":"GameCenterLeaderboardImageUpdateData"},
+    {"schema":"GameCenterLeaderboardImageV2UpdateRequest","type":"GameCenterLeaderboardImageUpdateRequest"}
   ]
 }
