@@ -28,7 +28,7 @@ func TestPublishHelpShowsCanonicalAppStoreAndTestFlightSurfaces(t *testing.T) {
 }
 
 func TestSubmitHelpShowsLifecycleCommandsAndHidesDeprecatedCreate(t *testing.T) {
-	stdout, stderr, runErr := runRootCommand(t, []string{"submit"})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "submit")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)

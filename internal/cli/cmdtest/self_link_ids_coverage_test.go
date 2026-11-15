@@ -491,7 +491,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"reviews", "response", "view"}, flag: "id", wantType: "customerReviewResponses"},
 		{args: []string{"routing-coverage", "info"}, flag: "id", wantType: "routingAppCoverages", deps: true},
 		{args: []string{"sandbox", "view"}, flag: "id", wantType: "sandboxTesters", deps: true},
-		{args: []string{"submit", "status"}, flag: "id", wantType: "reviewSubmissions"},
+		{args: []string{"submit", "status"}, flag: "id", wantType: "reviewSubmissions", deps: true},
 		{args: []string{"subscriptions", "groups", "view"}, flag: "id", wantType: "subscriptionGroups"},
 		{args: []string{"subscriptions", "groups", "versions", "localizations", "view"}, flag: "id", wantType: "subscriptionGroupLocalizations"},
 		{args: []string{"subscriptions", "grace-periods", "view"}, flag: "id", wantType: "subscriptionGracePeriods"},

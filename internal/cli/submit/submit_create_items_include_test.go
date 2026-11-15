@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 
@@ -51,7 +52,7 @@ func TestPrepareReviewSubmissionForCreateRejectsInvalidInputs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if _, err := prepareReviewSubmissionForCreate(tt.ctx, tt.client, tt.appID, tt.platform, tt.versionID, nil); err == nil {
+			if _, err := prepareReviewSubmissionForCreate(tt.ctx, io.Discard, tt.client, tt.appID, tt.platform, tt.versionID, nil); err == nil {
 				t.Fatal("expected validation error")
 			}
 		})
@@ -65,7 +66,7 @@ func TestPrepareReviewSubmissionForCreateTreatsWhitespaceNextAsTerminal(t *testi
 		return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions","next":"  \t  "}}`)
 	}))
 
-	prepared, err := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
+	prepared, err := prepareReviewSubmissionForCreate(context.Background(), io.Discard, client, "app-1", "IOS", "version-1", nil)
 	if err != nil {
 		t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
 	}
