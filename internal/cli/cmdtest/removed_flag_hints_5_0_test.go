@@ -66,6 +66,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			name: "release stage --build",
 			args: []string{"release", "stage", "--app", "app-1", "--build", "PRIVATE_VALUE"},
 			want: "Error: `--build` was removed in 5.0.0; use `--build-id` (see migrate-to-5-0)\nFor help:\n  asc release stage --help\n",
+			deps: true,
 		},
 		{
 			name: "single-dash spelling",

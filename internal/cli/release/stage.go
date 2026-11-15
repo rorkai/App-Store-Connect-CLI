@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,9 +16,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
-// ReleaseStageCommand prepares an App Store version without submitting it for review.
-func ReleaseStageCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("release stage", flag.ExitOnError)
+// newReleaseStageCommand prepares an App Store version without submitting it for review.
+func newReleaseStageCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("release stage", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string (required)")
@@ -36,7 +35,7 @@ func ReleaseStageCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm staging mutations (required unless --dry-run)")
 	strictValidate := fs.Bool("strict-validate", false, "Treat readiness warnings as blocking")
 	checkpointFile := fs.String("checkpoint-file", "", "Checkpoint path for resumable runs")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "stage",
@@ -69,59 +68,59 @@ Examples:
   asc release stage --app "APP_ID" --version "2.4.0" --build-id "BUILD_ID" --metadata-dir "./metadata" --confirm
   asc release stage --app "APP_ID" --version "2.4.0" --build-id "BUILD_ID" --copy-metadata-from "2.3.2" --routing-coverage-file "./coverage.geojson" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(resolvedAppID) == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
 			trimmedVersion := strings.TrimSpace(*version)
 			if trimmedVersion == "" {
-				return shared.UsageError("--version is required")
+				return d.UsageError("--version is required")
 			}
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
-				return shared.UsageError("--build-id is required")
+				return d.UsageError("--build-id is required")
 			}
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if *timeout <= 0 {
-				return shared.UsageError("--timeout must be greater than 0")
+				return d.UsageError("--timeout must be greater than 0")
 			}
 
 			copyFieldsValue, err := shared.NormalizeVersionMetadataCopyFields(copyFields.String(), "--copy-fields")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			excludeFieldsValue, err := shared.NormalizeVersionMetadataCopyFields(excludeFields.String(), "--exclude-fields")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			trimmedMetadataDir := strings.TrimSpace(*metadataDir)
 			trimmedCopyMetadataFrom := strings.TrimSpace(*copyMetadataFrom)
 			if trimmedCopyMetadataFrom == "" && (len(copyFieldsValue) > 0 || len(excludeFieldsValue) > 0) {
-				return shared.UsageError("--copy-metadata-from is required when using --copy-fields or --exclude-fields")
+				return d.UsageError("--copy-metadata-from is required when using --copy-fields or --exclude-fields")
 			}
 			if (trimmedMetadataDir == "" && trimmedCopyMetadataFrom == "") || (trimmedMetadataDir != "" && trimmedCopyMetadataFrom != "") {
-				return shared.UsageError("exactly one of --metadata-dir or --copy-metadata-from is required")
+				return d.UsageError("exactly one of --metadata-dir or --copy-metadata-from is required")
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 			if *allowDeletes && trimmedMetadataDir == "" {
-				return shared.UsageError("--allow-deletes requires --metadata-dir")
+				return d.UsageError("--allow-deletes requires --metadata-dir")
 			}
 
 			selectedCopyFields := []string(nil)
 			if trimmedCopyMetadataFrom != "" {
 				selectedCopyFields, err = shared.ResolveVersionMetadataCopyFields(copyFieldsValue, excludeFieldsValue)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 
@@ -130,7 +129,7 @@ Examples:
 			if trimmedRoutingCoverageFile != "" {
 				prepared, prepareErr := routingcoveragecli.PrepareRoutingCoverageFile(trimmedRoutingCoverageFile)
 				if prepareErr != nil {
-					return shared.UsageError(fmt.Sprintf("--routing-coverage-file is not usable: %v", prepareErr))
+					return d.UsageError(fmt.Sprintf("--routing-coverage-file is not usable: %v", prepareErr))
 				}
 				trimmedRoutingCoverageFile = prepared.Path
 				preparedRoutingCoverageFile = &prepared
@@ -145,7 +144,7 @@ Examples:
 				return fmt.Errorf("release stage: resolve checkpoint path: %w", err)
 			}
 
-			result, runErr := executeStage(ctx, runOptions{
+			result, runErr := executeStage(ctx, d, runOptions{
 				AppID:                       resolvedAppID,
 				Version:                     trimmedVersion,
 				BuildID:                     trimmedBuildID,
@@ -162,12 +161,12 @@ Examples:
 				StrictValidate:              *strictValidate,
 				CheckpointFile:              absCheckpointPath,
 			})
-			if printErr := printStageResult(result, *output.Output, *output.Pretty); printErr != nil {
+			if printErr := printStageResult(d, result, *output.Output, *output.Pretty); printErr != nil {
 				return printErr
 			}
 			if runErr != nil {
 				if blocked, ok := errors.AsType[readinessBlockedError](runErr); ok {
-					printReadinessBlockers(os.Stderr, blocked.report, resolvedAppID, trimmedVersion, normalizedPlatform)
+					printReadinessBlockers(d.IO.ErrOut, blocked.report, resolvedAppID, trimmedVersion, normalizedPlatform)
 					return shared.NewStderrReportedError(runErr)
 				}
 				return shared.NewReportedError(runErr)

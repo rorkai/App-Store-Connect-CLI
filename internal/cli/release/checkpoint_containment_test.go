@@ -8,6 +8,7 @@ import (
 )
 
 func TestSaveCheckpointDoesNotWriteThroughPredictableTemporarySymlink(t *testing.T) {
+	d := releaseTestDeps()
 	dir := t.TempDir()
 	sentinelPath := filepath.Join(t.TempDir(), "sentinel.txt")
 	writeContainmentFile(t, sentinelPath, "original")
@@ -18,8 +19,8 @@ func TestSaveCheckpointDoesNotWriteThroughPredictableTemporarySymlink(t *testing
 	}
 
 	checkpoint := runCheckpoint{AppID: "123", Version: "1.0.0", Completed: map[string]bool{stepEnsureVersion: true}}
-	if err := saveCheckpoint(checkpointPath, checkpoint); err != nil {
-		t.Fatalf("saveCheckpoint() error = %v", err)
+	if err := saveCheckpoint(d, checkpointPath, checkpoint); err != nil {
+		t.Fatalf("saveCheckpoint(d, ) error = %v", err)
 	}
 
 	if got := readContainmentFile(t, sentinelPath); got != "original" {
@@ -35,6 +36,7 @@ func TestSaveCheckpointDoesNotWriteThroughPredictableTemporarySymlink(t *testing
 }
 
 func TestSaveCheckpointRefusesSymlinkedDestination(t *testing.T) {
+	d := releaseTestDeps()
 	dir := t.TempDir()
 	sentinelPath := filepath.Join(t.TempDir(), "sentinel.txt")
 	writeContainmentFile(t, sentinelPath, "original")
@@ -44,12 +46,12 @@ func TestSaveCheckpointRefusesSymlinkedDestination(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	err := saveCheckpoint(checkpointPath, runCheckpoint{AppID: "123", Completed: map[string]bool{}})
+	err := saveCheckpoint(d, checkpointPath, runCheckpoint{AppID: "123", Completed: map[string]bool{}})
 	if err == nil {
-		t.Fatal("saveCheckpoint() error = nil, want symlink rejection")
+		t.Fatal("saveCheckpoint(d, ) error = nil, want symlink rejection")
 	}
 	if !strings.Contains(err.Error(), "symlink") {
-		t.Fatalf("saveCheckpoint() error = %v, want symlink rejection", err)
+		t.Fatalf("saveCheckpoint(d, ) error = %v, want symlink rejection", err)
 	}
 	if got := readContainmentFile(t, sentinelPath); got != "original" {
 		t.Fatalf("sentinel content = %q, want %q", got, "original")
@@ -57,6 +59,7 @@ func TestSaveCheckpointRefusesSymlinkedDestination(t *testing.T) {
 }
 
 func TestSaveCheckpointRefusesSymlinkedRepositoryDirectoryComponent(t *testing.T) {
+	d := releaseTestDeps()
 	workDir := t.TempDir()
 	t.Chdir(workDir)
 
@@ -69,12 +72,12 @@ func TestSaveCheckpointRefusesSymlinkedRepositoryDirectoryComponent(t *testing.T
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	err := saveCheckpoint(checkpointDir, runCheckpoint{AppID: "123", Completed: map[string]bool{}})
+	err := saveCheckpoint(d, checkpointDir, runCheckpoint{AppID: "123", Completed: map[string]bool{}})
 	if err == nil {
-		t.Fatal("saveCheckpoint() error = nil, want symlink rejection")
+		t.Fatal("saveCheckpoint(d, ) error = nil, want symlink rejection")
 	}
 	if !strings.Contains(err.Error(), "symlink") {
-		t.Fatalf("saveCheckpoint() error = %v, want symlink rejection", err)
+		t.Fatalf("saveCheckpoint(d, ) error = %v, want symlink rejection", err)
 	}
 	entries, readErr := os.ReadDir(externalDir)
 	if readErr != nil {
@@ -86,6 +89,7 @@ func TestSaveCheckpointRefusesSymlinkedRepositoryDirectoryComponent(t *testing.T
 }
 
 func TestSaveCheckpointAllowsOperatorSelectedExternalCheckpointRoot(t *testing.T) {
+	d := releaseTestDeps()
 	workDir := t.TempDir()
 	t.Chdir(workDir)
 
@@ -98,8 +102,8 @@ func TestSaveCheckpointAllowsOperatorSelectedExternalCheckpointRoot(t *testing.T
 	}
 
 	checkpointPath := filepath.Join(linkedDir, "release-checkpoint.json")
-	if err := saveCheckpoint(checkpointPath, runCheckpoint{AppID: "123", Completed: map[string]bool{}}); err != nil {
-		t.Fatalf("saveCheckpoint() error = %v", err)
+	if err := saveCheckpoint(d, checkpointPath, runCheckpoint{AppID: "123", Completed: map[string]bool{}}); err != nil {
+		t.Fatalf("saveCheckpoint(d, ) error = %v", err)
 	}
 	if got := readContainmentFile(t, filepath.Join(realDir, "release-checkpoint.json")); !strings.Contains(got, `"appId": "123"`) {
 		t.Fatalf("checkpoint content = %q", got)
@@ -126,6 +130,7 @@ func TestLoadCheckpointRefusesSymlinkedCheckpoint(t *testing.T) {
 }
 
 func TestSaveAndLoadCheckpointRoundTripsOrdinaryFile(t *testing.T) {
+	d := releaseTestDeps()
 	checkpointPath := filepath.Join(t.TempDir(), "nested", "release-checkpoint.json")
 	checkpoint := runCheckpoint{
 		AppID:     "123",
@@ -135,11 +140,11 @@ func TestSaveAndLoadCheckpointRoundTripsOrdinaryFile(t *testing.T) {
 		Completed: map[string]bool{stepEnsureVersion: true},
 	}
 
-	if err := saveCheckpoint(checkpointPath, checkpoint); err != nil {
-		t.Fatalf("saveCheckpoint() error = %v", err)
+	if err := saveCheckpoint(d, checkpointPath, checkpoint); err != nil {
+		t.Fatalf("saveCheckpoint(d, ) error = %v", err)
 	}
-	if err := saveCheckpoint(checkpointPath, checkpoint); err != nil {
-		t.Fatalf("saveCheckpoint() overwrite error = %v", err)
+	if err := saveCheckpoint(d, checkpointPath, checkpoint); err != nil {
+		t.Fatalf("saveCheckpoint(d, ) overwrite error = %v", err)
 	}
 
 	loaded, err := loadCheckpoint(checkpointPath)

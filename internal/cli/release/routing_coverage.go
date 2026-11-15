@@ -8,6 +8,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	routingcoveragecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const routingCoveragePollInterval = 2 * time.Second
@@ -21,7 +22,7 @@ type routingCoverageStepDetails struct {
 	DeliveryState      string `json:"deliveryState,omitempty"`
 }
 
-func applyPreparedRoutingCoverageStep(ctx context.Context, client *asc.Client, versionID string, prepared routingcoveragecli.PreparedRoutingCoverageFile, dryRun bool) (stepOutcome, error) {
+func applyPreparedRoutingCoverageStep(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string, prepared routingcoveragecli.PreparedRoutingCoverageFile, dryRun bool) (stepOutcome, error) {
 	if strings.TrimSpace(versionID) == "" {
 		if dryRun {
 			return stepOutcome{
@@ -95,7 +96,7 @@ func applyPreparedRoutingCoverageStep(ctx context.Context, client *asc.Client, v
 					Details: details,
 				}, nil
 			}
-			state, waitErr := waitForRoutingCoverageDelivery(ctx, client, existing.Data.ID)
+			state, waitErr := waitForRoutingCoverageDelivery(ctx, d, client, existing.Data.ID)
 			details.DeliveryState = state
 			if waitErr != nil {
 				return stepOutcome{Details: details}, waitErr
@@ -124,9 +125,9 @@ func applyPreparedRoutingCoverageStep(ctx context.Context, client *asc.Client, v
 
 	var committed *asc.RoutingAppCoverageResponse
 	if existing != nil {
-		committed, err = routingcoveragecli.ReplaceRoutingCoverageWithPreparedFile(ctx, client, versionID, existing.Data.ID, prepared)
+		committed, err = routingcoveragecli.ReplaceRoutingCoverageWithPreparedFileWith(ctx, d, client, versionID, existing.Data.ID, prepared)
 	} else {
-		committed, err = routingcoveragecli.UploadPreparedRoutingCoverageFile(ctx, client, versionID, prepared)
+		committed, err = routingcoveragecli.UploadPreparedRoutingCoverageFileWith(ctx, d, client, versionID, prepared)
 	}
 	if err != nil {
 		if committed != nil && strings.TrimSpace(committed.Data.ID) != "" {
@@ -141,7 +142,7 @@ func applyPreparedRoutingCoverageStep(ctx context.Context, client *asc.Client, v
 	}
 	details.CoverageID = committed.Data.ID
 	details.DeliveryState = routingCoverageDeliveryState(committed)
-	state, err := waitForRoutingCoverageDelivery(ctx, client, committed.Data.ID)
+	state, err := waitForRoutingCoverageDelivery(ctx, d, client, committed.Data.ID)
 	details.DeliveryState = state
 	if err != nil {
 		return stepOutcome{Details: details}, err
@@ -205,27 +206,29 @@ func reportFailedRoutingCoverageReplacement(
 	)
 }
 
-func waitForRoutingCoverageDelivery(ctx context.Context, client *asc.Client, coverageID string) (string, error) {
+func waitForRoutingCoverageDelivery(ctx context.Context, d *shared.Deps, client *asc.Client, coverageID string) (string, error) {
 	lastState := ""
-	_, err := asc.PollUntil(ctx, routingCoveragePollInterval, func(ctx context.Context) (struct{}, bool, error) {
+	for {
+		if err := ctx.Err(); err != nil {
+			return lastState, err
+		}
 		response, err := client.GetRoutingAppCoverage(ctx, coverageID)
 		if err != nil {
-			return struct{}{}, false, err
+			return lastState, err
 		}
 		lastState = routingCoverageDeliveryState(response)
 		switch lastState {
 		case "COMPLETE":
-			return struct{}{}, true, nil
+			return lastState, nil
 		case "FAILED":
-			return struct{}{}, false, fmt.Errorf("routing coverage %s delivery failed%s", coverageID, routingCoverageDeliveryErrors(response))
-		default:
-			return struct{}{}, false, nil
+			return lastState, fmt.Errorf("routing coverage %s delivery failed%s", coverageID, routingCoverageDeliveryErrors(response))
 		}
-	})
-	if err != nil {
-		return lastState, err
+		select {
+		case <-ctx.Done():
+			return lastState, ctx.Err()
+		case <-d.After(routingCoveragePollInterval):
+		}
 	}
-	return lastState, nil
 }
 
 func routingCoverageDeliveryState(response *asc.RoutingAppCoverageResponse) string {

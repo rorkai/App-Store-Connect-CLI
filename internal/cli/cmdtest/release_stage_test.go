@@ -16,11 +16,13 @@ func TestReleaseStageUsageErrors(t *testing.T) {
 			name:    "MissingMetadataSource",
 			args:    []string{"release", "stage", "--app", "APP_123", "--version", "1.2.3", "--build-id", "BUILD_123", "--dry-run"},
 			wantErr: "exactly one of --metadata-dir or --copy-metadata-from is required",
+			deps:    true,
 		},
 		{
 			name:    "InvalidCopyFieldsValue",
 			args:    []string{"release", "stage", "--app", "APP_123", "--version", "1.2.3", "--build-id", "BUILD_123", "--copy-metadata-from", "1.2.2", "--copy-fields", "description,notAField", "--dry-run"},
 			wantErr: "--copy-fields must be one of",
+			deps:    true,
 		},
 	})
 }
@@ -29,13 +31,12 @@ func TestReleaseStage_DryRunCopyMetadataFromVersion(t *testing.T) {
 	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/BUILD_123/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"APP_123"}}`))
 	reg.Register(asctest.GET("/v1/builds/BUILD_123"), asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`))
 	reg.Register(asctest.GET("/v1/builds/BUILD_123/preReleaseVersion"), asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
 	reg.Register(asctest.GET("/v1/apps/APP_123/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"release", "stage",
 		"--app", "APP_123",
 		"--version", "1.2.3",
@@ -44,7 +45,7 @@ func TestReleaseStage_DryRunCopyMetadataFromVersion(t *testing.T) {
 		"--copy-fields", "description,keywords",
 		"--exclude-fields", "keywords",
 		"--dry-run",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -82,13 +83,12 @@ func TestReleaseStage_ResolvesTrimmedCheckpointFile(t *testing.T) {
 	t.Chdir(workDir)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/BUILD_123/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"APP_123"}}`))
 	reg.Register(asctest.GET("/v1/builds/BUILD_123"), asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`))
 	reg.Register(asctest.GET("/v1/builds/BUILD_123/preReleaseVersion"), asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
 	reg.Register(asctest.GET("/v1/apps/APP_123/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	stdout, _, err := runCommand(t, []string{
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"release", "stage",
 		"--app", "APP_123",
 		"--version", "1.2.3",
@@ -96,7 +96,7 @@ func TestReleaseStage_ResolvesTrimmedCheckpointFile(t *testing.T) {
 		"--copy-metadata-from", "1.2.2",
 		"--checkpoint-file", "  stage-checkpoint.json  ",
 		"--dry-run",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

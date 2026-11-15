@@ -38,6 +38,7 @@ func TestCheckpointRootPreservesOperatorPathWhitespace(t *testing.T) {
 }
 
 func TestSaveAndLoadCheckpointPreserveOperatorPathWhitespace(t *testing.T) {
+	d := releaseTestDeps()
 	checkpointPath := filepath.Join(t.TempDir(), " release-checkpoint.json ")
 	checkpoint := runCheckpoint{
 		AppID:     "123",
@@ -47,8 +48,8 @@ func TestSaveAndLoadCheckpointPreserveOperatorPathWhitespace(t *testing.T) {
 		Completed: map[string]bool{stepEnsureVersion: true},
 	}
 
-	if err := saveCheckpoint(checkpointPath, checkpoint); err != nil {
-		t.Fatalf("saveCheckpoint(%q) error = %v", checkpointPath, err)
+	if err := saveCheckpoint(d, checkpointPath, checkpoint); err != nil {
+		t.Fatalf("saveCheckpoint(d, %q) error = %v", checkpointPath, err)
 	}
 	if _, err := os.Lstat(checkpointPath); err != nil {
 		t.Fatalf("Lstat(%q) error = %v", checkpointPath, err)

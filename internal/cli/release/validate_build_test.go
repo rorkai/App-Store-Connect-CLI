@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/metadata"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -20,22 +21,21 @@ import (
 // metadata and routing coverage steps, so an unusable build used to be
 // discovered only once those mutations had already been applied.
 func TestExecuteStageRejectsBuildOwnedByAnotherAppBeforeMutating(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
 	origTransport := http.DefaultTransport
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		readinessReportBuilder = origReadinessBuilder
 		http.DefaultTransport = origTransport
 	})
 
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		t.Fatal("metadata must not be applied for a build that belongs to another app")
 		return metadata.PushPlanResult{}, nil
 	}
-	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+	readinessReportBuilder = func(context.Context, *shared.Deps, validatecli.ReadinessOptions) (validation.Report, error) {
 		t.Fatal("readiness must not run for a build that belongs to another app")
 		return validation.Report{}, nil
 	}
@@ -55,9 +55,9 @@ func TestExecuteStageRejectsBuildOwnedByAnotherAppBeforeMutating(t *testing.T) {
 		}
 	})
 	testClient := newReleaseTestClient(t)
-	releaseClientFactory = func() (*asc.Client, error) { return testClient, nil }
+	d.Client = func() (*asc.Client, error) { return testClient, nil }
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_OTHER",
@@ -88,24 +88,23 @@ func TestExecuteStageRejectsBuildOwnedByAnotherAppBeforeMutating(t *testing.T) {
 // preflight checks the selected build's platform before the version, metadata,
 // or attachment steps can mutate App Store Connect.
 func TestExecuteStageRejectsBuildPlatformMismatchBeforeMutating(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
 	origTransport := http.DefaultTransport
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		readinessReportBuilder = origReadinessBuilder
 		http.DefaultTransport = origTransport
 	})
 
 	metadataCalled := false
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		metadataCalled = true
 		return metadata.PushPlanResult{VersionID: "VERSION_123"}, nil
 	}
 	readinessCalled := false
-	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+	readinessReportBuilder = func(context.Context, *shared.Deps, validatecli.ReadinessOptions) (validation.Report, error) {
 		readinessCalled = true
 		return validation.Report{Summary: validation.Summary{}}, nil
 	}
@@ -133,9 +132,9 @@ func TestExecuteStageRejectsBuildPlatformMismatchBeforeMutating(t *testing.T) {
 		}
 	})
 	testClient := newReleaseTestClient(t)
-	releaseClientFactory = func() (*asc.Client, error) { return testClient, nil }
+	d.Client = func() (*asc.Client, error) { return testClient, nil }
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",
@@ -175,24 +174,23 @@ func TestExecuteStageRejectsBuildPlatformMismatchBeforeMutating(t *testing.T) {
 // dry-run uses the same platform preflight rather than presenting a plan for a
 // build that cannot be attached to the requested platform.
 func TestExecuteStageDryRunRejectsBuildPlatformMismatchBeforeMutating(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
 	origTransport := http.DefaultTransport
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		readinessReportBuilder = origReadinessBuilder
 		http.DefaultTransport = origTransport
 	})
 
 	metadataCalled := false
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		metadataCalled = true
 		return metadata.PushPlanResult{VersionID: "VERSION_123"}, nil
 	}
 	readinessCalled := false
-	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+	readinessReportBuilder = func(context.Context, *shared.Deps, validatecli.ReadinessOptions) (validation.Report, error) {
 		readinessCalled = true
 		return validation.Report{Summary: validation.Summary{}}, nil
 	}
@@ -210,10 +208,10 @@ func TestExecuteStageDryRunRejectsBuildPlatformMismatchBeforeMutating(t *testing
 		}
 	})
 	testClient := newReleaseTestClient(t)
-	releaseClientFactory = func() (*asc.Client, error) { return testClient, nil }
+	d.Client = func() (*asc.Client, error) { return testClient, nil }
 
 	checkpointPath := filepath.Join(t.TempDir(), "stage-checkpoint.json")
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",
@@ -253,24 +251,23 @@ func TestExecuteStageDryRunRejectsBuildPlatformMismatchBeforeMutating(t *testing
 // error while resolving the build platform is reported by validate_build and
 // cannot fall through to version or metadata mutations.
 func TestExecuteStageRejectsBuildPlatformLookupErrorBeforeMutating(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
 	origTransport := http.DefaultTransport
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		readinessReportBuilder = origReadinessBuilder
 		http.DefaultTransport = origTransport
 	})
 
 	metadataCalled := false
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		metadataCalled = true
 		return metadata.PushPlanResult{VersionID: "VERSION_123"}, nil
 	}
 	readinessCalled := false
-	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+	readinessReportBuilder = func(context.Context, *shared.Deps, validatecli.ReadinessOptions) (validation.Report, error) {
 		readinessCalled = true
 		return validation.Report{Summary: validation.Summary{}}, nil
 	}
@@ -292,9 +289,9 @@ func TestExecuteStageRejectsBuildPlatformLookupErrorBeforeMutating(t *testing.T)
 		}
 	})
 	testClient := newReleaseTestClient(t)
-	releaseClientFactory = func() (*asc.Client, error) { return testClient, nil }
+	d.Client = func() (*asc.Client, error) { return testClient, nil }
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",
@@ -330,16 +327,15 @@ func TestExecuteStageRejectsBuildPlatformLookupErrorBeforeMutating(t *testing.T)
 // TestExecuteStageDryRunRejectsUnknownBuild proves the preview fails on a build
 // that does not exist instead of reporting a clean plan for it.
 func TestExecuteStageDryRunRejectsUnknownBuild(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origTransport := http.DefaultTransport
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		http.DefaultTransport = origTransport
 	})
 
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		t.Fatal("metadata must not be planned for an unknown build")
 		return metadata.PushPlanResult{}, nil
 	}
@@ -351,9 +347,9 @@ func TestExecuteStageDryRunRejectsUnknownBuild(t *testing.T) {
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
 	testClient := newReleaseTestClient(t)
-	releaseClientFactory = func() (*asc.Client, error) { return testClient, nil }
+	d.Client = func() (*asc.Client, error) { return testClient, nil }
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_TYPO",
@@ -378,23 +374,22 @@ func TestExecuteStageDryRunRejectsUnknownBuild(t *testing.T) {
 // resolves the build the operator asked for and does not replace the
 // attachment check that follows it.
 func TestExecuteStageValidatesBuildOnceBeforeAttaching(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
 	origTransport := http.DefaultTransport
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		readinessReportBuilder = origReadinessBuilder
 		http.DefaultTransport = origTransport
 	})
 
 	metadataApplied := false
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		metadataApplied = true
 		return metadata.PushPlanResult{VersionID: "VERSION_123"}, nil
 	}
-	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+	readinessReportBuilder = func(context.Context, *shared.Deps, validatecli.ReadinessOptions) (validation.Report, error) {
 		return validation.Report{Summary: validation.Summary{}}, nil
 	}
 
@@ -419,9 +414,9 @@ func TestExecuteStageValidatesBuildOnceBeforeAttaching(t *testing.T) {
 		}
 	})
 	testClient := newReleaseTestClient(t)
-	releaseClientFactory = func() (*asc.Client, error) { return testClient, nil }
+	d.Client = func() (*asc.Client, error) { return testClient, nil }
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",
@@ -453,16 +448,15 @@ func TestExecuteStageValidatesBuildOnceBeforeAttaching(t *testing.T) {
 }
 
 func TestExecuteStageRejectsInternalOnlyBuildBeforeMutating(t *testing.T) {
-	originalClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	originalMetadataExecutor := metadataPushExecutor
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
-		releaseClientFactory = originalClientFactory
 		metadataPushExecutor = originalMetadataExecutor
 		http.DefaultTransport = originalTransport
 	})
 	metadataApplied := false
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		metadataApplied = true
 		return metadata.PushPlanResult{}, nil
 	}
@@ -488,9 +482,9 @@ func TestExecuteStageRejectsInternalOnlyBuildBeforeMutating(t *testing.T) {
 		}
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
-	releaseClientFactory = func() (*asc.Client, error) { return newReleaseTestClient(t), nil }
+	d.Client = func() (*asc.Client, error) { return newReleaseTestClient(t), nil }
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",
