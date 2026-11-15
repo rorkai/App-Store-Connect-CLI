@@ -164,26 +164,31 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center challenges localizations update",
 			args:  []string{"game-center", "challenges", "localizations", "update", "--id", "ID"},
 			flags: "--name, --description",
+			deps:  true,
 		},
 		{
 			name:  "game-center challenges update",
 			args:  []string{"game-center", "challenges", "update", "--id", "ID"},
 			flags: "--reference-name, --repeatable, --archived, --leaderboard-id",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboard-sets localizations update",
 			args:  []string{"game-center", "leaderboard-sets", "localizations", "update", "--id", "ID"},
 			flags: "--name",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboard-sets update",
 			args:  []string{"game-center", "leaderboard-sets", "update", "--id", "ID"},
 			flags: "--reference-name",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboard-sets v2 update",
 			args:  []string{"game-center", "leaderboard-sets", "v2", "update", "--id", "ID"},
 			flags: "--reference-name",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboards localizations update",

@@ -93,8 +93,9 @@ func TestGameCenterGroupRelationshipReplacementConfirmPassesValidation(t *testin
 func TestGameCenterRelationshipReplacementRejectsExplicitFalseConfirm(t *testing.T) {
 	isolateGameCenterAuthEnv(t)
 	commands := map[string]struct {
-		command func() *ffcli.Command
-		args    []string
+		command  func() *ffcli.Command
+		withDeps func(*shared.Deps) *ffcli.Command
+		args     []string
 	}{
 		"group achievements": {
 			command: GameCenterGroupAchievementsSetCommand,
@@ -105,26 +106,37 @@ func TestGameCenterRelationshipReplacementRejectsExplicitFalseConfirm(t *testing
 			args:    []string{"--group-id", "group-1", "--ids", "leaderboard-1"},
 		},
 		"leaderboard-set members": {
-			command: GameCenterLeaderboardSetMembersSetCommand,
-			args:    []string{"--set-id", "set-1", "--leaderboard-ids", "leaderboard-1"},
+			withDeps: newGameCenterLeaderboardSetMembersSetCommand,
+			args:     []string{"--set-id", "set-1", "--leaderboard-ids", "leaderboard-1"},
 		},
 		"leaderboard-set v2 members": {
-			command: GameCenterLeaderboardSetMembersV2SetCommand,
-			args:    []string{"--set-id", "set-1", "--leaderboard-ids", "leaderboard-1"},
+			withDeps: newGameCenterLeaderboardSetMembersV2SetCommand,
+			args:     []string{"--set-id", "set-1", "--leaderboard-ids", "leaderboard-1"},
 		},
 	}
 
 	for name, test := range commands {
 		t.Run(name, func(t *testing.T) {
-			cmd := test.command()
 			args := append(append([]string{}, test.args...), "--confirm=false")
-			if err := cmd.FlagSet.Parse(args); err != nil {
-				t.Fatalf("parse flags: %v", err)
-			}
 			var err error
-			stderr := captureGameCenterStderr(t, func() {
+			var stderr string
+			if test.withDeps != nil {
+				d, errOut := newGameCenterTestDeps(nil)
+				cmd := test.withDeps(d)
+				if err := cmd.FlagSet.Parse(args); err != nil {
+					t.Fatalf("parse flags: %v", err)
+				}
 				err = cmd.Exec(context.Background(), nil)
-			})
+				stderr = errOut.String()
+			} else {
+				cmd := test.command()
+				if err := cmd.FlagSet.Parse(args); err != nil {
+					t.Fatalf("parse flags: %v", err)
+				}
+				stderr = captureGameCenterStderr(t, func() {
+					err = cmd.Exec(context.Background(), nil)
+				})
+			}
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("explicit false --confirm should fail validation before auth, got %v", err)
 			}
