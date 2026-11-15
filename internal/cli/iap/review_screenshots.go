@@ -185,7 +185,7 @@ Examples:
 				return err
 			}
 
-			requestCtx, cancel := d.ResolvedTimeout(ctx, iapAssetUploadDefaultTimeout)
+			requestCtx, cancel := contextWithAssetUploadTimeout(ctx, d)
 			defer cancel()
 
 			resp, err := client.CreateInAppPurchaseAppStoreReviewScreenshot(requestCtx, iapValue, info.Name(), info.Size())
@@ -210,7 +210,7 @@ Examples:
 
 			// Verify asset delivery — poll until COMPLETE or FAILED
 			screenshotID := resp.Data.ID
-			verifyCtx, verifyCancel := d.ResolvedTimeout(ctx, iapAssetUploadDefaultTimeout)
+			verifyCtx, verifyCancel := contextWithAssetUploadTimeout(ctx, d)
 			defer verifyCancel()
 			finalResp, verifyErr := waitForIAPReviewScreenshotDelivery(verifyCtx, client, screenshotID)
 			if verifyErr != nil {
@@ -301,7 +301,7 @@ Examples:
 					return fmt.Errorf("iap review-screenshots update: %w", err)
 				}
 
-				requestCtx, uploadCancel := d.ResolvedTimeout(ctx, iapAssetUploadDefaultTimeout)
+				requestCtx, uploadCancel := contextWithAssetUploadTimeout(ctx, d)
 				defer uploadCancel()
 				updated, err := updateIAPReviewScreenshotFromFile(requestCtx, client, id, snapshot, file.Name(), info.Size(), checksum.Hash)
 				if err != nil {

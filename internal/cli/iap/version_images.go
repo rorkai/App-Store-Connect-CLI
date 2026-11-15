@@ -13,41 +13,41 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func IAPVersionImagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images", flag.ExitOnError)
+func newIAPVersionImagesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "images", ShortUsage: "asc iap versions images <subcommand> [flags]", ShortHelp: "Manage version-scoped IAP review images.", LongHelp: "Manage version-scoped IAP review images.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{IAPVersionImagesListCommand(), IAPVersionImagesCreateCommand(), IAPVersionImagesViewCommand(), IAPVersionImagesUpdateCommand(), IAPVersionImagesDeleteCommand()}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
+		Subcommands: []*ffcli.Command{newIAPVersionImagesListCommand(d), newIAPVersionImagesCreateCommand(d), newIAPVersionImagesViewCommand(d), newIAPVersionImagesUpdateCommand(d), newIAPVersionImagesDeleteCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func IAPVersionImagesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images list", flag.ExitOnError)
+func newIAPVersionImagesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images list", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	imageFields := fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc iap versions images list --version-id "VERSION_ID" [flags]`, ShortHelp: "List images for an IAP version.", LongHelp: "List images for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "iap versions images list", 200, "limit", "image-fields"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "iap versions images list", 200, "limit", "image-fields"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			fields, err := shared.NormalizeSelection(*imageFields, iapVersionImageFields, "--image-fields")
 			if err != nil {
-				return shared.UsageError("iap versions images list: " + err.Error())
+				return d.UsageError("iap versions images list: " + err.Error())
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions images list: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 {
@@ -64,39 +64,39 @@ func IAPVersionImagesListCommand() *ffcli.Command {
 				if err != nil {
 					return fmt.Errorf("iap versions images list: %w", err)
 				}
-				return shared.PrintOutput(aggregated, *output.Output, *output.Pretty)
+				return d.PrintOutput(aggregated, *output.Output, *output.Pretty)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionImagesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images create", flag.ExitOnError)
+func newIAPVersionImagesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images create", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	filePath := fs.String("file", "", "Path to image file")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "create", ShortUsage: `asc iap versions images create --version-id "VERSION_ID" --file "./image.png"`, ShortHelp: "Upload an image for an IAP version.", LongHelp: "Reserve, upload, commit, and fetch an image for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			path := strings.TrimSpace(*filePath)
 			if path == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 			file, info, err := openImageFile(path)
 			if err != nil {
 				return fmt.Errorf("iap versions images create: %w", err)
 			}
 			defer file.Close()
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions images create: %w", err)
 			}
-			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
+			requestCtx, cancel := contextWithAssetUploadTimeout(ctx, d)
 			defer cancel()
 			reservation, err := client.CreateInAppPurchaseImageV2(requestCtx, vid, info.Name(), info.Size())
 			if err != nil {
@@ -120,14 +120,12 @@ func IAPVersionImagesCreateCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("iap versions images create: failed to fetch reserved image %q: %w", reservedID, err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionImagesViewCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
+func newIAPVersionImagesViewCommand(d *shared.Deps) *ffcli.Command {
 
 	var fields []string
 
@@ -147,7 +145,7 @@ func IAPVersionImagesViewCommand() *ffcli.Command {
 			return func() (err error) {
 				fields, err = shared.NormalizeSelection(*imageFields, iapVersionImageFields, "--image-fields")
 				if err != nil {
-					return shared.UsageError("iap versions images view: " + err.Error())
+					return d.UsageError("iap versions images view: " + err.Error())
 				}
 				return nil
 			}
@@ -158,43 +156,41 @@ func IAPVersionImagesViewCommand() *ffcli.Command {
 	})
 }
 
-func IAPVersionImagesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images update", flag.ExitOnError)
+func newIAPVersionImagesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images update", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "image-id", "inAppPurchaseImages", "Image ID")
 	uploaded := fs.String("uploaded", "", "Set upload completion state: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "update", ShortUsage: `asc iap versions images update --image-id "IMAGE_ID" --uploaded true`, ShortHelp: "Update a version-scoped IAP image.", LongHelp: "Update the upload completion state for a version-scoped IAP image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				return shared.RequiredFlag("--image-id")
+				return d.RequiredFlag("--image-id")
 			}
 			if !flagSet(fs, "uploaded") {
-				return shared.RequiredFlag("--uploaded")
+				return d.RequiredFlag("--uploaded")
 			}
 			uploadedValue, err := strconv.ParseBool(strings.TrimSpace(*uploaded))
 			if err != nil {
-				return shared.UsageError("iap versions images update: --uploaded must be true or false")
+				return d.UsageError("iap versions images update: --uploaded must be true or false")
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions images update: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.UpdateInAppPurchaseImageV2(requestCtx, value, asc.InAppPurchaseImageV2UpdateAttributes{Uploaded: &asc.NullableBool{Value: &uploadedValue}})
 			if err != nil {
 				return fmt.Errorf("iap versions images update: failed to update: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionImagesDeleteCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
+func newIAPVersionImagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName:        "versions images delete",

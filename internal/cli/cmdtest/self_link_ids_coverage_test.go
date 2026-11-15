@@ -488,7 +488,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"game-center", "leaderboards", "view"}, flag: "id", wantType: "gameCenterLeaderboards"},
 		{args: []string{"game-center", "matchmaking", "teams", "update"}, flag: "id", wantType: "gameCenterMatchmakingTeams"},
 		{args: []string{"iap", "pricing", "availabilities", "view"}, flag: "id", wantType: "inAppPurchaseAvailabilities"},
-		{args: []string{"iap", "versions", "submit"}, flag: "submission", wantType: "reviewSubmissions"},
+		{args: []string{"iap", "versions", "submit"}, flag: "submission", wantType: "reviewSubmissions", deps: true},
 		{args: []string{"nominations", "view"}, flag: "id", wantType: "nominations", deps: true},
 		{args: []string{"pricing", "availability", "view"}, flag: "id", wantType: "appAvailabilities"},
 		{args: []string{"pricing", "schedule", "view"}, flag: "id", wantType: "appPriceSchedules"},

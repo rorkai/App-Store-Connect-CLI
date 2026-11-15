@@ -65,10 +65,11 @@ func captureIAPLegacy441Stderr(t *testing.T, run func()) string {
 }
 
 func TestIAPVersionScoped441CommandsAreNotDeprecated(t *testing.T) {
+	d, _, _ := newTestDeps(nil)
 	commands := []*ffcli.Command{
-		IAPVersionImagesListCommand(),
-		IAPVersionLocalizationsListCommand(),
-		IAPVersionSubmitCommand(),
+		newIAPVersionImagesListCommand(d),
+		newIAPVersionLocalizationsListCommand(d),
+		newIAPVersionSubmitCommand(d),
 	}
 	for _, cmd := range commands {
 		if strings.Contains(cmd.ShortHelp, "DEPRECATED:") || strings.Contains(cmd.LongHelp, "DEPRECATED:") {

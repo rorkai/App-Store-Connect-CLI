@@ -77,7 +77,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPListCommand(d),
-			IAPVersionsCommand(),
+			newIAPVersionsCommand(d),
 			IAPPricingCommand(),
 			newIAPGetCommand(d),
 			newIAPCreateCommand(d),

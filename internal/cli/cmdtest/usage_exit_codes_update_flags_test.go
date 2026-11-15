@@ -239,6 +239,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "iap versions localizations update",
 			args:  []string{"iap", "versions", "localizations", "update", "--localization-id", "ID"},
 			flags: "--name, --clear-name, --description, --clear-description",
+			deps:  true,
 		},
 		{
 			name:  "localizations update",
