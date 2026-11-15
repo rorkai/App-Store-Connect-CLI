@@ -135,6 +135,24 @@ func TestReleaseNotesGenerate_RangeStartSelectors(t *testing.T) {
 			wantStderr: `no tag matching "ios/*" is reachable from HEAD`,
 		},
 		{
+			name:       "pattern with option-like until ref is an error",
+			args:       []string{"--since-tag-pattern", "nomatch*", "--until-ref=--always"},
+			wantCode:   cmd.ExitError,
+			wantStderr: `no tag matching "nomatch*"`,
+		},
+		{
+			name:       "max commits with option-like until ref is an error",
+			args:       []string{"--max-commits", "5", "--until-ref=--all"},
+			wantCode:   cmd.ExitError,
+			wantStderr: "release-notes generate:",
+		},
+		{
+			name:       "since ref with option-like value is an error",
+			args:       []string{"--since-ref=--grep=feat"},
+			wantCode:   cmd.ExitError,
+			wantStderr: "release-notes generate:",
+		},
+		{
 			name:         "max commits returns the last n commits",
 			args:         []string{"--max-commits", "2"},
 			wantCode:     cmd.ExitSuccess,

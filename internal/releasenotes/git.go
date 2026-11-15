@@ -19,7 +19,7 @@ func LatestTagMatching(ctx context.Context, repoDir, pattern, until string) (str
 		return "", errGitNotFound
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "describe", "--tags", "--abbrev=0", "--match", pattern, until)
+	cmd := exec.CommandContext(ctx, "git", "describe", "--tags", "--abbrev=0", "--match", pattern, "--end-of-options", until)
 	if strings.TrimSpace(repoDir) != "" {
 		cmd.Dir = repoDir
 	}
@@ -74,6 +74,7 @@ func ListCommits(ctx context.Context, repoDir, since, until string, includeMerge
 	if maxCommits > 0 {
 		args = append(args, fmt.Sprintf("--max-count=%d", maxCommits))
 	}
+	args = append(args, "--end-of-options")
 	if since == "" {
 		args = append(args, until)
 	} else {
