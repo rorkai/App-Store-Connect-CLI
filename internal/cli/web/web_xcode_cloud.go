@@ -57,10 +57,10 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			webXcodeCloudUsageCommand(d),
 			webXcodeCloudProductsCommand(d),
-			webXcodeCloudWorkflowsCommand(),
-			webXcodeCloudEnvVarsCommand(),
-			webXcodeCloudNextBuildNumberCommand(),
-			webXcodeCloudScmCommand(),
+			webXcodeCloudWorkflowsCommand(d),
+			webXcodeCloudEnvVarsCommand(d),
+			webXcodeCloudNextBuildNumberCommand(d),
+			webXcodeCloudScmCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

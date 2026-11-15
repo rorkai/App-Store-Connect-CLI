@@ -8,8 +8,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -27,12 +25,6 @@ func newWebTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 func runWithWebTestDeps(stdout, stderr *bytes.Buffer, fn func()) (string, string) {
 	fn()
 	return stdout.String(), stderr.String()
-}
-
-// processCommand adapts a constructor that does not take d yet to a table of
-// constructors that do.
-func processCommand(build func() *ffcli.Command) func(*shared.Deps) *ffcli.Command {
-	return func(*shared.Deps) *ffcli.Command { return build() }
 }
 
 // newWebSpinnerTestDeps returns deps whose stdout and stderr are terminals and

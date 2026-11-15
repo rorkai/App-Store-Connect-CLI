@@ -1089,31 +1089,37 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "web xcode-cloud settings next-build-number set zero value",
 			args:    []string{"web", "xcode-cloud", "settings", "next-build-number", "set", "--product-id", "PRODUCT_ID", "--value", "0"},
 			wantErr: "--value must be greater than 0",
+			deps:    true,
 		},
 		{
 			name:    "web xcode-cloud settings version-aliases create without type",
 			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "create", "--product-id", "PRODUCT_ID", "--name", "Stable", "--build", "BUILD_ID"},
 			wantErr: "--type type is required",
+			deps:    true,
 		},
 		{
 			name:    "web xcode-cloud settings version-aliases create invalid type",
 			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "create", "--product-id", "PRODUCT_ID", "--name", "Stable", "--build", "BUILD_ID", "--type", "bad"},
 			wantErr: "--type type must be macos_version or xcode_version",
+			deps:    true,
 		},
 		{
 			name:    "web xcode-cloud settings version-aliases update without fields",
 			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "update", "--product-id", "PRODUCT_ID", "--id", "ALIAS_ID"},
 			wantErr: "at least one of --name, --type, --build, or --locked is required",
+			deps:    true,
 		},
 		{
 			name:    "web xcode-cloud settings version-aliases update invalid type",
 			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "update", "--product-id", "PRODUCT_ID", "--id", "ALIAS_ID", "--type", "bad"},
 			wantErr: "--type type must be macos_version or xcode_version",
+			deps:    true,
 		},
 		{
 			name:    "web xcode-cloud settings version-aliases view without product-id",
 			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "view"},
 			wantErr: "--product-id is required",
+			deps:    true,
 		},
 		{
 			name:    "reviews view without id",
