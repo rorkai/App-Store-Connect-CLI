@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ import (
 // stderr buffer.
 func newSubscriptionsTestDeps() (*shared.Deps, *bytes.Buffer) {
 	var stderr bytes.Buffer
-	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &stderr}}, &stderr
+	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &stderr}, LookupEnv: os.LookupEnv}, &stderr
 }
 
 func TestSubscriptionsUsageErrorsWriteToDepsStderr(t *testing.T) {
@@ -113,7 +114,7 @@ func TestSubscriptionsStableSelectorWithoutAppWritesToDepsStderr(t *testing.T) {
 func TestSubscriptionPriceImportSummaryRendersToDepsStdout(t *testing.T) {
 	for _, markdown := range []bool{false, true} {
 		var stdout bytes.Buffer
-		d := &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &bytes.Buffer{}}}
+		d := &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &bytes.Buffer{}}, LookupEnv: os.LookupEnv}
 		summary := &subscriptionPriceImportSummary{SubscriptionID: "sub-1", InputFile: "prices.csv", Total: 1, Created: 1}
 		if err := renderSubscriptionPriceImportSummaryTables(d, summary, markdown); err != nil {
 			t.Fatalf("render (markdown=%v): %v", markdown, err)

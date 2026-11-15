@@ -160,7 +160,7 @@ func TestBetaTestersCSVUsageErrorDiagnostics(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var depsStdout, depsStderr bytes.Buffer
-			d := &shared.Deps{IO: &shared.IO{Out: &depsStdout, ErrOut: &depsStderr}}
+			d := &shared.Deps{IO: &shared.IO{Out: &depsStdout, ErrOut: &depsStderr}, LookupEnv: os.LookupEnv}
 			var runErr error
 			if stderr := captureTestFlightDiagnosticStderr(t, func() {
 				runErr = test.run(d)
@@ -200,7 +200,7 @@ func TestBetaTestersCSVUsageDiagnosticDoesNotLeakInputPath(t *testing.T) {
 	if err := os.WriteFile(path, nil, 0o600); err != nil {
 		t.Fatalf("write empty CSV: %v", err)
 	}
-	_, err := readBetaTestersCSV(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}}, path)
+	_, err := readBetaTestersCSV(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}, LookupEnv: os.LookupEnv}, path)
 	if err == nil {
 		t.Fatal("expected usage error")
 	}

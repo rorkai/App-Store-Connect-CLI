@@ -60,6 +60,7 @@ func releaseTestDeps() *shared.Deps {
 		UploadTimeout:  shared.ContextWithUploadTimeout,
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
+		LookupEnv:      os.LookupEnv,
 	}
 }
 

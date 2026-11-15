@@ -2,6 +2,7 @@ package builds
 
 import (
 	"bytes"
+	"os"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -19,5 +20,6 @@ func newBuildsTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes
 		Now:           time.Now,
 		Timeout:       shared.ContextWithTimeout,
 		UploadTimeout: shared.ContextWithUploadTimeout,
+		LookupEnv:     os.LookupEnv,
 	}, &stderr
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -24,7 +25,8 @@ func assertMarketplaceUsageError(t *testing.T, newCommand func(*shared.Deps) *ff
 		Client: func() (*asc.Client, error) {
 			return nil, errors.New("unexpected client request")
 		},
-		IO: &shared.IO{Out: &stdout, ErrOut: &stderr},
+		IO:        &shared.IO{Out: &stdout, ErrOut: &stderr},
+		LookupEnv: os.LookupEnv,
 	})
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -73,7 +75,7 @@ func TestMarketplaceSearchDetailsDeleteCommand_MissingConfirm(t *testing.T) {
 }
 
 func TestMarketplaceWebhooksCommandIncludesView(t *testing.T) {
-	command := newMarketplaceWebhooksCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}})
+	command := newMarketplaceWebhooksCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}, LookupEnv: os.LookupEnv})
 	for _, subcommand := range command.Subcommands {
 		if subcommand.Name == "view" {
 			if subcommand.ShortUsage != `asc marketplace webhooks view --webhook-id "WEBHOOK_ID" [flags]` {
