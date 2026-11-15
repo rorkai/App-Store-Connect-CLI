@@ -75,15 +75,16 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "builds uploads list", 200, "cf-bundle-short-version", "cf-bundle-version", "platform", "state", "sort"); err != nil {
 				return err
 			}
-			if err := shared.ValidateSort(*sort, "cfBundleVersion", "-cfBundleVersion", "uploadedDate", "-uploadedDate"); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
-				return flag.ErrHelp
-			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
+			}
+
+			if err := shared.ValidateSort(*sort, "cfBundleVersion", "-cfBundleVersion", "uploadedDate", "-uploadedDate"); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				return flag.ErrHelp
 			}
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))

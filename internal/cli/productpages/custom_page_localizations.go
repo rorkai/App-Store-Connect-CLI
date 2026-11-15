@@ -78,14 +78,15 @@ Examples:
 			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages localizations list", productPagesMaxLimit, "include", "placements-limit"); err != nil {
 				return err
 			}
-			includeValues, placementsLimit, err := include.Resolve()
-			if err != nil {
-				return err
-			}
 
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--custom-page-version-id")
+			}
+
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
 			}
 
 			client, err := d.Client()

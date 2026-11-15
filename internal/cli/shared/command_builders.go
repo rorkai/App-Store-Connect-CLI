@@ -377,10 +377,10 @@ func BuildPricePointEqualizationsCommand(config PricePointEqualizationsCommandCo
 		subject = "a price point"
 	}
 
+	var cmd *ffcli.Command
 	var include *string
-	var includedFields *IncludedFieldFlags
 	var included asc.IncludedFields
-	cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+	cmd = BuildPaginatedListCommand(PaginatedListCommandConfig{
 		FlagSetName: config.FlagSetName,
 		Name:        config.Name,
 		ShortUsage:  baseUsage + " [--limit N] [--next URL] [--paginate]",
@@ -403,6 +403,25 @@ Examples:
 		FetchErrorPrefix: config.ErrorPrefix,
 		ContextTimeout:   config.ContextTimeout,
 		Deps:             d,
+		NextConflicts:    []string{"include"},
+		Flags: func(fs *flag.FlagSet) func() error {
+			include = fs.String("include", "", "Relationships to include (comma-separated): territory")
+			includedFields := BindIncludedFieldFlags(fs, map[string]string{"territory": "territories"})
+			return func() error {
+				for _, value := range SplitCSV(*include) {
+					if value != "territory" {
+						return d.UsageError("--include must be: territory")
+					}
+				}
+				prefix := commandErrorPrefixFromUsage(cmd.ShortUsage)
+				if prefix == "" {
+					prefix = config.ErrorPrefix
+				}
+				var err error
+				included, err = includedFields.ResolveWith(d, prefix, fs.Lookup("next").Value.String(), SplitCSV(*include))
+				return err
+			}
+		},
 		FetchPage: func(ctx context.Context, client *asc.Client, parentID string, limit int, next string) (asc.PaginatedResponse, error) {
 			var values []string
 			if strings.TrimSpace(next) == "" {
@@ -411,29 +430,6 @@ Examples:
 			return config.FetchPage(ctx, client, parentID, limit, next, values, included)
 		},
 	})
-	include = cmd.FlagSet.String("include", "", "Relationships to include (comma-separated): territory")
-	includedFields = BindIncludedFieldFlags(cmd.FlagSet, map[string]string{"territory": "territories"})
-	exec := cmd.Exec
-	cmd.Exec = func(ctx context.Context, args []string) error {
-		prefix := commandErrorPrefixFromUsage(cmd.ShortUsage)
-		if prefix == "" {
-			prefix = config.ErrorPrefix
-		}
-		if err := d.ValidatePaginationFlags(ctx, cmd.FlagSet, prefix, builderDefaultLimitMax(config.LimitMax), "include"); err != nil {
-			return err
-		}
-		for _, value := range SplitCSV(*include) {
-			if value != "territory" {
-				return d.UsageError("--include must be: territory")
-			}
-		}
-		next := cmd.FlagSet.Lookup("next").Value.String()
-		var err error
-		if included, err = includedFields.ResolveWith(d, prefix, next, SplitCSV(*include)); err != nil {
-			return err
-		}
-		return exec(ctx, args)
-	}
 	return cmd
 }
 

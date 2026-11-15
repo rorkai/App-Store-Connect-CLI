@@ -128,6 +128,13 @@ func readCommand(parent, name, help, selector, path string, collection bool) *ff
 					return err
 				}
 			}
+			resourceID := strings.TrimSpace(*id)
+			if selector == "app" {
+				resourceID = shared.ResolveAppID(resourceID)
+			}
+			if selector != "" && next == "" && resourceID == "" {
+				return shared.UsageErrorf("asset-library: --%s is required", selector)
+			}
 			query := url.Values{}
 			var err error
 			switch {
@@ -144,15 +151,8 @@ func readCommand(parent, name, help, selector, path string, collection bool) *ff
 					return shared.UsageErrorf("asset-library: %v", err)
 				}
 			}
-			resourceID := strings.TrimSpace(*id)
-			if selector == "app" {
-				resourceID = shared.ResolveAppID(resourceID)
-			}
 			target := path
 			if selector != "" && next == "" {
-				if resourceID == "" {
-					return shared.UsageErrorf("asset-library: --%s is required", selector)
-				}
 				if !resourceIDPattern.MatchString(resourceID) {
 					return shared.UsageErrorf("asset-library: --%s must be a resource ID", selector)
 				}

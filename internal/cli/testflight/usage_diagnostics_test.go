@@ -46,7 +46,7 @@ func TestTestFlightUsageErrorDiagnosticsPreserveContracts(t *testing.T) {
 		{
 			name:       "list group and build conflict",
 			command:    BetaTestersListCommand,
-			args:       []string{"--group", "group-1", "--build-id", "build-1"},
+			args:       []string{"--app", "app-1", "--group", "group-1", "--build-id", "build-1"},
 			wantError:  "--group cannot be combined with --build-id",
 			wantStderr: "Error: --group cannot be combined with --build-id\n",
 			wantCode:   shared.DiagnosticConflictingInput,

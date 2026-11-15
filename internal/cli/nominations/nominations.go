@@ -80,6 +80,10 @@ Examples:
 			if err := d.ValidatePaginationFlags(ctx, fs, "nominations list", 200, "app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
 				return err
 			}
+			statusInput := shared.SplitCSVUpper(*status)
+			if len(statusInput) == 0 && strings.TrimSpace(*next) == "" {
+				return d.RequiredFlag("--status")
+			}
 			if err := shared.ValidateSort(*sort, nominationSortList()...); err != nil {
 				return d.UsageErrorf("nominations list: %v", err)
 			}
@@ -93,12 +97,9 @@ Examples:
 				return d.UsageError("nominations list: --supported-territories-limit must be between 1 and 200")
 			}
 
-			statusValues, err := normalizeNominationStates(shared.SplitCSVUpper(*status))
+			statusValues, err := normalizeNominationStates(statusInput)
 			if err != nil {
 				return d.UsageErrorf("nominations list: %v", err)
-			}
-			if len(statusValues) == 0 && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--status")
 			}
 
 			typeValues, err := normalizeNominationTypes(shared.SplitCSVUpper(*nomType))

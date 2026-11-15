@@ -53,6 +53,10 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			if err := ValidatePaginationFlags(ctx, fs, prefix+" placements list", 200, append([]string{"placement-type", "placement-group", "include", "limit"}, filters.Names()...)...); err != nil {
 				return err
 			}
+			localizationID := strings.TrimSpace(*id)
+			if *next == "" && localizationID == "" {
+				return UsageError(prefix + " placements list: --localization-id is required")
+			}
 			kinds, err := validatedPlacementCSV(*kind, listTypes)
 			if err != nil {
 				return UsageErrorf(prefix+" placements list: --placement-type %v", err)
@@ -75,10 +79,6 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			}
 			target := *next
 			if target == "" {
-				localizationID := strings.TrimSpace(*id)
-				if localizationID == "" {
-					return UsageError(prefix + " placements list: --localization-id is required")
-				}
 				if !placementLocalizationID.MatchString(localizationID) {
 					return UsageError(prefix + " placements list: --localization-id must be a resource ID")
 				}

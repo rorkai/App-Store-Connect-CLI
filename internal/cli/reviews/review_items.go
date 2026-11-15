@@ -109,6 +109,9 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, errorPrefix, 200, "limit", "fields", "include", "iap-version-fields", "subscription-version-fields", "subscription-group-version-fields"); err != nil {
 				return err
 			}
+			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*next) == "" {
+				return shared.RequiredFlag("--submission")
+			}
 			opts, err := reviewItemsListOptions(*limit, *next, *fields, *include, *iapVersionFields, *subscriptionVersionFields, *subscriptionGroupVersionFields)
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
@@ -124,9 +127,6 @@ Examples:
 				if err != nil {
 					return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("%s: %v", errorPrefix, err)), shared.DiagnosticInvalidInput, "--next")
 				}
-			}
-			if submissionValue == "" {
-				return shared.RequiredFlag("--submission")
 			}
 
 			client, err := reviewItemsClientFactory()

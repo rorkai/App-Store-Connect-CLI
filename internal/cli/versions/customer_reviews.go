@@ -69,14 +69,15 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "versions customer-reviews list", 200, reviews.ReviewNextConflicts...); err != nil {
 				return err
 			}
-			filterOpts, err := filters.ReviewOptions()
-			if err != nil {
-				return err
-			}
 
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--version-id")
+			}
+
+			filterOpts, err := filters.ReviewOptions()
+			if err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

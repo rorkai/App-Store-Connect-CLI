@@ -54,13 +54,13 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions images list", 200, "fields", "limit"); err != nil {
 				return err
 			}
-			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
-			if err != nil {
-				return err
-			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--version-id")
+			}
+			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+			if err != nil {
+				return err
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {

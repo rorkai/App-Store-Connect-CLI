@@ -48,6 +48,11 @@ Examples:
 			}
 			nextValue := strings.TrimSpace(*next)
 
+			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
+			if reviewDetailValue == "" && nextValue == "" {
+				return shared.RequiredFlag("--review-detail")
+			}
+
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
 			if err != nil {
 				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--fields")
@@ -61,10 +66,6 @@ Examples:
 				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--include")
 			}
 
-			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
-			if reviewDetailValue == "" && nextValue == "" {
-				return shared.RequiredFlag("--review-detail")
-			}
 			if nextValue != "" {
 				reviewDetailValue = ""
 			}
