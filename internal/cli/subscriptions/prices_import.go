@@ -356,8 +356,8 @@ Examples:
 				summary,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderSubscriptionPriceImportSummaryTables(summary, false) },
-				func() error { return renderSubscriptionPriceImportSummaryTables(summary, true) },
+				func() error { return renderSubscriptionPriceImportSummaryTables(d, summary, false) },
+				func() error { return renderSubscriptionPriceImportSummaryTables(d, summary, true) },
 			); err != nil {
 				return err
 			}
@@ -389,17 +389,17 @@ func subscriptionPriceImportFailure(summary *subscriptionPriceImportSummary) err
 	return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticInvalidInput, "--input")
 }
 
-func renderSubscriptionPriceImportSummaryTables(summary *subscriptionPriceImportSummary, markdown bool) error {
+func renderSubscriptionPriceImportSummaryTables(d *shared.Deps, summary *subscriptionPriceImportSummary, markdown bool) error {
 	if summary == nil {
 		return fmt.Errorf("summary is nil")
 	}
 
-	render := asc.RenderTable
+	render := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		render = asc.RenderMarkdownTo
 	}
 
-	render(
+	render(d.IO.Out,
 		[]string{"Subscription ID", "Input File", "Dry Run", "Total", "Created", "Skipped", "Reconciled", "Failed", "Failure Artifact", "Failure Artifact Error"},
 		[][]string{{
 			summary.SubscriptionID,
@@ -425,7 +425,7 @@ func renderSubscriptionPriceImportSummaryTables(summary *subscriptionPriceImport
 				failure.Error,
 			})
 		}
-		render([]string{"Row", "Territory", "Price", "Error"}, rows)
+		render(d.IO.Out, []string{"Row", "Territory", "Price", "Error"}, rows)
 	}
 
 	return nil
