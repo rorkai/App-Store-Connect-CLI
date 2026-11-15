@@ -1254,7 +1254,7 @@ func verifySubscriptionsSetupState(ctx context.Context, d *shared.Deps, client *
 			expectedTerritories = append(expectedTerritories, target.TerritoryID)
 		}
 		priceCtx, priceCancel := d.Timeout(ctx)
-		priceState, err := fetchSubscriptionPriceImportStateForPlansWith(priceCtx, d, client, result.SubscriptionID, asc.SubscriptionPlanTypeUpfront)
+		priceState, err := fetchSubscriptionPriceImportStateForPlans(priceCtx, d, client, result.SubscriptionID, asc.SubscriptionPlanTypeUpfront)
 		priceCancel()
 		if err != nil {
 			verification.Status = "failed"
@@ -1284,7 +1284,7 @@ func verifySubscriptionsSetupState(ctx context.Context, d *shared.Deps, client *
 		}
 	} else if len(verification.Territories) > 0 {
 		priceCtx, priceCancel := d.Timeout(ctx)
-		priceState, err := fetchSubscriptionPriceImportStateForPlansWith(priceCtx, d, client, result.SubscriptionID, asc.SubscriptionPlanTypeUpfront)
+		priceState, err := fetchSubscriptionPriceImportStateForPlans(priceCtx, d, client, result.SubscriptionID, asc.SubscriptionPlanTypeUpfront)
 		priceCancel()
 		if err != nil {
 			verification.Status = "failed"
@@ -1434,7 +1434,7 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, d *shared.Deps, cl
 	}
 
 	stateCtx, stateCancel := d.Timeout(ctx)
-	state, err := fetchSubscriptionPriceImportStateForPlansWith(stateCtx, d, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
+	state, err := fetchSubscriptionPriceImportStateForPlans(stateCtx, d, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
 	stateCancel()
 	if err != nil {
 		return nil, false, err
@@ -1453,7 +1453,7 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, d *shared.Deps, cl
 			return struct{}{}, mutationErr
 		},
 		func(readbackCtx context.Context) (struct{}, bool, error) {
-			readbackState, readbackErr := fetchSubscriptionPriceImportStateForPlansWith(readbackCtx, d, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
+			readbackState, readbackErr := fetchSubscriptionPriceImportStateForPlans(readbackCtx, d, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
 			if readbackErr != nil {
 				return struct{}{}, false, readbackErr
 			}

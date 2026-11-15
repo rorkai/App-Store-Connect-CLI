@@ -45,7 +45,7 @@ func TestFetchResolvedSubscriptionPricesUsesFreshDeadlinePerPage(t *testing.T) {
 
 	var result *shared.ResolvedPricesResult
 	synctest.Test(t, func(*testing.T) {
-		result, err = fetchResolvedSubscriptionPrices(context.Background(), client, "sub-1", 200, "", time.Now().UTC(), "", "")
+		result, err = fetchResolvedSubscriptionPrices(context.Background(), client, "sub-1", time.Now().UTC(), "", "")
 	})
 	if err != nil {
 		t.Fatalf("fetchResolvedSubscriptionPrices() error: %v", err)

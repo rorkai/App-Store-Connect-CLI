@@ -158,7 +158,7 @@ func buildSubscriptionsPricingSummaryCommand(d *shared.Deps,
 				return printSubscriptionPricingResult(d, &subscriptionPricingResult{Subscriptions: []subscriptionPriceSummary{}}, *output.Output, *output.Pretty)
 			}
 
-			summaries, err := resolveSubscriptionPriceSummaries(ctx, client, subs, territoryFilter)
+			summaries, err := resolveSubscriptionPriceSummaries(ctx, d, client, subs, territoryFilter)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing: %w", err)
 			}
@@ -237,6 +237,7 @@ func fetchSubscriptionPricingGroups(ctx context.Context, d *shared.Deps, client 
 
 func resolveSubscriptionPriceSummaries(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	subs []subWithGroup,
 	territory string,
@@ -269,7 +270,7 @@ func resolveSubscriptionPriceSummaries(
 			}
 			defer func() { <-sem }()
 
-			summary, err := resolveSubscriptionPriceSummary(ctx, client, subs[idx], territory)
+			summary, err := resolveSubscriptionPriceSummaryWith(ctx, d, client, subs[idx], territory)
 			if err != nil {
 				once.Do(cancel)
 				errs <- fmt.Errorf("resolve %s: %w", subs[idx].Sub.ID, err)

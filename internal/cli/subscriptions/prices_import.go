@@ -238,7 +238,7 @@ Examples:
 			statePlanFilter := subscriptionPriceImportStatePlanFilter(rows, defaultPlanType)
 			var stateIndex *subscriptionPriceImportStateIndex
 			if !*dryRun {
-				stateIndex, err = fetchSubscriptionPriceImportStateForPlans(ctx, client, summary.SubscriptionID, statePlanFilter)
+				stateIndex, err = fetchSubscriptionPriceImportStateForPlans(ctx, d, client, summary.SubscriptionID, statePlanFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices import: fetch existing prices: %w", err)
 				}
@@ -296,7 +296,7 @@ Examples:
 					status, rowErr = runReconciledMutation(
 						ctx,
 						func(readbackCtx context.Context) (bool, error) {
-							refreshed, err := fetchSubscriptionPriceImportStateForPlans(readbackCtx, client, summary.SubscriptionID, statePlanFilter)
+							refreshed, err := fetchSubscriptionPriceImportStateForPlans(readbackCtx, d, client, summary.SubscriptionID, statePlanFilter)
 							if err != nil {
 								return false, err
 							}
@@ -355,8 +355,8 @@ Examples:
 				summary,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderSubscriptionPriceImportSummaryTables(summary, false) },
-				func() error { return renderSubscriptionPriceImportSummaryTables(summary, true) },
+				func() error { return renderSubscriptionPriceImportSummaryTables(d, summary, false) },
+				func() error { return renderSubscriptionPriceImportSummaryTables(d, summary, true) },
 			); err != nil {
 				return err
 			}
@@ -388,17 +388,17 @@ func subscriptionPriceImportFailure(summary *subscriptionPriceImportSummary) err
 	return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticInvalidInput, "--input")
 }
 
-func renderSubscriptionPriceImportSummaryTables(summary *subscriptionPriceImportSummary, markdown bool) error {
+func renderSubscriptionPriceImportSummaryTables(d *shared.Deps, summary *subscriptionPriceImportSummary, markdown bool) error {
 	if summary == nil {
 		return fmt.Errorf("summary is nil")
 	}
 
-	render := asc.RenderTable
+	render := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		render = asc.RenderMarkdownTo
 	}
 
-	render(
+	render(d.IO.Out,
 		[]string{"Subscription ID", "Input File", "Dry Run", "Total", "Created", "Skipped", "Reconciled", "Failed", "Failure Artifact", "Failure Artifact Error"},
 		[][]string{{
 			summary.SubscriptionID,
@@ -424,7 +424,7 @@ func renderSubscriptionPriceImportSummaryTables(summary *subscriptionPriceImport
 				failure.Error,
 			})
 		}
-		render([]string{"Row", "Territory", "Price", "Error"}, rows)
+		render(d.IO.Out, []string{"Row", "Territory", "Price", "Error"}, rows)
 	}
 
 	return nil
@@ -485,11 +485,7 @@ func subscriptionPriceImportStatePlanFilter(rows []subscriptionPriceImportCSVRow
 	return filter
 }
 
-func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
-	return fetchSubscriptionPriceImportStateForPlansWith(ctx, shared.DefaultDeps(), client, subscriptionID, planFilter)
-}
-
-func fetchSubscriptionPriceImportStateForPlansWith(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
+func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
 	query := url.Values{
 		"fields[subscriptionPrices]": []string{"startDate,preserved,planType,territory,subscriptionPricePoint"},
 		"filter[planType]":           []string{string(planFilter)},

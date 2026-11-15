@@ -143,7 +143,7 @@ Examples:
 
 			fmt.Fprintln(os.Stderr, "Fetching current subscription prices...")
 			currentPrices, err := fetchResolvedSubscriptionPrices(
-				ctx, client, subID, 200, "", effectiveAt, asc.SubscriptionPlanTypeUpfront, "",
+				ctx, client, subID, effectiveAt, asc.SubscriptionPlanTypeUpfront, "",
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing ppp: fetch current prices: %w", err)
