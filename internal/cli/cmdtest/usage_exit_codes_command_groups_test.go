@@ -1256,6 +1256,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "video-previews download output given a format",
 			args:    []string{"video-previews", "download", "--output", "table"},
 			wantErr: "--output takes a path in this command, not an output format; use --format table to choose the format, or --output ./table to write to a path named table",
+			deps:    true,
 		},
 	}
 

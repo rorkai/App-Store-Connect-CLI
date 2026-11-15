@@ -52,8 +52,10 @@ func contextWithAssetUploadTimeoutResolved(ctx context.Context, resolve func(sha
 // acquireAssetUploadLock waits for any other asc upload on this machine to
 // finish. Upload commands take it after validating their input and before
 // they start an upload deadline, so the wait is not charged to the upload.
-func acquireAssetUploadLock(ctx context.Context) (func(), error) {
-	return uploadlock.Acquire(ctx, os.Stderr)
+func acquireAssetUploadLock(d *shared.Deps) func(context.Context) (func(), error) {
+	return func(ctx context.Context) (func(), error) {
+		return uploadlock.Acquire(ctx, d.IO.ErrOut)
+	}
 }
 
 // ContextWithAssetUploadTimeout returns a context with the asset upload timeout.
@@ -115,18 +117,18 @@ func collectAssetFiles(path string) ([]string, error) {
 }
 
 // validateLibraryUploadFlags rejects set-only flags on the Asset Library path.
-func validateLibraryUploadFlags(assetLibrary bool, placementGroup string, skipExisting, replace bool) error {
+func validateLibraryUploadFlags(d *shared.Deps, assetLibrary bool, placementGroup string, skipExisting, replace bool) error {
 	if !assetLibrary {
 		if strings.TrimSpace(placementGroup) != "" {
-			return shared.UsageError("--placement-group requires --asset-library")
+			return d.UsageError("--placement-group requires --asset-library")
 		}
 		return nil
 	}
 	if skipExisting {
-		return shared.UsageError("--asset-library cannot be combined with --skip-existing")
+		return d.UsageError("--asset-library cannot be combined with --skip-existing")
 	}
 	if replace {
-		return shared.UsageError("--asset-library cannot be combined with --replace; remove placements with asc localizations placements delete")
+		return d.UsageError("--asset-library cannot be combined with --replace; remove placements with asc localizations placements delete")
 	}
 	return nil
 }

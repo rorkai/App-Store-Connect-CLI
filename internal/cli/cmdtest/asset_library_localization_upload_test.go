@@ -483,9 +483,8 @@ func TestVideoPreviewsUploadAssetLibraryRejectsVideoFromAnotherGroupBeforeUpload
 	setupAuth(t)
 	file := libraryPreviewFile(t, 1200, 1600)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	registerLibraryUploadReads(reg, "IPHONE_DUO_PROFILE", "APP_PREVIEW", nil)
-	_, _, err := runRootCommand(t, []string{"video-previews", "upload", "--version-localization", "LOC_1", "--path", file, "--device-type", "IPHONE_DUO", "--asset-library", "--dry-run", "--output", "json"})
+	_, _, err := runRootWithDeps(t, stubClient(t, reg), "video-previews", "upload", "--version-localization", "LOC_1", "--path", file, "--device-type", "IPHONE_DUO", "--asset-library", "--dry-run", "--output", "json")
 	if err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("err = %v", err)
 	}

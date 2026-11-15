@@ -19,23 +19,30 @@ func TestUploadReplaceRequiresConfirm(t *testing.T) {
 	for _, test := range []struct {
 		command string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{command: "screenshots", wantErr: "--confirm is required to delete existing screenshots with --replace"},
-		{command: "video-previews", wantErr: "--confirm is required to delete existing previews with --replace"},
+		{command: "video-previews", wantErr: "--confirm is required to delete existing previews with --replace", deps: true},
 	} {
 		t.Run(test.command, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			asctest.NewRegistry(t).Install()
-
-			stdout, stderr, runErr := runRootCommand(t, []string{
+			args := []string{
 				test.command, "upload",
 				"--version-localization", "LOC_123",
 				"--path", filepath.Join(t.TempDir(), "media"),
 				"--device-type", "IPHONE_65",
 				"--replace",
-			})
+			}
+			var stdout, stderr string
+			var runErr error
+			if test.deps {
+				stdout, stderr, runErr = runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), args...)
+			} else {
+				asctest.NewRegistry(t).Install()
+				stdout, stderr, runErr = runRootCommand(t, args)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)

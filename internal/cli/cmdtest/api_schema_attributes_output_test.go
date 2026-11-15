@@ -23,7 +23,6 @@ func TestJSONOutputKeepsAttributesFromTheAPISchema(t *testing.T) {
 		resource  string
 		attribute string
 		value     string
-		deps      bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			name:      "video preview poster frame image",
@@ -40,7 +39,6 @@ func TestJSONOutputKeepsAttributesFromTheAPISchema(t *testing.T) {
 			resource:  "appStoreVersionExperimentTreatments",
 			attribute: "appIcon",
 			value:     `{"templateUrl":"https://example.test/{w}x{h}.{f}","width":1024,"height":1024}`,
-			deps:      true,
 		},
 		{
 			name:      "subscription review screenshot asset type",
@@ -49,7 +47,6 @@ func TestJSONOutputKeepsAttributesFromTheAPISchema(t *testing.T) {
 			resource:  "subscriptionAppStoreReviewScreenshots",
 			attribute: "assetType",
 			value:     `"SCREENSHOT"`,
-			deps:      true,
 		},
 	}
 
@@ -60,14 +57,7 @@ func TestJSONOutputKeepsAttributesFromTheAPISchema(t *testing.T) {
 				`{"data":{"type":"`+tt.resource+`","id":"1","attributes":{"`+tt.attribute+`":`+tt.value+`}}}`))
 
 			args := append(append([]string{}, tt.args...), "--output", "json")
-			var stdout string
-			var err error
-			if tt.deps {
-				stdout, _, err = runRootWithDeps(t, stubClient(t, reg), args...)
-			} else {
-				reg.Install()
-				stdout, _, err = runCommand(t, args)
-			}
+			stdout, _, err := runRootWithDeps(t, stubClient(t, reg), args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

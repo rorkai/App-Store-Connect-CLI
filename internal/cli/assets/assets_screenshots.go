@@ -901,7 +901,7 @@ Examples:
 
 				defer client.CloseUploadConnections()
 
-				result, err := resumeAppScreenshotUpload(ctx, client, resumePath, acquireAssetUploadLock)
+				result, err := resumeAppScreenshotUpload(ctx, client, resumePath, acquireAssetUploadLock(shared.DefaultDeps()))
 				if hasAppScreenshotUploadResultOutput(result) {
 					if printErr := shared.PrintOutput(&result, *output.Output, *output.Pretty); printErr != nil {
 						return printErr
@@ -931,7 +931,7 @@ Examples:
 				RequestContext:    shared.ContextWithTimeout,
 				UploadScreenshot:  uploadScreenshots,
 				ExecuteUpload:     executeAppScreenshotUpload,
-				AcquireUploadLock: acquireAssetUploadLock,
+				AcquireUploadLock: acquireAssetUploadLock(shared.DefaultDeps()),
 			})
 			if result != nil {
 				shouldPrint := err == nil
@@ -987,7 +987,7 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 	localeValue := strings.TrimSpace(opts.Locale)
 	appModeRequested := appFlagValue != "" || versionValue != "" || versionIDValue != "" || platformValue != ""
 
-	if err := validateLibraryUploadFlags(opts.AssetLibrary, opts.PlacementGroup, opts.SkipExisting, opts.Replace); err != nil {
+	if err := validateLibraryUploadFlags(shared.DefaultDeps(), opts.AssetLibrary, opts.PlacementGroup, opts.SkipExisting, opts.Replace); err != nil {
 		return nil, err
 	}
 	if opts.AssetLibrary && locID == "" {
