@@ -3,7 +3,9 @@ package web
 import (
 	"bytes"
 	"net/http"
+	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -19,6 +21,7 @@ func newWebTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 		Timeout:        shared.ContextWithTimeout,
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
+		Getwd:          os.Getwd,
 		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
 	}, &stdout, &stderr
 }
@@ -64,4 +67,11 @@ func spinnerLabels(stderr string) []string {
 		labels = append(labels, match[1])
 	}
 	return labels
+}
+
+// runWithWebTestDepsStderr runs fn and returns what it wrote to the deps
+// stderr, with CRLF line endings normalized as captureWebDiagnosticStderr does.
+func runWithWebTestDepsStderr(stderr *bytes.Buffer, fn func()) string {
+	fn()
+	return strings.ReplaceAll(stderr.String(), "\r\n", "\n")
 }

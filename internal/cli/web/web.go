@@ -61,7 +61,7 @@ Examples:
 			WebWebsitePushIDsCommand(),
 			WebICloudContainersCommand(),
 			WebAppGroupsCommand(),
-			WebPrivacyCommand(),
+			newWebPrivacyCommand(d),
 			WebReviewCommand(),
 			WebSubscriptionsCommand(),
 			WebAnalyticsCommand(),
