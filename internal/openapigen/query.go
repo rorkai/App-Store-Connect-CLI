@@ -71,15 +71,24 @@ type scalarParam struct {
 // when positive and sent after limit; a boolean is sent as true or false once
 // set.
 var scalarParams = map[string]scalarParam{
-	"string": {"string", []string{"string", "array"},
+	"string": {
+		"string",
+		[]string{"string", "array"},
 		"if strings.TrimSpace(%[1]s) != \"\" {\nq.%[2]s = strings.TrimSpace(%[1]s)\n}",
-		"if strings.TrimSpace(query.%[1]s) != \"\" {\nvalues.Set(%[2]s, strings.TrimSpace(query.%[1]s))\n}"},
-	"int": {"int", []string{"integer"},
+		"if strings.TrimSpace(query.%[1]s) != \"\" {\nvalues.Set(%[2]s, strings.TrimSpace(query.%[1]s))\n}",
+	},
+	"int": {
+		"int",
+		[]string{"integer"},
 		"if %[1]s > 0 {\nq.%[2]s = %[1]s\n}",
-		"if query.%[1]s > 0 {\nvalues.Set(%[2]s, strconv.Itoa(query.%[1]s))\n}"},
-	"bool": {"*bool", []string{"boolean"},
+		"if query.%[1]s > 0 {\nvalues.Set(%[2]s, strconv.Itoa(query.%[1]s))\n}",
+	},
+	"bool": {
+		"*bool",
+		[]string{"boolean"},
 		"q.%[2]s = &%[1]s",
-		"if query.%[1]s != nil {\nvalues.Set(%[2]s, strconv.FormatBool(*query.%[1]s))\n}"},
+		"if query.%[1]s != nil {\nvalues.Set(%[2]s, strconv.FormatBool(*query.%[1]s))\n}",
+	},
 }
 
 // argType is the Go type of a scalar option's argument.
