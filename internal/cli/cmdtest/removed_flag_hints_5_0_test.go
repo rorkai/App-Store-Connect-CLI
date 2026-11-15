@@ -55,6 +55,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			name: "subscriptions view --subscription-id",
 			args: []string{"subscriptions", "view", "--subscription-id", "PRIVATE_VALUE"},
 			want: "Error: `--subscription-id` was removed in 5.0.0; use `--id` (see migrate-to-5-0)\nFor help:\n  asc subscriptions view --help\n",
+			deps: true,
 		},
 		{
 			name: "builds info --build",

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsGroupsVersionLocalizationsCommand manages version-scoped v2 localizations.
-func SubscriptionsGroupsVersionLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions localizations", flag.ExitOnError)
+// newSubscriptionsGroupsVersionLocalizationsCommand manages version-scoped v2 localizations.
+func newSubscriptionsGroupsVersionLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups versions localizations", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "localizations", ShortUsage: "asc subscriptions groups versions localizations <subcommand> [flags]", ShortHelp: "Manage version-scoped subscription group localizations.",
 		LongHelp: `Manage version-scoped subscription group localizations.
@@ -25,12 +24,12 @@ asc subscriptions groups localizations are deprecated; use these version-scoped
 commands for new workflows.`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsGroupsVersionLocalizationsListCommand(),
-			SubscriptionsGroupsVersionLocalizationsCreateCommand(),
-			SubscriptionsGroupsVersionLocalizationsViewCommand(),
-			SubscriptionsGroupsVersionLocalizationsUpdateCommand(),
-			SubscriptionsGroupsVersionLocalizationsDeleteCommand(),
-			SubscriptionsGroupsVersionLocalizationsImportCommand(),
+			newSubscriptionsGroupsVersionLocalizationsListCommand(d),
+			newSubscriptionsGroupsVersionLocalizationsCreateCommand(d),
+			newSubscriptionsGroupsVersionLocalizationsViewCommand(d),
+			newSubscriptionsGroupsVersionLocalizationsUpdateCommand(d),
+			newSubscriptionsGroupsVersionLocalizationsDeleteCommand(d),
+			newSubscriptionsGroupsVersionLocalizationsImportCommand(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
@@ -58,9 +57,9 @@ func subscriptionGroupVersionLocalizationOptions(includeValue, fieldsValue, vers
 	}, nil
 }
 
-// SubscriptionsGroupsVersionLocalizationsListCommand lists localizations owned by a version.
-func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions localizations list", flag.ExitOnError)
+// newSubscriptionsGroupsVersionLocalizationsListCommand lists localizations owned by a version.
+func newSubscriptionsGroupsVersionLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups versions localizations list", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionGroupVersions", "Subscription group version ID")
 	include := fs.String("include", "", "Include relationship: version")
 	fields := fs.String("fields", "", "Localization fields: name,customAppName,locale,version")
@@ -68,17 +67,17 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc subscriptions groups versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for a subscription group version.",
 		LongHelp: "List localizations for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations list --version-id \"VERSION_ID\" --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions localizations list", 200, "include", "fields", "version-fields", "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions localizations list", 200, "include", "fields", "version-fields", "limit"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 {
@@ -86,13 +85,13 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 			}
 			opts, err := subscriptionGroupVersionLocalizationOptions(*include, *fields, *versionFields, firstPageLimit, *next)
 			if err != nil {
-				return shared.UsageError("subscriptions groups versions localizations list: " + err.Error())
+				return d.UsageError("subscriptions groups versions localizations list: " + err.Error())
 			}
-			client, err := subscriptionGroupVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations list: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetSubscriptionGroupVersionLocalizations(requestCtx, id, opts...)
 			if err != nil {
@@ -105,42 +104,42 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 				if err != nil {
 					return fmt.Errorf("subscriptions groups versions localizations list: %w", err)
 				}
-				return shared.PrintOutput(aggregated, *output.Output, *output.Pretty)
+				return d.PrintOutput(aggregated, *output.Output, *output.Pretty)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsGroupsVersionLocalizationsCreateCommand creates a v2 localization.
-func SubscriptionsGroupsVersionLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions localizations create", flag.ExitOnError)
+// newSubscriptionsGroupsVersionLocalizationsCreateCommand creates a v2 localization.
+func newSubscriptionsGroupsVersionLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups versions localizations create", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionGroupVersions", "Subscription group version ID")
 	name := fs.String("name", "", "Localized name")
 	locale := fs.String("locale", "", "Locale (for example, en-US)")
 	customAppName := fs.String("custom-app-name", "", "Custom app name")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "create", ShortUsage: `asc subscriptions groups versions localizations create --version-id "VERSION_ID" --name "Premium" --locale "en-US"`, ShortHelp: "Create a localization for a subscription group version.",
 		LongHelp: "Create a localization for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations create --version-id \"VERSION_ID\" --name \"Premium\" --locale \"en-US\"", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
-			client, err := subscriptionGroupVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations create: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			attrs := asc.SubscriptionGroupLocalizationV2CreateAttributes{Name: nameValue, Locale: localeValue}
 			if customNameValue := strings.TrimSpace(*customAppName); customNameValue != "" {
@@ -150,16 +149,13 @@ func SubscriptionsGroupsVersionLocalizationsCreateCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations create: failed to create: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsGroupsVersionLocalizationsViewCommand retrieves a v2 localization.
-func SubscriptionsGroupsVersionLocalizationsViewCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
-
+// newSubscriptionsGroupsVersionLocalizationsViewCommand retrieves a v2 localization.
+func newSubscriptionsGroupsVersionLocalizationsViewCommand(d *shared.Deps) *ffcli.Command {
 	var opts []asc.SubscriptionGroupVersionLocalizationsOption
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -180,7 +176,7 @@ func SubscriptionsGroupsVersionLocalizationsViewCommand() *ffcli.Command {
 			return func() (err error) {
 				opts, err = subscriptionGroupVersionLocalizationOptions(*include, *fields, *versionFields, 0, "")
 				if err != nil {
-					return shared.UsageError("subscriptions groups versions localizations view: " + err.Error())
+					return d.UsageError("subscriptions groups versions localizations view: " + err.Error())
 				}
 				return nil
 			}
@@ -201,35 +197,35 @@ func subscriptionGroupFlagSet(fs *flag.FlagSet, name string) bool {
 	return found
 }
 
-// SubscriptionsGroupsVersionLocalizationsUpdateCommand updates nullable v2 attributes.
-func SubscriptionsGroupsVersionLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions localizations update", flag.ExitOnError)
+// newSubscriptionsGroupsVersionLocalizationsUpdateCommand updates nullable v2 attributes.
+func newSubscriptionsGroupsVersionLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups versions localizations update", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "id", "subscriptionGroupLocalizations", "Subscription group localization ID")
 	name := fs.String("name", "", "Localized name")
 	customAppName := fs.String("custom-app-name", "", "Custom app name")
 	clearName := fs.Bool("clear-name", false, "Set the localized name to null")
 	clearCustomAppName := fs.Bool("clear-custom-app-name", false, "Set the custom app name to null")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "update", ShortUsage: `asc subscriptions groups versions localizations update --id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped subscription group localization.",
 		LongHelp: "Update a version-scoped subscription group localization.\n\nExamples:\n  asc subscriptions groups versions localizations update --id \"LOCALIZATION_ID\" --name \"Premium Plus\"\n  asc subscriptions groups versions localizations update --id \"LOCALIZATION_ID\" --clear-custom-app-name", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			nameSet := subscriptionGroupFlagSet(fs, "name")
 			customNameSet := subscriptionGroupFlagSet(fs, "custom-app-name")
 			if nameSet && *clearName {
-				fmt.Fprintln(os.Stderr, "Error: --name cannot be used with --clear-name")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --name cannot be used with --clear-name")
 				return shared.WithDiagnostic(shared.InvalidValueUsageError("--name"), shared.DiagnosticConflictingInput, "--name")
 			}
 			if customNameSet && *clearCustomAppName {
-				fmt.Fprintln(os.Stderr, "Error: --custom-app-name cannot be used with --clear-custom-app-name")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --custom-app-name cannot be used with --clear-custom-app-name")
 				return shared.WithDiagnostic(shared.InvalidValueUsageError("--custom-app-name"), shared.DiagnosticConflictingInput, "--custom-app-name")
 			}
 			if !nameSet && !customNameSet && !*clearName && !*clearCustomAppName {
-				return shared.UpdateFlagRequired(fs, name, customAppName, clearName, clearCustomAppName)
+				return d.UpdateFlagRequired(fs, name, customAppName, clearName, clearCustomAppName)
 			}
 			attrs := asc.SubscriptionGroupLocalizationV2UpdateAttributes{}
 			if nameSet {
@@ -244,26 +240,23 @@ func SubscriptionsGroupsVersionLocalizationsUpdateCommand() *ffcli.Command {
 			} else if *clearCustomAppName {
 				attrs.CustomAppName = &asc.NullableString{Value: nil}
 			}
-			client, err := subscriptionGroupVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations update: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.UpdateSubscriptionGroupLocalizationV2(requestCtx, value, attrs)
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations update: failed to update: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsGroupsVersionLocalizationsDeleteCommand deletes a v2 localization.
-func SubscriptionsGroupsVersionLocalizationsDeleteCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
-
+// newSubscriptionsGroupsVersionLocalizationsDeleteCommand deletes a v2 localization.
+func newSubscriptionsGroupsVersionLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName:        "groups versions localizations delete",
 		Name:               "delete",

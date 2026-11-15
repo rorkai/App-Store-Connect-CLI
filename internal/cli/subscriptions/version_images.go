@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsVersionImagesCommand returns version image commands.
-func SubscriptionsVersionImagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images", flag.ExitOnError)
+// newSubscriptionsVersionImagesCommand returns version image commands.
+func newSubscriptionsVersionImagesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "images", ShortUsage: "asc subscriptions versions images <subcommand> [flags]",
 		ShortHelp: "Manage version-scoped subscription images.",
@@ -25,48 +25,48 @@ Examples:
   asc subscriptions versions images upload --version-id "VERSION_ID" --file "./image.png"`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsVersionImagesListCommand(),
-			SubscriptionsVersionImagesPrimaryCommand(),
-			SubscriptionsVersionImagesLinksCommand(),
-			SubscriptionsVersionImagesPrimaryLinkCommand(),
-			SubscriptionsVersionImagesViewCommand(),
-			SubscriptionsVersionImagesUploadCommand(),
-			SubscriptionsVersionImagesUpdateCommand(),
-			SubscriptionsVersionImagesDeleteCommand(),
+			newSubscriptionsVersionImagesListCommand(d),
+			newSubscriptionsVersionImagesPrimaryCommand(d),
+			newSubscriptionsVersionImagesLinksCommand(d),
+			newSubscriptionsVersionImagesPrimaryLinkCommand(d),
+			newSubscriptionsVersionImagesViewCommand(d),
+			newSubscriptionsVersionImagesUploadCommand(d),
+			newSubscriptionsVersionImagesUpdateCommand(d),
+			newSubscriptionsVersionImagesDeleteCommand(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-// SubscriptionsVersionImagesListCommand lists related version images.
-func SubscriptionsVersionImagesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images list", flag.ExitOnError)
+// newSubscriptionsVersionImagesListCommand lists related version images.
+func newSubscriptionsVersionImagesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images list", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: "asc subscriptions versions images list [flags]", ShortHelp: "List images for a subscription version.",
 		LongHelp: "List version-scoped subscription images.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions images list", 200, "fields", "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions images list", 200, "fields", "limit"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
-			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+			fieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 			if err != nil {
 				return err
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images list: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 {
@@ -86,68 +86,68 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 				}
 				resp = aggregated.(*asc.SubscriptionImagesV2Response)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsVersionImagesPrimaryCommand reads the singular image relationship.
-func SubscriptionsVersionImagesPrimaryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images primary", flag.ExitOnError)
+// newSubscriptionsVersionImagesPrimaryCommand reads the singular image relationship.
+func newSubscriptionsVersionImagesPrimaryCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images primary", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "primary", ShortUsage: "asc subscriptions versions images primary --version-id \"VERSION_ID\"", ShortHelp: "View the singular image for a version.",
 		LongHelp: "View the singular image relationship for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
-			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+			fieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 			if err != nil {
 				return err
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images primary: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetSubscriptionVersionImage(requestCtx, id, asc.WithSubscriptionImageV2Fields(fieldValues))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images primary: failed to fetch: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsVersionImagesLinksCommand lists plural image linkages.
-func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images links", flag.ExitOnError)
+// newSubscriptionsVersionImagesLinksCommand lists plural image linkages.
+func newSubscriptionsVersionImagesLinksCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images links", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "links", ShortUsage: "asc subscriptions versions images links [flags]", ShortHelp: "List raw image linkages.",
 		LongHelp: "List raw plural image relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions images links", 200, "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions images links", 200, "limit"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images links: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 {
@@ -166,43 +166,44 @@ func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
 				}
 				resp = aggregated.(*asc.LinkagesResponse)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsVersionImagesPrimaryLinkCommand reads the singular image linkage.
-func SubscriptionsVersionImagesPrimaryLinkCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images primary-link", flag.ExitOnError)
+// newSubscriptionsVersionImagesPrimaryLinkCommand reads the singular image linkage.
+func newSubscriptionsVersionImagesPrimaryLinkCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images primary-link", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "primary-link", ShortUsage: "asc subscriptions versions images primary-link --version-id \"VERSION_ID\"", ShortHelp: "View the singular image linkage.",
 		LongHelp: "View the raw singular image relationship linkage for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images primary-link: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetSubscriptionVersionImageRelationship(requestCtx, id)
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images primary-link: failed to fetch: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsVersionImagesViewCommand views a v2 image.
-func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
+// newSubscriptionsVersionImagesViewCommand views a v2 image.
+func newSubscriptionsVersionImagesViewCommand(d *shared.Deps) *ffcli.Command {
 	var fieldValues []string
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "versions images view",
 		Name:        "view", ShortUsage: "asc subscriptions versions images view --id \"IMAGE_ID\"", ShortHelp: "View a version-scoped image.",
 		LongHelp: "View a version-scoped subscription image by ID.",
@@ -210,7 +211,7 @@ func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
 		Flags: func(fs *flag.FlagSet) func() error {
 			fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
 			return func() (err error) {
-				fieldValues, err = normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+				fieldValues, err = normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 				return err
 			}
 		},
@@ -220,33 +221,33 @@ func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
 	})
 }
 
-// SubscriptionsVersionImagesUploadCommand reserves, uploads, and commits a v2 image.
-func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images upload", flag.ExitOnError)
+// newSubscriptionsVersionImagesUploadCommand reserves, uploads, and commits a v2 image.
+func newSubscriptionsVersionImagesUploadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images upload", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
 	filePath := fs.String("file", "", "Path to image file")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "upload", ShortUsage: "asc subscriptions versions images upload [flags]", ShortHelp: "Upload a version-scoped subscription image.",
 		LongHelp: "Reserve, upload, and commit an image for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id, pathValue := strings.TrimSpace(*versionID), strings.TrimSpace(*filePath)
 			if id == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			if pathValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 			file, info, err := openSubscriptionImageFile(pathValue)
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images upload: %w", err)
 			}
 			defer file.Close()
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images upload: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+			requestCtx, cancel := d.UploadTimeout(ctx)
 			defer cancel()
 			reservation, err := client.CreateSubscriptionImageV2(requestCtx, id, info.Name(), info.Size())
 			if err != nil {
@@ -267,48 +268,49 @@ func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images upload: failed to commit reserved image %s: %w", reservation.Data.ID, err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsVersionImagesUpdateCommand updates the uploaded state.
-func SubscriptionsVersionImagesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images update", flag.ExitOnError)
+// newSubscriptionsVersionImagesUpdateCommand updates the uploaded state.
+func newSubscriptionsVersionImagesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions images update", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "id", "subscriptionImages", "Subscription image ID")
 	var uploaded shared.OptionalBool
 	fs.Var(&uploaded, "uploaded", "Mark upload complete: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "update", ShortUsage: "asc subscriptions versions images update --id \"IMAGE_ID\" --uploaded true", ShortHelp: "Update a version-scoped image.",
 		LongHelp: "Update the uploaded state for a version-scoped subscription image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			if !uploaded.IsSet() {
-				return shared.UsageError("--uploaded is required")
+				return d.UsageError("--uploaded is required")
 			}
 			value := uploaded.Value()
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images update: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.UpdateSubscriptionImageV2(requestCtx, imageID, asc.SubscriptionImageV2UpdateAttributes{Uploaded: &asc.NullableBool{Value: &value}})
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images update: failed to update: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsVersionImagesDeleteCommand deletes a v2 image.
-func SubscriptionsVersionImagesDeleteCommand() *ffcli.Command {
+// newSubscriptionsVersionImagesDeleteCommand deletes a v2 image.
+func newSubscriptionsVersionImagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:               d,
 		FlagSetName:        "versions images delete",
 		Name:               "delete",
 		ShortUsage:         "asc subscriptions versions images delete --id \"IMAGE_ID\" --confirm",

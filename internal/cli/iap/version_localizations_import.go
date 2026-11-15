@@ -11,7 +11,7 @@ import (
 
 // IAPVersionLocalizationsImportCommand creates or updates IAP version
 // localizations from a JSON file.
-func IAPVersionLocalizationsImportCommand() *ffcli.Command {
+func newIAPVersionLocalizationsImportCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewVersionLocalizationImportCommand(shared.VersionLocalizationImportConfig{
 		CommandPath:         "iap versions localizations import",
 		VersionResourceType: "inAppPurchaseVersions",
@@ -19,7 +19,8 @@ func IAPVersionLocalizationsImportCommand() *ffcli.Command {
 		ResourceType:        "inAppPurchaseLocalizations",
 		OptionalField:       "description",
 		ExampleValues:       `{"en-US": {"name": "Pro", "description": "Remove limits"}, "de-DE": {"name": "Pro"}}`,
-		NewClient:           func() (*asc.Client, error) { return iapVersionClientFactory() },
+		NewClient:           d.Client,
+		Deps:                d,
 		Ops:                 iapVersionLocalizationImportOps,
 	})
 }

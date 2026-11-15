@@ -107,6 +107,7 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 		{
 			name: "iap review-screenshots view",
 			args: []string{"iap", "review-screenshots", "view", "--screenshot-id", "shot-1"},
+			deps: true,
 			responses: map[string]string{
 				"/v1/inAppPurchaseAppStoreReviewScreenshots/shot-1": `{"data":{"type":"inAppPurchaseAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","uploadOperations":[],"sourceFileChecksum":null}}}`,
 			},

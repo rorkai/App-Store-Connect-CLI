@@ -350,12 +350,14 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "iap list", operation: "apps_inAppPurchasesV2_getToManyRelated",
 			command: []string{"iap", "list"}, selector: []string{"--app", "app-1"},
+			deps:    true,
 			include: iapListIncludes, path: "/v1/apps/app-1/inAppPurchasesV2",
 			flags: iapListIncludedFieldFlags,
 		},
 		{
 			name: "iap view", operation: "inAppPurchasesV2_getInstance", resource: true, noNext: true,
 			command: []string{"iap", "view"}, selector: []string{"--id", "iap-1"},
+			deps:    true,
 			include: iapListIncludes + ",pricePoints", path: "/v2/inAppPurchases/iap-1",
 			flags: withFlag(iapListIncludedFieldFlags, "iap-price-point-fields", "inAppPurchasePricePoints"),
 		},

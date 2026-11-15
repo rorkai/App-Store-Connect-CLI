@@ -78,4 +78,13 @@ var generatedQueries = map[string]generatedQuery{
 			"limit[gears]":    WithZipperTeethGearsLimit,
 		},
 	},
+	"zippers_toggles_getToManyRelated": {
+		build: buildZipperTogglesQuery,
+		options: map[string]any{
+			"filter[name]": WithZipperTogglesName,
+			"filter[code]": WithZipperTogglesCode,
+			"filter[id]":   WithZipperTogglesIDs,
+			"filter[kind]": WithZipperTogglesKinds,
+		},
+	},
 }

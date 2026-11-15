@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -348,6 +349,9 @@ func deriveParam(spec *Spec, q *QueryBind, op *Operation, stmt ast.Stmt, p *Quer
 	if len(wf.Type.Params.List) == 1 && len(wf.Type.Params.List[0].Names) == 1 {
 		p.Arg = wf.Type.Params.List[0].Names[0].Name
 	}
+	if p.Type == "string" {
+		p.Type, p.Normalize = stringOption(wf)
+	}
 	if p.Type == "" {
 		p.Normalize = normalizeOf(wf, field)
 	}
@@ -465,6 +469,35 @@ func settingWith(withs map[string]*decl, field string) *decl {
 		}
 	}
 	return nil
+}
+
+// stringOption returns the QueryParam.Type and Normalize of a With function
+// that sets a string field: a comma-separated type when it takes that type's
+// argument and calls one of its normalizers, else a plain string.
+func stringOption(with *ast.FuncDecl) (string, string) {
+	arg := ""
+	if len(with.Type.Params.List) == 1 {
+		arg = exprString(with.Type.Params.List[0].Type)
+	}
+	for _, typ := range []string{"csv", "csvList"} {
+		scalar := scalarParams[typ]
+		if arg != scalar.argType() {
+			continue
+		}
+		for _, key := range slices.Sorted(maps.Keys(scalar.normalizers)) {
+			found := false
+			ast.Inspect(with, func(x ast.Node) bool {
+				if call, ok := x.(*ast.CallExpr); ok && exprString(call.Fun) == scalar.normalizers[key] {
+					found = true
+				}
+				return !found
+			})
+			if found {
+				return typ, key
+			}
+		}
+	}
+	return "string", ""
 }
 
 // normalizeOf returns the listNormalizers key of the function a With

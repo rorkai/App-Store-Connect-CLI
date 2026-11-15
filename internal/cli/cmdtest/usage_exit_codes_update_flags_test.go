@@ -244,21 +244,25 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "iap promoted-purchases update",
 			args:  []string{"iap", "promoted-purchases", "update", "--promoted-purchase-id", "ID"},
 			flags: "--visible-for-all-users, --enabled",
+			deps:  true,
 		},
 		{
 			name:  "iap review-screenshots update",
 			args:  []string{"iap", "review-screenshots", "update", "--screenshot-id", "ID"},
 			flags: "--checksum, --uploaded, --file",
+			deps:  true,
 		},
 		{
 			name:  "iap update",
 			args:  []string{"iap", "update", "--id", "ID"},
 			flags: "--ref-name, --family-sharable, --review-note",
+			deps:  true,
 		},
 		{
 			name:  "iap versions localizations update",
 			args:  []string{"iap", "versions", "localizations", "update", "--localization-id", "ID"},
 			flags: "--name, --clear-name, --description, --clear-description",
+			deps:  true,
 		},
 		{
 			name:  "localizations update",
@@ -349,16 +353,19 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions grace-periods update",
 			args:  []string{"subscriptions", "grace-periods", "update", "--id", "ID"},
 			flags: "--opt-in, --sandbox-opt-in, --duration, --renewal-type",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions groups update",
 			args:  []string{"subscriptions", "groups", "update", "--id", "ID"},
 			flags: "--reference-name",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions groups versions localizations update",
 			args:  []string{"subscriptions", "groups", "versions", "localizations", "update", "--id", "ID"},
 			flags: "--name, --custom-app-name, --clear-name, --clear-custom-app-name",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions offers introductory update",
@@ -379,6 +386,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions promoted-purchases update",
 			args:  []string{"subscriptions", "promoted-purchases", "update", "--promoted-purchase-id", "ID"},
 			flags: "--visible-for-all-users, --enabled",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions retention-messages localizations update",
@@ -394,11 +402,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions update",
 			args:  []string{"subscriptions", "update", "--id", "ID"},
 			flags: "--reference-name, --review-note, --subscription-period, --group-level, --family-sharable, --market-settings, --multi-seat-status",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions versions localizations update",
 			args:  []string{"subscriptions", "versions", "localizations", "update", "--id", "ID"},
 			flags: "--name, --description, --clear-name, --clear-description",
+			deps:  true,
 		},
 		{
 			name:  "testflight app-localizations update",

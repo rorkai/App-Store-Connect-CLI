@@ -105,8 +105,10 @@ type contractBoundParam struct {
 // the query serves, that the option sends exactly the parameter the schema
 // defines for it: a list cleaned as its binding says (trimmed, without blank
 // items, and de-duplicated or upper-cased), a trimmed string, a positive
-// integer or a boolean, encoded as the schema says, and nothing for a blank
-// string or an integer that is not positive; that limit is sent for an
+// integer, a boolean, or comma-separated values given in one string or a
+// list and cleaned the same way, encoded as the schema says, and nothing for
+// a blank string, an integer that is not positive, or values that are all
+// blank; that limit is sent for an
 // operation that pages; and that every query parameter of the operation has
 // an option. An option of a parameter the operation does not define must send
 // nothing, as must the page size when the operation does not page; this is
@@ -233,6 +235,41 @@ var contractScalars = map[string]contractScalar{
 		{[]any{true}, []string{"true"}},
 		{[]any{false}, []string{"false"}},
 	}},
+	"csv": {reflect.TypeFor[string](), []string{"array"}, []contractScalarCase{
+		{[]any{" contract-1 , ,contract-2,contract-1 "}, []string{"contract-1", "contract-2", "contract-1"}},
+		{[]any{""}, nil},
+		{[]any{" , "}, nil},
+		{[]any{"contract-1", " , "}, []string{"contract-1"}},
+	}},
+	"csvList": {reflect.TypeFor[[]string](), []string{"array"}, []contractScalarCase{
+		{[]any{[]string{" contract-1 ", "", "contract-2", "contract-1"}}, []string{"contract-1", "contract-2", "contract-1"}},
+		{[]any{[]string{}}, nil},
+		{[]any{[]string{" ", ""}}, nil},
+		{[]any{[]string{"contract-1"}, []string{" "}}, []string{"contract-1"}},
+	}},
+}
+
+// contractNormalized is what an option with a normalize binding sends for
+// the values it would send without one: upper-cased, or without repeated
+// values.
+var contractNormalized = map[string]func([]string) []string{
+	"": slices.Clone[[]string],
+	"upper": func(values []string) []string {
+		out := slices.Clone(values)
+		for i := range out {
+			out[i] = strings.ToUpper(out[i])
+		}
+		return out
+	},
+	"unique": func(values []string) []string {
+		var out []string
+		for _, v := range values {
+			if !slices.Contains(out, v) {
+				out = append(out, v)
+			}
+		}
+		return out
+	},
 }
 
 // checkGeneratedQuery returns every difference between what the generated
@@ -311,7 +348,12 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 			continue
 		}
 		if isScalar {
-			problems = append(problems, checkScalarOption(label, name, param, scalar, option, send, base)...)
+			normalized, ok := contractNormalized[bound[name].Normalize]
+			if !ok {
+				problems = append(problems, fmt.Sprintf("%s has unknown normalize %q", label, bound[name].Normalize))
+				continue
+			}
+			problems = append(problems, checkScalarOption(label, name, param, scalar, normalized, option, send, base)...)
 			continue
 		}
 		sent, ok := contractQuerySent[bound[name].Normalize]
@@ -345,7 +387,7 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 // checkScalarOption calls a scalar option with each of its cases and returns
 // every case that does not send the parameter as the schema encodes it, or
 // does not leave it out.
-func checkScalarOption(label, name string, param contractQueryParam, scalar contractScalar, option reflect.Value, send func(func(reflect.Value)) url.Values, base url.Values) []string {
+func checkScalarOption(label, name string, param contractQueryParam, scalar contractScalar, normalized func([]string) []string, option reflect.Value, send func(func(reflect.Value)) url.Values, base url.Values) []string {
 	schemaType := ""
 	if param.Schema != nil {
 		schemaType = param.Schema.Type
@@ -363,7 +405,7 @@ func checkScalarOption(label, name string, param contractQueryParam, scalar cont
 		want := url.Values{}
 		maps.Copy(want, base)
 		if c.sent != nil {
-			want[name] = contractQueryEncoding(param, c.sent)
+			want[name] = contractQueryEncoding(param, normalized(c.sent))
 		}
 		if !reflect.DeepEqual(got, want) {
 			var calls []string

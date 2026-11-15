@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -113,4 +115,98 @@ func (c *Client) UpdateMerchantID(ctx context.Context, id string, attrs Merchant
 		Path:    fmt.Sprintf("/v1/merchantIds/%s", id),
 		Payload: payload,
 	})
+}
+
+// MerchantIDsOption sets the query of GET /v1/merchantIds (merchantIds_getCollection) and GET /v1/merchantIds/{id} (merchantIds_getInstance).
+type MerchantIDsOption func(*merchantIDsQuery)
+
+type merchantIDsQuery struct {
+	listQuery
+	name              string
+	identifier        string
+	sort              string
+	fields            []string
+	certificateFields []string
+	include           []string
+	certificatesLimit int
+}
+
+// WithMerchantIDsFilterName sets filter[name].
+func WithMerchantIDsFilterName(name string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		normalized := normalizeCSVString(name)
+		if normalized != "" {
+			q.name = normalized
+		}
+	}
+}
+
+// WithMerchantIDsFilterIdentifier sets filter[identifier].
+func WithMerchantIDsFilterIdentifier(identifier string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		normalized := normalizeCSVString(identifier)
+		if normalized != "" {
+			q.identifier = normalized
+		}
+	}
+}
+
+// WithMerchantIDsSort sets sort.
+func WithMerchantIDsSort(sort string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithMerchantIDsFields sets fields[merchantIds].
+func WithMerchantIDsFields(fields []string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithMerchantIDsCertificateFields sets fields[certificates].
+func WithMerchantIDsCertificateFields(fields []string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		q.certificateFields = normalizeList(fields)
+	}
+}
+
+// WithMerchantIDsInclude sets include.
+func WithMerchantIDsInclude(include []string) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithMerchantIDsCertificatesLimit sets limit[certificates].
+func WithMerchantIDsCertificatesLimit(limit int) MerchantIDsOption {
+	return func(q *merchantIDsQuery) {
+		if limit > 0 {
+			q.certificatesLimit = limit
+		}
+	}
+}
+
+func buildMerchantIDsQuery(query *merchantIDsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.name) != "" {
+		values.Set("filter[name]", strings.TrimSpace(query.name))
+	}
+	if strings.TrimSpace(query.identifier) != "" {
+		values.Set("filter[identifier]", strings.TrimSpace(query.identifier))
+	}
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addCSV(values, "fields[merchantIds]", query.fields)
+	addCSV(values, "fields[certificates]", query.certificateFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.certificatesLimit > 0 {
+		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
+	}
+	return values.Encode()
 }

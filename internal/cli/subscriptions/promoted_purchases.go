@@ -7,15 +7,17 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsPromotedPurchasesCommand returns the canonical nested promoted purchases tree.
-func SubscriptionsPromotedPurchasesCommand() *ffcli.Command {
-	cmd := promotedpurchases.PromotedPurchasesCommand()
+// newSubscriptionsPromotedPurchasesCommand returns the canonical nested promoted purchases tree.
+func newSubscriptionsPromotedPurchasesCommand(d *shared.Deps) *ffcli.Command {
+	cmd := promotedpurchases.NewPromotedPurchasesCommand(d)
 	if cmd != nil {
 		lookupAppID := addSubscriptionPromotedPurchaseLookupAppFlag(cmd)
 		cmd.ShortUsage = "asc subscriptions promoted-purchases <subcommand> [flags]"
 		promotedpurchases.ConfigureScopedPromotedPurchasesCommand(cmd, promotedpurchases.ScopedPromotedPurchasesCommandConfig{
+			Deps:               d,
 			PathPrefix:         "asc subscriptions promoted-purchases",
 			ProductType:        "SUBSCRIPTION",
 			ProductSingular:    "a subscription",
@@ -25,7 +27,7 @@ func SubscriptionsPromotedPurchasesCommand() *ffcli.Command {
 			OwnerIDUsage:       "Subscription ID, product ID, or exact current name",
 			OwnerIDPlaceholder: "SUBSCRIPTION_SELECTOR",
 			ResolveOwnerID: func(ctx context.Context, client *asc.Client, selector string) (string, error) {
-				return resolveSubscriptionLookupIDWithTimeout(ctx, client, *lookupAppID, selector)
+				return resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *lookupAppID, selector)
 			},
 			FetchForOwner: func(ctx context.Context, client *asc.Client, subscriptionID string, opts ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error) {
 				return client.GetSubscriptionPromotedPurchase(ctx, subscriptionID, opts...)
@@ -46,7 +48,7 @@ Examples:
   asc subscriptions promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm
   asc subscriptions promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_ID"`,
 		})
-		configureSubscriptionsPromotedPurchasesCreate(cmd)
+		configureSubscriptionsPromotedPurchasesCreate(d, cmd)
 	}
 	return cmd
 }
@@ -61,7 +63,7 @@ func addSubscriptionPromotedPurchaseLookupAppFlag(cmd *ffcli.Command) *string {
 	return &appID
 }
 
-func configureSubscriptionsPromotedPurchasesCreate(cmd *ffcli.Command) {
+func configureSubscriptionsPromotedPurchasesCreate(d *shared.Deps, cmd *ffcli.Command) {
 	promotedpurchases.ConfigureFixedProductTypeCreateCommand(cmd, promotedpurchases.FixedProductTypeCreateConfig{
 		ShortUsage: "asc subscriptions promoted-purchases create --app APP_ID --product-id PRODUCT_ID --visible-for-all-users true|false",
 		ShortHelp:  "Create a promoted purchase for a subscription.",
@@ -72,5 +74,6 @@ Examples:
   asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true --enabled true`,
 		ProductType:    "SUBSCRIPTION",
 		ProductIDUsage: "Subscription ID",
+		Deps:           d,
 	})
 }
