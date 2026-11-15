@@ -249,7 +249,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return submit.NewSubmitCommand(d)
 		}),
 		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
-		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", xcodecloud.XcodeCloudCommand),
+		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", func() *ffcli.Command {
+			return xcodecloud.NewXcodeCloudCommand(d)
+		}),
 		commandFactory("categories", "Manage App Store categories.", func() *ffcli.Command {
 			return categories.NewCategoriesCommand(d)
 		}),

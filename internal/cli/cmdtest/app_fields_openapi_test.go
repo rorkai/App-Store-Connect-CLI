@@ -72,6 +72,7 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 			requestPath: "/v1/ciProducts",
 			args:        []string{"xcode-cloud", "products", "list", "--app", "123456789", "--include", "app"},
 			rejected:    []string{"assetLibrary"},
+			deps:        true,
 		},
 	}
 

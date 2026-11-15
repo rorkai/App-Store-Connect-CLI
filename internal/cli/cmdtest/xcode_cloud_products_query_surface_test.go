@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -15,11 +14,11 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type ciProductsListQueryCapture struct {
 	requests []ciProductsListQueryRequest
+	client   func() (*asc.Client, error)
 }
 
 type ciProductsListQueryRequest struct {
@@ -67,9 +66,9 @@ func ciProductsListQueryStub(t *testing.T, handler http.HandlerFunc) *ciProducts
 	if err != nil {
 		t.Fatalf("create test client: %v", err)
 	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	captured.client = func() (*asc.Client, error) {
 		return client, nil
-	}))
+	}
 
 	return captured
 }
@@ -81,21 +80,10 @@ func (r *ciProductsListQueryCapture) assertNoRequest(t *testing.T) {
 	}
 }
 
-func runCiProductsListQuery(t *testing.T, args ...string) (string, string, error) {
+func runCiProductsListQuery(t *testing.T, captured *ciProductsListQueryCapture, args ...string) (string, string, error) {
 	t.Helper()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	return stdout, stderr, runErr
+	return runRootWithDeps(t, captured.client, args...)
 }
 
 func writeCiProductsResponse(w http.ResponseWriter, body string) {
@@ -113,6 +101,7 @@ func TestXcodeCloudProductsListQuerySurface(t *testing.T) {
 
 	stdout, stderr, err := runCiProductsListQuery(
 		t,
+		captured,
 		"xcode-cloud", "products", "list",
 		"--app", "123456789",
 		"--product-type", "app,FRAMEWORK",
@@ -206,7 +195,7 @@ func TestXcodeCloudProductsListRejectsInvalidQueryValuesBeforeAuth(t *testing.T)
 				writeCiProductsResponse(w, `{"data":[]}`)
 			})
 
-			_, stderr, err := runCiProductsListQuery(t, append([]string{"xcode-cloud", "products", "list"}, test.args...)...)
+			_, stderr, err := runCiProductsListQuery(t, captured, append([]string{"xcode-cloud", "products", "list"}, test.args...)...)
 			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
 			}
@@ -241,14 +230,13 @@ func TestXcodeCloudProductsListRejectsQueryFlagsCombinedWithNext(t *testing.T) {
 				writeCiProductsResponse(w, `{"data":[]}`)
 			})
 			factoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			captured.client = func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("client factory must not run during --next validation")
-			})
-			defer restore()
+			}
 
 			args := append([]string{"xcode-cloud", "products", "list", "--next", nextURL}, test.args...)
-			_, stderr, err := runCiProductsListQuery(t, args...)
+			_, stderr, err := runCiProductsListQuery(t, captured, args...)
 			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
 			}
@@ -308,6 +296,7 @@ func TestXcodeCloudProductsListPreservesServerNextQueryDuringPagination(t *testi
 
 	stdout, stderr, err := runCiProductsListQuery(
 		t,
+		captured,
 		"xcode-cloud", "products", "list",
 		"--app", "123456789",
 		"--product-type", "APP",
@@ -355,6 +344,7 @@ func TestXcodeCloudProductsListAllowsExistingAppWithNextURL(t *testing.T) {
 
 	stdout, stderr, err := runCiProductsListQuery(
 		t,
+		captured,
 		"xcode-cloud", "products", "list",
 		"--next", nextURL,
 		"--app", "123456789",
@@ -385,7 +375,7 @@ func TestXcodeCloudProductsListRejectsBlankQuerySelections(t *testing.T) {
 			captured := ciProductsListQueryStub(t, func(w http.ResponseWriter, req *http.Request) {
 				writeCiProductsResponse(w, `{"data":[]}`)
 			})
-			_, stderr, err := runCiProductsListQuery(t, append([]string{"xcode-cloud", "products", "list"}, test.args...)...)
+			_, stderr, err := runCiProductsListQuery(t, captured, append([]string{"xcode-cloud", "products", "list"}, test.args...)...)
 			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
 			}

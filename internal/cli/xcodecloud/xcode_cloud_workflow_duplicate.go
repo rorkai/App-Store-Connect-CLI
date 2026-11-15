@@ -202,15 +202,15 @@ func omitNulls(value any) (any, bool) {
 	}
 }
 
-// XcodeCloudWorkflowsDuplicateCommand returns the xcode-cloud workflows duplicate subcommand.
-func XcodeCloudWorkflowsDuplicateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("duplicate", flag.ExitOnError)
+// newXcodeCloudWorkflowsDuplicateCommand returns the xcode-cloud workflows duplicate subcommand.
+func newXcodeCloudWorkflowsDuplicateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("duplicate", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "ciWorkflows", "Source workflow ID to copy")
 	name := fs.String("name", "", "Name for the new workflow")
 	description := fs.String("description", "", "Description for the new workflow (default: copied from the source workflow)")
 	enabled := fs.Bool("enabled", false, "Enable the new workflow immediately; the copy is created disabled by default")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "duplicate",
@@ -236,19 +236,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud workflows duplicate: %w", err)
 			}
 
-			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, 0)
 			defer cancel()
 
 			source, err := client.GetCiWorkflowRaw(requestCtx, idValue, ciWorkflowCreateRelationships...)
@@ -272,23 +272,23 @@ Examples:
 				return fmt.Errorf("xcode-cloud workflows duplicate: failed to create copy: %w", err)
 			}
 
-			return printCiWorkflowDuplicateOutput(data, *output.Output, *output.Pretty)
+			return printCiWorkflowDuplicateOutput(d, data, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func printCiWorkflowDuplicateOutput(data json.RawMessage, format string, pretty bool) error {
+func printCiWorkflowDuplicateOutput(d *shared.Deps, data json.RawMessage, format string, pretty bool) error {
 	resolved, err := shared.ValidateOutputFormat(format, pretty)
 	if err != nil {
 		return err
 	}
 	if resolved == "json" {
-		return shared.PrintOutput(json.RawMessage(data), format, pretty)
+		return d.PrintOutput(json.RawMessage(data), format, pretty)
 	}
 
 	var resp asc.CiWorkflowResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return fmt.Errorf("failed to parse created workflow: %w", err)
 	}
-	return shared.PrintOutput(&resp, format, pretty)
+	return d.PrintOutput(&resp, format, pretty)
 }

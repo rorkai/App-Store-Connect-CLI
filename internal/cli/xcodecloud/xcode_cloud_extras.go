@@ -13,11 +13,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// XcodeCloudProductsCommand returns the xcode-cloud products command with subcommands.
-func XcodeCloudProductsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("products", flag.ExitOnError)
+// newXcodeCloudProductsCommand returns the xcode-cloud products command with subcommands.
+func newXcodeCloudProductsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("products", flag.ExitOnError)
 
-	flags := bindCiProductsListFlags(fs)
+	flags := bindCiProductsListFlags(d, fs)
 
 	return &ffcli.Command{
 		Name:       "products",
@@ -34,28 +34,28 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			XcodeCloudProductsListCommand(),
-			XcodeCloudProductsGetCommand(),
-			XcodeCloudProductsAppCommand(),
-			XcodeCloudProductsBuildRunsCommand(),
-			XcodeCloudProductsWorkflowsCommand(),
-			XcodeCloudProductsPrimaryRepositoriesCommand(),
-			XcodeCloudProductsAdditionalRepositoriesCommand(),
-			XcodeCloudProductsDeleteCommand(),
+			newXcodeCloudProductsListCommand(d),
+			newXcodeCloudProductsGetCommand(d),
+			newXcodeCloudProductsAppCommand(d),
+			newXcodeCloudProductsBuildRunsCommand(d),
+			newXcodeCloudProductsWorkflowsCommand(d),
+			newXcodeCloudProductsPrimaryRepositoriesCommand(d),
+			newXcodeCloudProductsAdditionalRepositoriesCommand(d),
+			newXcodeCloudProductsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, flags.flagSet, "xcode-cloud products", 200, "product-type", "fields", "app-fields", "bundle-id-fields", "scm-repository-fields", "include", "primary-repositories-limit", "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, flags.flagSet, "xcode-cloud products", 200, "product-type", "fields", "app-fields", "bundle-id-fields", "scm-repository-fields", "include", "primary-repositories-limit", "limit"); err != nil {
 				return err
 			}
-			return xcodeCloudProductsList(ctx, flags)
+			return xcodeCloudProductsList(ctx, d, flags)
 		},
 	}
 }
 
-func XcodeCloudProductsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+func newXcodeCloudProductsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
-	flags := bindCiProductsListFlags(fs)
+	flags := bindCiProductsListFlags(d, fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -73,15 +73,15 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, flags.flagSet, "xcode-cloud products list", 200, "product-type", "fields", "app-fields", "bundle-id-fields", "scm-repository-fields", "include", "primary-repositories-limit", "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, flags.flagSet, "xcode-cloud products list", 200, "product-type", "fields", "app-fields", "bundle-id-fields", "scm-repository-fields", "include", "primary-repositories-limit", "limit"); err != nil {
 				return err
 			}
-			return xcodeCloudProductsList(ctx, flags)
+			return xcodeCloudProductsList(ctx, d, flags)
 		},
 	}
 }
 
-func XcodeCloudProductsGetCommand() *ffcli.Command {
+func newXcodeCloudProductsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc xcode-cloud products view --id \"PRODUCT_ID\"",
@@ -95,8 +95,9 @@ Examples:
 		IDUsage:          "Product ID",
 		IDType:           "ciProducts",
 		FetchErrorPrefix: "xcode-cloud products view",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetCiProduct(ctx, id)
@@ -104,14 +105,14 @@ Examples:
 	})
 }
 
-func XcodeCloudProductsAppCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app", flag.ExitOnError)
+func newXcodeCloudProductsAppCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "id", "ciProducts", "Product ID")
 	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer age-rating data)")
 	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
 	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
 	retentionMessageFields := fs.String("retention-message-fields", "", "Sparse fields for included retention messages: "+strings.Join(shared.RetentionMessageSparseFields, ", "))
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "app",
@@ -128,32 +129,32 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.UsageError("--id is required")
+				return d.UsageError("--id is required")
 			}
 			appInfoFieldValues, err := normalizeCiProductAppSparseField(fs, *appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			iapFieldValues, err := normalizeCiProductAppSparseField(fs, *iapFields, shared.AppInAppPurchaseSparseFields, "--iap-fields")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			groupFieldValues, err := normalizeCiProductAppSparseField(fs, *subscriptionGroupFields, shared.SubscriptionGroupSparseFields, "--subscription-group-fields")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			retentionMessageFieldValues, err := normalizeCiProductAppSparseField(fs, *retentionMessageFields, shared.RetentionMessageSparseFields, "--retention-message-fields")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
+			d.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products app: %w", err)
 			}
-			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, 0)
 			defer cancel()
 
 			includeValues := []string{}
@@ -180,12 +181,12 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("xcode-cloud products app: failed to fetch: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func XcodeCloudProductsBuildRunsCommand() *ffcli.Command {
+func newXcodeCloudProductsBuildRunsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "build-runs",
 		ShortUsage: "asc xcode-cloud products build-runs [flags]",
@@ -201,8 +202,9 @@ Examples:
 		ParentType:       "ciProducts",
 		LimitMax:         200,
 		FetchErrorPrefix: "xcode-cloud products build-runs",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiBuildRunsOption{
@@ -214,7 +216,7 @@ Examples:
 	})
 }
 
-func XcodeCloudProductsWorkflowsCommand() *ffcli.Command {
+func newXcodeCloudProductsWorkflowsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "workflows",
 		ShortUsage: "asc xcode-cloud products workflows [flags]",
@@ -230,8 +232,9 @@ Examples:
 		ParentType:       "ciProducts",
 		LimitMax:         200,
 		FetchErrorPrefix: "xcode-cloud products workflows",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiWorkflowsOption{
@@ -243,7 +246,7 @@ Examples:
 	})
 }
 
-func XcodeCloudProductsPrimaryRepositoriesCommand() *ffcli.Command {
+func newXcodeCloudProductsPrimaryRepositoriesCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "primary-repositories",
 		ShortUsage: "asc xcode-cloud products primary-repositories [flags]",
@@ -259,8 +262,9 @@ Examples:
 		ParentType:       "ciProducts",
 		LimitMax:         200,
 		FetchErrorPrefix: "xcode-cloud products primary-repositories",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiProductRepositoriesOption{
@@ -272,7 +276,7 @@ Examples:
 	})
 }
 
-func XcodeCloudProductsAdditionalRepositoriesCommand() *ffcli.Command {
+func newXcodeCloudProductsAdditionalRepositoriesCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "additional-repositories",
 		ShortUsage: "asc xcode-cloud products additional-repositories [flags]",
@@ -288,8 +292,9 @@ Examples:
 		ParentType:       "ciProducts",
 		LimitMax:         200,
 		FetchErrorPrefix: "xcode-cloud products additional-repositories",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiProductRepositoriesOption{
@@ -301,7 +306,7 @@ Examples:
 	})
 }
 
-func XcodeCloudProductsDeleteCommand() *ffcli.Command {
+func newXcodeCloudProductsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc xcode-cloud products delete --id \"PRODUCT_ID\" --confirm",
@@ -314,8 +319,9 @@ Examples:
 		IDUsage:           "Product ID",
 		IDType:            "ciProducts",
 		DeleteErrorPrefix: "xcode-cloud products delete",
+		Deps:              d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			if err := client.DeleteCiProduct(ctx, id); err != nil {
@@ -329,47 +335,47 @@ Examples:
 	})
 }
 
-func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) error {
+func xcodeCloudProductsList(ctx context.Context, d *shared.Deps, flags ciProductsListFlags) error {
 	next := strings.TrimSpace(*flags.next)
 
 	productTypes, err := normalizeCiProductsProductTypes(flags.flagSet, *flags.productType)
 	if err != nil {
-		return shared.UsageErrorf("xcode-cloud products: %v", err)
+		return d.UsageErrorf("xcode-cloud products: %v", err)
 	}
 	fields, err := normalizeCiProductsSelection(flags.flagSet, *flags.fields, ciProductsFieldsValues, "--fields")
 	if err != nil {
-		return shared.UsageErrorf("xcode-cloud products: %v", err)
+		return d.UsageErrorf("xcode-cloud products: %v", err)
 	}
 	appFields, err := normalizeCiProductsSelection(flags.flagSet, *flags.appFields, ciProductsAppFieldsValues, "--app-fields")
 	if err != nil {
-		return shared.UsageErrorf("xcode-cloud products: %v", err)
+		return d.UsageErrorf("xcode-cloud products: %v", err)
 	}
 	bundleIDFields, err := normalizeCiProductsSelection(flags.flagSet, *flags.bundleIDFields, ciProductsBundleIDFieldsValues, "--bundle-id-fields")
 	if err != nil {
-		return shared.UsageErrorf("xcode-cloud products: %v", err)
+		return d.UsageErrorf("xcode-cloud products: %v", err)
 	}
 	scmRepositoryFields, err := normalizeCiProductsSelection(flags.flagSet, *flags.scmRepositoryFields, ciProductsScmRepositoryFieldsValues, "--scm-repository-fields")
 	if err != nil {
-		return shared.UsageErrorf("xcode-cloud products: %v", err)
+		return d.UsageErrorf("xcode-cloud products: %v", err)
 	}
 	include, err := normalizeCiProductsSelection(flags.flagSet, *flags.include, ciProductsIncludeValues, "--include")
 	if err != nil {
-		return shared.UsageErrorf("xcode-cloud products: %v", err)
+		return d.UsageErrorf("xcode-cloud products: %v", err)
 	}
 	if flagProvided(flags.flagSet, "primary-repositories-limit") && (*flags.primaryRepositoriesLimit < 1 || *flags.primaryRepositoriesLimit > 50) {
-		return shared.UsageError("xcode-cloud products: --primary-repositories-limit must be between 1 and 50")
+		return d.UsageError("xcode-cloud products: --primary-repositories-limit must be between 1 and 50")
 	}
 	if len(appFields) > 0 && !shared.HasInclude(include, "app") {
-		return shared.UsageError("xcode-cloud products: --app-fields requires --include app")
+		return d.UsageError("xcode-cloud products: --app-fields requires --include app")
 	}
 	if len(bundleIDFields) > 0 && !shared.HasInclude(include, "bundleId") {
-		return shared.UsageError("xcode-cloud products: --bundle-id-fields requires --include bundleId")
+		return d.UsageError("xcode-cloud products: --bundle-id-fields requires --include bundleId")
 	}
 	if len(scmRepositoryFields) > 0 && !shared.HasInclude(include, "primaryRepositories") {
-		return shared.UsageError("xcode-cloud products: --scm-repository-fields requires --include primaryRepositories")
+		return d.UsageError("xcode-cloud products: --scm-repository-fields requires --include primaryRepositories")
 	}
 	if *flags.primaryRepositoriesLimit > 0 && !shared.HasInclude(include, "primaryRepositories") {
-		return shared.UsageError("xcode-cloud products: --primary-repositories-limit requires --include primaryRepositories")
+		return d.UsageError("xcode-cloud products: --primary-repositories-limit requires --include primaryRepositories")
 	}
 
 	hydrateBundleIDs := shouldHydrateCiProductBundleIDs(*flags.output)
@@ -400,12 +406,12 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 	}
 	opts := buildOptions(resolvedAppID)
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("xcode-cloud products: %w", err)
 	}
 
-	requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+	requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, 0)
 	defer cancel()
 
 	if next == "" && resolvedAppID != "" {
@@ -418,7 +424,7 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 
 	if *flags.paginate {
 		paginateOpts := append(opts, asc.Limit[asc.CiProductsOption](200))
-		paginatedResp, err := shared.PaginateWithSpinner(
+		paginatedResp, err := d.PaginateWithSpinner(
 			requestCtx,
 			func(ctx context.Context) (asc.PaginatedResponse, error) {
 				return client.GetCiProducts(ctx, paginateOpts...)
@@ -441,7 +447,7 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 			}
 		}
 
-		return shared.PrintOutput(resp, *flags.output, *flags.pretty)
+		return d.PrintOutput(resp, *flags.output, *flags.pretty)
 	}
 
 	resp, err := client.GetCiProducts(requestCtx, opts...)
@@ -454,7 +460,7 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 		}
 	}
 
-	return shared.PrintOutput(resp, *flags.output, *flags.pretty)
+	return d.PrintOutput(resp, *flags.output, *flags.pretty)
 }
 
 func shouldHydrateCiProductBundleIDs(output string) bool {
@@ -568,9 +574,10 @@ func ciProductAppID(relationships *asc.CiProductRelationships) string {
 	return strings.TrimSpace(relationships.App.Data.ID)
 }
 
-// XcodeCloudMacOSVersionsCommand returns the xcode-cloud macos-versions command.
-func XcodeCloudMacOSVersionsCommand() *ffcli.Command {
+// newXcodeCloudMacOSVersionsCommand returns the xcode-cloud macos-versions command.
+func newXcodeCloudMacOSVersionsCommand(d *shared.Deps) *ffcli.Command {
 	cmd := xcodeCloudMacOSVersionsListCommand(
+		d,
 		"macos-versions",
 		"asc xcode-cloud macos-versions [flags]",
 		"Manage Xcode Cloud macOS versions.",
@@ -583,15 +590,16 @@ Examples:
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID"`,
 	)
 	cmd.Subcommands = []*ffcli.Command{
-		XcodeCloudMacOSVersionsListCommand(),
-		XcodeCloudMacOSVersionsGetCommand(),
-		XcodeCloudMacOSVersionsXcodeVersionsCommand(),
+		newXcodeCloudMacOSVersionsListCommand(d),
+		newXcodeCloudMacOSVersionsGetCommand(d),
+		newXcodeCloudMacOSVersionsXcodeVersionsCommand(d),
 	}
 	return cmd
 }
 
-func XcodeCloudMacOSVersionsListCommand() *ffcli.Command {
+func newXcodeCloudMacOSVersionsListCommand(d *shared.Deps) *ffcli.Command {
 	return xcodeCloudMacOSVersionsListCommand(
+		d,
 		"list",
 		"asc xcode-cloud macos-versions list [flags]",
 		"List Xcode Cloud macOS versions.",
@@ -604,7 +612,7 @@ Examples:
 	)
 }
 
-func xcodeCloudMacOSVersionsListCommand(name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
+func xcodeCloudMacOSVersionsListCommand(d *shared.Deps, name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:                 name,
 		ShortUsage:           shortUsage,
@@ -614,8 +622,9 @@ func xcodeCloudMacOSVersionsListCommand(name, shortUsage, shortHelp, longHelp st
 		PaginateIgnoresLimit: true,
 		ErrorPrefix:          "xcode-cloud macos-versions",
 		FetchErrorPrefix:     "xcode-cloud macos-versions",
+		Deps:                 d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetCiMacOsVersions(ctx, asc.Limit[asc.CiMacOsVersionsOption](limit), asc.NextURL[asc.CiMacOsVersionsOption](next))
@@ -623,7 +632,7 @@ func xcodeCloudMacOSVersionsListCommand(name, shortUsage, shortHelp, longHelp st
 	})
 }
 
-func XcodeCloudMacOSVersionsGetCommand() *ffcli.Command {
+func newXcodeCloudMacOSVersionsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc xcode-cloud macos-versions view --id \"MACOS_VERSION_ID\"",
@@ -637,8 +646,9 @@ Examples:
 		IDUsage:          "macOS version ID",
 		IDType:           "ciMacOsVersions",
 		FetchErrorPrefix: "xcode-cloud macos-versions view",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetCiMacOsVersion(ctx, id)
@@ -646,7 +656,7 @@ Examples:
 	})
 }
 
-func XcodeCloudMacOSVersionsXcodeVersionsCommand() *ffcli.Command {
+func newXcodeCloudMacOSVersionsXcodeVersionsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "xcode-versions",
 		ShortUsage: "asc xcode-cloud macos-versions xcode-versions [flags]",
@@ -662,8 +672,9 @@ Examples:
 		ParentType:       "ciMacOsVersions",
 		LimitMax:         200,
 		FetchErrorPrefix: "xcode-cloud macos-versions xcode-versions",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, macOSVersionID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiXcodeVersionsOption{
@@ -675,9 +686,10 @@ Examples:
 	})
 }
 
-// XcodeCloudXcodeVersionsCommand returns the xcode-cloud xcode-versions command.
-func XcodeCloudXcodeVersionsCommand() *ffcli.Command {
+// newXcodeCloudXcodeVersionsCommand returns the xcode-cloud xcode-versions command.
+func newXcodeCloudXcodeVersionsCommand(d *shared.Deps) *ffcli.Command {
 	cmd := xcodeCloudXcodeVersionsListCommand(
+		d,
 		"xcode-versions",
 		"asc xcode-cloud xcode-versions [flags]",
 		"Manage Xcode Cloud Xcode versions.",
@@ -690,15 +702,16 @@ Examples:
   asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID"`,
 	)
 	cmd.Subcommands = []*ffcli.Command{
-		XcodeCloudXcodeVersionsListCommand(),
-		XcodeCloudXcodeVersionsGetCommand(),
-		XcodeCloudXcodeVersionsMacOSVersionsCommand(),
+		newXcodeCloudXcodeVersionsListCommand(d),
+		newXcodeCloudXcodeVersionsGetCommand(d),
+		newXcodeCloudXcodeVersionsMacOSVersionsCommand(d),
 	}
 	return cmd
 }
 
-func XcodeCloudXcodeVersionsListCommand() *ffcli.Command {
+func newXcodeCloudXcodeVersionsListCommand(d *shared.Deps) *ffcli.Command {
 	return xcodeCloudXcodeVersionsListCommand(
+		d,
 		"list",
 		"asc xcode-cloud xcode-versions list [flags]",
 		"List Xcode Cloud Xcode versions.",
@@ -711,7 +724,7 @@ Examples:
 	)
 }
 
-func xcodeCloudXcodeVersionsListCommand(name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
+func xcodeCloudXcodeVersionsListCommand(d *shared.Deps, name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:                 name,
 		ShortUsage:           shortUsage,
@@ -721,8 +734,9 @@ func xcodeCloudXcodeVersionsListCommand(name, shortUsage, shortHelp, longHelp st
 		PaginateIgnoresLimit: true,
 		ErrorPrefix:          "xcode-cloud xcode-versions",
 		FetchErrorPrefix:     "xcode-cloud xcode-versions",
+		Deps:                 d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetCiXcodeVersions(ctx, asc.Limit[asc.CiXcodeVersionsOption](limit), asc.NextURL[asc.CiXcodeVersionsOption](next))
@@ -730,7 +744,7 @@ func xcodeCloudXcodeVersionsListCommand(name, shortUsage, shortHelp, longHelp st
 	})
 }
 
-func XcodeCloudXcodeVersionsGetCommand() *ffcli.Command {
+func newXcodeCloudXcodeVersionsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc xcode-cloud xcode-versions view --id \"XCODE_VERSION_ID\"",
@@ -744,8 +758,9 @@ Examples:
 		IDUsage:          "Xcode version ID",
 		IDType:           "ciXcodeVersions",
 		FetchErrorPrefix: "xcode-cloud xcode-versions view",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetCiXcodeVersion(ctx, id)
@@ -753,7 +768,7 @@ Examples:
 	})
 }
 
-func XcodeCloudXcodeVersionsMacOSVersionsCommand() *ffcli.Command {
+func newXcodeCloudXcodeVersionsMacOSVersionsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "macos-versions",
 		ShortUsage: "asc xcode-cloud xcode-versions macos-versions [flags]",
@@ -769,8 +784,9 @@ Examples:
 		ParentType:       "ciXcodeVersions",
 		LimitMax:         200,
 		FetchErrorPrefix: "xcode-cloud xcode-versions macos-versions",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, xcodeVersionID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiMacOsVersionsOption{
