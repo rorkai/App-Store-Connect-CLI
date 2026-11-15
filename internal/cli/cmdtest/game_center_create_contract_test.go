@@ -130,6 +130,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboardSets",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboardSets","attributes":{"referenceName":"Season 1","vendorIdentifier":"com.example.season1"},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}}}}}`,
 			wantRequests: 2,
+			deps:         true,
 		},
 		{
 			name:         "leaderboard set v2",
@@ -138,6 +139,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboardSets",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboardSets","attributes":{"referenceName":"Group Season","vendorIdentifier":"grp.com.example.groupseason"},"relationships":{"gameCenterGroup":{"data":{"type":"gameCenterGroups","id":"group-1"}},"versions":{"data":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}`,
 			wantRequests: 1,
+			deps:         true,
 		},
 		{
 			// Apple returns 409 when gameCenterLeaderboardSets is sent with gameCenterDetail or gameCenterGroup.
@@ -168,6 +170,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboardSets",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboardSets","attributes":{"referenceName":"Season 1","vendorIdentifier":"com.example.season1"},"relationships":{"gameCenterLeaderboards":{"data":[{"type":"gameCenterLeaderboards","id":"lb-2"},{"type":"gameCenterLeaderboards","id":"lb-1"}]}}}}`,
 			wantRequests: 1,
+			deps:         true,
 		},
 		{
 			name:         "leaderboard set v2 with leaderboard ids inherits parent",
@@ -176,6 +179,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterLeaderboardSets",
 			wantBody:     `{"data":{"type":"gameCenterLeaderboardSets","attributes":{"referenceName":"Group Season","vendorIdentifier":"grp.com.example.groupseason"},"relationships":{"gameCenterLeaderboards":{"data":[{"type":"gameCenterLeaderboards","id":"lb-2"},{"type":"gameCenterLeaderboards","id":"lb-1"}]},"versions":{"data":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}}},"included":[{"type":"gameCenterLeaderboardSetVersions","id":"${lbsetVer1}"}]}`,
 			wantRequests: 1,
+			deps:         true,
 		},
 	}
 
@@ -241,16 +245,19 @@ func TestGameCenterCreateMembersRejectExplicitParent(t *testing.T) {
 			name:    "leaderboard set v1 app",
 			args:    []string{"game-center", "leaderboard-sets", "create", "--app", "APP_ID", "--reference-name", "Season", "--vendor-id", "com.example.season", "--leaderboard-ids", "lb-1"},
 			wantErr: "Error: --app cannot be used with --leaderboard-ids; " + setInherits,
+			deps:    true,
 		},
 		{
 			name:    "leaderboard set v2 app",
 			args:    []string{"game-center", "leaderboard-sets", "v2", "create", "--app", "APP_ID", "--reference-name", "Season", "--vendor-id", "com.example.season", "--leaderboard-ids", "lb-1"},
 			wantErr: "Error: --app cannot be used with --leaderboard-ids; " + setInherits,
+			deps:    true,
 		},
 		{
 			name:    "leaderboard set v2 group",
 			args:    []string{"game-center", "leaderboard-sets", "v2", "create", "--group-id", "GROUP_ID", "--reference-name", "Season", "--vendor-id", "grp.com.example.season", "--leaderboard-ids", "lb-1"},
 			wantErr: "Error: --group-id cannot be used with --leaderboard-ids; " + setInherits,
+			deps:    true,
 		},
 		{
 			name:    "leaderboard v1 app",

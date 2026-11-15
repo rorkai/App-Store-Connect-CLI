@@ -47,8 +47,8 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementsCommand(d),
 			newGameCenterLeaderboardsCommand(d),
-			GameCenterLeaderboardSetsCommand(),
-			GameCenterChallengesCommand(),
+			newGameCenterLeaderboardSetsCommand(d),
+			newGameCenterChallengesCommand(d),
 			GameCenterActivitiesCommand(),
 			GameCenterGroupsCommand(),
 			GameCenterAppVersionsCommand(),

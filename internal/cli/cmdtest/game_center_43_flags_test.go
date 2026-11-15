@@ -48,6 +48,7 @@ func TestRun_GameCenter43Flags_InvalidValuesReturnUsage(t *testing.T) {
 			name:    "challenge create invalid create-initial-version",
 			args:    []string{"game-center", "challenges", "create", "--app", "APP_ID", "--reference-name", "Weekly", "--vendor-id", "com.example.weekly", "--leaderboard-id", "LB_ID", "--create-initial-version", "maybe"},
 			wantErr: "--create-initial-version must be true or false",
+			deps:    true,
 		},
 		{
 			name:    "activity fallback requires create-initial-version",
