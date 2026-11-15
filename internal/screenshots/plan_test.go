@@ -189,6 +189,20 @@ func TestLoadPlan_ScrollAndSwipeValidation(t *testing.T) {
 		{"long_press with another action's field", `{ "action": "long_press", "label": "Photo", "end_x": 10 }`, PlanErrUnexpectedField},
 		{"button unknown name", `{ "action": "button", "button": "volume-up" }`, PlanErrButtonInvalid},
 		{"button with another action's field", `{ "action": "button", "button": "home", "label": "Home" }`, PlanErrUnexpectedField},
+		{"pinch missing scale", `{ "action": "pinch" }`, PlanErrPinchScale},
+		{"pinch zero scale", `{ "action": "pinch", "scale": 0 }`, PlanErrPinchScale},
+		{"pinch scale of 1", `{ "action": "pinch", "scale": 1 }`, PlanErrPinchScale},
+		{"pinch x without y", `{ "action": "pinch", "scale": 2, "x": 200 }`, PlanErrGestureCoordinates},
+		{"pinch zero radius", `{ "action": "pinch", "scale": 2, "radius": 0 }`, PlanErrGestureRadius},
+		{"pinch with another action's field", `{ "action": "pinch", "scale": 2, "degrees": 90 }`, PlanErrUnexpectedField},
+		{"rotate missing radius", `{ "action": "rotate", "x": 200, "y": 400, "degrees": 90 }`, PlanErrGestureRadius},
+		{"rotate missing y", `{ "action": "rotate", "x": 200, "radius": 80, "degrees": 90 }`, PlanErrGestureCoordinates},
+		{"rotate degrees out of range", `{ "action": "rotate", "x": 200, "y": 400, "radius": 80, "degrees": 361 }`, PlanErrRotateDegrees},
+		{"rotate zero degrees", `{ "action": "rotate", "x": 200, "y": 400, "radius": 80, "degrees": 0 }`, PlanErrRotateDegrees},
+		{"rotate with another action's field", `{ "action": "rotate", "x": 200, "y": 400, "radius": 80, "degrees": 90, "scale": 2 }`, PlanErrUnexpectedField},
+		{"double_tap missing y", `{ "action": "double_tap", "x": 200 }`, PlanErrGestureCoordinates},
+		{"double_tap negative coordinate", `{ "action": "double_tap", "x": -1, "y": 400 }`, PlanErrGestureCoordinates},
+		{"double_tap with another action's field", `{ "action": "double_tap", "x": 200, "y": 400, "label": "Photo" }`, PlanErrUnexpectedField},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -70,8 +70,10 @@ func XcodeTestCommand() *ffcli.Command {
 		LongHelp: `Run a local Xcode test action and report structured results.
 
 For test and build-for-testing, provide exactly one of --workspace, --project,
-or --package-path, plus --scheme and at least one --destination. With
---package-path, xcodebuild runs from that directory. The default action is
+or --package-path, plus --scheme and at least one --destination. When all three
+are omitted, asc uses the only .xcworkspace, or else the only .xcodeproj, in
+the current directory; a Package.swift is not detected. With --package-path,
+xcodebuild runs from that directory. The default action is
 test. Use --action build-for-testing to produce test products, or use
 --action test-without-building with an existing --xctestrun file. Test actions
 write a new .xcresult bundle automatically when --result-bundle-path is omitted.
@@ -107,6 +109,23 @@ Examples:
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project", "package-path", "scheme", "action", "configuration", "test-plan", "xctestrun", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
+			containerNotice := ""
+			switch localxcode.TestAction(strings.TrimSpace(*action)) {
+			case localxcode.TestActionTest, localxcode.TestActionBuildForTesting:
+				if *packagePath == "" && *workspacePath == "" && *projectPath == "" {
+					if strings.TrimSpace(*scheme) == "" {
+						return shared.RequiredFlag("--scheme")
+					}
+					if len(destinations) == 0 {
+						return shared.RequiredFlag("--destination")
+					}
+					notice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace, --project, or --package-path is required")
+					if err != nil {
+						return err
+					}
+					containerNotice = notice
+				}
+			}
 			opts := localxcode.TestOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
 				ProjectPath:      strings.TrimSpace(*projectPath),
@@ -137,6 +156,10 @@ Examples:
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
+			}
+
+			if containerNotice != "" {
+				fmt.Fprintln(os.Stderr, containerNotice)
 			}
 
 			result, testErr := runTest(ctx, opts)

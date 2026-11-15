@@ -16,6 +16,8 @@ import (
 const (
 	exportOptionsMethodAppStoreConnect = "app-store-connect"
 	exportOptionsMethodReleaseTesting  = "release-testing"
+	exportOptionsMethodDebugging       = "debugging"
+	exportOptionsMethodEnterprise      = "enterprise"
 	exportOptionsDestinationExport     = "export"
 	exportOptionsDestinationUpload     = "upload"
 	exportOptionsSigningStyleAutomatic = "automatic"
@@ -208,15 +210,29 @@ func NormalizeExportOptionsSigningStyle(value string) (string, error) {
 // NormalizeExportOptionsMethod validates the public method enum shared by
 // export-options generation callers.
 func NormalizeExportOptionsMethod(value string) (string, error) {
+	const supported = "--method must be one of: app-store-connect, release-testing, debugging, enterprise"
 	method := strings.ToLower(strings.TrimSpace(value))
 	switch method {
-	case exportOptionsMethodAppStoreConnect, exportOptionsMethodReleaseTesting:
+	case exportOptionsMethodAppStoreConnect, exportOptionsMethodReleaseTesting, exportOptionsMethodDebugging, exportOptionsMethodEnterprise:
 		return method, nil
+	case "app-store":
+		return method, fmt.Errorf("%s; use app-store-connect instead of deprecated app-store", supported)
 	case "ad-hoc":
-		return method, fmt.Errorf("--method must be one of: app-store-connect, release-testing; use release-testing instead of deprecated ad-hoc")
+		return method, fmt.Errorf("%s; use release-testing instead of deprecated ad-hoc", supported)
+	case "development":
+		return method, fmt.Errorf("%s; use debugging instead of deprecated development", supported)
 	default:
-		return method, fmt.Errorf("--method must be one of: app-store-connect, release-testing")
+		return method, errors.New(supported)
 	}
+}
+
+// ValidateExportOptionsMethodSigningStyle reports a method that generated
+// manual signing options cannot resolve profiles for.
+func ValidateExportOptionsMethodSigningStyle(method, signingStyle string) error {
+	if signingStyle == exportOptionsSigningStyleManual && (method == exportOptionsMethodDebugging || method == exportOptionsMethodEnterprise) {
+		return fmt.Errorf("manual signing export options generation does not support method %q; write an ExportOptions.plist and pass it to asc xcode export --export-options", method)
+	}
+	return nil
 }
 
 func normalizeExportOptionsGenerateOptions(opts ExportOptionsGenerateOptions) ExportOptionsGenerateOptions {
@@ -262,10 +278,10 @@ func validateExportOptionsGenerateOptions(opts ExportOptionsGenerateOptions) err
 	if _, err := NormalizeExportOptionsSigningStyle(opts.SigningStyle); err != nil {
 		return err
 	}
-	if opts.Method == exportOptionsMethodReleaseTesting && opts.Destination != exportOptionsDestinationExport {
-		return fmt.Errorf("release-testing requires destination=export")
+	if opts.Method != exportOptionsMethodAppStoreConnect && opts.Destination != exportOptionsDestinationExport {
+		return fmt.Errorf("%s requires destination=export", opts.Method)
 	}
-	return nil
+	return ValidateExportOptionsMethodSigningStyle(opts.Method, opts.SigningStyle)
 }
 
 // ValidateExportOptionsArchivePath reports an archive path that does not name

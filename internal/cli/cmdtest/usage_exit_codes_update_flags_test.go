@@ -47,31 +47,37 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "app-clips advanced-experiences update",
 			args:  []string{"app-clips", "advanced-experiences", "update", "--experience-id", "ID"},
 			flags: "--app-clip-id, --action, --category, --place, --default-language, --is-powered-by, --removed, --header-image-id, --localization-id",
+			deps:  true,
 		},
 		{
 			name:  "app-clips default-experiences localizations update",
 			args:  []string{"app-clips", "default-experiences", "localizations", "update", "--localization-id", "ID"},
 			flags: "--subtitle",
+			deps:  true,
 		},
 		{
 			name:  "app-clips default-experiences update",
 			args:  []string{"app-clips", "default-experiences", "update", "--experience-id", "ID"},
 			flags: "--action, --release-version-id",
+			deps:  true,
 		},
 		{
 			name:  "app-clips invocations localizations update",
 			args:  []string{"app-clips", "invocations", "localizations", "update", "--localization-id", "ID"},
 			flags: "--title",
+			deps:  true,
 		},
 		{
 			name:  "app-clips invocations update",
 			args:  []string{"app-clips", "invocations", "update", "--invocation-id", "ID"},
 			flags: "--url",
+			deps:  true,
 		},
 		{
 			name:  "app-clips review-details update",
 			args:  []string{"app-clips", "review-details", "update", "--id", "ID"},
 			flags: "--url",
+			deps:  true,
 		},
 		{
 			name:  "app-events localizations update",
@@ -420,6 +426,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "webhooks update",
 			args:  []string{"webhooks", "update", "--webhook-id", "ID"},
 			flags: "--name, --url, --secret, --events, --enabled",
+			deps:  true,
 		},
 		{
 			name:  "xcode version edit",

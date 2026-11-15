@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppClipAdvancedExperienceImagesCommand returns the images command group.
-func AppClipAdvancedExperienceImagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("images", flag.ExitOnError)
+// newAppClipAdvancedExperienceImagesCommand returns the images command group.
+func newAppClipAdvancedExperienceImagesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("images", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "images",
@@ -29,8 +29,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppClipAdvancedExperienceImagesGetCommand(),
-			AppClipAdvancedExperienceImagesCreateCommand(),
+			newAppClipAdvancedExperienceImagesGetCommand(d),
+			newAppClipAdvancedExperienceImagesCreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -38,8 +38,8 @@ Examples:
 	}
 }
 
-// AppClipAdvancedExperienceImagesGetCommand retrieves an image by ID.
-func AppClipAdvancedExperienceImagesGetCommand() *ffcli.Command {
+// newAppClipAdvancedExperienceImagesGetCommand retrieves an image by ID.
+func newAppClipAdvancedExperienceImagesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc app-clips advanced-experiences images view --id \"IMAGE_ID\"",
@@ -51,19 +51,20 @@ Examples:
 		IDUsage:            "Image ID",
 		IDType:             "appClipAdvancedExperienceImages",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipAdvancedExperienceImage(ctx, id)
 		},
 	})
 }
 
-// AppClipAdvancedExperienceImagesCreateCommand uploads an image.
-func AppClipAdvancedExperienceImagesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newAppClipAdvancedExperienceImagesCreateCommand uploads an image.
+func newAppClipAdvancedExperienceImagesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipAdvancedExperiences", "Advanced experience ID to attach after upload (optional)")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -84,15 +85,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			fileValue := strings.TrimSpace(*filePath)
 			if fileValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			client, err := appClipsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences images create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+			requestCtx, cancel := d.UploadTimeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadAppClipAdvancedExperienceImage(requestCtx, fileValue)
@@ -108,7 +109,7 @@ Examples:
 				result.ExperienceID = experienceValue
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

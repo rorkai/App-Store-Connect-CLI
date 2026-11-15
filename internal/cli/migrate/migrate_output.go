@@ -31,6 +31,9 @@ func printMigrateImportResultMarkdown(result *MigrateImportResult) error {
 	if result.AppID != "" {
 		fmt.Printf("**App ID:** %s\n\n", result.AppID)
 	}
+	if result.Copyright != "" {
+		fmt.Printf("**Copyright:** %s\n\n", result.Copyright)
+	}
 	if result.DeliverfilePath != "" {
 		fmt.Printf("**Deliverfile:** %s\n\n", result.DeliverfilePath)
 	}
@@ -192,6 +195,9 @@ func printMigrateImportResultTable(result *MigrateImportResult) error {
 	fmt.Printf("Version ID: %s\n\n", result.VersionID)
 	if result.AppID != "" {
 		fmt.Printf("App ID: %s\n\n", result.AppID)
+	}
+	if result.Copyright != "" {
+		fmt.Printf("Copyright: %s\n\n", result.Copyright)
 	}
 
 	if len(result.MetadataFiles) > 0 {
