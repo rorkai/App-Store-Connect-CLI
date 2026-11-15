@@ -221,16 +221,19 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "iap promoted-purchases update",
 			args:  []string{"iap", "promoted-purchases", "update", "--promoted-purchase-id", "ID"},
 			flags: "--visible-for-all-users, --enabled",
+			deps:  true,
 		},
 		{
 			name:  "iap review-screenshots update",
 			args:  []string{"iap", "review-screenshots", "update", "--screenshot-id", "ID"},
 			flags: "--checksum, --uploaded, --file",
+			deps:  true,
 		},
 		{
 			name:  "iap update",
 			args:  []string{"iap", "update", "--id", "ID"},
 			flags: "--ref-name, --family-sharable, --review-note",
+			deps:  true,
 		},
 		{
 			name:  "iap versions localizations update",

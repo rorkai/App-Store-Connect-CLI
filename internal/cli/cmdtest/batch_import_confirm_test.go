@@ -69,6 +69,7 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 		{
 			name: "iap import",
 			args: []string{"iap", "import", "--app", "123456789", "--file", iapJSON},
+			deps: true,
 		},
 	}
 
@@ -132,6 +133,7 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 		{
 			name: "iap import",
 			args: []string{"iap", "import", "--app", "123456789", "--file", missingInput},
+			deps: true,
 		},
 	}
 

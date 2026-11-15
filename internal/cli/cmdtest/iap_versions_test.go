@@ -97,61 +97,73 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: give the poison client through test deps
 	}{
 		{
 			name:    "iap list rejects explicit zero limit with next",
 			args:    []string{"iap", "list", "--limit", "0", "--next", next},
 			wantErr: "--next cannot be combined with --limit",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects include versions with next",
 			args:    []string{"iap", "list", "--include-versions", "--next", next},
 			wantErr: "--next cannot be combined with --include-versions",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects explicit false include versions with next",
 			args:    []string{"iap", "list", "--include-versions=false", "--next", next},
 			wantErr: "--next cannot be combined with --include-versions",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects versions limit with next",
 			args:    []string{"iap", "list", "--versions-limit", "5", "--next", next},
 			wantErr: "--next cannot be combined with --versions-limit",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects explicit zero versions limit with next",
 			args:    []string{"iap", "list", "--versions-limit", "0", "--next", next},
 			wantErr: "--next cannot be combined with --versions-limit",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects fields with next",
 			args:    []string{"iap", "list", "--fields", "name", "--next", next},
 			wantErr: "--next cannot be combined with --fields",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects explicit empty fields with next",
 			args:    []string{"iap", "list", "--fields", "", "--next", next},
 			wantErr: "--next cannot be combined with --fields",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects explicit whitespace fields with next",
 			args:    []string{"iap", "list", "--fields", "   ", "--next", next},
 			wantErr: "--next cannot be combined with --fields",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects version fields with next",
 			args:    []string{"iap", "list", "--version-fields", "version", "--next", next},
 			wantErr: "--next cannot be combined with --version-fields",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects explicit empty version fields with next",
 			args:    []string{"iap", "list", "--version-fields", "", "--next", next},
 			wantErr: "--next cannot be combined with --version-fields",
+			deps:    true,
 		},
 		{
 			name:    "iap list rejects explicit whitespace version fields with next",
 			args:    []string{"iap", "list", "--version-fields", "   ", "--next", next},
 			wantErr: "--next cannot be combined with --version-fields",
+			deps:    true,
 		},
 		{
 			name:    "versions list rejects explicit zero limit with next",
@@ -248,23 +260,34 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := iapcli.SetVersionClientFactory(func() (*asc.Client, error) {
+			poison := func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
-			})
-			t.Cleanup(restore)
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
+			var stdout, stderr string
+			if test.deps {
+				var err error
+				stdout, stderr, err = runRootWithDeps(t, poison, test.args...)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected ErrHelp, got %v", err)
 				}
-			})
+			} else {
+				restore := iapcli.SetVersionClientFactory(poison)
+				t.Cleanup(restore)
+
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+				stdout, stderr = captureOutput(t, func() {
+					if err := root.Parse(test.args); err != nil {
+						t.Fatalf("parse error: %v", err)
+					}
+					err := root.Run(context.Background())
+					if !errors.Is(err, flag.ErrHelp) {
+						t.Fatalf("expected ErrHelp, got %v", err)
+					}
+				})
+			}
 			if factoryCalled {
 				t.Fatal("client factory called before validation")
 			}
@@ -317,20 +340,13 @@ func TestIAPListOwnerlessNextCanPaginate(t *testing.T) {
 				}
 			}))
 			t.Cleanup(server.Close)
-			setIAPVersionTestServerClient(t, server)
 
 			next := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=start"
 			args := append([]string{"iap", "list", "--next", next, "--paginate", "--output", "json", "--pretty"}, test.flags...)
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("unexpected stderr: %s", stderr)
 			}
@@ -448,6 +464,7 @@ func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 		statusCode int
 		response   string
 		wantOutput string
+		deps       bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			name: "create version", args: []string{"iap", "versions", "create", "--iap-id", "iap-1", "--output", "json"},
@@ -468,39 +485,39 @@ func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 			response: `{"data":{"type":"inAppPurchaseVersions","id":"version-1","attributes":{"version":1}}}`,
 		},
 		{
-			name: "existing IAP list propagates version fields", args: []string{"iap", "list", "--app", "app-1", "--include-versions", "--version-fields", "version,state", "--versions-limit", "5", "--output", "json"},
+			name: "existing IAP list propagates version fields", args: []string{"iap", "list", "--app", "app-1", "--include-versions", "--version-fields", "version,state", "--versions-limit", "5", "--output", "json"}, deps: true,
 			method: http.MethodGet, path: "/v1/apps/app-1/inAppPurchasesV2",
 			query:    map[string]string{"fields[inAppPurchaseVersions]": "version,state", "include": "versions", "limit[versions]": "5"},
 			response: `{"data":[{"type":"inAppPurchases","id":"iap-1"}]}`,
 		},
 		{
-			name: "existing IAP list propagates parent fields", args: []string{"iap", "list", "--app", "app-1", "--fields", "name,versions", "--output", "json"},
+			name: "existing IAP list propagates parent fields", args: []string{"iap", "list", "--app", "app-1", "--fields", "name,versions", "--output", "json"}, deps: true,
 			method: http.MethodGet, path: "/v1/apps/app-1/inAppPurchasesV2",
 			query:    map[string]string{"fields[inAppPurchases]": "name,versions"},
 			response: `{"data":[{"type":"inAppPurchases","id":"iap-1"}]}`,
 		},
 		{
-			name: "existing IAP view propagates version fields", args: []string{"iap", "view", "--id", "iap-1", "--include-versions", "--version-fields", "version,state", "--versions-limit", "5", "--output", "json"},
+			name: "existing IAP view propagates version fields", args: []string{"iap", "view", "--id", "iap-1", "--include-versions", "--version-fields", "version,state", "--versions-limit", "5", "--output", "json"}, deps: true,
 			method: http.MethodGet, path: "/v2/inAppPurchases/iap-1",
 			query:    map[string]string{"fields[inAppPurchaseVersions]": "version,state", "include": "versions", "limit[versions]": "5"},
 			response: `{"data":{"type":"inAppPurchases","id":"iap-1"}}`,
 		},
 		{
-			name: "IAP list sends include and passes included through", args: []string{"iap", "list", "--app", "app-1", "--include", "appStoreReviewScreenshot,inAppPurchaseLocalizations", "--include-versions", "--output", "json"},
+			name: "IAP list sends include and passes included through", args: []string{"iap", "list", "--app", "app-1", "--include", "appStoreReviewScreenshot,inAppPurchaseLocalizations", "--include-versions", "--output", "json"}, deps: true,
 			method: http.MethodGet, path: "/v1/apps/app-1/inAppPurchasesV2",
 			query:      map[string]string{"include": "appStoreReviewScreenshot,inAppPurchaseLocalizations,versions"},
 			response:   `{"data":[{"type":"inAppPurchases","id":"iap-1"}],"included":[{"type":"inAppPurchaseAppStoreReviewScreenshots","id":"shot-1"},{"type":"inAppPurchaseLocalizations","id":"loc-1"}],"links":{"self":"s"}}`,
 			wantOutput: `{"data":[{"type":"inAppPurchases","id":"iap-1"}],"included":[{"type":"inAppPurchaseAppStoreReviewScreenshots","id":"shot-1"},{"type":"inAppPurchaseLocalizations","id":"loc-1"}],"links":{"self":"s"}}`,
 		},
 		{
-			name: "IAP view sends include and passes included through", args: []string{"iap", "view", "--id", "iap-1", "--include", "pricePoints,versions,iapPriceSchedule", "--include-versions", "--output", "json"},
+			name: "IAP view sends include and passes included through", args: []string{"iap", "view", "--id", "iap-1", "--include", "pricePoints,versions,iapPriceSchedule", "--include-versions", "--output", "json"}, deps: true,
 			method: http.MethodGet, path: "/v2/inAppPurchases/iap-1",
 			query:      map[string]string{"include": "pricePoints,versions,iapPriceSchedule"},
 			response:   `{"data":{"type":"inAppPurchases","id":"iap-1"},"included":[{"type":"inAppPurchasePriceSchedules","id":"sched-1"}],"links":{"self":"s"}}`,
 			wantOutput: `{"data":{"type":"inAppPurchases","id":"iap-1"},"included":[{"type":"inAppPurchasePriceSchedules","id":"sched-1"}],"links":{"self":"s"}}`,
 		},
 		{
-			name: "existing IAP view propagates parent fields", args: []string{"iap", "view", "--id", "iap-1", "--fields", "name,versions", "--output", "json"},
+			name: "existing IAP view propagates parent fields", args: []string{"iap", "view", "--id", "iap-1", "--fields", "name,versions", "--output", "json"}, deps: true,
 			method: http.MethodGet, path: "/v2/inAppPurchases/iap-1",
 			query:    map[string]string{"fields[inAppPurchases]": "name,versions"},
 			response: `{"data":{"type":"inAppPurchases","id":"iap-1"}}`,
@@ -582,18 +599,27 @@ func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 				_, _ = io.WriteString(w, test.response)
 			}))
 			t.Cleanup(server.Close)
-			setIAPVersionTestServerClient(t, server)
+			var stdout, stderr string
+			if test.deps {
+				var err error
+				stdout, stderr, err = runRootWithDeps(t, stubServerClient(t, server), test.args...)
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				setIAPVersionTestServerClient(t, server)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatal(err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatal(err)
-				}
-			})
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+				stdout, stderr = captureOutput(t, func() {
+					if err := root.Parse(test.args); err != nil {
+						t.Fatal(err)
+					}
+					if err := root.Run(context.Background()); err != nil {
+						t.Fatal(err)
+					}
+				})
+			}
 			if stderr != "" {
 				t.Fatalf("unexpected stderr: %s", stderr)
 			}

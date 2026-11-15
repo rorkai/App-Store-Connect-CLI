@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -60,16 +59,16 @@ type iapImportPlannedProduct struct {
 	screenshotName string
 }
 
-// IAPImportCommand returns the iap import subcommand.
-func IAPImportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("import", flag.ExitOnError)
+// newIAPImportCommand returns the iap import subcommand.
+func newIAPImportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("import", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	filePath := fs.String("file", "", "Path to the JSON import file (required)")
 	dryRun := fs.Bool("dry-run", false, "Validate the file and print the plan without creating anything")
 	confirm := fs.Bool("confirm", false, "Confirm creating in-app purchases (required unless --dry-run)")
 	skipExisting := fs.Bool("skip-existing", false, "Skip product IDs that already exist on the app instead of failing")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "import",
@@ -118,27 +117,27 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 
-			root, planned, err := loadIAPImportPlan(pathValue)
+			root, planned, err := loadIAPImportPlan(d, pathValue)
 			if err != nil {
 				return err
 			}
 			defer root.Close()
 
-			client, existing, err := prepareIAPImport(ctx, resolvedAppID, planned, *skipExisting)
+			client, existing, err := prepareIAPImport(ctx, d, resolvedAppID, planned, *skipExisting)
 			if err != nil {
 				return err
 			}
@@ -154,8 +153,8 @@ Examples:
 				Products:          make([]asc.InAppPurchaseImportProductResult, 0, len(planned)),
 			}
 
-			runErr := executeIAPImport(ctx, client, root, result, existing, planned)
-			if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
+			runErr := executeIAPImport(ctx, d, client, root, result, existing, planned)
+			if printErr := d.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
 				return printErr
 			}
 			if runErr != nil {
@@ -169,23 +168,23 @@ Examples:
 // loadIAPImportPlan reads and validates the import file through a root
 // anchored at the file's own directory, so neither the document nor any
 // screenshot it names can select a file outside the operator-selected tree.
-func loadIAPImportPlan(path string) (rootfs.Root, []iapImportPlannedProduct, error) {
+func loadIAPImportPlan(d *shared.Deps, path string) (rootfs.Root, []iapImportPlannedProduct, error) {
 	absolute, err := filepath.Abs(path)
 	if err != nil {
-		return rootfs.Root{}, nil, shared.UsageErrorf("iap import: resolve --file %q: %v", path, err)
+		return rootfs.Root{}, nil, d.UsageErrorf("iap import: resolve --file %q: %v", path, err)
 	}
 	root, err := rootfs.New(filepath.Dir(absolute))
 	if err != nil {
-		return rootfs.Root{}, nil, shared.UsageErrorf("iap import: %v", err)
+		return rootfs.Root{}, nil, d.UsageErrorf("iap import: %v", err)
 	}
 
 	data, err := root.ReadFileLimited(filepath.Base(absolute), iapImportMaxFileSize)
 	if err != nil {
 		_ = root.Close()
-		return rootfs.Root{}, nil, shared.UsageErrorf("iap import: read --file %q: %v", path, err)
+		return rootfs.Root{}, nil, d.UsageErrorf("iap import: read --file %q: %v", path, err)
 	}
 
-	planned, err := parseIAPImportDocument(root, data)
+	planned, err := parseIAPImportDocument(d, root, data)
 	if err != nil {
 		_ = root.Close()
 		return rootfs.Root{}, nil, err
@@ -193,34 +192,34 @@ func loadIAPImportPlan(path string) (rootfs.Root, []iapImportPlannedProduct, err
 	return root, planned, nil
 }
 
-func parseIAPImportDocument(root rootfs.Root, data []byte) ([]iapImportPlannedProduct, error) {
+func parseIAPImportDocument(d *shared.Deps, root rootfs.Root, data []byte) ([]iapImportPlannedProduct, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 
 	var document iapImportDocument
 	if err := decoder.Decode(&document); err != nil {
-		return nil, shared.UsageErrorf("iap import: invalid import file: %v", err)
+		return nil, d.UsageErrorf("iap import: invalid import file: %v", err)
 	}
 	if err := decoder.Decode(new(struct{})); !errors.Is(err, io.EOF) {
-		return nil, shared.UsageError("iap import: invalid import file: expected a single JSON object")
+		return nil, d.UsageError("iap import: invalid import file: expected a single JSON object")
 	}
 
 	if len(document.Products) == 0 {
-		return nil, shared.UsageError("iap import: the import file must contain at least one product")
+		return nil, d.UsageError("iap import: the import file must contain at least one product")
 	}
 	if len(document.Products) > iapImportMaxProducts {
-		return nil, shared.UsageErrorf("iap import: the import file contains %d products; at most %d are allowed per run", len(document.Products), iapImportMaxProducts)
+		return nil, d.UsageErrorf("iap import: the import file contains %d products; at most %d are allowed per run", len(document.Products), iapImportMaxProducts)
 	}
 
 	planned := make([]iapImportPlannedProduct, 0, len(document.Products))
 	seen := make(map[string]struct{}, len(document.Products))
 	for index, raw := range document.Products {
-		product, screenshotName, err := validateIAPImportProduct(root, raw, index)
+		product, screenshotName, err := validateIAPImportProduct(d, root, raw, index)
 		if err != nil {
 			return nil, err
 		}
 		if _, exists := seen[product.ProductID]; exists {
-			return nil, shared.UsageErrorf("iap import: products[%d]: duplicate productId %q", index, product.ProductID)
+			return nil, d.UsageErrorf("iap import: products[%d]: duplicate productId %q", index, product.ProductID)
 		}
 		seen[product.ProductID] = struct{}{}
 		planned = append(planned, iapImportPlannedProduct{product: product, screenshotName: screenshotName})
@@ -228,7 +227,7 @@ func parseIAPImportDocument(root rootfs.Root, data []byte) ([]iapImportPlannedPr
 	return planned, nil
 }
 
-func validateIAPImportProduct(root rootfs.Root, raw iapImportProduct, index int) (iapImportProduct, string, error) {
+func validateIAPImportProduct(d *shared.Deps, root rootfs.Root, raw iapImportProduct, index int) (iapImportProduct, string, error) {
 	product := iapImportProduct{
 		Type:           strings.ToUpper(strings.TrimSpace(raw.Type)),
 		ReferenceName:  strings.TrimSpace(raw.ReferenceName),
@@ -236,13 +235,13 @@ func validateIAPImportProduct(root rootfs.Root, raw iapImportProduct, index int)
 		FamilySharable: raw.FamilySharable,
 	}
 	if product.ProductID == "" {
-		return iapImportProduct{}, "", shared.UsageErrorf("iap import: products[%d]: productId is required", index)
+		return iapImportProduct{}, "", d.UsageErrorf("iap import: products[%d]: productId is required", index)
 	}
 	if product.ReferenceName == "" {
-		return iapImportProduct{}, "", shared.UsageErrorf("iap import: products[%d]: referenceName is required", index)
+		return iapImportProduct{}, "", d.UsageErrorf("iap import: products[%d]: referenceName is required", index)
 	}
 	if !slices.Contains(asc.ValidIAPTypes, product.Type) {
-		return iapImportProduct{}, "", shared.UsageErrorf("iap import: products[%d]: type must be one of: %s", index, strings.Join(asc.ValidIAPTypes, ", "))
+		return iapImportProduct{}, "", d.UsageErrorf("iap import: products[%d]: type must be one of: %s", index, strings.Join(asc.ValidIAPTypes, ", "))
 	}
 
 	product.Localizations = make([]iapImportLocalization, 0, len(raw.Localizations))
@@ -254,13 +253,13 @@ func validateIAPImportProduct(root rootfs.Root, raw iapImportProduct, index int)
 			Description: strings.TrimSpace(rawLocalization.Description),
 		}
 		if localization.Locale == "" {
-			return iapImportProduct{}, "", shared.UsageErrorf("iap import: products[%d].localizations[%d]: locale is required", index, localizationIndex)
+			return iapImportProduct{}, "", d.UsageErrorf("iap import: products[%d].localizations[%d]: locale is required", index, localizationIndex)
 		}
 		if localization.Name == "" {
-			return iapImportProduct{}, "", shared.UsageErrorf("iap import: products[%d].localizations[%d]: name is required", index, localizationIndex)
+			return iapImportProduct{}, "", d.UsageErrorf("iap import: products[%d].localizations[%d]: name is required", index, localizationIndex)
 		}
 		if _, exists := locales[localization.Locale]; exists {
-			return iapImportProduct{}, "", shared.UsageErrorf("iap import: products[%d]: duplicate locale %q", index, localization.Locale)
+			return iapImportProduct{}, "", d.UsageErrorf("iap import: products[%d]: duplicate locale %q", index, localization.Locale)
 		}
 		locales[localization.Locale] = struct{}{}
 		product.Localizations = append(product.Localizations, localization)
@@ -273,7 +272,7 @@ func validateIAPImportProduct(root rootfs.Root, raw iapImportProduct, index int)
 	product.ReviewScreenshot = screenshot
 	name, err := resolveIAPImportScreenshotName(root, screenshot)
 	if err != nil {
-		return iapImportProduct{}, "", shared.ReviewScreenshotUsageError("--file", fmt.Sprintf("iap import: products[%d]: reviewScreenshot %q: %v", index, screenshot, err))
+		return iapImportProduct{}, "", d.ReviewScreenshotUsageError("--file", fmt.Sprintf("iap import: products[%d]: reviewScreenshot %q: %v", index, screenshot, err))
 	}
 	return product, name, nil
 }
@@ -320,13 +319,13 @@ func resolveIAPImportScreenshotName(root rootfs.Root, value string) (string, err
 // prepareIAPImport resolves the client and the app's existing product IDs, and
 // rejects a conflicting run before the receipt exists, because nothing has
 // been created yet and the error alone is the complete result.
-func prepareIAPImport(ctx context.Context, appID string, planned []iapImportPlannedProduct, skipExisting bool) (*asc.Client, map[string]struct{}, error) {
-	client, err := iapQueryClientFactory()
+func prepareIAPImport(ctx context.Context, d *shared.Deps, appID string, planned []iapImportPlannedProduct, skipExisting bool) (*asc.Client, map[string]struct{}, error) {
+	client, err := d.Client()
 	if err != nil {
 		return nil, nil, fmt.Errorf("iap import: %w", err)
 	}
 
-	existing, err := fetchExistingIAPProductIDs(ctx, client, appID, planned)
+	existing, err := fetchExistingIAPProductIDs(ctx, d, client, appID, planned)
 	if err != nil {
 		return nil, nil, fmt.Errorf("iap import: %w", err)
 	}
@@ -351,6 +350,7 @@ func prepareIAPImport(ctx context.Context, appID string, planned []iapImportPlan
 
 func executeIAPImport(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	root rootfs.Root,
 	result *asc.InAppPurchaseImportResult,
@@ -377,7 +377,7 @@ func executeIAPImport(
 			continue
 		}
 
-		if err := importIAPProduct(ctx, client, root, result, &entry, item); err != nil {
+		if err := importIAPProduct(ctx, d, client, root, result, &entry, item); err != nil {
 			entry.Status = iapImportStatusFailed
 			entry.Error = err.Error()
 			result.Products = append(result.Products, entry)
@@ -395,6 +395,7 @@ func executeIAPImport(
 
 func importIAPProduct(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	root rootfs.Root,
 	result *asc.InAppPurchaseImportResult,
@@ -403,7 +404,7 @@ func importIAPProduct(
 ) error {
 	product := item.product
 
-	createCtx, createCancel := shared.ContextWithTimeout(ctx)
+	createCtx, createCancel := d.Timeout(ctx)
 	created, err := client.CreateInAppPurchaseV2(createCtx, result.AppID, asc.InAppPurchaseV2CreateAttributes{
 		Name:              product.ReferenceName,
 		ProductID:         product.ProductID,
@@ -425,7 +426,7 @@ func importIAPProduct(
 	}
 
 	if len(product.Localizations) > 0 {
-		versionID, err := resolveIAPImportVersionID(ctx, client, entry.InAppPurchaseID)
+		versionID, err := resolveIAPImportVersionID(ctx, d, client, entry.InAppPurchaseID)
 		if err != nil {
 			return err
 		}
@@ -440,7 +441,7 @@ func importIAPProduct(
 				description := localization.Description
 				attrs.Description = &asc.NullableString{Value: &description}
 			}
-			localizationCtx, localizationCancel := shared.ContextWithTimeout(ctx)
+			localizationCtx, localizationCancel := d.Timeout(ctx)
 			_, err := client.CreateInAppPurchaseLocalizationV2(localizationCtx, versionID, attrs)
 			localizationCancel()
 			if err != nil {
@@ -455,7 +456,7 @@ func importIAPProduct(
 		return nil
 	}
 
-	screenshotID, err := uploadIAPImportReviewScreenshot(ctx, client, root, entry.InAppPurchaseID, item.screenshotName)
+	screenshotID, err := uploadIAPImportReviewScreenshot(ctx, d, client, root, entry.InAppPurchaseID, item.screenshotName)
 	entry.ReviewScreenshotID = screenshotID
 	if err != nil {
 		return err
@@ -467,8 +468,8 @@ func importIAPProduct(
 // resolveIAPImportVersionID returns the version that owns the localizations for
 // a freshly created in-app purchase, creating one when App Store Connect has
 // not already provisioned it.
-func resolveIAPImportVersionID(ctx context.Context, client *asc.Client, iapID string) (string, error) {
-	listCtx, listCancel := shared.ContextWithTimeout(ctx)
+func resolveIAPImportVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, iapID string) (string, error) {
+	listCtx, listCancel := d.Timeout(ctx)
 	versions, err := client.GetInAppPurchaseVersions(listCtx, iapID, asc.Limit[asc.IAPVersionsOption](200))
 	listCancel()
 	if err != nil {
@@ -480,7 +481,7 @@ func resolveIAPImportVersionID(ctx context.Context, client *asc.Client, iapID st
 		}
 	}
 
-	createCtx, createCancel := shared.ContextWithTimeout(ctx)
+	createCtx, createCancel := d.Timeout(ctx)
 	created, err := client.CreateInAppPurchaseVersion(createCtx, iapID)
 	createCancel()
 	if err != nil {
@@ -493,7 +494,7 @@ func resolveIAPImportVersionID(ctx context.Context, client *asc.Client, iapID st
 	return id, nil
 }
 
-func uploadIAPImportReviewScreenshot(ctx context.Context, client *asc.Client, root rootfs.Root, iapID, name string) (string, error) {
+func uploadIAPImportReviewScreenshot(ctx context.Context, d *shared.Deps, client *asc.Client, root rootfs.Root, iapID, name string) (string, error) {
 	file, err := root.OpenFile(name)
 	if err != nil {
 		return "", fmt.Errorf("open review screenshot %q: %w", name, err)
@@ -514,7 +515,7 @@ func uploadIAPImportReviewScreenshot(ctx context.Context, client *asc.Client, ro
 	defer cleanupSnapshot()
 	// Planning already rejected an unusable file; check the bytes about to be
 	// uploaded in case the file changed since then, and warn about them.
-	if err := shared.PreflightReviewScreenshot(name, snapshot, info.Size()); err != nil {
+	if err := d.PreflightReviewScreenshot(name, snapshot, info.Size()); err != nil {
 		return "", fmt.Errorf("validate review screenshot %q: %w", name, err)
 	}
 
@@ -564,13 +565,13 @@ func uploadIAPImportReviewScreenshot(ctx context.Context, client *asc.Client, ro
 // fetchExistingIAPProductIDs returns the subset of planned product IDs that the
 // app already has, filtering server-side so the check costs one page in the
 // common case.
-func fetchExistingIAPProductIDs(ctx context.Context, client *asc.Client, appID string, planned []iapImportPlannedProduct) (map[string]struct{}, error) {
+func fetchExistingIAPProductIDs(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, planned []iapImportPlannedProduct) (map[string]struct{}, error) {
 	productIDs := make([]string, 0, len(planned))
 	for _, item := range planned {
 		productIDs = append(productIDs, item.product.ProductID)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	firstPage, err := client.GetInAppPurchasesV2(
