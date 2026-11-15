@@ -91,16 +91,16 @@ func withSpinnerTo(w io.Writer, enabled func() bool, label string, fn func() err
 // This avoids spinner “flicker” for fast operations while still providing feedback
 // for slower operations (e.g., keychain prompts).
 func WithSpinnerDelayed(label string, delay time.Duration, fn func() error) (err error) {
-	return withSpinnerDelayedTo(os.Stderr, SpinnerEnabled, label, delay, fn)
+	return withSpinnerDelayedTo(os.Stderr, SpinnerEnabled, time.After, label, delay, fn)
 }
 
 // WithSpinnerDelayed is WithSpinnerDelayed with the spinner on d's stderr,
-// shown only when d's stdout and stderr are terminals.
+// shown only when d's stdout and stderr are terminals, after d.After(delay).
 func (d *Deps) WithSpinnerDelayed(label string, delay time.Duration, fn func() error) error {
-	return withSpinnerDelayedTo(d.IO.ErrOut, d.SpinnerEnabled, label, delay, fn)
+	return withSpinnerDelayedTo(d.IO.ErrOut, d.SpinnerEnabled, d.After, label, delay, fn)
 }
 
-func withSpinnerDelayedTo(w io.Writer, enabled func() bool, label string, delay time.Duration, fn func() error) (err error) {
+func withSpinnerDelayedTo(w io.Writer, enabled func() bool, after func(time.Duration) <-chan time.Time, label string, delay time.Duration, fn func() error) (err error) {
 	if fn == nil {
 		return nil
 	}
@@ -115,12 +115,11 @@ func withSpinnerDelayedTo(w io.Writer, enabled func() bool, label string, delay 
 	done := make(chan struct{})
 	started := make(chan bool, 1)
 
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
+	fired := after(delay)
 
 	go func() {
 		select {
-		case <-timer.C:
+		case <-fired:
 			s.Start(label)
 			started <- true
 		case <-done:

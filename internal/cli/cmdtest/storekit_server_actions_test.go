@@ -202,7 +202,7 @@ func TestStoreKitServerActionsUsageErrors(t *testing.T) {
 			stubStoreKitTransport(t, func(r *http.Request) string { t.Errorf("unexpected HTTP %s", r.URL); return `{}` })
 			args := append([]string{"storekit"}, tt.args...)
 			args = append(args, "--environment", "sandbox")
-			stdout, stderr, err := runRootCommand(t, args)
+			stdout, stderr, err := runRootWithDeps(t, unexpectedStoreKitASCClient(t), args...)
 			if !errors.Is(err, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, tt.want) {
 				t.Fatalf("stdout=%q stderr=%q err=%v want=%q", stdout, stderr, err, tt.want)
 			}

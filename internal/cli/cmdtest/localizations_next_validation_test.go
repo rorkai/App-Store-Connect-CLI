@@ -12,10 +12,10 @@ import (
 
 func TestLocalizationsListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"localizations", "preview-sets", "list"}, wantErr: "localizations preview-sets list: --next"},
-		{args: []string{"localizations", "preview-sets", "links"}, wantErr: "localizations preview-sets links: --next"},
-		{args: []string{"localizations", "screenshot-sets", "list"}, wantErr: "localizations screenshot-sets list: --next"},
-		{args: []string{"localizations", "screenshot-sets", "links"}, wantErr: "localizations screenshot-sets links: --next"},
+		{args: []string{"localizations", "preview-sets", "list"}, wantErr: "localizations preview-sets list: --next", deps: true},
+		{args: []string{"localizations", "preview-sets", "links"}, wantErr: "localizations preview-sets links: --next", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "list"}, wantErr: "localizations screenshot-sets list: --next", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "links"}, wantErr: "localizations screenshot-sets links: --next", deps: true},
 		{args: []string{"testflight", "app-localizations", "list"}, wantErr: "testflight app-localizations list: --next"},
 	})
 }
@@ -26,6 +26,7 @@ func TestLocalizationsListsPaginateFromNext(t *testing.T) {
 			args:     []string{"localizations", "list", "--version", "version-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-1/appStoreVersionLocalizations?cursor=AQ&limit=200",
 			dataType: "appStoreVersionLocalizations",
+			deps:     true,
 		},
 		{
 			args:     []string{"build-localizations", "list"},
@@ -37,21 +38,25 @@ func TestLocalizationsListsPaginateFromNext(t *testing.T) {
 			args:     []string{"localizations", "preview-sets", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/localization-1/appPreviewSets?cursor=AQ&limit=200",
 			dataType: "appPreviewSets",
+			deps:     true,
 		},
 		{
 			args:     []string{"localizations", "preview-sets", "links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/localization-1/relationships/appPreviewSets?cursor=AQ&limit=200",
 			dataType: "appPreviewSets",
+			deps:     true,
 		},
 		{
 			args:     []string{"localizations", "screenshot-sets", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/localization-1/appScreenshotSets?cursor=AQ&limit=200",
 			dataType: "appScreenshotSets",
+			deps:     true,
 		},
 		{
 			args:     []string{"localizations", "screenshot-sets", "links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/localization-1/relationships/appScreenshotSets?cursor=AQ&limit=200",
 			dataType: "appScreenshotSets",
+			deps:     true,
 		},
 		{
 			args:     []string{"testflight", "app-localizations", "list"},

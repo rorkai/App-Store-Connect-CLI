@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,11 +9,11 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	appclipscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 )
 
-// newDefaultExperiencesCreateClient points the CLI's App Clips client at srv.
-func newDefaultExperiencesCreateClient(t *testing.T, srv *httptest.Server) {
+// newDefaultExperiencesCreateClient returns a client factory whose clients send
+// every request to srv.
+func newDefaultExperiencesCreateClient(t *testing.T, srv *httptest.Server) func() (*asc.Client, error) {
 	t.Helper()
 
 	serverURL, err := url.Parse(srv.URL)
@@ -35,9 +34,9 @@ func newDefaultExperiencesCreateClient(t *testing.T, srv *httptest.Server) {
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	t.Cleanup(appclipscli.SetClientFactory(func() (*asc.Client, error) {
+	return func() (*asc.Client, error) {
 		return client, nil
-	}))
+	}
 }
 
 func TestAppClipsDefaultExperiencesCreateSendsTemplate(t *testing.T) {
@@ -73,22 +72,17 @@ func TestAppClipsDefaultExperiencesCreateSendsTemplate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	newDefaultExperiencesCreateClient(t, server)
+	client := newDefaultExperiencesCreateClient(t, server)
 
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-clips", "default-experiences", "create",
-			"--app-clip-id", "clip-1",
-			"--release-version-id", "version-1",
-			"--template-id", "exp-current",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, client,
+		"app-clips", "default-experiences", "create",
+		"--app-clip-id", "clip-1",
+		"--release-version-id", "version-1",
+		"--template-id", "exp-current",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -119,21 +113,16 @@ func TestAppClipsDefaultExperiencesCreateOmitsTemplateWhenNotSet(t *testing.T) {
 	}))
 	defer server.Close()
 
-	newDefaultExperiencesCreateClient(t, server)
+	client := newDefaultExperiencesCreateClient(t, server)
 
-	root := RootCommand("1.2.3")
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-clips", "default-experiences", "create",
-			"--app-clip-id", "clip-1",
-			"--release-version-id", "version-1",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	_, stderr, err := runRootWithDeps(t, client,
+		"app-clips", "default-experiences", "create",
+		"--app-clip-id", "clip-1",
+		"--release-version-id", "version-1",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -152,21 +141,14 @@ func TestAppClipsDefaultExperiencesCreateRejectsEmptyTemplateWhenSet(t *testing.
 			}))
 			defer server.Close()
 
-			newDefaultExperiencesCreateClient(t, server)
+			client := newDefaultExperiencesCreateClient(t, server)
 
-			root := RootCommand("1.2.3")
-			var runErr error
-			captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"app-clips", "default-experiences", "create",
-					"--app-clip-id", "clip-1",
-					"--release-version-id", "version-1",
-					"--template-id", templateID,
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			_, _, runErr := runRootWithDeps(t, client,
+				"app-clips", "default-experiences", "create",
+				"--app-clip-id", "clip-1",
+				"--release-version-id", "version-1",
+				"--template-id", templateID,
+			)
 
 			if runErr == nil {
 				t.Fatal("expected error for explicitly empty --template-id")

@@ -1,11 +1,9 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -15,21 +13,12 @@ import (
 )
 
 func TestAnalyticsRequestReuseExistingRejectsInvalidAccessType(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"analytics", "request",
-			"--app", "app-1",
-			"--access-type", "DAILY",
-			"--reuse-existing",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil,
+		"analytics", "request",
+		"--app", "app-1",
+		"--access-type", "DAILY",
+		"--reuse-existing",
+	)
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
@@ -46,23 +35,21 @@ func TestAnalyticsRequestReuseExistingRejectsInvalidAccessType(t *testing.T) {
 }
 
 func TestAnalyticsRequestReuseExistingUsesExistingRequest(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[`+
 		`{"type":"analyticsReportRequests","id":"req-snapshot","attributes":{"accessType":"ONE_TIME_SNAPSHOT","stoppedDueToInactivity":false}},`+
 		`{"type":"analyticsReportRequests","id":"req-existing","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}`+
 		`],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"analytics", "request",
 		"--app", "app-1",
 		"--access-type", "ONGOING",
 		"--reuse-existing",
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -97,23 +84,21 @@ func TestAnalyticsRequestReuseExistingScansEveryPage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[`+test.pages[0]+`],"links":{"next":"/v1/apps/app-1/analyticsReportRequests?cursor=2"}}`))
 			reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "cursor=2"),
 				asctest.JSON(http.StatusOK, `{"data":[`+test.pages[1]+`],"links":{"next":""}}`))
 
-			stdout, stderr, err := runCommand(t, []string{
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 				"analytics", "request",
 				"--app", "app-1",
 				"--access-type", "ONGOING",
 				"--reuse-existing",
 				"--output", "json",
-			})
+			)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -139,22 +124,20 @@ func TestAnalyticsRequestReuseExistingScansEveryPage(t *testing.T) {
 }
 
 func TestAnalyticsRequestReuseExistingCreatesMissingRequest(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 	reg.Register(asctest.POST("/v1/analyticsReportRequests").JSONBody(`{"data":{"type":"analyticsReportRequests","attributes":{"accessType":"ONGOING"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"analyticsReportRequests","id":"req-created","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"analytics", "request",
 		"--app", "app-1",
 		"--access-type", "ONGOING",
 		"--reuse-existing",
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -180,11 +163,9 @@ func TestAnalyticsRequestReuseExistingCreatesMissingRequest(t *testing.T) {
 }
 
 func TestAnalyticsRequestReuseExistingRefetchesAfterCreateConflict(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 	reg.Register(asctest.POST("/v1/analyticsReportRequests").JSONBody(`{"data":{"type":"analyticsReportRequests","attributes":{"accessType":"ONGOING"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
 		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"duplicate request"}]}`))
@@ -192,13 +173,13 @@ func TestAnalyticsRequestReuseExistingRefetchesAfterCreateConflict(t *testing.T)
 		`{"type":"analyticsReportRequests","id":"req-created-by-race","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}`+
 		`],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"analytics", "request",
 		"--app", "app-1",
 		"--access-type", "ONGOING",
 		"--reuse-existing",
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

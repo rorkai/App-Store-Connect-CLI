@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -22,14 +21,13 @@ type validateTestFlightOptions struct {
 	Pretty  bool
 }
 
-// ValidateTestFlightCommand returns the asc validate testflight subcommand.
-func ValidateTestFlightCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("testflight", flag.ExitOnError)
+func newValidateTestFlightCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("testflight", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID (required)")
 	strict := fs.Bool("strict", false, "Treat warnings as errors (exit non-zero)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "testflight",
@@ -51,16 +49,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
-				return shared.RequiredFlag("--build-id")
+				return d.RequiredFlag("--build-id")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			return runValidateTestFlight(ctx, validateTestFlightOptions{
+			return runValidateTestFlight(ctx, d, validateTestFlightOptions{
 				AppID:   resolvedAppID,
 				BuildID: buildValue,
 				Strict:  *strict,
@@ -71,13 +69,13 @@ Examples:
 	}
 }
 
-func runValidateTestFlight(ctx context.Context, opts validateTestFlightOptions) error {
-	client, err := clientFactory()
+func runValidateTestFlight(ctx context.Context, d *shared.Deps, opts validateTestFlightOptions) error {
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("validate testflight: %w", err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	appResp, err := client.GetApp(requestCtx, opts.AppID)
@@ -158,7 +156,7 @@ func runValidateTestFlight(ctx context.Context, opts validateTestFlightOptions) 
 		BetaBuildLocalizations: betaBuildLocalizations,
 	}, opts.Strict)
 
-	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
+	if err := d.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
 		return err
 	}
 

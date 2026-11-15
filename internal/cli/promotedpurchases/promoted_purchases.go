@@ -36,7 +36,7 @@ Examples:
   asc promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm
   asc promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPromotedPurchasesListCommand(d),
 			newPromotedPurchasesGetCommand(d),
@@ -72,7 +72,7 @@ Examples:
   asc promoted-purchases list --app "APP_ID" --limit 10
   asc promoted-purchases list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --limit must be between 1 and 200")
@@ -172,7 +172,7 @@ Examples:
   asc promoted-purchases create --app "APP_ID" --product-id "PRODUCT_ID" --product-type SUBSCRIPTION --visible-for-all-users
   asc promoted-purchases create --app "APP_ID" --product-id "PRODUCT_ID" --product-type IN_APP_PURCHASE --visible-for-all-users --enabled true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -273,7 +273,7 @@ Examples:
   asc promoted-purchases update --promoted-purchase-id "PROMO_ID" --visible-for-all-users false
   asc promoted-purchases update --promoted-purchase-id "PROMO_ID" --enabled true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -328,7 +328,7 @@ func newPromotedPurchasesDeleteCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
@@ -382,7 +382,7 @@ Examples:
   asc promoted-purchases link --app "APP_ID" --promoted-purchase-id "PROMO_1,PROMO_2"
   asc promoted-purchases link --app "APP_ID" --clear --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

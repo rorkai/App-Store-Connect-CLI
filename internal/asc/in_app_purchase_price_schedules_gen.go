@@ -5,6 +5,8 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -76,4 +78,126 @@ func (c *Client) GetInAppPurchasePriceScheduleManualPrices(ctx context.Context, 
 		Next:        query.nextURL,
 		NextContext: "in-app-purchase-manual-prices",
 	})
+}
+
+// IAPPriceSchedulePricesOption sets the query of GET /v1/inAppPurchasePriceSchedules/{id}/automaticPrices (inAppPurchasePriceSchedules_automaticPrices_getToManyRelated) and GET /v1/inAppPurchasePriceSchedules/{id}/manualPrices (inAppPurchasePriceSchedules_manualPrices_getToManyRelated).
+type IAPPriceSchedulePricesOption func(*iapPriceSchedulePricesQuery)
+
+type iapPriceSchedulePricesQuery struct {
+	listQuery
+	include          []string
+	priceFields      []string
+	pricePointFields []string
+	territoryFields  []string
+}
+
+// WithIAPPriceSchedulePricesInclude sets include.
+func WithIAPPriceSchedulePricesInclude(include []string) IAPPriceSchedulePricesOption {
+	return func(q *iapPriceSchedulePricesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithIAPPriceSchedulePricesFields sets fields[inAppPurchasePrices].
+func WithIAPPriceSchedulePricesFields(fields []string) IAPPriceSchedulePricesOption {
+	return func(q *iapPriceSchedulePricesQuery) {
+		q.priceFields = normalizeList(fields)
+	}
+}
+
+// WithIAPPriceSchedulePricesPricePointFields sets fields[inAppPurchasePricePoints].
+func WithIAPPriceSchedulePricesPricePointFields(fields []string) IAPPriceSchedulePricesOption {
+	return func(q *iapPriceSchedulePricesQuery) {
+		q.pricePointFields = normalizeList(fields)
+	}
+}
+
+// WithIAPPriceSchedulePricesTerritoryFields sets fields[territories].
+func WithIAPPriceSchedulePricesTerritoryFields(fields []string) IAPPriceSchedulePricesOption {
+	return func(q *iapPriceSchedulePricesQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+func buildIAPPriceSchedulePricesQuery(query *iapPriceSchedulePricesQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
+	addCSV(values, "fields[inAppPurchasePrices]", query.priceFields)
+	addCSV(values, "fields[inAppPurchasePricePoints]", query.pricePointFields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// IAPPriceScheduleOption sets the query of GET /v1/inAppPurchasePriceSchedules/{id} (inAppPurchasePriceSchedules_getInstance) and GET /v2/inAppPurchases/{id}/iapPriceSchedule (inAppPurchasesV2_iapPriceSchedule_getToOneRelated).
+type IAPPriceScheduleOption func(*iapPriceScheduleQuery)
+
+type iapPriceScheduleQuery struct {
+	include              []string
+	priceScheduleFields  []string
+	territoryFields      []string
+	inAppPriceFields     []string
+	manualPricesLimit    int
+	automaticPricesLimit int
+}
+
+// WithIAPPriceScheduleInclude sets include.
+func WithIAPPriceScheduleInclude(include []string) IAPPriceScheduleOption {
+	return func(q *iapPriceScheduleQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithIAPPriceScheduleFields sets fields[inAppPurchasePriceSchedules].
+func WithIAPPriceScheduleFields(fields []string) IAPPriceScheduleOption {
+	return func(q *iapPriceScheduleQuery) {
+		q.priceScheduleFields = normalizeList(fields)
+	}
+}
+
+// WithIAPPriceScheduleTerritoryFields sets fields[territories].
+func WithIAPPriceScheduleTerritoryFields(fields []string) IAPPriceScheduleOption {
+	return func(q *iapPriceScheduleQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+// WithIAPPriceSchedulePriceFields sets fields[inAppPurchasePrices].
+func WithIAPPriceSchedulePriceFields(fields []string) IAPPriceScheduleOption {
+	return func(q *iapPriceScheduleQuery) {
+		q.inAppPriceFields = normalizeList(fields)
+	}
+}
+
+// WithIAPPriceScheduleManualPricesLimit sets limit[manualPrices].
+func WithIAPPriceScheduleManualPricesLimit(limit int) IAPPriceScheduleOption {
+	return func(q *iapPriceScheduleQuery) {
+		if limit > 0 {
+			q.manualPricesLimit = limit
+		}
+	}
+}
+
+// WithIAPPriceScheduleAutomaticPricesLimit sets limit[automaticPrices].
+func WithIAPPriceScheduleAutomaticPricesLimit(limit int) IAPPriceScheduleOption {
+	return func(q *iapPriceScheduleQuery) {
+		if limit > 0 {
+			q.automaticPricesLimit = limit
+		}
+	}
+}
+
+func buildIAPPriceScheduleQuery(query *iapPriceScheduleQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
+	addCSV(values, "fields[inAppPurchasePriceSchedules]", query.priceScheduleFields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "fields[inAppPurchasePrices]", query.inAppPriceFields)
+	if query.manualPricesLimit > 0 {
+		values.Set("limit[manualPrices]", strconv.Itoa(query.manualPricesLimit))
+	}
+	if query.automaticPricesLimit > 0 {
+		values.Set("limit[automaticPrices]", strconv.Itoa(query.automaticPricesLimit))
+	}
+	return values.Encode()
 }

@@ -57,7 +57,7 @@ func TestRemainingListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
 		{args: []string{"builds", "list"}, wantErr: "builds list: --next"},
 		{args: []string{"marketplace", "webhooks", "list"}, wantErr: "marketplace webhooks list: --next", wantWarning: marketplaceWebhooksDeprecationWarning, deps: true},
-		{args: []string{"pricing", "price-points"}, wantErr: "pricing price-points: --next"},
+		{args: []string{"pricing", "price-points"}, wantErr: "pricing price-points: --next", deps: true},
 		{args: []string{"review", "items-list"}, wantErr: "review items-list: --next", deps: true},
 		{args: []string{"review", "submissions-items-ids"}, wantErr: "review submissions-items-ids: --next", deps: true},
 		{args: []string{"review", "submissions-list"}, wantErr: "review submissions-list: --next", deps: true},
@@ -119,11 +119,13 @@ func TestRemainingListsPaginateFromNext(t *testing.T) {
 			args:     []string{"pricing", "price-points"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/pricePoints?cursor=AQ&limit=200",
 			dataType: "appPricePoints",
+			deps:     true,
 		},
 		{
 			args:     []string{"pricing", "territories", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/territories?cursor=AQ&limit=200",
 			dataType: "territories",
+			deps:     true,
 		},
 		{
 			args:     []string{"review", "attachments-list"},

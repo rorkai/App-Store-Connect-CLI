@@ -1,18 +1,14 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 )
 
 func TestWebhookDeliveriesDateFiltersMatchAppleContract(t *testing.T) {
-	setupAuth(t)
-
 	tests := []struct {
 		name         string
 		args         []string
@@ -40,28 +36,11 @@ func TestWebhookDeliveriesDateFiltersMatchAppleContract(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			serverURL, err := url.Parse(server.URL)
-			if err != nil {
-				t.Fatalf("parse server URL: %v", err)
-			}
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				cloned := req.Clone(req.Context())
-				cloned.URL.Scheme = serverURL.Scheme
-				cloned.URL.Host = serverURL.Host
-				return server.Client().Transport.RoundTrip(cloned)
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append([]string{"webhooks", "deliveries", "--webhook-id", "wh-1", "--output", "json"}, test.args...)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), args...)
+			if err != nil {
+				t.Fatalf("run: %v", err)
+			}
 			if requestCount != 1 {
 				t.Fatalf("request count = %d, want 1", requestCount)
 			}

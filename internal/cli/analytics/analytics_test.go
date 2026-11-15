@@ -5,8 +5,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -14,7 +12,7 @@ import (
 )
 
 func TestAnalyticsViewProcessingDateFlagLifecycle(t *testing.T) {
-	root := AnalyticsCommand()
+	root := NewAnalyticsCommand(newAnalyticsTestDeps(&bytes.Buffer{}, &bytes.Buffer{}))
 	viewIndex := -1
 	for index, subcommand := range root.Subcommands {
 		if subcommand.Name == "get" {
@@ -58,7 +56,7 @@ func TestAnalyticsViewProcessingDateFlagLifecycle(t *testing.T) {
 }
 
 func TestAnalyticsRequestsAccessTypeFlagLifecycle(t *testing.T) {
-	cmd := AnalyticsRequestsCommand()
+	cmd := newAnalyticsRequestsCommand(newAnalyticsTestDeps(&bytes.Buffer{}, &bytes.Buffer{}))
 	if cmd.FlagSet.Lookup("access-type") == nil {
 		t.Fatal("canonical --access-type flag is not registered")
 	}
@@ -150,74 +148,20 @@ func parseAnalyticsArgs(args []string) []string {
 func runAnalyticsCommand(t *testing.T, args []string) (string, string, error) {
 	t.Helper()
 
-	cmd := AnalyticsCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
+	var stdout, stderr bytes.Buffer
+	cmd := NewAnalyticsCommand(newAnalyticsTestDeps(&stdout, &stderr))
+	if err := cmd.Parse(parseAnalyticsArgs(args)); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := cmd.Run(context.Background())
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Parse(parseAnalyticsArgs(args)); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = cmd.Run(context.Background())
-	})
-
-	return stdout, stderr, runErr
+	return stdout.String(), stderr.String(), runErr
 }
 
-func captureOutput(t *testing.T, fn func()) (string, string) {
-	t.Helper()
-
-	oldStdout := os.Stdout
-	oldStderr := os.Stderr
-
-	rOut, wOut, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create stdout pipe: %v", err)
-	}
-	rErr, wErr, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create stderr pipe: %v", err)
-	}
-
-	os.Stdout = wOut
-	os.Stderr = wErr
-
-	outC := make(chan string)
-	errC := make(chan string)
-
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, rOut)
-		_ = rOut.Close()
-		outC <- buf.String()
-	}()
-
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, rErr)
-		_ = rErr.Close()
-		errC <- buf.String()
-	}()
-
-	defer func() {
-		os.Stdout = oldStdout
-		os.Stderr = oldStderr
-		_ = wOut.Close()
-		_ = wErr.Close()
-	}()
-
-	fn()
-
-	_ = wOut.Close()
-	_ = wErr.Close()
-
-	stdout := <-outC
-	stderr := <-errC
-
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
-
-	return stdout, stderr
+// newAnalyticsTestDeps returns deps whose streams are stdout and stderr. The
+// tests using it fail before a client is built.
+func newAnalyticsTestDeps(stdout, stderr *bytes.Buffer) *shared.Deps {
+	return &shared.Deps{IO: &shared.IO{Out: stdout, ErrOut: stderr}}
 }
 
 func TestAnalyticsSalesValidationErrors(t *testing.T) {

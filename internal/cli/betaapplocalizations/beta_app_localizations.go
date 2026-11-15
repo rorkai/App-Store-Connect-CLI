@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,16 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BetaAppLocalizationsCommand returns the beta-app-localizations command group.
+// BetaAppLocalizationsCommand returns the beta-app-localizations command group
+// built on the process dependencies.
 func BetaAppLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("beta-app-localizations", flag.ExitOnError)
+	return NewBetaAppLocalizationsCommand(shared.DefaultDeps())
+}
+
+// NewBetaAppLocalizationsCommand returns the beta-app-localizations command
+// group built on d.
+func NewBetaAppLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("beta-app-localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "beta-app-localizations",
@@ -29,12 +35,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaAppLocalizationsListCommand(),
-			BetaAppLocalizationsGetCommand(),
-			BetaAppLocalizationsAppCommand(),
-			BetaAppLocalizationsCreateCommand(),
-			BetaAppLocalizationsUpdateCommand(),
-			BetaAppLocalizationsDeleteCommand(),
+			newBetaAppLocalizationsListCommand(d),
+			newBetaAppLocalizationsGetCommand(d),
+			newBetaAppLocalizationsAppCommand(d),
+			newBetaAppLocalizationsCreateCommand(d),
+			newBetaAppLocalizationsUpdateCommand(d),
+			newBetaAppLocalizationsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -42,16 +48,16 @@ Examples:
 	}
 }
 
-// BetaAppLocalizationsListCommand returns the list subcommand.
-func BetaAppLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newBetaAppLocalizationsListCommand returns the list subcommand built on d.
+func newBetaAppLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -66,27 +72,27 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "beta-app-localizations list", 200, "locale"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "beta-app-localizations list", 200, "locale"); err != nil {
 				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
-				return shared.UsageErrorfCtx(ctx, "beta-app-localizations list: %v", err)
+				return d.UsageErrorfCtx(ctx, "beta-app-localizations list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-app-localizations list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaAppLocalizationsOption{
@@ -113,7 +119,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("beta-app-localizations list: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBetaAppLocalizations(requestCtx, opts...)
@@ -121,14 +127,15 @@ Examples:
 				return fmt.Errorf("beta-app-localizations list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BetaAppLocalizationsGetCommand returns the get subcommand.
-func BetaAppLocalizationsGetCommand() *ffcli.Command {
+// newBetaAppLocalizationsGetCommand returns the get subcommand built on d.
+func newBetaAppLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc beta-app-localizations view --id \"LOCALIZATION_ID\"",
 		ShortHelp:  "View a beta app localization by ID.",
@@ -145,9 +152,9 @@ Examples:
 	})
 }
 
-// BetaAppLocalizationsCreateCommand returns the create subcommand.
-func BetaAppLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newBetaAppLocalizationsCreateCommand returns the create subcommand built on d.
+func newBetaAppLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
@@ -156,7 +163,7 @@ func BetaAppLocalizationsCreateCommand() *ffcli.Command {
 	marketingURL := fs.String("marketing-url", "", "Marketing URL")
 	privacyPolicyURL := fs.String("privacy-policy-url", "", "Privacy policy URL")
 	tvOsPrivacyPolicy := fs.String("tv-os-privacy-policy", "", "tvOS privacy policy")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -172,16 +179,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-				return shared.UsageErrorfCtx(ctx, "beta-app-localizations create: %v", err)
+				return d.UsageErrorfCtx(ctx, "beta-app-localizations create: %v", err)
 			}
 
 			attrs := asc.BetaAppLocalizationAttributes{
@@ -204,12 +211,12 @@ Examples:
 				attrs.TvOsPrivacyPolicy = value
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-app-localizations create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateBetaAppLocalization(requestCtx, resolvedAppID, attrs)
@@ -217,14 +224,14 @@ Examples:
 				return fmt.Errorf("beta-app-localizations create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BetaAppLocalizationsUpdateCommand returns the update subcommand.
-func BetaAppLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newBetaAppLocalizationsUpdateCommand returns the update subcommand built on d.
+func newBetaAppLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaAppLocalizations", "Beta app localization ID")
 	description := fs.String("description", "", "Beta app description")
@@ -232,7 +239,7 @@ func BetaAppLocalizationsUpdateCommand() *ffcli.Command {
 	marketingURL := fs.String("marketing-url", "", "Marketing URL")
 	privacyPolicyURL := fs.String("privacy-policy-url", "", "Privacy policy URL")
 	tvOsPrivacyPolicy := fs.String("tv-os-privacy-policy", "", "tvOS privacy policy")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -248,7 +255,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -262,7 +269,7 @@ Examples:
 				visited["privacy-policy-url"] ||
 				visited["tv-os-privacy-policy"]
 			if !hasUpdates {
-				return shared.UpdateFlagRequired(fs, description, feedbackEmail, marketingURL, privacyPolicyURL, tvOsPrivacyPolicy)
+				return d.UpdateFlagRequired(fs, description, feedbackEmail, marketingURL, privacyPolicyURL, tvOsPrivacyPolicy)
 			}
 
 			attrs := asc.BetaAppLocalizationUpdateAttributes{}
@@ -287,12 +294,12 @@ Examples:
 				attrs.TvOsPrivacyPolicy = &value
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-app-localizations update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateBetaAppLocalization(requestCtx, idValue, attrs)
@@ -300,14 +307,15 @@ Examples:
 				return fmt.Errorf("beta-app-localizations update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BetaAppLocalizationsDeleteCommand returns the delete subcommand.
-func BetaAppLocalizationsDeleteCommand() *ffcli.Command {
+// newBetaAppLocalizationsDeleteCommand returns the delete subcommand built on d.
+func newBetaAppLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc beta-app-localizations delete --id \"LOCALIZATION_ID\" --confirm",
 		ShortHelp:  "Delete a beta app localization.",

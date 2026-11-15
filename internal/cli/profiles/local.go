@@ -126,7 +126,7 @@ Examples:
   asc profiles local clean --expired --dry-run
   asc profiles local clean --expired --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newProfilesLocalInstallCommand(d),
 			newProfilesLocalListCommand(d),
@@ -164,7 +164,7 @@ Examples:
   asc profiles local install --id "PROFILE_ID"
   asc profiles local install --path "./profile.mobileprovision" --force`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*sourcePath)
 			idValue := strings.TrimSpace(*profileID)
@@ -353,7 +353,7 @@ Examples:
   asc profiles local list --expired
   asc profiles local list --bundle-id "com.example.app" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedInstallDir, err := resolveProfilesInstallDirForCommand(ctx, d, *installDir, "profiles local list")
 			if err != nil {
@@ -435,7 +435,7 @@ Examples:
   asc profiles local clean --expired --dry-run
   asc profiles local clean --expired --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*expiredOnly {
 				// At least one clean mode is required; currently only --expired exists.

@@ -34,7 +34,7 @@ Examples:
   asc review items update --id "ITEM_ID" --resolved true
   asc review items remove --id "ITEM_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			reviewItemsListCommand(d, "list", "review items list", `asc review items list [flags]`, `asc review items list --submission "SUBMISSION_ID"
   asc review items list --submission "SUBMISSION_ID" --paginate`),
@@ -99,7 +99,7 @@ func reviewItemsListCommand(d *shared.Deps, name, errorPrefix, shortUsage, examp
 Examples:
   ` + examples,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, errorPrefix, 200, "limit", "fields", "include", "iap-version-fields", "subscription-version-fields", "subscription-group-version-fields"); err != nil {
 				return err
@@ -286,7 +286,7 @@ editable, keeps failing.
 Examples:
   ` + examples,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" {
 				return d.RequiredFlag("--submission")
@@ -370,7 +370,7 @@ Use --confirm when setting --removed=true.
 Examples:
   ` + examples,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*itemID)
 			if trimmedID == "" {
@@ -468,7 +468,7 @@ func reviewItemsRemoveCommand(d *shared.Deps, name, errorPrefix, shortUsage, exa
 Examples:
   ` + examples,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*itemID) == "" {
 				return d.RequiredFlag("--id")

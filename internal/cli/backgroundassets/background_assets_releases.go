@@ -21,7 +21,7 @@ func newBackgroundAssetsAppStoreReleasesCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc background-assets app-store-releases view --id "RELEASE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBackgroundAssetsAppStoreReleasesGetCommand(d),
 		},
@@ -62,7 +62,7 @@ func newBackgroundAssetsExternalBetaReleasesCommand(d *shared.Deps) *ffcli.Comma
 Examples:
   asc background-assets external-beta-releases view --id "RELEASE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBackgroundAssetsExternalBetaReleasesGetCommand(d),
 		},
@@ -103,7 +103,7 @@ func newBackgroundAssetsInternalBetaReleasesCommand(d *shared.Deps) *ffcli.Comma
 Examples:
   asc background-assets internal-beta-releases view --id "RELEASE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBackgroundAssetsInternalBetaReleasesGetCommand(d),
 		},

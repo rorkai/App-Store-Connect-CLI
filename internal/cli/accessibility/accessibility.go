@@ -31,7 +31,7 @@ Examples:
   asc accessibility update --id "DECLARATION_ID" --publish true
   asc accessibility delete --id "DECLARATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAccessibilityListCommand(d),
 			newAccessibilityGetCommand(d),
@@ -160,7 +160,7 @@ Examples:
   asc accessibility create --app "APP_ID" --device-family IPHONE --supports-voiceover true
   asc accessibility create --app "APP_ID" --device-family IPAD --supports-captions true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -238,7 +238,7 @@ Examples:
   asc accessibility update --id "DECLARATION_ID" --supports-voiceover true
   asc accessibility update --id "DECLARATION_ID" --publish true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

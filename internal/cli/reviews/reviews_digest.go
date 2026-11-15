@@ -93,7 +93,7 @@ Each attempt starts from the committed cursor, or the explicit initial date:
     mv next-cursor.json reviews-cursor.json
   )`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

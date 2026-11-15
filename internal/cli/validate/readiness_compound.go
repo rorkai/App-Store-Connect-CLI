@@ -283,7 +283,11 @@ func fetchAppInfoData(ctx context.Context, client *asc.Client, appID string, age
 // app has more than one. It returns nil when no declaration exists. A positive
 // requestTimeout gives each request that budget instead of the default timeout.
 func FetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, versionID string, requestTimeout time.Duration) (*validation.AgeRatingDeclaration, error) {
-	ctx = context.WithValue(ctx, readinessRequestTimeoutKey{}, requestTimeout)
+	if requestTimeout > 0 {
+		ctx = withReadinessRequestTimeout(ctx, func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return shared.ContextWithTimeoutDuration(shared.ContextWithoutTimeout(ctx), requestTimeout)
+		})
+	}
 	data, err := fetchAppInfoData(ctx, client, appID, true)
 	if err != nil {
 		return nil, err

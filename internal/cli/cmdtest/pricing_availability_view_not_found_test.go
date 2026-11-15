@@ -1,20 +1,16 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	pricingcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/pricing"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -100,31 +96,7 @@ func assertNotConfiguredExpectedNegative(t *testing.T, runErr error) {
 
 func runPricingAvailabilityView(t *testing.T, server *httptest.Server, args ...string) (string, string, error) {
 	t.Helper()
-	client, err := asc.NewClientWithHTTPClient(
-		"TEST_KEY",
-		"TEST_ISSUER",
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: serverRoundTripper(t, server)},
-	)
-	if err != nil {
-		t.Fatalf("new client: %v", err)
-	}
-	restore := pricingcli.SetAvailabilityClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restore)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
+	return runRootWithDeps(t, stubClient(t, serverRoundTripper(t, server)), args...)
 }
 
 func TestPricingAvailabilityViewNotConfiguredIsExpectedNegative(t *testing.T) {

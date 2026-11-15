@@ -23,7 +23,7 @@ Examples:
   asc diff localizations --app "APP_ID" --path "./metadata/localizations" --version "VERSION_ID"
   asc diff localizations --app "APP_ID" --from-version "VERSION_ID_A" --to-version "VERSION_ID_B"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newDiffLocalizationsCommand(d),
 		},

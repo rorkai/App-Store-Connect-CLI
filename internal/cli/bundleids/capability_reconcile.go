@@ -37,7 +37,7 @@ Examples:
   asc bundle-ids capabilities reconcile plan --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements
   asc bundle-ids capabilities reconcile apply --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			capabilityReconcileCommand(d, "plan", false),
 			capabilityReconcileCommand(d, "apply", true),
@@ -62,7 +62,7 @@ func capabilityReconcileCommand(d *shared.Deps, name string, apply bool) *ffcli.
 		ShortUsage: "asc bundle-ids capabilities reconcile " + name + " --bundle BUNDLE_ID --entitlements PATH",
 		ShortHelp:  "Reconcile capabilities from entitlements.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return d.UsageError(err.Error())

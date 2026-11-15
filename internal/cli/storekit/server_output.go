@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -18,8 +17,8 @@ type serverReadFlags struct {
 	decode *bool // nil for responses without signed JWS fields
 }
 
-func bindServerReadFlags(fs *flag.FlagSet, signed bool) serverReadFlags {
-	flags := serverReadFlags{common: bindCommonFlags(fs), output: shared.BindOutputFlags(fs)}
+func bindServerReadFlags(d *shared.Deps, fs *flag.FlagSet, signed bool) serverReadFlags {
+	flags := serverReadFlags{common: bindCommonFlags(fs), output: d.BindOutputFlags(fs)}
 	if signed {
 		flags.decode = fs.Bool("decode", false, "Add <field>Decoded siblings with signed JWS payloads decoded WITHOUT signature verification (JSON only)")
 	}
@@ -28,7 +27,7 @@ func bindServerReadFlags(fs *flag.FlagSet, signed bool) serverReadFlags {
 
 type tableBuilder func(json.RawMessage) ([]string, [][]string, error)
 
-func printServerResponse(raw json.RawMessage, flags serverReadFlags, table tableBuilder) error {
+func printServerResponse(d *shared.Deps, raw json.RawMessage, flags serverReadFlags, table tableBuilder) error {
 	signed := flags.decode != nil
 	if signed && *flags.decode {
 		decoded, err := storekitapi.AddDecodedJWSPayloads(raw)
@@ -47,20 +46,20 @@ func printServerResponse(raw json.RawMessage, flags serverReadFlags, table table
 		}
 	}
 	if signed && (*flags.decode || tableOutput) {
-		fmt.Fprintln(os.Stderr, "Warning: decoded JWS payloads are not signature-verified")
+		fmt.Fprintln(d.IO.ErrOut, "Warning: decoded JWS payloads are not signature-verified")
 	}
-	return printOutput(raw, *flags.output.Output, *flags.output.Pretty, headers, rows)
+	return printOutput(d, raw, *flags.output.Output, *flags.output.Pretty, headers, rows)
 }
 
-func printServerPage(raw json.RawMessage, flags serverReadFlags, table tableBuilder, paginate bool, cursor storekitapi.PageCursor, tokenFlag string) error {
-	if err := printServerResponse(raw, flags, table); err != nil {
+func printServerPage(d *shared.Deps, raw json.RawMessage, flags serverReadFlags, table tableBuilder, paginate bool, cursor storekitapi.PageCursor, tokenFlag string) error {
+	if err := printServerResponse(d, raw, flags, table); err != nil {
 		return err
 	}
 	if paginate {
 		return nil
 	}
 	if hasMore, token, err := cursor.HasMore(raw); err == nil && hasMore && token != "" {
-		fmt.Fprintf(os.Stderr, "Warning: more pages exist (use --paginate or %s %s)\n", tokenFlag, token)
+		fmt.Fprintf(d.IO.ErrOut, "Warning: more pages exist (use --paginate or %s %s)\n", tokenFlag, token)
 	}
 	return nil
 }

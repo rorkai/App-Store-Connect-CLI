@@ -5,7 +5,7 @@ import (
 )
 
 func TestGameCenterLeaderboardSetsV2ValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "leaderboard-sets", "v2", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "leaderboard-sets", "v2", "create", "--reference-name", "Season", "--vendor-id", "com.example.season"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "leaderboard-sets", "v2", "create", "--app", "APP_ID", "--group-id", "GROUP_ID", "--reference-name", "Season", "--vendor-id", "com.example.season"}, "--app cannot be used with --group-id"},

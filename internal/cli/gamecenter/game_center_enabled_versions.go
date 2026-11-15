@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterEnabledVersionsCommand returns the enabled versions command group.
-func GameCenterEnabledVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("enabled-versions", flag.ExitOnError)
+// newGameCenterEnabledVersionsCommand returns the enabled versions command group.
+func newGameCenterEnabledVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("enabled-versions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "enabled-versions",
@@ -26,8 +26,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterEnabledVersionsListCommand(),
-			GameCenterEnabledVersionsCompatibleVersionsCommand(),
+			newGameCenterEnabledVersionsListCommand(d),
+			newGameCenterEnabledVersionsCompatibleVersionsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -35,8 +35,8 @@ Examples:
 	}
 }
 
-// GameCenterEnabledVersionsListCommand returns the enabled versions list subcommand.
-func GameCenterEnabledVersionsListCommand() *ffcli.Command {
+// newGameCenterEnabledVersionsListCommand returns the enabled versions list subcommand.
+func newGameCenterEnabledVersionsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center enabled-versions list [flags]",
@@ -56,11 +56,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetAppGameCenterEnabledVersions(ctx, appID, asc.Limit[asc.GCEnabledVersionsOption](limit), asc.NextURL[asc.GCEnabledVersionsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterEnabledVersionsCompatibleVersionsCommand returns the compatible versions subcommand.
-func GameCenterEnabledVersionsCompatibleVersionsCommand() *ffcli.Command {
+// newGameCenterEnabledVersionsCompatibleVersionsCommand returns the compatible versions subcommand.
+func newGameCenterEnabledVersionsCompatibleVersionsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "compatible-versions",
 		ShortUsage: "asc game-center enabled-versions compatible-versions --id \"ENABLED_VERSION_ID\"",
@@ -79,5 +80,6 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, enabledVersionID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterEnabledVersionCompatibleVersions(ctx, enabledVersionID, asc.Limit[asc.GCEnabledVersionsOption](limit), asc.NextURL[asc.GCEnabledVersionsOption](next))
 		},
+		Deps: d,
 	})
 }

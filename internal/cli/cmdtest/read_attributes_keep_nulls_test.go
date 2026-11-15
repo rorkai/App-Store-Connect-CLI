@@ -56,6 +56,7 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 				"marketingUrl": "null",
 				"whatsNew":     "null",
 			},
+			deps: true,
 		},
 		{
 			name: "localizations list app-info",
@@ -67,6 +68,7 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 				"privacyChoicesUrl": "null",
 				"privacyPolicyText": "null",
 			},
+			deps: true,
 		},
 		{
 			name: "age-rating view",

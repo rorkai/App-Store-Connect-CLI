@@ -25,7 +25,7 @@ Examples:
   asc product-pages experiments treatments localizations create --treatment-id "TREATMENT_ID" --locale "en-US"
   asc product-pages experiments treatments localizations delete --localization-id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newExperimentTreatmentLocalizationsListCommand(d),
 			newExperimentTreatmentLocalizationsGetCommand(d),
@@ -33,7 +33,7 @@ Examples:
 			newExperimentTreatmentLocalizationsDeleteCommand(d),
 			newExperimentTreatmentLocalizationPreviewSetsCommand(d),
 			newExperimentTreatmentLocalizationScreenshotSetsCommand(d),
-			shared.CreativePlacementsCommand("appStoreVersionExperimentTreatmentLocalizations", "product-pages experiments treatments localizations", "a product page optimization treatment localization"),
+			d.CreativePlacementsCommand("appStoreVersionExperimentTreatmentLocalizations", "product-pages experiments treatments localizations", "a product page optimization treatment localization"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

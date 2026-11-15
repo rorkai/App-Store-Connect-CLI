@@ -18,12 +18,11 @@ func TestGameCenterScoreModerations(t *testing.T) {
 				return fmt.Sprintf(`{"data":[{"type":"gameCenterScoreModerations","id":"score-%d","attributes":{"rank":"1","score":"9007199254740993","blocked":false,"preReleased":false,"context":"18446744073709551615","challengeIds":[]},"relationships":{"player":{"data":{"type":"gameCenterDetailPlayers","id":"player-45"}}}}],"links":{"next":%s},"included":[{"type":"gameCenterDetailPlayers","id":"player-45","attributes":{"nickname":"Runner","blocked":false}}],"meta":{"paging":{"total":2}}}`, n, next)
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations", "exists[blocked]=false", "include=player", "limit=1", "fields[gameCenterScoreModerations]=rank,score,blocked,player", "fields[gameCenterDetailPlayers]=nickname,blocked"),
 				asctest.JSON(http.StatusOK, page(1, `"https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations?cursor=page2"`)))
 			reg.Register(asctest.GET("/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations", "cursor=page2"),
 				asctest.JSON(http.StatusOK, page(2, "null")))
-			out, errout, runErr := runCommand(t, []string{"game-center", "leaderboards", "v2", "score-moderations", "list", "--leaderboard-id", "lb-45", "--exists-blocked", "false", "--include", "player", "--fields", "rank,score,blocked", "--player-fields", "nickname,blocked", "--limit", "1", "--paginate", "--output", format})
+			out, errout, runErr := runRootWithDeps(t, stubClient(t, reg), "game-center", "leaderboards", "v2", "score-moderations", "list", "--leaderboard-id", "lb-45", "--exists-blocked", "false", "--include", "player", "--fields", "rank,score,blocked", "--player-fields", "nickname,blocked", "--limit", "1", "--paginate", "--output", format)
 			if runErr != nil || errout != "" {
 				t.Fatalf("run=%v stderr=%s", runErr, errout)
 			}
@@ -56,9 +55,8 @@ func TestGameCenterScoreModerationUpdate(t *testing.T) {
 			setupAuth(t)
 			want := fmt.Sprintf(`{"data":{"type":"gameCenterScoreModerations","id":"score-45","attributes":{"blocked":%s}}}`, blocked)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.PATCH("/v1/gameCenterScoreModerations/score-45").JSONBody(want), asctest.JSON(http.StatusOK, want))
-			out, stderr, runErr := runCommand(t, []string{"game-center", "leaderboards", "v2", "score-moderations", "update", "--id", "score-45", "--blocked", blocked, "--confirm", "--output", "json"})
+			out, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "game-center", "leaderboards", "v2", "score-moderations", "update", "--id", "score-45", "--blocked", blocked, "--confirm", "--output", "json")
 			if runErr != nil || stderr != "" || !strings.Contains(out, `"blocked":`+blocked) {
 				t.Fatalf("run=%v stdout=%s stderr=%s", runErr, out, stderr)
 			}
@@ -82,7 +80,9 @@ func TestGameCenterScoreModerationUsage(t *testing.T) {
 		{"missing confirm", []string{"update", "--id", "s", "--blocked", "false"}, "--confirm is required"},
 		{"false confirm", []string{"update", "--id", "s", "--blocked", "true", "--confirm=false"}, "--confirm must be true"},
 	} {
-		t.Run(tt.name, func(t *testing.T) { assertUsageExit(t, append(append([]string{}, prefix...), tt.args...), tt.want) })
+		t.Run(tt.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, append(append([]string{}, prefix...), tt.args...), tt.want)
+		})
 	}
 }
 
@@ -98,9 +98,8 @@ func TestGameCenterScoreModerationNextAndErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v2/gameCenterLeaderboards/lb/gameCenterScoreModerations", "cursor=next"), asctest.JSON(tt.status, tt.body))
-			out, stderr, runErr := runCommand(t, []string{"game-center", "leaderboards", "v2", "score-moderations", "list", "--next", "https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb/gameCenterScoreModerations?cursor=next", "--output", "json"})
+			out, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "game-center", "leaderboards", "v2", "score-moderations", "list", "--next", "https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb/gameCenterScoreModerations?cursor=next", "--output", "json")
 			if tt.name == "next only" {
 				if runErr != nil || stderr != "" || !strings.Contains(out, tt.want) {
 					t.Fatalf("run=%v out=%s stderr=%s", runErr, out, stderr)
@@ -129,9 +128,8 @@ func TestGameCenterScoreModerationsUnservedEndpoint(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET(scoreModerationsPath, tc.query...), asctest.JSON(http.StatusNotFound, `{"errors":[`+tc.errors+`]}`))
-			_, _, runErr := runCommand(t, append([]string{"game-center", "leaderboards", "v2", "score-moderations", "list"}, tc.args...))
+			_, _, runErr := runRootWithDeps(t, stubClient(t, reg), append([]string{"game-center", "leaderboards", "v2", "score-moderations", "list"}, tc.args...)...)
 			if runErr == nil || !strings.Contains(runErr.Error(), "does not exist") || strings.Contains(runErr.Error(), "Manage Scores and Players") != tc.wantHint {
 				t.Fatalf("err=%v", runErr)
 			}

@@ -9,7 +9,7 @@ import (
 )
 
 func TestGameCenterDetailsMutationValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "details", "create"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "details", "update", "--game-center-group-id", "GROUP_ID"}, "--id is required"},
 		{[]string{"game-center", "details", "update", "--id", "DETAIL_ID"}, "at least one update flag is required (--game-center-group-id, --default-leaderboard-id, --default-leaderboard-v2-id, --default-group-leaderboard-id, --default-group-leaderboard-v2-id)"},
@@ -55,12 +55,11 @@ func TestGameCenterDetailsUpdateSendsOnlyRequestedRelationships(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.PATCH("/v1/gameCenterDetails/DETAIL_ID").JSONBody(`{"data":{"type":"gameCenterDetails","id":"DETAIL_ID","relationships":`+test.want+`}}`),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"DETAIL_ID"}}`))
 
 			args := append([]string{"game-center", "details", "update", "--id", "DETAIL_ID", "--output", "json"}, test.args...)
-			if _, _, err := runCommand(t, args); err != nil {
+			if _, _, err := runRootWithDeps(t, stubClient(t, reg), args...); err != nil {
 				t.Fatalf("run error: %v", err)
 			}
 

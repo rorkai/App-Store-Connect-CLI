@@ -24,7 +24,7 @@ Examples:
   asc product-pages custom-pages versions list --custom-page-id "PAGE_ID"
   asc product-pages custom-pages versions create --custom-page-id "PAGE_ID" --deep-link "https://example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCustomPageVersionsListCommand(d),
 			newCustomPageVersionsGetCommand(d),

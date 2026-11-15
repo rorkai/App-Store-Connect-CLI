@@ -13,13 +13,12 @@ func TestGameCenterBlockedPlayersList(t *testing.T) {
 		t.Run(format, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/gameCenterDetails/detail-45/blockedPlayers", "fields[gameCenterDetailPlayers]=nickname,blocked,bundleId", "limit=1"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterDetailPlayers","id":"player-1","attributes":{"nickname":"Runner","blocked":true,"bundleId":"com.example.game"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/gameCenterDetails/detail-45/blockedPlayers?cursor=page2"}}`))
 			reg.Register(asctest.GET("/v1/gameCenterDetails/detail-45/blockedPlayers", "cursor=page2"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterDetailPlayers","id":"player-2","attributes":{"nickname":"Runner","blocked":true,"bundleId":"com.example.game"}}],"links":{"next":null}}`))
 
-			out, stderr, runErr := runCommand(t, []string{"game-center", "details", "blocked-players", "list", "--detail-id", "detail-45", "--fields", "nickname,blocked,bundleId", "--limit", "1", "--paginate", "--output", format})
+			out, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "game-center", "details", "blocked-players", "list", "--detail-id", "detail-45", "--fields", "nickname,blocked,bundleId", "--limit", "1", "--paginate", "--output", format)
 			calls := len(reg.Requests())
 			if runErr != nil || stderr != "" || calls != 2 || !strings.Contains(out, "player-2") || !strings.Contains(out, "com.example.game") {
 				t.Fatalf("run=%v calls=%d stdout=%s stderr=%s", runErr, calls, out, stderr)
@@ -35,14 +34,13 @@ func TestGameCenterBlockedPlayersUpdate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.PATCH("/v1/gameCenterDetailPlayers/player-45").JSONBody(`{"data":{"type":"gameCenterDetailPlayers","id":"player-45","attributes":`+tt.wantAttrs+`}}`),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetailPlayers","id":"player-45","attributes":{"nickname":"","blocked":`+tt.blocked+`,"bundleId":"com.example.game"}}}`))
 			args := []string{"game-center", "details", "blocked-players", "update", "--id", "player-45", "--blocked", tt.blocked, "--confirm", "--output", "json"}
 			if tt.bundle != "" {
 				args = append(args, "--bundle-id", tt.bundle)
 			}
-			out, stderr, runErr := runCommand(t, args)
+			out, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
 			if runErr != nil || stderr != "" || !strings.Contains(out, `"blocked":`+tt.blocked) || !strings.Contains(out, `"nickname":""`) {
 				t.Fatalf("run=%v out=%s stderr=%s", runErr, out, stderr)
 			}
@@ -65,7 +63,9 @@ func TestGameCenterBlockedPlayersUsage(t *testing.T) {
 		{"missing confirm", []string{"update", "--id", "p", "--blocked", "false"}, "--confirm is required"},
 		{"empty bundle", []string{"update", "--id", "p", "--blocked", "true", "--bundle-id", " ", "--confirm"}, "--bundle-id must not be empty"},
 	} {
-		t.Run(tt.name, func(t *testing.T) { assertUsageExit(t, append(append([]string{}, prefix...), tt.args...), tt.want) })
+		t.Run(tt.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, append(append([]string{}, prefix...), tt.args...), tt.want)
+		})
 	}
 }
 
@@ -81,9 +81,8 @@ func TestGameCenterBlockedPlayersNextAndErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/gameCenterDetails/d/blockedPlayers", "cursor=next"), asctest.JSON(tt.status, tt.body))
-			out, stderr, runErr := runCommand(t, []string{"game-center", "details", "blocked-players", "list", "--next", "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/d/blockedPlayers?cursor=next", "--output", "json"})
+			out, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "game-center", "details", "blocked-players", "list", "--next", "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/d/blockedPlayers?cursor=next", "--output", "json")
 			if tt.name == "next only" {
 				if runErr != nil || stderr != "" || !strings.Contains(out, tt.want) {
 					t.Fatalf("run=%v stdout=%s stderr=%s", runErr, out, stderr)

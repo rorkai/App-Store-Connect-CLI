@@ -25,7 +25,8 @@ type IO struct {
 
 // Deps holds what a command takes from the process: its App Store Connect
 // client, its streams, the clock, the request and upload timeouts, and the
-// timeout settings a command reads with a default of its own.
+// timeout settings a command reads with a default of its own. After is the
+// timer a command waits on, as time.After.
 type Deps struct {
 	Client         func() (*asc.Client, error)
 	IO             *IO
@@ -33,11 +34,13 @@ type Deps struct {
 	Timeout        func(context.Context) (context.Context, context.CancelFunc)
 	UploadTimeout  func(context.Context) (context.Context, context.CancelFunc)
 	ResolveTimeout func(setting TimeoutSetting, defaultTimeout time.Duration) time.Duration
+
+	After func(time.Duration) <-chan time.Time
 }
 
 // DefaultDeps returns the dependencies of a normal run: the shared client
-// factory, the process streams, the system clock, and the timeouts from the
-// environment and the config file.
+// factory, the process streams, the system clock and timers, and the timeouts
+// from the environment and the config file.
 func DefaultDeps() *Deps {
 	return &Deps{
 		Client: GetASCClient,
@@ -53,6 +56,8 @@ func DefaultDeps() *Deps {
 		Timeout:        ContextWithTimeout,
 		UploadTimeout:  ContextWithUploadTimeout,
 		ResolveTimeout: ResolveTimeoutSetting,
+
+		After: time.After,
 	}
 }
 

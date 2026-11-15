@@ -27,7 +27,7 @@ Examples:
   asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSandboxListCommand(d),
 			newSandboxGetCommand(d),

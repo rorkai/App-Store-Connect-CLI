@@ -26,7 +26,7 @@ Examples:
   asc product-pages custom-pages localizations search-keywords add --localization-id "LOCALIZATION_ID" --keywords "kw1,kw2"
   asc product-pages custom-pages localizations search-keywords delete --localization-id "LOCALIZATION_ID" --keywords "kw1,kw2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCustomPageLocalizationsSearchKeywordsListCommand(d),
 			newCustomPageLocalizationsSearchKeywordsAddCommand(d),
@@ -54,7 +54,7 @@ func newCustomPageLocalizationsSearchKeywordsListCommand(d *shared.Deps) *ffcli.
 Examples:
   asc product-pages custom-pages localizations search-keywords list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
@@ -96,7 +96,7 @@ func newCustomPageLocalizationsSearchKeywordsAddCommand(d *shared.Deps) *ffcli.C
 Examples:
   asc product-pages custom-pages localizations search-keywords add --localization-id "LOCALIZATION_ID" --keywords "kw1,kw2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
@@ -143,7 +143,7 @@ func newCustomPageLocalizationsSearchKeywordsDeleteCommand(d *shared.Deps) *ffcl
 Examples:
   asc product-pages custom-pages localizations search-keywords delete --localization-id "LOCALIZATION_ID" --keywords "kw1,kw2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {

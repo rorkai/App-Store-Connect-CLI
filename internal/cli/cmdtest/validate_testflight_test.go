@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
@@ -110,20 +108,10 @@ func TestValidateTestFlightRequiresAppAndBuild(t *testing.T) {
 func TestValidateTestFlightOutputsJSONAndTable(t *testing.T) {
 	fixture := validValidateTestFlightFixture()
 	client := newValidateTestFlightClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "testflight", "--app", "app-1", "--build-id", "build-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "testflight", "--app", "app-1", "--build-id", "build-1")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -137,15 +125,10 @@ func TestValidateTestFlightOutputsJSONAndTable(t *testing.T) {
 		t.Fatalf("expected no issues, got %+v", report.Summary)
 	}
 
-	root = RootCommand("1.2.3")
-	stdout, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "testflight", "--app", "app-1", "--build-id", "build-1", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err = runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "testflight", "--app", "app-1", "--build-id", "build-1", "--output", "table")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stdout, "Severity") {
 		t.Fatalf("expected table output to include headers, got %q", stdout)
@@ -183,19 +166,7 @@ func TestValidateTestFlightFailsWhenFixtureIsIncomplete(t *testing.T) {
 			test.mutate(&fixture)
 
 			client := newValidateTestFlightClient(t, fixture)
-			restore := validate.SetClientFactory(func() (*asc.Client, error) {
-				return client, nil
-			})
-			t.Cleanup(restore)
-
-			root := RootCommand("1.2.3")
-			var runErr error
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse([]string{"validate", "testflight", "--app", "app-1", "--build-id", "build-1"}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, _, runErr := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "testflight", "--app", "app-1", "--build-id", "build-1")
 
 			if _, ok := errors.AsType[ReportedError](runErr); !ok {
 				t.Fatalf("expected ReportedError, got %v", runErr)

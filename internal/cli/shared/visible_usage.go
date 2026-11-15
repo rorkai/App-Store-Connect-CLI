@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -10,6 +11,10 @@ import (
 // commands from nested subcommand listings. Root-level deprecated commands are already hidden
 // elsewhere; this keeps nested canonical help focused on current surfaces.
 func VisibleUsageFunc(c *ffcli.Command) string {
+	return visibleUsage(isTerminal(int(os.Stderr.Fd())), c)
+}
+
+func visibleUsage(stderrTTY bool, c *ffcli.Command) string {
 	clone := *c
 	if len(c.Subcommands) > 0 {
 		visible := make([]*ffcli.Command, 0, len(c.Subcommands))
@@ -25,5 +30,5 @@ func VisibleUsageFunc(c *ffcli.Command) string {
 		}
 		clone.Subcommands = visible
 	}
-	return DefaultUsageFunc(&clone)
+	return defaultUsage(stderrTTY, &clone)
 }

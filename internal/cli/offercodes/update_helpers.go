@@ -27,8 +27,7 @@ type ActiveUpdateCommandConfig struct {
 	// --active false requires --confirm.
 	ConfirmOff string
 	Update     func(context.Context, *asc.Client, string, *bool) (any, error)
-	// Deps supplies the client, streams and timeout. It defaults to
-	// shared.DefaultDeps().
+	// Deps is what the command is built on. It defaults to shared.DefaultDeps().
 	Deps *shared.Deps
 }
 
