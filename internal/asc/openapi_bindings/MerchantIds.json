@@ -17,5 +17,8 @@
     {"operation":"merchantIds_getCollection","name":"GetMerchantIDs","options":"MerchantIDsOption","query":"buildMerchantIDsQuery","nextContext":"merchantIds"},
     {"operation":"merchantIds_getInstance","name":"GetMerchantID","params":["id"],"check":"trim","options":"MerchantIDsOption","query":"buildMerchantIDsQuery","single":true,"deviations":[{"problem":"sent query parameters [filter[identifier] filter[name] limit sort] that the operation does not define","reason":"Shares its option type and query builder with GetMerchantIDs (GET /v1/merchantIds), which defines these. asc merchant-ids view, the only caller, sets fields, certificate fields, include and the certificates limit, never a filter, sort or limit."}]},
     {"operation":"merchantIds_updateInstance","name":"UpdateMerchantID","params":["id"],"check":"trim"}
+  ],
+  "queries": [
+    {"operation":"merchantIds_getCollection","also":["merchantIds_getInstance"],"name":"MerchantIDs","params":[{"name":"filter[name]","field":"name","with":"WithMerchantIDsFilterName","type":"csv"},{"name":"filter[identifier]","field":"identifier","with":"WithMerchantIDsFilterIdentifier","type":"csv"},{"name":"sort","field":"sort","type":"string"},{"name":"fields[merchantIds]"},{"name":"fields[certificates]","arg":"fields"},{"name":"include"},{"name":"limit[certificates]","field":"certificatesLimit","arg":"limit","type":"int"}]}
   ]
 }

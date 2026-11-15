@@ -19,6 +19,7 @@
     {"operation":"passTypeIds_updateInstance","name":"UpdatePassTypeID","params":["id"],"check":"trim"}
   ],
   "queries": [
+    {"operation":"passTypeIds_getCollection","name":"PassTypeIDs","params":[{"name":"filter[id]","field":"ids","with":"WithPassTypeIDsFilterIDs","type":"csvList"},{"name":"filter[identifier]","field":"identifier","with":"WithPassTypeIDsFilterIdentifier","type":"csv"},{"name":"filter[name]","field":"name","with":"WithPassTypeIDsFilterName","type":"csv"},{"name":"sort","field":"sort","type":"string"},{"name":"fields[passTypeIds]"},{"name":"fields[certificates]","arg":"fields"},{"name":"include"},{"name":"limit[certificates]","field":"certificatesLimit","arg":"limit","type":"int"}]},
     {"operation":"passTypeIds_getInstance","name":"PassTypeID","params":[{"name":"fields[passTypeIds]"},{"name":"fields[certificates]","arg":"fields"},{"name":"include"},{"name":"limit[certificates]","field":"certificatesLimit","with":"WithPassTypeIDCertificatesIncludeLimit","arg":"limit","type":"int"}]}
   ]
 }
