@@ -1232,7 +1232,7 @@ func TestSigningRunLegacyImportDoesNotExpandChain(t *testing.T) {
 		}
 	})
 	keychainPassword := []byte("disposable-keychain-password")
-	if _, err := createPersistentSigningKeychain(ctx, issuerKeychain, keychainPassword); err != nil {
+	if _, err := createPersistentSigningKeychain(ctx, issuerKeychain, keychainPassword, true); err != nil {
 		t.Fatal(err)
 	}
 	if err := createSigningRunKeychain(ctx, keychain, keychainPassword); err != nil {

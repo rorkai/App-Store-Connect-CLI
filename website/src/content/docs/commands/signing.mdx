@@ -609,7 +609,8 @@ asc signing keychain delete \
 - `unlock` accepts `--timeout SECONDS` or `--no-timeout`; `set-timeout` changes
   the timeout with the same flags. Both keep the keychain's existing
   lock-on-sleep setting. `install` creates the keychain without an inactivity
-  timeout, so a long-lived runner needs `unlock` mainly after a lock or sleep.
+  timeout, so a long-lived runner needs `unlock` mainly after a lock or sleep;
+  pass `--lock-on-sleep=false` to `install` to keep it unlocked across sleep.
 - `set-partition-list` unlocks the keychain and reapplies the codesign
   partition list (default `apple-tool:,apple:,codesign:`) to its private keys.
   `--identity-sha256` makes it fail unless that identity is present. Repeat
