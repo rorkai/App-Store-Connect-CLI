@@ -36,6 +36,9 @@ func TestXcodeTestPassesTypedOptionsAndPrintsJSON(t *testing.T) {
 			TestPlan:         opts.TestPlan,
 			DerivedDataPath:  opts.DerivedDataPath,
 			ResultBundlePath: opts.ResultBundlePath,
+			Coverage: &localxcode.Coverage{LineCoverage: 0.75, CoveredLines: 30, ExecutableLines: 40, Targets: []localxcode.Coverage{
+				{Name: "Demo.app", LineCoverage: 0.75, CoveredLines: 30, ExecutableLines: 40},
+			}},
 			Tests: &localxcode.TestSummary{
 				Total:      2,
 				Passed:     1,
@@ -68,6 +71,7 @@ func TestXcodeTestPassesTypedOptionsAndPrintsJSON(t *testing.T) {
 		"--result-bundle-path", "/tmp/Results/Demo.xcresult",
 		"--clean",
 		"--no-code-signing",
+		"--code-coverage",
 		"--xcodebuild-flag=-quiet",
 		"--xcodebuild-flag=OTHER_SWIFT_FLAGS=-D ASC_TEST",
 		"--output", "json",
@@ -98,8 +102,8 @@ func TestXcodeTestPassesTypedOptionsAndPrintsJSON(t *testing.T) {
 	if len(gotOpts.OnlyTesting) != 1 || gotOpts.OnlyTesting[0] != "DemoTests/LoginTests" || len(gotOpts.SkipTesting) != 1 {
 		t.Fatalf("unexpected test filters: %+v", gotOpts)
 	}
-	if !gotOpts.Clean || !gotOpts.NoCodeSigning {
-		t.Fatalf("expected clean and no-code-signing: %+v", gotOpts)
+	if !gotOpts.Clean || !gotOpts.NoCodeSigning || !gotOpts.CodeCoverage {
+		t.Fatalf("expected clean, no-code-signing, and code-coverage: %+v", gotOpts)
 	}
 	wantRaw := []string{"-quiet", "OTHER_SWIFT_FLAGS=-D ASC_TEST"}
 	if len(gotOpts.XcodebuildArgs) != len(wantRaw) || gotOpts.XcodebuildArgs[0] != wantRaw[0] || gotOpts.XcodebuildArgs[1] != wantRaw[1] {
@@ -112,6 +116,9 @@ func TestXcodeTestPassesTypedOptionsAndPrintsJSON(t *testing.T) {
 	}
 	if payload.Action != "test" || payload.Tests == nil || payload.Tests.Total != 2 || payload.Tests.Failed != 1 || payload.DurationMs != 1400 {
 		t.Fatalf("unexpected JSON payload: %+v", payload)
+	}
+	if !strings.Contains(stdout, `"coverage":{"lineCoverage":0.75,"coveredLines":30,"executableLines":40,"targets":[{"name":"Demo.app","lineCoverage":0.75,"coveredLines":30,"executableLines":40}]}`) {
+		t.Fatalf("JSON output missing coverage: %s", stdout)
 	}
 	if strings.Contains(stdout, "duration_ms") || strings.Contains(stdout, "no_code_signing") {
 		t.Fatalf("JSON output used legacy snake_case keys: %s", stdout)
@@ -193,6 +200,7 @@ func TestXcodeTestValidationErrorsAreUsageErrors(t *testing.T) {
 		{name: "without building missing xctestrun", args: []string{"--action", "test-without-building", "--destination", "generic/platform=iOS"}, want: "--xctestrun is required"},
 		{name: "without building rejects configuration", args: []string{"--action", "test-without-building", "--xctestrun", "Demo.xctestrun", "--destination", "generic/platform=iOS", "--configuration", "Debug"}, want: "--configuration cannot be used"},
 		{name: "without building rejects derived data path", args: []string{"--action", "test-without-building", "--xctestrun", "Demo.xctestrun", "--destination", "generic/platform=iOS", "--derived-data-path", "/tmp/DerivedData"}, want: "--derived-data-path cannot be used"},
+		{name: "code coverage conflicts with raw flag", args: []string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--destination", "generic/platform=iOS", "--code-coverage", "--xcodebuild-flag=-enableCodeCoverage", "--xcodebuild-flag=YES"}, want: `--code-coverage conflicts with --xcodebuild-flag "-enableCodeCoverage"; use one`},
 		{name: "reserved raw action", args: []string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--destination", "generic/platform=iOS", "--xcodebuild-flag=test"}, want: "cannot override asc-managed argument"},
 	}
 
