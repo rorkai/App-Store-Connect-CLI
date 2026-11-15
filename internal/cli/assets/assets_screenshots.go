@@ -418,7 +418,6 @@ type screenshotListCommandOptions struct {
 }
 
 func executeScreenshotListCommand(ctx context.Context, opts screenshotListCommandOptions, d *shared.Deps) (*asc.AppScreenshotListResult, error) {
-
 	locID := strings.TrimSpace(opts.VersionLocalizationID)
 	appValue := strings.TrimSpace(opts.AppID)
 	versionValue := strings.TrimSpace(opts.Version)
