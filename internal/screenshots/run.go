@@ -179,7 +179,7 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 			"-x", formatFloat(floatValue(step.X)),
 			"-y", formatFloat(floatValue(step.Y)),
 			"--radius", formatFloat(floatValue(step.Radius)),
-			"--degrees", formatFloat(floatValue(step.Degrees)),
+			"--degrees="+formatFloat(floatValue(step.Degrees)),
 			"--udid", udid)
 	case ActionDoubleTap:
 		return runExternal(ctx, "axe", "gesture", "double-tap",

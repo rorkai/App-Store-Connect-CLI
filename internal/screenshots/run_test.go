@@ -254,7 +254,7 @@ printf '%s\n' "$*" >> "$AXE_LOG"
 		"button lock --duration 1.5 --udid SIM-UDID-123",
 		"gesture pinch --scale 2 --udid SIM-UDID-123",
 		"gesture pinch --scale 0.5 -x 200 -y 400.5 --radius 60 --udid SIM-UDID-123",
-		"gesture rotate -x 200 -y 400 --radius 80 --degrees -90 --udid SIM-UDID-123",
+		"gesture rotate -x 200 -y 400 --radius 80 --degrees=-90 --udid SIM-UDID-123",
 		"gesture double-tap -x 120 -y 300.5 --udid SIM-UDID-123",
 	}
 	if !slices.Equal(got, want) {
