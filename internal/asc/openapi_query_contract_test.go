@@ -77,8 +77,8 @@ type contractQueryFamily struct {
 		Also      []string `json:"also"`
 		Name      string   `json:"name"`
 		Params    []struct {
-			Name      string `json:"name"`
-			Normalize string `json:"normalize"`
+			Name string `json:"name"`
+			contractBoundParam
 		} `json:"params"`
 		Deviations []struct {
 			Operation string `json:"operation"`
@@ -88,15 +88,23 @@ type contractQueryFamily struct {
 	} `json:"queries"`
 }
 
+// contractBoundParam is how the bindings say a query parameter's option
+// cleans and sends its value.
+type contractBoundParam struct {
+	Normalize string `json:"normalize"`
+	Type      string `json:"type"`
+}
+
 // TestGeneratedQueriesMatchSchema calls every generated query builder with
-// each of its With options set to a synthetic list and checks, for every read
+// each of its With options set to a synthetic value and checks, for every read
 // the query serves, that the option sends exactly the parameter the schema
-// defines for it, with the list cleaned as its binding says (trimmed, without
-// blank items, and de-duplicated or upper-cased) and encoded as the schema
-// says; that limit is sent for an operation that pages; and that every query
-// parameter of the operation has an option. Differences recorded in the
-// bindings as deviations, on the read they concern, are excused exactly as
-// for methods.
+// defines for it: a list cleaned as its binding says (trimmed, without blank
+// items, and de-duplicated or upper-cased), a trimmed string, a positive
+// integer or a boolean, encoded as the schema says, and nothing for a blank
+// string or an integer that is not positive; that limit is sent for an
+// operation that pages; and that every query parameter of the operation has
+// an option. Differences recorded in the bindings as deviations, on the read
+// they concern, are excused exactly as for methods.
 func TestGeneratedQueriesMatchSchema(t *testing.T) {
 	params, err := loadContractQueryParams()
 	if err != nil {
@@ -119,9 +127,9 @@ func TestGeneratedQueriesMatchSchema(t *testing.T) {
 		}
 		for _, b := range family.Queries {
 			deviations += len(b.Deviations)
-			normalize := map[string]string{}
+			paramBindings := map[string]contractBoundParam{}
 			for _, p := range b.Params {
-				normalize[p.Name] = p.Normalize
+				paramBindings[p.Name] = p.contractBoundParam
 			}
 			served := append([]string{b.Operation}, b.Also...)
 			for _, d := range b.Deviations {
@@ -146,7 +154,7 @@ func TestGeneratedQueriesMatchSchema(t *testing.T) {
 						}{d.Problem, d.Reason})
 					}
 				}
-				for _, problem := range unrecordedContractProblems(family.Tag, binding, checkGeneratedQuery(operation, opParams, normalize)) {
+				for _, problem := range unrecordedContractProblems(family.Tag, binding, checkGeneratedQuery(operation, opParams, paramBindings)) {
 					t.Errorf("query of %s (build%sQuery): %s", operation, b.Name, problem)
 				}
 			}
@@ -163,7 +171,7 @@ func TestGeneratedQueriesMatchSchema(t *testing.T) {
 	t.Logf("%d reads of generated queries checked, %d recorded deviations", queries, deviations)
 }
 
-// contractQueryValues is the synthetic list every With option is called
+// contractQueryValues is the synthetic list every list option is called
 // with; a generated option sends it as contractQuerySent says for the
 // option's normalize binding.
 var (
@@ -175,10 +183,44 @@ var (
 	}
 )
 
+// contractScalar is how a scalar option of a type binding is checked: its
+// argument type, the schema types it may send, and the cases it is called
+// with, each a run of calls on one query and the value it then sends (nil
+// when the parameter is left out).
+type contractScalar struct {
+	arg     reflect.Type
+	schemas []string
+	cases   []contractScalarCase
+}
+
+type contractScalarCase struct {
+	calls []any
+	sent  []string
+}
+
+var contractScalars = map[string]contractScalar{
+	"string": {reflect.TypeFor[string](), []string{"string", "array"}, []contractScalarCase{
+		{[]any{" contract-1 "}, []string{"contract-1"}},
+		{[]any{""}, nil},
+		{[]any{"   "}, nil},
+		{[]any{"contract-1", " "}, []string{"contract-1"}},
+	}},
+	"int": {reflect.TypeFor[int](), []string{"integer"}, []contractScalarCase{
+		{[]any{3}, []string{"3"}},
+		{[]any{0}, nil},
+		{[]any{-1}, nil},
+		{[]any{3, 0}, []string{"3"}},
+	}},
+	"bool": {reflect.TypeFor[bool](), []string{"boolean"}, []contractScalarCase{
+		{[]any{true}, []string{"true"}},
+		{[]any{false}, []string{"false"}},
+	}},
+}
+
 // checkGeneratedQuery returns every difference between what the generated
-// query of an operation sends and what the schema defines. normalize holds
-// the normalize binding of each parameter.
-func checkGeneratedQuery(operation string, params map[string]contractQueryParam, normalize map[string]string) []string {
+// query of an operation sends and what the schema defines. bound holds the
+// binding of each parameter.
+func checkGeneratedQuery(operation string, params map[string]contractQueryParam, bound map[string]contractBoundParam) []string {
 	query, ok := generatedQueries[operation]
 	if !ok {
 		return []string{"not in generatedQueries"}
@@ -228,14 +270,27 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 			continue
 		}
 		typ := option.Type()
-		if typ.NumIn() != 1 || typ.In(0) != reflect.TypeFor[[]string]() || typ.NumOut() != 1 || typ.Out(0).Kind() != reflect.Func ||
-			typ.Out(0).NumIn() != 1 || typ.Out(0).In(0) != queryType {
-			problems = append(problems, fmt.Sprintf("%s is a %s, not a func([]string) option of %s", label, typ, queryType))
+		arg := reflect.TypeFor[[]string]()
+		scalar, isScalar := contractScalars[bound[name].Type]
+		switch {
+		case isScalar:
+			arg = scalar.arg
+		case bound[name].Type != "":
+			problems = append(problems, fmt.Sprintf("%s has unknown type %q", label, bound[name].Type))
 			continue
 		}
-		sent, ok := contractQuerySent[normalize[name]]
+		if typ.NumIn() != 1 || typ.In(0) != arg || typ.NumOut() != 1 || typ.Out(0).Kind() != reflect.Func ||
+			typ.Out(0).NumIn() != 1 || typ.Out(0).In(0) != queryType {
+			problems = append(problems, fmt.Sprintf("%s is a %s, not a func(%s) option of %s", label, typ, arg, queryType))
+			continue
+		}
+		if isScalar {
+			problems = append(problems, checkScalarOption(label, name, param, scalar, option, send, base)...)
+			continue
+		}
+		sent, ok := contractQuerySent[bound[name].Normalize]
 		if !ok {
-			problems = append(problems, fmt.Sprintf("%s has unknown normalize %q", label, normalize[name]))
+			problems = append(problems, fmt.Sprintf("%s has unknown normalize %q", label, bound[name].Normalize))
 			continue
 		}
 		set := option.Call([]reflect.Value{reflect.ValueOf(slices.Clone(contractQueryValues))})[0]
@@ -257,6 +312,36 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 	sort.Strings(missing)
 	if len(missing) > 0 {
 		problems = append(problems, fmt.Sprintf("query parameters %v have no option", missing))
+	}
+	return problems
+}
+
+// checkScalarOption calls a scalar option with each of its cases and returns
+// every case that does not send the parameter as the schema encodes it, or
+// does not leave it out.
+func checkScalarOption(label, name string, param contractQueryParam, scalar contractScalar, option reflect.Value, send func(func(reflect.Value)) url.Values, base url.Values) []string {
+	schemaType := ""
+	if param.Schema != nil {
+		schemaType = param.Schema.Type
+	}
+	if !slices.Contains(scalar.schemas, schemaType) {
+		return []string{fmt.Sprintf("%s takes a %s, the operation defines %s as a %s", label, scalar.arg, name, schemaType)}
+	}
+	var problems []string
+	for _, c := range scalar.cases {
+		got := send(func(q reflect.Value) {
+			for _, value := range c.calls {
+				option.Call([]reflect.Value{reflect.ValueOf(value)})[0].Call([]reflect.Value{q})
+			}
+		})
+		want := url.Values{}
+		maps.Copy(want, base)
+		if c.sent != nil {
+			want[name] = contractQueryEncoding(param, c.sent)
+		}
+		if !reflect.DeepEqual(got, want) {
+			problems = append(problems, fmt.Sprintf("%s called with %q sent %v, want %v", label, c.calls, got, want))
+		}
 	}
 	return problems
 }
