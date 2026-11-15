@@ -20,18 +20,23 @@ asc release-notes <subcommand> [flags]
 
 Generate release notes from local git history.
 
-Exactly one of `--since-tag` or `--since-ref` is required.
+Exactly one of `--since-tag`, `--since-ref`, `--since-tag-pattern`, or
+`--max-commits` is required.
 
 ```bash
 asc release-notes generate --since-tag "v1.2.2"
 asc release-notes generate --since-tag "v1.2.2" --output markdown
 asc release-notes generate --since-ref "origin/main" --until-ref "HEAD" --max-chars 4000
+asc release-notes generate --since-tag-pattern "v*"
+asc release-notes generate --max-commits 20
 ```
 
 **Flags:**
 
 * `--since-tag` - Start from tag (exclusive), e.g. `v1.2.2`
 * `--since-ref` - Start from ref or SHA (exclusive), e.g. `origin/main`
+* `--since-tag-pattern` - Start from the most recent tag reachable from `--until-ref` whose name matches this glob (exclusive), e.g. `v*`; no matching tag is an error
+* `--max-commits` - Use only the last N commits up to `--until-ref`
 * `--until-ref` - End at ref or SHA (inclusive), default `HEAD`
 * `--format` - Notes format: `plain` or `markdown`
 * `--include-merges` - Include merge commits

@@ -12,17 +12,49 @@ import (
 
 var errGitNotFound = errors.New("git not found on PATH")
 
+// LatestTagMatching returns the most recent tag reachable from until whose
+// name matches the glob pattern.
+func LatestTagMatching(ctx context.Context, repoDir, pattern, until string) (string, error) {
+	if _, err := exec.LookPath("git"); err != nil {
+		return "", errGitNotFound
+	}
+
+	cmd := exec.CommandContext(ctx, "git", "describe", "--tags", "--abbrev=0", "--match", pattern, until)
+	if strings.TrimSpace(repoDir) != "" {
+		cmd.Dir = repoDir
+	}
+	cmd.Env = cleanGitRepoEnv(os.Environ())
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if strings.Contains(msg, "No names found") || strings.Contains(msg, "No tags can describe") {
+			return "", fmt.Errorf("no tag matching %q is reachable from %s", pattern, until)
+		}
+		if msg == "" {
+			return "", fmt.Errorf("git describe failed: %w", err)
+		}
+		return "", fmt.Errorf("git describe failed: %s", msg)
+	}
+	return strings.TrimSpace(stdout.String()), nil
+}
+
 // ListCommits returns commits in (since, until], ordered oldest -> newest.
 //
-// since and until are git revs (tag, branch, SHA, etc).
-func ListCommits(ctx context.Context, repoDir, since, until string, includeMerges bool) ([]Commit, error) {
+// since and until are git revs (tag, branch, SHA, etc). An empty since means
+// the whole history up to until. maxCommits > 0 keeps only the newest
+// maxCommits commits.
+func ListCommits(ctx context.Context, repoDir, since, until string, includeMerges bool, maxCommits int) ([]Commit, error) {
 	if _, err := exec.LookPath("git"); err != nil {
 		return nil, errGitNotFound
 	}
 
 	since = strings.TrimSpace(since)
 	until = strings.TrimSpace(until)
-	if since == "" || until == "" {
+	if until == "" || (since == "" && maxCommits < 1) {
 		return nil, fmt.Errorf("since and until are required")
 	}
 
@@ -39,7 +71,14 @@ func ListCommits(ctx context.Context, repoDir, since, until string, includeMerge
 	if !includeMerges {
 		args = append(args, "--no-merges")
 	}
-	args = append(args, fmt.Sprintf("%s..%s", since, until))
+	if maxCommits > 0 {
+		args = append(args, fmt.Sprintf("--max-count=%d", maxCommits))
+	}
+	if since == "" {
+		args = append(args, until)
+	} else {
+		args = append(args, fmt.Sprintf("%s..%s", since, until))
+	}
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	if strings.TrimSpace(repoDir) != "" {
