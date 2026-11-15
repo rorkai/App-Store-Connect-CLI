@@ -31,6 +31,7 @@ type metadataSettingField struct {
 	kind      metadataSettingFieldKind
 	values    []string
 	secretEnv string
+	nullUnset bool
 }
 
 const metadataRedactedValue = "<redacted>"
@@ -152,6 +153,9 @@ func readMetadataSettingFile(dir string, scope metadataSettingScope) (map[string
 		field, ok := scope.field(key)
 		if !ok {
 			return nil, shared.UsageErrorf("invalid metadata schema in %s: unknown field %q", path, key)
+		}
+		if field.nullUnset && isJSONNull(rawValue) {
+			continue
 		}
 		value, err := decodeMetadataSettingValue(dir, field, rawValue)
 		if err != nil {
