@@ -5,7 +5,7 @@ import (
 )
 
 func TestGameCenterLeaderboardsV2ValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "leaderboards", "v2", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "leaderboards", "v2", "versions", "list"}, "--leaderboard-id is required"},
 		{[]string{"game-center", "leaderboards", "v2", "localizations", "create", "--locale", "en-US", "--name", "Test"}, "--version-id is required"},

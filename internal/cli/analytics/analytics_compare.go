@@ -50,9 +50,9 @@ type compareMetric struct {
 	Reason       string   `json:"reason,omitempty"`
 }
 
-// AnalyticsCompareCommand returns the compare subcommand for analytics.
-func AnalyticsCompareCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("compare", flag.ExitOnError)
+// newAnalyticsCompareCommand returns the compare subcommand for analytics.
+func newAnalyticsCompareCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("compare", flag.ExitOnError)
 
 	source := fs.String("source", "", "Data source: sales")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
@@ -64,7 +64,7 @@ func AnalyticsCompareCommand() *ffcli.Command {
 	frequency := fs.String("frequency", "", "Report frequency: DAILY, WEEKLY, MONTHLY, YEARLY")
 	reportType := fs.String("type", "SALES", "Report type: SALES, PRE_ORDER, NEWSSTAND, SUBSCRIPTION, SUBSCRIPTION_EVENT")
 	reportSubType := fs.String("subtype", "SUMMARY", "Report subtype: SUMMARY, DETAILED")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "compare",
@@ -88,65 +88,65 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			sourceName := strings.ToLower(strings.TrimSpace(*source))
 			if sourceName == "" {
-				return shared.UsageError("--source is required")
+				return d.UsageError("--source is required")
 			}
 			if sourceName != "sales" {
-				return shared.UsageError("--source must be sales")
+				return d.UsageError("--source must be sales")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
 			resolvedVendor := shared.ResolveVendorNumber(*vendor)
 			if resolvedVendor == "" {
-				return shared.UsageError("--vendor is required (or set ASC_VENDOR_NUMBER)")
+				return d.UsageError("--vendor is required (or set ASC_VENDOR_NUMBER)")
 			}
 
 			if strings.TrimSpace(*from) == "" {
-				return shared.UsageError("--from is required")
+				return d.UsageError("--from is required")
 			}
 			if strings.TrimSpace(*to) == "" {
-				return shared.UsageError("--to is required")
+				return d.UsageError("--to is required")
 			}
 			if strings.TrimSpace(*frequency) == "" {
-				return shared.UsageError("--frequency is required")
+				return d.UsageError("--frequency is required")
 			}
 
 			freq, err := normalizeSalesReportFrequency(*frequency)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			salesType, err := normalizeAnalyticsCompareReportType(*reportType)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			subType, err := normalizeAnalyticsCompareReportSubType(*reportSubType)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if err := validateSalesReportTuple(salesType, subType, freq); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			baselineStart, baselineEnd, err := normalizeCompareDateRange(*from, *fromEnd, freq, "--from", "--from-end")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			compStart, compEnd, err := normalizeCompareDateRange(*to, *toEnd, freq, "--to", "--to-end")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("analytics compare: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			appResp, err := client.GetApp(requestCtx, resolvedAppID)
@@ -186,15 +186,15 @@ Examples:
 				Baseline:    comparePeriod{Start: baselineStart, End: baselineEnd, ReportsFound: baseline.found},
 				Comparison:  comparePeriod{Start: compStart, End: compEnd, ReportsFound: comparison.found},
 				Metrics:     buildCompareMetrics(baseline.metrics, comparison.metrics),
-				GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+				GeneratedAt: d.Now().UTC().Format(time.RFC3339),
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				resp,
 				*output.Output,
 				*output.Pretty,
-				func() error { renderCompareOutput(resp, false); return nil },
-				func() error { renderCompareOutput(resp, true); return nil },
+				func() error { renderCompareOutput(d, resp, false); return nil },
+				func() error { renderCompareOutput(d, resp, true); return nil },
 			)
 		},
 	}
@@ -487,7 +487,7 @@ func ptrFloat(v float64) *float64 {
 	return &v
 }
 
-func renderCompareOutput(resp *compareResponse, markdown bool) {
+func renderCompareOutput(d *shared.Deps, resp *compareResponse, markdown bool) {
 	contextRows := [][]string{
 		{"appId", resp.AppID},
 		{"source", resp.Source.Name},
@@ -502,7 +502,7 @@ func renderCompareOutput(resp *compareResponse, markdown bool) {
 	if strings.TrimSpace(resp.Source.AppSKU) != "" {
 		contextRows = append(contextRows, []string{"appSku", resp.Source.AppSKU})
 	}
-	shared.RenderSection("Context", []string{"field", "value"}, contextRows, markdown)
+	d.RenderSection("Context", []string{"field", "value"}, contextRows, markdown)
 
 	metricRows := make([][]string, 0, len(resp.Metrics))
 	for _, metric := range resp.Metrics {
@@ -517,7 +517,7 @@ func renderCompareOutput(resp *compareResponse, markdown bool) {
 			shared.OrNA(metric.Reason),
 		})
 	}
-	shared.RenderSection("Metrics", []string{"metric", "unit", "baseline", "comparison", "delta", "deltaPercent", "status", "reason"}, metricRows, markdown)
+	d.RenderSection("Metrics", []string{"metric", "unit", "baseline", "comparison", "delta", "deltaPercent", "status", "reason"}, metricRows, markdown)
 }
 
 func formatOptionalFloat(v *float64) string {

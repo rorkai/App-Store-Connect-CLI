@@ -59,7 +59,7 @@ func lifecycleCommand(d *shared.Deps, action, resourceType string) *ffcli.Comman
 	return &ffcli.Command{
 		Name: action, ShortUsage: usage, ShortHelp: fmt.Sprintf("%s an Asset Library asset.", strings.ToUpper(action[:1])+action[1:]),
 		LongHelp: help + " Apple validates asset eligibility. This command does not submit App Review.",
-		FlagSet:  fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+		FlagSet:  fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateBoundOutputFlags(fs); err != nil {
 				return d.UsageErrorf("asset-library %s: %v", action, err)
 			}

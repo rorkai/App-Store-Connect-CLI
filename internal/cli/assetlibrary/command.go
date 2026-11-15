@@ -55,7 +55,7 @@ Examples:
   asc asset-library videos list --library-id LIBRARY_ID
   asc asset-library specs
   asc asset-library specs --placement-type APP_SCREENSHOT --feature APP_STORE_VERSIONS`,
-		FlagSet: d.NewFlagSet(name, flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: d.NewFlagSet(name, flag.ExitOnError), UsageFunc: d.DefaultUsageFunc,
 		Subcommands: children, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
@@ -110,7 +110,7 @@ func readCommand(d *shared.Deps, parent, name, help, selector, path string, coll
 	}
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: name, ShortHelp: help, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: name, ShortHelp: help, FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		LongHelp: longHelp,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateBoundOutputFlags(fs); err != nil {

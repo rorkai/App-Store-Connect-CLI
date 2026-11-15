@@ -33,7 +33,7 @@ Examples:
   asc submit status --id "SUBMISSION_ID"
   asc submit status --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --version-id is required")

@@ -29,7 +29,7 @@ Examples:
   asc alternative-distribution keys delete --key-id "KEY_ID" --confirm
   asc alternative-distribution keys app --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAlternativeDistributionKeysListCommand(d),
 			newAlternativeDistributionKeysGetCommand(d),
@@ -109,7 +109,7 @@ Examples:
   asc alternative-distribution keys create --app "APP_ID" --public-key "KEY_DATA"
   asc alternative-distribution keys create --app "APP_ID" --public-key-path "./key.pem"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -192,7 +192,7 @@ func newAlternativeDistributionKeysAppCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc alternative-distribution keys app --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

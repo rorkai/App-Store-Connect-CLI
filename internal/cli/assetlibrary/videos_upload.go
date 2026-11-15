@@ -80,7 +80,7 @@ Examples:
   asc asset-library videos upload --library-id LIBRARY_ID --file ./header.mp4
   asc asset-library videos upload --library-id LIBRARY_ID --file ./duo-preview.mp4 --category APP_SCREENSHOTS_AND_PREVIEWS
   asc asset-library videos upload --library-id LIBRARY_ID --file ./cms-8f3a21.mp4 --reference-name "Hero en-US 3.14"
-  asc asset-library videos upload --library-id LIBRARY_ID --file ./header.mp4 --time-code 00:00:03:00`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+  asc asset-library videos upload --library-id LIBRARY_ID --file ./header.mp4 --time-code 00:00:03:00`, FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		ctx, pollErr := pollInterval.ApplyWith(ctx, d)
 		if pollErr != nil {
 			return pollErr

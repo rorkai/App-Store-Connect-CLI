@@ -23,6 +23,7 @@ type signingResignOptions struct {
 	IdentityPasswordPath string
 	ProfilesManifestPath string
 	RebaseTeamClaims     bool
+	BundleID             string
 }
 
 // SigningResignCommand returns the local IPA re-signing command.
@@ -34,11 +35,12 @@ func SigningResignCommand() *ffcli.Command {
 	identityPasswordPath := fs.String("identity-password-file", "", "Path to a file containing the PKCS#12 password")
 	profilesManifestPath := fs.String("profiles-manifest", "", "Path to the strict bundle-to-profile manifest (required)")
 	rebaseTeamClaims := fs.Bool("rebase-team-claims", false, "Rebase allowlisted team-prefix claims; changing KVS selects a different data namespace")
+	bundleID := fs.String("bundle-id", "", "New main app bundle identifier; nested identifiers move from OLD. to NEW.")
 	format := shared.BindOutputFlagsWith(fs, "format", shared.DefaultOutputFormat(), "Output format: json, table, markdown")
 
 	return &ffcli.Command{
 		Name:       "resign",
-		ShortUsage: "asc signing resign --ipa PATH --output PATH --identity PATH --profiles-manifest PATH [--rebase-team-claims] [flags]",
+		ShortUsage: "asc signing resign --ipa PATH --output PATH --identity PATH --profiles-manifest PATH [--rebase-team-claims] [--bundle-id ID] [flags]",
 		ShortHelp:  "Re-sign an existing iOS IPA with complete nested-target profile mappings.",
 		LongHelp: `Re-sign an existing iOS IPA into a new destination.
 
@@ -55,6 +57,13 @@ Cross-team entitlement claim rebasing is disabled by default. Use
 all transformed values remain subject to replacement-profile authorization.
 Changing a KVS claim selects a different namespace and can make existing KVS
 data inaccessible.
+
+Use --bundle-id to ship the build under a new main app bundle identifier.
+Every nested identifier must start with the old main identifier plus a dot;
+that prefix is replaced and the manifest must be keyed by the new identifiers.
+App Clip targets, nested identifiers outside that prefix, and watch keys that
+do not name the old identifier they belong to are refused. Other Info.plist
+values that contain the old identifier, such as URL schemes, are unchanged.
 
 Example:
   asc signing resign --ipa ./App.ipa --output ./artifacts/App-resigned.ipa --identity ./signing/distribution.p12 --identity-password-file ./secrets/p12-password --profiles-manifest ./signing/profiles.json --format json`,
@@ -84,6 +93,11 @@ Example:
 					return shared.UsageError(item.name + " is required")
 				}
 			}
+			bundleIDSet := false
+			fs.Visit(func(item *flag.Flag) { bundleIDSet = bundleIDSet || item.Name == "bundle-id" })
+			if bundleIDSet && strings.TrimSpace(*bundleID) == "" {
+				return shared.UsageError("--bundle-id must not be empty")
+			}
 			if _, err := shared.ValidateOutputFormat(*format.Output, *format.Pretty); err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -94,6 +108,7 @@ Example:
 				IdentityPasswordPath: signingResignPathOrEmpty(*identityPasswordPath),
 				ProfilesManifestPath: *profilesManifestPath,
 				RebaseTeamClaims:     *rebaseTeamClaims,
+				BundleID:             *bundleID,
 			})
 			if err != nil {
 				if isSigningResignUsageError(err) {

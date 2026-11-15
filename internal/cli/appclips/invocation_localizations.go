@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppClipInvocationLocalizationsCommand returns the invocations localizations command group.
-func AppClipInvocationLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations", flag.ExitOnError)
+// newAppClipInvocationLocalizationsCommand returns the invocations localizations command group.
+func newAppClipInvocationLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "localizations",
@@ -28,10 +28,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppClipInvocationLocalizationsListCommand(),
-			AppClipInvocationLocalizationsCreateCommand(),
-			AppClipInvocationLocalizationsUpdateCommand(),
-			AppClipInvocationLocalizationsDeleteCommand(),
+			newAppClipInvocationLocalizationsListCommand(d),
+			newAppClipInvocationLocalizationsCreateCommand(d),
+			newAppClipInvocationLocalizationsUpdateCommand(d),
+			newAppClipInvocationLocalizationsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -39,13 +39,13 @@ Examples:
 	}
 }
 
-// AppClipInvocationLocalizationsListCommand lists localizations for an invocation.
-func AppClipInvocationLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newAppClipInvocationLocalizationsListCommand lists localizations for an invocation.
+func newAppClipInvocationLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	invocationID := shared.BindResourceIDFlag(fs, "invocation-id", "betaAppClipInvocations", "Invocation ID")
 	limit := fs.Int("limit", 0, "Maximum included localizations (1-200)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -58,39 +58,39 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-clips invocations localizations list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips invocations localizations list", 200); err != nil {
 				return err
 			}
 
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				return shared.RequiredFlag("--invocation-id")
+				return d.RequiredFlag("--invocation-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips invocations localizations list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetBetaAppClipInvocationLocalizations(requestCtx, invocationValue, *limit)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					empty := &asc.BetaAppClipInvocationLocalizationsResponse{Data: []asc.Resource[asc.BetaAppClipInvocationLocalizationAttributes]{}}
-					return shared.PrintOutput(empty, *output.Output, *output.Pretty)
+					return d.PrintOutput(empty, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("app-clips invocations localizations list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipInvocationLocalizationsCreateCommand creates a localization.
-func AppClipInvocationLocalizationsCreateCommand() *ffcli.Command {
+// newAppClipInvocationLocalizationsCreateCommand creates a localization.
+func newAppClipInvocationLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.BetaAppClipInvocationLocalizationCreateAttributes
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
@@ -107,14 +107,15 @@ Examples:
 			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale (e.g., en-US)"),
 			shared.RequiredStringFlag(&attrs.Title, "title", "Title"),
 		},
+		Deps: d,
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateBetaAppClipInvocationLocalization(ctx, id, attrs)
 		},
 	})
 }
 
-// AppClipInvocationLocalizationsUpdateCommand updates a localization.
-func AppClipInvocationLocalizationsUpdateCommand() *ffcli.Command {
+// newAppClipInvocationLocalizationsUpdateCommand updates a localization.
+func newAppClipInvocationLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.BetaAppClipInvocationLocalizationUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -130,14 +131,15 @@ Examples:
 		Fields: []shared.AttributeFlag{
 			shared.ExplicitStringFlag(&attrs.Title, "title", "Title"),
 		},
+		Deps: d,
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateBetaAppClipInvocationLocalization(ctx, id, &attrs)
 		},
 	})
 }
 
-// AppClipInvocationLocalizationsDeleteCommand deletes a localization.
-func AppClipInvocationLocalizationsDeleteCommand() *ffcli.Command {
+// newAppClipInvocationLocalizationsDeleteCommand deletes a localization.
+func newAppClipInvocationLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc app-clips invocations localizations delete --localization-id \"LOC_ID\" --confirm",
@@ -150,6 +152,7 @@ Examples:
 		IDUsage:            "Localization ID",
 		IDType:             "betaAppClipInvocationLocalizations",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBetaAppClipInvocationLocalization(ctx, id)
 		},

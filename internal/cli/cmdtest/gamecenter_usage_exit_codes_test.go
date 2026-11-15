@@ -24,26 +24,31 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "achievements list limit above maximum",
 			args:    []string{"game-center", "achievements", "list", "--app", "123456789", "--limit", "201"},
 			wantErr: "game-center achievements list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "achievements list limit below minimum",
 			args:    []string{"game-center", "achievements", "list", "--app", "123456789", "--limit", "-1"},
 			wantErr: "game-center achievements list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "achievements list non-App-Store-Connect next",
 			args:    []string{"game-center", "achievements", "list", "--next", "http://api.appstoreconnect.apple.com/v1/gameCenterAchievements"},
 			wantErr: "game-center achievements list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "achievements list malformed next",
 			args:    []string{"game-center", "achievements", "list", "--next", malformedNextURL},
 			wantErr: "game-center achievements list: --next must be a valid URL: " + malformedNextURLParseError,
+			deps:    true,
 		},
 		{
 			name:    "groups list limit above maximum",
@@ -94,71 +99,85 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "achievements view without id",
 			args:    []string{"game-center", "achievements", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "achievements group-achievement view without id",
 			args:    []string{"game-center", "achievements", "group-achievement", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "achievements v2 versions view without id",
 			args:    []string{"game-center", "achievements", "v2", "versions", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "achievements v2 localizations view without id",
 			args:    []string{"game-center", "achievements", "v2", "localizations", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "achievements localizations view without id",
 			args:    []string{"game-center", "achievements", "localizations", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "achievements localizations image view without id",
 			args:    []string{"game-center", "achievements", "localizations", "image", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "achievements localizations achievement view without id",
 			args:    []string{"game-center", "achievements", "localizations", "achievement", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "achievements images view without id",
 			args:    []string{"game-center", "achievements", "images", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards view without id",
 			args:    []string{"game-center", "leaderboards", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards group-leaderboard view without id",
 			args:    []string{"game-center", "leaderboards", "group-leaderboard", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards v2 versions view without id",
 			args:    []string{"game-center", "leaderboards", "v2", "versions", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards v2 localizations view without id",
 			args:    []string{"game-center", "leaderboards", "v2", "localizations", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards localizations view without id",
 			args:    []string{"game-center", "leaderboards", "localizations", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards localizations image view without id",
 			args:    []string{"game-center", "leaderboards", "localizations", "image", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "leaderboard-sets view without id",
@@ -304,36 +323,46 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "leaderboards update invalid formatter",
 			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--formatter", "MONEY_WHOLE"},
 			wantErr: "--formatter must be one of: " + strings.Join(asc.ValidLeaderboardFormatters, ", "),
+			deps:    true,
 		},
 		{
 			name:    "leaderboards update invalid sort",
 			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--sort", "SIDEWAYS"},
 			wantErr: "--sort must be one of: ASC, DESC",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards update empty sort is not ignored",
 			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--reference-name", "Name", "--sort", ""},
 			wantErr: "--sort must be one of: ASC, DESC",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards update invalid submission type",
 			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--submission-type", "WORST_SCORE"},
 			wantErr: "--submission-type must be one of: BEST_SCORE, MOST_RECENT_SCORE",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards update empty score range start is not ignored",
 			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--reference-name", "Name", "--score-range-start", " "},
 			wantErr: "--score-range-start must not be empty",
+			deps:    true,
 		},
 		{
 			name:    "leaderboards update empty score range end is not ignored",
 			args:    []string{"game-center", "leaderboards", "update", "--id", "lb-1", "--reference-name", "Name", "--score-range-end", ""},
 			wantErr: "--score-range-end must not be empty",
+			deps:    true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			if test.deps {
+				assertUsageExitCodeWithDeps(t, test.args, test.wantErr)
+				return
+			}
 			assertUsageExitCode(t, test.args, test.wantErr)
 		})
 	}
@@ -368,6 +397,15 @@ func assertUsageExitCode(t *testing.T, args []string, wantErr string) {
 	assertUsageExitCodeResult(t, stdout, stderr, runErr, wantErr)
 }
 
+// assertUsageExitCodeWithDeps is assertUsageExitCode for a command built on
+// shared.Deps. It gives the command no client, so reaching one fails the test.
+func assertUsageExitCodeWithDeps(t *testing.T, args []string, wantErr string) {
+	t.Helper()
+
+	stdout, stderr, runErr := runRootWithDeps(t, nil, args...)
+	assertUsageExitCodeResult(t, stdout, stderr, runErr, wantErr)
+}
+
 func assertUsageExitCodeResult(t *testing.T, stdout, stderr string, runErr error, wantErr string) {
 	t.Helper()
 
@@ -395,6 +433,19 @@ func runGameCenterUsageCases(t *testing.T, cases []gameCenterUsageCase) {
 	for _, test := range cases {
 		t.Run(strings.Join(test.args[1:], " "), func(t *testing.T) {
 			assertUsageExitCode(t, test.args, test.wantErr)
+		})
+	}
+}
+
+// runGameCenterUsageCasesWithDeps is runGameCenterUsageCases for commands
+// built on shared.Deps.
+func runGameCenterUsageCasesWithDeps(t *testing.T, cases []gameCenterUsageCase) {
+	t.Helper()
+
+	setupUsageExitCodeEnv(t)
+	for _, test := range cases {
+		t.Run(strings.Join(test.args[1:], " "), func(t *testing.T) {
+			assertUsageExitCodeWithDeps(t, test.args, test.wantErr)
 		})
 	}
 }

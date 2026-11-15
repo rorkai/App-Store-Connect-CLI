@@ -26,7 +26,7 @@ Examples:
   asc actors list --id "ACTOR_ID"
   asc actors view --id "ACTOR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newActorsListCommand(d),
 			newActorsViewCommand(d),

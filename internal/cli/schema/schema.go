@@ -243,7 +243,7 @@ Examples:
   asc schema --list --method DELETE          # List all DELETE endpoints
   asc schema "builds" --pretty              # Pretty-print results`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			queryArgs, err := shared.ParseInterspersedFlags(fs, args)
 			if err != nil {

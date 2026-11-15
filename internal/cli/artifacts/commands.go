@@ -52,7 +52,7 @@ Examples:
   asc ipa-info --path ./App.ipa --include-profile --include-entitlements --output json
   asc ipa-info --path ./App.ipa --verify-signature --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runArtifactInfo(ctx, d, artifactInfoConfig{
 				Kind:                "ipa-info",
@@ -106,7 +106,7 @@ Examples:
   asc pkg-info --path ./App.pkg --output json
   asc pkg-info --path ./App.pkg --verify-signature --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runArtifactInfo(ctx, d, artifactInfoConfig{
 				Kind:            "pkg-info",

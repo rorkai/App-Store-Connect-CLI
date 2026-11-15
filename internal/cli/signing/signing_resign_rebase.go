@@ -995,7 +995,7 @@ func (graph *signingResignRebaseGraph) sourcePrefix(bundleID string) (string, er
 	if !ok {
 		return "", fmt.Errorf("entitlement graph target %s is missing", bundleID)
 	}
-	prefix, err := signingResignExistingApplicationIdentifierPrefix(target.ExistingEntitlements, bundleID)
+	prefix, err := signingResignExistingApplicationIdentifierPrefix(target.ExistingEntitlements, target.sourceBundleID())
 	if err != nil {
 		return "", fmt.Errorf("target %s cannot derive its source ApplicationIdentifierPrefix: %w", bundleID, err)
 	}

@@ -15,10 +15,13 @@ import (
 // runner must bound request with a timeout derived from ctx.
 type AppPriceRequestRunner func(ctx context.Context, request func(context.Context) error) error
 
-func runAppPriceRequestWithTimeout(ctx context.Context, request func(context.Context) error) error {
-	callCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-	return request(callCtx)
+// appPriceRequestRunner returns a runner that bounds each request with timeout.
+func appPriceRequestRunner(timeout func(context.Context) (context.Context, context.CancelFunc)) AppPriceRequestRunner {
+	return func(ctx context.Context, request func(context.Context) error) error {
+		callCtx, cancel := timeout(ctx)
+		defer cancel()
+		return request(callCtx)
+	}
 }
 
 // AppPriceActiveOn reports whether an app price with startDate and endDate
@@ -87,7 +90,7 @@ func FetchAppBasePriceStatus(ctx context.Context, client *asc.Client, scheduleID
 		return AppBasePriceStatus{}, fmt.Errorf("app price schedule ID is required")
 	}
 	if run == nil {
-		run = runAppPriceRequestWithTimeout
+		run = appPriceRequestRunner(shared.ContextWithTimeout)
 	}
 
 	var baseTerritoryResp *asc.TerritoryResponse

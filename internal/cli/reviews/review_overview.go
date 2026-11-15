@@ -98,7 +98,7 @@ Examples:
   asc review status --app "123456789" --version "1.2.3"
   asc review status --app "123456789" --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(d, *appID, *version, *versionID, *platform)
 			if err != nil {
@@ -155,7 +155,7 @@ Examples:
   asc review doctor --app "123456789" --version "1.2.3"
   asc review doctor --app "123456789" --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(d, *appID, *version, *versionID, *platform)
 			if err != nil {

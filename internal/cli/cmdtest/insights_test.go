@@ -45,7 +45,11 @@ func TestInsightsWeeklyValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestInsightsDailyValidationErrors(t *testing.T) {
@@ -75,16 +79,18 @@ func TestInsightsDailyValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestInsightsWeeklySalesJSON(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"apps",
@@ -110,7 +116,7 @@ func TestInsightsWeeklySalesJSON(t *testing.T) {
 		"",
 	}, "\n")))
 
-	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -172,12 +178,10 @@ func TestInsightsWeeklySalesJSON(t *testing.T) {
 }
 
 func TestInsightsWeeklySalesReportRowsUnavailableOnFetchError(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"apps",
@@ -198,7 +202,7 @@ func TestInsightsWeeklySalesReportRowsUnavailableOnFetchError(t *testing.T) {
 		"",
 	}, "\n")))
 
-	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -224,12 +228,10 @@ func TestInsightsWeeklySalesReportRowsUnavailableOnFetchError(t *testing.T) {
 }
 
 func TestInsightsDailySalesJSON(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"apps",
@@ -256,7 +258,7 @@ func TestInsightsDailySalesJSON(t *testing.T) {
 		"",
 	}, "\n")))
 
-	stdout, stderr, err := runCommand(t, []string{"insights", "daily", "--app", "app-1", "--vendor", "12345678", "--date", "2026-02-18"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "daily", "--app", "app-1", "--vendor", "12345678", "--date", "2026-02-18")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -300,12 +302,10 @@ func TestInsightsDailySalesJSON(t *testing.T) {
 }
 
 func TestInsightsWeeklyAnalyticsJSON(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -330,7 +330,7 @@ func TestInsightsWeeklyAnalyticsJSON(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -373,12 +373,10 @@ func TestInsightsWeeklyAnalyticsJSON(t *testing.T) {
 }
 
 func TestInsightsWeeklyTableOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"apps",
@@ -401,7 +399,7 @@ func TestInsightsWeeklyTableOutput(t *testing.T) {
 		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t1\t0.10\t0.20",
 	}, "\n")))
 
-	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16", "--output", "table"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16", "--output", "table")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -415,17 +413,15 @@ func TestInsightsWeeklyTableOutput(t *testing.T) {
 }
 
 func TestInsightsWeeklyAnalyticsForbiddenReturnsUnavailable(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusForbidden, `{
 		"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"security restriction"}]
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -450,12 +446,10 @@ func TestInsightsWeeklyAnalyticsForbiddenReturnsUnavailable(t *testing.T) {
 }
 
 func TestInsightsWeeklyAnalyticsNestedForbiddenReturnsUnavailable(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{"type":"analyticsReportRequests","id":"req-1","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}
@@ -466,7 +460,7 @@ func TestInsightsWeeklyAnalyticsNestedForbiddenReturnsUnavailable(t *testing.T) 
 		"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"security restriction"}]
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

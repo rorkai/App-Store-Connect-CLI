@@ -65,6 +65,7 @@ func TestSigningKeychainInstallCommandThreadsOptions(t *testing.T) {
 		ExpectedCertificateSHA256: strings.Repeat("A", 64),
 		AddToSearchList:           true,
 		AddAppleIntermediates:     true,
+		LockOnSleep:               true,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("options = %+v, want %+v", got, want)

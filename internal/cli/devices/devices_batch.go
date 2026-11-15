@@ -57,7 +57,7 @@ Examples:
   asc devices register-batch --file "./devices.txt" --dry-run
   asc devices register-batch --file "./devices.txt" --continue-on-error=false --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			fileValue := strings.TrimSpace(*filePath)
 			if fileValue == "" {

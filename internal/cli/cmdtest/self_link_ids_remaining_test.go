@@ -60,6 +60,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/webhooks/webhook-1": `{"data":{"type":"webhooks","id":"webhook-1","attributes":{"name":"Build updates","url":"https://example.com/hook","enabled":true}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "app-events view",
@@ -127,6 +128,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/analyticsReports/report-1": `{"data":{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Store Installs","category":"APP_USAGE"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "game-center achievements localizations list",
@@ -136,6 +138,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/gameCenterAchievements/achievement-1/localizations": `{"data":[{"type":"gameCenterAchievementLocalizations","id":"localization-1","attributes":{"locale":"en-US","name":"First Win"}}]}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "builds test-notes view",
@@ -164,6 +167,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appClipDefaultExperiences/experience-1/appClipDefaultExperienceLocalizations": `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"clip-localization-1","attributes":{"locale":"en-US","subtitle":"Order"}}]}`,
 			},
+			deps: true,
 		},
 	}
 
@@ -251,6 +255,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type webhooks, got apps",
+			deps:    true,
 		},
 		{
 			name:    "webhooks view rejects relationship path",
@@ -258,6 +263,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/webhooks/webhook-1/relationships/app",
 			wantErr: "/v1/<type>/<id>",
+			deps:    true,
 		},
 		{
 			name:    "marketplace webhooks view rejects webhooks link",
@@ -315,6 +321,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "analytics reports view rejects request link",
 			args:    []string{"analytics", "reports", "view"},
+			deps:    true,
 			flag:    "report-id",
 			value:   selfLinkTestBase + "/v1/analyticsReportRequests/request-1",
 			wantErr: "expected a self-link of type analyticsReports, got analyticsReportRequests",
@@ -349,6 +356,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "achievement-id",
 			value:   selfLinkTestBase + "/v1/gameCenterLeaderboards/leaderboard-1",
 			wantErr: "expected a self-link of type gameCenterAchievements, got gameCenterLeaderboards",
+			deps:    true,
 		},
 		{
 			name:    "game-center achievements v2 list rejects details link",
@@ -356,6 +364,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "group-id",
 			value:   selfLinkTestBase + "/v1/gameCenterDetails/detail-1",
 			wantErr: "expected a self-link of type gameCenterGroups, got gameCenterDetails",
+			deps:    true,
 		},
 		{
 			name:    "game-center matchmaking queues update rejects queue link",
@@ -370,6 +379,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "experience-id",
 			value:   selfLinkTestBase + "/v1/appClips/clip-1",
 			wantErr: "expected a self-link of type appClipDefaultExperiences, got appClips",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages view rejects version link",
