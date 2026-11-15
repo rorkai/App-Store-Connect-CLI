@@ -198,10 +198,19 @@ func RootFlagsForReinvocation() (args []string, ok bool) {
 // ProgressEnabled reports whether it's safe/appropriate to emit progress messages.
 // Progress must be stderr-only and must not appear when stderr is non-interactive.
 func ProgressEnabled() bool {
+	return progressEnabledFor(isTerminal(int(os.Stderr.Fd())))
+}
+
+// ProgressEnabled is ProgressEnabled decided from d's stderr.
+func (d *Deps) ProgressEnabled() bool {
+	return progressEnabledFor(d.IO.StderrTTY)
+}
+
+func progressEnabledFor(stderrTTY bool) bool {
 	if noProgress {
 		return false
 	}
-	return isTerminal(int(os.Stderr.Fd()))
+	return stderrTTY
 }
 
 // SetNoProgress sets progress suppression (tests only).
@@ -1436,15 +1445,25 @@ func NormalizeOutputFormat(format string) string {
 // flag takes a path is given an output format name there. formatFlag is the
 // command's flag that chooses json, table or markdown, or "" when it has none.
 func RejectOutputFormatAsPath(path, formatFlag string) error {
+	return rejectOutputFormatAsPathTo(os.Stderr, path, formatFlag)
+}
+
+// RejectOutputFormatAsPath is RejectOutputFormatAsPath with the "Error:" line
+// written to d's stderr.
+func (d *Deps) RejectOutputFormatAsPath(path, formatFlag string) error {
+	return rejectOutputFormatAsPathTo(d.IO.ErrOut, path, formatFlag)
+}
+
+func rejectOutputFormatAsPathTo(stderr io.Writer, path, formatFlag string) error {
 	value := strings.TrimSpace(path)
 	format := NormalizeOutputFormat(value)
 	if format != "json" && format != "table" && format != "markdown" {
 		return nil
 	}
 	if formatFlag == "" {
-		fmt.Fprintf(os.Stderr, "Error: --output takes a path in this command, not an output format, and no flag here chooses json, table or markdown output; use --output ./%s to write to a path named %s\n", value, value)
+		fmt.Fprintf(stderr, "Error: --output takes a path in this command, not an output format, and no flag here chooses json, table or markdown output; use --output ./%s to write to a path named %s\n", value, value)
 	} else {
-		fmt.Fprintf(os.Stderr, "Error: --output takes a path in this command, not an output format; use %s %s to choose the format, or --output ./%s to write to a path named %s\n", formatFlag, format, value, value)
+		fmt.Fprintf(stderr, "Error: --output takes a path in this command, not an output format; use %s %s to choose the format, or --output ./%s to write to a path named %s\n", formatFlag, format, value, value)
 	}
 	return InvalidValueUsageError("--output")
 }

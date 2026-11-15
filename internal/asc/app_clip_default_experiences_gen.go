@@ -68,6 +68,21 @@ func (c *Client) GetAppClipDefaultExperienceReviewDetailRelationship(ctx context
 	})
 }
 
+// GetAppClipDefaultExperienceLocalizations sends GET /v1/appClipDefaultExperiences/{id}/appClipDefaultExperienceLocalizations (appClipDefaultExperiences_appClipDefaultExperienceLocalizations_getToManyRelated).
+func (c *Client) GetAppClipDefaultExperienceLocalizations(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceLocalizationsOption) (*AppClipDefaultExperienceLocalizationsResponse, error) {
+	query := applyOptions(opts)
+	experienceID = strings.TrimSpace(experienceID)
+	if query.nextURL == "" && experienceID == "" {
+		return nil, fmt.Errorf("experienceID is required")
+	}
+	return getJSON[AppClipDefaultExperienceLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appClipDefaultExperiences/%s/appClipDefaultExperienceLocalizations", experienceID),
+		Query:       buildAppClipDefaultExperienceLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClipDefaultExperienceLocalizations",
+	})
+}
+
 // DeleteAppClipDefaultExperience sends DELETE /v1/appClipDefaultExperiences/{id} (appClipDefaultExperiences_deleteInstance).
 func (c *Client) DeleteAppClipDefaultExperience(ctx context.Context, experienceID string) error {
 	experienceID = strings.TrimSpace(experienceID)

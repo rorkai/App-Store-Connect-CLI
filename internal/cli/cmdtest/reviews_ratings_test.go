@@ -11,6 +11,8 @@ import (
 )
 
 func TestReviewsRatingsValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
 	tests := []struct {
 		name    string
 		args    []string

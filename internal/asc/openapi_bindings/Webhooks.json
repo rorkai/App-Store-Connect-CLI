@@ -16,10 +16,12 @@
     {"data":"WebhookCreateData","type":"WebhookCreateRelationships"}
   ],
   "operations": [
+    {"operation":"webhooks_createInstance","name":"CreateWebhook","params":["appID"],"parseErr":"failed to parse webhook response","links":["app"]},
     {"operation":"webhooks_deleteInstance","name":"DeleteWebhook","params":["webhookID"]},
     {"operation":"webhooks_deliveries_getToManyRelated","name":"GetWebhookDeliveries","params":["webhookID"],"options":"WebhookDeliveriesOption","query":"buildWebhookDeliveriesQuery","nextContext":"webhookDeliveries","parseErr":"failed to parse webhook deliveries response"},
     {"operation":"webhooks_deliveries_getToManyRelationship","name":"GetWebhookDeliveriesRelationships","params":["webhookID"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"webhookDeliveries relationships","parseErr":"failed to parse webhook deliveries relationships response"},
-    {"operation":"webhooks_getInstance","name":"GetWebhook","params":["webhookID"],"check":"trim","parseErr":"failed to parse webhook response"}
+    {"operation":"webhooks_getInstance","name":"GetWebhook","params":["webhookID"],"check":"trim","parseErr":"failed to parse webhook response"},
+    {"operation":"webhooks_updateInstance","name":"UpdateWebhook","params":["webhookID"],"check":"trim","parseErr":"failed to parse webhook response"}
   ],
   "queries": [
     {"operation":"webhooks_deliveries_getToManyRelated","name":"WebhookDeliveries","params":[{"name":"filter[createdDateGreaterThanOrEqualTo]","field":"createdAfter","arg":"values"},{"name":"filter[createdDateLessThan]","field":"createdBefore","arg":"values"}],"deviations":[{"problem":"query parameters [fields[webhookDeliveries] fields[webhookEvents] filter[deliveryState] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}

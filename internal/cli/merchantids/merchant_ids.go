@@ -212,13 +212,8 @@ Examples:
 
 // MerchantIDsCreateCommand returns the merchant IDs create subcommand.
 func MerchantIDsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	identifier := fs.String("identifier", "", "Merchant ID identifier (e.g., merchant.com.example)")
-	name := fs.String("name", "", "Merchant ID name")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.MerchantIDCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc merchant-ids create --identifier \"merchant.com.example\" --name \"Example\"",
 		ShortHelp:  "Create a merchant ID.",
@@ -226,38 +221,15 @@ func MerchantIDsCreateCommand() *ffcli.Command {
 
 Examples:
   asc merchant-ids create --identifier "merchant.com.example" --name "Example"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			identifierValue := strings.TrimSpace(*identifier)
-			if identifierValue == "" {
-				return shared.RequiredFlag("--identifier")
-			}
-			nameValue := strings.TrimSpace(*name)
-			if nameValue == "" {
-				return shared.RequiredFlag("--name")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("merchant-ids create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			attrs := asc.MerchantIDCreateAttributes{
-				Name:       nameValue,
-				Identifier: identifierValue,
-			}
-			resp, err := client.CreateMerchantID(requestCtx, attrs)
-			if err != nil {
-				return fmt.Errorf("merchant-ids create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel: true,
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Identifier, "identifier", "Merchant ID identifier (e.g., merchant.com.example)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Merchant ID name"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, _ string) (any, error) {
+			return client.CreateMerchantID(ctx, attrs)
+		},
+	})
 }
 
 // MerchantIDsUpdateCommand returns the merchant IDs update subcommand.

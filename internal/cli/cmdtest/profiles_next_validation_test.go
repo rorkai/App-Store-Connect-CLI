@@ -1,13 +1,10 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -42,15 +39,11 @@ func TestProfilesListProfileStateFilter(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/profiles", "filter[profileState]="+test.wantFilter), asctest.JSON(http.StatusOK, test.response))
 
 			args := append([]string{"profiles", "list"}, test.args...)
-			stdout, stderr, runErr := runRootCommand(t, append(args, "--output", "json"))
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), append(args, "--output", "json")...)
 			if runErr != nil {
 				t.Fatalf("run error: %v", runErr)
 			}
@@ -82,18 +75,8 @@ func TestProfilesListProfileStateFilter(t *testing.T) {
 
 func TestProfilesListProfileStateInvalidValueReturnsUsageError(t *testing.T) {
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"profiles", "list", "--profile-state", "EXPIRED"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "profiles", "list", "--profile-state", "EXPIRED")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp usage error, got %v", runErr)
@@ -115,16 +98,19 @@ func TestProfilesListsPaginateFromNext(t *testing.T) {
 			args:     []string{"profiles", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/profiles?cursor=AQ&limit=200",
 			dataType: "profiles",
+			deps:     true,
 		},
 		{
 			args:     []string{"profiles", "links", "certificates"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/profiles/profile-1/relationships/certificates?cursor=AQ&limit=200",
 			dataType: "certificates",
+			deps:     true,
 		},
 		{
 			args:     []string{"profiles", "links", "devices"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/profiles/profile-1/relationships/devices?cursor=AQ&limit=200",
 			dataType: "devices",
+			deps:     true,
 		},
 	})
 }

@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"errors"
 	"flag"
 	"regexp"
 	"strings"
@@ -9,6 +10,8 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // Usage errors print while the command runs, before the re-parenting of
@@ -17,6 +20,7 @@ import (
 func TestReparentedCommandUsageErrorsNameTheTypedPath(t *testing.T) {
 	setupUsageExitCodeEnv(t)
 	t.Chdir(t.TempDir())
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, errors.New("client requested") }))
 	commandPrefix := regexp.MustCompile(`^Error: ([a-z0-9][a-z0-9-]*(?: [a-z0-9][a-z0-9-]*)+): `)
 
 	var walk func(cmd *ffcli.Command, path []string)

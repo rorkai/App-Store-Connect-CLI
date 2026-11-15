@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/99designs/keyring"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
 
 type countingKeyring struct {
@@ -4196,5 +4198,16 @@ func TestCachedSessionRejectsDifferentAppleAccount(t *testing.T) {
 	}
 	if _, ok, err := LoadCachedSession("other@example.com"); err != nil || ok {
 		t.Errorf("mismatched account was cached, got ok=%t err=%v", ok, err)
+	}
+}
+
+func TestDevelopersWebSessionsAreHiddenFromTests(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv(webSessionCacheDirEnv, "")
+	t.Cleanup(testguard.HideForTest(filepath.Join(home, ".asc")))
+
+	if _, _, err := readLastKeyFromFile(); err == nil || !strings.Contains(err.Error(), webSessionCacheDirEnv) {
+		t.Fatalf("readLastKeyFromFile() error = %v, want a refusal that names %s", err, webSessionCacheDirEnv)
 	}
 }

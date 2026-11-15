@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
 
 func mustDurationValue(t *testing.T, raw string) DurationValue {
@@ -547,5 +549,28 @@ func TestLoadAtRejectsSymlinkedParentWithoutFollowingIt(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "symlink") {
 		t.Fatalf("LoadAt() error = %v, want symlink rejection", err)
+	}
+}
+
+func TestDevelopersConfigIsHiddenFromTests(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), ".asc")
+	path := filepath.Join(dir, "config.json")
+	if err := SaveAt(path, &Config{KeyID: "DEVELOPERKEY"}); err != nil {
+		t.Fatalf("SaveAt() error: %v", err)
+	}
+	t.Cleanup(testguard.HideForTest(dir))
+
+	if _, err := LoadAt(path); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("LoadAt() error = %v, want %v", err, ErrNotFound)
+	}
+	if err := SaveAt(path, &Config{KeyID: "TESTKEY"}); err == nil || !strings.Contains(err.Error(), "belongs to the developer running the tests") {
+		t.Fatalf("SaveAt() error = %v, want refusal", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(data), "DEVELOPERKEY") {
+		t.Fatalf("developer config changed to %s", data)
 	}
 }

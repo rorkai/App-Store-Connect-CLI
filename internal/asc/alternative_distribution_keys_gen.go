@@ -43,6 +43,40 @@ type AlternativeDistributionKeyResponse = SingleResponse[AlternativeDistribution
 // AlternativeDistributionKeysResponse is the AlternativeDistributionKeysResponse schema.
 type AlternativeDistributionKeysResponse = Response[AlternativeDistributionKeyAttributes]
 
+// CreateAlternativeDistributionKey sends POST /v1/alternativeDistributionKeys (alternativeDistributionKeys_createInstance).
+func (c *Client) CreateAlternativeDistributionKey(ctx context.Context, appID, publicKey string) (*AlternativeDistributionKeyResponse, error) {
+	appID = strings.TrimSpace(appID)
+	publicKey = strings.TrimSpace(publicKey)
+	if appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+	if publicKey == "" {
+		return nil, fmt.Errorf("publicKey is required")
+	}
+	payload := AlternativeDistributionKeyCreateRequest{
+		Data: AlternativeDistributionKeyCreateData{
+			Type: ResourceTypeAlternativeDistributionKeys,
+			Attributes: AlternativeDistributionKeyCreateAttributes{
+				PublicKey: publicKey,
+			},
+			Relationships: &AlternativeDistributionKeyCreateRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AlternativeDistributionKeyResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/alternativeDistributionKeys",
+		Payload:  payload,
+		ParseErr: "failed to parse alternative distribution key response",
+	})
+}
+
 // DeleteAlternativeDistributionKey sends DELETE /v1/alternativeDistributionKeys/{id} (alternativeDistributionKeys_deleteInstance).
 func (c *Client) DeleteAlternativeDistributionKey(ctx context.Context, keyID string) error {
 	keyID = strings.TrimSpace(keyID)

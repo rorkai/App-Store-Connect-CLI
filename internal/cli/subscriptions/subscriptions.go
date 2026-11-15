@@ -343,53 +343,25 @@ Examples:
 
 // SubscriptionsGroupsUpdateCommand returns the groups update subcommand.
 func SubscriptionsGroupsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups update", flag.ExitOnError)
-
-	groupID := shared.BindResourceIDFlag(fs, "id", "subscriptionGroups", "Subscription group ID")
-	referenceName := fs.String("reference-name", "", "Reference name")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "update",
-		ShortUsage: "asc subscriptions groups update [flags]",
-		ShortHelp:  "Update a subscription group.",
+	var attrs asc.SubscriptionGroupUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
+		FlagSetName: "groups update",
+		Name:        "update",
+		ShortUsage:  "asc subscriptions groups update [flags]",
+		ShortHelp:   "Update a subscription group.",
 		LongHelp: `Update a subscription group.
 
 Examples:
   asc subscriptions groups update --id "GROUP_ID" --reference-name "Premium"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*groupID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			name := strings.TrimSpace(*referenceName)
-			if name == "" {
-				return shared.UpdateFlagRequired(fs, referenceName)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions groups update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			attrs := asc.SubscriptionGroupUpdateAttributes{
-				ReferenceName: &name,
-			}
-
-			resp, err := client.UpdateSubscriptionGroup(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("subscriptions groups update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Subscription group ID",
+		IDType:  "subscriptionGroups",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.ReferenceName, "reference-name", "Reference name"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateSubscriptionGroup(ctx, id, attrs)
+		},
+	})
 }
 
 // SubscriptionsGroupsDeleteCommand returns the groups delete subcommand.

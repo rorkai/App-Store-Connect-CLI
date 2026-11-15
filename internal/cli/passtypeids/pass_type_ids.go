@@ -236,13 +236,8 @@ Examples:
 
 // newPassTypeIDsCreateCommand returns the pass type IDs create subcommand.
 func newPassTypeIDsCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("create", flag.ExitOnError)
-
-	identifier := fs.String("identifier", "", "Pass type identifier (e.g., pass.com.example)")
-	name := fs.String("name", "", "Pass type name")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.PassTypeIDCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc pass-type-ids create --identifier \"pass.com.example\" --name \"Example\"",
 		ShortHelp:  "Create a pass type ID.",
@@ -250,38 +245,16 @@ func newPassTypeIDsCreateCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc pass-type-ids create --identifier "pass.com.example" --name "Example"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			identifierValue := strings.TrimSpace(*identifier)
-			if identifierValue == "" {
-				return d.RequiredFlag("--identifier")
-			}
-			nameValue := strings.TrimSpace(*name)
-			if nameValue == "" {
-				return d.RequiredFlag("--name")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("pass-type-ids create: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			attrs := asc.PassTypeIDCreateAttributes{
-				Name:       nameValue,
-				Identifier: identifierValue,
-			}
-			resp, err := client.CreatePassTypeID(requestCtx, attrs)
-			if err != nil {
-				return fmt.Errorf("pass-type-ids create: failed to create: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel: true,
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Identifier, "identifier", "Pass type identifier (e.g., pass.com.example)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Pass type name"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, _ string) (any, error) {
+			return client.CreatePassTypeID(ctx, attrs)
+		},
+	})
 }
 
 // newPassTypeIDsUpdateCommand returns the pass type IDs update subcommand.

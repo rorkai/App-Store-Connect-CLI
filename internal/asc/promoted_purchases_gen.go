@@ -70,3 +70,21 @@ func (c *Client) GetPromotedPurchase(ctx context.Context, promotedPurchaseID str
 		ParseErr: "failed to parse promoted purchase response",
 	})
 }
+
+// UpdatePromotedPurchase sends PATCH /v1/promotedPurchases/{id} (promotedPurchases_updateInstance).
+func (c *Client) UpdatePromotedPurchase(ctx context.Context, promotedPurchaseID string, attrs PromotedPurchaseUpdateAttributes) (*PromotedPurchaseResponse, error) {
+	promotedPurchaseID = strings.TrimSpace(promotedPurchaseID)
+	payload := PromotedPurchaseUpdateRequest{
+		Data: PromotedPurchaseUpdateData{
+			Type:       ResourceTypePromotedPurchases,
+			ID:         promotedPurchaseID,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[PromotedPurchaseResponse](ctx, c, writeRequest{
+		Method:   http.MethodPatch,
+		Path:     fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID),
+		Payload:  payload,
+		ParseErr: "failed to parse promoted purchase response",
+	})
+}

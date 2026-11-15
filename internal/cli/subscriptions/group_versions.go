@@ -53,30 +53,23 @@ Examples:
 
 // SubscriptionsGroupsVersionsCreateCommand creates a discrete version for a group.
 func SubscriptionsGroupsVersionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions create", flag.ExitOnError)
-	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "create", ShortUsage: `asc subscriptions groups versions create --group-id "GROUP_ID"`, ShortHelp: "Create a subscription group version.",
-		LongHelp: "Create a subscription group version.\n\nExamples:\n  asc subscriptions groups versions create --group-id \"GROUP_ID\"", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*groupID)
-			if id == "" {
-				return shared.RequiredFlag("--group-id")
-			}
-			client, err := subscriptionGroupVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("subscriptions groups versions create: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.CreateSubscriptionGroupVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("subscriptions groups versions create: failed to create: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
+
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
+		FlagSetName: "groups versions create",
+		Name:        "create",
+		ShortUsage:  `asc subscriptions groups versions create --group-id "GROUP_ID"`,
+		ShortHelp:   "Create a subscription group version.",
+		LongHelp:    "Create a subscription group version.\n\nExamples:\n  asc subscriptions groups versions create --group-id \"GROUP_ID\"",
+		IDFlag:      "group-id",
+		IDUsage:     "Subscription group ID",
+		IDType:      "subscriptionGroups",
+		Deps:        d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateSubscriptionGroupVersion(ctx, id)
 		},
-	}
+	})
 }
 
 func normalizeSubscriptionGroupVersionStates(value string) ([]string, error) {

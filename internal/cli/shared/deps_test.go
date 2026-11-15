@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"image"
 	"image/png"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -153,6 +156,101 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		t.Fatalf("encode screenshot: %v", err)
 	}
 	screenshotFile := bytes.NewReader(screenshot.Bytes())
+	// buildsClient matches version "1.2.0" only as "1.2" and serves one
+	// processed build whose number is not a positive integer.
+	buildsClient := func() *asc.Client {
+		ResetEquivalentVersionNotesForTest()
+		return newBuildWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/v1/preReleaseVersions":
+				if req.URL.Query().Get("filter[version]") == "1.2" {
+					return buildWaitJSONResponse(`{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2","platform":"IOS"}}],"links":{}}`)
+				}
+			case "/v1/builds":
+				return buildWaitJSONResponse(`{"data":[{"type":"builds","id":"build-1","attributes":{"version":"abc","uploadedDate":"2026-01-02T00:00:00Z","processingState":"VALID"}}],"links":{}}`)
+			case "/v1/apps/app-1/appAvailabilityV2":
+				return buildWaitJSONResponse(`{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":true}}}`)
+			case "/v2/appAvailabilities/availability-1/territoryAvailabilities":
+				return buildWaitJSONResponse(`{"data":[{"type":"territoryAvailabilities","id":"eyJ0IjoiVVNBIn0","attributes":{"available":true}}],"links":{}}`)
+			}
+			return buildWaitJSONResponse(`{"data":[],"links":{}}`)
+		})
+	}
+	blockedCacheParent := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blockedCacheParent, nil, 0o600); err != nil {
+		t.Fatalf("write %s: %v", blockedCacheParent, err)
+	}
+	tiersClient := func() *asc.Client {
+		tierCacheDirOverrideMu.Lock()
+		previous := tierCacheDirOverride
+		tierCacheDirOverride = filepath.Join(blockedCacheParent, "cache")
+		tierCacheDirOverrideMu.Unlock()
+		t.Cleanup(func() {
+			tierCacheDirOverrideMu.Lock()
+			tierCacheDirOverride = previous
+			tierCacheDirOverrideMu.Unlock()
+		})
+		return newBuildWaitTestClient(t, func(*http.Request) (*http.Response, error) {
+			return buildWaitJSONResponse(`{"data":[{"type":"pricePoints","id":"point-1","attributes":{"customerPrice":"0.99","proceeds":"0.70"}}],"links":{}}`)
+		})
+	}
+	whatsNewClient := func() *stubVersionLocalizationClient {
+		return &stubVersionLocalizationClient{
+			getResp: &asc.AppStoreVersionLocalizationsResponse{Data: []asc.Resource[asc.AppStoreVersionLocalizationAttributes]{
+				{ID: "existing-loc", Attributes: asc.AppStoreVersionLocalizationAttributes{Locale: "en-US"}},
+			}},
+			updateErrs: []error{errors.New("An attribute value is not acceptable for the current resource state. The attribute 'whatsNew' is not editable.")},
+		}
+	}
+	whatsNew := map[string]map[string]string{"en-US": {"description": "A description", "whatsNew": "Bug fixes"}}
+	latestBuild := LatestBuildSelectionOptions{AppID: "123456789", Version: "1.2.0", Platform: "IOS"}
+	nextBuild := NextBuildNumberOptions{LatestBuildSelectionOptions: latestBuild, InitialBuildNumber: 1}
+	availabilityUpdate := TerritoryAvailabilityUpdateRequest{AppID: "app-1", AllTerritories: true, Available: true, ErrorPrefix: "pricing availability edit"}
+	// availabilityClient serves USA available and FRA unavailable until FRA
+	// is patched.
+	availabilityClient := func() *asc.Client {
+		patched := false
+		return newBuildWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+			switch {
+			case req.URL.Path == "/v1/apps/app-1/appAvailabilityV2":
+				return buildWaitJSONResponse(`{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":false}}}`)
+			case req.Method == http.MethodPatch && req.URL.Path == "/v1/territoryAvailabilities/eyJ0IjoiRlJBIn0":
+				patched = true
+				return buildWaitJSONResponse(`{"data":{"type":"territoryAvailabilities","id":"eyJ0IjoiRlJBIn0","attributes":{"available":true}}}`)
+			case req.URL.Path == "/v2/appAvailabilities/availability-1/territoryAvailabilities":
+				return buildWaitJSONResponse(fmt.Sprintf(`{"data":[{"type":"territoryAvailabilities","id":"eyJ0IjoiVVNBIn0","attributes":{"available":true}},{"type":"territoryAvailabilities","id":"eyJ0IjoiRlJBIn0","attributes":{"available":%t}}],"links":{}}`, patched))
+			}
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		})
+	}
+	runBuilder := func(cmd *ffcli.Command, args ...string) error {
+		if err := cmd.FlagSet.Parse(args); err != nil {
+			t.Fatalf("parse %v: %v", args, err)
+		}
+		return cmd.Exec(context.Background(), nil)
+	}
+	pricingSet := PricingSetCommandConfig{FlagSetName: "pricing set", CommandName: "set", ErrorPrefix: "pricing set"}
+	availabilitySet := AvailabilitySetCommandConfig{FlagSetName: "pricing availability edit", CommandName: "edit", ErrorPrefix: "pricing availability edit"}
+	t.Setenv("ASC_APP_ID", "")
+	ppp := PriceSchedulePPPCommandConfig{
+		FlagSetName: "pricing ppp",
+		ErrorPrefix: "pricing ppp",
+		BindResource: func(*flag.FlagSet) PriceSchedulePPPResource {
+			return PriceSchedulePPPResource{Validate: func() error { return nil }}
+		},
+	}
+	pppProgress := ppp
+	pppProgress.BindResource = func(*flag.FlagSet) PriceSchedulePPPResource {
+		return PriceSchedulePPPResource{
+			Validate: func() error { return nil },
+			Resolve: func(context.Context, *asc.Client) (PriceSchedulePPPSurface, error) {
+				return PriceSchedulePPPSurface{CurrentPrices: func(context.Context, time.Time) ([]ResolvedPriceRow, error) {
+					return nil, errors.New("prices unavailable")
+				}}, nil
+			},
+		}
+	}
+	t.Cleanup(SetASCClientFactoryForTesting(func() (*asc.Client, error) { return buildsClient(), nil }))
 
 	tests := []struct {
 		name    string
@@ -457,6 +555,208 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			},
 		},
 		{
+			name:    "RejectOutputFormatAsPath",
+			process: func() (any, error) { return nil, RejectOutputFormatAsPath("json", "--output-format") },
+			deps:    func(d *Deps) (any, error) { return nil, d.RejectOutputFormatAsPath("json", "--output-format") },
+		},
+		{
+			name:    "RejectOutputFormatAsPath without a format flag",
+			process: func() (any, error) { return nil, RejectOutputFormatAsPath("table", "") },
+			deps:    func(d *Deps) (any, error) { return nil, d.RejectOutputFormatAsPath("table", "") },
+		},
+		{
+			name: "FindPreReleaseVersionIDs",
+			process: func() (any, error) {
+				return FindPreReleaseVersionIDs(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS")
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.FindPreReleaseVersionIDs(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS")
+			},
+		},
+		{
+			name: "FindPreReleaseVersionIDsWithMaxPages",
+			process: func() (any, error) {
+				return FindPreReleaseVersionIDsWithMaxPages(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS", 1)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.FindPreReleaseVersionIDsWithMaxPages(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS", 1)
+			},
+		},
+		{
+			name: "ResolveLatestBuild",
+			process: func() (any, error) {
+				return ResolveLatestBuild(context.Background(), buildsClient(), latestBuild, true)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.ResolveLatestBuild(context.Background(), buildsClient(), latestBuild, true)
+			},
+		},
+		{
+			name: "ResolveNextBuildNumber",
+			process: func() (any, error) {
+				return ResolveNextBuildNumber(context.Background(), buildsClient(), nextBuild)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.ResolveNextBuildNumber(context.Background(), buildsClient(), nextBuild)
+			},
+		},
+		{
+			name: "ResolveLatestBuild without an app",
+			process: func() (any, error) {
+				return ResolveLatestBuild(context.Background(), buildsClient(), LatestBuildSelectionOptions{}, true)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.ResolveLatestBuild(context.Background(), buildsClient(), LatestBuildSelectionOptions{}, true)
+			},
+		},
+		{
+			name: "ResolveNextBuildNumber with an invalid initial number",
+			process: func() (any, error) {
+				return ResolveNextBuildNumber(context.Background(), buildsClient(), NextBuildNumberOptions{LatestBuildSelectionOptions: latestBuild})
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.ResolveNextBuildNumber(context.Background(), buildsClient(), NextBuildNumberOptions{LatestBuildSelectionOptions: latestBuild})
+			},
+		},
+		{
+			name: "WaitForBuildByNumberOrUploadFailure",
+			process: func() (any, error) {
+				return WaitForBuildByNumberOrUploadFailure(context.Background(), buildsClient(), "app-1", "", "1.2.0", "abc", "IOS", time.Millisecond)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.WaitForBuildByNumberOrUploadFailure(context.Background(), buildsClient(), "app-1", "", "1.2.0", "abc", "IOS", time.Millisecond)
+			},
+		},
+		{
+			name: "ResolveTiers",
+			process: func() (any, error) {
+				return ResolveTiers(context.Background(), tiersClient(), "app-1", "USA", true)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.ResolveTiers(context.Background(), tiersClient(), "app-1", "USA", true)
+			},
+		},
+		{
+			name: "ResolveSubscriptionTiers",
+			process: func() (any, error) {
+				return ResolveSubscriptionTiers(context.Background(), tiersClient(), "sub-1", "USA", true)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.ResolveSubscriptionTiers(context.Background(), tiersClient(), "sub-1", "USA", true)
+			},
+		},
+		{
+			name: "ResolveIAPTiers",
+			process: func() (any, error) {
+				return ResolveIAPTiers(context.Background(), tiersClient(), "iap-1", "USA", true)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.ResolveIAPTiers(context.Background(), tiersClient(), "iap-1", "USA", true)
+			},
+		},
+		{
+			name: "UploadVersionLocalizations",
+			process: func() (any, error) {
+				return UploadVersionLocalizations(context.Background(), whatsNewClient(), "version-1", whatsNew, false)
+			},
+			deps: func(d *Deps) (any, error) {
+				return d.UploadVersionLocalizations(context.Background(), whatsNewClient(), "version-1", whatsNew, false)
+			},
+		},
+		{
+			name: "UploadVersionLocalizationsWithWarnings",
+			process: func() (any, error) {
+				results, warnings, err := UploadVersionLocalizationsWithWarnings(context.Background(), whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
+				return []any{results, warnings}, err
+			},
+			deps: func(d *Deps) (any, error) {
+				results, warnings, err := d.UploadVersionLocalizationsWithWarnings(context.Background(), whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
+				return []any{results, warnings}, err
+			},
+		},
+		{
+			name: "UploadPrevalidatedVersionLocalizationsWithWarnings",
+			process: func() (any, error) {
+				results, warnings, err := UploadPrevalidatedVersionLocalizationsWithWarnings(context.Background(), whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
+				return []any{results, warnings}, err
+			},
+			deps: func(d *Deps) (any, error) {
+				results, warnings, err := d.UploadPrevalidatedVersionLocalizationsWithWarnings(context.Background(), whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
+				return []any{results, warnings}, err
+			},
+		},
+		{
+			name: "ApplyTerritoryAvailabilityUpdate",
+			process: func() (any, error) {
+				resp, changed, err := ApplyTerritoryAvailabilityUpdate(context.Background(), buildsClient(), availabilityUpdate)
+				return []any{resp, changed}, err
+			},
+			deps: func(d *Deps) (any, error) {
+				resp, changed, err := d.ApplyTerritoryAvailabilityUpdate(context.Background(), buildsClient(), availabilityUpdate)
+				return []any{resp, changed}, err
+			},
+		},
+		{
+			name: "ApplyTerritoryAvailabilityUpdate with a territory to update",
+			process: func() (any, error) {
+				resp, changed, err := ApplyTerritoryAvailabilityUpdate(context.Background(), availabilityClient(), availabilityUpdate)
+				return []any{resp, changed}, err
+			},
+			deps: func(d *Deps) (any, error) {
+				resp, changed, err := d.ApplyTerritoryAvailabilityUpdate(context.Background(), availabilityClient(), availabilityUpdate)
+				return []any{resp, changed}, err
+			},
+		},
+		{
+			name: "NewAvailabilitySetCommand",
+			process: func() (any, error) {
+				return nil, runBuilder(NewAvailabilitySetCommand(availabilitySet), "--app", "app-1", "--available", "true")
+			},
+			deps: func(d *Deps) (any, error) {
+				config := availabilitySet
+				config.Deps = d
+				return nil, runBuilder(NewAvailabilitySetCommand(config), "--app", "app-1", "--available", "true")
+			},
+		},
+		{
+			name: "NewAvailabilityRemoveFromSaleCommand",
+			process: func() (any, error) {
+				return nil, runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{}), "--app", "app-1")
+			},
+			deps: func(d *Deps) (any, error) {
+				return nil, runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{Deps: d}), "--app", "app-1")
+			},
+		},
+		{
+			name:    "NewPricingSetCommand",
+			process: func() (any, error) { return nil, runBuilder(NewPricingSetCommand(pricingSet), "--app", "app-1") },
+			deps: func(d *Deps) (any, error) {
+				config := pricingSet
+				config.Deps = d
+				return nil, runBuilder(NewPricingSetCommand(config), "--app", "app-1")
+			},
+		},
+		{
+			name:    "NewPriceSchedulePPPCommand",
+			process: func() (any, error) { return nil, runBuilder(NewPriceSchedulePPPCommand(ppp)) },
+			deps: func(d *Deps) (any, error) {
+				config := ppp
+				config.Deps = d
+				return nil, runBuilder(NewPriceSchedulePPPCommand(config))
+			},
+		},
+		{
+			name: "NewPriceSchedulePPPCommand progress",
+			process: func() (any, error) {
+				return nil, runBuilder(NewPriceSchedulePPPCommand(pppProgress), "--base-price", "1", "--confirm")
+			},
+			deps: func(d *Deps) (any, error) {
+				config := pppProgress
+				config.Deps = d
+				return nil, runBuilder(NewPriceSchedulePPPCommand(config), "--base-price", "1", "--confirm")
+			},
+		},
+		{
 			name: "WarnDeprecatedAppInfoFields",
 			process: func() (any, error) {
 				WarnDeprecatedAppInfoFields([]string{"kidsAgeBand"}, "")
@@ -692,6 +992,132 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 				}
 				if !reflect.DeepEqual(gotErr, wantErr) {
 					t.Fatalf("error = %#v, want %#v", gotErr, wantErr)
+				}
+			})
+		}
+	}
+}
+
+func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
+	resetSpinnerTestState(t)
+	t.Setenv(spinnerDisabledEnvVar, "0")
+
+	// A spinner draws its first frame when it starts and clears the line when
+	// fn returns, so an fn that returns at once still shows where it draws.
+	work := func() error { return nil }
+	fetch := func(context.Context) (asc.PaginatedResponse, error) {
+		return &testPaginatedResponse{Data: []map[string]string{{"id": "item-1"}}}, nil
+	}
+	next := func(context.Context, string) (asc.PaginatedResponse, error) {
+		return nil, errors.New("unexpected next page")
+	}
+	t.Cleanup(SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, nil }))
+	// paginatedList runs a builder list command with --paginate; with nil
+	// deps the builder uses DefaultDeps, the process streams.
+	paginatedList := func(d *Deps) error {
+		cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+			Name:       "list",
+			ShortUsage: "asc items list [flags]",
+			TopLevel:   true,
+			Deps:       d,
+			FetchPage: func(ctx context.Context, _ *asc.Client, _ string, _ int, _ string) (asc.PaginatedResponse, error) {
+				return fetch(ctx)
+			},
+		})
+		if err := cmd.FlagSet.Parse([]string{"--paginate", "--output", "json"}); err != nil {
+			t.Fatalf("parse flags: %v", err)
+		}
+		return cmd.Exec(context.Background(), nil)
+	}
+
+	tests := []struct {
+		name string
+		// spinner rows draw on stderr only when stdout and stderr are both
+		// terminals.
+		spinner bool
+		process func() (any, error)
+		deps    func(*Deps) (any, error)
+	}{
+		{
+			name:    "ProgressEnabled",
+			process: func() (any, error) { return ProgressEnabled(), nil },
+			deps:    func(d *Deps) (any, error) { return d.ProgressEnabled(), nil },
+		},
+		{
+			name:    "SpinnerEnabled",
+			process: func() (any, error) { return SpinnerEnabled(), nil },
+			deps:    func(d *Deps) (any, error) { return d.SpinnerEnabled(), nil },
+		},
+		{
+			name:    "WithSpinner",
+			spinner: true,
+			process: func() (any, error) { return nil, WithSpinner("Working", work) },
+			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinner("Working", work) },
+		},
+		{
+			name:    "WithSpinnerDelayed when fn returns before the delay",
+			process: func() (any, error) { return nil, WithSpinnerDelayed("Working", time.Second, work) },
+			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinnerDelayed("Working", time.Second, work) },
+		},
+		{
+			name:    "WithSpinnerDelayed without a delay",
+			spinner: true,
+			process: func() (any, error) { return nil, WithSpinnerDelayed("Working", 0, work) },
+			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinnerDelayed("Working", 0, work) },
+		},
+		{
+			name:    "PaginateWithSpinner",
+			spinner: true,
+			process: func() (any, error) { return PaginateWithSpinner(context.Background(), fetch, next) },
+			deps:    func(d *Deps) (any, error) { return d.PaginateWithSpinner(context.Background(), fetch, next) },
+		},
+		{
+			name:    "BuildPaginatedListCommand with --paginate",
+			spinner: true,
+			process: func() (any, error) { return nil, paginatedList(nil) },
+			deps:    func(d *Deps) (any, error) { return nil, paginatedList(d) },
+		},
+	}
+
+	for _, test := range tests {
+		for _, tty := range []struct{ stdout, stderr bool }{{false, false}, {true, false}, {false, true}, {true, true}} {
+			name := fmt.Sprintf("%s/stdout_tty=%t/stderr_tty=%t", test.name, tty.stdout, tty.stderr)
+			t.Run(name, func(t *testing.T) {
+				var wantValue, gotValue any
+				var wantErr, gotErr error
+				wantStdout, wantStderr := captureOutput(t, func() {
+					withTTYStub(t, tty.stdout, tty.stderr)
+					synctest.Test(t, func(*testing.T) { wantValue, wantErr = test.process() })
+				})
+
+				var stdout, stderr bytes.Buffer
+				d := &Deps{
+					Client:  func() (*asc.Client, error) { return nil, nil },
+					IO:      &IO{Out: &stdout, ErrOut: &stderr, StdoutTTY: tty.stdout, StderrTTY: tty.stderr},
+					Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) { return context.WithCancel(ctx) },
+				}
+				processStdout, processStderr := captureOutput(t, func() {
+					withTTYStub(t, false, false)
+					synctest.Test(t, func(*testing.T) { gotValue, gotErr = test.deps(d) })
+				})
+
+				if processStdout != "" || processStderr != "" {
+					t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
+				}
+				if stdout.String() != wantStdout {
+					t.Fatalf("deps stdout = %q, want %q", stdout.String(), wantStdout)
+				}
+				if drawn := test.spinner && tty.stdout && tty.stderr; drawn != (wantStderr != "") {
+					t.Fatalf("process stderr = %q, want a spinner: %t", wantStderr, drawn)
+				}
+				if stderr.String() != wantStderr {
+					t.Fatalf("deps stderr = %q, want %q", stderr.String(), wantStderr)
+				}
+				if !reflect.DeepEqual(gotErr, wantErr) {
+					t.Fatalf("error = %#v, want %#v", gotErr, wantErr)
+				}
+				if !reflect.DeepEqual(gotValue, wantValue) {
+					t.Fatalf("value = %#v, want %#v", gotValue, wantValue)
 				}
 			})
 		}

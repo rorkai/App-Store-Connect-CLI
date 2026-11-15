@@ -126,130 +126,57 @@ Examples:
 
 // AppEventLocalizationsCreateCommand returns the app event localizations create subcommand.
 func AppEventLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations create", flag.ExitOnError)
-
-	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
-	locale := fs.String("locale", "", "Locale (e.g., en-US)")
-	name := fs.String("name", "", "Localized name")
-	shortDescription := fs.String("short-description", "", "Short description")
-	longDescription := fs.String("long-description", "", "Long description")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "create",
-		ShortUsage: "asc app-events localizations create [flags]",
-		ShortHelp:  "Create an in-app event localization.",
+	var attrs asc.AppEventLocalizationCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
+		FlagSetName: "localizations create",
+		Name:        "create",
+		ShortUsage:  "asc app-events localizations create [flags]",
+		ShortHelp:   "Create an in-app event localization.",
 		LongHelp: `Create an in-app event localization.
 
 Examples:
   asc app-events localizations create --event-id "EVENT_ID" --locale "en-US" --name "Summer Challenge"
   asc app-events localizations create --event-id "EVENT_ID" --locale "ja-JP" --short-description "Short text"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*eventID)
-			if id == "" {
-				return shared.RequiredFlag("--event-id")
-			}
-
-			localeValue := strings.TrimSpace(*locale)
-			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
-			}
-
-			attrs := asc.AppEventLocalizationCreateAttributes{
-				Locale:           localeValue,
-				Name:             strings.TrimSpace(*name),
-				ShortDescription: strings.TrimSpace(*shortDescription),
-				LongDescription:  strings.TrimSpace(*longDescription),
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateAppEventLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("app-events localizations create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "event-id",
+		IDUsage: "App event ID",
+		IDType:  "appEvents",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale (e.g., en-US)"),
+			shared.StringFlag(&attrs.Name, "name", "Localized name"),
+			shared.StringFlag(&attrs.ShortDescription, "short-description", "Short description"),
+			shared.StringFlag(&attrs.LongDescription, "long-description", "Long description"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateAppEventLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // AppEventLocalizationsUpdateCommand returns the app event localizations update subcommand.
 func AppEventLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
-	name := fs.String("name", "", "Localized name")
-	shortDescription := fs.String("short-description", "", "Short description")
-	longDescription := fs.String("long-description", "", "Long description")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "update",
-		ShortUsage: "asc app-events localizations update [flags]",
-		ShortHelp:  "Update an in-app event localization.",
+	var attrs asc.AppEventLocalizationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
+		FlagSetName: "localizations update",
+		Name:        "update",
+		ShortUsage:  "asc app-events localizations update [flags]",
+		ShortHelp:   "Update an in-app event localization.",
 		LongHelp: `Update an in-app event localization.
 
 Examples:
   asc app-events localizations update --localization-id "LOC_ID" --name "New Name"
   asc app-events localizations update --localization-id "LOC_ID" --short-description "Updated text"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-
-			var (
-				attrs     asc.AppEventLocalizationUpdateAttributes
-				hasUpdate bool
-			)
-
-			if strings.TrimSpace(*name) != "" {
-				value := strings.TrimSpace(*name)
-				attrs.Name = &value
-				hasUpdate = true
-			}
-			if strings.TrimSpace(*shortDescription) != "" {
-				value := strings.TrimSpace(*shortDescription)
-				attrs.ShortDescription = &value
-				hasUpdate = true
-			}
-			if strings.TrimSpace(*longDescription) != "" {
-				value := strings.TrimSpace(*longDescription)
-				attrs.LongDescription = &value
-				hasUpdate = true
-			}
-
-			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, name, shortDescription, longDescription)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateAppEventLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("app-events localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "localization-id",
+		IDUsage: "App event localization ID",
+		IDType:  "appEventLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.Name, "name", "Localized name"),
+			shared.OptionalStringFlag(&attrs.ShortDescription, "short-description", "Short description"),
+			shared.OptionalStringFlag(&attrs.LongDescription, "long-description", "Long description"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateAppEventLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // AppEventLocalizationsDeleteCommand returns the app event localizations delete subcommand.
