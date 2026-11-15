@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1030,14 +1031,66 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		return cmd.Exec(context.Background(), nil)
 	}
 
+	payloadPath := filepath.Join(t.TempDir(), "payload.json")
+	if err := os.WriteFile(payloadPath, []byte(`{"data":{"type":"apps"}}`), 0o600); err != nil {
+		t.Fatalf("write payload: %v", err)
+	}
+	text := func(s string) *string { return &s }
+	// stubStdin makes the process stdin a pipe holding payload, a terminal
+	// when tty is true.
+	stubStdin := func(t *testing.T, payload string, tty bool) {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("pipe: %v", err)
+		}
+		if _, err := w.WriteString(payload); err != nil {
+			t.Fatalf("write stdin: %v", err)
+		}
+		_ = w.Close()
+		previousStdin, previousIsTerminal := os.Stdin, isTerminal
+		stdinFD := int(r.Fd())
+		os.Stdin = r
+		isTerminal = func(fd int) bool {
+			if fd == stdinFD {
+				return tty
+			}
+			return previousIsTerminal(fd)
+		}
+		t.Cleanup(func() {
+			isTerminal = previousIsTerminal
+			os.Stdin = previousStdin
+			_ = r.Close()
+		})
+	}
+
 	tests := []struct {
 		name string
 		// spinner rows draw on stderr only when stdout and stderr are both
 		// terminals.
 		spinner bool
+		// stdin rows run with this on stdin, as a pipe and as a terminal.
+		stdin   *string
 		process func() (any, error)
 		deps    func(*Deps) (any, error)
 	}{
+		{
+			name:    "ReadJSONFilePayload from stdin",
+			stdin:   text(`{"data":{"type":"apps"}}`),
+			process: func() (any, error) { return ReadJSONFilePayload("-") },
+			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayload("-") },
+		},
+		{
+			name:    "ReadJSONFilePayloadKind from stdin with the wrong shape",
+			stdin:   text(`{"data":{"type":"apps"}}`),
+			process: func() (any, error) { return ReadJSONFilePayloadKind("-", JSONPayloadArray) },
+			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayloadKind("-", JSONPayloadArray) },
+		},
+		{
+			name:    "ReadJSONFilePayloadKind from a file",
+			stdin:   text(""),
+			process: func() (any, error) { return ReadJSONFilePayloadKind(payloadPath, JSONPayloadAny) },
+			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayloadKind(payloadPath, JSONPayloadAny) },
+		},
 		{
 			name:    "ProgressEnabled",
 			process: func() (any, error) { return ProgressEnabled(), nil },
@@ -1080,71 +1133,153 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		for _, tty := range []struct{ stdout, stderr bool }{{false, false}, {true, false}, {false, true}, {true, true}} {
-			name := fmt.Sprintf("%s/stdout_tty=%t/stderr_tty=%t", test.name, tty.stdout, tty.stderr)
-			t.Run(name, func(t *testing.T) {
-				var wantValue, gotValue any
-				var wantErr, gotErr error
-				wantStdout, wantStderr := captureOutput(t, func() {
-					withTTYStub(t, tty.stdout, tty.stderr)
-					synctest.Test(t, func(*testing.T) { wantValue, wantErr = test.process() })
-				})
-
-				var stdout, stderr bytes.Buffer
-				d := &Deps{
-					Client:  func() (*asc.Client, error) { return nil, nil },
-					IO:      &IO{Out: &stdout, ErrOut: &stderr, StdoutTTY: tty.stdout, StderrTTY: tty.stderr},
-					Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) { return context.WithCancel(ctx) },
-				}
-				processStdout, processStderr := captureOutput(t, func() {
-					withTTYStub(t, false, false)
-					synctest.Test(t, func(*testing.T) { gotValue, gotErr = test.deps(d) })
-				})
-
-				if processStdout != "" || processStderr != "" {
-					t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
-				}
-				if stdout.String() != wantStdout {
-					t.Fatalf("deps stdout = %q, want %q", stdout.String(), wantStdout)
-				}
-				if drawn := test.spinner && tty.stdout && tty.stderr; drawn != (wantStderr != "") {
-					t.Fatalf("process stderr = %q, want a spinner: %t", wantStderr, drawn)
-				}
-				if stderr.String() != wantStderr {
-					t.Fatalf("deps stderr = %q, want %q", stderr.String(), wantStderr)
-				}
-				if !reflect.DeepEqual(gotErr, wantErr) {
-					t.Fatalf("error = %#v, want %#v", gotErr, wantErr)
-				}
-				if !reflect.DeepEqual(gotValue, wantValue) {
-					t.Fatalf("value = %#v, want %#v", gotValue, wantValue)
-				}
-			})
+		stdinTTYs := []bool{false}
+		if test.stdin != nil {
+			stdinTTYs = []bool{false, true}
 		}
+		for _, tty := range []struct{ stdout, stderr bool }{{false, false}, {true, false}, {false, true}, {true, true}} {
+			for _, stdinTTY := range stdinTTYs {
+				name := fmt.Sprintf("%s/stdout_tty=%t/stderr_tty=%t", test.name, tty.stdout, tty.stderr)
+				if test.stdin != nil {
+					name += fmt.Sprintf("/stdin_tty=%t", stdinTTY)
+				}
+				t.Run(name, func(t *testing.T) {
+					var wantValue, gotValue any
+					var wantErr, gotErr error
+					stdin := ""
+					if test.stdin != nil {
+						stdin = *test.stdin
+					}
+					wantStdout, wantStderr := captureOutput(t, func() {
+						withTTYStub(t, tty.stdout, tty.stderr)
+						stubStdin(t, stdin, stdinTTY)
+						synctest.Test(t, func(*testing.T) { wantValue, wantErr = test.process() })
+					})
+
+					var stdout, stderr bytes.Buffer
+					d := &Deps{
+						Client: func() (*asc.Client, error) { return nil, nil },
+						IO: &IO{
+							In: strings.NewReader(stdin), Out: &stdout, ErrOut: &stderr,
+							StdinTTY: stdinTTY, StdoutTTY: tty.stdout, StderrTTY: tty.stderr,
+						},
+						Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) { return context.WithCancel(ctx) },
+					}
+					processStdout, processStderr := captureOutput(t, func() {
+						withTTYStub(t, false, false)
+						stubStdin(t, "", false)
+						synctest.Test(t, func(*testing.T) { gotValue, gotErr = test.deps(d) })
+					})
+
+					if processStdout != "" || processStderr != "" {
+						t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
+					}
+					if stdout.String() != wantStdout {
+						t.Fatalf("deps stdout = %q, want %q", stdout.String(), wantStdout)
+					}
+					if drawn := test.spinner && tty.stdout && tty.stderr; drawn != (wantStderr != "") {
+						t.Fatalf("process stderr = %q, want a spinner: %t", wantStderr, drawn)
+					}
+					if stderr.String() != wantStderr {
+						t.Fatalf("deps stderr = %q, want %q", stderr.String(), wantStderr)
+					}
+					if !reflect.DeepEqual(gotErr, wantErr) {
+						t.Fatalf("error = %#v, want %#v", gotErr, wantErr)
+					}
+					if !reflect.DeepEqual(gotValue, wantValue) {
+						t.Fatalf("value = %#v, want %#v", gotValue, wantValue)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestDefaultDepsStdinMatchesProcessStdin(t *testing.T) {
+	const payload = `{"data":{"type":"apps"}}`
+	// useStdin makes the process stdin a pipe holding payload, a terminal
+	// when tty is true.
+	useStdin := func(t *testing.T, tty bool) {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("pipe: %v", err)
+		}
+		if _, err := w.WriteString(payload); err != nil {
+			t.Fatalf("write stdin: %v", err)
+		}
+		_ = w.Close()
+		previousStdin, previousIsTerminal := os.Stdin, isTerminal
+		stdinFD := int(r.Fd())
+		os.Stdin = r
+		isTerminal = func(fd int) bool {
+			if fd == stdinFD {
+				return tty
+			}
+			return previousIsTerminal(fd)
+		}
+		t.Cleanup(func() {
+			isTerminal = previousIsTerminal
+			os.Stdin = previousStdin
+			_ = r.Close()
+		})
+	}
+
+	// built is the stdin when DefaultDeps is called and read the stdin when
+	// the payload is read: a caller may replace os.Stdin in between.
+	for _, tty := range []struct{ built, read bool }{{false, false}, {true, true}, {true, false}, {false, true}} {
+		t.Run(fmt.Sprintf("built_tty=%t/read_tty=%t", tty.built, tty.read), func(t *testing.T) {
+			useStdin(t, tty.read)
+			want, wantErr := ReadJSONFilePayloadKind("-", JSONPayloadAny)
+
+			useStdin(t, tty.built)
+			d := DefaultDeps()
+			if d.IO.StdinTTY != tty.built {
+				t.Fatalf("DefaultDeps().IO.StdinTTY = %t, want %t", d.IO.StdinTTY, tty.built)
+			}
+			useStdin(t, tty.read)
+			got, gotErr := d.ReadJSONFilePayloadKind("-", JSONPayloadAny)
+			if !reflect.DeepEqual(got, want) || !reflect.DeepEqual(gotErr, wantErr) {
+				t.Fatalf("deps read = %q, %v; want %q, %v", got, gotErr, want, wantErr)
+			}
+		})
 	}
 }
 
 func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 	timeoutEnv := []string{"ASC_TIMEOUT", "ASC_TIMEOUT_SECONDS", "ASC_UPLOAD_TIMEOUT", "ASC_UPLOAD_TIMEOUT_SECONDS"}
+	const commandDefault, mediaBytes = 2 * time.Minute, 3 << 20
+	ifSet := func(set bool, setting, fallback time.Duration) time.Duration {
+		if set {
+			return setting
+		}
+		return fallback
+	}
 
+	// requestSet and uploadSet say whether the setting is given with a valid
+	// value, in which case it replaces a command's own default too.
 	tests := []struct {
 		name        string
 		env         map[string]string
 		config      string
 		wantRequest time.Duration
 		wantUpload  time.Duration
+		requestSet  bool
+		uploadSet   bool
 	}{
 		{name: "unset", wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
-		{name: "ASC_TIMEOUT", env: map[string]string{"ASC_TIMEOUT": "7s"}, wantRequest: 7 * time.Second, wantUpload: asc.DefaultUploadTimeout},
-		{name: "ASC_TIMEOUT_SECONDS", env: map[string]string{"ASC_TIMEOUT_SECONDS": "9"}, wantRequest: 9 * time.Second, wantUpload: asc.DefaultUploadTimeout},
-		{name: "ASC_UPLOAD_TIMEOUT", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second},
-		{name: "ASC_UPLOAD_TIMEOUT_SECONDS", env: map[string]string{"ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 45 * time.Second},
-		{name: "ASC_UPLOAD_TIMEOUT wins over its seconds form", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second},
+		{name: "ASC_TIMEOUT", env: map[string]string{"ASC_TIMEOUT": "7s"}, wantRequest: 7 * time.Second, wantUpload: asc.DefaultUploadTimeout, requestSet: true},
+		{name: "ASC_TIMEOUT_SECONDS", env: map[string]string{"ASC_TIMEOUT_SECONDS": "9"}, wantRequest: 9 * time.Second, wantUpload: asc.DefaultUploadTimeout, requestSet: true},
+		{name: "ASC_TIMEOUT equal to the default", env: map[string]string{"ASC_TIMEOUT": asc.DefaultTimeout.String()}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout, requestSet: true},
+		{name: "invalid ASC_TIMEOUT keeps the default", env: map[string]string{"ASC_TIMEOUT": "soon"}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
+		{name: "ASC_UPLOAD_TIMEOUT", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second, uploadSet: true},
+		{name: "ASC_UPLOAD_TIMEOUT_SECONDS", env: map[string]string{"ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 45 * time.Second, uploadSet: true},
+		{name: "ASC_UPLOAD_TIMEOUT equal to the default", env: map[string]string{"ASC_UPLOAD_TIMEOUT": asc.DefaultUploadTimeout.String()}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout, uploadSet: true},
+		{name: "ASC_UPLOAD_TIMEOUT wins over its seconds form", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second, uploadSet: true},
 		{name: "invalid ASC_UPLOAD_TIMEOUT keeps the default", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "soon", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
 		{name: "empty ASC_UPLOAD_TIMEOUT keeps the default", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
-		{name: "config timeouts", config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 11 * time.Second, wantUpload: 75 * time.Second},
-		{name: "config seconds timeouts", config: `{"timeout_seconds":"13","upload_timeout_seconds":"50"}`, wantRequest: 13 * time.Second, wantUpload: 50 * time.Second},
-		{name: "environment wins over config", env: map[string]string{"ASC_TIMEOUT": "7s", "ASC_UPLOAD_TIMEOUT": "90s"}, config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 7 * time.Second, wantUpload: 90 * time.Second},
+		{name: "config timeouts", config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 11 * time.Second, wantUpload: 75 * time.Second, requestSet: true, uploadSet: true},
+		{name: "config seconds timeouts", config: `{"timeout_seconds":"13","upload_timeout_seconds":"50"}`, wantRequest: 13 * time.Second, wantUpload: 50 * time.Second, requestSet: true, uploadSet: true},
+		{name: "environment wins over config", env: map[string]string{"ASC_TIMEOUT": "7s", "ASC_UPLOAD_TIMEOUT": "90s"}, config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 7 * time.Second, wantUpload: 90 * time.Second, requestSet: true, uploadSet: true},
 	}
 
 	for _, test := range tests {
@@ -1176,6 +1311,56 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 				{"Timeout", ContextWithTimeout, d.Timeout, test.wantRequest},
 				{"UploadTimeout", ContextWithUploadTimeout, d.UploadTimeout, test.wantUpload},
 				{"DownloadTimeout", ContextWithDownloadTimeout, d.DownloadTimeout, test.wantUpload},
+				{
+					"ResolvedTimeout",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithResolvedTimeout(ctx, commandDefault)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.ResolvedTimeout(ctx, commandDefault)
+					},
+					ifSet(test.requestSet, test.wantRequest, commandDefault),
+				},
+				{
+					"ResolvedUploadTimeout",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithResolvedUploadTimeout(ctx, commandDefault)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.ResolvedUploadTimeout(ctx, commandDefault)
+					},
+					ifSet(test.uploadSet, test.wantUpload, commandDefault),
+				},
+				{
+					"MediaUploadTimeout",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithMediaUploadTimeout(ctx, mediaBytes)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.MediaUploadTimeout(ctx, mediaBytes)
+					},
+					ifSet(test.uploadSet, test.wantUpload, MediaUploadTimeoutForWork(1, mediaBytes)),
+				},
+				{
+					"AvailabilityTimeout for all territories",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithAvailabilityTimeout(ctx, true)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.AvailabilityTimeout(ctx, true)
+					},
+					ifSet(test.requestSet, test.wantRequest, bulkAvailabilityTimeout),
+				},
+				{
+					"AvailabilityTimeout for some territories",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithAvailabilityTimeout(ctx, false)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.AvailabilityTimeout(ctx, false)
+					},
+					test.wantRequest,
+				},
 			}
 			synctest.Test(t, func(t *testing.T) {
 				want := func(d time.Duration) time.Time { return time.Now().Add(d) }
@@ -1202,6 +1387,63 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 		})
 	}
 
+	t.Run("per-call defaults use d.ResolveTimeout", func(t *testing.T) {
+		const injected = 4 * time.Minute
+		type call struct {
+			setting        TimeoutSetting
+			defaultTimeout time.Duration
+		}
+		var calls []call
+		d := &Deps{
+			ResolveTimeout: func(setting TimeoutSetting, defaultTimeout time.Duration) time.Duration {
+				calls = append(calls, call{setting, defaultTimeout})
+				return injected
+			},
+			Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				return ContextWithTimeoutDuration(ctx, injected)
+			},
+		}
+		synctest.Test(t, func(t *testing.T) {
+			for _, build := range []func(context.Context) (context.Context, context.CancelFunc){
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.ResolvedTimeout(ctx, commandDefault)
+				},
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.ResolvedUploadTimeout(ctx, commandDefault)
+				},
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.MediaUploadTimeout(ctx, mediaBytes)
+				},
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.AvailabilityTimeout(ctx, true)
+				},
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.AvailabilityTimeout(ctx, false)
+				},
+			} {
+				ctx, cancel := build(context.Background())
+				deadline, ok := ctx.Deadline()
+				_, liftedOK := ContextWithoutTimeout(ctx).Deadline()
+				cancel()
+				if !ok || !deadline.Equal(time.Now().Add(injected)) {
+					t.Fatalf("deadline = %v (set = %v), want %v", deadline, ok, time.Now().Add(injected))
+				}
+				if liftedOK {
+					t.Fatal("ContextWithoutTimeout kept the deadline")
+				}
+			}
+		})
+		want := []call{
+			{RequestTimeoutSetting, commandDefault},
+			{UploadTimeoutSetting, commandDefault},
+			{UploadTimeoutSetting, MediaUploadTimeoutForWork(1, mediaBytes)},
+			{RequestTimeoutSetting, bulkAvailabilityTimeout},
+		}
+		if !reflect.DeepEqual(calls, want) {
+			t.Fatalf("ResolveTimeout calls = %v, want %v", calls, want)
+		}
+	})
+
 	t.Run("DownloadTimeout uses d.UploadTimeout", func(t *testing.T) {
 		const injected = 3 * time.Minute
 		d := &Deps{UploadTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -1215,6 +1457,186 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 			}
 		})
 	})
+}
+
+func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
+	for _, name := range []string{"ASC_TIMEOUT_SECONDS", "ASC_MAX_DELAY"} {
+		t.Setenv(name, "")
+		os.Unsetenv(name)
+	}
+	t.Setenv("ASC_TIMEOUT", "7s")
+	t.Setenv("ASC_MAX_RETRIES", "2")
+	t.Setenv("ASC_BASE_DELAY", "1s")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	asc.ResetConfigCacheForTest()
+	t.Cleanup(asc.ResetConfigCacheForTest)
+
+	const processTimeout, injectedTimeout = 7 * time.Second, 3 * time.Minute
+	injected := &Deps{Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return ContextWithTimeoutDuration(ctx, injectedTimeout)
+	}}
+
+	budget := func(ctx context.Context) time.Duration {
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			return -1
+		}
+		return time.Until(deadline)
+	}
+	expire := func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
+	keyPath := filepath.Join(t.TempDir(), "key.p8")
+	writeECDSAPEM(t, keyPath)
+	var reads []time.Duration
+	transport := buildUploadsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		reads = append(reads, budget(req.Context()))
+		body := `{"data":{"type":"reviewSubmissions","id":"sub-1","attributes":{"state":"COMPLETE"}}}`
+		switch req.URL.Path {
+		case "/v1/appAssetLibraryPlacements":
+			body = `{"data":{"type":"appAssetLibraryPlacements","id":"placement-1","attributes":{"state":"PROCESSING"}}}`
+		case "/v1/appAssetLibraryPlacementOrderingRequests":
+			body = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"order-1"}}`
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    req,
+		}, nil
+	})
+	// The client is built inside each synctest bubble: it keeps a channel
+	// that limits concurrent mutations.
+	var client *asc.Client
+	var err error
+
+	// Each run uses the process form when d is nil and the Deps form otherwise,
+	// and returns the budget of every request context the helper made.
+	tests := []struct {
+		name     string
+		attempts int
+		run      func(t *testing.T, d *Deps) []time.Duration
+	}{
+		{name: "RetryReadWithFreshTimeout", attempts: 3, run: func(t *testing.T, d *Deps) []time.Duration {
+			var budgets []time.Duration
+			read := func(ctx context.Context) (int, error) {
+				budgets = append(budgets, budget(ctx))
+				return 0, expire(ctx)
+			}
+			if d == nil {
+				_, err = RetryReadWithFreshTimeout(context.Background(), read)
+			} else {
+				_, err = RetryReadWithFreshTimeoutWith(context.Background(), d, read)
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("error = %v, want the last attempt's deadline", err)
+			}
+			return budgets
+		}},
+		{name: "RunReconciledMutation", attempts: 3, run: func(t *testing.T, d *Deps) []time.Duration {
+			var budgets []time.Duration
+			mutate := func(ctx context.Context) (int, error) {
+				budgets = append(budgets, budget(ctx))
+				return 0, expire(ctx)
+			}
+			readback := func(context.Context) (int, bool, error) { return 0, false, nil }
+			if d == nil {
+				_, _, err = RunReconciledMutation(context.Background(), mutate, readback)
+			} else {
+				_, _, err = RunReconciledMutationWith(context.Background(), d, mutate, readback)
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("error = %v, want the last attempt's deadline", err)
+			}
+			return budgets
+		}},
+		{name: "RunReconciledMutationNoReplay", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
+			var budgets []time.Duration
+			mutate := func(ctx context.Context) (int, error) {
+				budgets = append(budgets, budget(ctx))
+				return 0, expire(ctx)
+			}
+			readback := func(context.Context) (int, bool, error) { return 0, false, nil }
+			if d == nil {
+				_, _, err = RunReconciledMutationNoReplay(context.Background(), mutate, readback)
+			} else {
+				_, _, err = RunReconciledMutationNoReplayWith(context.Background(), d, mutate, readback)
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("error = %v, want the mutation's deadline", err)
+			}
+			return budgets
+		}},
+		{name: "ExplainReviewSubmissionNotCancellable", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
+			reads = nil
+			if d == nil {
+				err = ExplainReviewSubmissionNotCancellable(context.Background(), client, "sub-1", notCancellableAPIError())
+			} else {
+				err = d.ExplainReviewSubmissionNotCancellable(context.Background(), client, "sub-1", notCancellableAPIError())
+			}
+			if explained, ok := errors.AsType[*ReviewSubmissionNotCancellableError](err); !ok || explained.State != asc.ReviewSubmissionStateComplete {
+				t.Fatalf("error = %v, want the state read back", err)
+			}
+			return reads
+		}},
+		{name: "CreateLibraryPlacement", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
+			reads = nil
+			var id string
+			if d == nil {
+				id, _, err = CreateLibraryPlacement(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "image", "image-1", "APP_SCREENSHOT", "group-1")
+			} else {
+				id, _, err = d.CreateLibraryPlacement(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "image", "image-1", "APP_SCREENSHOT", "group-1")
+			}
+			if err != nil || id != "placement-1" {
+				t.Fatalf("placement = %q, error = %v", id, err)
+			}
+			return reads
+		}},
+		{name: "OrderLibraryPlacements", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
+			reads = nil
+			var id string
+			if d == nil {
+				id, err = OrderLibraryPlacements(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
+			} else {
+				id, err = d.OrderLibraryPlacements(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
+			}
+			if err != nil || id != "order-1" {
+				t.Fatalf("ordering request = %q, error = %v", id, err)
+			}
+			return reads
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				for _, variant := range []struct {
+					name   string
+					d      *Deps
+					budget time.Duration
+				}{
+					{"process", nil, processTimeout},
+					{"DefaultDeps", DefaultDeps(), processTimeout},
+					{"injected Timeout", injected, injectedTimeout},
+				} {
+					client, err = asc.NewClientWithHTTPClient("KEY123", "ISS456", keyPath, &http.Client{Transport: transport})
+					if err != nil {
+						t.Fatalf("NewClientWithHTTPClient() error: %v", err)
+					}
+					got := test.run(t, variant.d)
+					want := make([]time.Duration, test.attempts)
+					for i := range want {
+						want[i] = variant.budget
+					}
+					if !reflect.DeepEqual(got, want) {
+						t.Fatalf("%s: request budgets = %v, want %v", variant.name, got, want)
+					}
+				}
+			})
+		})
+	}
 }
 
 type emptyBuildPreflightClient struct{}

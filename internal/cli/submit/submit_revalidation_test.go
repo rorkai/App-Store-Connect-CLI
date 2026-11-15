@@ -3,6 +3,7 @@ package submit
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -384,7 +385,7 @@ func TestPrepareReviewSubmissionForCreateNeverCancelsExistingSubmission(t *testi
 	}))
 
 	var messages []string
-	got, err := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", func(message string) {
+	got, err := prepareReviewSubmissionForCreate(context.Background(), io.Discard, client, "app-1", "IOS", "version-1", func(message string) {
 		messages = append(messages, message)
 	})
 	if err != nil {

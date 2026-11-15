@@ -21,10 +21,11 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestSubmitCommandShape(t *testing.T) {
-	cmd := SubmitCommand()
+	cmd := NewSubmitCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}})
 	if cmd == nil {
 		t.Fatal("expected submit command")
 		return
@@ -51,13 +52,8 @@ func TestSubmitCommandShape(t *testing.T) {
 func TestSubmitStatusCommand_ByIDUsesReviewSubmissionEndpoint(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requests := make([]string, 0, 2)
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI())
 
 		switch {
@@ -97,15 +93,15 @@ func TestSubmitStatusCommand_ByIDUsesReviewSubmissionEndpoint(t *testing.T) {
 		}
 	})
 
-	cmd := SubmitStatusCommand()
+	d, stdoutBuf := newSubmitTestDeps(t, transport)
+	cmd := newSubmitStatusCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--id", "review-submission-123", "--output", "json"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	stdout, err := captureSubmitCommandOutput(t, func() error {
-		return cmd.Exec(context.Background(), nil)
-	})
+	err := cmd.Exec(context.Background(), nil)
+	stdout := stdoutBuf.String()
 	if err != nil {
 		t.Fatalf("expected command to succeed, got %v", err)
 	}
@@ -164,13 +160,8 @@ func TestSubmitStatusCommand_ByIDIgnoresInaccessibleItemLookup(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-
 			requests := make([]string, 0, 3)
-			http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 				requests = append(requests, req.Method+" "+req.URL.RequestURI())
 
 				switch {
@@ -192,15 +183,15 @@ func TestSubmitStatusCommand_ByIDIgnoresInaccessibleItemLookup(t *testing.T) {
 				}
 			})
 
-			cmd := SubmitStatusCommand()
+			d, stdoutBuf := newSubmitTestDeps(t, transport)
+			cmd := newSubmitStatusCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse([]string{"--id", "review-submission-123", "--output", "json"}); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
-			stdout, err := captureSubmitCommandOutput(t, func() error {
-				return cmd.Exec(context.Background(), nil)
-			})
+			err := cmd.Exec(context.Background(), nil)
+			stdout := stdoutBuf.String()
 			if err != nil {
 				t.Fatalf("expected command to succeed, got %v", err)
 			}
@@ -242,13 +233,8 @@ func TestSubmitStatusCommand_ByIDIgnoresInaccessibleItemLookup(t *testing.T) {
 func TestSubmitStatusCommand_ByVersionIDUsesReviewSubmissionsForCurrentSubmission(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requests := make([]string, 0, 2)
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI())
 
 		switch {
@@ -323,15 +309,15 @@ func TestSubmitStatusCommand_ByVersionIDUsesReviewSubmissionsForCurrentSubmissio
 		}
 	})
 
-	cmd := SubmitStatusCommand()
+	d, stdoutBuf := newSubmitTestDeps(t, transport)
+	cmd := newSubmitStatusCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--output", "json"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	stdout, err := captureSubmitCommandOutput(t, func() error {
-		return cmd.Exec(context.Background(), nil)
-	})
+	err := cmd.Exec(context.Background(), nil)
+	stdout := stdoutBuf.String()
 	if err != nil {
 		t.Fatalf("expected command to succeed, got %v", err)
 	}
@@ -365,13 +351,8 @@ func TestSubmitStatusCommand_ByVersionIDUsesReviewSubmissionsForCurrentSubmissio
 func TestSubmitStatusCommand_ByVersionIDFallsBackToLegacyRelationshipAndVersionState(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requests := make([]string, 0, 3)
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI())
 
 		switch {
@@ -423,15 +404,15 @@ func TestSubmitStatusCommand_ByVersionIDFallsBackToLegacyRelationshipAndVersionS
 		}
 	})
 
-	cmd := SubmitStatusCommand()
+	d, stdoutBuf := newSubmitTestDeps(t, transport)
+	cmd := newSubmitStatusCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--output", "json"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	stdout, err := captureSubmitCommandOutput(t, func() error {
-		return cmd.Exec(context.Background(), nil)
-	})
+	err := cmd.Exec(context.Background(), nil)
+	stdout := stdoutBuf.String()
 	if err != nil {
 		t.Fatalf("expected command to succeed, got %v", err)
 	}
@@ -463,13 +444,8 @@ func TestSubmitStatusCommand_ByVersionIDFallsBackToLegacyRelationshipAndVersionS
 func TestSubmitStatusCommand_ByVersionIDFallsBackWhenReviewSubmissionListingIsForbidden(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requests := make([]string, 0, 3)
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI())
 
 		switch {
@@ -521,15 +497,15 @@ func TestSubmitStatusCommand_ByVersionIDFallsBackWhenReviewSubmissionListingIsFo
 		}
 	})
 
-	cmd := SubmitStatusCommand()
+	d, stdoutBuf := newSubmitTestDeps(t, transport)
+	cmd := newSubmitStatusCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--output", "json"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	stdout, err := captureSubmitCommandOutput(t, func() error {
-		return cmd.Exec(context.Background(), nil)
-	})
+	err := cmd.Exec(context.Background(), nil)
+	stdout := stdoutBuf.String()
 	if err != nil {
 		t.Fatalf("expected command to succeed, got %v", err)
 	}
@@ -561,12 +537,7 @@ func TestSubmitStatusCommand_ByVersionIDFallsBackWhenReviewSubmissionListingIsFo
 func TestSubmitStatusCommand_ByIDNotFoundSuggestsVersionIDFallback(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/missing-submission" {
 			return submitJSONResponse(http.StatusNotFound, `{
 				"errors": [{
@@ -579,15 +550,14 @@ func TestSubmitStatusCommand_ByIDNotFoundSuggestsVersionIDFallback(t *testing.T)
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 	})
 
-	cmd := SubmitStatusCommand()
+	d, _ := newSubmitTestDeps(t, transport)
+	cmd := newSubmitStatusCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--id", "missing-submission"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	_, err := captureSubmitCommandOutput(t, func() error {
-		return cmd.Exec(context.Background(), nil)
-	})
+	err := cmd.Exec(context.Background(), nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -649,13 +619,8 @@ func submitJSONResponse(status int, body string) (*http.Response, error) {
 func TestSubmitCancelCommand_ByVersionIDAttemptsReviewCancelThenFallsBackToLegacyDelete(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requests := make([]string, 0, 6)
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests = append(requests, req.Method+" "+req.URL.Path)
 
 		switch {
@@ -685,7 +650,8 @@ func TestSubmitCancelCommand_ByVersionIDAttemptsReviewCancelThenFallsBackToLegac
 		}
 	})
 
-	cmd := SubmitCancelCommand()
+	d, _ := newSubmitTestDeps(t, transport)
+	cmd := newSubmitCancelCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -715,13 +681,8 @@ func TestSubmitCancelCommand_ByVersionIDIgnoresStaleEnvAppIDForModernLookup(t *t
 	setupSubmitAuth(t)
 	t.Setenv("ASC_APP_ID", "wrong-app")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requests := make([]string, 0, 3)
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI())
 
 		switch {
@@ -762,7 +723,8 @@ func TestSubmitCancelCommand_ByVersionIDIgnoresStaleEnvAppIDForModernLookup(t *t
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 	})
 
-	cmd := SubmitCancelCommand()
+	d, _ := newSubmitTestDeps(t, transport)
+	cmd := newSubmitCancelCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -785,13 +747,8 @@ func TestSubmitCancelCommand_ByVersionIDIgnoresStaleEnvAppIDForModernLookup(t *t
 func TestSubmitCancelCommand_ByVersionIDExplicitAppMismatchFailsFast(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requests := make([]string, 0, 2)
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI())
 
 		switch {
@@ -818,7 +775,8 @@ func TestSubmitCancelCommand_ByVersionIDExplicitAppMismatchFailsFast(t *testing.
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 	})
 
-	cmd := SubmitCancelCommand()
+	d, _ := newSubmitTestDeps(t, transport)
+	cmd := newSubmitCancelCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--app", "app-expected", "--confirm"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -851,10 +809,8 @@ func TestSubmitCancelCommand_ByVersionIDRequiresExplicitAppOwnership(t *testing.
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			setupSubmitAuth(t)
-			previous := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = previous })
 			var requests []string
-			http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 				request := req.Method + " " + req.URL.Path
 				requests = append(requests, req.Method+" "+req.URL.RequestURI())
 				switch request {
@@ -872,11 +828,13 @@ func TestSubmitCancelCommand_ByVersionIDRequiresExplicitAppOwnership(t *testing.
 					return nil, fmt.Errorf("unexpected request %s", request)
 				}
 			})
-			cmd := SubmitCancelCommand()
+			d, stdoutBuf := newSubmitTestDeps(t, transport)
+			cmd := newSubmitCancelCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--app", "app-expected", "--confirm", "--output", "json"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			stdout, err := captureSubmitCommandOutput(t, func() error { return cmd.Exec(context.Background(), nil) })
+			err := cmd.Exec(context.Background(), nil)
+			stdout := stdoutBuf.String()
 			if err == nil || !strings.Contains(err.Error(), `could not verify app "app-expected" owns version "version-123"`) || stdout != "" {
 				t.Errorf("expected ownership failure with no receipt, stdout=%q err=%v", stdout, err)
 			}
@@ -895,13 +853,8 @@ func TestSubmitCancelCommand_ByVersionIDModernLookupTimeoutRefreshesLegacyFallba
 	setupSubmitAuth(t)
 	t.Setenv("ASC_TIMEOUT", "40ms")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requests := make([]string, 0, 5)
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI())
 
 		switch {
@@ -931,15 +884,15 @@ func TestSubmitCancelCommand_ByVersionIDModernLookupTimeoutRefreshesLegacyFallba
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 	})
 
-	cmd := SubmitCancelCommand()
+	d, stdoutBuf := newSubmitTestDeps(t, transport)
+	cmd := newSubmitCancelCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--app", "app-1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	stdout, err := captureSubmitCommandOutput(t, func() error {
-		return cmd.Exec(context.Background(), nil)
-	})
+	err := cmd.Exec(context.Background(), nil)
+	stdout := stdoutBuf.String()
 	if err != nil {
 		t.Fatalf("expected legacy fallback success after timeout refresh, got %v", err)
 	}
@@ -967,12 +920,7 @@ func TestSubmitCancelCommand_ByVersionIDModernLookupTimeoutRefreshesLegacyFallba
 func TestSubmitCancelCommand_ByVersionIDModernConflictSurfacesModernError(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123":
 			if got := req.URL.Query().Get("include"); got != "app" {
@@ -1009,7 +957,8 @@ func TestSubmitCancelCommand_ByVersionIDModernConflictSurfacesModernError(t *tes
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 	})
 
-	cmd := SubmitCancelCommand()
+	d, _ := newSubmitTestDeps(t, transport)
+	cmd := newSubmitCancelCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "version-123", "--confirm"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -1030,19 +979,15 @@ func TestSubmitCancelCommand_ByVersionIDModernConflictSurfacesModernError(t *tes
 func TestSubmitCancelCommand_ByIDNotFoundReportsReviewSubmissionError(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/missing-review-id" {
 			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 		}
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
 
-	cmd := SubmitCancelCommand()
+	d, _ := newSubmitTestDeps(t, transport)
+	cmd := newSubmitCancelCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--id", "missing-review-id", "--confirm"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -1060,12 +1005,7 @@ func TestSubmitCancelCommand_ByIDNotFoundReportsReviewSubmissionError(t *testing
 func TestSubmitCancelCommand_ByVersionIDNotFoundReportsLegacySubmissionError(t *testing.T) {
 	setupSubmitAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		path := req.URL.Path
 		switch {
 		// Modern: resolve app ID from version — return 404 (no app relationship)
@@ -1078,7 +1018,8 @@ func TestSubmitCancelCommand_ByVersionIDNotFoundReportsLegacySubmissionError(t *
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
 
-	cmd := SubmitCancelCommand()
+	d, _ := newSubmitTestDeps(t, transport)
+	cmd := newSubmitCancelCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "missing-version", "--confirm"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -1703,8 +1644,8 @@ func TestPrepareReviewSubmissionForCreateSkipsMixedTargetVersionSubmission(t *te
 		}
 	}))
 
-	stderr := captureSubmitStderr(t, func() {
-		got, err := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		got, err := prepareReviewSubmissionForCreate(context.Background(), w, client, "app-1", "IOS", "version-1", nil)
 		if err != nil {
 			t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
 		}
@@ -1764,8 +1705,8 @@ func TestPrepareReviewSubmissionForCreateTreatsEmptyItemsAsMissingVersion(t *tes
 		}
 	}))
 
-	stderr := captureSubmitStderr(t, func() {
-		got, err := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		got, err := prepareReviewSubmissionForCreate(context.Background(), w, client, "app-1", "IOS", "version-1", nil)
 		if err != nil {
 			t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
 		}
@@ -1838,8 +1779,8 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 		}
 	}))
 
-	stderr := captureSubmitStderr(t, func() {
-		got, err := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		got, err := prepareReviewSubmissionForCreate(context.Background(), w, client, "app-1", "IOS", "version-1", nil)
 		if err != nil {
 			t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
 		}
@@ -1862,7 +1803,7 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 func TestSubmitPreflightRequestContextUsesDefaultTimeoutWithoutCallerDeadline(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "100ms")
 
-	ctx, cancel := submitPreflightRequestContext(context.Background(), 0)
+	ctx, cancel := submitPreflightRequestContext(context.Background(), &shared.Deps{Timeout: shared.ContextWithTimeout}, 0)
 	defer cancel()
 
 	deadline, ok := ctx.Deadline()
@@ -1881,7 +1822,7 @@ func TestSubmitPreflightRequestContextPreservesCallerDeadlineWithoutOverride(t *
 	parentCtx, parentCancel := context.WithDeadline(context.Background(), parentDeadline)
 	defer parentCancel()
 
-	ctx, cancel := submitPreflightRequestContext(parentCtx, 0)
+	ctx, cancel := submitPreflightRequestContext(parentCtx, &shared.Deps{Timeout: shared.ContextWithTimeout}, 0)
 	defer cancel()
 
 	deadline, ok := ctx.Deadline()
@@ -1905,7 +1846,7 @@ func TestSubmitPreflightRequestContextUsesConfiguredPhaseTimeout(t *testing.T) {
 	defer parentCancel()
 
 	startedAt := time.Now()
-	ctx, cancel := submitPreflightRequestContext(parentCtx, requestTimeout)
+	ctx, cancel := submitPreflightRequestContext(parentCtx, &shared.Deps{Timeout: shared.ContextWithTimeout}, requestTimeout)
 	finishedAt := time.Now()
 	defer cancel()
 
@@ -1921,8 +1862,8 @@ func TestSubmitPreflightRequestContextUsesConfiguredPhaseTimeout(t *testing.T) {
 }
 
 func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
-	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), submissionErrorHintContext{
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		printSubmissionErrorHints(w, errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), submissionErrorHintContext{
 			AppID: "app-1",
 		})
 	})
@@ -1988,8 +1929,8 @@ func TestPrintSubmissionErrorHintsTraversesWrappedErrors(t *testing.T) {
 		},
 	}
 
-	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(wrapped, submissionErrorHintContext{
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		printSubmissionErrorHints(w, wrapped, submissionErrorHintContext{
 			AppID: "app-1",
 		})
 	})
@@ -2013,8 +1954,8 @@ func TestPrintSubmissionErrorHintsTraversesJoinedErrors(t *testing.T) {
 		},
 	}
 
-	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(joined, submissionErrorHintContext{
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		printSubmissionErrorHints(w, joined, submissionErrorHintContext{
 			AppID: "app-1",
 		})
 	})
@@ -2050,8 +1991,8 @@ func TestPrintSubmissionErrorHintsUsesAssociatedErrorsForSubmissionStateConflict
 		},
 	}
 
-	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(err, submissionErrorHintContext{
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		printSubmissionErrorHints(w, err, submissionErrorHintContext{
 			AppID:         "app-1",
 			Platform:      "MAC_OS",
 			VersionID:     "version-1",
@@ -2090,33 +2031,26 @@ func newSubmitTestClient(t *testing.T, transport http.RoundTripper) *asc.Client 
 	return client
 }
 
-func captureSubmitStderr(t *testing.T, fn func()) string {
+func captureSubmitStderr(t *testing.T, fn func(stderr io.Writer)) string {
 	t.Helper()
 
-	oldStderr := os.Stderr
-	stderrR, stderrW, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("stderr pipe error: %v", err)
-	}
+	var stderr bytes.Buffer
+	fn(&stderr)
+	return stderr.String()
+}
 
-	os.Stderr = stderrW
-	defer func() {
-		os.Stderr = oldStderr
-	}()
+// newSubmitTestDeps builds commands on a client that sends every request to
+// transport and returns the buffer they print their output to.
+func newSubmitTestDeps(t *testing.T, transport http.RoundTripper) (*shared.Deps, *bytes.Buffer) {
+	t.Helper()
 
-	fn()
-
-	if err := stderrW.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	data, err := io.ReadAll(stderrR)
-	if err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	if err := stderrR.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return string(data)
+	client := newSubmitTestClient(t, transport)
+	stdout := &bytes.Buffer{}
+	return &shared.Deps{
+		Client:  func() (*asc.Client, error) { return client, nil },
+		IO:      &shared.IO{In: strings.NewReader(""), Out: stdout, ErrOut: io.Discard},
+		Timeout: shared.ContextWithTimeout,
+	}, stdout
 }
 
 func submitAlreadyAddedConflictBody(existingSubmissionID string) string {
@@ -2136,50 +2070,6 @@ func submitAlreadyAddedConflictBody(existingSubmissionID string) string {
 			}
 		}]
 	}`, existingSubmissionID)
-}
-
-func captureSubmitCommandOutput(t *testing.T, fn func() error) (string, error) {
-	t.Helper()
-
-	oldStdout := os.Stdout
-	oldStderr := os.Stderr
-
-	rOut, wOut, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create stdout pipe: %v", err)
-	}
-	rErr, wErr, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create stderr pipe: %v", err)
-	}
-
-	os.Stdout = wOut
-	os.Stderr = wErr
-
-	outC := make(chan string)
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, rOut)
-		_ = rOut.Close()
-		outC <- buf.String()
-	}()
-
-	go func() {
-		_, _ = io.Copy(io.Discard, rErr)
-		_ = rErr.Close()
-	}()
-
-	runErr := fn()
-
-	_ = wOut.Close()
-	_ = wErr.Close()
-
-	stdout := <-outC
-
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
-
-	return stdout, runErr
 }
 
 func extractExistingSubmissionID(err error) string {

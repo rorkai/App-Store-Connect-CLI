@@ -27,16 +27,38 @@ func MarkUploadDeadline(err error) error {
 	return uploadDeadlineError{err}
 }
 
+// TimeoutSetting names a timeout a user sets in the environment or the config
+// file.
+type TimeoutSetting int
+
+const (
+	// RequestTimeoutSetting is ASC_TIMEOUT or ASC_TIMEOUT_SECONDS, or timeout
+	// or timeout_seconds in the config file.
+	RequestTimeoutSetting TimeoutSetting = iota
+	// UploadTimeoutSetting is ASC_UPLOAD_TIMEOUT or ASC_UPLOAD_TIMEOUT_SECONDS,
+	// or upload_timeout or upload_timeout_seconds in the config file.
+	UploadTimeoutSetting
+)
+
+// ResolveTimeoutSetting returns the duration the user set for setting, or
+// defaultTimeout when it is unset or invalid.
+func ResolveTimeoutSetting(setting TimeoutSetting, defaultTimeout time.Duration) time.Duration {
+	if setting == UploadTimeoutSetting {
+		return asc.ResolveUploadTimeoutWithDefault(defaultTimeout)
+	}
+	return asc.ResolveTimeoutWithDefault(defaultTimeout)
+}
+
 // ContextWithResolvedTimeout returns a context with ASC timeout resolution and
 // a package-provided default fallback duration.
 func ContextWithResolvedTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
-	return withTimeoutContext(ctx, asc.ResolveTimeoutWithDefault(defaultTimeout))
+	return withTimeoutContext(ctx, ResolveTimeoutSetting(RequestTimeoutSetting, defaultTimeout))
 }
 
 // ContextWithResolvedUploadTimeout returns a context bounded by
 // ASC_UPLOAD_TIMEOUT when configured, or by defaultTimeout otherwise.
 func ContextWithResolvedUploadTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
-	return withTimeoutContext(ctx, asc.ResolveUploadTimeoutWithDefault(defaultTimeout))
+	return withTimeoutContext(ctx, ResolveTimeoutSetting(UploadTimeoutSetting, defaultTimeout))
 }
 
 // The default media upload deadline grows with the files it covers, from the

@@ -62,7 +62,7 @@ func SubmissionLocalizationPreflightWithTimeout(
 	requestTimeout time.Duration,
 	retryCommand string,
 ) error {
-	return runSubmissionLocalizationPreflight(ctx, client, appID, versionID, platform, requestTimeout, "", retryCommand)
+	return runSubmissionLocalizationPreflight(ctx, shared.DefaultDeps(), client, appID, versionID, platform, requestTimeout, "", retryCommand)
 }
 
 // SubmissionSubscriptionPreflight runs the advisory subscription preflight used
@@ -80,7 +80,7 @@ func SubmissionSubscriptionPreflightWithTimeout(
 	requestTimeout time.Duration,
 	retryCommand string,
 ) {
-	runSubmissionSubscriptionPreflight(ctx, client, appID, requestTimeout, retryCommand)
+	runSubmissionSubscriptionPreflight(ctx, shared.DefaultDeps(), client, appID, requestTimeout, retryCommand)
 }
 
 // LookupExistingSubmissionForVersion returns the existing legacy submission ID
@@ -107,6 +107,10 @@ func LookupExistingSubmissionForVersion(ctx context.Context, client *asc.Client,
 // EnsureBuildAttached ensures the target build is attached to the resolved App
 // Store version. In dry-run mode it reports the planned change without mutating.
 func EnsureBuildAttached(ctx context.Context, client *asc.Client, versionID, buildID string, dryRun bool) (BuildAttachmentResult, error) {
+	return ensureBuildAttached(ctx, shared.DefaultDeps(), client, versionID, buildID, dryRun)
+}
+
+func ensureBuildAttached(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, buildID string, dryRun bool) (BuildAttachmentResult, error) {
 	result := BuildAttachmentResult{
 		VersionID: strings.TrimSpace(versionID),
 		BuildID:   strings.TrimSpace(buildID),
@@ -118,7 +122,7 @@ func EnsureBuildAttached(ctx context.Context, client *asc.Client, versionID, bui
 		return result, fmt.Errorf("attach build: build ID is required")
 	}
 
-	buildResp, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.BuildResponse, error) {
+	buildResp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.BuildResponse, error) {
 		return client.GetAppStoreVersionBuild(requestCtx, result.VersionID)
 	})
 	if err != nil {
@@ -139,14 +143,15 @@ func EnsureBuildAttached(ctx context.Context, client *asc.Client, versionID, bui
 		return result, nil
 	}
 
-	_, _, err = shared.RunReconciledMutation(
+	_, _, err = shared.RunReconciledMutationWith(
 		ctx,
+		d,
 		func(requestCtx context.Context) (string, error) {
 			attachErr := client.AttachBuildToVersion(requestCtx, result.VersionID, result.BuildID)
 			return result.BuildID, attachErr
 		},
 		func(readbackCtx context.Context) (string, bool, error) {
-			current, readErr := shared.RetryReadWithFreshTimeout(readbackCtx, func(requestCtx context.Context) (*asc.BuildResponse, error) {
+			current, readErr := shared.RetryReadWithFreshTimeoutWith(readbackCtx, d, func(requestCtx context.Context) (*asc.BuildResponse, error) {
 				return client.GetAppStoreVersionBuild(requestCtx, result.VersionID)
 			})
 			if readErr != nil {
@@ -169,6 +174,10 @@ func EnsureBuildAttached(ctx context.Context, client *asc.Client, versionID, bui
 // SubmitResolvedVersion runs the shared modern review-submission flow for an
 // already-resolved version ID.
 func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {
+	return submitResolvedVersion(ctx, shared.DefaultDeps(), client, opts)
+}
+
+func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {
 	result := SubmitResolvedVersionResult{
 		Messages: make([]string, 0),
 	}
@@ -215,7 +224,7 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	)
 	if !opts.DryRun {
 		preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-		preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, client, appID, platform, versionID, emit)
+		preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
 		preparationCancel()
 		if err != nil {
 			return result, fmt.Errorf("submit review: prepare review submission: %w", err)
@@ -224,7 +233,7 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 
 	if opts.EnsureBuildAttached {
 		attachmentCtx, attachmentCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-		attachment, attachmentErr := EnsureBuildAttached(attachmentCtx, client, versionID, opts.BuildID, opts.DryRun)
+		attachment, attachmentErr := ensureBuildAttached(attachmentCtx, d, client, versionID, opts.BuildID, opts.DryRun)
 		attachmentCancel()
 		result.BuildAttachment = &attachment
 		if attachmentErr != nil {
@@ -249,7 +258,7 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 			if errors.As(createErr, &partialErr) && partialErr.Response != nil &&
 				partialErr.Response.Data.Type == asc.ResourceTypeReviewSubmissions {
 				createdSubmissionID = strings.TrimSpace(partialErr.Response.Data.ID)
-				preserveCreatedReviewSubmission(createdSubmissionID, emit)
+				preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
 			}
 			return result, fmt.Errorf("submit review: create review submission: %w", createErr)
 		}
@@ -258,7 +267,7 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 		}
 		if receiptErr := validateReviewSubmissionCreateReceipt(reviewSubmission, appID, platform); receiptErr != nil {
 			if createdSubmissionID != "" {
-				preserveCreatedReviewSubmission(createdSubmissionID, emit)
+				preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
 			}
 			return result, fmt.Errorf("submit review: create review submission receipt: %w", receiptErr)
 		}
@@ -268,6 +277,7 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	if !preparedSubmission.reuseSubmissionHasVersion {
 		submissionIDToSubmit, err = addVersionToSubmissionOrRecover(
 			submitCtx,
+			d.IO.ErrOut,
 			client,
 			submissionIDToSubmit,
 			versionID,
@@ -277,12 +287,12 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 		)
 		if err != nil {
 			if createdSubmissionID != "" {
-				preserveCreatedReviewSubmission(createdSubmissionID, emit)
+				preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
 			}
 			return result, fmt.Errorf("submit review: add version to submission: %w", err)
 		}
 		if createdSubmissionID != "" && submissionIDToSubmit != createdSubmissionID {
-			preserveCreatedReviewSubmission(createdSubmissionID, emit)
+			preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
 		}
 	}
 
@@ -295,7 +305,7 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 		versionID,
 	); err != nil {
 		if submissionIDToSubmit == createdSubmissionID {
-			preserveCreatedReviewSubmission(createdSubmissionID, emit)
+			preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
 		}
 		return result, fmt.Errorf("submit review: final submission validation: %w", err)
 	}
@@ -303,9 +313,9 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	submitResp, err := client.SubmitReviewSubmission(submitCtx, submissionIDToSubmit)
 	if err != nil {
 		if submissionIDToSubmit == createdSubmissionID {
-			preserveCreatedReviewSubmission(createdSubmissionID, emit)
+			preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
 		}
-		printSubmissionErrorHints(err, submissionErrorHintContext{AppID: appID, Platform: platform, VersionID: versionID})
+		printSubmissionErrorHints(d.IO.ErrOut, err, submissionErrorHintContext{AppID: appID, Platform: platform, VersionID: versionID})
 		return result, fmt.Errorf("submit review: submit for review: %w", err)
 	}
 

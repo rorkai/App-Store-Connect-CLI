@@ -3,6 +3,7 @@ package submit
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -57,9 +58,10 @@ func TestSubmissionLocalizationPreflightReadinessFailuresExposeValidationDiagnos
 				}
 			}))
 
-			stderr := captureSubmitStderr(t, func() {
+			stderr := captureSubmitStderr(t, func(w io.Writer) {
 				err := runSubmissionLocalizationPreflight(
 					context.Background(),
+					&shared.Deps{IO: &shared.IO{ErrOut: w}, Timeout: shared.ContextWithTimeout},
 					client,
 					"app-1",
 					"version-1",

@@ -16,8 +16,8 @@ import (
 
 var libraryTimeCode = regexp.MustCompile(`^[0-9]{2}:[0-5][0-9]:[0-5][0-9](:[0-9]{2}|\.[0-9]{3})$`)
 
-func lifecycleCommand(action, resourceType string) *ffcli.Command {
-	fs := flag.NewFlagSet(action, flag.ExitOnError)
+func lifecycleCommand(d *shared.Deps, action, resourceType string) *ffcli.Command {
+	fs := d.NewFlagSet(action, flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "id", resourceType, "Asset ID or API self-link")
 	var name, timeCode *string
 	if action == "rename" {
@@ -30,7 +30,7 @@ func lifecycleCommand(action, resourceType string) *ffcli.Command {
 	if action == "archive" || action == "delete" {
 		confirm = fs.Bool("confirm", false, "Confirm this operation (required)")
 	}
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	groupName := "images"
 	if resourceType == "appAssetLibraryVideos" {
 		groupName = "videos"
@@ -61,17 +61,17 @@ func lifecycleCommand(action, resourceType string) *ffcli.Command {
 		LongHelp: help + " Apple validates asset eligibility. This command does not submit App Review.",
 		FlagSet:  fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateBoundOutputFlags(fs); err != nil {
-				return shared.UsageErrorf("asset-library %s: %v", action, err)
+				return d.UsageErrorf("asset-library %s: %v", action, err)
 			}
 			assetID := strings.TrimSpace(*id)
 			if assetID == "" {
-				return shared.UsageError("asset-library: --id is required")
+				return d.UsageError("asset-library: --id is required")
 			}
 			if !resourceIDPattern.MatchString(assetID) {
-				return shared.UsageError("asset-library: --id must be a resource ID")
+				return d.UsageError("asset-library: --id must be a resource ID")
 			}
 			if confirm != nil {
-				if err := shared.RequireConfirm(*confirm); err != nil {
+				if err := d.RequireConfirm(*confirm); err != nil {
 					return err
 				}
 			}
@@ -81,7 +81,7 @@ func lifecycleCommand(action, resourceType string) *ffcli.Command {
 			case "rename":
 				value := strings.TrimSpace(*name)
 				if value == "" {
-					return shared.UsageError("asset-library rename: --name is required")
+					return d.UsageError("asset-library rename: --name is required")
 				}
 				attrs["referenceName"] = value
 				result.ReferenceName = value
@@ -92,7 +92,7 @@ func lifecycleCommand(action, resourceType string) *ffcli.Command {
 			case "set-poster-frame":
 				value := strings.TrimSpace(*timeCode)
 				if !libraryTimeCode.MatchString(value) {
-					return shared.UsageError("asset-library set-poster-frame: --time-code must be HH:MM:SS:FF or HH:MM:SS.mmm")
+					return d.UsageError("asset-library set-poster-frame: --time-code must be HH:MM:SS:FF or HH:MM:SS.mmm")
 				}
 				attrs["previewFrameTimeCode"] = value
 				result.PreviewFrameTimeCode = value
@@ -117,11 +117,11 @@ func lifecycleCommand(action, resourceType string) *ffcli.Command {
 					return err
 				}
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("asset-library %s: %w", action, err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			raw, err := client.RawRequest(requestCtx, method, "/v1/"+resourceType+"/"+url.PathEscape(assetID), body)
 			if err != nil {
@@ -136,7 +136,7 @@ func lifecycleCommand(action, resourceType string) *ffcli.Command {
 					return fmt.Errorf("asset-library %s: response does not identify updated asset", action)
 				}
 			}
-			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+			return d.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }
