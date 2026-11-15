@@ -64,7 +64,7 @@ func TestSigningFetchRejectsEmptyIdentityPasswordBeforeClientCreation(t *testing
 			if err := os.WriteFile(passwordPath, test.password, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			d, _, _ := newSigningTestDeps()
+			d, _, stderr := newSigningTestDeps()
 			d.Client = clientFactory
 			cmd := newSigningFetchCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
@@ -81,6 +81,9 @@ func TestSigningFetchRejectsEmptyIdentityPasswordBeforeClientCreation(t *testing
 			err := cmd.Run(context.Background())
 			if err == nil || !strings.Contains(err.Error(), "identity password file is empty") {
 				t.Fatalf("error = %v, want empty identity password diagnostic", err)
+			}
+			if got := stderr.String(); got != "Error: identity password file is empty\n" {
+				t.Fatalf("deps stderr = %q, want the usage error", got)
 			}
 			if clientCreations != 0 {
 				t.Fatalf("client creations = %d, want 0", clientCreations)
