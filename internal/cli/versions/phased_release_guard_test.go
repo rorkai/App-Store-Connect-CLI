@@ -57,6 +57,8 @@ type guardHarness struct {
 	// cancelAfterCheck cancels the run once this many checks have passed.
 	cancelAfterCheck int
 	cancel           context.CancelFunc
+	// d is the process deps with the client replaced by one served by h.
+	d *shared.Deps
 }
 
 func newGuardHarness(t *testing.T) *guardHarness {
@@ -80,7 +82,7 @@ func newGuardHarness(t *testing.T) *guardHarness {
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	h.d = guardDeps(func() (*asc.Client, error) { return client, nil })
 
 	original := phasedReleaseGuardRunCheck
 	phasedReleaseGuardRunCheck = h.runCheck
@@ -188,11 +190,11 @@ func captureGuardOutput(t *testing.T, fn func()) (string, string) {
 	return <-stdoutResult, <-stderrResult
 }
 
-func runGuardCommand(t *testing.T, ctx context.Context, args ...string) (string, string, error) {
+func runGuardCommand(t *testing.T, ctx context.Context, d *shared.Deps, args ...string) (string, string, error) {
 	t.Helper()
 	var runErr error
 	stdout, stderr := captureGuardOutput(t, func() {
-		cmd := PhasedReleaseGuardCommand()
+		cmd := newPhasedReleaseGuardCommand(d)
 		if runErr = cmd.FlagSet.Parse(args); runErr == nil {
 			runErr = cmd.Exec(ctx, cmd.FlagSet.Args())
 		}
@@ -207,13 +209,22 @@ func (h *guardHarness) run(args ...string) (string, string, error) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			h.cancel = cancel
-			cmd := PhasedReleaseGuardCommand()
+			cmd := newPhasedReleaseGuardCommand(h.d)
 			if runErr = cmd.FlagSet.Parse(args); runErr == nil {
 				runErr = cmd.Exec(ctx, cmd.FlagSet.Args())
 			}
 		})
 	})
 	return stdout, stderr, runErr
+}
+
+// guardDeps returns the process deps with client as their client, so the
+// guard's own lines, the check's output and the poller's notices all reach the
+// captured process streams in order.
+func guardDeps(client func() (*asc.Client, error)) *shared.Deps {
+	d := shared.DefaultDeps()
+	d.Client = client
+	return d
 }
 
 func decodeGuardResult(t *testing.T, stdout string) asc.PhasedReleaseGuardResult {
@@ -249,11 +260,11 @@ func TestPhasedReleaseGuardValidationRejectsBeforeAnyRequest(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			d := guardDeps(func() (*asc.Client, error) {
 				t.Fatal("client created before validation finished")
 				return nil, nil
-			}))
-			stdout, stderr, err := runGuardCommand(t, context.Background(), test.args...)
+			})
+			stdout, stderr, err := runGuardCommand(t, context.Background(), d, test.args...)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("error = %v, want usage error", err)
 			}

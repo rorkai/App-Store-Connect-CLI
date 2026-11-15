@@ -340,7 +340,6 @@ func TestCustomerReviewListsRejectQueryFlagsWithNext(t *testing.T) {
 			args:    []string{"versions", "customer-reviews", "list", "--next", nextURL, "--stars", "1"},
 			wantErr: "--next cannot be combined with --stars",
 			deps:    true,
-			deps:    true,
 		},
 		{
 			name:    "app response fields",
