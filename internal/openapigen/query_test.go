@@ -645,6 +645,8 @@ func TestAdoptQueriesKeepsBuildersThatShareAQueryWrittenAnotherWay(t *testing.T)
 	for _, tt := range []struct{ name, from, to, kept string }{
 		{"no builder named after the query struct", "buildZipperTeethQuery", "buildZipperTeethListQuery", "query struct zipperTeethQuery is not named after one of its builders buildZipperTeethListQuery, buildZipperToothQuery"},
 		{"a detail builder that sends limit", "addCSV(values, \"fields[widgets]\", query.fields)\n\tif query.gearsLimit", "addCSV(values, \"fields[widgets]\", query.fields)\n\taddLimit(values, query.limit)\n\tif query.gearsLimit", "buildZipperToothQuery differs at"},
+		{"a builder no read uses", "func buildZipperToothQuery(", "func buildZipperSpareQuery(query *zipperTeethQuery) string {\n\treturn \"\"\n}\n\nfunc buildZipperToothQuery(", "no read uses buildZipperSpareQuery"},
+		{"the query's own builder no read uses", "Query: buildZipperTeethQuery(query)", "Query: buildZipperToothQuery(query)", "no read uses buildZipperTeethQuery"},
 		{"builders that send one parameter from two fields", "if query.gearsLimit > 0 {\n\t\tvalues.Set(\"limit[gears]\", strconv.Itoa(query.gearsLimit))\n\t}\n\treturn values.Encode()\n}\n`", "if len(query.pitches) > 0 {\n\t\tvalues.Set(\"limit[gears]\", strconv.Itoa(len(query.pitches)))\n\t}\n\treturn values.Encode()\n}\n`", "buildZipperToothQuery sends limit[gears] from pitches, not gearsLimit"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

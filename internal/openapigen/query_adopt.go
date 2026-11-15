@@ -366,7 +366,7 @@ func deriveParam(spec *Spec, q *QueryBind, op *Operation, stmt ast.Stmt, p *Quer
 
 // builderReads returns the reads whose client methods use a builder, the one
 // with the shortest path (then the first operationId) first, or the reason
-// it is used otherwise.
+// it is used otherwise or not at all.
 func (qi *queryIndex) builderReads(spec *Spec, builder string) ([]*Operation, string) {
 	var reads []*Operation
 	for _, use := range qi.uses[builder] {
@@ -376,6 +376,9 @@ func (qi *queryIndex) builderReads(spec *Spec, builder string) ([]*Operation, st
 		if op, _ := spec.Operation(use.reads[0]); !slices.Contains(reads, op) {
 			reads = append(reads, op)
 		}
+	}
+	if len(reads) == 0 {
+		return nil, "no read uses " + builder
 	}
 	sort.Slice(reads, func(i, j int) bool {
 		a, b := strings.Count(reads[i].Path, "/"), strings.Count(reads[j].Path, "/")
