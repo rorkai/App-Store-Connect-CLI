@@ -83,15 +83,7 @@ Examples:
 
 // newProfilesRelationshipsCertificatesCommand returns the certificates links command.
 func newProfilesRelationshipsCertificatesCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("certificates", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "certificates",
 		ShortUsage: "asc profiles links certificates --id \"PROFILE_ID\" [flags]",
 		ShortHelp:  "Get certificate relationship linkages for a profile.",
@@ -100,78 +92,37 @@ func newProfilesRelationshipsCertificatesCommand(d *shared.Deps) *ffcli.Command 
 Examples:
   asc profiles links certificates --id "PROFILE_ID"
   asc profiles links certificates --id "PROFILE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "profiles links certificates", 200); err != nil {
-				return err
-			}
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--id")
-			}
-			if idValue == "" && strings.TrimSpace(*next) != "" {
-				derivedID, err := extractProfileIDFromNextURL(*next, "certificates")
-				if err != nil {
+		ParentFlag:           "id",
+		ParentUsage:          "Profile ID",
+		ParentType:           "profiles",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			id, next := fs.Lookup("id").Value, fs.Lookup("next").Value
+			return func() error {
+				if strings.TrimSpace(id.String()) != "" || strings.TrimSpace(next.String()) == "" {
+					return nil
+				}
+				if _, err := extractProfileIDFromNextURL(next.String(), "certificates"); err != nil {
 					return d.UsageErrorf("profiles links certificates: %v", err)
 				}
-				idValue = derivedID
+				return nil
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("profiles links certificates: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.LinkagesOption{
-				asc.Limit[asc.LinkagesOption](*limit),
-				asc.NextURL[asc.LinkagesOption](*next),
-			}
-
-			if *paginate {
-				if idValue == "" {
-					return d.RequiredFlag("--id")
-				}
-				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-				firstPage, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("profiles links certificates: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetProfileCertificatesRelationships(ctx, idValue, asc.NextURL[asc.LinkagesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("profiles links certificates: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("profiles links certificates: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetProfileCertificatesRelationships(ctx, id,
+				asc.Limit[asc.LinkagesOption](limit),
+				asc.NextURL[asc.LinkagesOption](next),
+			)
+		},
+	})
 }
 
 // newProfilesRelationshipsDevicesCommand returns the devices links command.
 func newProfilesRelationshipsDevicesCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("devices", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "devices",
 		ShortUsage: "asc profiles links devices --id \"PROFILE_ID\" [flags]",
 		ShortHelp:  "Get device relationship linkages for a profile.",
@@ -180,65 +131,32 @@ func newProfilesRelationshipsDevicesCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc profiles links devices --id "PROFILE_ID"
   asc profiles links devices --id "PROFILE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "profiles links devices", 200); err != nil {
-				return err
-			}
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--id")
-			}
-			if idValue == "" && strings.TrimSpace(*next) != "" {
-				derivedID, err := extractProfileIDFromNextURL(*next, "devices")
-				if err != nil {
+		ParentFlag:           "id",
+		ParentUsage:          "Profile ID",
+		ParentType:           "profiles",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			id, next := fs.Lookup("id").Value, fs.Lookup("next").Value
+			return func() error {
+				if strings.TrimSpace(id.String()) != "" || strings.TrimSpace(next.String()) == "" {
+					return nil
+				}
+				if _, err := extractProfileIDFromNextURL(next.String(), "devices"); err != nil {
 					return d.UsageErrorf("profiles links devices: %v", err)
 				}
-				idValue = derivedID
+				return nil
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("profiles links devices: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.LinkagesOption{
-				asc.Limit[asc.LinkagesOption](*limit),
-				asc.NextURL[asc.LinkagesOption](*next),
-			}
-
-			if *paginate {
-				if idValue == "" {
-					return d.RequiredFlag("--id")
-				}
-				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-				firstPage, err := client.GetProfileDevicesRelationships(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("profiles links devices: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetProfileDevicesRelationships(ctx, idValue, asc.NextURL[asc.LinkagesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("profiles links devices: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetProfileDevicesRelationships(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("profiles links devices: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetProfileDevicesRelationships(ctx, id,
+				asc.Limit[asc.LinkagesOption](limit),
+				asc.NextURL[asc.LinkagesOption](next),
+			)
+		},
+	})
 }
 
 func extractProfileIDFromNextURL(nextURL string, relationship string) (string, error) {

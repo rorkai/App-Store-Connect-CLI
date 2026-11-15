@@ -38,82 +38,42 @@ Examples:
 
 // newUsersInvitesVisibleAppsListCommand returns the invites visible apps list subcommand.
 func newUsersInvitesVisibleAppsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("visible-apps list", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "userInvitations", "Invitation ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc users invites visible-apps list --id \"INVITE_ID\" [flags]",
-		ShortHelp:  "List visible apps for a user invitation.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "visible-apps list",
+		Name:        "list",
+		ShortUsage:  "asc users invites visible-apps list --id \"INVITE_ID\" [flags]",
+		ShortHelp:   "List visible apps for a user invitation.",
 		LongHelp: `List visible apps for a user invitation.
 
 Examples:
   asc users invites visible-apps list --id "INVITE_ID"
   asc users invites visible-apps list --id "INVITE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "users invites visible-apps list", 200); err != nil {
-				return err
-			}
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--id")
-			}
-			if idValue == "" && strings.TrimSpace(*next) != "" {
-				derivedID, err := extractUserInvitationIDFromNextURL(*next)
-				if err != nil {
+		ParentFlag:           "id",
+		ParentUsage:          "Invitation ID",
+		ParentType:           "userInvitations",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			id, next := fs.Lookup("id").Value, fs.Lookup("next").Value
+			return func() error {
+				if strings.TrimSpace(id.String()) != "" || strings.TrimSpace(next.String()) == "" {
+					return nil
+				}
+				if _, err := extractUserInvitationIDFromNextURL(next.String()); err != nil {
 					return d.UsageErrorf("users invites visible-apps list: %v", err)
 				}
-				idValue = derivedID
+				return nil
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("users invites visible-apps list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.UserInvitationVisibleAppsOption{
-				asc.Limit[asc.UserInvitationVisibleAppsOption](*limit),
-				asc.NextURL[asc.UserInvitationVisibleAppsOption](*next),
-			}
-
-			if *paginate {
-				if idValue == "" {
-					return d.RequiredFlag("--id")
-				}
-				paginateOpts := append(opts, asc.Limit[asc.UserInvitationVisibleAppsOption](200))
-				firstPage, err := client.GetUserInvitationVisibleApps(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("users invites visible-apps list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUserInvitationVisibleApps(ctx, idValue, asc.NextURL[asc.UserInvitationVisibleAppsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("users invites visible-apps list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetUserInvitationVisibleApps(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("users invites visible-apps list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetUserInvitationVisibleApps(ctx, id,
+				asc.Limit[asc.UserInvitationVisibleAppsOption](limit),
+				asc.NextURL[asc.UserInvitationVisibleAppsOption](next),
+			)
+		},
+	})
 }
 
 func extractUserInvitationIDFromNextURL(nextURL string) (string, error) {
