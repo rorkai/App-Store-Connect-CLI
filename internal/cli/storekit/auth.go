@@ -315,12 +315,12 @@ func authLogoutCommand() *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
-			}
 			cleanName := strings.TrimSpace(*name)
 			if *all == (cleanName != "") {
 				return shared.UsageError("exactly one of --name or --all is required")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if *all {
 				if err := storekitapi.RemoveAllCredentials(); err != nil {

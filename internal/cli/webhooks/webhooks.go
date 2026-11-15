@@ -323,12 +323,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				return shared.RequiredFlag("--webhook-id")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

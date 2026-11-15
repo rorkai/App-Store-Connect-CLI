@@ -975,9 +975,8 @@ Examples:
 			if err := selectors.validate(); err != nil {
 				return err
 			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to expire build")
-				return shared.MissingRequiredUsageError("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

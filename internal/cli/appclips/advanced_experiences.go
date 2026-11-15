@@ -500,13 +500,12 @@ func AppClipAdvancedExperiencesDeleteCommand() *ffcli.Command {
 
 Examples:
   asc app-clips advanced-experiences delete --experience-id "EXP_ID" --confirm`,
-		IDFlag:                 "experience-id",
-		IDUsage:                "Advanced experience ID",
-		IDType:                 "appClipAdvancedExperiences",
-		RequiredDiagnostic:     true,
-		ConfirmUsage:           "Confirm removal",
-		ConfirmRequiredMessage: "--confirm is required to remove",
-		DeleteErrorPrefix:      "app-clips advanced-experiences delete: failed to remove",
+		IDFlag:             "experience-id",
+		IDUsage:            "Advanced experience ID",
+		IDType:             "appClipAdvancedExperiences",
+		RequiredDiagnostic: true,
+		ConfirmUsage:       "Confirm removal",
+		DeleteErrorPrefix:  "app-clips advanced-experiences delete: failed to remove",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipAdvancedExperience(ctx, id)
 		},

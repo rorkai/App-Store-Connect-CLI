@@ -137,8 +137,8 @@ Example:
 			if *value <= 0 {
 				return shared.UsageError("--value must be greater than 0")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)

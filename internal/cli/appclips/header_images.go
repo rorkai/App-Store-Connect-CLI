@@ -117,11 +117,10 @@ func AppClipHeaderImagesDeleteCommand() *ffcli.Command {
 
 Examples:
   asc app-clips header-images delete --id "IMAGE_ID" --confirm`,
-		IDFlag:                 "id",
-		IDUsage:                "Header image ID",
-		IDType:                 "appClipHeaderImages",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
+		IDFlag:             "id",
+		IDUsage:            "Header image ID",
+		IDType:             "appClipHeaderImages",
+		RequiredDiagnostic: true,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipHeaderImage(ctx, id)
 		},

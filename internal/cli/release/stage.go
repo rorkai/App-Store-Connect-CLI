@@ -71,10 +71,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*dryRun && !*confirm {
-				return shared.UsageError("--confirm is required unless --dry-run is set")
-			}
-
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(resolvedAppID) == "" {
 				return shared.UsageError("--app is required (or set ASC_APP_ID)")
@@ -113,6 +109,9 @@ Examples:
 			}
 			if (trimmedMetadataDir == "" && trimmedCopyMetadataFrom == "") || (trimmedMetadataDir != "" && trimmedCopyMetadataFrom != "") {
 				return shared.UsageError("exactly one of --metadata-dir or --copy-metadata-from is required")
+			}
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 			if *allowDeletes && trimmedMetadataDir == "" {
 				return shared.UsageError("--allow-deletes requires --metadata-dir")

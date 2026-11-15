@@ -211,8 +211,8 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
@@ -343,8 +343,8 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
@@ -385,8 +385,8 @@ func webAppBundleReviewCommand(name, shortHelp, longHelp string, run func(contex
 			if bundleID == "" {
 				return shared.UsageError("--id is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())

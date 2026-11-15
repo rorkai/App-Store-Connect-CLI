@@ -449,15 +449,12 @@ type ConfirmDeleteCommandConfig struct {
 	// IDType is the API resource type named by the ID flag; see
 	// IDGetCommandConfig.IDType.
 	IDType string
-	// RequiredDiagnostic reports a missing ID flag or --confirm with the
-	// required-input diagnostic instead of a plain usage error.
+	// RequiredDiagnostic reports a missing ID flag with the required-input
+	// diagnostic instead of a plain usage error.
 	RequiredDiagnostic bool
 	// ConfirmUsage is the --confirm flag usage. It defaults to
 	// "Confirm deletion".
 	ConfirmUsage string
-	// ConfirmRequiredMessage reports a missing --confirm. It defaults to
-	// "--confirm is required".
-	ConfirmRequiredMessage string
 
 	// ErrorPrefix wraps the client error. It defaults to the command path in
 	// ShortUsage without "asc ".
@@ -493,10 +490,6 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 	if confirmUsage == "" {
 		confirmUsage = "Confirm deletion"
 	}
-	confirmRequired := config.ConfirmRequiredMessage
-	if confirmRequired == "" {
-		confirmRequired = "--confirm is required"
-	}
 
 	id := bindBuilderIDFlag(fs, idFlagName, config.IDType, idUsage)
 	confirm := fs.Bool("confirm", false, confirmUsage)
@@ -518,8 +511,8 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 			if idValue == "" {
 				return missingBuilderFlag(d, config.RequiredDiagnostic, idFlagName)
 			}
-			if !*confirm {
-				return missingBuilderConfirm(d, config.RequiredDiagnostic, confirmRequired)
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := d.Client()
@@ -578,14 +571,6 @@ func missingBuilderFlag(d *Deps, diagnostic bool, name string) error {
 	}
 	fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", name)
 	return MissingRequiredUsageError("--" + name)
-}
-
-func missingBuilderConfirm(d *Deps, diagnostic bool, message string) error {
-	if !diagnostic {
-		return d.UsageError(message)
-	}
-	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
-	return MissingRequiredUsageError("--confirm")
 }
 
 // bindBuilderIDFlag registers a builder's ID flag, accepting the resource's

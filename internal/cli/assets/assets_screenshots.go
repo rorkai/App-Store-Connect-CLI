@@ -60,6 +60,9 @@ type ScreenshotSetUploadOptions[T any] struct {
 	Path           string
 	DeviceType     string
 	Replace        bool
+	// RequireConfirm checks --confirm, which Replace requires. It runs after
+	// the required flags and before any file is read.
+	RequireConfirm func() error
 	// InspectCommand is the owner-specific read-only command shown when the
 	// target screenshot set is full or has ambiguous checksum matches.
 	InspectCommand string
@@ -275,6 +278,11 @@ func ExecuteScreenshotSetUpload[T any](ctx context.Context, opts ScreenshotSetUp
 	trimmedDeviceType := strings.TrimSpace(opts.DeviceType)
 	if trimmedDeviceType == "" {
 		return zero, shared.RequiredFlag("--device-type")
+	}
+	if opts.Replace {
+		if err := opts.RequireConfirm(); err != nil {
+			return zero, err
+		}
 	}
 	if opts.ClientFactory == nil {
 		return zero, fmt.Errorf("client factory is required")

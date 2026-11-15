@@ -143,8 +143,8 @@ Example:
 			if appleID == "" {
 				return shared.RequiredFlag("--recipient-apple-id")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err := validateWebDistributionUsersOutput(output); err != nil {
 				return err
@@ -243,8 +243,8 @@ Example:
 			if requestedID == "" {
 				return shared.UsageError("--id is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err := validateWebDistributionUsersOutput(output); err != nil {
 				return err

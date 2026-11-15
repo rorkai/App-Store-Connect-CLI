@@ -464,8 +464,8 @@ Examples:
 			if strings.TrimSpace(*email) == "" {
 				return shared.RequiredFlag("--email")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			waitFlagsProvided := make([]string, 0, 2)
 			fs.Visit(func(f *flag.Flag) {
@@ -655,8 +655,8 @@ Examples:
 			if len(groupIDs) == 0 {
 				return shared.RequiredFlag("--group")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -775,8 +775,8 @@ Examples:
 			if len(parsedBuildIDs) == 0 {
 				return shared.RequiredFlag("--build-id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -837,8 +837,8 @@ Examples:
 			if len(appIDs) == 0 {
 				return shared.RequiredFlag("--app")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

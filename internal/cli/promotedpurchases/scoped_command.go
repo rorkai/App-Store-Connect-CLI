@@ -429,11 +429,11 @@ Examples:
 		promotedPurchaseID := strings.TrimSpace(stringFlagValue(cmd.FlagSet, "promoted-purchase-id"))
 		errorPrefix := promotedPurchasesCommandErrorPrefix(cfg, "delete")
 
-		if !confirm {
-			return d.RequiredFlag("--confirm")
-		}
 		if promotedPurchaseID == "" {
 			return d.RequiredFlag("--promoted-purchase-id")
+		}
+		if err := d.RequireConfirm(confirm); err != nil {
+			return err
 		}
 
 		client, err := d.Client()

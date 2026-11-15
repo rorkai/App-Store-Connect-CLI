@@ -181,8 +181,10 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 	if err != nil {
 		return MetadataKeywordsPlanResult{}, err
 	}
-	if opts.Apply && !opts.Confirm {
-		return MetadataKeywordsPlanResult{}, shared.UsageError("--confirm is required")
+	if opts.Apply {
+		if err := shared.RequireConfirm(opts.Confirm); err != nil {
+			return MetadataKeywordsPlanResult{}, err
+		}
 	}
 
 	localState := opts.LocalState

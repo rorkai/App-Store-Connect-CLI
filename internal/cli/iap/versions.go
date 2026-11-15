@@ -340,8 +340,8 @@ func IAPVersionSubmitCommand() *ffcli.Command {
 			if sid == "" {
 				return shared.RequiredFlag("--submission")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {

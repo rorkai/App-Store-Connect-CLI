@@ -19,12 +19,11 @@ func AssetsScreenshotsDeleteCommand() *ffcli.Command {
 
 Examples:
   asc screenshots delete --id "SCREENSHOT_ID" --confirm`,
-		IDFlag:                 "id",
-		IDUsage:                "Screenshot ID",
-		IDType:                 "appScreenshots",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
-		DeleteErrorPrefix:      "screenshots delete",
+		IDFlag:             "id",
+		IDUsage:            "Screenshot ID",
+		IDType:             "appScreenshots",
+		RequiredDiagnostic: true,
+		DeleteErrorPrefix:  "screenshots delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppScreenshot(ctx, id)
 		},

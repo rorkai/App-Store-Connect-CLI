@@ -240,7 +240,7 @@ func TestPhasedReleaseGuardValidationRejectsBeforeAnyRequest(t *testing.T) {
 	}{
 		{"missing version", []string{"--confirm", "--", "./check"}, "Error: --version-id is required\n"},
 		{"missing command", []string{"--version-id", "VERSION-1", "--confirm"}, "Error: a check command is required after --\n"},
-		{"neither confirm nor dry run", []string{"--version-id", "VERSION-1", "--", "./check"}, "Error: --confirm is required to pause or complete the phased release (or pass --dry-run to preview)\n"},
+		{"neither confirm nor dry run", []string{"--version-id", "VERSION-1", "--", "./check"}, "Error: --confirm is required unless --dry-run is set\n"},
 		{"confirm and dry run", []string{"--version-id", "VERSION-1", "--confirm", "--dry-run", "--", "./check"}, "Error: --confirm and --dry-run are mutually exclusive\n"},
 		{"zero poll interval", []string{"--version-id", "VERSION-1", "--confirm", "--poll-interval", "0s", "--", "./check"}, "Error: --poll-interval must be greater than 0\n"},
 		{"zero check timeout", []string{"--version-id", "VERSION-1", "--confirm", "--check-timeout", "0s", "--", "./check"}, "Error: --check-timeout must be greater than 0\n"},

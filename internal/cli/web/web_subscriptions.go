@@ -119,7 +119,7 @@ Examples:
 			case trimmedSubscriptionID == "":
 				return shared.UsageError("--subscription-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)

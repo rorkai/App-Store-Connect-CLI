@@ -67,9 +67,6 @@ func capabilityReconcileCommand(d *shared.Deps, name string, apply bool) *ffcli.
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return d.UsageError(err.Error())
 			}
-			if apply && !confirm {
-				return d.RequiredFlag("--confirm")
-			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
 				return d.RequiredFlag("--bundle")
@@ -77,6 +74,11 @@ func capabilityReconcileCommand(d *shared.Deps, name string, apply bool) *ffcli.
 			path := strings.TrimSpace(*entitlements)
 			if path == "" {
 				return d.RequiredFlag("--entitlements")
+			}
+			if apply {
+				if err := d.RequireConfirm(confirm); err != nil {
+					return err
+				}
 			}
 			desired, err := readDesiredEntitlements(d, path, *ignoreUnknown)
 			if err != nil {

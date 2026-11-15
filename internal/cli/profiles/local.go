@@ -437,12 +437,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*dryRun && !*confirm {
-				return d.RequiredFlag("--confirm")
-			}
 			if !*expiredOnly {
 				// At least one clean mode is required; currently only --expired exists.
 				return d.UsageError("at least one clean mode is required (e.g. --expired)")
+			}
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 
 			resolvedInstallDir, err := resolveProfilesInstallDirForCommand(ctx, d, *installDir, "profiles local clean")

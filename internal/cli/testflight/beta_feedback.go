@@ -106,8 +106,8 @@ Examples:
 			if submissionIDValue == "" {
 				return shared.RequiredFlag("--submission-id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			return runFeedbackSubmissionDelete(ctx, submissionIDValue, output)
 		},
@@ -207,8 +207,8 @@ Examples:
 			if submissionIDValue == "" {
 				return shared.RequiredFlag("--submission-id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			return runCrashSubmissionDelete(ctx, submissionIDValue, output)
 		},

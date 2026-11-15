@@ -38,7 +38,7 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageErrors(t *testing.T) {
 		{
 			name:    "enable accepts Singapore price territory",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "enable", "--subscription-id", "sub-1", "--price", "9.99", "--price-territory", "SGP", "--territories", "SGP"},
-			wantErr: "--confirm is required to enable monthly-commitment billing",
+			wantErr: "--confirm is required\n",
 		},
 		{
 			name:    "enable rejects available in new territories",
@@ -48,7 +48,7 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageErrors(t *testing.T) {
 		{
 			name:    "enable requires confirm",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "enable", "--subscription-id", "sub-1", "--price", "9.99", "--price-territory", "Norway", "--territories", "Norway"},
-			wantErr: "--confirm is required to enable monthly-commitment billing",
+			wantErr: "--confirm is required\n",
 		},
 		{
 			name:    "disable missing territories",
@@ -63,7 +63,7 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageErrors(t *testing.T) {
 		{
 			name:    "disable requires confirm",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "disable", "--subscription-id", "sub-1", "--territories", "Norway"},
-			wantErr: "--confirm is required to disable monthly-commitment billing",
+			wantErr: "--confirm is required\n",
 		},
 		{
 			name:    "list missing subscription",

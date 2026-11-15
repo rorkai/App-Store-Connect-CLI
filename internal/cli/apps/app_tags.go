@@ -359,8 +359,8 @@ Examples:
 			if !visited["visible-in-app-store"] {
 				return shared.RequiredFlag("--visible-in-app-store")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

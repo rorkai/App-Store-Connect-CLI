@@ -139,8 +139,8 @@ Examples:
 			if err != nil {
 				return err
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required to enable monthly-commitment billing")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -279,8 +279,8 @@ Examples:
 			if len(territoryIDs) == 0 {
 				return shared.UsageError("no eligible monthly-commitment territories remain after excluding USA")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required to disable monthly-commitment billing")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

@@ -5,6 +5,30 @@ import (
 	"os"
 )
 
+// RequireConfirm enforces --confirm on a destructive command. Without it, it
+// prints "Error: --confirm is required" to stderr and returns a usage error
+// with the required-input diagnostic. Commands check it after their other
+// required flags and before any request, file read or prompt.
+func RequireConfirm(confirm bool) error {
+	if confirm {
+		return nil
+	}
+	return missingConfirmTo(os.Stderr)
+}
+
+// RequireConfirm is RequireConfirm with the "Error:" line written to d's
+// stderr.
+func (d *Deps) RequireConfirm(confirm bool) error {
+	if confirm {
+		return nil
+	}
+	return missingConfirmTo(d.IO.ErrOut)
+}
+
+func missingConfirmTo(stderr io.Writer) error {
+	return WithDiagnostic(usageErrorTo(stderr, "--confirm is required"), DiagnosticRequiredInputMissing, "--confirm")
+}
+
 // RequireConfirmUnlessDryRun enforces the apply decision for commands that turn
 // file input into App Store Connect mutations: the caller must either preview
 // the plan with --dry-run or accept the mutation with --confirm.

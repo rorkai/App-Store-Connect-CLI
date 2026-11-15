@@ -86,8 +86,8 @@ Example:
 			if err != nil {
 				return err
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			body, err := readWebReviewDraftBody(fs, *message, *bodyFile)
 			if err != nil {
@@ -142,8 +142,8 @@ Example:
 			if resolvedDraftID == "" {
 				return shared.UsageError("--draft-id is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			body, err := readWebReviewDraftBody(fs, *message, *bodyFile)
 			if err != nil {
@@ -194,8 +194,8 @@ Example:
 			if resolvedDraftID == "" {
 				return shared.UsageError("--draft-id is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			return executeWebReviewDraftMutation(ctx, authFlags, output, webReviewDraftMutation{
 				Action:   "deleted",

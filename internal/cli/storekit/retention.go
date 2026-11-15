@@ -132,10 +132,10 @@ func imagesDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging images delete --image-id UUID --environment ENV --confirm [flags]", "Delete a retention image.", fs, func(ctx context.Context, args []string) error {
-		if !*confirm {
-			return shared.UsageError("--confirm is required")
-		}
 		if err := requireFlag("--image-id", *imageID); err != nil {
+			return err
+		}
+		if err := shared.RequireConfirm(*confirm); err != nil {
 			return err
 		}
 		if err := validateUUIDFlag("--image-id", *imageID); err != nil {
@@ -232,10 +232,10 @@ func messagesDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging messages delete --message-id UUID --environment ENV --confirm [flags]", "Delete a retention message.", fs, func(ctx context.Context, args []string) error {
-		if !*confirm {
-			return shared.UsageError("--confirm is required")
-		}
 		if err := requireFlag("--message-id", *messageID); err != nil {
+			return err
+		}
+		if err := shared.RequireConfirm(*confirm); err != nil {
 			return err
 		}
 		if err := validateUUIDFlag("--message-id", *messageID); err != nil {
@@ -333,10 +333,10 @@ func defaultDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging defaults delete --product-id ID --locale LOCALE --environment ENV --confirm [flags]", "Delete the default retention message.", fs, func(ctx context.Context, args []string) error {
-		if !*confirm {
-			return shared.UsageError("--confirm is required")
-		}
 		if err := validateDefaultInvocation(*productID, *locale); err != nil {
+			return err
+		}
+		if err := shared.RequireConfirm(*confirm); err != nil {
 			return err
 		}
 		client, environment, err := resolveClient(ctx, common)
@@ -419,8 +419,8 @@ func endpointDeleteCommand() *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return leafCommand("delete", "asc storekit retention-messaging endpoint delete --environment ENV --confirm [flags]", "Delete the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
-		if !*confirm {
-			return shared.UsageError("--confirm is required")
+		if err := shared.RequireConfirm(*confirm); err != nil {
+			return err
 		}
 		client, environment, err := resolveClient(ctx, common)
 		if err != nil {

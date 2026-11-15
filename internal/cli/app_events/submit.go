@@ -36,11 +36,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to submit for review")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
 				return shared.RequiredFlag("--event-id")
@@ -50,6 +45,9 @@ Examples:
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)

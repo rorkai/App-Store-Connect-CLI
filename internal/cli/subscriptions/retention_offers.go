@@ -700,8 +700,10 @@ Examples:
 			if len(ids) == 0 {
 				return shared.UsageError("--retention-offer-id is required")
 			}
-			if confirm != nil && !*confirm {
-				return shared.UsageError("--confirm is required")
+			if confirm != nil {
+				if err := shared.RequireConfirm(*confirm); err != nil {
+					return err
+				}
 			}
 
 			client, err := shared.GetASCClient()

@@ -241,8 +241,8 @@ Examples:
 			if strings.TrimSpace(*planPath) == "" {
 				return shared.RequiredFlag("--plan")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())

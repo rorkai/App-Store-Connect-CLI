@@ -123,8 +123,8 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required to create a persistent signing keychain")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			installCtx, stopSignals := signingKeychainInstallContext(ctx)
 			defer stopSignals()

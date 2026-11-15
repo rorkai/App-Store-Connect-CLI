@@ -944,13 +944,12 @@ Only versions in PREPARE_FOR_SUBMISSION state can be deleted.
 
 Examples:
   asc versions delete --version-id "VERSION_ID" --confirm`,
-		IDFlag:                 "version-id",
-		IDUsage:                "App Store version ID (required)",
-		IDType:                 "appStoreVersions",
-		RequiredDiagnostic:     true,
-		ConfirmUsage:           "Confirm deletion (required)",
-		ConfirmRequiredMessage: "--confirm is required to delete a version",
-		DeleteErrorPrefix:      "versions delete",
+		IDFlag:             "version-id",
+		IDUsage:            "App Store version ID (required)",
+		IDType:             "appStoreVersions",
+		RequiredDiagnostic: true,
+		ConfirmUsage:       "Confirm deletion (required)",
+		DeleteErrorPrefix:  "versions delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppStoreVersion(ctx, id)
 		},

@@ -115,8 +115,8 @@ Examples:
 			if selectedStorage == signingSyncStorageGit && selectedBranch == "" {
 				return shared.UsageError("--branch must not be empty")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required to rotate the signing sync password")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			currentPassword, nextPassword, err := readSigningSyncRotationPasswords(currentPath, newPath)

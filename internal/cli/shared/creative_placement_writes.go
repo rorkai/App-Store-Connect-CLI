@@ -92,8 +92,8 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 				if !creativePlacementID.MatchString(previousID) {
 					return UsageError("placements swap: --placement-id requires a resource ID")
 				}
-				if !*confirm {
-					return UsageError("placements swap: --confirm is required")
+				if err := RequireConfirm(*confirm); err != nil {
+					return err
 				}
 			} else {
 				placementGroup = strings.TrimSpace(*group)
@@ -245,8 +245,8 @@ func creativePlacementDeleteCommand(prefix string) *ffcli.Command {
 			if placementID != "" && !creativePlacementID.MatchString(placementID) {
 				return UsageError("placements delete: --id requires a resource ID")
 			}
-			if !*confirm {
-				return UsageError("placements delete: --confirm is required")
+			if err := RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			client, err := GetASCClient()
 			if err != nil {

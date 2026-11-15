@@ -167,13 +167,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
-			}
 			resolvedAppID := resolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return MissingRequiredUsageError("--app")
+			}
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if config.ClientFactory == nil {
 				return fmt.Errorf("pricing availability remove-from-sale: client factory is not configured")

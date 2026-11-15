@@ -344,7 +344,7 @@ Examples:
 			case len(resolvedAgreementIDs) == 0:
 				return shared.UsageError("--agreement-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {

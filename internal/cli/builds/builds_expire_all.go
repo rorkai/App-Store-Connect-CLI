@@ -84,9 +84,8 @@ Examples:
 			if *keepLatest < 0 {
 				return shared.UsageError("builds expire-all: --keep-latest must be greater than or equal to 0")
 			}
-			if !*dryRun && !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to expire builds")
-				return shared.MissingRequiredUsageError("--confirm")
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 
 			now := time.Now().UTC()

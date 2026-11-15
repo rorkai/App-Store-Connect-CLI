@@ -659,8 +659,8 @@ Examples:
 			if id == "" {
 				return shared.RequiredFlag("--id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

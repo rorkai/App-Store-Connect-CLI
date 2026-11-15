@@ -167,8 +167,8 @@ Examples:
 			if err := request.Validate(); err != nil {
 				return shared.UsageError(websitePushIDCreateUsageError(err))
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
@@ -230,8 +230,8 @@ Example:
 			if err := request.Validate(); err != nil {
 				return shared.UsageError("--website-push-id is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err

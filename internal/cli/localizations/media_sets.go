@@ -181,12 +181,11 @@ func LocalizationsScreenshotSetsDeleteCommand() *ffcli.Command {
 
 Examples:
   asc localizations screenshot-sets delete --id "SCREENSHOT_SET_ID" --confirm`,
-		IDFlag:                 "id",
-		IDUsage:                "App screenshot set ID",
-		IDType:                 "appScreenshotSets",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
-		DeleteErrorPrefix:      "localizations screenshot-sets delete",
+		IDFlag:             "id",
+		IDUsage:            "App screenshot set ID",
+		IDType:             "appScreenshotSets",
+		RequiredDiagnostic: true,
+		DeleteErrorPrefix:  "localizations screenshot-sets delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppScreenshotSet(ctx, id)
 		},

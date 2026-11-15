@@ -633,7 +633,7 @@ func WebReviewSubscriptionsAttachCommand() *ffcli.Command {
 			case trimmedSubscriptionID == "":
 				return shared.UsageError("--subscription-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
@@ -723,7 +723,7 @@ func WebReviewSubscriptionsAttachGroupCommand() *ffcli.Command {
 			case trimmedGroupID == "":
 				return shared.UsageError("--group-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
@@ -840,7 +840,7 @@ func WebReviewSubscriptionsRemoveCommand() *ffcli.Command {
 			case trimmedSubscriptionID == "":
 				return shared.UsageError("--subscription-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
@@ -925,7 +925,7 @@ func WebReviewSubscriptionsRemoveGroupCommand() *ffcli.Command {
 			case trimmedGroupID == "":
 				return shared.UsageError("--group-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
