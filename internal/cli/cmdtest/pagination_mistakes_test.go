@@ -312,6 +312,15 @@ func TestListsCheckLimitFirst(t *testing.T) {
 		{args: []string{"xcode-cloud", "build-runs", "list", "--workflow-id", "123456789", "--limit", "500", "--sort", "-createdDate"}, wantErr: "xcode-cloud build-runs list: --limit must be between 1 and 200"},
 		{args: []string{"xcode-cloud", "issues", "list", "--action-id", "123456789", "--limit", "500", "--run-id", "123456789"}, wantErr: "xcode-cloud issues list: --limit must be between 1 and 200"},
 		{args: []string{"xcode-cloud", "test-results", "list", "--action-id", "123456789", "--limit", "500", "--run-id", "123456789"}, wantErr: "xcode-cloud test-results list: --limit must be between 1 and 200"},
+		{args: []string{"apps", "list", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "apps list: --limit must be between 1 and 200"},
+		{args: []string{"users", "list", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "users list: --limit must be between 1 and 200"},
+		{args: []string{"reviews", "list", "--app", "123456789", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "reviews list: --limit must be between 1 and 200"},
+		{args: []string{"subscriptions", "offers", "offer-codes", "list", "--subscription-id", "123456789", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "subscriptions offers offer-codes list: --limit must be between 1 and 200"},
+		{args: []string{"testflight", "groups", "list", "--app", "123456789", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "testflight groups list: --limit must be between 1 and 200"},
+		{args: []string{"categories", "subcategories", "--category-id", "123456789", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "categories subcategories: --limit must be between 1 and 200"},
+		{args: []string{"xcode-cloud", "workflows", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "xcode-cloud workflows: --limit must be between 1 and 200"},
+		{args: []string{"builds", "list", "--app", "123456789", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "builds list: --limit must be between 1 and 200"},
+		{args: []string{"game-center", "achievements", "v2", "versions", "list", "--achievement-id", "123456789", "--limit", "500", "--next", paginationMistakeNextURL}, wantErr: "game-center achievements v2 versions list: --limit must be between 1 and 200"},
 	})
 }
 

@@ -170,6 +170,22 @@ given:
 - `asc versions customer-reviews list`
 - `asc xcode-cloud products list`
 
+## `--limit` out of range together with `--next`
+
+In every list command with both flags, an out-of-range `--limit` given with a
+valid `--next` URL is now reported as a `--limit` error. Before, every command
+reported `--next cannot be combined with --limit` first. An in-range `--limit`
+with `--next` is still rejected as before:
+
+```text
+$ asc apps list --limit 500 --next "https://api.appstoreconnect.apple.com/v1/apps?cursor=AQ"
+Error: apps list: --limit must be between 1 and 200       # was "apps list: --next cannot be combined with --limit"
+```
+
+`asc marketplace webhooks list` now prints its deprecation warning before this
+error, as it does before its other errors. `asc web removed-apps list` checks
+that `--next` is a web URL before it reports `--limit`.
+
 ## Commands that now check `--limit` first
 
 When `--limit` is out of range and another flag is also wrong (a missing

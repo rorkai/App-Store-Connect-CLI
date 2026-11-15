@@ -13,7 +13,7 @@ func normalizeSparseField(fs *flag.FlagSet, value string, allowed []string, flag
 	if err != nil {
 		return nil, err
 	}
-	if _, provided := appFlagWasProvided(fs, strings.TrimPrefix(flagName, "--")); provided && len(values) == 0 {
+	if appFlagWasProvided(fs, strings.TrimPrefix(flagName, "--")) && len(values) == 0 {
 		return nil, fmt.Errorf("%s must not be empty", flagName)
 	}
 	return values, nil
@@ -26,13 +26,12 @@ func addInclude(values []string, include string) []string {
 	return values
 }
 
-func appFlagWasProvided(fs *flag.FlagSet, names ...string) (string, bool) {
-	provided := make(map[string]bool, len(names))
-	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
-	for _, name := range names {
-		if provided[name] {
-			return "--" + strings.TrimPrefix(name, "--"), true
+func appFlagWasProvided(fs *flag.FlagSet, name string) bool {
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			provided = true
 		}
-	}
-	return "", false
+	})
+	return provided
 }

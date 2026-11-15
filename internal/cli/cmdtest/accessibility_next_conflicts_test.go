@@ -48,7 +48,7 @@ func TestAccessibilityListRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 		{
 			name:    "out of range limit after next",
 			args:    []string{"accessibility", "list", "--next", nextURL, "--limit", "201"},
-			wantErr: "accessibility list: --next cannot be combined with --limit",
+			wantErr: "accessibility list: --limit must be between 1 and 200",
 		},
 	}
 

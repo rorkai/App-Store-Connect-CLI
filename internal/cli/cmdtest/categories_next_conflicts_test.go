@@ -37,7 +37,7 @@ func TestCategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 		{
 			name:    "out of range limit after next",
 			args:    []string{"categories", "subcategories", "--next", nextURL, "--limit", "201"},
-			wantErr: "categories subcategories: --next cannot be combined with --limit",
+			wantErr: "categories subcategories: --limit must be between 1 and 200",
 		},
 		{
 			name:    "list limit before next",
@@ -52,7 +52,7 @@ func TestCategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 		{
 			name:    "list out of range limit after next",
 			args:    []string{"categories", "list", "--next", listNextURL, "--limit", "201"},
-			wantErr: "categories list: --next cannot be combined with --limit",
+			wantErr: "categories list: --limit must be between 1 and 200",
 		},
 	}
 

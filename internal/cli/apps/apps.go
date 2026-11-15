@@ -279,14 +279,14 @@ Examples:
 					return flag.ErrHelp
 				}
 			}
-			if _, provided := appFlagWasProvided(fs, "accessibility-url"); provided {
+			if appFlagWasProvided(fs, "accessibility-url") {
 				value, err := validateAccessibilityURL(*accessibilityURL)
 				if err != nil {
 					return shared.UsageErrorf("--accessibility-url: %v", err)
 				}
 				attrs.AccessibilityURL = &value
 			}
-			if _, provided := appFlagWasProvided(fs, "subscription-status-url"); provided {
+			if appFlagWasProvided(fs, "subscription-status-url") {
 				value, err := validateNotificationURL(*subscriptionStatusURL)
 				if err != nil {
 					return shared.UsageErrorf("--subscription-status-url: %v", err)
@@ -295,7 +295,7 @@ Examples:
 				attrs.SubscriptionStatusURL = &value
 				attrs.SubscriptionStatusURLVersion = &version
 			}
-			if _, provided := appFlagWasProvided(fs, "sandbox-subscription-status-url"); provided {
+			if appFlagWasProvided(fs, "sandbox-subscription-status-url") {
 				value, err := validateNotificationURL(*sandboxSubscriptionStatusURL)
 				if err != nil {
 					return shared.UsageErrorf("--sandbox-subscription-status-url: %v", err)
@@ -348,7 +348,7 @@ func appsList(ctx context.Context, fs *flag.FlagSet, command string, output stri
 		}
 	}
 	versionStateValues := shared.SplitCSVUpper(versionState)
-	if _, provided := appFlagWasProvided(fs, "version-state"); provided {
+	if appFlagWasProvided(fs, "version-state") {
 		if strings.TrimSpace(versionState) == "" {
 			return shared.UsageError("--version-state must not be empty")
 		}
@@ -361,7 +361,7 @@ func appsList(ctx context.Context, fs *flag.FlagSet, command string, output stri
 		return shared.UsageError(err.Error())
 	}
 	reviewSubmissionStateValues := shared.SplitCSVUpper(reviewSubmissionState)
-	if _, provided := appFlagWasProvided(fs, "review-submission-state"); provided {
+	if appFlagWasProvided(fs, "review-submission-state") {
 		if strings.TrimSpace(reviewSubmissionState) == "" {
 			return shared.UsageError("--review-submission-state must not be empty")
 		}
