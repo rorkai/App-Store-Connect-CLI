@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: autofix-${{ github.event.pull_request.number }}
@@ -48,20 +49,11 @@ jobs:
         if: steps.go-tools-cache.outputs.cache-hit != 'true'
         run: make tools
 
-      # access-tokens keeps GitHub tarball fetches off the anonymous rate limit.
-      - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@9f63be77f412a248c9d9a65a4c82cf066cdf8f0c # v35
+      - name: Set up Nix and restore the store
+        uses: x-ryoppippi/setup-nix@7f7ff26554cbbf09c1ce4f3369ca8fd2120a42d1
         with:
-          github_access_token: ${{ github.token }}
-          nix_conf: |
-            access-tokens = github.com=${{ github.token }}
-            max-jobs = auto
-
-      - name: Restore Nix store
-        uses: nix-community/cache-nix-action/restore@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'go.mod', 'go.sum') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+          github-token: ${{ github.token }}
+          save: 'false'
 
       # vendorHash depends only on the Go module files and the Nix inputs, so
       # other pull requests skip the module fetch.

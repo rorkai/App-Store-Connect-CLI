@@ -1,0 +1,22 @@
+name: Cache GC
+
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        type: boolean
+        default: true
+        description: Run garbage collection without deleting old cache entries
+
+permissions: {}
+
+jobs:
+  gc:
+    permissions:
+      actions: write
+      contents: read
+    uses: x-ryoppippi/setup-nix/.github/workflows/gc.yaml@7f7ff26554cbbf09c1ce4f3369ca8fd2120a42d1
+    with:
+      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
