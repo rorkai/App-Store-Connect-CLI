@@ -552,11 +552,6 @@ func TestSigningFetchPreflightsGeneratedOutputStructureBeforeCertificatePOST(t *
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if !test.now.IsZero() {
-				previousNow := signingFetchNowFn
-				signingFetchNowFn = func() time.Time { return test.now }
-				t.Cleanup(func() { signingFetchNowFn = previousNow })
-			}
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 			certificatePosts := 0
@@ -596,6 +591,9 @@ func TestSigningFetchPreflightsGeneratedOutputStructureBeforeCertificatePOST(t *
 
 			d, depsStdout, _ := newSigningTestDeps()
 			d.Client = clientFactory
+			if !test.now.IsZero() {
+				d.Now = func() time.Time { return test.now }
+			}
 			cmd := newSigningFetchCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse(args); err != nil {
