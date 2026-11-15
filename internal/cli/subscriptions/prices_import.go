@@ -485,10 +485,6 @@ func subscriptionPriceImportStatePlanFilter(rows []subscriptionPriceImportCSVRow
 	return filter
 }
 
-func fetchSubscriptionPriceImportState(ctx context.Context, client *asc.Client, subscriptionID string) (*subscriptionPriceImportStateIndex, error) {
-	return fetchSubscriptionPriceImportStateForPlans(ctx, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
-}
-
 func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
 	return fetchSubscriptionPriceImportStateForPlansWith(ctx, shared.DefaultDeps(), client, subscriptionID, planFilter)
 }

@@ -181,6 +181,7 @@ type retentionOfferLinksFetch func(*asc.Client, context.Context, string, ...asc.
 func retentionOffersLinksCommand(d *shared.Deps, path, shortHelp string, fetch retentionOfferLinksFetch) *ffcli.Command {
 	command := "subscriptions offers retention " + path
 	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: path,
 		Name:        path[strings.LastIndex(path, " ")+1:],
 		ShortUsage:  "asc " + command + " --subscription-id SUB_ID [flags]",
@@ -500,6 +501,7 @@ func validateRetentionOfferEligibility(d *shared.Deps, command string, paidMonth
 func newSubscriptionsRetentionOffersDeleteCommand(d *shared.Deps) *ffcli.Command {
 	const command = "subscriptions offers retention delete"
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc " + command + " --id OFFER_ID --confirm",
 		ShortHelp:  "Delete a retention offer.",
@@ -537,6 +539,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsRetentionOfferPricesListCommand(d),
 			shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+				Deps:        d,
 				FlagSetName: "prices links",
 				Name:        "links",
 				ShortUsage:  "asc subscriptions offers retention prices links --id OFFER_ID [flags]",
