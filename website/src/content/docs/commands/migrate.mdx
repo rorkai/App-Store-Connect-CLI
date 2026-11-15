@@ -443,6 +443,9 @@ A device name in the file name overrides the dimensions, for example
 name. A screenshot whose size matches no display type fails the command instead
 of being uploaded to a guessed slot.
 
+When a folder holds both `0_home.png` and its framed copy `0_home_framed.png`,
+only the framed copy is uploaded and the raw file is listed under `skipped`.
+
 ## Partial Imports
 
 `migrate import --confirm` applies version localizations, App Info
