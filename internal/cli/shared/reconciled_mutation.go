@@ -28,7 +28,18 @@ func RunReconciledMutation[T any](
 	mutate func(context.Context) (T, error),
 	readback func(context.Context) (T, bool, error),
 ) (T, ReconciledMutationStatus, error) {
-	return runReconciledMutation(ctx, mutate, readback, true)
+	return runReconciledMutation(ctx, ContextWithTimeout, mutate, readback, true)
+}
+
+// RunReconciledMutationWith is RunReconciledMutation with each mutation's
+// deadline from d.Timeout.
+func RunReconciledMutationWith[T any](
+	ctx context.Context,
+	d *Deps,
+	mutate func(context.Context) (T, error),
+	readback func(context.Context) (T, bool, error),
+) (T, ReconciledMutationStatus, error) {
+	return runReconciledMutation(ctx, d.Timeout, mutate, readback, true)
 }
 
 // RunReconciledMutationNoReplay executes an ambiguous mutation once and uses
@@ -41,11 +52,23 @@ func RunReconciledMutationNoReplay[T any](
 	mutate func(context.Context) (T, error),
 	readback func(context.Context) (T, bool, error),
 ) (T, ReconciledMutationStatus, error) {
-	return runReconciledMutation(ctx, mutate, readback, false)
+	return runReconciledMutation(ctx, ContextWithTimeout, mutate, readback, false)
+}
+
+// RunReconciledMutationNoReplayWith is RunReconciledMutationNoReplay with the
+// mutation's deadline from d.Timeout.
+func RunReconciledMutationNoReplayWith[T any](
+	ctx context.Context,
+	d *Deps,
+	mutate func(context.Context) (T, error),
+	readback func(context.Context) (T, bool, error),
+) (T, ReconciledMutationStatus, error) {
+	return runReconciledMutation(ctx, d.Timeout, mutate, readback, false)
 }
 
 func runReconciledMutation[T any](
 	ctx context.Context,
+	timeout func(context.Context) (context.Context, context.CancelFunc),
 	mutate func(context.Context) (T, error),
 	readback func(context.Context) (T, bool, error),
 	replay bool,
@@ -57,7 +80,7 @@ func runReconciledMutation[T any](
 
 	retryOpts := asc.ResolveRetryOptions()
 	for retry := 0; ; retry++ {
-		value, mutationErr := runMutationWithFreshTimeout(ctx, mutate)
+		value, mutationErr := runMutationWithFreshTimeout(ctx, timeout, mutate)
 		if mutationErr == nil {
 			return value, ReconciledMutationApplied, nil
 		}
@@ -122,8 +145,8 @@ func isRateLimitRejection(err error) bool {
 	return errors.As(err, &statusErr) && statusErr.HTTPStatusCode() == http.StatusTooManyRequests
 }
 
-func runMutationWithFreshTimeout[T any](ctx context.Context, mutate func(context.Context) (T, error)) (T, error) {
-	requestCtx, cancel := ContextWithTimeout(ctx)
+func runMutationWithFreshTimeout[T any](ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), mutate func(context.Context) (T, error)) (T, error) {
+	requestCtx, cancel := timeout(ctx)
 	defer cancel()
 	return mutate(requestCtx)
 }

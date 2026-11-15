@@ -3,7 +3,7 @@ package submit
 import (
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"regexp"
 	"strings"
 
@@ -164,7 +164,7 @@ func extractSubmissionConflict(err error) submissionConflict {
 
 // printSubmissionErrorHints inspects an error returned by App Store Connect
 // during submission and prints actionable fix suggestions to stderr.
-func printSubmissionErrorHints(err error, ctx submissionErrorHintContext) {
+func printSubmissionErrorHints(stderr io.Writer, err error, ctx submissionErrorHintContext) {
 	if err == nil {
 		return
 	}
@@ -231,9 +231,9 @@ func printSubmissionErrorHints(err error, ctx submissionErrorHintContext) {
 	}
 
 	if len(hints) > 0 {
-		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(stderr, "")
 		for _, hint := range hints {
-			fmt.Fprintf(os.Stderr, "Hint: %s\n", hint)
+			fmt.Fprintf(stderr, "Hint: %s\n", hint)
 		}
 	}
 }

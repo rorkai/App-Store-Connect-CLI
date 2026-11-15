@@ -243,7 +243,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("storekit", "Manage StoreKit server APIs with In-App Purchase API keys.", storekitcmd.Command),
 		commandFactory("app-events", "Manage App Store in-app events.", app_events.Command),
 		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", subscriptions.SubscriptionsCommand),
-		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", submit.SubmitCommand),
+		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", func() *ffcli.Command {
+			return submit.NewSubmitCommand(d)
+		}),
 		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
 		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", xcodecloud.XcodeCloudCommand),
 		commandFactory("categories", "Manage App Store categories.", func() *ffcli.Command {

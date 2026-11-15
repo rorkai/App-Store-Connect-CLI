@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -12,7 +11,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func SubmitCommand() *ffcli.Command {
+// NewSubmitCommand returns the submit command group, built on d.
+func NewSubmitCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submit", flag.ExitOnError)
+
 	return &ffcli.Command{
 		Name:       "submit",
 		ShortUsage: "asc submit <subcommand> [flags]",
@@ -23,19 +25,20 @@ Use:
   - asc publish appstore --submit for the canonical high-level App Store shipping path
   - asc validate for canonical readiness checks before submission
   - asc submit status/cancel for lower-level review submission lifecycle work`,
+		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubmitStatusCommand(),
-			SubmitCancelCommand(),
+			newSubmitStatusCommand(d),
+			newSubmitCancelCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				switch strings.TrimSpace(args[0]) {
 				case "create":
-					fmt.Fprintln(os.Stderr, "Error: `asc submit create` was removed. Use `asc review submit` for already-uploaded builds, or `asc publish appstore --submit` for the full shipping path.")
+					fmt.Fprintln(d.IO.ErrOut, "Error: `asc submit create` was removed. Use `asc review submit` for already-uploaded builds, or `asc publish appstore --submit` for the full shipping path.")
 					return flag.ErrHelp
 				case "preflight":
-					fmt.Fprintln(os.Stderr, "Error: `asc submit preflight` was removed. Use `asc validate` instead.")
+					fmt.Fprintln(d.IO.ErrOut, "Error: `asc submit preflight` was removed. Use `asc validate` instead.")
 					return flag.ErrHelp
 				}
 			}

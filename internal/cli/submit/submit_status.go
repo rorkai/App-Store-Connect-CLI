@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -17,12 +16,12 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func SubmitStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submit status", flag.ExitOnError)
+func newSubmitStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submit status", flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissions", "Submission ID")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -37,19 +36,19 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*versionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --version-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --version-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if strings.TrimSpace(*submissionID) != "" && strings.TrimSpace(*versionID) != "" {
-				return shared.UsageError("--id and --version-id are mutually exclusive")
+				return d.UsageError("--id and --version-id are mutually exclusive")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("submit status: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer func() {
 				if cancel != nil {
 					cancel()
@@ -96,7 +95,7 @@ Examples:
 						}
 					} else if reviewSubmission != nil {
 						applyReviewSubmissionStatus(result, reviewSubmission)
-						return shared.PrintOutput(result, *output.Output, *output.Pretty)
+						return d.PrintOutput(result, *output.Output, *output.Pretty)
 					}
 				}
 
@@ -107,7 +106,7 @@ Examples:
 					return fmt.Errorf("submit status: %w", legacyErr)
 				}
 
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
 			if resolvedVersionID != "" {
@@ -118,7 +117,7 @@ Examples:
 				applyVersionStatus(result, versionResp)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

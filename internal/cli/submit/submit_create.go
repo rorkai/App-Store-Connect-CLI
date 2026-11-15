@@ -3,7 +3,7 @@ package submit
 import (
 	"context"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -12,6 +12,7 @@ import (
 
 func addVersionToSubmissionOrRecover(
 	ctx context.Context,
+	stderr io.Writer,
 	client *asc.Client,
 	submissionID, versionID, appID, platform string,
 	emit func(string),
@@ -25,7 +26,7 @@ func addVersionToSubmissionOrRecover(
 		if emit != nil {
 			emit(message)
 		} else {
-			fmt.Fprintln(os.Stderr, message)
+			fmt.Fprintln(stderr, message)
 		}
 		return strings.TrimSpace(submissionID), nil
 	}
@@ -56,7 +57,7 @@ func addVersionToSubmissionOrRecover(
 	if emit != nil {
 		emit(message)
 	} else {
-		fmt.Fprintln(os.Stderr, message)
+		fmt.Fprintln(stderr, message)
 	}
 	return conflictSubmissionID, nil
 }
@@ -248,11 +249,12 @@ type submitCreateReviewSubmissionPreparation struct {
 
 func prepareReviewSubmissionForCreate(
 	ctx context.Context,
+	stderr io.Writer,
 	client *asc.Client,
 	appID, platform, versionID string,
 	emit func(string),
 ) (submitCreateReviewSubmissionPreparation, error) {
-	return prepareReviewSubmissionForCreateWithPageLimit(ctx, client, appID, platform, versionID, emit, reviewSubmissionDiscoveryMaxPages)
+	return prepareReviewSubmissionForCreateWithPageLimit(ctx, stderr, client, appID, platform, versionID, emit, reviewSubmissionDiscoveryMaxPages)
 }
 
 // reviewSubmissionDiscoveryMaxPages bounds untrusted links.next chains while
@@ -261,6 +263,7 @@ const reviewSubmissionDiscoveryMaxPages = 1000
 
 func prepareReviewSubmissionForCreateWithPageLimit(
 	ctx context.Context,
+	stderr io.Writer,
 	client *asc.Client,
 	appID, platform, versionID string,
 	emit func(string),
@@ -288,7 +291,7 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 			emit(message)
 			return
 		}
-		fmt.Fprintln(os.Stderr, message)
+		fmt.Fprintln(stderr, message)
 	}
 
 	existing, err := client.GetReviewSubmissionsStrict(
@@ -732,7 +735,7 @@ func refreshReviewSubmission(ctx context.Context, client *asc.Client, submission
 	return &resp.Data, nil
 }
 
-func preserveCreatedReviewSubmission(submissionID string, emit func(string)) {
+func preserveCreatedReviewSubmission(stderr io.Writer, submissionID string, emit func(string)) {
 	submissionID = strings.TrimSpace(submissionID)
 	if submissionID == "" {
 		return
@@ -745,6 +748,6 @@ func preserveCreatedReviewSubmission(submissionID string, emit func(string)) {
 	if emit != nil {
 		emit(message)
 	} else {
-		fmt.Fprintln(os.Stderr, message)
+		fmt.Fprintln(stderr, message)
 	}
 }
