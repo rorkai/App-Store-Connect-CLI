@@ -595,6 +595,8 @@ func MigrateExportCommand() *ffcli.Command {
 		LongHelp: `Export current App Store metadata to fastlane directory structure.
 
 Creates the standard fastlane structure with all localizations.
+The version's App Review details go to metadata/review_information/ in the
+files import reads; the demo account password is not written.
 
 Examples:
   asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane`,
@@ -645,6 +647,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate export: %w", err)
 				}
+			}
+
+			reviewDetail, err := fetchExportReviewDetail(ctx, client, strings.TrimSpace(*versionID))
+			if err != nil {
+				return fmt.Errorf("migrate export: %w", err)
+			}
+			if reviewDetail != nil && reviewDetail.DemoAccountPassword != "" {
+				fmt.Fprintln(os.Stderr, "Warning: demo account password not exported to metadata/review_information/demo_password.txt")
 			}
 
 			assetPlan, assetWarnings, err := storeassets.ExportPlanWithVersionLocalizations(ctx, client, strings.TrimSpace(*versionID), "metadata", true, true, localizations)
@@ -731,6 +741,12 @@ Examples:
 					totalFiles += written
 				}
 			}
+
+			written, err := writeExportReviewInformation(root, reviewDetail)
+			if err != nil {
+				return fmt.Errorf("migrate export: %w", err)
+			}
+			totalFiles += written
 
 			assetFiles, cleanupWarnings, exportErr := assetExport.Write(ctx)
 			for _, warning := range cleanupWarnings {

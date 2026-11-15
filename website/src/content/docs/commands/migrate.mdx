@@ -189,6 +189,8 @@ Export current App Store metadata to fastlane directory structure:
 asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane
 ```
 
+The version's App Review details are written to `metadata/review_information/` in the files `migrate import` reads; empty fields write no file. The demo account password is never written, so add `demo_password.txt` yourself before an import that should set it.
+
 **Flags:**
 
 * `--app` - App Store Connect app ID (or `ASC_APP_ID`)

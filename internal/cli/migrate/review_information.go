@@ -1,9 +1,11 @@
 package migrate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -222,6 +224,63 @@ func parseReviewRequiredValue(path, value string, exists bool) (*bool, error) {
 	default:
 		return nil, fmt.Errorf("review_information %s must be true or false", path)
 	}
+}
+
+// fetchExportReviewDetail returns nil when the version has no App Review detail.
+func fetchExportReviewDetail(ctx context.Context, client *asc.Client, versionID string) (*asc.AppStoreReviewDetailAttributes, error) {
+	requestCtx, cancel := migrateRequestContext(ctx)
+	defer cancel()
+	resp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, versionID)
+	if err != nil {
+		if isNotFoundReviewDetail(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to fetch review information: %w", err)
+	}
+	if resp == nil {
+		return nil, nil
+	}
+	return &resp.Data.Attributes, nil
+}
+
+// writeExportReviewInformation writes the review information files that
+// import reads, except the demo account password, which is never written in
+// clear text.
+func writeExportReviewInformation(root rootfs.Root, attrs *asc.AppStoreReviewDetailAttributes) (int, error) {
+	dir := filepath.Join("metadata", reviewInformationDir)
+	var detail asc.AppStoreReviewDetailAttributes
+	required := ""
+	if attrs != nil {
+		if err := root.MkdirAll(dir, 0o755); err != nil {
+			return 0, fmt.Errorf("failed to create review information directory: %w", err)
+		}
+		detail = *attrs
+		required = strconv.FormatBool(attrs.DemoAccountRequired)
+	}
+	// Empty content removes a file left by an earlier export, including the
+	// alternate demo required name that import rejects when it disagrees.
+	files := []struct {
+		name    string
+		content string
+	}{
+		{"first_name.txt", detail.ContactFirstName},
+		{"last_name.txt", detail.ContactLastName},
+		{"phone_number.txt", detail.ContactPhone},
+		{"email_address.txt", detail.ContactEmail},
+		{"demo_user.txt", detail.DemoAccountName},
+		{"demo_required.txt", required},
+		{"demo_account_required.txt", ""},
+		{"notes.txt", detail.Notes},
+	}
+	total := 0
+	for _, file := range files {
+		written, err := writeAndCount(root, filepath.Join(dir, file.name), file.content)
+		if err != nil {
+			return 0, err
+		}
+		total += written
+	}
+	return total, nil
 }
 
 func reviewInformationRelativePath(file string) string {
