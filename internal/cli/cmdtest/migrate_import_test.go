@@ -169,6 +169,7 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		t.Fatalf("mkdir metadata: %v", err)
 	}
 	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
+	writeFile(t, filepath.Join(metadataDir, "apple_tv_privacy_policy.txt"), "Privacy policy text")
 
 	// Mimic a common fastlane deliver subdirectory that is not a locale.
 	nonLocaleDir := filepath.Join(root, "metadata", "trade_representative_contact_information")
@@ -176,6 +177,19 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		t.Fatalf("mkdir non-locale dir: %v", err)
 	}
 	writeFile(t, filepath.Join(nonLocaleDir, "first_name.txt"), "Rita")
+	writeFile(t, filepath.Join(root, "metadata", "copyright.txt"), "2026 Example Inc.")
+	writeFile(t, filepath.Join(root, "metadata", "primary_category.txt"), "GAMES")
+	writeFile(t, filepath.Join(root, "metadata", "secondary_category.txt"), "  \n")
+	defaultDir := filepath.Join(root, "metadata", "default")
+	if err := os.MkdirAll(defaultDir, 0o755); err != nil {
+		t.Fatalf("mkdir default dir: %v", err)
+	}
+	writeFile(t, filepath.Join(defaultDir, "apple_tv_privacy_policy.txt"), "Default policy text")
+	unreadable := filepath.Join(root, "metadata", "primary_first_sub_category.txt")
+	writeFile(t, unreadable, "GAMES_ACTION")
+	if err := os.Chmod(unreadable, 0o000); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
 	nonLocaleDirResolved, err := filepath.EvalSymlinks(nonLocaleDir)
 	if err != nil {
 		t.Fatalf("eval symlinks non-locale dir: %v", err)
@@ -224,6 +238,8 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	}
 
 	found := false
+	appLevelReasons := map[string]string{}
+	defaultPolicyReason := ""
 	for _, item := range result.Skipped {
 		itemPathResolved, err := filepath.EvalSymlinks(item.Path)
 		if err != nil {
@@ -231,11 +247,33 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		}
 		if itemPathResolved == nonLocaleDirResolved && strings.Contains(item.Reason, "skipped non-locale directory") {
 			found = true
-			break
+		}
+		if strings.HasSuffix(item.Path, filepath.Join("default", "apple_tv_privacy_policy.txt")) {
+			defaultPolicyReason = item.Reason
+		} else if strings.HasSuffix(item.Path, ".txt") {
+			appLevelReasons[filepath.Base(item.Path)] = item.Reason
 		}
 	}
 	if !found {
 		t.Fatalf("expected skipped to include %q (got %+v)", nonLocaleDir, result.Skipped)
+	}
+	if !strings.Contains(defaultPolicyReason, "not imported") || !strings.HasSuffix(defaultPolicyReason, "asc app-setup info set --app APP_ID --locale LOCALE --privacy-policy-text TEXT") {
+		t.Fatalf("expected the default folder's policy text to be reported with a locale placeholder, got %q", defaultPolicyReason)
+	}
+	wantReasons := map[string]string{
+		"copyright.txt":        "asc versions update --version-id VERSION_ID --copyright TEXT",
+		"primary_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID",
+		// Unreadable for a non-root user; it must still be reported, not abort the import.
+		"primary_first_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-one SUBCATEGORY_ID",
+		"apple_tv_privacy_policy.txt":    "asc app-setup info set --app APP_ID --locale en-US --privacy-policy-text TEXT",
+	}
+	if len(appLevelReasons) != len(wantReasons) {
+		t.Fatalf("expected skipped app-level files %v, got %+v", wantReasons, result.Skipped)
+	}
+	for file, command := range wantReasons {
+		if reason := appLevelReasons[file]; !strings.Contains(reason, "not imported") || !strings.Contains(reason, command) {
+			t.Fatalf("expected skipped reason for %s to name %q, got %q", file, command, reason)
+		}
 	}
 }
 
@@ -1839,7 +1877,8 @@ func TestMigrateImportDryRunDeliverfileSkipScreenshotsAllowsMissingFastlaneScree
 		t.Fatalf("mkdir metadata: %v", err)
 	}
 	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
-	writeFile(t, filepath.Join(fastlaneDir, "Deliverfile"), "skip_screenshots true\n")
+	configPath := filepath.Join(fastlaneDir, "Deliverfile")
+	writeFile(t, configPath, "submit_for_review true\nskip_screenshots true\nphased_release false\nmetadata_path \"./metadata\"\nprice_tier 0\nreset_ratings = ENV[\"RESET\"]\nif reset_ratings\n  automatic_release true\nend\napp_review_information(\n  name: \"Ada\",\n  description: \"notes\"\n)\nprice_tier += 1\nsubmit_for_review ||= false\nlanguages %w[en-US fr-FR]\nprice_tier - 1\nsubmit_for_review != true\n")
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -1882,6 +1921,91 @@ func TestMigrateImportDryRunDeliverfileSkipScreenshotsAllowsMissingFastlaneScree
 	}
 	if !foundDeliverfileSkip {
 		t.Fatalf("expected skipped list to include Deliverfile skip_screenshots reason, got %+v", result.Skipped)
+	}
+	wantIgnored := []migrate.SkippedItem{
+		{Path: configPath, Reason: "line 1: submit_for_review is not applied by import; to apply it, run: asc review submit --app APP_ID --version-id VERSION_ID --build-id BUILD_ID --confirm"},
+		{Path: configPath, Reason: "line 3: phased_release is not applied by import"},
+		{Path: configPath, Reason: "line 5: price_tier is not applied by import"},
+		{Path: configPath, Reason: "line 8: automatic_release is not applied by import; to apply it, run: asc versions update --version-id VERSION_ID --release-type AFTER_APPROVAL"},
+		{Path: configPath, Reason: "line 10: app_review_information is not applied by import"},
+		{Path: configPath, Reason: "line 16: languages is not applied by import"},
+	}
+	var gotIgnored []migrate.SkippedItem
+	for _, skipped := range result.Skipped {
+		if skipped.Path == configPath {
+			gotIgnored = append(gotIgnored, skipped)
+		}
+	}
+	if !slices.Equal(gotIgnored, wantIgnored) {
+		t.Fatalf("expected ignored configuration keys %+v, got %+v", wantIgnored, gotIgnored)
+	}
+}
+
+func TestMigrateImportDryRunConfigReleaseHints(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		want   []string
+	}{
+		{
+			name:   "manual release",
+			config: "automatic_release false\n",
+			want: []string{
+				"line 1: automatic_release is not applied by import; to apply it, run: asc versions update --version-id VERSION_ID --release-type MANUAL",
+			},
+		},
+		{
+			name:   "a nil release date is no release date",
+			config: "automatic_release false\nauto_release_date nil\n",
+			want: []string{
+				"line 1: automatic_release is not applied by import; to apply it, run: asc versions update --version-id VERSION_ID --release-type MANUAL",
+				"line 2: auto_release_date is not applied by import",
+			},
+		},
+		{
+			name:   "a release date decides the release type",
+			config: "automatic_release false\nauto_release_date 1767225600000\n",
+			want: []string{
+				"line 1: automatic_release is not applied by import",
+				"line 2: auto_release_date is not applied by import; to apply it, run: asc versions update --version-id VERSION_ID --release-type SCHEDULED --earliest-release-date DATE",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			localeDir := filepath.Join(dir, "metadata", "en-US")
+			if err := os.MkdirAll(localeDir, 0o755); err != nil {
+				t.Fatalf("mkdir metadata: %v", err)
+			}
+			writeFile(t, filepath.Join(localeDir, "description.txt"), "English description")
+			configPath := filepath.Join(dir, "Deliverfile")
+			writeFile(t, configPath, test.config)
+
+			rootCmd := RootCommand("1.2.3")
+			rootCmd.FlagSet.SetOutput(io.Discard)
+			stdout, _ := captureOutput(t, func() {
+				if err := rootCmd.Parse([]string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", dir, "--dry-run", "--skip-screenshots"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := rootCmd.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			var result migrate.MigrateImportResult
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("unmarshal result: %v", err)
+			}
+			var got []string
+			for _, skipped := range result.Skipped {
+				if skipped.Path == configPath {
+					got = append(got, skipped.Reason)
+				}
+			}
+			if !slices.Equal(got, test.want) {
+				t.Fatalf("configuration hints = %q, want %q", got, test.want)
+			}
+		})
 	}
 }
 

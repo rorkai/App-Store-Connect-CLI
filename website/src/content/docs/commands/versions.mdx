@@ -186,7 +186,7 @@ Create a new app store version.
 </ParamField>
 
 <ParamField path="--earliest-release-date" type="string">
-  Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)
+  Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00). Apple applies it only to `SCHEDULED` releases, so without `--release-type` the command also sends `SCHEDULED` and says so on stderr; any other `--release-type` is a usage error (since 7.0.0)
 </ParamField>
 
 <ParamField path="--review-type" type="string">
@@ -242,7 +242,7 @@ Update an app store version.
 </ParamField>
 
 <ParamField path="--earliest-release-date" type="string">
-  Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)
+  Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00). Apple applies it only to `SCHEDULED` releases, so without `--release-type` the command also sends `SCHEDULED` and says so on stderr; any other `--release-type` is a usage error (since 7.0.0)
 </ParamField>
 
 <ParamField path="--version" type="string">

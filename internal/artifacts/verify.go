@@ -86,6 +86,40 @@ func loadTrustPolicy(files fs.FS, dir string) (*trustPolicy, error) {
 	return policy, nil
 }
 
+// AppleIntermediateCertificate is one embedded Apple intermediate certificate.
+// Name is its file name without the intermediate- prefix and .pem suffix.
+type AppleIntermediateCertificate struct {
+	Name        string
+	Certificate *x509.Certificate
+}
+
+// AppleIntermediateCertificates returns the embedded Apple intermediate
+// certificates. Nothing is downloaded.
+func AppleIntermediateCertificates() ([]AppleIntermediateCertificate, error) {
+	names, err := fs.Glob(appleCertificates, "applecerts/intermediate-*.pem")
+	if err != nil {
+		return nil, err
+	}
+	intermediates := make([]AppleIntermediateCertificate, 0, len(names))
+	for _, name := range names {
+		data, err := fs.ReadFile(appleCertificates, name)
+		if err != nil {
+			return nil, err
+		}
+		block, _ := pem.Decode(data)
+		if block == nil || block.Type != "CERTIFICATE" {
+			return nil, fmt.Errorf("%s must hold a PEM certificate", name)
+		}
+		certificate, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", name, err)
+		}
+		base := strings.TrimSuffix(strings.TrimPrefix(path.Base(name), "intermediate-"), ".pem")
+		intermediates = append(intermediates, AppleIntermediateCertificate{Name: base, Certificate: certificate})
+	}
+	return intermediates, nil
+}
+
 func (policy *trustPolicy) addRoot(certificate *x509.Certificate) {
 	policy.roots.AddCert(certificate)
 	policy.rootNames[string(certificate.Raw)] = certificate.Subject.CommonName

@@ -12,9 +12,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// XcodeCloudWorkflowsCommand returns the xcode-cloud workflows subcommand.
-func XcodeCloudWorkflowsCommand() *ffcli.Command {
+// newXcodeCloudWorkflowsCommand returns the xcode-cloud workflows subcommand.
+func newXcodeCloudWorkflowsCommand(d *shared.Deps) *ffcli.Command {
 	cmd := xcodeCloudWorkflowsListCommand(
+		d,
 		"workflows",
 		"asc xcode-cloud workflows [flags]",
 		"Manage Xcode Cloud workflows.",
@@ -30,19 +31,20 @@ Examples:
   asc xcode-cloud workflows --app "APP_ID" --paginate`,
 	)
 	cmd.Subcommands = []*ffcli.Command{
-		XcodeCloudWorkflowsListCommand(),
-		XcodeCloudWorkflowsGetCommand(),
-		XcodeCloudWorkflowsRepositoryCommand(),
-		XcodeCloudWorkflowsCreateCommand(),
-		XcodeCloudWorkflowsUpdateCommand(),
-		XcodeCloudWorkflowsDuplicateCommand(),
-		XcodeCloudWorkflowsDeleteCommand(),
+		newXcodeCloudWorkflowsListCommand(d),
+		newXcodeCloudWorkflowsGetCommand(d),
+		newXcodeCloudWorkflowsRepositoryCommand(d),
+		newXcodeCloudWorkflowsCreateCommand(d),
+		newXcodeCloudWorkflowsUpdateCommand(d),
+		newXcodeCloudWorkflowsDuplicateCommand(d),
+		newXcodeCloudWorkflowsDeleteCommand(d),
 	}
 	return cmd
 }
 
-func XcodeCloudWorkflowsListCommand() *ffcli.Command {
+func newXcodeCloudWorkflowsListCommand(d *shared.Deps) *ffcli.Command {
 	return xcodeCloudWorkflowsListCommand(
+		d,
 		"list",
 		"asc xcode-cloud workflows list [flags]",
 		"List Xcode Cloud workflows for an app.",
@@ -55,7 +57,7 @@ Examples:
 	)
 }
 
-func xcodeCloudWorkflowsListCommand(name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
+func xcodeCloudWorkflowsListCommand(d *shared.Deps, name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:                 name,
 		ShortUsage:           shortUsage,
@@ -68,8 +70,9 @@ func xcodeCloudWorkflowsListCommand(name, shortUsage, shortHelp, longHelp string
 		PaginateIgnoresLimit: true,
 		ErrorPrefix:          "xcode-cloud workflows",
 		FetchErrorPrefix:     "xcode-cloud workflows",
+		Deps:                 d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		LookupParent: func(ctx context.Context, client *asc.Client, appID string) (string, error) {
 			resolvedAppID, err := resolveXcodeCloudAppID(ctx, client, appID)
@@ -88,7 +91,7 @@ func xcodeCloudWorkflowsListCommand(name, shortUsage, shortHelp, longHelp string
 	})
 }
 
-func XcodeCloudWorkflowsGetCommand() *ffcli.Command {
+func newXcodeCloudWorkflowsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc xcode-cloud workflows view --id \"WORKFLOW_ID\"",
@@ -102,8 +105,9 @@ Examples:
 		IDUsage:          "Workflow ID",
 		IDType:           "ciWorkflows",
 		FetchErrorPrefix: "xcode-cloud workflows view",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetCiWorkflow(ctx, id)
@@ -111,7 +115,7 @@ Examples:
 	})
 }
 
-func XcodeCloudWorkflowsRepositoryCommand() *ffcli.Command {
+func newXcodeCloudWorkflowsRepositoryCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "repository",
 		ShortUsage: "asc xcode-cloud workflows repository --id \"WORKFLOW_ID\"",
@@ -125,8 +129,9 @@ Examples:
 		IDUsage:          "Workflow ID",
 		IDType:           "ciWorkflows",
 		FetchErrorPrefix: "xcode-cloud workflows repository",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			repo, err := client.GetCiWorkflowRepository(ctx, id)
@@ -138,11 +143,11 @@ Examples:
 	})
 }
 
-func XcodeCloudWorkflowsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+func newXcodeCloudWorkflowsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	file := fs.String("file", "", "Path to workflow JSON payload")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -157,20 +162,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			payload, err := shared.ReadJSONFilePayload(fileValue)
+			payload, err := d.ReadJSONFilePayload(fileValue)
 			if err != nil {
 				return fmt.Errorf("xcode-cloud workflows create: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud workflows create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, 0)
 			defer cancel()
 
 			resp, err := client.CreateCiWorkflow(requestCtx, payload)
@@ -178,17 +183,17 @@ Examples:
 				return fmt.Errorf("xcode-cloud workflows create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func XcodeCloudWorkflowsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+func newXcodeCloudWorkflowsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "ciWorkflows", "Workflow ID")
 	file := fs.String("file", "", "Path to workflow JSON payload")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -203,24 +208,24 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			payload, err := shared.ReadJSONFilePayload(fileValue)
+			payload, err := d.ReadJSONFilePayload(fileValue)
 			if err != nil {
 				return fmt.Errorf("xcode-cloud workflows update: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud workflows update: %w", err)
 			}
 
-			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, 0)
 			defer cancel()
 
 			resp, err := client.UpdateCiWorkflow(requestCtx, idValue, payload)
@@ -228,12 +233,12 @@ Examples:
 				return fmt.Errorf("xcode-cloud workflows update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func XcodeCloudWorkflowsDeleteCommand() *ffcli.Command {
+func newXcodeCloudWorkflowsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc xcode-cloud workflows delete --id \"WORKFLOW_ID\" --confirm",
@@ -246,8 +251,9 @@ Examples:
 		IDUsage:           "Workflow ID",
 		IDType:            "ciWorkflows",
 		DeleteErrorPrefix: "xcode-cloud workflows delete",
+		Deps:              d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			if err := client.DeleteCiWorkflow(ctx, id); err != nil {

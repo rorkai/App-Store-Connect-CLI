@@ -50,11 +50,6 @@ type nominationsQuery struct {
 	supportedTerritoriesLimit int
 }
 
-type betaAppClipInvocationQuery struct {
-	include            []string
-	localizationsLimit int
-}
-
 type appEncryptionDeclarationsQuery struct {
 	listQuery
 	includedFieldsQuery
@@ -89,15 +84,6 @@ func buildAppClipDefaultExperienceQuery(query *appClipDefaultExperienceQuery) st
 	values := url.Values{}
 	addCSV(values, "include", query.include)
 	query.includedFields.AddTo(values)
-	return values.Encode()
-}
-
-func buildBetaAppClipInvocationQuery(query *betaAppClipInvocationQuery) string {
-	values := url.Values{}
-	addCSV(values, "include", query.include)
-	if query.localizationsLimit > 0 {
-		values.Set("limit[betaAppClipInvocationLocalizations]", strconv.Itoa(query.localizationsLimit))
-	}
 	return values.Encode()
 }
 
@@ -192,9 +178,6 @@ type AppsOption func(*appsQuery)
 
 // AppClipDefaultExperienceOption is a functional option for GetAppClipDefaultExperience.
 type AppClipDefaultExperienceOption func(*appClipDefaultExperienceQuery)
-
-// BetaAppClipInvocationOption is a functional option for GetBetaAppClipInvocation.
-type BetaAppClipInvocationOption func(*betaAppClipInvocationQuery)
 
 // AppTagsOption is a functional option for GetAppTags.
 type AppTagsOption func(*appTagsQuery)
@@ -327,22 +310,6 @@ func WithAppsInclude(include []string) AppsOption {
 func WithAppClipDefaultExperienceInclude(include []string) AppClipDefaultExperienceOption {
 	return func(q *appClipDefaultExperienceQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithBetaAppClipInvocationInclude sets include for beta App Clip invocation detail.
-func WithBetaAppClipInvocationInclude(include []string) BetaAppClipInvocationOption {
-	return func(q *betaAppClipInvocationQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithBetaAppClipInvocationLocalizationsLimit sets limit for included localizations.
-func WithBetaAppClipInvocationLocalizationsLimit(limit int) BetaAppClipInvocationOption {
-	return func(q *betaAppClipInvocationQuery) {
-		if limit > 0 {
-			q.localizationsLimit = limit
-		}
 	}
 }
 

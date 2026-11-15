@@ -122,10 +122,12 @@ Steps can be **short form** (bare string) or **long form** (object):
 | `run`      | string | Conditional | Shell command to execute (mutually exclusive with `workflow`)    |
 | `workflow` | string | Conditional | Name of another workflow to call (mutually exclusive with `run`) |
 | `name`     | string | No          | Step identifier (for debugging and JSON output)                  |
-| `if`       | string | No          | Name of a variable that must hold a truthy value for the step to run |
+| `if`       | string | No          | Variable that must hold a truthy value, or `NAME == VALUE` / `NAME != VALUE`, for the step to run |
 | `with`     | object | No          | Additional environment variables for this step only              |
 | `retry`    | object | No          | Explicit fixed-delay retry policy for `run` steps                 |
 | `timeout`  | string | No          | Positive per-attempt timeout for `run` steps                      |
+| `env`      | object | No          | Environment variables for this step only; outranks runtime parameters |
+| `continue_on_error` | boolean | No | Record the step's failure and keep running the workflow          |
 
 <Warning>
   A step must have **either** `run` or `workflow`, but not both.
@@ -228,7 +230,9 @@ that variable holds a truthy value: `1`, `true`, `yes`, `y`, or `on`
 (case-insensitive, surrounding whitespace ignored). Every other value is falsy,
 including an unset variable, an empty string, and any other non-empty value such
 as an ID, a version string, or a file path. Use `if` as a boolean feature flag,
-never as a "was this ID supplied?" check.
+never as a "was this ID supplied?" check. `$NAME` means the same as `NAME`, and
+`NAME == VALUE` or `NAME != VALUE` compares the value exactly with a literal
+(an unset variable compares as an empty string).
 
 The variable is looked up in the workflow environment first (runtime parameters,
 `with`, workflow `env`, global `env`) and then in the process environment.
@@ -268,9 +272,10 @@ Include the submission step:
 asc workflow run release SUBMIT_FOR_REVIEW:true
 ```
 
-The older, unsupported form is a shell expression such as
-`"if": "test \"$SUBMIT_FOR_REVIEW\" = \"true\""`. That string is used as a
-variable name, never resolves, and silently skips the step.
+Any other expression, such as
+`"if": "test \"$SUBMIT_FOR_REVIEW\" = \"true\""`, skips the step with a
+warning on stderr, so a submit step gated that way never runs. A future major
+release will reject such expressions.
 
 ## Calling Other Workflows
 
@@ -459,8 +464,8 @@ There is no `exit_code` and no `success` field. Gate CI on `.status`, which is
 
 Each `steps[]` entry carries `index`, `name`, `command`, `status`, and
 `duration_ms`, plus `outputs`, `attempts`, `failure_reason`, `error`,
-`workflow`, and `parent_workflow` when they apply. Step `status` is one of `ok`,
-`error`, `skipped`, `resumed`, or `dry-run`.
+`continued_on_error`, `workflow`, and `parent_workflow` when they apply. Step
+`status` is one of `ok`, `error`, `skipped`, `resumed`, or `dry-run`.
 
 A failed run keeps stdout machine-parseable and adds the recovery block:
 

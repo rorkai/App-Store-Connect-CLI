@@ -59,12 +59,7 @@ Examples:
 }
 
 func TestFlightFeedbackViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackScreenshotSubmissions", "Feedback submission ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc testflight feedback view --submission-id \"SUBMISSION_ID\"",
 		ShortHelp:  "View a feedback submission by ID.",
@@ -72,16 +67,14 @@ func TestFlightFeedbackViewCommand() *ffcli.Command {
 
 Examples:
   asc testflight feedback view --submission-id "SUBMISSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			submissionIDValue := strings.TrimSpace(*submissionID)
-			if submissionIDValue == "" {
-				return shared.RequiredFlag("--submission-id")
-			}
-			return runFeedbackSubmissionView(ctx, submissionIDValue, output)
+		IDFlag:             "submission-id",
+		IDUsage:            "Feedback submission ID",
+		IDType:             "betaFeedbackScreenshotSubmissions",
+		RequiredDiagnostic: true,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaFeedbackScreenshotSubmission(ctx, id)
 		},
-	}
+	})
 }
 
 func TestFlightFeedbackDeleteCommand() *ffcli.Command {
@@ -152,12 +145,7 @@ Examples:
 }
 
 func TestFlightCrashesViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackCrashSubmissions", "Crash submission ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc testflight crashes view --submission-id \"SUBMISSION_ID\"",
 		ShortHelp:  "View a crash submission by ID.",
@@ -165,16 +153,14 @@ func TestFlightCrashesViewCommand() *ffcli.Command {
 
 Examples:
   asc testflight crashes view --submission-id "SUBMISSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			submissionIDValue := strings.TrimSpace(*submissionID)
-			if submissionIDValue == "" {
-				return shared.RequiredFlag("--submission-id")
-			}
-			return runCrashSubmissionView(ctx, submissionIDValue, output)
+		IDFlag:             "submission-id",
+		IDUsage:            "Crash submission ID",
+		IDType:             "betaFeedbackCrashSubmissions",
+		RequiredDiagnostic: true,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaFeedbackCrashSubmission(ctx, id)
 		},
-	}
+	})
 }
 
 func TestFlightCrashesDeleteCommand() *ffcli.Command {
@@ -234,40 +220,6 @@ Examples:
 			return runCrashLogByCrashLogID(ctx, crashLogIDValue, output)
 		},
 	}
-}
-
-func runFeedbackSubmissionView(ctx context.Context, submissionID string, output shared.OutputFlags) error {
-	client, err := shared.GetASCClient()
-	if err != nil {
-		return fmt.Errorf("testflight feedback view: %w", err)
-	}
-
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-
-	resp, err := client.GetBetaFeedbackScreenshotSubmission(requestCtx, submissionID)
-	if err != nil {
-		return fmt.Errorf("testflight feedback view: failed to fetch: %w", err)
-	}
-
-	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-}
-
-func runCrashSubmissionView(ctx context.Context, submissionID string, output shared.OutputFlags) error {
-	client, err := shared.GetASCClient()
-	if err != nil {
-		return fmt.Errorf("testflight crashes view: %w", err)
-	}
-
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-
-	resp, err := client.GetBetaFeedbackCrashSubmission(requestCtx, submissionID)
-	if err != nil {
-		return fmt.Errorf("testflight crashes view: failed to fetch: %w", err)
-	}
-
-	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 }
 
 func runCrashLogBySubmissionID(ctx context.Context, submissionID string, output shared.OutputFlags) error {

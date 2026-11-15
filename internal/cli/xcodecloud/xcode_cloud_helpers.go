@@ -12,7 +12,7 @@ import (
 )
 
 // waitForBuildCompletion polls until the build run completes or times out.
-func waitForBuildCompletion(ctx context.Context, client *asc.Client, buildRunID string, pollInterval time.Duration, outputFormat string, pretty bool) error {
+func waitForBuildCompletion(ctx context.Context, d *shared.Deps, client *asc.Client, buildRunID string, pollInterval time.Duration, outputFormat string, pretty bool) error {
 	lastStatus := "unknown"
 	_, err := asc.PollUntil(ctx, pollInterval, func(ctx context.Context) (struct{}, bool, error) {
 		resp, err := getCiBuildRun(ctx, client, buildRunID)
@@ -23,7 +23,7 @@ func waitForBuildCompletion(ctx context.Context, client *asc.Client, buildRunID 
 
 		if asc.IsBuildRunComplete(resp.Data.Attributes.ExecutionProgress) {
 			result := buildStatusResult(resp)
-			if err := shared.PrintOutput(result, outputFormat, pretty); err != nil {
+			if err := d.PrintOutput(result, outputFormat, pretty); err != nil {
 				return struct{}{}, false, err
 			}
 
@@ -100,12 +100,12 @@ func buildStatusResult(resp *asc.CiBuildRunResponse) *asc.XcodeCloudStatusResult
 
 const defaultXcodeCloudTimeout = 30 * time.Minute
 
-func contextWithXcodeCloudTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+func contextWithXcodeCloudTimeout(d *shared.Deps, ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if timeout <= 0 {
-		timeout = asc.ResolveTimeoutWithDefault(defaultXcodeCloudTimeout)
+		timeout = d.ResolveTimeout(shared.RequestTimeoutSetting, defaultXcodeCloudTimeout)
 	}
 	return context.WithTimeout(ctx, timeout)
 }

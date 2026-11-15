@@ -1,8 +1,6 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -53,23 +51,15 @@ func TestXcodeCloudProductsTableHydratesBundleIDFromIncludedApp(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/ciProducts", test.wantQuery.Encode()),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"ciProducts","id":"prod-1","attributes":{"name":"FoundationLab","createdDate":"2025-06-25T08:55:49.429Z","productType":"APP"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}],`+
 					`"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"com.rudrankriyam.foundationlab"}}]}`))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
 			args := append([]string{"xcode-cloud", "products", "list", "--output", "table"}, test.args...)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -146,24 +136,16 @@ func TestXcodeCloudProductsTableHydratesBundleIDsAcrossPages(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for _, step := range test.steps {
 				reg.Register(asctest.GET(step.path, step.rawQuery), asctest.JSON(http.StatusOK, step.body))
 			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
 			args := append([]string{"xcode-cloud", "products", "list"}, test.args...)
 			args = append(args, "--output", "table")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)

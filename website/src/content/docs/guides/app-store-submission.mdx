@@ -315,6 +315,16 @@ Submit preflight failed: submission-blocking localization fields are missing:
 Fix these with `asc apps info edit` (optionally using `--copy-from-locale`) before retrying `asc validate` or `asc publish appstore --submit`.
 ```
 
+### Age Rating Validation
+
+Runs the same age rating declaration check as `asc validate`. A missing or invalid required answer stops the submission before anything is created:
+
+```
+Submit preflight failed: the age rating declaration is incomplete:
+  - socialMedia: age rating field is missing (age_rating.missing_field)
+Complete the age rating declaration in App Store Connect before retrying `asc publish appstore --submit`.
+```
+
 ### Fixing Validation Errors
 
 Copy complete localization from one locale to another:

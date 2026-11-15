@@ -34,6 +34,8 @@ type persistedStepState struct {
 	RetryEnabled   bool              `json:"retry_enabled,omitempty"`
 	Attempts       []AttemptResult   `json:"attempts,omitempty"`
 	Outputs        map[string]string `json:"outputs,omitempty"`
+
+	ContinuedOnError bool `json:"continued_on_error,omitempty"`
 }
 
 type persistedRunState struct {

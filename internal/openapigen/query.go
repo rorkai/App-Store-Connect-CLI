@@ -40,9 +40,10 @@ type QueryDeviation struct {
 	Reason    string `json:"reason"`
 }
 
-// QueryParam is one query parameter with an option. The parameter must be an
-// array of strings sent in form style without explode: the option normalizes
-// the list and the builder sends it comma-separated.
+// QueryParam is one query parameter with an option. By default the parameter
+// must be an array of strings sent in form style without explode: the option
+// normalizes the list and the builder sends it comma-separated. Type binds a
+// scalar option instead, one of the keys of scalarParams.
 type QueryParam struct {
 	Name string `json:"name"`
 	// Field is the query struct field; default "include" for include,
@@ -54,7 +55,44 @@ type QueryParam struct {
 	// Normalize names how the option cleans the list, one of the keys of
 	// listNormalizers.
 	Normalize string `json:"normalize,omitempty"`
+	Type      string `json:"type,omitempty"`
 }
+
+// scalarParam is how a scalar option is declared, set and sent.
+type scalarParam struct {
+	goType  string
+	schemas []string // the schema types it may send: "string" also sends one item of an array of strings
+	set     string   // body of the option's closure; %[1]s is the argument, %[2]s the field
+	send    string   // builder statement; %[1]s is the field, %[2]s the quoted parameter name
+}
+
+// scalarParams are the scalar options by QueryParam.Type. A string is
+// trimmed and a blank one leaves the field as it was; an integer is kept only
+// when positive and sent after limit; a boolean is sent as true or false once
+// set.
+var scalarParams = map[string]scalarParam{
+	"string": {
+		"string",
+		[]string{"string", "array"},
+		"if strings.TrimSpace(%[1]s) != \"\" {\nq.%[2]s = strings.TrimSpace(%[1]s)\n}",
+		"if strings.TrimSpace(query.%[1]s) != \"\" {\nvalues.Set(%[2]s, strings.TrimSpace(query.%[1]s))\n}",
+	},
+	"int": {
+		"int",
+		[]string{"integer"},
+		"if %[1]s > 0 {\nq.%[2]s = %[1]s\n}",
+		"if query.%[1]s > 0 {\nvalues.Set(%[2]s, strconv.Itoa(query.%[1]s))\n}",
+	},
+	"bool": {
+		"*bool",
+		[]string{"boolean"},
+		"q.%[2]s = &%[1]s",
+		"if query.%[1]s != nil {\nvalues.Set(%[2]s, strconv.FormatBool(*query.%[1]s))\n}",
+	},
+}
+
+// argType is the Go type of a scalar option's argument.
+func (s scalarParam) argType() string { return strings.TrimPrefix(s.goType, "*") }
 
 // listNormalizers are the functions an option cleans its list with, by
 // QueryParam.Normalize.
@@ -220,7 +258,7 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	op := ops[0]
 
 	option, structName := q.option(), q.structName()
-	var fields, sends []string
+	var fields, sends, nestedLimits []string
 	if paged {
 		fields = append(fields, "listQuery")
 	}
@@ -228,6 +266,7 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	seen := map[string]bool{}
 	for _, p := range q.Params {
 		normalize, known := listNormalizers[p.Normalize]
+		scalar, isScalar := scalarParams[p.Type]
 		switch {
 		case len(defined[p.Name]) == 0:
 			return nil, fmt.Errorf("parameter %s is not defined by %s", p.Name, strings.Join(q.operations(), " or "))
@@ -237,13 +276,14 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 			return nil, fmt.Errorf("parameter %s is bound twice", p.Name)
 		case !known:
 			return nil, fmt.Errorf("parameter %s has unknown normalize %q", p.Name, p.Normalize)
+		case p.Type != "" && !isScalar:
+			return nil, fmt.Errorf("parameter %s has unknown type %q", p.Name, p.Type)
+		case isScalar && p.Normalize != "":
+			return nil, fmt.Errorf("parameter %s of type %s cannot normalize a list", p.Name, p.Type)
 		}
 		for _, sp := range defined[p.Name] {
-			switch {
-			case sp.Schema.Type != "array" || sp.Schema.Items == nil || sp.Schema.Items.Type != "string":
-				return nil, fmt.Errorf("parameter %s is not an array of strings", p.Name)
-			case sp.Explode == nil || *sp.Explode || (sp.Style != "" && sp.Style != "form"):
-				return nil, fmt.Errorf("parameter %s is not sent as one comma-separated value (form style, explode false)", p.Name)
+			if err := checkParamSchema(p, sp, scalar); err != nil {
+				return nil, err
 			}
 		}
 		seen[p.Name] = true
@@ -255,6 +295,17 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 		if arg == "" {
 			arg = field
 		}
+		if isScalar {
+			fields = append(fields, field+" "+scalar.goType)
+			parts = append(parts, queryPart{with, fmt.Sprintf("// %s sets %s.\nfunc %s(%s %s) %s {\nreturn func(q *%s) {\n%s\n}\n}\n\n",
+				with, p.Name, with, arg, scalar.argType(), option, structName, fmt.Sprintf(scalar.set, arg, field))})
+			if p.Type == "int" {
+				nestedLimits = append(nestedLimits, fmt.Sprintf(scalar.send, field, strconv.Quote(p.Name)))
+			} else {
+				sends = append(sends, fmt.Sprintf(scalar.send, field, strconv.Quote(p.Name)))
+			}
+			continue
+		}
 		fields = append(fields, field+" []string")
 		parts = append(parts, queryPart{with, fmt.Sprintf("// %s sets %s.\nfunc %s(%s []string) %s {\nreturn func(q *%s) {\nq.%s = %s(%s)\n}\n}\n\n",
 			with, p.Name, with, arg, option, structName, field, normalize, arg)})
@@ -263,6 +314,7 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	if paged {
 		sends = append(sends, "addLimit(values, query.limit)")
 	}
+	sends = append(sends, nestedLimits...)
 	if len(sends) == 0 {
 		return nil, fmt.Errorf("query sends nothing")
 	}
@@ -281,6 +333,26 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	builder := queryPart{q.builder(), fmt.Sprintf("func %s(query *%s) string {\nvalues := url.Values{}\n%s\nreturn values.Encode()\n}\n\n",
 		q.builder(), structName, strings.Join(sends, "\n"))}
 	return append(append(head, parts...), builder), nil
+}
+
+// checkParamSchema checks that a read's parameter is sent as its binding
+// sends it: an array of strings in form style without explode for a list or
+// a string option, and the schema type of a scalar option.
+func checkParamSchema(p *QueryParam, sp queryParam, scalar scalarParam) error {
+	isArray := sp.Schema.Type == "array"
+	if p.Type != "" && !slices.Contains(scalar.schemas, sp.Schema.Type) {
+		return fmt.Errorf("parameter %s of type %s is a %s in the schema", p.Name, p.Type, sp.Schema.Type)
+	}
+	if p.Type != "" && !isArray {
+		return nil
+	}
+	switch {
+	case !isArray || sp.Schema.Items == nil || sp.Schema.Items.Type != "string":
+		return fmt.Errorf("parameter %s is not an array of strings", p.Name)
+	case sp.Explode == nil || *sp.Explode || (sp.Style != "" && sp.Style != "form"):
+		return fmt.Errorf("parameter %s is not sent as one comma-separated value (form style, explode false)", p.Name)
+	}
+	return nil
 }
 
 // renderQueries renders the queries of a family.

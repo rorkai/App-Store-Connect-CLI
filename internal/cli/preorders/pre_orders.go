@@ -45,47 +45,29 @@ Examples:
 
 // newPreOrdersGetCommand returns the get subcommand.
 func newPreOrdersGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("pre-orders view", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc pre-orders view [flags]",
-		ShortHelp:  "View app pre-order availability.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "pre-orders view",
+		Name:        "view",
+		ShortUsage:  "asc pre-orders view [flags]",
+		ShortHelp:   "View app pre-order availability.",
 		LongHelp: `View app pre-order availability.
 
 Examples:
   asc pre-orders view --app "123456789"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
+		IDFlag:             "app",
+		IDUsage:            "App Store Connect app ID (or ASC_APP_ID)",
+		ResolveApp:         true,
+		RequiredDiagnostic: true,
+		FetchErrorPrefix:   "pre-orders view",
+		Deps:               d,
+		Fetch: func(ctx context.Context, client *asc.Client, appID string) (any, error) {
+			resp, err := client.GetAppAvailabilityV2(ctx, appID)
+			if shared.IsAppAvailabilityMissing(err) {
+				return nil, fmt.Errorf("app availability not found for app %q", appID)
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("pre-orders view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
-			if err != nil {
-				if shared.IsAppAvailabilityMissing(err) {
-					return fmt.Errorf("pre-orders view: app availability not found for app %q", resolvedAppID)
-				}
-				return fmt.Errorf("pre-orders view: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return resp, err
 		},
-	}
+	})
 }
 
 // newPreOrdersListCommand returns the list subcommand.

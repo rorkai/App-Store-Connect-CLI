@@ -93,6 +93,24 @@
         }
       }
     },
+    "/v1/zippers/{id}/sprockets": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "zippers_sprockets_getToManyRelated",
+        "parameters": [
+          {"name": "filter[label]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "filter[color]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": true},
+          {"name": "granularity", "in": "query", "schema": {"type": "string", "enum": ["P1D", "PT1H"]}, "style": "form", "explode": false},
+          {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "limit[teeth]", "in": "query", "schema": {"type": "integer", "maximum": 50}, "style": "form"},
+          {"name": "exists[owner]", "in": "query", "schema": {"type": "boolean"}, "style": "form", "explode": false},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
+        ],
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}}
+        }
+      }
+    },
     "/v1/widgets/{id}/parts": {
       "get": {
         "tags": ["Widgets"],

@@ -59,7 +59,7 @@ func TestXcodeCloudScmValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }

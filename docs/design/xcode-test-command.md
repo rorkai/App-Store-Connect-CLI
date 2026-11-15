@@ -39,8 +39,8 @@ Typed flags are `--project`, `--workspace`, `--scheme`, `--action`,
 `--configuration`, repeatable `--destination`, `--test-plan`, `--xctestrun`,
 repeatable `--only-testing`, repeatable `--skip-testing`,
 `--derived-data-path`, `--result-bundle-path`, `--clean`,
-`--no-code-signing`, repeatable `--xcodebuild-flag`, and the standard output
-flags. Empty values are invalid. Positional arguments are invalid.
+`--no-code-signing`, `--code-coverage`, repeatable `--xcodebuild-flag`, and the
+standard output flags. Empty values are invalid. Positional arguments are invalid.
 
 `--test-plan` and `--xctestrun` are mutually exclusive. `--clean`,
 `--no-code-signing`, `--configuration`, and `--derived-data-path` are only
@@ -108,6 +108,13 @@ JSON uses the registered exported output receipt with stable camelCase fields:
   "exitStatus": 65
 }
 ```
+
+With `--code-coverage`, test-executing actions add a `coverage` object read with
+`xccov view --report --only-targets --json`: per-target `targets` sorted by name,
+and their totals as overall `lineCoverage` (0 to 1), `coveredLines` and
+`executableLines`. If the report cannot
+be read, asc prints one warning on stderr, omits `coverage`, and keeps the test
+outcome and exit status.
 
 `build-for-testing` omits `tests` and reports an `.xctestrun` path when safely
 discovered. Ordinary Xcode process exit statuses are retained. Cancellation,

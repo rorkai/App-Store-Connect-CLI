@@ -40,162 +40,82 @@ Examples:
 
 // newUsersVisibleAppsListCommand returns the visible apps list subcommand.
 func newUsersVisibleAppsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("visible-apps list", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "users", "User ID")
-	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
-	next := fs.String("next", "", shared.NextFlagUsage)
-	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc users visible-apps list --id \"USER_ID\" [flags]",
-		ShortHelp:  "List visible apps for a user.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "visible-apps list",
+		Name:        "list",
+		ShortUsage:  "asc users visible-apps list --id \"USER_ID\" [flags]",
+		ShortHelp:   "List visible apps for a user.",
 		LongHelp: `List visible apps for a user.
 
 Examples:
   asc users visible-apps list --id "USER_ID"
   asc users visible-apps list --id "USER_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "users visible-apps list", 200); err != nil {
-				return err
-			}
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--id")
-			}
-			if idValue == "" && strings.TrimSpace(*next) != "" {
-				derivedID, err := extractUserIDFromNextURL(*next)
-				if err != nil {
+		ParentFlag:           "id",
+		ParentUsage:          "User ID",
+		ParentType:           "users",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			id, next := fs.Lookup("id").Value, fs.Lookup("next").Value
+			return func() error {
+				if strings.TrimSpace(id.String()) != "" || strings.TrimSpace(next.String()) == "" {
+					return nil
+				}
+				if _, err := extractUserIDFromNextURL(next.String()); err != nil {
 					return d.UsageErrorf("users visible-apps list: %v", err)
 				}
-				idValue = derivedID
+				return nil
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("users visible-apps list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.UserVisibleAppsOption{
-				asc.Limit[asc.UserVisibleAppsOption](*limit),
-				asc.NextURL[asc.UserVisibleAppsOption](*next),
-			}
-
-			if *paginate {
-				if idValue == "" {
-					return d.RequiredFlag("--id")
-				}
-				paginateOpts := append(opts, asc.Limit[asc.UserVisibleAppsOption](200))
-				firstPage, err := client.GetUserVisibleApps(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("users visible-apps list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUserVisibleApps(ctx, idValue, asc.NextURL[asc.UserVisibleAppsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("users visible-apps list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetUserVisibleApps(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("users visible-apps list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetUserVisibleApps(ctx, id,
+				asc.Limit[asc.UserVisibleAppsOption](limit),
+				asc.NextURL[asc.UserVisibleAppsOption](next),
+			)
+		},
+	})
 }
 
 // newUsersVisibleAppsGetCommand returns the visible apps relationship get subcommand.
 func newUsersVisibleAppsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("visible-apps view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "users", "User ID")
-	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
-	next := fs.String("next", "", shared.NextFlagUsage)
-	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc users visible-apps view --id \"USER_ID\" [flags]",
-		ShortHelp:  "View visible app relationships for a user.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "visible-apps view",
+		Name:        "view",
+		ShortUsage:  "asc users visible-apps view --id \"USER_ID\" [flags]",
+		ShortHelp:   "View visible app relationships for a user.",
 		LongHelp: `View visible app relationships for a user.
 
 Examples:
   asc users visible-apps view --id "USER_ID"
   asc users visible-apps view --id "USER_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "users visible-apps view", 200); err != nil {
-				return err
-			}
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--id")
-			}
-			if idValue == "" && strings.TrimSpace(*next) != "" {
-				derivedID, err := extractUserIDFromNextURL(*next)
-				if err != nil {
+		ParentFlag:           "id",
+		ParentUsage:          "User ID",
+		ParentType:           "users",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			id, next := fs.Lookup("id").Value, fs.Lookup("next").Value
+			return func() error {
+				if strings.TrimSpace(id.String()) != "" || strings.TrimSpace(next.String()) == "" {
+					return nil
+				}
+				if _, err := extractUserIDFromNextURL(next.String()); err != nil {
 					return d.UsageErrorf("users visible-apps view: %v", err)
 				}
-				idValue = derivedID
+				return nil
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("users visible-apps view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.LinkagesOption{
-				asc.Limit[asc.LinkagesOption](*limit),
-				asc.NextURL[asc.LinkagesOption](*next),
-			}
-
-			if *paginate {
-				if idValue == "" {
-					return d.RequiredFlag("--id")
-				}
-				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-				firstPage, err := client.GetUserVisibleAppsRelationships(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("users visible-apps view: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUserVisibleAppsRelationships(ctx, idValue, asc.NextURL[asc.LinkagesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("users visible-apps view: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetUserVisibleAppsRelationships(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("users visible-apps view: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetUserVisibleAppsRelationships(ctx, id,
+				asc.Limit[asc.LinkagesOption](limit),
+				asc.NextURL[asc.LinkagesOption](next),
+			)
+		},
+	})
 }
 
 func extractUserIDFromNextURL(nextURL string) (string, error) {

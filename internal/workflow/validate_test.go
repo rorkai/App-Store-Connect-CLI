@@ -134,6 +134,23 @@ func TestLoad_StrictUnknownStepField(t *testing.T) {
 	}
 }
 
+func TestLoad_RejectsMistypedStepFields(t *testing.T) {
+	for _, field := range []string{`"env": {"VAR": 1}`, `"continue_on_error": "yes"`} {
+		t.Run(field, func(t *testing.T) {
+			path := writeWorkflowFile(t, t.TempDir(), `{"workflows": {"beta": {"steps": [{"run": "echo hi", `+field+`}]}}}`)
+
+			_, err := Load(path)
+			if !errors.Is(err, ErrWorkflowParseJSON) {
+				t.Fatalf("expected ErrWorkflowParseJSON, got %v", err)
+			}
+			name := strings.Trim(strings.SplitN(field, ":", 2)[0], `"`)
+			if strings.Contains(err.Error(), "unknown field") || !strings.Contains(err.Error(), "."+name) {
+				t.Fatalf("expected a type error naming %s, got %v", name, err)
+			}
+		})
+	}
+}
+
 func TestLoad_InvalidStepType(t *testing.T) {
 	dir := t.TempDir()
 	path := writeWorkflowFile(t, dir, `{

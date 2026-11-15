@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -113,4 +115,55 @@ func (c *Client) UpdatePassTypeID(ctx context.Context, id string, attrs PassType
 		Path:    fmt.Sprintf("/v1/passTypeIds/%s", id),
 		Payload: payload,
 	})
+}
+
+// PassTypeIDOption sets the query of GET /v1/passTypeIds/{id} (passTypeIds_getInstance).
+type PassTypeIDOption func(*passTypeIDQuery)
+
+type passTypeIDQuery struct {
+	fields            []string
+	certificateFields []string
+	include           []string
+	certificatesLimit int
+}
+
+// WithPassTypeIDFields sets fields[passTypeIds].
+func WithPassTypeIDFields(fields []string) PassTypeIDOption {
+	return func(q *passTypeIDQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithPassTypeIDCertificateFields sets fields[certificates].
+func WithPassTypeIDCertificateFields(fields []string) PassTypeIDOption {
+	return func(q *passTypeIDQuery) {
+		q.certificateFields = normalizeList(fields)
+	}
+}
+
+// WithPassTypeIDInclude sets include.
+func WithPassTypeIDInclude(include []string) PassTypeIDOption {
+	return func(q *passTypeIDQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithPassTypeIDCertificatesIncludeLimit sets limit[certificates].
+func WithPassTypeIDCertificatesIncludeLimit(limit int) PassTypeIDOption {
+	return func(q *passTypeIDQuery) {
+		if limit > 0 {
+			q.certificatesLimit = limit
+		}
+	}
+}
+
+func buildPassTypeIDQuery(query *passTypeIDQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[passTypeIds]", query.fields)
+	addCSV(values, "fields[certificates]", query.certificateFields)
+	addCSV(values, "include", query.include)
+	if query.certificatesLimit > 0 {
+		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
+	}
+	return values.Encode()
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/tidwall/jsonc"
@@ -30,6 +31,8 @@ const (
 	ActionScreenshot  StepAction = "screenshot"
 	ActionScroll      StepAction = "scroll"
 	ActionSwipe       StepAction = "swipe"
+	ActionLongPress   StepAction = "long_press"
+	ActionButton      StepAction = "button"
 )
 
 // PlanValidationCode classifies validation failures.
@@ -40,6 +43,7 @@ const (
 	PlanErrMissingBundleID    PlanValidationCode = "missing_bundle_id"
 	PlanErrMissingSteps       PlanValidationCode = "missing_steps"
 	PlanErrNegativeDelay      PlanValidationCode = "negative_post_action_delay"
+	PlanErrInvalidStatusBar   PlanValidationCode = "invalid_status_bar"
 	PlanErrMissingAction      PlanValidationCode = "missing_action"
 	PlanErrTapMissingTarget   PlanValidationCode = "tap_missing_target"
 	PlanErrTypeMissingText    PlanValidationCode = "type_missing_text"
@@ -56,6 +60,9 @@ const (
 	PlanErrScrollMaxSwipes    PlanValidationCode = "scroll_invalid_max_swipes"
 	PlanErrSwipeCoordinates   PlanValidationCode = "swipe_invalid_coordinates"
 	PlanErrSwipeDuration      PlanValidationCode = "swipe_invalid_duration"
+	PlanErrHoldDuration       PlanValidationCode = "hold_duration_out_of_range"
+	PlanErrButtonInvalid      PlanValidationCode = "button_invalid"
+	PlanErrUnexpectedField    PlanValidationCode = "unexpected_field"
 	PlanErrUnsupportedAction  PlanValidationCode = "unsupported_action"
 )
 
@@ -97,7 +104,8 @@ type PlanApp struct {
 
 // PlanDefaults defines default timing behavior.
 type PlanDefaults struct {
-	PostActionDelayMS int `json:"post_action_delay_ms,omitempty"`
+	PostActionDelayMS int    `json:"post_action_delay_ms,omitempty"`
+	StatusBar         string `json:"status_bar,omitempty"`
 }
 
 // PlanStep is one executable action in the plan.
@@ -119,6 +127,7 @@ type PlanStep struct {
 	DurationMS     *int       `json:"duration_ms,omitempty"`
 	TimeoutMS      *int       `json:"timeout_ms,omitempty"`
 	PollIntervalMS *int       `json:"poll_interval_ms,omitempty"`
+	Button         *string    `json:"button,omitempty"`
 }
 
 // LoadPlan reads and validates a plan file.
@@ -170,6 +179,16 @@ func validatePlan(plan *Plan) error {
 	if plan.Defaults.PostActionDelayMS < 0 {
 		return newPlanValidationError(PlanErrNegativeDelay, 0, "defaults.post_action_delay_ms must be >= 0")
 	}
+	plan.Defaults.StatusBar = strings.TrimSpace(strings.ToLower(plan.Defaults.StatusBar))
+	switch plan.Defaults.StatusBar {
+	case "", "screenshot", "low-battery", "no-service", "charging":
+	default:
+		return newPlanValidationError(
+			PlanErrInvalidStatusBar,
+			0,
+			fmt.Sprintf("defaults.status_bar %q must be one of screenshot, low-battery, no-service, charging", plan.Defaults.StatusBar),
+		)
+	}
 
 	for i := range plan.Steps {
 		step := &plan.Steps[i]
@@ -187,7 +206,12 @@ func validatePlan(plan *Plan) error {
 		switch action {
 		case ActionLaunch:
 			// no additional fields
-		case ActionTap:
+		case ActionTap, ActionLongPress:
+			if action == ActionLongPress {
+				if err := validateHoldStep(step, idx, "label", "id", "x", "y", "duration_ms"); err != nil {
+					return err
+				}
+			}
 			hasLabel := hasString(step.Label)
 			hasID := hasString(step.ID)
 			hasCoords := step.X != nil && step.Y != nil
@@ -195,7 +219,7 @@ func validatePlan(plan *Plan) error {
 				return newPlanValidationError(
 					PlanErrTapMissingTarget,
 					idx,
-					fmt.Sprintf("steps[%d] tap requires label, id, or x+y coordinates", idx),
+					fmt.Sprintf("steps[%d] %s requires label, id, or x+y coordinates", idx, action),
 				)
 			}
 		case ActionType:
@@ -325,6 +349,21 @@ func validatePlan(plan *Plan) error {
 					fmt.Sprintf("steps[%d] swipe duration_ms must be > 0", idx),
 				)
 			}
+		case ActionButton:
+			if err := validateHoldStep(step, idx, "button", "duration_ms"); err != nil {
+				return err
+			}
+			button := strings.TrimSpace(strings.ToLower(stringValue(step.Button)))
+			switch button {
+			case "apple-pay", "home", "lock", "side-button", "siri":
+				step.Button = &button
+			default:
+				return newPlanValidationError(
+					PlanErrButtonInvalid,
+					idx,
+					fmt.Sprintf("steps[%d] button must be one of apple-pay, home, lock, side-button, siri", idx),
+				)
+			}
 		default:
 			return newPlanValidationError(
 				PlanErrUnsupportedAction,
@@ -332,6 +371,50 @@ func validatePlan(plan *Plan) error {
 				fmt.Sprintf("steps[%d] unsupported action %q", idx, action),
 			)
 		}
+	}
+	return nil
+}
+
+// validateHoldStep rejects fields outside allowed and a duration_ms that AXe
+// cannot hold (above 0 to 10 seconds).
+func validateHoldStep(step *PlanStep, idx int, allowed ...string) error {
+	fields := []struct {
+		name string
+		set  bool
+	}{
+		{"name", step.Name != nil},
+		{"label", step.Label != nil},
+		{"id", step.ID != nil},
+		{"contains", step.Contains != nil},
+		{"text", step.Text != nil},
+		{"keycodes", step.Keycodes != nil},
+		{"x", step.X != nil},
+		{"y", step.Y != nil},
+		{"end_x", step.EndX != nil},
+		{"end_y", step.EndY != nil},
+		{"direction", step.Direction != nil},
+		{"distance", step.Distance != nil},
+		{"max_swipes", step.MaxSwipes != nil},
+		{"duration_ms", step.DurationMS != nil},
+		{"timeout_ms", step.TimeoutMS != nil},
+		{"poll_interval_ms", step.PollIntervalMS != nil},
+		{"button", step.Button != nil},
+	}
+	for _, field := range fields {
+		if field.set && !slices.Contains(allowed, field.name) {
+			return newPlanValidationError(
+				PlanErrUnexpectedField,
+				idx,
+				fmt.Sprintf("steps[%d] %s does not accept %s", idx, step.Action, field.name),
+			)
+		}
+	}
+	if step.DurationMS != nil && (*step.DurationMS < 1 || *step.DurationMS > 10000) {
+		return newPlanValidationError(
+			PlanErrHoldDuration,
+			idx,
+			fmt.Sprintf("steps[%d] %s duration_ms must be from 1 to 10000", idx, step.Action),
+		)
 	}
 	return nil
 }

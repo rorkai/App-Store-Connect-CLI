@@ -184,6 +184,11 @@ func TestLoadPlan_ScrollAndSwipeValidation(t *testing.T) {
 		{"swipe missing end_y", `{ "action": "swipe", "x": 200, "y": 600, "end_x": 200 }`, PlanErrSwipeCoordinates},
 		{"swipe negative coordinate", `{ "action": "swipe", "x": -1, "y": 600, "end_x": 200, "end_y": 300 }`, PlanErrSwipeCoordinates},
 		{"swipe zero duration", `{ "action": "swipe", "x": 200, "y": 600, "end_x": 200, "end_y": 300, "duration_ms": 0 }`, PlanErrSwipeDuration},
+		{"long_press missing target", `{ "action": "long_press", "duration_ms": 1000 }`, PlanErrTapMissingTarget},
+		{"long_press duration too long", `{ "action": "long_press", "label": "Photo", "duration_ms": 10001 }`, PlanErrHoldDuration},
+		{"long_press with another action's field", `{ "action": "long_press", "label": "Photo", "end_x": 10 }`, PlanErrUnexpectedField},
+		{"button unknown name", `{ "action": "button", "button": "volume-up" }`, PlanErrButtonInvalid},
+		{"button with another action's field", `{ "action": "button", "button": "home", "label": "Home" }`, PlanErrUnexpectedField},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -25,9 +24,9 @@ func resolveXcodeCloudAppID(ctx context.Context, client *asc.Client, appID strin
 	return shared.ResolveAppIDWithExactLookup(ctx, client, resolvedAppID)
 }
 
-// XcodeCloudCommand returns the xcode-cloud command with subcommands.
-func XcodeCloudCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode-cloud", flag.ExitOnError)
+// NewXcodeCloudCommand returns the xcode-cloud command with subcommands.
+func NewXcodeCloudCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode-cloud", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "xcode-cloud",
@@ -51,19 +50,19 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			XcodeCloudRunCommand(),
-			XcodeCloudStatusCommand(),
-			XcodeCloudDoctorCommand(),
-			XcodeCloudProductsCommand(),
-			XcodeCloudWorkflowsCommand(),
-			XcodeCloudScmCommand(),
-			XcodeCloudBuildRunsCommand(),
-			XcodeCloudActionsCommand(),
-			XcodeCloudArtifactsCommand(),
-			XcodeCloudTestResultsCommand(),
-			XcodeCloudIssuesCommand(),
-			XcodeCloudMacOSVersionsCommand(),
-			XcodeCloudXcodeVersionsCommand(),
+			newXcodeCloudRunCommand(d),
+			newXcodeCloudStatusCommand(d),
+			newXcodeCloudDoctorCommand(d),
+			newXcodeCloudProductsCommand(d),
+			newXcodeCloudWorkflowsCommand(d),
+			newXcodeCloudScmCommand(d),
+			newXcodeCloudBuildRunsCommand(d),
+			newXcodeCloudActionsCommand(d),
+			newXcodeCloudArtifactsCommand(d),
+			newXcodeCloudTestResultsCommand(d),
+			newXcodeCloudIssuesCommand(d),
+			newXcodeCloudMacOSVersionsCommand(d),
+			newXcodeCloudXcodeVersionsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -71,9 +70,9 @@ Examples:
 	}
 }
 
-// XcodeCloudRunCommand returns the xcode-cloud run subcommand.
-func XcodeCloudRunCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("run", flag.ExitOnError)
+// newXcodeCloudRunCommand returns the xcode-cloud run subcommand.
+func newXcodeCloudRunCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("run", flag.ExitOnError)
 
 	appID := fs.String("app", "", xcodeCloudAppFlagUsage)
 	workflowName := fs.String("workflow", "", "Workflow name to trigger")
@@ -87,7 +86,7 @@ func XcodeCloudRunCommand() *ffcli.Command {
 	doctor := fs.Bool("doctor", false, "After waiting, diagnose the completed run and inspect failure logs")
 	pollInterval := fs.Duration("poll-interval", 10*time.Second, "Poll interval when waiting")
 	timeout := fs.Duration("timeout", 0, "Timeout for Xcode Cloud requests (0 = use ASC_TIMEOUT or 30m default)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "run",
@@ -126,39 +125,39 @@ Examples:
 			hasSourceRunID := strings.TrimSpace(*sourceRunID) != ""
 
 			if hasWorkflowName && hasWorkflowID {
-				return shared.UsageError("--workflow and --workflow-id are mutually exclusive")
+				return d.UsageError("--workflow and --workflow-id are mutually exclusive")
 			}
 			if hasBranch && hasGitRefID {
-				return shared.UsageError("--branch and --git-reference-id are mutually exclusive")
+				return d.UsageError("--branch and --git-reference-id are mutually exclusive")
 			}
 			if (hasBranch || hasGitRefID) && hasPullRequestID {
-				return shared.UsageError("--branch, --git-reference-id, and --pull-request-id are mutually exclusive")
+				return d.UsageError("--branch, --git-reference-id, and --pull-request-id are mutually exclusive")
 			}
 			if hasSourceRunID {
 				if hasWorkflowName || hasWorkflowID {
-					return shared.UsageError("--source-run-id is mutually exclusive with --workflow and --workflow-id")
+					return d.UsageError("--source-run-id is mutually exclusive with --workflow and --workflow-id")
 				}
 				if hasBranch || hasGitRefID || hasPullRequestID {
-					return shared.UsageError("--source-run-id is mutually exclusive with --branch, --git-reference-id, and --pull-request-id")
+					return d.UsageError("--source-run-id is mutually exclusive with --branch, --git-reference-id, and --pull-request-id")
 				}
 			} else {
 				if !hasWorkflowName && !hasWorkflowID {
-					fmt.Fprintln(os.Stderr, "Error: --workflow or --workflow-id is required")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --workflow or --workflow-id is required")
 					return shared.MissingRequiredUsageError("")
 				}
 				if !hasBranch && !hasGitRefID && !hasPullRequestID {
-					fmt.Fprintln(os.Stderr, "Error: --branch, --git-reference-id, or --pull-request-id is required")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --branch, --git-reference-id, or --pull-request-id is required")
 					return shared.MissingRequiredUsageError("")
 				}
 			}
 			if *timeout < 0 {
-				return shared.UsageError("--timeout must be greater than or equal to 0")
+				return d.UsageError("--timeout must be greater than or equal to 0")
 			}
 			if *wait && *pollInterval <= 0 {
-				return shared.UsageError("--poll-interval must be greater than 0")
+				return d.UsageError("--poll-interval must be greater than 0")
 			}
 			if *doctor && !*wait {
-				return shared.UsageError("--doctor requires --wait")
+				return d.UsageError("--doctor requires --wait")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return err
@@ -166,16 +165,16 @@ Examples:
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if hasWorkflowName && !hasSourceRunID && resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required when using --workflow (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required when using --workflow (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud run: %w", err)
 			}
 
-			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, *timeout)
+			requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, *timeout)
 			defer cancel()
 
 			resolvedWorkflowID := strings.TrimSpace(*workflowID)
@@ -320,7 +319,7 @@ Examples:
 			}
 
 			if !*wait {
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 			if *doctor {
 				doctorResult, err := diagnoseXcodeCloudRun(requestCtx, client, resp.Data.ID, xcodeCloudDoctorOptions{
@@ -330,24 +329,24 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("xcode-cloud run: diagnose build: %w", err)
 				}
-				return shared.PrintOutput(doctorResult, *output.Output, *output.Pretty)
+				return d.PrintOutput(doctorResult, *output.Output, *output.Pretty)
 			}
 
 			// Wait for completion
-			return waitForBuildCompletion(requestCtx, client, resp.Data.ID, *pollInterval, *output.Output, *output.Pretty)
+			return waitForBuildCompletion(requestCtx, d, client, resp.Data.ID, *pollInterval, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// XcodeCloudStatusCommand returns the xcode-cloud status subcommand.
-func XcodeCloudStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("status", flag.ExitOnError)
+// newXcodeCloudStatusCommand returns the xcode-cloud status subcommand.
+func newXcodeCloudStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("status", flag.ExitOnError)
 
 	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to check")
 	wait := fs.Bool("wait", false, "Wait for build to complete")
 	pollInterval := fs.Duration("poll-interval", 10*time.Second, "Poll interval when waiting")
 	timeout := fs.Duration("timeout", 0, "Timeout for Xcode Cloud requests (0 = use ASC_TIMEOUT or 30m default)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -364,25 +363,25 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*runID) == "" {
-				return shared.RequiredFlag("--run-id")
+				return d.RequiredFlag("--run-id")
 			}
 			if *timeout < 0 {
-				return shared.UsageError("--timeout must be greater than or equal to 0")
+				return d.UsageError("--timeout must be greater than or equal to 0")
 			}
 			if *wait && *pollInterval <= 0 {
-				return shared.UsageError("--poll-interval must be greater than 0")
+				return d.UsageError("--poll-interval must be greater than 0")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud status: %w", err)
 			}
 
-			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, *timeout)
+			requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, *timeout)
 			defer cancel()
 
 			if *wait {
-				return waitForBuildCompletion(requestCtx, client, strings.TrimSpace(*runID), *pollInterval, *output.Output, *output.Pretty)
+				return waitForBuildCompletion(requestCtx, d, client, strings.TrimSpace(*runID), *pollInterval, *output.Output, *output.Pretty)
 			}
 
 			// Single status check
@@ -392,7 +391,7 @@ Examples:
 			}
 
 			result := buildStatusResult(resp)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
