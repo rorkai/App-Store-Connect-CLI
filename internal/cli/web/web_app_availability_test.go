@@ -116,7 +116,6 @@ func TestWebAppsAvailabilityCreateResolvesSessionBeforeTimeoutContext(t *testing
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -165,7 +164,6 @@ func TestWebAppsAvailabilityCreateSkipsCreateWhenAvailabilityExists(t *testing.T
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -223,7 +221,6 @@ func TestWebAppsAvailabilityCreateAcceptsExplicitAbsentAvailability(t *testing.T
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -288,7 +285,6 @@ func TestWebAppsAvailabilityCreateWrapsAuthErrors(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -341,7 +337,6 @@ func TestWebAppsAvailabilityCreatePreservesPreflightPermissionFailure(t *testing
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -397,7 +392,6 @@ func TestWebAppsAvailabilityCreateDoesNotPostAfterHTTPPreflightFailure(t *testin
 			}
 
 			d, _, _ := newWebTestDeps()
-
 			cmd := newWebAppsAvailabilityCreateCommand(d)
 			if err := cmd.FlagSet.Parse([]string{
 				"--app", "app-1",
@@ -460,7 +454,6 @@ func TestWebAppsAvailabilityCreateRejectsMixedNotFoundEnvelope(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",

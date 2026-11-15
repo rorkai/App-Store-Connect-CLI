@@ -40,7 +40,6 @@ func TestWebAppsCompatibilityEditUpdatesSelectedSettings(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsCompatibilityEditCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",

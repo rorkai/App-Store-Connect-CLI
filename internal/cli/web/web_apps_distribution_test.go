@@ -53,7 +53,6 @@ func TestWebAppsDistributionViewPrintsAppleAttributes(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDistributionViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -104,7 +103,6 @@ func TestWebAppsDistributionViewTableRendersUnknownForMissingAttributes(t *testi
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDistributionViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-2", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -130,7 +128,6 @@ func TestWebAppsDistributionViewRequiresApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDistributionViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -187,7 +184,6 @@ func TestWebAppsDistributionSetRequiresConfirmationBeforeSession(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -219,7 +215,6 @@ func TestWebAppsDistributionSetRejectsInvalidOutputBeforeSession(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private", "--confirm", "--output", "table", "--pretty"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -253,7 +248,6 @@ func TestWebAppsDistributionSetCallsClientAndPrintsReceipt(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -289,7 +283,6 @@ func TestWebAppsDistributionSetRejectsEducationForPrivate(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private", "--education-discount", "discounted", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -327,7 +320,6 @@ func TestWebAppsDistributionSetPrintsUncertainReceiptBeforeReturningError(t *tes
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)

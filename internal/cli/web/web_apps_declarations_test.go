@@ -65,7 +65,6 @@ func TestWebAppsDeclarationsListRequiresPublicProviderID(t *testing.T) {
 	stubWebDeclarationSession(t, "")
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsDeclarationsListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -97,7 +96,6 @@ func TestWebAppsDeclarationsListPrintsJSON(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeclarationsListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -147,7 +145,6 @@ func TestWebAppsDeclarationsListPrintsTable(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeclarationsListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -174,7 +171,6 @@ func TestWebAppsDeclarationsListReportsEmptyResult(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeclarationsListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -206,7 +202,6 @@ func TestWebAppsMedicalDeviceViewPrintsDeclaration(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -271,7 +266,6 @@ func TestWebAppsMedicalDeviceSetReportsUnchangedDeclaration(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--declared", "false", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)

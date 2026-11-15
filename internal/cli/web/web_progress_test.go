@@ -151,7 +151,6 @@ func TestWebAppsCreateUsesProgressLabels(t *testing.T) {
 	}
 
 	d, _, stderr := newWebSpinnerTestDeps(t)
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",

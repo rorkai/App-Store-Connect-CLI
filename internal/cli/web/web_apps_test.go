@@ -205,7 +205,6 @@ func TestWebAppsCreateRemovedPasswordFlagFailsBeforeSession(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
@@ -588,7 +587,6 @@ func TestWebAppsCreateResolvesSessionBeforeTimeoutContext(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
@@ -701,7 +699,6 @@ func TestWebAppsCreateInteractiveWizardPromptsForMissingFields(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -794,7 +791,6 @@ func TestWebAppsCreateInteractiveWizardPreservesProvidedLocaleDefault(t *testing
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--primary-locale", "de-DE", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -836,7 +832,6 @@ func TestWebAppsCreateSkipsBundleIDPreflightWhenOfficialAuthMissing(t *testing.T
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
@@ -886,7 +881,6 @@ func TestWebAppsCreateSkipsBundleIDPreflightWhenOfficialAuthBroken(t *testing.T)
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
@@ -946,7 +940,6 @@ func TestWebAppsCreateEnsuresBundleIDBeforeCreateApp(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
@@ -998,7 +991,6 @@ func TestWebAppsCreateFailsWhenBundleIDPreflightFails(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
@@ -1059,7 +1051,6 @@ func TestWebAppsCreateRollsBackCreatedBundleIDWhenCreateFails(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
@@ -1184,7 +1175,6 @@ func TestWebAppsCreateSurfacesBundleIDRollbackFailure(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
@@ -1310,7 +1300,6 @@ func TestWebAppsDeleteByBundleID(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "com.example.throwaway",
@@ -1402,7 +1391,6 @@ func TestWebAppsDeleteBundleIDLookupMismatchStopsBeforeDelete(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "com.example.expected",
@@ -1459,7 +1447,6 @@ func TestWebAppsDeleteExpectedBundleIDMismatchStopsBeforeDelete(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "1234567890",
@@ -1496,7 +1483,6 @@ func TestWebAppsDeleteRequiresConfirmBeforeResolvingSession(t *testing.T) {
 	t.Cleanup(restoreSession)
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890"}); err != nil {
 		t.Fatalf("parse error: %v", err)

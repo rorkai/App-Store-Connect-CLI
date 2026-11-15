@@ -163,7 +163,6 @@ func TestWebAppsDeleteDryRunSucceedsWhenRemovedFromSaleEverywhere(t *testing.T) 
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890", "--dry-run", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -239,7 +238,6 @@ func TestWebAppsDeleteDryRunFailsWhenTerritoryStillAvailable(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890", "--dry-run"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -302,7 +300,6 @@ func TestWebAppsDeleteDryRunFailsWhenTerritoryAvailabilitiesUnreadable(t *testin
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890", "--dry-run"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -359,7 +356,6 @@ func TestWebAppsDeleteReviewStateStopsBeforeDelete(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)

@@ -63,7 +63,6 @@ func TestWebAppsMedicalDeviceSetResolvesSessionWithoutRequestDeadline(t *testing
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -117,7 +116,6 @@ func TestWebAppsMedicalDeviceSetUpdatesDeclarationWithoutConfirmation(t *testing
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -179,7 +177,6 @@ func TestWebAppsMedicalDeviceSetTruePassesSelectedRegions(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -216,7 +213,6 @@ func TestWebAppsMedicalDeviceSetRejectsInvalidRegionBeforeSession(t *testing.T) 
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -251,7 +247,6 @@ func TestWebAppsMedicalDeviceSetRequiresPublicProviderID(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",

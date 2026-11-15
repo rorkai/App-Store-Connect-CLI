@@ -68,7 +68,6 @@ func TestWebRemovedAppsListOutputsJSON(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebRemovedAppsListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--limit", "10", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -120,7 +119,6 @@ func TestWebRemovedAppsListTableIncludesCoreColumns(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebRemovedAppsListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)

@@ -21,7 +21,6 @@ func TestWebAppsTaxCategorySetRequiresConfirmBeforeResolvingSession(t *testing.T
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--category", "cat-1"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -67,7 +66,6 @@ func TestWebAppsTaxCategoryListPreservesRawJSONEnvelope(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategoryListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -178,7 +176,6 @@ func TestWebAppsTaxCategorySetRejectsCategoryRequiringSubcategory(t *testing.T) 
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -248,7 +245,6 @@ func TestWebAppsTaxCategorySetAcceptsParentConditionsForSubcategory(t *testing.T
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -301,7 +297,6 @@ func TestWebAppsTaxCategorySetRejectsInvalidOutputBeforeSessionOrSave(t *testing
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -328,7 +323,6 @@ func TestWebAppsTaxCategoryListRejectsInvalidOutputBeforeSession(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategoryListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "table", "--pretty"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -349,7 +343,6 @@ func TestWebAppsTaxCategoryViewRejectsInvalidOutputBeforeSession(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategoryViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "table", "--pretty"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -386,7 +379,6 @@ func TestWebAppsTaxCategorySetValidatesConditionCompatibility(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -445,7 +437,6 @@ func TestWebAppsTaxCategorySetWritesAndVerifiesCompleteDesiredSet(t *testing.T) 
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -548,7 +539,6 @@ func TestWebAppsTaxCategorySetReportsVerifiedStateWhenReceiptOutputFails(t *test
 			}
 
 			d, depsStdout, depsStderr := newWebTestDeps()
-
 			cmd := newWebAppsTaxCategorySetCommand(d)
 			if err := cmd.FlagSet.Parse([]string{
 				"--app", "app-1",

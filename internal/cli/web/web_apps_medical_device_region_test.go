@@ -27,7 +27,6 @@ func TestWebAppsMedicalDeviceRegionSetRejectsUnsupportedInputBeforeAuth(t *testi
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceRegionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
@@ -89,7 +88,6 @@ func TestWebAppsMedicalDeviceRegionSetParsesRootfsInputAndPrintsReceipt(t *testi
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsMedicalDeviceRegionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",

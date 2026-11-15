@@ -38,7 +38,6 @@ func TestWebAppsHistoryPrintsStatusChanges(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsHistoryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -93,7 +92,6 @@ func TestWebAppsHistoryPassesVersionIDFilter(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsHistoryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--version-id", "v-7", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -134,7 +132,6 @@ func TestWebAppsHistoryTableRendersStatusRows(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsHistoryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -160,7 +157,6 @@ func TestWebAppsHistoryRequiresApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	d, depsStdout, depsStderr := newWebTestDeps()
-
 	cmd := newWebAppsHistoryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
