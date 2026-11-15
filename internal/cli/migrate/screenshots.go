@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
@@ -40,15 +41,15 @@ const maxMigrateScreenshotFileSize = int64(1024 * 1024 * 1024)
 // handle and records each file's identity. Upload reopens one file at a time
 // through that root, preventing path redirection without retaining an
 // unbounded number of descriptors.
-func discoverScreenshotPlanForUpload(screenshotsDir string) ([]ScreenshotPlan, []SkippedItem, error) {
-	return discoverScreenshotPlanWithOpenFiles(screenshotsDir, true)
+func discoverScreenshotPlanForUpload(d *shared.Deps, screenshotsDir string) ([]ScreenshotPlan, []SkippedItem, error) {
+	return discoverScreenshotPlanWithOpenFiles(d, screenshotsDir, true)
 }
 
-func discoverScreenshotPlanWithOpenFiles(screenshotsDir string, retainOpenFiles bool) ([]ScreenshotPlan, []SkippedItem, error) {
+func discoverScreenshotPlanWithOpenFiles(d *shared.Deps, screenshotsDir string, retainOpenFiles bool) ([]ScreenshotPlan, []SkippedItem, error) {
 	// A screenshots directory inside the working directory ships with the
 	// checkout, so refuse symlinked components before traversing it; an
 	// operator-selected external directory remains its own trusted root.
-	root, prefix, err := newMigrateContentRoot(screenshotsDir)
+	root, prefix, err := newMigrateContentRoot(d, screenshotsDir)
 	if err != nil {
 		return nil, nil, err
 	}

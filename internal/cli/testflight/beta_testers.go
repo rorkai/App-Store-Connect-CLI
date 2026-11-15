@@ -43,7 +43,7 @@ Examples:
   asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com"
   asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaTestersListCommand(d),
 			newBetaTestersGetCommand(d),
@@ -140,7 +140,7 @@ Examples:
   asc testflight beta-testers list --app "APP_ID" --limit 25
   asc testflight beta-testers list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-testers list", 200); err != nil {
 				return err
@@ -378,7 +378,7 @@ Examples:
   asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta" --build-id "BUILD_ID1,BUILD_ID2"
   asc testflight beta-testers add --email "tester@example.com" --build-id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildIDs, err := parseCreateRelationshipIDs(d, buildID, "--build-id")
 			if err != nil {
@@ -454,7 +454,7 @@ Examples:
   asc testflight beta-testers remove --app "APP_ID" --email "tester@example.com" --confirm
   asc testflight beta-testers remove --app "APP_ID" --email "tester@example.com" --confirm --wait`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -572,7 +572,7 @@ Examples:
   asc testflight beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
   asc testflight beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID_1,GROUP_ID_2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
@@ -644,7 +644,7 @@ Examples:
   asc testflight beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID" --confirm
   asc testflight beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID_1,GROUP_ID_2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
@@ -705,7 +705,7 @@ Examples:
   asc testflight beta-testers add-builds --id "TESTER_ID" --build-id "BUILD_ID"
   asc testflight beta-testers add-builds --id "TESTER_ID" --build-id "BUILD_ID1,BUILD_ID2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
@@ -764,7 +764,7 @@ Examples:
   asc testflight beta-testers remove-builds --id "TESTER_ID" --build-id "BUILD_ID" --confirm
   asc testflight beta-testers remove-builds --id "TESTER_ID" --build-id "BUILD_ID1,BUILD_ID2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
@@ -826,7 +826,7 @@ Examples:
   asc testflight beta-testers remove-apps --id "TESTER_ID" --app "APP_ID" --confirm
   asc testflight beta-testers remove-apps --id "TESTER_ID" --app "APP_ID1,APP_ID2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
@@ -888,7 +888,7 @@ Examples:
   asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com"
   asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

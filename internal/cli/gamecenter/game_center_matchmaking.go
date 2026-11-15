@@ -31,7 +31,7 @@ Examples:
   asc game-center matchmaking teams list --rule-set-id "RULE_SET_ID"
   asc game-center matchmaking metrics queue-requests --queue-id "QUEUE_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterMatchmakingQueuesCommand(d),
 			newGameCenterMatchmakingRuleSetsCommand(d),
@@ -63,7 +63,7 @@ Examples:
   asc game-center matchmaking queues update --id "QUEUE_ID" --classic-bundle-ids "com.example.app"
   asc game-center matchmaking queues delete --id "QUEUE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterMatchmakingQueuesListCommand(d),
 			newGameCenterMatchmakingQueuesGetCommand(d),
@@ -139,7 +139,7 @@ Examples:
   asc game-center matchmaking queues create --reference-name "Queue" --rule-set-id "RULE_SET_ID"
   asc game-center matchmaking queues create --reference-name "Queue" --rule-set-id "RULE_SET_ID" --classic-bundle-ids "com.example.app"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
@@ -193,7 +193,7 @@ Examples:
   asc game-center matchmaking queues update --id "QUEUE_ID" --classic-bundle-ids "com.example.app"
   asc game-center matchmaking queues update --id "QUEUE_ID" --rule-set-id "RULE_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*queueID)
 			if id == "" {
@@ -271,7 +271,7 @@ Examples:
   asc game-center matchmaking rule-sets delete --id "RULE_SET_ID" --confirm
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterMatchmakingRuleSetsListCommand(d),
 			newGameCenterMatchmakingRuleSetsGetCommand(d),
@@ -347,7 +347,7 @@ func newGameCenterMatchmakingRuleSetsCreateCommand(d *shared.Deps) *ffcli.Comman
 Examples:
   asc game-center matchmaking rule-sets create --reference-name "Rules" --rule-language-version 1 --min-players 2 --max-players 8`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
@@ -405,7 +405,7 @@ Examples:
   asc game-center matchmaking rule-sets update --id "RULE_SET_ID" --min-players 2
   asc game-center matchmaking rule-sets update --id "RULE_SET_ID" --max-players 8`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" {
@@ -485,7 +485,7 @@ func newGameCenterMatchmakingRuleSetQueuesCommand(d *shared.Deps) *ffcli.Command
 Examples:
   asc game-center matchmaking rule-sets queues list --rule-set-id "RULE_SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterMatchmakingRuleSetQueuesListCommand(d),
 		},
@@ -536,7 +536,7 @@ Examples:
   asc game-center matchmaking rules update --id "RULE_ID" --description "New description"
   asc game-center matchmaking rules delete --id "RULE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterMatchmakingRulesListCommand(d),
 			newGameCenterMatchmakingRulesCreateCommand(d),
@@ -595,7 +595,7 @@ func newGameCenterMatchmakingRulesCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center matchmaking rules create --rule-set-id "RULE_SET_ID" --reference-name "Rule" --description "Match" --type MATCH --expression "player.level > 1"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
@@ -671,7 +671,7 @@ Examples:
   asc game-center matchmaking rules update --id "RULE_ID" --description "New description"
   asc game-center matchmaking rules update --id "RULE_ID" --weight 0.5`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleID)
 			if id == "" {
@@ -773,7 +773,7 @@ Examples:
   asc game-center matchmaking teams update --id "TEAM_ID" --min-players 1
   asc game-center matchmaking teams delete --id "TEAM_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterMatchmakingTeamsListCommand(d),
 			newGameCenterMatchmakingTeamsCreateCommand(d),
@@ -830,7 +830,7 @@ func newGameCenterMatchmakingTeamsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center matchmaking teams create --rule-set-id "RULE_SET_ID" --reference-name "Team" --min-players 1 --max-players 4`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
@@ -888,7 +888,7 @@ Examples:
   asc game-center matchmaking teams update --id "TEAM_ID" --min-players 1
   asc game-center matchmaking teams update --id "TEAM_ID" --max-players 4`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*teamID)
 			if id == "" {
@@ -968,7 +968,7 @@ Examples:
   asc game-center matchmaking metrics queue-requests --queue-id "QUEUE_ID" --granularity P1D --group-by result
   asc game-center matchmaking metrics rule-errors --rule-id "RULE_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterMatchmakingQueueSizesCommand(d),
 			newGameCenterMatchmakingQueueRequestsCommand(d),
@@ -1165,7 +1165,7 @@ func metricsQueueCommand(d *shared.Deps, name string, fs *flag.FlagSet, queueID 
 Examples:
   asc game-center matchmaking metrics ` + name + ` --queue-id "QUEUE_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runMetricsQueue(ctx, d, name, fs, queueID, granularity, sort, limit, next, paginate, output, pretty, fetch, nil, "", "", "")
 		},
@@ -1182,7 +1182,7 @@ func metricsQueueCommandWithFilters(d *shared.Deps, name string, fs *flag.FlagSe
 Examples:
   asc game-center matchmaking metrics ` + name + ` --queue-id "QUEUE_ID" --granularity P1D --group-by result`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runMetricsQueue(ctx, d, name, fs, queueID, granularity, sort, limit, next, paginate, output, pretty, nil, fetch, *groupBy, *filterResult, *filterDetail)
 		},
@@ -1199,7 +1199,7 @@ func metricsRuleCommand(d *shared.Deps, name string, fs *flag.FlagSet, support r
 Examples:
   asc game-center matchmaking metrics ` + name + ` --rule-id "RULE_ID" --granularity P1D --group-by ` + support.groupBy[0],
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runMetricsRule(ctx, d, name, fs, support, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output, pretty, fetch)
 		},
@@ -1388,7 +1388,7 @@ func newGameCenterMatchmakingRuleSetTestsCommand(d *shared.Deps) *ffcli.Command 
 Examples:
   asc game-center matchmaking rule-set-tests create --file payload.json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterMatchmakingRuleSetTestsCreateCommand(d),
 		},
@@ -1414,7 +1414,7 @@ func newGameCenterMatchmakingRuleSetTestsCreateCommand(d *shared.Deps) *ffcli.Co
 Examples:
   asc game-center matchmaking rule-set-tests create --file payload.json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			path := strings.TrimSpace(*filePath)
 			if path == "" {

@@ -67,7 +67,7 @@ func betaGroupReadGroupCommand(d *shared.Deps, config betaGroupReadConfig) *ffcl
 Examples:
   asc testflight beta-groups ` + config.resource + ` list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			betaGroupReadListCommand(d, config),
 		},
@@ -106,7 +106,7 @@ Examples:
   asc testflight ` + command + ` --group-id "GROUP_ID" --fields "` + strings.Join(config.fieldValues[:2], ",") + `"
   asc testflight ` + command + ` --group-id "GROUP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, errPrefix, 200, "fields", "limit"); err != nil {
 				return err

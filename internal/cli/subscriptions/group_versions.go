@@ -37,7 +37,7 @@ Examples:
   asc subscriptions groups versions list --group-id "GROUP_ID"
   asc subscriptions groups versions create --group-id "GROUP_ID"
   asc subscriptions groups versions view --version-id "VERSION_ID"`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsGroupsVersionsCreateCommand(d),
 			newSubscriptionsGroupsVersionsListCommand(d),
@@ -141,7 +141,7 @@ func newSubscriptionsGroupsVersionsListCommand(d *shared.Deps) *ffcli.Command {
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc subscriptions groups versions list --group-id "GROUP_ID" [flags]`, ShortHelp: "List versions for a subscription group.",
-		LongHelp: "List versions for a subscription group.\n\nExamples:\n  asc subscriptions groups versions list --group-id \"GROUP_ID\" --state PREPARE_FOR_SUBMISSION --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "List versions for a subscription group.\n\nExamples:\n  asc subscriptions groups versions list --group-id \"GROUP_ID\" --state PREPARE_FOR_SUBMISSION --paginate", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions list", 200, "state", "include", "fields", "group-fields", "localization-fields", "limit", "localizations-limit"); err != nil {
 				return err
@@ -222,7 +222,7 @@ func newSubscriptionsGroupsVersionLinksCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("groups versions links", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "links", ShortUsage: "asc subscriptions groups versions links <subcommand> [flags]", ShortHelp: "View raw subscription group version linkages.", LongHelp: "View raw subscription group version linkages.",
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			subscriptionsGroupsVersionLinkagesCommand(d, "versions", true),
 			subscriptionsGroupsVersionLinkagesCommand(d, "localizations", false),
@@ -247,7 +247,7 @@ func subscriptionsGroupsVersionLinkagesCommand(d *shared.Deps, name string, grou
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: name, ShortUsage: "asc subscriptions groups versions links " + name + " [flags]", ShortHelp: "View " + name + " relationship linkages.", LongHelp: "View " + name + " relationship linkages.",
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions links "+name, 200, "limit"); err != nil {
 				return err

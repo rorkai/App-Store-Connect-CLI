@@ -29,7 +29,7 @@ Examples:
   asc subscriptions review screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"
   asc subscriptions review app-store-screenshot view --subscription-id "SUB_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			wrapSubscriptionsCommand(
 				newSubscriptionsReviewScreenshotsCommand(d),

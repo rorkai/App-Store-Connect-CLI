@@ -27,7 +27,7 @@ Examples:
   asc pre-release-versions list --app "APP_ID"
   asc pre-release-versions relationships view --id "PR_ID" --type "app"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPreReleaseVersionsListCommand(d),
 			newPreReleaseVersionsGetCommand(d),
@@ -65,7 +65,7 @@ Examples:
   asc pre-release-versions list --app "APP_ID" --version "1.0.0"
   asc pre-release-versions list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "pre-release-versions list", 200, "platform", "version"); err != nil {
 				return err

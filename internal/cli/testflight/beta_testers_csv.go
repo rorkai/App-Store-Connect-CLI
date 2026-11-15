@@ -63,7 +63,7 @@ Examples:
   asc testflight beta-testers export --app "APP_ID" --last-name "Lovelace" --output "./testers.csv"
   asc testflight beta-testers export --app "APP_ID" --output "./testers.csv" --include-groups`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
 				return err
@@ -207,7 +207,7 @@ Examples:
 				rows = append(rows, row)
 			}
 
-			if err := writeCSVFileAtomicNoSymlink(outputValue, header, rows); err != nil {
+			if err := writeCSVFileAtomicNoSymlink(d.OSPath(outputValue), header, rows); err != nil {
 				return fmt.Errorf("beta-testers export: %w", err)
 			}
 
@@ -284,7 +284,7 @@ Examples:
   asc testflight beta-testers import --app "APP_ID" --input "./testflight-testers.csv" --invite --confirm
   asc testflight beta-testers import --app "APP_ID" --input "./testflight-testers.csv" --group "Beta" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -870,7 +870,7 @@ func fetchTesterGroupMemberships(ctx context.Context, d *shared.Deps, client *as
 }
 
 func readBetaTestersCSV(d *shared.Deps, path string) ([]betaTestersCSVRow, error) {
-	file, err := shared.OpenExistingNoFollow(path)
+	file, err := shared.OpenExistingNoFollow(d.OSPath(path))
 	if err != nil {
 		return nil, err
 	}

@@ -9,12 +9,15 @@ import (
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAppSetupInfoSetCommand_MissingApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	cmd := AppSetupInfoSetCommand()
+	d, _ := newAppsTestDeps()
+	cmd := newAppSetupInfoSetCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -26,7 +29,8 @@ func TestAppSetupInfoSetCommand_MissingApp(t *testing.T) {
 }
 
 func TestAppSetupInfoSetCommand_MissingLocale(t *testing.T) {
-	cmd := AppSetupInfoSetCommand()
+	d, _ := newAppsTestDeps()
+	cmd := newAppSetupInfoSetCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--app", "APP", "--name", "My App"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -51,7 +55,8 @@ func TestAppSetupCategoriesSetCommand_MissingFlags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := AppSetupCategoriesSetCommand()
+			d, _ := newAppsTestDeps()
+			cmd := newAppSetupCategoriesSetCommand(d)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
@@ -64,7 +69,8 @@ func TestAppSetupCategoriesSetCommand_MissingFlags(t *testing.T) {
 }
 
 func TestAppSetupCategoriesSetCommand_HelpMentionsSubcategoryFlags(t *testing.T) {
-	cmd := AppSetupCategoriesSetCommand()
+	d, _ := newAppsTestDeps()
+	cmd := newAppSetupCategoriesSetCommand(d)
 
 	if !strings.Contains(cmd.ShortUsage, "[flags]") {
 		t.Fatalf("expected [flags] in short usage, got %q", cmd.ShortUsage)
@@ -91,7 +97,8 @@ func TestAppSetupAvailabilitySetCommand_MissingFlags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := AppSetupAvailabilitySetCommand()
+			d, _ := newAppsTestDeps()
+			cmd := newAppSetupAvailabilitySetCommand(d)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
@@ -104,7 +111,8 @@ func TestAppSetupAvailabilitySetCommand_MissingFlags(t *testing.T) {
 }
 
 func TestAppSetupAvailabilitySetCommand_HelpMentionsAllTerritories(t *testing.T) {
-	cmd := AppSetupAvailabilitySetCommand()
+	d, _ := newAppsTestDeps()
+	cmd := newAppSetupAvailabilitySetCommand(d)
 
 	if !strings.Contains(cmd.LongHelp, "--all-territories") {
 		t.Fatalf("expected --all-territories example in long help, got %q", cmd.LongHelp)
@@ -125,7 +133,8 @@ func TestAppSetupPricingSetCommand_MissingFlags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := AppSetupPricingSetCommand()
+			d, _ := newAppsTestDeps()
+			cmd := newAppSetupPricingSetCommand(d)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
@@ -138,7 +147,8 @@ func TestAppSetupPricingSetCommand_MissingFlags(t *testing.T) {
 }
 
 func TestAppSetupPricingSetCommand_HelpMentionsFreeExample(t *testing.T) {
-	cmd := AppSetupPricingSetCommand()
+	d, _ := newAppsTestDeps()
+	cmd := newAppSetupPricingSetCommand(d)
 
 	if !strings.Contains(cmd.LongHelp, "--free") {
 		t.Fatalf("expected --free example in long help, got %q", cmd.LongHelp)
@@ -152,7 +162,8 @@ func TestAppSetupPricingSetCommand_HelpMentionsFreeExample(t *testing.T) {
 }
 
 func TestAppSetupLocalizationsUploadCommand_MissingPath(t *testing.T) {
-	cmd := AppSetupLocalizationsUploadCommand()
+	d, _ := newAppsTestDeps()
+	cmd := newAppSetupLocalizationsUploadCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--version", "VERSION_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -166,18 +177,19 @@ func TestAppSetupLocalizationsUploadCommand_MissingPath(t *testing.T) {
 func TestAppSetupCommands_DefaultOutputJSON(t *testing.T) {
 	commands := []*struct {
 		name string
-		cmd  func() *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 	}{
-		{"info set", AppSetupInfoSetCommand},
-		{"categories set", AppSetupCategoriesSetCommand},
-		{"availability set", AppSetupAvailabilitySetCommand},
-		{"pricing set", AppSetupPricingSetCommand},
-		{"localizations upload", AppSetupLocalizationsUploadCommand},
+		{"info set", newAppSetupInfoSetCommand},
+		{"categories set", newAppSetupCategoriesSetCommand},
+		{"availability set", newAppSetupAvailabilitySetCommand},
+		{"pricing set", newAppSetupPricingSetCommand},
+		{"localizations upload", newAppSetupLocalizationsUploadCommand},
 	}
 
 	for _, tc := range commands {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := tc.cmd()
+			d, _ := newAppsTestDeps()
+			cmd := tc.cmd(d)
 			f := cmd.FlagSet.Lookup("output")
 			if f == nil {
 				t.Fatalf("expected --output flag to be defined")

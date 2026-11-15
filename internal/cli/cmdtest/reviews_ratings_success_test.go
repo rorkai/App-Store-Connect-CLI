@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -12,12 +11,7 @@ import (
 )
 
 func TestReviewsRatingsSuccessOutputs(t *testing.T) {
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/lookup":
 			if got := req.URL.Query().Get("country"); got != "us" {
@@ -90,17 +84,10 @@ func TestReviewsRatingsSuccessOutputs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, test.args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -118,12 +105,7 @@ func TestReviewsRatingsSuccessOutputs(t *testing.T) {
 }
 
 func TestReviewsRatingsAcceptsCountryOutsideHistogramStorefrontMap(t *testing.T) {
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Path != "/lookup" {
 			t.Fatalf("unexpected path %s", req.URL.Path)
 		}
@@ -145,17 +127,10 @@ func TestReviewsRatingsAcceptsCountryOutsideHistogramStorefrontMap(t *testing.T)
 		}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "ratings", "--app", "123", "--country", "kz", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "reviews", "ratings", "--app", "123", "--country", "kz", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -174,12 +149,7 @@ func TestReviewsRatingsAcceptsCountryOutsideHistogramStorefrontMap(t *testing.T)
 }
 
 func TestReviewsRatingsAllSuccess(t *testing.T) {
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/lookup":
 			country := req.URL.Query().Get("country")
@@ -220,17 +190,10 @@ func TestReviewsRatingsAllSuccess(t *testing.T) {
 		}
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "ratings", "--app", "123", "--all", "--workers", "4", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "reviews", "ratings", "--app", "123", "--all", "--workers", "4", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

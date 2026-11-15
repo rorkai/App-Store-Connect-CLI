@@ -45,7 +45,7 @@ Examples:
   asc validate testflight --app "APP_ID" --build-id "BUILD_ID" --output table
   asc validate testflight --app "APP_ID" --build-id "BUILD_ID" --strict`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {

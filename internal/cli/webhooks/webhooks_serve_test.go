@@ -285,7 +285,7 @@ func TestPrepareWebhookServeDirectoryRejectsFilePath(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	_, err := prepareWebhookServeDirectory(filePath)
+	_, err := prepareWebhookServeDirectory(shared.DefaultDeps(), filePath)
 	if err == nil {
 		t.Fatal("expected error for non-directory path")
 	}
@@ -309,7 +309,7 @@ func TestPrepareWebhookServeDirectoryRejectsSymlinkPath(t *testing.T) {
 		t.Fatalf("create symlink: %v", err)
 	}
 
-	_, err := prepareWebhookServeDirectory(symlinkPath)
+	_, err := prepareWebhookServeDirectory(shared.DefaultDeps(), symlinkPath)
 	if err == nil {
 		t.Fatal("expected symlink path error")
 	}
@@ -391,8 +391,9 @@ func (b *lockedBuffer) String() string {
 func newServeTestCommand(now time.Time) (*ffcli.Command, *lockedBuffer, *lockedBuffer) {
 	stdout, stderr := &lockedBuffer{}, &lockedBuffer{}
 	cmd := newWebhooksServeCommand(&shared.Deps{
-		IO:  &shared.IO{Out: stdout, ErrOut: stderr},
-		Now: func() time.Time { return now },
+		IO:    &shared.IO{Out: stdout, ErrOut: stderr},
+		Now:   func() time.Time { return now },
+		Getwd: os.Getwd,
 	})
 	return cmd, stdout, stderr
 }

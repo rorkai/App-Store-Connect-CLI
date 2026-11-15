@@ -92,7 +92,7 @@ func retentionReadCommand(d *shared.Deps, r retentionRead) *ffcli.Command {
 		ShortHelp:  r.help,
 		LongHelp:   r.help + "\n\nExamples:\n  " + strings.Join(r.examples, "\n  "),
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id, nextURL := strings.TrimSpace(*ownerID), ""
 			if next != nil {
@@ -201,7 +201,7 @@ func retentionGroupCommand(d *shared.Deps, path, help string, subcommands ...*ff
 		ShortHelp:   help,
 		LongHelp:    help,
 		FlagSet:     d.NewFlagSet(path, flag.ExitOnError),
-		UsageFunc:   shared.DefaultUsageFunc,
+		UsageFunc:   d.DefaultUsageFunc,
 		Subcommands: subcommands,
 		Exec:        func(context.Context, []string) error { return flag.ErrHelp },
 	}
@@ -220,7 +220,7 @@ func retentionWriteCommand(d *shared.Deps, path, usage, help string, examples []
 		ShortHelp:  strings.SplitN(help, "\n", 2)[0],
 		LongHelp:   help + "\n\nExamples:\n  " + strings.Join(examples, "\n  "),
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			call, err := run()
 			if err != nil {

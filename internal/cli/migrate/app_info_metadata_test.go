@@ -16,7 +16,7 @@ func TestReadFastlaneAppInfoMetadata_IncludesPrivacyURL(t *testing.T) {
 		t.Fatalf("write privacy_url: %v", err)
 	}
 
-	locs, err := readFastlaneAppInfoMetadata(dir)
+	locs, err := readFastlaneAppInfoMetadata(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("readFastlaneAppInfoMetadata() error: %v", err)
 	}

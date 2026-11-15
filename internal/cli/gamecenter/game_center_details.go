@@ -33,7 +33,7 @@ Examples:
   asc game-center details leaderboard-releases list --id "DETAIL_ID"
   asc game-center details metrics classic-matchmaking --id "DETAIL_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsListCommand(d),
 			newGameCenterBlockedPlayersCommand(d),
@@ -74,7 +74,7 @@ Each app has at most one Game Center detail, so the lookup is not paginated.
 Examples:
   asc game-center details list --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -159,7 +159,7 @@ func newGameCenterDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center details create --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -208,7 +208,7 @@ Examples:
   asc game-center details update --id "DETAIL_ID" --default-leaderboard-v2-id "LEADERBOARD_ID"
   asc game-center details update --id "DETAIL_ID" --default-group-leaderboard-v2-id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*detailID)
 			if id == "" {
@@ -294,7 +294,7 @@ func newGameCenterDetailsAppVersionsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center details app-versions list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsAppVersionsListCommand(d),
 		},
@@ -342,7 +342,7 @@ func newGameCenterDetailsGroupCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center details group view --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsGroupGetCommand(d),
 		},
@@ -385,7 +385,7 @@ func newGameCenterDetailsAchievementsV2Command(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center details achievements-v2 list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsAchievementsV2ListCommand(d),
 		},
@@ -433,7 +433,7 @@ func newGameCenterDetailsLeaderboardsV2Command(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center details leaderboards-v2 list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsLeaderboardsV2ListCommand(d),
 		},
@@ -481,7 +481,7 @@ func newGameCenterDetailsLeaderboardSetsV2Command(d *shared.Deps) *ffcli.Command
 Examples:
   asc game-center details leaderboard-sets-v2 list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsLeaderboardSetsV2ListCommand(d),
 		},
@@ -529,7 +529,7 @@ func newGameCenterDetailsAchievementReleasesCommand(d *shared.Deps) *ffcli.Comma
 Examples:
   asc game-center details achievement-releases list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsAchievementReleasesListCommand(d),
 		},
@@ -577,7 +577,7 @@ func newGameCenterDetailsLeaderboardReleasesCommand(d *shared.Deps) *ffcli.Comma
 Examples:
   asc game-center details leaderboard-releases list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsLeaderboardReleasesListCommand(d),
 		},
@@ -625,7 +625,7 @@ func newGameCenterDetailsLeaderboardSetReleasesCommand(d *shared.Deps) *ffcli.Co
 Examples:
   asc game-center details leaderboard-set-releases list --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsLeaderboardSetReleasesListCommand(d),
 		},
@@ -674,7 +674,7 @@ Examples:
   asc game-center details metrics classic-matchmaking --id "DETAIL_ID" --granularity P1D
   asc game-center details metrics rule-based-matchmaking --id "DETAIL_ID" --granularity P1D --group-by result`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterDetailsClassicMatchmakingCommand(d),
 			newGameCenterDetailsRuleBasedMatchmakingCommand(d),
@@ -733,7 +733,7 @@ func detailsMetricsCommand(d *shared.Deps, name string, fs *flag.FlagSet, detail
 Examples:
   asc game-center details metrics ` + name + ` --id "DETAIL_ID" --granularity P1D`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return runDetailsMetrics(ctx, d, name, fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output, pretty, fetch)
 		},

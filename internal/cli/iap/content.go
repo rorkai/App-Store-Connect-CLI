@@ -24,7 +24,7 @@ func newIAPContentCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc iap content view --iap-id "IAP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPContentGetCommand(d),
 		},
@@ -53,7 +53,7 @@ func newIAPContentGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc iap content view --iap-id "IAP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			contentValue := strings.TrimSpace(*contentID)
