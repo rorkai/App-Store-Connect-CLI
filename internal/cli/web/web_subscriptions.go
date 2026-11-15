@@ -34,9 +34,9 @@ type webSubscriptionRemoveFromSaleResult struct {
 	RequiresAccountHolderRole bool     `json:"requiresAccountHolderRole"`
 }
 
-// WebSubscriptionsCommand returns the web subscriptions command group.
-func WebSubscriptionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web subscriptions", flag.ExitOnError)
+// newWebSubscriptionsCommand returns the web subscriptions command group.
+func newWebSubscriptionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web subscriptions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "subscriptions",
@@ -48,10 +48,10 @@ Manage subscription workflows that App Store Connect exposes only through web-se
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebSubscriptionsAvailabilityCommand(),
-			WebSubscriptionsPricingCommand(),
+			newWebSubscriptionsAvailabilityCommand(d),
+			newWebSubscriptionsPricingCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -59,9 +59,9 @@ Manage subscription workflows that App Store Connect exposes only through web-se
 	}
 }
 
-// WebSubscriptionsAvailabilityCommand returns the web subscription availability command group.
-func WebSubscriptionsAvailabilityCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web subscriptions availability", flag.ExitOnError)
+// newWebSubscriptionsAvailabilityCommand returns the web subscription availability command group.
+func newWebSubscriptionsAvailabilityCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web subscriptions availability", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "availability",
@@ -73,9 +73,9 @@ Manage subscription sale availability through Apple's internal web API.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebSubscriptionsAvailabilityRemoveFromSaleCommand(),
+			newWebSubscriptionsAvailabilityRemoveFromSaleCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -83,16 +83,16 @@ Manage subscription sale availability through Apple's internal web API.
 	}
 }
 
-// WebSubscriptionsAvailabilityRemoveFromSaleCommand removes an approved subscription from sale.
-func WebSubscriptionsAvailabilityRemoveFromSaleCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web subscriptions availability remove-from-sale", flag.ExitOnError)
+// newWebSubscriptionsAvailabilityRemoveFromSaleCommand removes an approved subscription from sale.
+func newWebSubscriptionsAvailabilityRemoveFromSaleCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web subscriptions availability remove-from-sale", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID; enables product ID or exact name lookup")
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
 	planAvailabilityID := fs.String("plan-availability-id", "", "Subscription plan availability ID")
 	confirm := fs.Bool("confirm", false, "Confirm removing the subscription from sale")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-from-sale",
@@ -110,19 +110,19 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedSubscriptionID := strings.TrimSpace(*subscriptionID)
 			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			trimmedPlanAvailabilityID := strings.TrimSpace(*planAvailabilityID)
 			switch {
 			case trimmedSubscriptionID == "":
-				return shared.UsageError("--subscription-id is required")
+				return d.UsageError("--subscription-id is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -141,7 +141,7 @@ Examples:
 				trimmedSubscriptionID = strings.TrimSpace(selected.ID)
 			}
 
-			availabilities, err := withWebSpinnerValue("Loading subscription plan availability", func() ([]webcore.SubscriptionPlanAvailability, error) {
+			availabilities, err := withWebSpinnerValueWith(d, "Loading subscription plan availability", func() ([]webcore.SubscriptionPlanAvailability, error) {
 				return listWebSubscriptionPlanAvailabilitiesFn(requestCtx, client, trimmedSubscriptionID)
 			})
 			if err != nil {
@@ -162,7 +162,7 @@ Examples:
 				trimmedPlanAvailabilityID = strings.TrimSpace(selected.ID)
 			}
 
-			removed, err := withWebSpinnerValue("Removing subscription from sale", func() (*webcore.SubscriptionPlanAvailability, error) {
+			removed, err := withWebSpinnerValueWith(d, "Removing subscription from sale", func() (*webcore.SubscriptionPlanAvailability, error) {
 				return removeWebSubscriptionPlanAvailabilityFromSaleFn(requestCtx, client, trimmedPlanAvailabilityID)
 			})
 			if err != nil {
@@ -175,7 +175,7 @@ Examples:
 				return fmt.Errorf("web subscriptions availability remove-from-sale failed: Apple returned plan availability %q after patching %q", strings.TrimSpace(removed.ID), trimmedPlanAvailabilityID)
 			}
 
-			verifiedAvailabilities, err := withWebSpinnerValue("Verifying subscription removal from sale", func() ([]webcore.SubscriptionPlanAvailability, error) {
+			verifiedAvailabilities, err := withWebSpinnerValueWith(d, "Verifying subscription removal from sale", func() ([]webcore.SubscriptionPlanAvailability, error) {
 				return listWebSubscriptionPlanAvailabilitiesFn(requestCtx, client, trimmedSubscriptionID)
 			})
 			if err != nil {
@@ -205,12 +205,12 @@ Examples:
 				AvailableTerritories:      verified.AvailableTerritories,
 				RequiresAccountHolderRole: true,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWebSubscriptionRemoveFromSaleTable(result) },
-				func() error { return renderWebSubscriptionRemoveFromSaleMarkdown(result) },
+				func() error { return renderWebSubscriptionRemoveFromSaleTable(d, result) },
+				func() error { return renderWebSubscriptionRemoveFromSaleMarkdown(d, result) },
 			)
 		},
 	}
@@ -260,8 +260,8 @@ func withWebAccountHolderHint(err error, operation string) error {
 	return withWebAuthHint(err, operation)
 }
 
-func renderWebSubscriptionRemoveFromSaleTable(result webSubscriptionRemoveFromSaleResult) error {
-	asc.RenderTable(
+func renderWebSubscriptionRemoveFromSaleTable(d *shared.Deps, result webSubscriptionRemoveFromSaleResult) error {
+	asc.RenderTableTo(d.IO.Out,
 		[]string{"Subscription ID", "Plan Availability ID", "Plan Type", "Removed From Sale", "Available In New Territories", "Available Territories"},
 		[][]string{{
 			result.SubscriptionID,
@@ -275,10 +275,11 @@ func renderWebSubscriptionRemoveFromSaleTable(result webSubscriptionRemoveFromSa
 	return nil
 }
 
-func renderWebSubscriptionRemoveFromSaleMarkdown(result webSubscriptionRemoveFromSaleResult) error {
-	fmt.Println("| Subscription ID | Plan Availability ID | Plan Type | Removed From Sale | Available In New Territories | Available Territories |")
-	fmt.Println("|---|---|---|---|---|---|")
-	fmt.Printf(
+func renderWebSubscriptionRemoveFromSaleMarkdown(d *shared.Deps, result webSubscriptionRemoveFromSaleResult) error {
+	fmt.Fprintln(d.IO.Out, "| Subscription ID | Plan Availability ID | Plan Type | Removed From Sale | Available In New Territories | Available Territories |")
+	fmt.Fprintln(d.IO.Out, "|---|---|---|---|---|---|")
+	fmt.Fprintf(
+		d.IO.Out,
 		"| %s | %s | %s | %t | %t | %s |\n",
 		result.SubscriptionID,
 		result.PlanAvailabilityID,

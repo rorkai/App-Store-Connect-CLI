@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -32,7 +33,6 @@ func resetWebSubscriptionAvailabilityStubs(t *testing.T) {
 }
 
 func TestWebSubscriptionsAvailabilityRemoveFromSaleCommand(t *testing.T) {
-	labels := stubWebProgressLabels(t)
 	stubWebSubscriptionsSession(t)
 	resetWebSubscriptionAvailabilityStubs(t)
 
@@ -41,6 +41,7 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommand(t *testing.T) {
 		if subscriptionID != "sub-1" {
 			t.Fatalf("expected subscription sub-1, got %q", subscriptionID)
 		}
+		synctest.Wait()
 		listCalls++
 		if listCalls > 1 {
 			return []webcore.SubscriptionPlanAvailability{
@@ -53,13 +54,15 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommand(t *testing.T) {
 		}, nil
 	}
 	removeWebSubscriptionPlanAvailabilityFromSaleFn = func(ctx context.Context, client *webcore.Client, planAvailabilityID string) (*webcore.SubscriptionPlanAvailability, error) {
+		synctest.Wait()
 		if planAvailabilityID != "plan-1" {
 			t.Fatalf("expected plan-1, got %q", planAvailabilityID)
 		}
 		return &webcore.SubscriptionPlanAvailability{ID: "plan-1", PlanType: "UPFRONT", AvailableInNewTerritories: false}, nil
 	}
 
-	cmd := WebSubscriptionsAvailabilityRemoveFromSaleCommand()
+	d, depsStdout, depsStderr := newWebSpinnerTestDeps(t)
+	cmd := newWebSubscriptionsAvailabilityRemoveFromSaleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--subscription-id", "sub-1",
 		"--confirm",
@@ -68,10 +71,12 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommand(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
-		if err := cmd.Exec(context.Background(), nil); err != nil {
-			t.Fatalf("exec error: %v", err)
-		}
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		synctest.Test(t, func(t *testing.T) {
+			if err := cmd.Exec(context.Background(), nil); err != nil {
+				t.Fatalf("exec error: %v", err)
+			}
+		})
 	})
 
 	var payload webSubscriptionRemoveFromSaleResult
@@ -85,9 +90,10 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommand(t *testing.T) {
 		t.Fatalf("expected availableInNewTerritories=false: %#v", payload)
 	}
 	wantLabels := []string{"Loading subscription plan availability", "Removing subscription from sale", "Verifying subscription removal from sale"}
+	labels := spinnerLabels(stderr)
 	for i, want := range wantLabels {
-		if len(*labels) <= i || (*labels)[i] != want {
-			t.Fatalf("expected labels %v, got %v", wantLabels, *labels)
+		if len(labels) <= i || labels[i] != want {
+			t.Fatalf("expected labels %v, got %v", wantLabels, labels)
 		}
 	}
 }
@@ -111,7 +117,8 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandUsesDirectPlanAvailabi
 		return &webcore.SubscriptionPlanAvailability{ID: "plan-direct", AvailableInNewTerritories: false}, nil
 	}
 
-	cmd := WebSubscriptionsAvailabilityRemoveFromSaleCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebSubscriptionsAvailabilityRemoveFromSaleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--subscription-id", "sub-1",
 		"--plan-availability-id", "plan-direct",
@@ -120,7 +127,7 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandUsesDirectPlanAvailabi
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	captureOutput(t, func() {
+	runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -144,7 +151,8 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandRejectsMismatchedDirec
 		return nil, nil
 	}
 
-	cmd := WebSubscriptionsAvailabilityRemoveFromSaleCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebSubscriptionsAvailabilityRemoveFromSaleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--subscription-id", "sub-1",
 		"--plan-availability-id", "plan-direct",
@@ -177,7 +185,8 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandFailsWhenReadbackStill
 		return &webcore.SubscriptionPlanAvailability{ID: "plan-1", PlanType: "UPFRONT", AvailableInNewTerritories: false}, nil
 	}
 
-	cmd := WebSubscriptionsAvailabilityRemoveFromSaleCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebSubscriptionsAvailabilityRemoveFromSaleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--subscription-id", "sub-1", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -203,11 +212,12 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandRequiresFlags(t *testi
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := WebSubscriptionsAvailabilityRemoveFromSaleCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebSubscriptionsAvailabilityRemoveFromSaleCommand(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -232,7 +242,8 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandAccountHolderError(t *
 		return nil, &webcore.APIError{Status: http.StatusForbidden}
 	}
 
-	cmd := WebSubscriptionsAvailabilityRemoveFromSaleCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebSubscriptionsAvailabilityRemoveFromSaleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--subscription-id", "sub-1", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}

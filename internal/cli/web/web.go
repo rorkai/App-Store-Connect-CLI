@@ -63,7 +63,7 @@ Examples:
 			WebAppGroupsCommand(),
 			WebPrivacyCommand(),
 			WebReviewCommand(),
-			WebSubscriptionsCommand(),
+			newWebSubscriptionsCommand(d),
 			newWebAnalyticsCommand(d),
 			WebXcodeCloudCommand(),
 		},
