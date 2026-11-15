@@ -173,7 +173,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("finance", "Download payments and financial reports.", func() *ffcli.Command {
 			return finance.NewFinanceCommand(d)
 		}),
-		commandFactory("apps", "List and manage apps in App Store Connect.", apps.AppsCommand),
+		commandFactory("apps", "List and manage apps in App Store Connect.", func() *ffcli.Command {
+			return apps.NewAppsCommand(d)
+		}),
 		commandFactory("app-clips", "Manage App Clip experiences and invocations.", func() *ffcli.Command {
 			return appclips.NewAppClipsCommand(d)
 		}),

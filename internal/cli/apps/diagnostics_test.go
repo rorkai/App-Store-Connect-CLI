@@ -10,7 +10,8 @@ import (
 )
 
 func TestAppsMissingRequiredInputExposesStructuredDiagnostic(t *testing.T) {
-	err := AppsGetCommand().ParseAndRun(context.Background(), nil)
+	d, _ := newAppsTestDeps()
+	err := newAppsGetCommand(d).ParseAndRun(context.Background(), nil)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}

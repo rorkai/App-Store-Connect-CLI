@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,8 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *string, name *string, sku *string, versionState *string, reviewSubmissionState *string, sort *string, limit *int, next *string, paginate *bool, appInfoFields *string, iapFields *string, subscriptionGroupFields *string, retentionMessageFields *string) {
-	output = shared.BindOutputFlags(fs)
+func appsListFlags(d *shared.Deps, fs *flag.FlagSet) (output shared.OutputFlags, bundleID *string, name *string, sku *string, versionState *string, reviewSubmissionState *string, sort *string, limit *int, next *string, paginate *bool, appInfoFields *string, iapFields *string, subscriptionGroupFields *string, retentionMessageFields *string) {
+	output = d.BindOutputFlags(fs)
 	bundleID = fs.String("bundle-id", "", "Filter by bundle ID(s), comma-separated")
 	name = fs.String("name", "", "Filter by app name(s), comma-separated")
 	sku = fs.String("sku", "", "Filter by SKU(s), comma-separated")
@@ -32,27 +31,27 @@ func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *strin
 	return
 }
 
-// AppsCommand returns the apps command factory.
-func AppsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps", flag.ExitOnError)
+// NewAppsCommand returns the apps command factory.
+func NewAppsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps", flag.ExitOnError)
 
-	output, bundleID, name, sku, versionState, reviewSubmissionState, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields, retentionMessageFields := appsListFlags(fs)
+	output, bundleID, name, sku, versionState, reviewSubmissionState, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields, retentionMessageFields := appsListFlags(d, fs)
 	subcommands := []*ffcli.Command{
-		AppsListCommand(),
-		AppsPublishedCommand(),
-		AppsWallCommand(),
-		AppsPublicCommand(),
-		AppsRegistryCommand(),
-		AppsGetCommand(),
-		AppsRenameCommand(),
-		AppsInfoCommand(),
-		AppsCIProductCommand(),
-		AppsUpdateCommand(),
-		AppsRemoveBetaTestersCommand(),
-		AppsSubscriptionGracePeriodCommand(),
-		AppsSearchKeywordsCommand(),
-		AppEncryptionDeclarationsCommand(),
-		AppsContentRightsCommand(),
+		newAppsListCommand(d),
+		newAppsPublishedCommand(d),
+		newAppsWallCommand(d),
+		newAppsPublicCommand(d),
+		newAppsRegistryCommand(d),
+		newAppsGetCommand(d),
+		newAppsRenameCommand(d),
+		newAppsInfoCommand(d),
+		newAppsCIProductCommand(d),
+		newAppsUpdateCommand(d),
+		newAppsRemoveBetaTestersCommand(d),
+		newAppsSubscriptionGracePeriodCommand(d),
+		newAppsSearchKeywordsCommand(d),
+		newAppEncryptionDeclarationsCommand(d),
+		newAppsContentRightsCommand(d),
 	}
 
 	return &ffcli.Command{
@@ -94,28 +93,28 @@ Examples:
   asc apps --next "<links.next>"
   asc apps --paginate`,
 		FlagSet:     fs,
-		UsageFunc:   shared.VisibleUsageFunc,
+		UsageFunc:   d.VisibleUsageFunc,
 		Subcommands: subcommands,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				subcommand := strings.TrimSpace(args[0])
 				if subcommand == "create" {
-					fmt.Fprintln(os.Stderr, "Error: `asc apps create` was removed. Use `asc web apps create` instead.")
+					fmt.Fprintln(d.IO.ErrOut, "Error: `asc apps create` was removed. Use `asc web apps create` instead.")
 					return flag.ErrHelp
 				}
-				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n", subcommand)
+				fmt.Fprintf(d.IO.ErrOut, "Error: unknown subcommand %q\n", subcommand)
 				return flag.ErrHelp
 			}
-			return appsList(ctx, fs, "apps", *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
+			return appsList(d, ctx, fs, "apps", *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
 		},
 	}
 }
 
-// AppsListCommand returns the apps list subcommand.
-func AppsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps list", flag.ExitOnError)
+// newAppsListCommand returns the apps list subcommand.
+func newAppsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps list", flag.ExitOnError)
 
-	output, bundleID, name, sku, versionState, reviewSubmissionState, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields, retentionMessageFields := appsListFlags(fs)
+	output, bundleID, name, sku, versionState, reviewSubmissionState, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields, retentionMessageFields := appsListFlags(d, fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -137,18 +136,19 @@ Examples:
   asc apps list --next "<links.next>"
   asc apps list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return appsList(ctx, fs, "apps list", *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
+			return appsList(d, ctx, fs, "apps list", *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
 		},
 	}
 }
 
-// AppsGetCommand returns the apps view subcommand.
-func AppsGetCommand() *ffcli.Command {
+// newAppsGetCommand returns the apps view subcommand.
+func newAppsGetCommand(d *shared.Deps) *ffcli.Command {
 	var fieldValues, appInfoFieldValues, iapFieldValues, groupFieldValues, retentionMessageFieldValues []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "apps view",
 		Name:        "view",
 		ShortUsage:  "asc apps view --id APP_ID",
@@ -171,22 +171,22 @@ Examples:
 			retentionMessageFields := fs.String("retention-message-fields", "", "Sparse fields for included retention messages: "+strings.Join(shared.RetentionMessageSparseFields, ", "))
 			return func() (err error) {
 				if fieldValues, err = normalizeSparseField(fs, *fields, appAttributeFields, "--fields"); err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				if appInfoFieldValues, err = normalizeSparseField(fs, *appInfoFields, shared.AppInfoSparseFields, "--app-info-fields"); err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				if iapFieldValues, err = normalizeSparseField(fs, *iapFields, shared.AppInAppPurchaseSparseFields, "--iap-fields"); err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				if groupFieldValues, err = normalizeSparseField(fs, *subscriptionGroupFields, shared.SubscriptionGroupSparseFields, "--subscription-group-fields"); err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				if retentionMessageFieldValues, err = normalizeSparseField(fs, *retentionMessageFields, shared.RetentionMessageSparseFields, "--retention-message-fields"); err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 
-				shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
+				d.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
 				return nil
 			}
 		},
@@ -221,9 +221,9 @@ Examples:
 	})
 }
 
-// AppsUpdateCommand returns the apps update subcommand.
-func AppsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps update", flag.ExitOnError)
+// newAppsUpdateCommand returns the apps update subcommand.
+func newAppsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "apps", "App Store Connect app ID")
 	bundleID := fs.String("bundle-id", "", "Update bundle ID")
@@ -234,7 +234,7 @@ func AppsUpdateCommand() *ffcli.Command {
 	sandboxSubscriptionStatusURL := fs.String("sandbox-subscription-status-url", "", "Sandbox App Store Server Notifications HTTPS URL (sets version V2)")
 	var streamlinedPurchasing shared.OptionalBool
 	fs.Var(&streamlinedPurchasing, "streamlined-purchasing-enabled", "Set streamlined purchasing: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -254,11 +254,11 @@ Examples:
   asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"
   asc apps update --id "APP_ID" --streamlined-purchasing-enabled false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			attrs := asc.AppUpdateAttributes{}
@@ -275,21 +275,21 @@ Examples:
 					asc.ContentRightsDeclarationUsesThirdPartyContent:
 					attrs.ContentRightsDeclaration = &normalizedRights
 				default:
-					fmt.Fprintf(os.Stderr, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
+					fmt.Fprintf(d.IO.ErrOut, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
 					return flag.ErrHelp
 				}
 			}
 			if appFlagWasProvided(fs, "accessibility-url") {
 				value, err := validateAccessibilityURL(*accessibilityURL)
 				if err != nil {
-					return shared.UsageErrorf("--accessibility-url: %v", err)
+					return d.UsageErrorf("--accessibility-url: %v", err)
 				}
 				attrs.AccessibilityURL = &value
 			}
 			if appFlagWasProvided(fs, "subscription-status-url") {
 				value, err := validateNotificationURL(*subscriptionStatusURL)
 				if err != nil {
-					return shared.UsageErrorf("--subscription-status-url: %v", err)
+					return d.UsageErrorf("--subscription-status-url: %v", err)
 				}
 				version := asc.SubscriptionStatusURLVersionV2
 				attrs.SubscriptionStatusURL = &value
@@ -298,7 +298,7 @@ Examples:
 			if appFlagWasProvided(fs, "sandbox-subscription-status-url") {
 				value, err := validateNotificationURL(*sandboxSubscriptionStatusURL)
 				if err != nil {
-					return shared.UsageErrorf("--sandbox-subscription-status-url: %v", err)
+					return d.UsageErrorf("--sandbox-subscription-status-url: %v", err)
 				}
 				version := asc.SubscriptionStatusURLVersionV2
 				attrs.SubscriptionStatusURLForSandbox = &value
@@ -309,15 +309,15 @@ Examples:
 				attrs.StreamlinedPurchasingEnabled = &value
 			}
 			if attrs == (asc.AppUpdateAttributes{}) {
-				return shared.UpdateFlagRequired(fs, bundleID, primaryLocale, contentRights, accessibilityURL, subscriptionStatusURL, sandboxSubscriptionStatusURL, &streamlinedPurchasing)
+				return d.UpdateFlagRequired(fs, bundleID, primaryLocale, contentRights, accessibilityURL, subscriptionStatusURL, sandboxSubscriptionStatusURL, &streamlinedPurchasing)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("apps update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			app, err := client.UpdateApp(requestCtx, idValue, attrs)
@@ -325,13 +325,13 @@ Examples:
 				return fmt.Errorf("apps update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(app, *output.Output, *output.Pretty)
+			return d.PrintOutput(app, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func appsList(ctx context.Context, fs *flag.FlagSet, command string, output string, pretty bool, bundleID string, name string, sku string, versionState string, reviewSubmissionState string, sort string, limit int, next string, paginate bool, appInfoFields string, iapFields string, subscriptionGroupFields string, retentionMessageFields string) error {
-	if err := shared.ValidatePaginationFlags(
+func appsList(d *shared.Deps, ctx context.Context, fs *flag.FlagSet, command string, output string, pretty bool, bundleID string, name string, sku string, versionState string, reviewSubmissionState string, sort string, limit int, next string, paginate bool, appInfoFields string, iapFields string, subscriptionGroupFields string, retentionMessageFields string) error {
+	if err := d.ValidatePaginationFlags(
 		ctx, fs, command, 200,
 		"bundle-id", "name", "sku", "version-state", "review-submission-state", "sort", "limit",
 		"app-info-fields", "iap-fields", "subscription-group-fields", "retention-message-fields",
@@ -340,64 +340,64 @@ func appsList(ctx context.Context, fs *flag.FlagSet, command string, output stri
 	}
 	next = strings.TrimSpace(next)
 	if err := shared.ValidateSort(sort, "name", "-name", "bundleId", "-bundleId", "sku", "-sku"); err != nil {
-		return shared.UsageErrorf("apps: %v", err)
+		return d.UsageErrorf("apps: %v", err)
 	}
 	if next != "" {
 		if parsed, err := url.Parse(next); err != nil || parsed.Path != "/v1/apps" {
-			return shared.UsageError("apps: --next must point to /v1/apps")
+			return d.UsageError("apps: --next must point to /v1/apps")
 		}
 	}
 	versionStateValues := shared.SplitCSVUpper(versionState)
 	if appFlagWasProvided(fs, "version-state") {
 		if strings.TrimSpace(versionState) == "" {
-			return shared.UsageError("--version-state must not be empty")
+			return d.UsageError("--version-state must not be empty")
 		}
 		if csvContainsEmptyValue(versionState) {
-			return shared.UsageError("--version-state must not contain empty values")
+			return d.UsageError("--version-state must not contain empty values")
 		}
 	}
 	versionStateValues, err := normalizeAppVersionStateFilters(versionStateValues)
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	reviewSubmissionStateValues := shared.SplitCSVUpper(reviewSubmissionState)
 	if appFlagWasProvided(fs, "review-submission-state") {
 		if strings.TrimSpace(reviewSubmissionState) == "" {
-			return shared.UsageError("--review-submission-state must not be empty")
+			return d.UsageError("--review-submission-state must not be empty")
 		}
 		if csvContainsEmptyValue(reviewSubmissionState) {
-			return shared.UsageError("--review-submission-state must not contain empty values")
+			return d.UsageError("--review-submission-state must not contain empty values")
 		}
 	}
 	reviewSubmissionStateValues, err = normalizeReviewSubmissionStateFilters(reviewSubmissionStateValues)
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	appInfoFieldValues, err := normalizeSparseField(fs, appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	iapFieldValues, err := normalizeSparseField(fs, iapFields, shared.AppInAppPurchaseSparseFields, "--iap-fields")
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	groupFieldValues, err := normalizeSparseField(fs, subscriptionGroupFields, shared.SubscriptionGroupSparseFields, "--subscription-group-fields")
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	retentionMessageFieldValues, err := normalizeSparseField(fs, retentionMessageFields, shared.RetentionMessageSparseFields, "--retention-message-fields")
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 
-	shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, next)
+	d.WarnDeprecatedAppInfoFields(appInfoFieldValues, next)
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("apps: %w", err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	opts := []asc.AppsOption{
@@ -433,7 +433,7 @@ func appsList(ctx context.Context, fs *flag.FlagSet, command string, output stri
 
 	if paginate {
 		paginateOpts := append(opts, asc.Limit[asc.AppsOption](200))
-		apps, err := shared.PaginateWithSpinner(
+		apps, err := d.PaginateWithSpinner(
 			requestCtx,
 			func(ctx context.Context) (asc.PaginatedResponse, error) {
 				return client.GetApps(ctx, paginateOpts...)
@@ -446,7 +446,7 @@ func appsList(ctx context.Context, fs *flag.FlagSet, command string, output stri
 			return fmt.Errorf("apps: %w", err)
 		}
 
-		return shared.PrintOutput(apps, output, pretty)
+		return d.PrintOutput(apps, output, pretty)
 	}
 
 	apps, err := client.GetApps(requestCtx, opts...)
@@ -454,7 +454,7 @@ func appsList(ctx context.Context, fs *flag.FlagSet, command string, output stri
 		return fmt.Errorf("apps: failed to fetch: %w", err)
 	}
 
-	return shared.PrintOutput(apps, output, pretty)
+	return d.PrintOutput(apps, output, pretty)
 }
 
 func csvContainsEmptyValue(value string) bool {

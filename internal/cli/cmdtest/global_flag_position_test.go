@@ -20,18 +20,21 @@ func TestMisplacedGlobalFlagExplainsRootPlacement(t *testing.T) {
 			args:        []string{"apps", "list", "--debug"},
 			commandName: "asc apps list",
 			flagName:    "--debug",
+			deps:        true,
 		},
 		{
 			name:        "separate value",
 			args:        []string{"apps", "list", "--report", "junit"},
 			commandName: "asc apps list",
 			flagName:    "--report",
+			deps:        true,
 		},
 		{
 			name:        "inline value",
 			args:        []string{"apps", "list", "--report-file=results.xml"},
 			commandName: "asc apps list",
 			flagName:    "--report-file",
+			deps:        true,
 		},
 		{
 			name:        "nested command",

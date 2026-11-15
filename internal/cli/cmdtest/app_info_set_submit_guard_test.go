@@ -69,17 +69,16 @@ func TestAppInfoSetCopyFromLocaleBackfillsRequiredFields(t *testing.T) {
 			setupAppInfoSetAuth(t)
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			registerAppInfoSetVersionReads(reg, test.version, test.released)
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "filter[locale]=fr-FR,en-US", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"English description","keywords":"english,keywords","supportUrl":"https://example.com/support"}}]}`))
 			reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":`+test.created+`,`+appInfoSetVersionLocalizationRelationship+`}}`),
 				asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":`+test.created+`}}`))
 
-			root := RootCommand("1.2.3")
+			_, root, capture := appsDeps(t, reg)
 			root.FlagSet.SetOutput(io.Discard)
 
-			stdout, stderr := captureOutput(t, func() {
+			stdout, stderr := capture(func() {
 				if err := root.Parse(append([]string{
 					"apps", "info", "edit",
 					"--version-id", "version-1",
@@ -121,18 +120,17 @@ func TestAppInfoSetCopyFromLocaleErrorsWhenSourceLocaleMissing(t *testing.T) {
 	setupAppInfoSetAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	version := `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"}}}`
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1"), asctest.JSON(http.StatusOK, version))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, version))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "filter[locale]=fr-FR,en-US", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	root := RootCommand("1.2.3")
+	_, root, capture := appsDeps(t, reg)
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
-	_, _ = captureOutput(t, func() {
+	_, _ = capture(func() {
 		if err := root.Parse([]string{
 			"apps", "info", "edit",
 			"--version-id", "version-1",
@@ -194,16 +192,15 @@ func TestAppInfoSetWarnsWhenLocaleRemainsSubmitIncomplete(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAppInfoSetAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			registerAppInfoSetVersionReads(reg, test.version, test.released)
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "filter[locale]="+test.localeFilter, "limit=200"),
 				asctest.JSON(http.StatusOK, test.localizations))
 			reg.Register(test.write, asctest.JSON(test.writeStatus, test.writeResponse))
 
-			root := RootCommand("1.2.3")
+			_, root, capture := appsDeps(t, reg)
 			root.FlagSet.SetOutput(io.Discard)
 
-			_, stderr := captureOutput(t, func() {
+			_, stderr := capture(func() {
 				if err := root.Parse(append([]string{"apps", "info", "edit", "--version-id", "version-1"}, test.args...)); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
@@ -225,7 +222,6 @@ func TestAppInfoSetCopyFromLocaleDoesNotOverwriteExistingTargetFields(t *testing
 	setupAppInfoSetAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"}}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "filter[locale]=fr-FR,en-US", "limit=200"),
@@ -233,10 +229,10 @@ func TestAppInfoSetCopyFromLocaleDoesNotOverwriteExistingTargetFields(t *testing
 	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-fr").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"whatsNew":"Nouveautes"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"Description FR","keywords":"mots,cles","supportUrl":"https://example.com/support-fr","whatsNew":"Nouveautes"}}}`))
 
-	root := RootCommand("1.2.3")
+	_, root, capture := appsDeps(t, reg)
 	root.FlagSet.SetOutput(io.Discard)
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := capture(func() {
 		if err := root.Parse([]string{
 			"apps", "info", "edit",
 			"--version-id", "version-1",

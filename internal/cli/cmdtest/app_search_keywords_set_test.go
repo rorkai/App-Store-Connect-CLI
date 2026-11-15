@@ -16,7 +16,6 @@ func TestAppsSearchKeywordsSetUpdatesVersionLocalization(t *testing.T) {
 	setupAppSearchKeywordsSetAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"}}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "filter[locale]=en-US", "limit=200"),
@@ -34,8 +33,9 @@ func TestAppsSearchKeywordsSetUpdatesVersionLocalization(t *testing.T) {
 		"--confirm",
 		"--output", "json",
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
+	d, _, capture := appsDeps(t, reg)
+	stdout, stderr := capture(func() {
+		if code := rootcmd.RunWithDeps(args, "1.2.3", d); code != rootcmd.ExitSuccess {
 			t.Fatalf("expected exit code %d, got %d", rootcmd.ExitSuccess, code)
 		}
 	})
@@ -59,7 +59,6 @@ func TestAppsSearchKeywordsSetFollowsResolutionPagination(t *testing.T) {
 	setupAppSearchKeywordsSetAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=2.0", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=version-next"}}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "cursor=version-next"),
@@ -71,12 +70,13 @@ func TestAppsSearchKeywordsSetFollowsResolutionPagination(t *testing.T) {
 	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-ja").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-ja","attributes":{"keywords":"one,two"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ja","attributes":{"locale":"ja","keywords":"one,two"}}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{
+	d, _, capture := appsDeps(t, reg)
+	stdout, stderr := capture(func() {
+		if code := rootcmd.RunWithDeps([]string{
 			"apps", "search-keywords", "set",
 			"--app", "app-1", "--version", "2.0", "--locale", "ja",
 			"--keywords", "one,two", "--confirm",
-		}, "1.2.3"); code != rootcmd.ExitSuccess {
+		}, "1.2.3", d); code != rootcmd.ExitSuccess {
 			t.Fatalf("expected success exit, got %d", code)
 		}
 	})
@@ -143,17 +143,17 @@ func TestAppsSearchKeywordsSetResolutionFailures(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAppSearchKeywordsSetAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for i, request := range test.requests {
 				reg.Register(request, asctest.JSON(http.StatusOK, test.responses[i]))
 			}
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run([]string{
+			d, _, capture := appsDeps(t, reg)
+			stdout, stderr := capture(func() {
+				if code := rootcmd.RunWithDeps([]string{
 					"apps", "search-keywords", "set",
 					"--app", "app-1", "--version", "1.2.3", "--locale", "en-US",
 					"--keywords", "one,two", "--confirm",
-				}, "1.2.3"); code != rootcmd.ExitError {
+				}, "1.2.3", d); code != rootcmd.ExitError {
 					t.Fatalf("expected failure exit, got %d", code)
 				}
 			})
@@ -174,7 +174,6 @@ func TestAppsSearchKeywordsSetAPIFailure(t *testing.T) {
 	setupAppSearchKeywordsSetAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"}}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "filter[locale]=en-US", "limit=200"),
@@ -182,12 +181,13 @@ func TestAppsSearchKeywordsSetAPIFailure(t *testing.T) {
 	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"keywords":"one,two"}}}`),
 		asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Invalid keywords"}]}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{
+	d, _, capture := appsDeps(t, reg)
+	stdout, stderr := capture(func() {
+		if code := rootcmd.RunWithDeps([]string{
 			"apps", "search-keywords", "set",
 			"--app", "app-1", "--version", "1.2.3", "--locale", "en-US",
 			"--keywords", "one,two", "--confirm",
-		}, "1.2.3"); code != rootcmd.HTTPStatusToExitCode(http.StatusUnprocessableEntity) {
+		}, "1.2.3", d); code != rootcmd.HTTPStatusToExitCode(http.StatusUnprocessableEntity) {
 			t.Fatalf("expected HTTP 422 exit, got %d", code)
 		}
 	})
@@ -203,7 +203,6 @@ func TestAppsSearchKeywordsSetTableOutput(t *testing.T) {
 	setupAppSearchKeywordsSetAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"}}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "filter[locale]=en-US", "limit=200"),
@@ -211,12 +210,13 @@ func TestAppsSearchKeywordsSetTableOutput(t *testing.T) {
 	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"keywords":"set,list"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","keywords":"set,list"}}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{
+	d, _, capture := appsDeps(t, reg)
+	stdout, stderr := capture(func() {
+		if code := rootcmd.RunWithDeps([]string{
 			"apps", "search-keywords", "set",
 			"--confirm", "--keywords", "set,list", "--locale", "en-US",
 			"--version", "1.2.3", "--app", "app-1", "--output", "table",
-		}, "1.2.3"); code != rootcmd.ExitSuccess {
+		}, "1.2.3", d); code != rootcmd.ExitSuccess {
 			t.Fatalf("expected success exit, got %d", code)
 		}
 	})

@@ -24,6 +24,7 @@ func TestOutputFlagRejectionUsesEnumStyle(t *testing.T) {
 			name: "default output set",
 			args: []string{"apps", "list", "--output", "yaml"},
 			want: `Error: --output must be one of: json, table, markdown (got "yaml")` + "\n",
+			deps: true,
 		},
 		{
 			name: "restricted output set",
@@ -45,6 +46,7 @@ func TestOutputFlagRejectionUsesEnumStyle(t *testing.T) {
 			name: "rejected value preserves whitespace",
 			args: []string{"apps", "list", "--output", " yaml "},
 			want: `Error: --output must be one of: json, table, markdown (got " yaml ")` + "\n",
+			deps: true,
 		},
 	}
 

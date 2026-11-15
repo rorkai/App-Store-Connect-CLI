@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppsCIProductCommand returns the ci-product command group.
-func AppsCIProductCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ci-product", flag.ExitOnError)
+// newAppsCIProductCommand returns the ci-product command group.
+func newAppsCIProductCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ci-product", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "ci-product",
@@ -22,9 +22,9 @@ func AppsCIProductCommand() *ffcli.Command {
 Examples:
   asc apps ci-product view --id "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsCIProductGetCommand(),
+			newAppsCIProductGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -32,9 +32,10 @@ Examples:
 	}
 }
 
-// AppsCIProductGetCommand returns the ci-product get subcommand.
-func AppsCIProductGetCommand() *ffcli.Command {
+// newAppsCIProductGetCommand returns the ci-product get subcommand.
+func newAppsCIProductGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc apps ci-product view --id \"APP_ID\"",
 		ShortHelp:  "View the CI product for an app.",

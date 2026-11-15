@@ -52,6 +52,7 @@ func TestRelationshipCommandValidationErrors(t *testing.T) {
 		{
 			name: "apps ci-product get missing id",
 			args: []string{"apps", "ci-product", "get"},
+			deps: true,
 		},
 	}
 

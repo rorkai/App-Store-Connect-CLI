@@ -15,7 +15,6 @@ import (
 func TestAppsPublishedAuditsEveryAppAndPaginatesTerritories(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(publishedAppsListRequest(), asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"apps","id":"app-2","attributes":{"name":"Zulu","bundleId":"com.example.zulu","sku":"ZULU","primaryLocale":"en-US"}},
@@ -49,16 +48,10 @@ func TestAppsPublishedAuditsEveryAppAndPaginatesTerritories(t *testing.T) {
 				"links":{"next":""}
 			}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"apps", "published", "--pretty"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "apps", "published", "--pretty")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var report struct {
 		AuditedAppCount   int `json:"auditedAppCount"`
@@ -92,12 +85,11 @@ func TestAppsPublishedAuditsEveryAppAndPaginatesTerritories(t *testing.T) {
 func TestAppsPublishedEmptyAccount(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(publishedAppsListRequest(), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 
-	root := RootCommand("1.2.3")
+	_, root, capture := appsDeps(t, reg)
 	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := capture(func() {
 		if err := root.Parse([]string{"apps", "published"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -113,12 +105,11 @@ func TestAppsPublishedEmptyAccount(t *testing.T) {
 func TestAppsPublishedPreservesSuccessfulRowsWhenAnotherAuditFails(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	registerPublishedAppsPartialFailure(reg)
 
-	root := RootCommand("1.2.3")
+	_, root, capture := appsDeps(t, reg)
 	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := capture(func() {
 		if err := root.Parse([]string{"apps", "published", "--pretty"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -168,11 +159,10 @@ func TestAppsPublishedRendersPartialResultsForHumanFormats(t *testing.T) {
 	for _, format := range []string{"table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			registerPublishedAppsPartialFailure(reg)
-			root := RootCommand("1.2.3")
+			_, root, capture := appsDeps(t, reg)
 			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
+			stdout, stderr := capture(func() {
 				if err := root.Parse([]string{"apps", "published", "--output", format}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
@@ -202,7 +192,6 @@ func TestAppsPublishedRendersPartialResultsForHumanFormats(t *testing.T) {
 func TestAppsPublishedOrdersMultipleFailuresDeterministically(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(publishedAppsListRequest(), asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"apps","id":"z-failure","attributes":{"name":"Zulu Failure","bundleId":"com.example.zulu","sku":"ZULU"}},
@@ -219,10 +208,10 @@ func TestAppsPublishedOrdersMultipleFailuresDeterministically(t *testing.T) {
 			asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"No apps resource exists"}]}`))
 	}
 
-	root := RootCommand("1.2.3")
+	_, root, capture := appsDeps(t, reg)
 	root.FlagSet.SetOutput(io.Discard)
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := capture(func() {
 		if err := root.Parse([]string{"apps", "published", "--pretty"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -263,18 +252,11 @@ func TestAppsPublishedOutputFormatsAndDeterministicOrder(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.format, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			registerPublishedTwoApps(reg)
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"apps", "published", "--output", test.format}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "apps", "published", "--output", test.format)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if !strings.Contains(stdout, test.want) {
 				t.Fatalf("%s output missing %q: %s", test.format, test.want, stdout)
 			}
@@ -304,7 +286,6 @@ func TestAppsPublishedRetriesRateLimitedAvailabilityReads(t *testing.T) {
 	t.Setenv("ASC_MAX_DELAY", "1ms")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(publishedAppsListRequest(), asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"apps","id":"app-1","attributes":{"name":"Retried","bundleId":"com.example.retried","sku":"RETRIED"}}],
 				"links":{"next":""}
@@ -316,9 +297,9 @@ func TestAppsPublishedRetriesRateLimitedAvailabilityReads(t *testing.T) {
 	reg.Register(publishedTerritoriesRequest("availability-1"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"contentStatuses":["AVAILABLE"]}}],"links":{"next":""}}`))
 
-	root := RootCommand("1.2.3")
+	_, root, capture := appsDeps(t, reg)
 	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := capture(func() {
 		if err := root.Parse([]string{"apps", "published"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}

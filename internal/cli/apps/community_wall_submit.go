@@ -50,10 +50,6 @@ var (
 		return term.IsTerminal(int(os.Stdin.Fd()))
 	}
 	communityWallPromptSubmitText = promptCommunityWallSubmitText
-	communityWallNow              = func() time.Time {
-		return time.Now().UTC()
-	}
-	communityWallSleep            = time.Sleep
 	communityWallLookupAppDetails = fetchCommunityWallAppDetails
 )
 
@@ -136,6 +132,7 @@ type communityWallGitHubPullRequest struct {
 
 type communityWallGitHubClientAPI struct {
 	Token string
+	after func(time.Duration) <-chan time.Time
 }
 
 type communityWallUsageError struct {
@@ -150,9 +147,9 @@ func (e communityWallUsageError) Is(target error) bool {
 	return target == errCommunityWallUsage
 }
 
-// AppsWallSubmitCommand returns the wall submit subcommand.
-func AppsWallSubmitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps wall submit", flag.ExitOnError)
+// newAppsWallSubmitCommand returns the wall submit subcommand.
+func newAppsWallSubmitCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps wall submit", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store or App Store Connect app ID")
 	name := fs.String("name", "", "Override the app name resolved from the App Store lookup")
@@ -181,16 +178,16 @@ Examples:
   asc apps wall submit --app "1435783608" --country "jp" --confirm
   asc apps wall submit --link "https://testflight.apple.com/join/ABCDEFG" --name "My Beta App" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 
 			input, err := collectCommunityWallSubmitInput(*appID, *name, *link, *country)
 			if err != nil {
 				if errors.Is(err, errCommunityWallUsage) {
-					fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+					fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err.Error())
 					return flag.ErrHelp
 				}
 				return fmt.Errorf("apps wall submit: %w", err)
@@ -201,10 +198,10 @@ Examples:
 				return fmt.Errorf("apps wall submit: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			result, err := submitCommunityWallEntry(requestCtx, communityWallSubmitRequest{
+			result, err := submitCommunityWallEntry(requestCtx, d, communityWallSubmitRequest{
 				Input:       input,
 				GitHubToken: token,
 				GitHubLogin: ghLogin,
@@ -212,20 +209,20 @@ Examples:
 			})
 			if err != nil {
 				if errors.Is(err, errCommunityWallUsage) {
-					fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+					fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err.Error())
 					return flag.ErrHelp
 				}
 				return fmt.Errorf("apps wall submit: %w", err)
 			}
 
 			for _, warning := range result.Warnings {
-				fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: %s\n", warning)
 			}
 			if result.PullRequestURL != "" {
-				fmt.Fprintf(os.Stderr, "Pull request created: #%d %s\n", result.PullRequestNumber, result.PullRequestURL)
+				fmt.Fprintf(d.IO.ErrOut, "Pull request created: #%d %s\n", result.PullRequestNumber, result.PullRequestURL)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -469,7 +466,7 @@ func resolveCommunityWallCandidate(ctx context.Context, input communityWallSubmi
 	return candidate, warnings, nil
 }
 
-func submitCommunityWallEntry(ctx context.Context, req communityWallSubmitRequest) (*communityWallSubmitResult, error) {
+func submitCommunityWallEntry(ctx context.Context, d *shared.Deps, req communityWallSubmitRequest) (*communityWallSubmitResult, error) {
 	if strings.TrimSpace(req.GitHubToken) == "" {
 		return nil, fmt.Errorf("missing GitHub token")
 	}
@@ -477,13 +474,13 @@ func submitCommunityWallEntry(ctx context.Context, req communityWallSubmitReques
 		return nil, fmt.Errorf("missing GitHub login")
 	}
 
-	client := communityWallGitHubClientAPI{Token: req.GitHubToken}
+	client := communityWallGitHubClientAPI{Token: req.GitHubToken, after: d.After}
 	candidate, warnings, err := resolveCommunityWallCandidate(ctx, req.Input)
 	if err != nil {
 		return nil, err
 	}
 
-	branch := communityWallBranchName(candidate.App, communityWallNow())
+	branch := communityWallBranchName(candidate.App, d.Now().UTC())
 	changeTitle := communityWallChangeTitle(candidate.App)
 	commitMessage := changeTitle
 	prTitle := changeTitle
@@ -956,7 +953,7 @@ func (client communityWallGitHubClientAPI) waitForRepo(ctx context.Context, owne
 		case <-ctx.Done():
 			return fmt.Errorf("timed out waiting for fork %s/%s: %w", owner, repo, ctx.Err())
 		default:
-			communityWallSleep(time.Second)
+			<-client.after(time.Second)
 		}
 	}
 }

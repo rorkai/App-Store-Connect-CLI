@@ -38,13 +38,12 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 				t.Fatal(err)
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.PATCH("/v1/apps/app-1").JSONBody(`{"data":{"type":"apps","id":"app-1","attributes":`+string(attributes)+`}}`),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"name":"Example","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V1","streamlinedPurchasingEnabled":false}}}`))
-			root := RootCommand("test")
+			_, root, capture := appsDeps(t, reg)
 			args := append([]string{"apps", "update", "--id", "app-1", "--output", "json"}, tt.args...)
 			var runErr error
-			stdout, stderr := captureOutput(t, func() { runErr = root.ParseAndRun(context.Background(), args) })
+			stdout, stderr := capture(func() { runErr = root.ParseAndRun(context.Background(), args) })
 			if runErr != nil {
 				t.Fatal(runErr)
 			}
@@ -119,12 +118,11 @@ func TestAppsViewNotificationURLFields(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	fields := "accessibilityUrl,subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1", "fields[apps]="+fields),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"accessibilityUrl":"https://example.com/accessibility","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V2"}}}`))
-	root := RootCommand("test")
+	_, root, capture := appsDeps(t, reg)
 	var err error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := capture(func() {
 		err = root.ParseAndRun(context.Background(), []string{"apps", "view", "--id", "app-1", "--fields", fields, "--output", "json"})
 	})
 	if err != nil || stderr != "" {
@@ -170,12 +168,11 @@ func TestAppsViewNotificationFieldsPreserveIncludedRelationships(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1", "fields[appInfos]=kidsAgeBand", "fields[apps]=subscriptionStatusUrl,appInfos,inAppPurchases,subscriptionGroups", "fields[inAppPurchases]=versions", "fields[subscriptionGroups]=versions", "include=appInfos,inAppPurchases,subscriptionGroups"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"subscriptionStatusUrl":null}},"included":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Plus"}}]}`))
-	root := RootCommand("test")
+	_, root, capture := appsDeps(t, reg)
 	var err error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := capture(func() {
 		err = root.ParseAndRun(context.Background(), []string{"apps", "view", "--id", "app-1", "--fields", "subscriptionStatusUrl", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--output", "json"})
 	})
 	if err != nil || !strings.HasPrefix(stderr, "Warning: AppInfo.kidsAgeBand is deprecated") || strings.Count(stderr, "\n") != 1 {

@@ -49,9 +49,9 @@ type appRegistryPullResult struct {
 	Registry  *appRegistryFile `json:"registry,omitempty"`
 }
 
-// AppsRegistryCommand returns the local app registry subtree.
-func AppsRegistryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps registry", flag.ExitOnError)
+// newAppsRegistryCommand returns the local app registry subtree.
+func newAppsRegistryCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps registry", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "registry",
@@ -69,9 +69,9 @@ Examples:
   asc apps registry pull --path "/Users/me/clawd/config/app_registry.json" --dry-run
   asc apps registry pull --prune-missing --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsRegistryPullCommand(),
+			newAppsRegistryPullCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -79,15 +79,15 @@ Examples:
 	}
 }
 
-// AppsRegistryPullCommand returns the app registry pull subcommand.
-func AppsRegistryPullCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps registry pull", flag.ExitOnError)
+// newAppsRegistryPullCommand returns the app registry pull subcommand.
+func newAppsRegistryPullCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps registry pull", flag.ExitOnError)
 
 	path := fs.String("path", defaultAppRegistryPath, "Registry JSON path")
 	dryRun := fs.Bool("dry-run", false, "Preview the merged registry without writing it")
 	pruneMissing := fs.Bool("prune-missing", false, "Remove local registry entries not returned by App Store Connect")
 	confirm := fs.Bool("confirm", false, "Confirm pruning local registry entries")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "pull",
@@ -106,9 +106,9 @@ Examples:
   asc apps registry pull --path "/Users/me/clawd/config/app_registry.json"
   asc apps registry pull --path ".asc/app-registry.json" --prune-missing --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return appsRegistryPull(ctx, appsRegistryPullOptions{
+			return appsRegistryPull(d, ctx, appsRegistryPullOptions{
 				Path:         *path,
 				DryRun:       *dryRun,
 				PruneMissing: *pruneMissing,
@@ -129,17 +129,17 @@ type appsRegistryPullOptions struct {
 	Pretty       bool
 }
 
-func appsRegistryPull(ctx context.Context, opts appsRegistryPullOptions) error {
+func appsRegistryPull(d *shared.Deps, ctx context.Context, opts appsRegistryPullOptions) error {
 	path := strings.TrimSpace(opts.Path)
 	if path == "" {
-		return shared.UsageError("--path is required")
+		return d.UsageError("--path is required")
 	}
 	if opts.PruneMissing && !opts.DryRun && !opts.Confirm {
-		return shared.UsageError("--confirm is required with --prune-missing unless --dry-run is set")
+		return d.UsageError("--confirm is required with --prune-missing unless --dry-run is set")
 	}
 	output, err := shared.ValidateOutputFormat(opts.Output, opts.Pretty)
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	opts.Output = output
 
@@ -148,15 +148,15 @@ func appsRegistryPull(ctx context.Context, opts appsRegistryPullOptions) error {
 		return fmt.Errorf("apps registry pull: %w", err)
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("apps registry pull: %w", err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
-	response, err := shared.PaginateWithSpinner(
+	response, err := d.PaginateWithSpinner(
 		requestCtx,
 		func(ctx context.Context) (asc.PaginatedResponse, error) {
 			return client.GetApps(ctx, asc.Limit[asc.AppsOption](200), asc.WithAppsSort("name"))
@@ -190,7 +190,7 @@ func appsRegistryPull(ctx context.Context, opts appsRegistryPullOptions) error {
 		}
 	}
 
-	return printAppRegistryPullResult(&result, opts.Output, opts.Pretty)
+	return printAppRegistryPullResult(d, &result, opts.Output, opts.Pretty)
 }
 
 func readAppRegistry(path string) (appRegistryFile, error) {
@@ -526,17 +526,17 @@ func uniqueAppRegistryKey(base string, used map[string]struct{}) string {
 	}
 }
 
-func printAppRegistryPullResult(result *appRegistryPullResult, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printAppRegistryPullResult(d *shared.Deps, result *appRegistryPullResult, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		format,
 		pretty,
-		func() error { return renderAppRegistryPullResult(result, false) },
-		func() error { return renderAppRegistryPullResult(result, true) },
+		func() error { return renderAppRegistryPullResult(d, result, false) },
+		func() error { return renderAppRegistryPullResult(d, result, true) },
 	)
 }
 
-func renderAppRegistryPullResult(result *appRegistryPullResult, markdown bool) error {
+func renderAppRegistryPullResult(d *shared.Deps, result *appRegistryPullResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("registry pull result is nil")
 	}
@@ -554,9 +554,9 @@ func renderAppRegistryPullResult(result *appRegistryPullResult, markdown bool) e
 	}}
 
 	if markdown {
-		asc.RenderMarkdown(headers, rows)
+		asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 		return nil
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }

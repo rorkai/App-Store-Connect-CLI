@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -18,9 +17,9 @@ type contentRightsResult struct {
 	ContentRightsDeclaration *asc.ContentRightsDeclaration `json:"content_rights_declaration"`
 }
 
-// AppsContentRightsCommand returns the content-rights command group.
-func AppsContentRightsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("content-rights", flag.ExitOnError)
+// newAppsContentRightsCommand returns the content-rights command group.
+func newAppsContentRightsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("content-rights", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "content-rights",
@@ -35,10 +34,10 @@ Examples:
   asc apps content-rights view --app "APP_ID"
   asc apps content-rights edit --app "APP_ID" --uses-third-party-content=false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsContentRightsViewCommand(),
-			AppsContentRightsEditCommand(),
+			newAppsContentRightsViewCommand(d),
+			newAppsContentRightsEditCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -46,12 +45,12 @@ Examples:
 	}
 }
 
-// AppsContentRightsViewCommand returns the content-rights view subcommand.
-func AppsContentRightsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("content-rights view", flag.ExitOnError)
+// newAppsContentRightsViewCommand returns the content-rights view subcommand.
+func newAppsContentRightsViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("content-rights view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -62,20 +61,20 @@ func AppsContentRightsViewCommand() *ffcli.Command {
 Examples:
   asc apps content-rights view --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("apps content-rights view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			app, err := client.GetApp(requestCtx, resolvedAppID)
@@ -84,16 +83,16 @@ Examples:
 			}
 
 			result := buildContentRightsResult(app)
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable([]string{"field", "value"}, contentRightsRows(result))
+					asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, contentRightsRows(result))
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown([]string{"field", "value"}, contentRightsRows(result))
+					asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, contentRightsRows(result))
 					return nil
 				},
 			)
@@ -101,13 +100,13 @@ Examples:
 	}
 }
 
-// AppsContentRightsEditCommand returns the content-rights edit subcommand.
-func AppsContentRightsEditCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("content-rights edit", flag.ExitOnError)
+// newAppsContentRightsEditCommand returns the content-rights edit subcommand.
+func newAppsContentRightsEditCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("content-rights edit", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	usesThirdParty := fs.String("uses-third-party-content", "", "Whether app uses third-party content (true/false, yes/no)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "edit",
@@ -127,30 +126,30 @@ Examples:
   asc apps content-rights edit --app "APP_ID" --uses-third-party-content=false
   asc apps content-rights edit --app "APP_ID" --uses-third-party-content=true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			if strings.TrimSpace(*usesThirdParty) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --uses-third-party-content is required (true or false)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --uses-third-party-content is required (true or false)")
 				return shared.MissingRequiredUsageError("--uses-third-party-content")
 			}
 
 			declaration, err := parseContentRightsValue(*usesThirdParty)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("apps content-rights edit: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.AppUpdateAttributes{
@@ -162,19 +161,19 @@ Examples:
 				return fmt.Errorf("apps content-rights edit: failed to update: %w", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Content rights declaration set to %s\n", string(declaration))
+			fmt.Fprintf(d.IO.ErrOut, "Content rights declaration set to %s\n", string(declaration))
 
 			result := buildContentRightsResult(app)
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable([]string{"field", "value"}, contentRightsRows(result))
+					asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, contentRightsRows(result))
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown([]string{"field", "value"}, contentRightsRows(result))
+					asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, contentRightsRows(result))
 					return nil
 				},
 			)

@@ -32,9 +32,9 @@ type communityWallEntry struct {
 	Icon string `json:"icon,omitempty"`
 }
 
-// AppsWallCommand returns the community wall subcommand.
-func AppsWallCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps wall", flag.ExitOnError)
+// newAppsWallCommand returns the community wall subcommand.
+func newAppsWallCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps wall", flag.ExitOnError)
 
 	output, sortBy, limit := appsWallFlags(fs)
 
@@ -51,19 +51,19 @@ Examples:
   asc apps wall --sort -name
   asc apps wall submit --app "1234567890" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsWallSubmitCommand(),
+			newAppsWallSubmitCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
-				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n", strings.TrimSpace(args[0]))
+				fmt.Fprintf(d.IO.ErrOut, "Error: unknown subcommand %q\n", strings.TrimSpace(args[0]))
 				return flag.ErrHelp
 			}
-			if err := shared.ValidatePaginationFlags(ctx, fs, "apps wall", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "apps wall", 200); err != nil {
 				return err
 			}
-			return appsCommunityWall(ctx, *output.Output, *output.Pretty, *sortBy, *limit)
+			return appsCommunityWall(d, ctx, *output.Output, *output.Pretty, *sortBy, *limit)
 		},
 	}
 }
@@ -75,13 +75,13 @@ func appsWallFlags(fs *flag.FlagSet) (output shared.OutputFlags, sortBy *string,
 	return
 }
 
-func appsCommunityWall(ctx context.Context, output string, pretty bool, sortBy string, limit int) error {
+func appsCommunityWall(d *shared.Deps, ctx context.Context, output string, pretty bool, sortBy string, limit int) error {
 	if err := shared.ValidateSort(sortBy, "name", "-name"); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+		fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err.Error())
 		return flag.ErrHelp
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	sourceEntries, err := loadCommunityWallEntries(requestCtx)
@@ -109,7 +109,7 @@ func appsCommunityWall(ctx context.Context, output string, pretty bool, sortBy s
 		entries = entries[:limit]
 	}
 
-	return shared.PrintOutput(&asc.AppsWallResult{Data: entries}, output, pretty)
+	return d.PrintOutput(&asc.AppsWallResult{Data: entries}, output, pretty)
 }
 
 func loadCommunityWallEntries(ctx context.Context) ([]communityWallEntry, error) {

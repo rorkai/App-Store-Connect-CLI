@@ -3,10 +3,12 @@ package apps
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestAppsWallSubmitHelpMentionsPublicAppStoreLookup(t *testing.T) {
-	cmd := AppsWallSubmitCommand()
+	d, _ := newWallSubmitTestDeps(time.Now)
+	cmd := newAppsWallSubmitCommand(d)
 	if cmd == nil {
 		t.Fatal("expected apps wall submit command")
 		return

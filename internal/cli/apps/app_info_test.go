@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -152,9 +153,9 @@ func TestResolveAppStoreVersionForAppInfoRejectsPartialResults(t *testing.T) {
 }
 
 func TestWarnAppInfoSetSubmitIncompleteLocaleMentionsCanonicalPublishFlow(t *testing.T) {
-	stderr := captureAppsCreateOutput(t, func() {
-		warnAppInfoSetSubmitIncompleteLocale("en-US", asc.AppStoreVersionLocalizationAttributes{}, shared.SubmitReadinessOptions{})
-	})
+	d, stderrBuf := newAppsTestDeps()
+	warnAppInfoSetSubmitIncompleteLocale(d, "en-US", asc.AppStoreVersionLocalizationAttributes{}, shared.SubmitReadinessOptions{})
+	stderr := stderrBuf.String()
 
 	if !strings.Contains(stderr, "`asc publish appstore --submit`") {
 		t.Fatalf("expected canonical publish guidance in warning, got %q", stderr)
@@ -208,14 +209,14 @@ func TestRunAppInfoSetSingleLocaleRefetchesAndUpdatesAfterCreateConflict(t *test
 	outputFormat := "json"
 	pretty := false
 	output := shared.OutputFlags{Output: &outputFormat, Pretty: &pretty}
-	stderr := captureAppsCreateOutput(t, func() {
-		err := runAppInfoSetSingleLocale(context.Background(), client, "version-1", "en-US", "", asc.AppStoreVersionLocalizationAttributes{
-			Description: "New description",
-		}, shared.SubmitReadinessOptions{RequireWhatsNew: true}, output)
-		if err != nil {
-			t.Fatalf("runAppInfoSetSingleLocale() error: %v", err)
-		}
-	})
+	d, stderrBuf := newAppsTestDeps()
+	err := runAppInfoSetSingleLocale(d, context.Background(), client, "version-1", "en-US", "", asc.AppStoreVersionLocalizationAttributes{
+		Description: "New description",
+	}, shared.SubmitReadinessOptions{RequireWhatsNew: true}, output)
+	if err != nil {
+		t.Fatalf("runAppInfoSetSingleLocale() error: %v", err)
+	}
+	stderr := stderrBuf.String()
 
 	if !strings.Contains(stderr, "whatsNew") {
 		t.Fatalf("expected RequireWhatsNew warning after conflict fallback, got %q", stderr)
@@ -383,14 +384,13 @@ func TestRunAppInfoSetSingleLocaleConflictRechecksCopyFromAfterRefetch(t *testin
 	outputFormat := "json"
 	pretty := false
 	output := shared.OutputFlags{Output: &outputFormat, Pretty: &pretty}
-	captureAppsCreateOutput(t, func() {
-		err := runAppInfoSetSingleLocale(context.Background(), client, "version-1", "en-US", "fr-FR", asc.AppStoreVersionLocalizationAttributes{
-			WhatsNew: "Bug fixes",
-		}, shared.SubmitReadinessOptions{RequireWhatsNew: true}, output)
-		if err != nil {
-			t.Fatalf("runAppInfoSetSingleLocale() error: %v", err)
-		}
-	})
+	d, _ := newAppsTestDeps()
+	err := runAppInfoSetSingleLocale(d, context.Background(), client, "version-1", "en-US", "fr-FR", asc.AppStoreVersionLocalizationAttributes{
+		WhatsNew: "Bug fixes",
+	}, shared.SubmitReadinessOptions{RequireWhatsNew: true}, output)
+	if err != nil {
+		t.Fatalf("runAppInfoSetSingleLocale() error: %v", err)
+	}
 
 	if got, want := strings.Join(requests, ","), "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations,POST /v1/appStoreVersionLocalizations,GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations,PATCH /v1/appStoreVersionLocalizations/loc-1"; got != want {
 		t.Fatalf("request sequence = %s, want %s", got, want)
@@ -449,14 +449,13 @@ func TestRunAppInfoSetSingleLocaleConflictBackfillsEmptyRefetchedTarget(t *testi
 			outputFormat := "json"
 			pretty := false
 			output := shared.OutputFlags{Output: &outputFormat, Pretty: &pretty}
-			captureAppsCreateOutput(t, func() {
-				err := runAppInfoSetSingleLocale(context.Background(), client, "version-1", "en-US", "fr-FR", asc.AppStoreVersionLocalizationAttributes{
-					WhatsNew: "Bug fixes",
-				}, shared.SubmitReadinessOptions{RequireWhatsNew: true}, output)
-				if err != nil {
-					t.Fatalf("runAppInfoSetSingleLocale() error: %v", err)
-				}
-			})
+			d, _ := newAppsTestDeps()
+			err := runAppInfoSetSingleLocale(d, context.Background(), client, "version-1", "en-US", "fr-FR", asc.AppStoreVersionLocalizationAttributes{
+				WhatsNew: "Bug fixes",
+			}, shared.SubmitReadinessOptions{RequireWhatsNew: true}, output)
+			if err != nil {
+				t.Fatalf("runAppInfoSetSingleLocale() error: %v", err)
+			}
 
 			if got, want := strings.Join(requests, ","), "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations,POST /v1/appStoreVersionLocalizations,GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations,PATCH /v1/appStoreVersionLocalizations/loc-1"; got != want {
 				t.Fatalf("request sequence = %s, want %s", got, want)
@@ -519,4 +518,10 @@ func newAppInfoTestServerClient(t *testing.T, server *httptest.Server) *asc.Clie
 		return server.Client().Transport.RoundTrip(routed)
 	})
 	return newAppInfoTestClient(t, transport)
+}
+
+// newAppsTestDeps returns deps that discard stdout and keep stderr.
+func newAppsTestDeps() (*shared.Deps, *bytes.Buffer) {
+	var stderr bytes.Buffer
+	return &shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: &stderr}}, &stderr
 }
