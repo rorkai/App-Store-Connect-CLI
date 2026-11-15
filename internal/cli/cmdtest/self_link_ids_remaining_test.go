@@ -415,6 +415,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "offer-code-id",
 			value:   selfLinkTestBase + "/v1/inAppPurchaseOfferCodes/offer-1",
 			wantErr: "expected a self-link of type subscriptionOfferCodes, got inAppPurchaseOfferCodes",
+			deps:    true,
 		},
 		{
 			name:    "iap offer-codes custom-codes list rejects subscription offer code link",

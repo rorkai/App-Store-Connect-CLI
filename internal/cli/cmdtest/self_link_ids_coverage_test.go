@@ -202,6 +202,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/subscriptionOfferCodeCustomCodes/custom-1": `{"data":{"type":"subscriptionOfferCodeCustomCodes","id":"custom-1","attributes":{"customCode":"SPRING"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "users view",
@@ -456,9 +457,9 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"xcode-cloud", "scm", "repositories", "git-references"}, flag: "repo-id", wantType: "scmRepositories", deps: true},
 		{args: []string{"xcode-cloud", "scm", "git-references", "view"}, flag: "id", wantType: "scmGitReferences", deps: true},
 		{args: []string{"xcode-cloud", "scm", "pull-requests", "view"}, flag: "id", wantType: "scmPullRequests", deps: true},
-		{args: []string{"subscriptions", "offers", "offer-codes", "custom-codes", "list"}, flag: "offer-code-id", wantType: "subscriptionOfferCodes"},
-		{args: []string{"subscriptions", "offers", "offer-codes", "custom-codes", "view"}, flag: "custom-code-id", wantType: "subscriptionOfferCodeCustomCodes"},
-		{args: []string{"subscriptions", "offers", "win-back", "view"}, flag: "id", wantType: "winBackOffers"},
+		{args: []string{"subscriptions", "offers", "offer-codes", "custom-codes", "list"}, flag: "offer-code-id", wantType: "subscriptionOfferCodes", deps: true},
+		{args: []string{"subscriptions", "offers", "offer-codes", "custom-codes", "view"}, flag: "custom-code-id", wantType: "subscriptionOfferCodeCustomCodes", deps: true},
+		{args: []string{"subscriptions", "offers", "win-back", "view"}, flag: "id", wantType: "winBackOffers", deps: true},
 		{args: []string{"pricing", "schedule", "automatic-prices"}, flag: "schedule", wantType: "appPriceSchedules", deps: true},
 		{args: []string{"pre-orders", "list"}, flag: "availability", wantType: "appAvailabilities", deps: true},
 		// Bare --id flags and other single-resource flags.
@@ -518,9 +519,9 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"subscriptions", "groups", "view"}, flag: "id", wantType: "subscriptionGroups", deps: true},
 		{args: []string{"subscriptions", "groups", "versions", "localizations", "view"}, flag: "id", wantType: "subscriptionGroupLocalizations", deps: true},
 		{args: []string{"subscriptions", "grace-periods", "view"}, flag: "id", wantType: "subscriptionGracePeriods", deps: true},
-		{args: []string{"subscriptions", "offers", "introductory", "view"}, flag: "id", wantType: "subscriptionIntroductoryOffers"},
-		{args: []string{"subscriptions", "offers", "introductory", "create"}, flag: "price-point", wantType: "subscriptionPricePoints"},
-		{args: []string{"subscriptions", "offers", "promotional", "view"}, flag: "id", wantType: "subscriptionPromotionalOffers"},
+		{args: []string{"subscriptions", "offers", "introductory", "view"}, flag: "id", wantType: "subscriptionIntroductoryOffers", deps: true},
+		{args: []string{"subscriptions", "offers", "introductory", "create"}, flag: "price-point", wantType: "subscriptionPricePoints", deps: true},
+		{args: []string{"subscriptions", "offers", "promotional", "view"}, flag: "id", wantType: "subscriptionPromotionalOffers", deps: true},
 		{args: []string{"subscriptions", "versions", "view"}, flag: "id", wantType: "subscriptionVersions", deps: true},
 		{args: []string{"subscriptions", "versions", "images", "view"}, flag: "id", wantType: "subscriptionImages", deps: true},
 		{args: []string{"subscriptions", "versions", "localizations", "view"}, flag: "id", wantType: "subscriptionLocalizations", deps: true},

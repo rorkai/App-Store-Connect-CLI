@@ -13,7 +13,7 @@ func TestContextWithSubscriptionIntroductoryOfferCreateTimeoutUsesOperationDefau
 	t.Setenv("ASC_TIMEOUT", "")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 
-	ctx, cancel := contextWithSubscriptionIntroductoryOfferCreateTimeout(context.Background())
+	ctx, cancel := contextWithSubscriptionIntroductoryOfferCreateTimeout(context.Background(), shared.DefaultDeps())
 	defer cancel()
 
 	deadline, ok := ctx.Deadline()
@@ -55,7 +55,7 @@ func TestContextWithSubscriptionIntroductoryOfferCreateTimeoutRespectsASCTimeout
 			}
 			t.Setenv(test.env, test.unit)
 
-			ctx, cancel := contextWithSubscriptionIntroductoryOfferCreateTimeout(context.Background())
+			ctx, cancel := contextWithSubscriptionIntroductoryOfferCreateTimeout(context.Background(), shared.DefaultDeps())
 			defer cancel()
 
 			deadline, ok := ctx.Deadline()

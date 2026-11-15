@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsOfferCodesCommand returns the offer codes command group.
-func SubscriptionsOfferCodesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes", flag.ExitOnError)
+// newSubscriptionsOfferCodesCommand returns the offer codes command group.
+func newSubscriptionsOfferCodesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "offer-codes",
@@ -33,17 +32,17 @@ Examples:
   asc subscriptions offers offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
   asc subscriptions offers offer-codes values --batch-id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.csv" --format csv`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsOfferCodesListCommand(),
-			SubscriptionsOfferCodesGetCommand(),
-			SubscriptionsOfferCodesCreateCommand(),
-			SubscriptionsOfferCodesUpdateCommand(),
-			SubscriptionsOfferCodesCustomCodesCommand(),
-			SubscriptionsOfferCodesOneTimeCodesCommand(),
-			SubscriptionsOfferCodesGenerateCommand(),
-			SubscriptionsOfferCodesValuesCommand(),
-			SubscriptionsOfferCodesPricesCommand(),
+			newSubscriptionsOfferCodesListCommand(d),
+			newSubscriptionsOfferCodesGetCommand(d),
+			newSubscriptionsOfferCodesCreateCommand(d),
+			newSubscriptionsOfferCodesUpdateCommand(d),
+			newSubscriptionsOfferCodesCustomCodesCommand(d),
+			newSubscriptionsOfferCodesOneTimeCodesCommand(d),
+			newSubscriptionsOfferCodesGenerateCommand(d),
+			newSubscriptionsOfferCodesValuesCommand(d),
+			newSubscriptionsOfferCodesPricesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -51,9 +50,9 @@ Examples:
 	}
 }
 
-// SubscriptionsOfferCodesListCommand returns the offer codes list subcommand.
-func SubscriptionsOfferCodesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes list", flag.ExitOnError)
+// newSubscriptionsOfferCodesListCommand returns the offer codes list subcommand.
+func newSubscriptionsOfferCodesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes list", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -61,7 +60,7 @@ func SubscriptionsOfferCodesListCommand() *ffcli.Command {
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -74,35 +73,35 @@ Examples:
   asc subscriptions offers offer-codes list --subscription-id "SUB_ID" --output table
   asc subscriptions offers offer-codes list --subscription-id "SUB_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions offer-codes list", 200, "limit", "subscription-fields"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions offer-codes list", 200, "limit", "subscription-fields"); err != nil {
 				return err
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
-			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlagWith(d, fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions offer-codes list: %w", err)
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodesOption{
@@ -129,7 +128,7 @@ Examples:
 					return fmt.Errorf("subscriptions offer-codes list: %w", err)
 				}
 
-				return printSubscriptionOfferCodesListOutput(resp, *output.Output, *output.Pretty)
+				return printSubscriptionOfferCodesListOutput(d, resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionOfferCodes(requestCtx, id, opts...)
@@ -137,34 +136,34 @@ Examples:
 				return fmt.Errorf("subscriptions offer-codes list: failed to fetch: %w", err)
 			}
 
-			return printSubscriptionOfferCodesListOutput(resp, *output.Output, *output.Pretty)
+			return printSubscriptionOfferCodesListOutput(d, resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func printSubscriptionOfferCodesListOutput(data any, format string, pretty bool) error {
+func printSubscriptionOfferCodesListOutput(d *shared.Deps, data any, format string, pretty bool) error {
 	resp, ok := data.(*asc.SubscriptionOfferCodesResponse)
 	if !ok {
-		return shared.PrintOutput(data, format, pretty)
+		return d.PrintOutput(data, format, pretty)
 	}
-	return shared.PrintOutputWithRenderers(
+	return d.PrintOutputWithRenderers(
 		resp,
 		format,
 		pretty,
 		func() error {
-			if err := asc.PrintTable(resp); err != nil {
+			if err := asc.PrintTableTo(d.IO.Out, resp); err != nil {
 				return err
 			}
-			printSubscriptionOfferCodesFollowUps(resp)
+			printSubscriptionOfferCodesFollowUps(d, resp)
 			return nil
 		},
 		func() error {
-			return asc.PrintMarkdown(resp)
+			return asc.PrintMarkdownTo(d.IO.Out, resp)
 		},
 	)
 }
 
-func printSubscriptionOfferCodesFollowUps(resp *asc.SubscriptionOfferCodesResponse) {
+func printSubscriptionOfferCodesFollowUps(d *shared.Deps, resp *asc.SubscriptionOfferCodesResponse) {
 	if resp == nil || len(resp.Data) == 0 {
 		return
 	}
@@ -172,19 +171,19 @@ func printSubscriptionOfferCodesFollowUps(resp *asc.SubscriptionOfferCodesRespon
 	if id == "" {
 		return
 	}
-	fmt.Fprintln(os.Stdout)
-	fmt.Fprintln(os.Stdout, "Follow-up commands:")
-	fmt.Fprintf(os.Stdout, "  asc subscriptions offers offer-codes one-time-codes list --offer-code-id %q\n", id)
-	fmt.Fprintln(os.Stdout, `  asc subscriptions offers offer-codes values --batch-id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.csv" --format csv`)
+	fmt.Fprintln(d.IO.Out)
+	fmt.Fprintln(d.IO.Out, "Follow-up commands:")
+	fmt.Fprintf(d.IO.Out, "  asc subscriptions offers offer-codes one-time-codes list --offer-code-id %q\n", id)
+	fmt.Fprintln(d.IO.Out, `  asc subscriptions offers offer-codes values --batch-id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.csv" --format csv`)
 }
 
-// SubscriptionsOfferCodesGetCommand returns the offer codes get subcommand.
-func SubscriptionsOfferCodesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes view", flag.ExitOnError)
+// newSubscriptionsOfferCodesGetCommand returns the offer codes get subcommand.
+func newSubscriptionsOfferCodesGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes view", flag.ExitOnError)
 
 	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Offer code ID")
 	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -195,23 +194,23 @@ func SubscriptionsOfferCodesGetCommand() *ffcli.Command {
 Examples:
   asc subscriptions offer-codes view --offer-code-id "OFFER_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlagWith(d, fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				return shared.RequiredFlag("--offer-code-id")
+				return d.RequiredFlag("--offer-code-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions offer-codes view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionOfferCode(
@@ -223,14 +222,14 @@ Examples:
 				return fmt.Errorf("subscriptions offer-codes view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsOfferCodesCreateCommand returns the offer codes create subcommand.
-func SubscriptionsOfferCodesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes create", flag.ExitOnError)
+// newSubscriptionsOfferCodesCreateCommand returns the offer codes create subcommand.
+func newSubscriptionsOfferCodesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes create", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -243,8 +242,8 @@ func SubscriptionsOfferCodesCreateCommand() *ffcli.Command {
 	prices := fs.String("prices", "", "Offer code prices (required): TERRITORY entries for FREE_TRIAL or TERRITORY:PRICE_POINT_ID entries for paid modes; territory accepts alpha-2, alpha-3, or exact English country name")
 	var autoRenewEnabled shared.OptionalBool
 	fs.Var(&autoRenewEnabled, "auto-renew-enabled", "Enable auto-renew: true or false")
-	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
-	output := shared.BindOutputFlags(fs)
+	targetPlanType := d.BindTargetSubscriptionPlanTypeFlag(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -257,54 +256,54 @@ Examples:
   asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "US:PRICE_POINT_ID"
   asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US" --target-subscription-plan-type MONTHLY`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
 			eligibility, err := normalizeSubscriptionOfferEligibility(*offerEligibility, true)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 
 			customerEligibilityValues, err := normalizeSubscriptionCustomerEligibilities(*customerEligibilities)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 
 			duration, err := normalizeSubscriptionOfferDuration(*offerDuration)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 
 			mode, err := normalizeSubscriptionOfferMode(*offerMode)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 
 			if *numberOfPeriods <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --number-of-periods is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --number-of-periods is required")
 				return requiredPositiveIntegerUsageError(fs, "number-of-periods")
 			}
 
 			priceEntries, err := parseSubscriptionOfferCodePrices(*prices, mode)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 			if len(priceEntries) == 0 {
-				return shared.RequiredFlag("--prices")
+				return d.RequiredFlag("--prices")
 			}
 
 			planType, err := targetPlanType()
@@ -312,17 +311,17 @@ Examples:
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions offer-codes create: %w", err)
 			}
 
-			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionOfferCodeCreateAttributes{
@@ -344,19 +343,19 @@ Examples:
 				return fmt.Errorf("subscriptions offer-codes create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsOfferCodesUpdateCommand returns the offer codes update subcommand.
-func SubscriptionsOfferCodesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes update", flag.ExitOnError)
+// newSubscriptionsOfferCodesUpdateCommand returns the offer codes update subcommand.
+func newSubscriptionsOfferCodesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes update", flag.ExitOnError)
 
 	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Offer code ID")
 	var active shared.OptionalBool
 	fs.Var(&active, "active", "Enable or disable the offer code: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -367,22 +366,22 @@ func SubscriptionsOfferCodesUpdateCommand() *ffcli.Command {
 Examples:
   asc subscriptions offer-codes update --offer-code-id "OFFER_CODE_ID" --active false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				return shared.RequiredFlag("--offer-code-id")
+				return d.RequiredFlag("--offer-code-id")
 			}
 			if !active.IsSet() {
-				return shared.RequiredFlag("--active")
+				return d.RequiredFlag("--active")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions offer-codes update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			value := active.Value()
@@ -395,23 +394,23 @@ Examples:
 				return fmt.Errorf("subscriptions offer-codes update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsOfferCodesCustomCodesCommand returns the offer code custom codes subcommand.
-func SubscriptionsOfferCodesCustomCodesCommand() *ffcli.Command {
+// newSubscriptionsOfferCodesCustomCodesCommand returns the offer code custom codes subcommand.
+func newSubscriptionsOfferCodesCustomCodesCommand(d *shared.Deps) *ffcli.Command {
 	return shared.RewriteCommandTreePath(
-		offercodes.OfferCodeCustomCodesCommand(),
+		offercodes.NewOfferCodeCustomCodesCommand(d),
 		"asc offer-codes custom-codes",
 		"asc subscriptions offer-codes custom-codes",
 	)
 }
 
-// SubscriptionsOfferCodesOneTimeCodesCommand returns the offer code one-time use codes command group.
-func SubscriptionsOfferCodesOneTimeCodesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes one-time-codes", flag.ExitOnError)
+// newSubscriptionsOfferCodesOneTimeCodesCommand returns the offer code one-time use codes command group.
+func newSubscriptionsOfferCodesOneTimeCodesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes one-time-codes", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "one-time-codes",
@@ -424,11 +423,11 @@ Examples:
   asc subscriptions offer-codes one-time-codes view --batch-id "ONE_TIME_USE_CODE_ID"
   asc subscriptions offer-codes one-time-codes update --batch-id "ONE_TIME_USE_CODE_ID" --active false --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsOfferCodesOneTimeCodesListCommand(),
-			SubscriptionsOfferCodesOneTimeCodesGetCommand(),
-			SubscriptionsOfferCodesOneTimeCodesUpdateCommand(),
+			newSubscriptionsOfferCodesOneTimeCodesListCommand(d),
+			newSubscriptionsOfferCodesOneTimeCodesGetCommand(d),
+			newSubscriptionsOfferCodesOneTimeCodesUpdateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -436,9 +435,10 @@ Examples:
 	}
 }
 
-// SubscriptionsOfferCodesOneTimeCodesListCommand returns the offer code one-time use codes list subcommand.
-func SubscriptionsOfferCodesOneTimeCodesListCommand() *ffcli.Command {
+// newSubscriptionsOfferCodesOneTimeCodesListCommand returns the offer code one-time use codes list subcommand.
+func newSubscriptionsOfferCodesOneTimeCodesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes one-time-codes list",
 		Name:        "list",
 		ShortUsage:  "asc subscriptions offer-codes one-time-codes list --offer-code-id \"OFFER_CODE_ID\" [flags]",
@@ -463,9 +463,10 @@ Examples:
 	})
 }
 
-// SubscriptionsOfferCodesOneTimeCodesGetCommand returns the offer code one-time use codes get subcommand.
-func SubscriptionsOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
+// newSubscriptionsOfferCodesOneTimeCodesGetCommand returns the offer code one-time use codes get subcommand.
+func newSubscriptionsOfferCodesOneTimeCodesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes one-time-codes view",
 		Name:        "view",
 		ShortUsage:  "asc subscriptions offer-codes one-time-codes view --batch-id \"ONE_TIME_USE_CODE_ID\"",
@@ -484,9 +485,10 @@ Examples:
 	})
 }
 
-// SubscriptionsOfferCodesOneTimeCodesUpdateCommand returns the one-time use code batch update subcommand.
-func SubscriptionsOfferCodesOneTimeCodesUpdateCommand() *ffcli.Command {
+// newSubscriptionsOfferCodesOneTimeCodesUpdateCommand returns the one-time use code batch update subcommand.
+func newSubscriptionsOfferCodesOneTimeCodesUpdateCommand(d *shared.Deps) *ffcli.Command {
 	return offercodes.NewActiveUpdateCommand(offercodes.ActiveUpdateCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes one-time-codes update",
 		Name:        "update",
 		ShortUsage:  "asc subscriptions offer-codes one-time-codes update --batch-id \"ONE_TIME_USE_CODE_ID\" --active false --confirm",
@@ -509,10 +511,11 @@ Examples:
 	})
 }
 
-// SubscriptionsOfferCodesPricesCommand returns the offer code prices subcommand.
-func SubscriptionsOfferCodesPricesCommand() *ffcli.Command {
+// newSubscriptionsOfferCodesPricesCommand returns the offer code prices subcommand.
+func newSubscriptionsOfferCodesPricesCommand(d *shared.Deps) *ffcli.Command {
 	var selectedPricePointFields []string
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes prices",
 		Name:        "prices",
 		ShortUsage:  "asc subscriptions offer-codes prices --offer-code-id \"OFFER_CODE_ID\" [flags]",
@@ -532,7 +535,7 @@ Examples:
 			pricePointFields := fs.String("price-point-fields", "", "Included subscription price point fields (comma-separated)")
 			return func() error {
 				var err error
-				selectedPricePointFields, err = normalizeSparseFieldsFlag(fs, fs.Lookup("next").Value.String(), "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
+				selectedPricePointFields, err = normalizeSparseFieldsFlagWith(d, fs, fs.Lookup("next").Value.String(), "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
 				return err
 			}
 		},
@@ -549,19 +552,19 @@ Examples:
 	})
 }
 
-// SubscriptionsOfferCodesGenerateCommand returns the nested generate shim under subscriptions.
-func SubscriptionsOfferCodesGenerateCommand() *ffcli.Command {
+// newSubscriptionsOfferCodesGenerateCommand returns the nested generate shim under subscriptions.
+func newSubscriptionsOfferCodesGenerateCommand(d *shared.Deps) *ffcli.Command {
 	return shared.RewriteCommandTreePath(
-		offercodes.OfferCodesGenerateCommand(),
+		offercodes.NewOfferCodesGenerateCommand(d),
 		"asc offer-codes",
 		"asc subscriptions offer-codes",
 	)
 }
 
-// SubscriptionsOfferCodesValuesCommand returns the nested values shim under subscriptions.
-func SubscriptionsOfferCodesValuesCommand() *ffcli.Command {
+// newSubscriptionsOfferCodesValuesCommand returns the nested values shim under subscriptions.
+func newSubscriptionsOfferCodesValuesCommand(d *shared.Deps) *ffcli.Command {
 	return shared.RewriteCommandTreePath(
-		offercodes.OfferCodesValuesCommand(),
+		offercodes.NewOfferCodesValuesCommand(d),
 		"asc offer-codes",
 		"asc subscriptions offer-codes",
 	)

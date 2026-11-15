@@ -190,7 +190,8 @@ func TestSubscriptionsNumberOfPeriodsDistinguishesMissingFromInvalid(t *testing.
 			command: func() interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return SubscriptionsIntroductoryOffersCreateCommand()
+				d, _ := newSubscriptionsTestDeps()
+				return newSubscriptionsIntroductoryOffersCreateCommand(d)
 			},
 			args: []string{"--subscription-id", "sub-1", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL"},
 		},
@@ -199,7 +200,8 @@ func TestSubscriptionsNumberOfPeriodsDistinguishesMissingFromInvalid(t *testing.
 			command: func() interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return SubscriptionsOfferCodesCreateCommand()
+				d, _ := newSubscriptionsTestDeps()
+				return newSubscriptionsOfferCodesCreateCommand(d)
 			},
 			args: []string{"--subscription-id", "sub-1", "--name", "Spring", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL"},
 		},
@@ -208,7 +210,8 @@ func TestSubscriptionsNumberOfPeriodsDistinguishesMissingFromInvalid(t *testing.
 			command: func() interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return SubscriptionsPromotionalOffersCreateCommand()
+				d, _ := newSubscriptionsTestDeps()
+				return newSubscriptionsPromotionalOffersCreateCommand(d)
 			},
 			args: []string{"--subscription-id", "sub-1", "--offer-code", "SPRING", "--name", "Spring", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL"},
 		},

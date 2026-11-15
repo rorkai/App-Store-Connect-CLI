@@ -12,11 +12,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// OfferCodeCustomCodesCommand returns the custom codes command group.
-func OfferCodeCustomCodesCommand() *ffcli.Command {
-	return NewOfferCodeCustomCodesCommand(shared.DefaultDeps())
-}
-
 // NewOfferCodeCustomCodesCommand returns the custom codes command group built on d.
 func NewOfferCodeCustomCodesCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("custom-codes", flag.ExitOnError)
