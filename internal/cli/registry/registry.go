@@ -239,7 +239,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", func() *ffcli.Command {
 			return xcode.NewXcodeCommand(d)
 		}),
-		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", distribute.DistributeCommand),
+		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", func() *ffcli.Command {
+			return distribute.NewDistributeCommand(d)
+		}),
 		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", func() *ffcli.Command {
 			return artifacts.NewIPAInfoCommand(d)
 		}),
