@@ -295,7 +295,6 @@ func TestWebAuthCapabilitiesEmptyCapabilitySetOutputsEmptyArray(t *testing.T) {
 }
 
 func TestWebAuthCapabilitiesKeyIDOutputsJSON(t *testing.T) {
-
 	origResolveAuth := resolveWebAuthCredentialsFn
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
@@ -448,7 +447,6 @@ func TestWebAuthCapabilitiesKeyIDOutputsJSON(t *testing.T) {
 }
 
 func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
-
 	origResolveAuth := resolveWebAuthCredentialsFn
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
@@ -544,7 +542,6 @@ func TestWebAuthCapabilitiesAuthResolutionOutputsJSON(t *testing.T) {
 }
 
 func TestWebAuthCapabilitiesUnauthorizedLookupGetsExpiredSessionDiagnostic(t *testing.T) {
-
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
 	origLookup := lookupWebAuthKeyFn
@@ -594,7 +591,6 @@ func TestWebAuthCapabilitiesUnauthorizedLookupGetsExpiredSessionDiagnostic(t *te
 }
 
 func TestWebAuthCapabilitiesNonAuthAPIFailureRetainsRequestDetails(t *testing.T) {
-
 	origResolveSession := resolveSessionFn
 	origNewClient := newWebAuthClientFn
 	origLookup := lookupWebAuthKeyFn

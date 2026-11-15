@@ -3675,6 +3675,7 @@ func TestResolveSessionRetriesFreshLoginAfterRequestDeadlineExpired(t *testing.T
 }
 
 func TestProviderSelectionRenewsExpiredRequestBudget(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	originalSelect, originalPersist := selectWebProviderFn, persistWebSessionFn
 	t.Cleanup(func() { selectWebProviderFn, persistWebSessionFn = originalSelect, originalPersist })
 	t.Setenv("ASC_TIMEOUT", "1s")
@@ -3686,7 +3687,7 @@ func TestProviderSelectionRenewsExpiredRequestBudget(t *testing.T) {
 		return ctx.Err()
 	}
 	persistWebSessionFn = func(session *webcore.AuthSession) error { persisted = true; return nil }
-	if err := selectResolvedWebSessionProvider(ctx, &webcore.AuthSession{}, webcore.ProviderSelection{ProviderID: 7}); err != nil {
+	if err := selectResolvedWebSessionProviderWith(ctx, d, &webcore.AuthSession{}, webcore.ProviderSelection{ProviderID: 7}); err != nil {
 		t.Fatal(err)
 	}
 	if !persisted {
@@ -3695,6 +3696,7 @@ func TestProviderSelectionRenewsExpiredRequestBudget(t *testing.T) {
 }
 
 func TestProviderSelectionPreservesCallerCancellation(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	originalSelect, originalPersist := selectWebProviderFn, persistWebSessionFn
 	t.Cleanup(func() { selectWebProviderFn, persistWebSessionFn = originalSelect, originalPersist })
 	parent, stop := context.WithCancel(context.Background())
@@ -3708,7 +3710,7 @@ func TestProviderSelectionPreservesCallerCancellation(t *testing.T) {
 		t.Fatal("must not persist after canceled selection")
 		return nil
 	}
-	if err := selectResolvedWebSessionProvider(ctx, &webcore.AuthSession{}, webcore.ProviderSelection{ProviderID: 7}); !errors.Is(err, context.Canceled) {
+	if err := selectResolvedWebSessionProviderWith(ctx, d, &webcore.AuthSession{}, webcore.ProviderSelection{ProviderID: 7}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected cancellation, got %v", err)
 	}
 }

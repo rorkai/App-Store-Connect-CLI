@@ -1683,10 +1683,6 @@ func restoreCachedWebProvider(ctx context.Context, session, cached *webcore.Auth
 	return nil
 }
 
-func selectResolvedWebSessionProvider(ctx context.Context, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
-	return selectResolvedWebSessionProviderWith(ctx, shared.DefaultDeps(), session, selection)
-}
-
 func selectResolvedWebSessionProviderWith(ctx context.Context, d *shared.Deps, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
 	if selection.ProviderID == 0 && strings.TrimSpace(selection.PublicProviderID) == "" {
 		return nil
@@ -1739,10 +1735,6 @@ func resolveSessionWithoutPersist(ctx context.Context, appleID, password, twoFac
 
 func hasProviderSelection(selection webcore.ProviderSelection) bool {
 	return selection.ProviderID != 0 || strings.TrimSpace(selection.PublicProviderID) != ""
-}
-
-func callResolveSessionForProviderSelection(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string, selection webcore.ProviderSelection) (*webcore.AuthSession, string, error) {
-	return callResolveSessionForProviderSelectionWith(ctx, shared.DefaultDeps(), appleID, password, twoFactorCode, twoFactorCodeCommand, selection)
 }
 
 func callResolveSessionForProviderSelectionWith(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode, twoFactorCodeCommand string, selection webcore.ProviderSelection) (*webcore.AuthSession, string, error) {
