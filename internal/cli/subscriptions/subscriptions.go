@@ -104,111 +104,79 @@ Examples:
 
 // SubscriptionsGroupsListCommand returns the groups list subcommand.
 func SubscriptionsGroupsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups list", flag.ExitOnError)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
 
-	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	include := fs.String("include", "", "Include relationships: subscriptions,subscriptionGroupLocalizations,versions")
-	fields := fs.String("fields", "", "Group fields: referenceName,subscriptions,subscriptionGroupLocalizations,versions")
-	versionFields := fs.String("version-fields", "", "Included version fields (comma-separated)")
-	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
-	localizationFields := fs.String("localization-fields", "", "Included localization fields (comma-separated)")
-	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
-	output := shared.BindOutputFlags(fs)
+	var (
+		versionsLimit                                                                                        *int
+		includes, groupFields, includedVersionFields, includedSubscriptionFields, includedLocalizationFields []string
+	)
 
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc subscriptions groups list [flags]",
-		ShortHelp:  "List subscription groups for an app.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "groups list",
+		Name:        "list",
+		ShortUsage:  "asc subscriptions groups list [flags]",
+		ShortHelp:   "List subscription groups for an app.",
 		LongHelp: `List subscription groups for an app.
 
 Examples:
   asc subscriptions groups list --app "APP_ID"
   asc subscriptions groups list --app "APP_ID" --paginate
   asc subscriptions groups list --app "APP_ID" --subscription-fields name,productId,state`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions groups list", 200, "limit", "include", "fields", "version-fields", "subscription-fields", "localization-fields", "versions-limit"); err != nil {
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+		ParentType:           "apps",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"limit", "include", "fields", "version-fields", "subscription-fields", "localization-fields", "versions-limit"},
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := fs.String("include", "", "Include relationships: subscriptions,subscriptionGroupLocalizations,versions")
+			fields := fs.String("fields", "", "Group fields: referenceName,subscriptions,subscriptionGroupLocalizations,versions")
+			versionFields := fs.String("version-fields", "", "Included version fields (comma-separated)")
+			subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
+			localizationFields := fs.String("localization-fields", "", "Included localization fields (comma-separated)")
+			versionsLimit = fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
+			return func() error {
+				if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
+					return shared.UsageError("subscriptions groups list: --versions-limit must be between 1 and 50")
+				}
+				var err error
+				includes, err = shared.NormalizeSelection(*include, []string{"subscriptions", "subscriptionGroupLocalizations", "versions"}, "--include")
+				if err != nil {
+					return shared.UsageError("subscriptions groups list: " + err.Error())
+				}
+				groupFields, err = shared.NormalizeSelection(*fields, subscriptionGroupVersionGroupFields, "--fields")
+				if err != nil {
+					return shared.UsageError("subscriptions groups list: " + err.Error())
+				}
+				includedVersionFields, err = shared.NormalizeSelection(*versionFields, subscriptionGroupVersionFields, "--version-fields")
+				if err != nil {
+					return shared.UsageError("subscriptions groups list: " + err.Error())
+				}
+				includedSubscriptionFields, err = normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+				if err != nil {
+					return err
+				}
+				includedLocalizationFields, err = normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
 				return err
 			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
-				return shared.UsageError("subscriptions groups list: --versions-limit must be between 1 and 50")
-			}
-			includes, err := shared.NormalizeSelection(*include, []string{"subscriptions", "subscriptionGroupLocalizations", "versions"}, "--include")
-			if err != nil {
-				return shared.UsageError("subscriptions groups list: " + err.Error())
-			}
-			groupFields, err := shared.NormalizeSelection(*fields, subscriptionGroupVersionGroupFields, "--fields")
-			if err != nil {
-				return shared.UsageError("subscriptions groups list: " + err.Error())
-			}
-			includedVersionFields, err := shared.NormalizeSelection(*versionFields, subscriptionGroupVersionFields, "--version-fields")
-			if err != nil {
-				return shared.UsageError("subscriptions groups list: " + err.Error())
-			}
-			includedSubscriptionFields, err := normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
-			if err != nil {
-				return err
-			}
-			includedLocalizationFields, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
-			if err != nil {
-				return err
-			}
-
-			client, err := subscriptionGroupVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("subscriptions groups list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.SubscriptionGroupsOption{
-				asc.Limit[asc.SubscriptionGroupsOption](*limit),
-				asc.NextURL[asc.SubscriptionGroupsOption](*next),
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetSubscriptionGroups(ctx, appID,
+				asc.Limit[asc.SubscriptionGroupsOption](limit),
+				asc.NextURL[asc.SubscriptionGroupsOption](next),
 				asc.WithSubscriptionGroupsInclude(includes),
 				asc.WithSubscriptionGroupsFields(groupFields),
 				asc.WithSubscriptionGroupsVersionFields(includedVersionFields),
 				asc.WithSubscriptionGroupsSubscriptionFields(includedSubscriptionFields),
 				asc.WithSubscriptionGroupsLocalizationFields(includedLocalizationFields),
 				asc.WithSubscriptionGroupsVersionsLimit(*versionsLimit),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.SubscriptionGroupsOption](200))
-				firstPage, err := client.GetSubscriptionGroups(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("subscriptions groups list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionGroups(ctx, resolvedAppID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("subscriptions groups list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetSubscriptionGroups(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("subscriptions groups list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			)
 		},
-	}
+	})
 }
 
 // SubscriptionsGroupsCreateCommand returns the groups create subcommand.

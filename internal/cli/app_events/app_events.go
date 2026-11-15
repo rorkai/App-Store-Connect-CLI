@@ -54,21 +54,16 @@ Examples:
 
 // AppEventsListCommand returns the app events list subcommand.
 func AppEventsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return appEventsClientFactory() }
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	eventState := fs.String("event-state", "", "Filter by lifecycle state(s), comma-separated: "+strings.Join(appEventStateList(), ", "))
-	ids := fs.String("id", "", "Filter by app event ID(s), comma-separated")
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(appEventFieldsList(), ", "))
-	localizationFields := fs.String("localization-fields", "", "Fields to include for localizations: "+strings.Join(appEventLocalizationFieldsList(), ", "))
-	include := fs.String("include", "", "Include related resources: "+strings.Join(appEventIncludeList(), ", "))
-	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	var (
+		ids                                                              *string
+		localizationsLimit                                               *int
+		stateValues, fieldValues, localizationFieldValues, includeValues []string
+	)
 
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc app-events list [flags]",
 		ShortHelp:  "List in-app events for an app.",
@@ -78,118 +73,83 @@ Examples:
   asc app-events list --app "APP_ID"
   asc app-events list --app "APP_ID" --event-state PUBLISHED --include localizations --localizations-limit 10
   asc app-events list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(
-				ctx,
-				fs,
-				"app-events list",
-				200,
-				"event-state",
-				"id",
-				"fields",
-				"localization-fields",
-				"include",
-				"localizations-limit",
-			); err != nil {
-				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			for _, selection := range []struct {
-				name  string
-				value string
-			}{
-				{name: "event-state", value: *eventState},
-				{name: "id", value: *ids},
-				{name: "fields", value: *fields},
-				{name: "localization-fields", value: *localizationFields},
-				{name: "include", value: *include},
-			} {
-				if !appEventFlagWasProvided(fs, selection.name) {
-					continue
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"event-state", "id", "fields", "localization-fields", "include", "localizations-limit"},
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			eventState := fs.String("event-state", "", "Filter by lifecycle state(s), comma-separated: "+strings.Join(appEventStateList(), ", "))
+			ids = fs.String("id", "", "Filter by app event ID(s), comma-separated")
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(appEventFieldsList(), ", "))
+			localizationFields := fs.String("localization-fields", "", "Fields to include for localizations: "+strings.Join(appEventLocalizationFieldsList(), ", "))
+			include := fs.String("include", "", "Include related resources: "+strings.Join(appEventIncludeList(), ", "))
+			localizationsLimit = fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
+			return func() error {
+				for _, selection := range []struct {
+					name  string
+					value string
+				}{
+					{name: "event-state", value: *eventState},
+					{name: "id", value: *ids},
+					{name: "fields", value: *fields},
+					{name: "localization-fields", value: *localizationFields},
+					{name: "include", value: *include},
+				} {
+					if !appEventFlagWasProvided(fs, selection.name) {
+						continue
+					}
+					if err := validateAppEventCSV(selection.value, "--"+selection.name); err != nil {
+						return shared.UsageErrorf("app-events list: %v", err)
+					}
 				}
-				if err := validateAppEventCSV(selection.value, "--"+selection.name); err != nil {
+				localizationsLimitProvided := appEventFlagWasProvided(fs, "localizations-limit")
+				if localizationsLimitProvided && (*localizationsLimit < 1 || *localizationsLimit > 50) {
+					return shared.UsageErrorf("app-events list: --localizations-limit must be between 1 and 50")
+				}
+
+				var err error
+				stateValues, err = normalizeAppEventStates(*eventState)
+				if err != nil {
 					return shared.UsageErrorf("app-events list: %v", err)
 				}
+				fieldValues, err = shared.NormalizeSelection(*fields, appEventFieldsList(), "--fields")
+				if err != nil {
+					return shared.UsageErrorf("app-events list: %v", err)
+				}
+				localizationFieldValues, err = shared.NormalizeSelection(*localizationFields, appEventLocalizationFieldsList(), "--localization-fields")
+				if err != nil {
+					return shared.UsageErrorf("app-events list: %v", err)
+				}
+				includeValues, err = shared.NormalizeSelection(*include, appEventIncludeList(), "--include")
+				if err != nil {
+					return shared.UsageErrorf("app-events list: %v", err)
+				}
+				if len(localizationFieldValues) > 0 && !shared.HasInclude(includeValues, "localizations") {
+					return shared.UsageError("app-events list: --localization-fields requires --include localizations")
+				}
+				if *localizationsLimit > 0 && !shared.HasInclude(includeValues, "localizations") {
+					return shared.UsageError("app-events list: --localizations-limit requires --include localizations")
+				}
+				return nil
 			}
-			localizationsLimitProvided := appEventFlagWasProvided(fs, "localizations-limit")
-			if localizationsLimitProvided && (*localizationsLimit < 1 || *localizationsLimit > 50) {
-				return shared.UsageErrorf("app-events list: --localizations-limit must be between 1 and 50")
-			}
-
-			stateValues, err := normalizeAppEventStates(*eventState)
-			if err != nil {
-				return shared.UsageErrorf("app-events list: %v", err)
-			}
-			fieldValues, err := shared.NormalizeSelection(*fields, appEventFieldsList(), "--fields")
-			if err != nil {
-				return shared.UsageErrorf("app-events list: %v", err)
-			}
-			localizationFieldValues, err := shared.NormalizeSelection(*localizationFields, appEventLocalizationFieldsList(), "--localization-fields")
-			if err != nil {
-				return shared.UsageErrorf("app-events list: %v", err)
-			}
-			includeValues, err := shared.NormalizeSelection(*include, appEventIncludeList(), "--include")
-			if err != nil {
-				return shared.UsageErrorf("app-events list: %v", err)
-			}
-			if len(localizationFieldValues) > 0 && !shared.HasInclude(includeValues, "localizations") {
-				return shared.UsageError("app-events list: --localization-fields requires --include localizations")
-			}
-			if *localizationsLimit > 0 && !shared.HasInclude(includeValues, "localizations") {
-				return shared.UsageError("app-events list: --localizations-limit requires --include localizations")
-			}
-
-			client, err := appEventsClientFactory()
-			if err != nil {
-				return fmt.Errorf("app-events list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppEventsOption{
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppEvents(ctx, appID,
 				asc.WithAppEventsStates(stateValues),
 				asc.WithAppEventsIDs(shared.SplitCSV(*ids)),
 				asc.WithAppEventsFields(fieldValues),
 				asc.WithAppEventsLocalizationFields(localizationFieldValues),
 				asc.WithAppEventsInclude(includeValues),
 				asc.WithAppEventsLocalizationsLimit(*localizationsLimit),
-				asc.Limit[asc.AppEventsOption](*limit),
-				asc.NextURL[asc.AppEventsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppEventsOption](200))
-				firstPage, err := client.GetAppEvents(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("app-events list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEvents(ctx, resolvedAppID, asc.NextURL[asc.AppEventsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("app-events list: %w", err)
-				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppEvents(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("app-events list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				asc.Limit[asc.AppEventsOption](limit),
+				asc.NextURL[asc.AppEventsOption](next),
+			)
 		},
-	}
+	})
 }
 
 // AppEventsGetCommand returns the app events get subcommand.

@@ -47,18 +47,9 @@ Examples:
 
 // newAccessibilityListCommand returns the accessibility list subcommand.
 func newAccessibilityListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("list", flag.ExitOnError)
+	var deviceFamilies, states, fieldsValue []string
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	deviceFamily := fs.String("device-family", "", "Filter by device family(s), comma-separated: "+strings.Join(accessibilityDeviceFamilyList(), ", "))
-	state := fs.String("state", "", "Filter by state(s), comma-separated: "+strings.Join(accessibilityStateList(), ", "))
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(accessibilityDeclarationFieldList(), ", "))
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc accessibility list [flags]",
 		ShortHelp:  "List accessibility declarations for an app.",
@@ -69,75 +60,45 @@ Examples:
   asc accessibility list --app "APP_ID" --device-family IPHONE
   asc accessibility list --app "APP_ID" --state PUBLISHED --limit 50
   asc accessibility list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "accessibility list", 200, "device-family", "state", "fields", "limit"); err != nil {
-				return err
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"device-family", "state", "fields", "limit"},
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			deviceFamily := fs.String("device-family", "", "Filter by device family(s), comma-separated: "+strings.Join(accessibilityDeviceFamilyList(), ", "))
+			state := fs.String("state", "", "Filter by state(s), comma-separated: "+strings.Join(accessibilityStateList(), ", "))
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(accessibilityDeclarationFieldList(), ", "))
+			return func() error {
+				var err error
+				deviceFamilies, err = normalizeAccessibilityDeviceFamilies(shared.SplitCSVUpper(*deviceFamily))
+				if err != nil {
+					return d.UsageErrorf("accessibility list: %v", err)
+				}
+				states, err = normalizeAccessibilityStates(shared.SplitCSVUpper(*state))
+				if err != nil {
+					return d.UsageErrorf("accessibility list: %v", err)
+				}
+				fieldsValue, err = normalizeAccessibilityDeclarationFields(*fields)
+				if err != nil {
+					return d.UsageErrorf("accessibility list: %v", err)
+				}
+				return nil
 			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			deviceFamilies, err := normalizeAccessibilityDeviceFamilies(shared.SplitCSVUpper(*deviceFamily))
-			if err != nil {
-				return d.UsageErrorf("accessibility list: %v", err)
-			}
-
-			states, err := normalizeAccessibilityStates(shared.SplitCSVUpper(*state))
-			if err != nil {
-				return d.UsageErrorf("accessibility list: %v", err)
-			}
-
-			fieldsValue, err := normalizeAccessibilityDeclarationFields(*fields)
-			if err != nil {
-				return d.UsageErrorf("accessibility list: %v", err)
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("accessibility list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AccessibilityDeclarationsOption{
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAccessibilityDeclarations(ctx, appID,
 				asc.WithAccessibilityDeclarationsDeviceFamilies(deviceFamilies),
 				asc.WithAccessibilityDeclarationsStates(states),
 				asc.WithAccessibilityDeclarationsFields(fieldsValue),
-				asc.Limit[asc.AccessibilityDeclarationsOption](*limit),
-				asc.NextURL[asc.AccessibilityDeclarationsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AccessibilityDeclarationsOption](200))
-				firstPage, err := client.GetAccessibilityDeclarations(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("accessibility list: failed to fetch: %w", err)
-				}
-
-				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAccessibilityDeclarations(ctx, resolvedAppID, asc.NextURL[asc.AccessibilityDeclarationsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("accessibility list: %w", err)
-				}
-
-				return d.PrintOutput(pages, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAccessibilityDeclarations(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("accessibility list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+				asc.Limit[asc.AccessibilityDeclarationsOption](limit),
+				asc.NextURL[asc.AccessibilityDeclarationsOption](next),
+			)
 		},
-	}
+	})
 }
 
 // newAccessibilityGetCommand returns the accessibility view subcommand.

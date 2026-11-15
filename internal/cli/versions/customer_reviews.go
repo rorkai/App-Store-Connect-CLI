@@ -3,8 +3,6 @@ package versions
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -38,19 +36,13 @@ Examples:
 
 // VersionsCustomerReviewsListCommand lists customer reviews for a version.
 func VersionsCustomerReviewsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("customer-reviews list", flag.ExitOnError)
+	var filterOpts []asc.ReviewOption
 
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
-	filters := reviews.BindReviewFilterFlags(fs)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc versions customer-reviews list --version-id \"VERSION_ID\" [flags]",
-		ShortHelp:  "List customer reviews for an app store version.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "customer-reviews list",
+		Name:        "list",
+		ShortUsage:  "asc versions customer-reviews list --version-id \"VERSION_ID\" [flags]",
+		ShortHelp:   "List customer reviews for an app store version.",
 		LongHelp: `List customer reviews for an app store version.
 
 Apple exposes the same review filters here as on the app-level listing, so
@@ -63,58 +55,26 @@ Examples:
   asc versions customer-reviews list --version-id "VERSION_ID" --review-territory USA,GBR --include reviewTerritory
   asc versions customer-reviews list --version-id "VERSION_ID" --only-unresponded --include-response
   asc versions customer-reviews list --version-id "VERSION_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "versions customer-reviews list", 200, reviews.ReviewNextConflicts...); err != nil {
+		ParentFlag:           "version-id",
+		ParentUsage:          "App Store version ID",
+		ParentType:           "appStoreVersions",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        reviews.ReviewNextConflicts,
+		Flags: func(fs *flag.FlagSet) func() error {
+			filters := reviews.BindReviewFilterFlags(fs)
+			return func() error {
+				var err error
+				filterOpts, err = filters.ReviewOptions()
 				return err
 			}
-
-			versionValue := strings.TrimSpace(*versionID)
-			if versionValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			filterOpts, err := filters.ReviewOptions()
-			if err != nil {
-				return err
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("versions customer-reviews list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, versionID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := make([]asc.ReviewOption, 0, len(filterOpts)+2)
 			opts = append(opts, filterOpts...)
-			opts = append(opts, asc.Limit[asc.ReviewOption](*limit), asc.NextURL[asc.ReviewOption](*next))
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.ReviewOption](200))
-				firstPage, err := client.GetAppStoreVersionCustomerReviews(requestCtx, versionValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("versions customer-reviews list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionCustomerReviews(ctx, versionValue, asc.NextURL[asc.ReviewOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("versions customer-reviews list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppStoreVersionCustomerReviews(requestCtx, versionValue, opts...)
-			if err != nil {
-				return fmt.Errorf("versions customer-reviews list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			opts = append(opts, asc.Limit[asc.ReviewOption](limit), asc.NextURL[asc.ReviewOption](next))
+			return client.GetAppStoreVersionCustomerReviews(ctx, versionID, opts...)
 		},
-	}
+	})
 }

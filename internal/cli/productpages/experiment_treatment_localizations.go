@@ -49,82 +49,49 @@ func treatmentLocalizationIncludeList() []string {
 
 // newExperimentTreatmentLocalizationsListCommand returns the treatment localizations list subcommand.
 func newExperimentTreatmentLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("treatment-localizations list", flag.ExitOnError)
+	var (
+		includeValues   []string
+		placementsLimit int
+	)
 
-	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
-	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", treatmentLocalizationIncludeList())
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc product-pages experiments treatments localizations list --treatment-id \"TREATMENT_ID\" [flags]",
-		ShortHelp:  "List treatment localizations.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "treatment-localizations list",
+		Name:        "list",
+		ShortUsage:  "asc product-pages experiments treatments localizations list --treatment-id \"TREATMENT_ID\" [flags]",
+		ShortHelp:   "List treatment localizations.",
 		LongHelp: `List treatment localizations.
 
 Examples:
   asc product-pages experiments treatments localizations list --treatment-id "TREATMENT_ID"
   asc product-pages experiments treatments localizations list --treatment-id "TREATMENT_ID" --include placements --placements-limit 50
   asc product-pages experiments treatments localizations list --treatment-id "TREATMENT_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages experiments treatments localizations list", productPagesMaxLimit, "include", "placements-limit"); err != nil {
+		ParentFlag:           "treatment-id",
+		ParentUsage:          "Treatment ID",
+		ParentType:           "appStoreVersionExperimentTreatments",
+		RequiredDiagnostic:   true,
+		LimitMax:             productPagesMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"include", "placements-limit"},
+		ErrorPrefix:          "experiments treatments localizations list",
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", treatmentLocalizationIncludeList())
+			return func() error {
+				var err error
+				includeValues, placementsLimit, err = include.Resolve()
 				return err
 			}
-
-			trimmedID := strings.TrimSpace(*treatmentID)
-			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--treatment-id")
-			}
-
-			includeValues, placementsLimit, err := include.Resolve()
-			if err != nil {
-				return err
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("experiments treatments localizations list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationsOption{
-				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](*limit),
-				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](*next),
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, treatmentID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, treatmentID,
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](next),
 				asc.WithAppStoreVersionExperimentTreatmentLocalizationsInclude(includeValues),
 				asc.WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit(placementsLimit),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](productPagesMaxLimit))
-				firstPage, err := client.GetAppStoreVersionExperimentTreatmentLocalizations(requestCtx, trimmedID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("experiments treatments localizations list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("experiments treatments localizations list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalizations(requestCtx, trimmedID, opts...)
-			if err != nil {
-				return fmt.Errorf("experiments treatments localizations list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			)
 		},
-	}
+	})
 }
 
 // newExperimentTreatmentLocalizationsGetCommand returns the treatment localizations get subcommand.

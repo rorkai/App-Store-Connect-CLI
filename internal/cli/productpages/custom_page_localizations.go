@@ -53,82 +53,49 @@ func customPageLocalizationIncludeList() []string {
 
 // newCustomPageLocalizationsListCommand returns the custom page localizations list subcommand.
 func newCustomPageLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-localizations list", flag.ExitOnError)
+	var (
+		includeValues   []string
+		placementsLimit int
+	)
 
-	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
-	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc product-pages custom-pages localizations list --custom-page-version-id \"VERSION_ID\" [flags]",
-		ShortHelp:  "List custom product page localizations.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "custom-page-localizations list",
+		Name:        "list",
+		ShortUsage:  "asc product-pages custom-pages localizations list --custom-page-version-id \"VERSION_ID\" [flags]",
+		ShortHelp:   "List custom product page localizations.",
 		LongHelp: `List custom product page localizations.
 
 Examples:
   asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID"
   asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID" --include placements --placements-limit 50
   asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages localizations list", productPagesMaxLimit, "include", "placements-limit"); err != nil {
+		ParentFlag:           "custom-page-version-id",
+		ParentUsage:          "Custom product page version ID",
+		ParentType:           "appCustomProductPageVersions",
+		RequiredDiagnostic:   true,
+		LimitMax:             productPagesMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"include", "placements-limit"},
+		ErrorPrefix:          "custom-pages localizations list",
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
+			return func() error {
+				var err error
+				includeValues, placementsLimit, err = include.Resolve()
 				return err
 			}
-
-			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--custom-page-version-id")
-			}
-
-			includeValues, placementsLimit, err := include.Resolve()
-			if err != nil {
-				return err
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppCustomProductPageLocalizationsOption{
-				asc.Limit[asc.AppCustomProductPageLocalizationsOption](*limit),
-				asc.NextURL[asc.AppCustomProductPageLocalizationsOption](*next),
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, versionID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppCustomProductPageLocalizations(ctx, versionID,
+				asc.Limit[asc.AppCustomProductPageLocalizationsOption](limit),
+				asc.NextURL[asc.AppCustomProductPageLocalizationsOption](next),
 				asc.WithAppCustomProductPageLocalizationsInclude(includeValues),
 				asc.WithAppCustomProductPageLocalizationsPlacementsLimit(placementsLimit),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppCustomProductPageLocalizationsOption](productPagesMaxLimit))
-				firstPage, err := client.GetAppCustomProductPageLocalizations(requestCtx, trimmedID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("custom-pages localizations list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCustomProductPageLocalizations(ctx, trimmedID, asc.NextURL[asc.AppCustomProductPageLocalizationsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("custom-pages localizations list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppCustomProductPageLocalizations(requestCtx, trimmedID, opts...)
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			)
 		},
-	}
+	})
 }
 
 // newCustomPageLocalizationsGetCommand returns the custom page localizations get subcommand.
