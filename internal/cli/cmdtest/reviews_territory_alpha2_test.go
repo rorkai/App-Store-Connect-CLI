@@ -9,7 +9,6 @@ import (
 )
 
 func TestReviewsListNormalizesAlpha2Territory(t *testing.T) {
-
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "filter[territory]=USA"), asctest.JSON(http.StatusOK, `{
 		"data":[
