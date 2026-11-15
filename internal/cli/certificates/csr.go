@@ -64,7 +64,7 @@ Examples:
   asc certificates csr generate --key-out "./signing/cert.key" --csr-out "./signing/cert.csr"
   asc certificates csr generate --common-name "ASC Signing" --key-out "./signing/cert.key" --csr-out "./signing/cert.csr"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCertificatesCSRGenerateCommand(d),
 		},
@@ -103,7 +103,7 @@ Examples:
   asc certificates csr generate --common-name "ASC Signing" --key-out "./signing/cert.key" --csr-out "./signing/cert.csr"
   asc certificates csr generate --key-out "./signing/cert.key" --csr-out "./signing/cert.csr" --force`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			keyOutValue := strings.TrimSpace(*keyOut)
 			if keyOutValue == "" {
@@ -188,7 +188,7 @@ func generateCSRFiles(d *shared.Deps, opts csrGenerateOptions) (*csrGenerateResu
 		{flag: "--key-out", path: keyOutValue},
 		{flag: "--csr-out", path: csrOutValue},
 	} {
-		if err := preflightCSRFileWrite(output.path, opts.Force); err != nil {
+		if err := preflightCSRFileWrite(d, output.path, opts.Force); err != nil {
 			return nil, nil, fmt.Errorf("write %s: %w", output.flag, err)
 		}
 	}
@@ -235,10 +235,10 @@ func generateCSRFiles(d *shared.Deps, opts csrGenerateOptions) (*csrGenerateResu
 	}
 
 	// Write key first: if anything fails, do not leave a CSR without its key.
-	if err := writeFileBytesNoSymlink(keyOutValue, keyPEM, 0o600, opts.Force); err != nil {
+	if err := writeFileBytesNoSymlink(d, keyOutValue, keyPEM, 0o600, opts.Force); err != nil {
 		return nil, nil, fmt.Errorf("write --key-out: %w", err)
 	}
-	if err := writeFileBytesNoSymlink(csrOutValue, csrPEM, 0o644, opts.Force); err != nil {
+	if err := writeFileBytesNoSymlink(d, csrOutValue, csrPEM, 0o644, opts.Force); err != nil {
 		return nil, nil, fmt.Errorf("write --csr-out: %w", err)
 	}
 
@@ -285,11 +285,11 @@ func renderCSRGenerateResult(w io.Writer, result *csrGenerateResult, markdown bo
 }
 
 func validateCSRPairOutputPaths(d *shared.Deps, keyOut string, csrOut string) error {
-	keyPath, err := filepath.Abs(keyOut)
+	keyPath, err := d.Abs(keyOut)
 	if err != nil {
 		return fmt.Errorf("resolve --key-out: %w", err)
 	}
-	csrPath, err := filepath.Abs(csrOut)
+	csrPath, err := d.Abs(csrOut)
 	if err != nil {
 		return fmt.Errorf("resolve --csr-out: %w", err)
 	}
@@ -309,16 +309,16 @@ func csrLexicalPathContains(parent string, child string) bool {
 	return strings.HasPrefix(child, parent)
 }
 
-func preflightCSRFileWrite(path string, force bool) error {
+func preflightCSRFileWrite(d *shared.Deps, path string, force bool) error {
 	trimmed, err := validateCSRFileOutputPath(path)
 	if err != nil {
 		return err
 	}
-	if err := preflightCSRParentDirectory(trimmed); err != nil {
+	if err := preflightCSRParentDirectory(d.OSPath(trimmed)); err != nil {
 		return err
 	}
 
-	info, err := os.Lstat(trimmed)
+	info, err := os.Lstat(d.OSPath(trimmed))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -380,14 +380,14 @@ func validateCSRFileOutputPathWithSeparator(path string, isPathSeparator func(ui
 	return trimmed, nil
 }
 
-func writeFileBytesNoSymlink(path string, data []byte, perm os.FileMode, force bool) error {
+func writeFileBytesNoSymlink(d *shared.Deps, path string, data []byte, perm os.FileMode, force bool) error {
 	trimmed, err := validateCSRFileOutputPath(path)
 	if err != nil {
 		return err
 	}
 
 	_, err = shared.SafeWriteFileNoSymlink(
-		trimmed,
+		d.OSPath(trimmed),
 		perm,
 		force,
 		".asc-csr-*",

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -80,7 +79,11 @@ func TestNotarizationValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 
 	dir := t.TempDir()
 	emptyFile := filepath.Join(dir, "empty.zip")
@@ -124,7 +127,16 @@ func TestNotarizationValidationErrors(t *testing.T) {
 	}
 	for _, test := range runtimeTests {
 		t.Run(test.name, func(t *testing.T) {
-			assertExitStderr(t, test.args, rootcmd.ExitError, test.wantErr)
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != rootcmd.ExitError {
+				t.Fatalf("expected exit code %d, got %d", rootcmd.ExitError, code)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
+			}
 		})
 	}
 }
@@ -245,11 +257,10 @@ func TestNotarizationLogFetch(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 			var apiCalls, logCalls int
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			api := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				respond := func(body string) (*http.Response, error) {
 					return &http.Response{
 						StatusCode: http.StatusOK,
@@ -274,20 +285,11 @@ func TestNotarizationLogFetch(t *testing.T) {
 				}
 				t.Errorf("unexpected request to %s", req.URL.Host)
 				return nil, errors.New("unexpected request")
-			}))
+			})
 
 			dir := t.TempDir()
 			args := append([]string{"notarization", "log", "--id", submissionID}, test.flags(dir)...)
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, _, runErr := runRootWithDeps(t, stubClient(t, api), args...)
 
 			if test.wantErr == "" && runErr != nil {
 				t.Fatalf("run error: %v", runErr)

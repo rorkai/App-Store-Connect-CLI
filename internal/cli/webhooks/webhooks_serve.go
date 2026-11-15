@@ -61,6 +61,7 @@ type webhookServeRuntime struct {
 	stderr       io.Writer
 	now          func() time.Time
 	dir          string
+	writeFile    func(path string, reader io.Reader) (int64, error)
 	execCommand  string
 	maxBodyBytes int64
 	eventQueue   chan webhookServeEvent
@@ -99,7 +100,7 @@ Examples:
   asc webhooks serve --port 8787 --dir ./webhook-events
   asc webhooks serve --port 8787 --exec "./scripts/on-webhook.sh"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			bindHost := strings.TrimSpace(*host)
 			if bindHost == "" {
@@ -126,7 +127,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			eventsDir, err := prepareWebhookServeDirectory(*dir)
+			eventsDir, err := prepareWebhookServeDirectory(d, *dir)
 			if err != nil {
 				return fmt.Errorf("webhooks serve: %w", err)
 			}
@@ -155,6 +156,7 @@ Examples:
 				stderr:       d.IO.ErrOut,
 				now:          d.Now,
 				dir:          eventsDir,
+				writeFile:    d.WriteStreamToFile,
 				execCommand:  strings.TrimSpace(*execCommand),
 				maxBodyBytes: *maxBodyBytes,
 				eventQueue:   make(chan webhookServeEvent, webhooksServeDefaultQueueSize),
@@ -345,20 +347,20 @@ func (r *webhookServeRuntime) writeEventFile(event webhookServeEvent) (string, e
 		sanitizeWebhookServeFilenameSegment(event.EventType),
 	)
 	outputPath := filepath.Join(r.dir, fileName)
-	if _, err := shared.WriteStreamToFile(outputPath, bytes.NewReader(event.Payload)); err != nil {
+	if _, err := r.writeFile(outputPath, bytes.NewReader(event.Payload)); err != nil {
 		return "", err
 	}
 	return outputPath, nil
 }
 
-func prepareWebhookServeDirectory(value string) (string, error) {
+func prepareWebhookServeDirectory(d *shared.Deps, value string) (string, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		return "", nil
 	}
 
 	cleaned := filepath.Clean(trimmed)
-	info, err := os.Lstat(cleaned)
+	info, err := os.Lstat(d.OSPath(cleaned))
 	if err == nil {
 		if info.Mode()&os.ModeSymlink != 0 {
 			return "", fmt.Errorf("refusing to use symlink directory %q", cleaned)
@@ -371,7 +373,7 @@ func prepareWebhookServeDirectory(value string) (string, error) {
 	if !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	if err := os.MkdirAll(cleaned, 0o755); err != nil {
+	if err := os.MkdirAll(d.OSPath(cleaned), 0o755); err != nil {
 		return "", err
 	}
 	return cleaned, nil

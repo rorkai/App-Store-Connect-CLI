@@ -42,7 +42,7 @@ Examples:
   asc subscriptions offers retention create --subscription-id "SUB_ID" --reference-name "winter" --offer-id "winter_one_month" --duration ONE_MONTH --offer-mode PAY_UP_FRONT --period-count 1 --eligibility-paid-months 3 --price "SUBSCRIPTION_PRICE_POINT_ID"
   asc subscriptions offers retention presented add --subscription-id "SUB_ID" --retention-offer-id "OFFER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			retentionOffersListCommand(d, "list", "List retention offers for a subscription.", (*asc.Client).GetSubscriptionRetentionOffers),
 			retentionOffersLinksCommand(d, "links", "List retention offer relationships for a subscription.", (*asc.Client).GetSubscriptionRetentionOffersRelationships),
@@ -80,7 +80,7 @@ Examples:
   asc subscriptions offers retention presented add --subscription-id "SUB_ID" --retention-offer-id "OFFER_ID,OFFER_ID_2"
   asc subscriptions offers retention presented remove --subscription-id "SUB_ID" --retention-offer-id "OFFER_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			retentionOffersListCommand(d, "presented list", "List the retention offers presented with a subscription's retention message.", (*asc.Client).GetSubscriptionRetentionMessageOffers),
 			retentionOffersLinksCommand(d, "presented links", "List the relationships of the retention offers presented with a subscription's retention message.", (*asc.Client).GetSubscriptionRetentionMessageOffersRelationships),
@@ -120,7 +120,7 @@ Examples:
   asc ` + command + ` --subscription-id "SUB_ID" --include prices --price-fields subscriptionPricePoint --prices-limit 10
   asc ` + command + ` --subscription-id "SUB_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, command, 200, "fields", "include", "prices-limit"); err != nil {
 				return err
@@ -266,7 +266,7 @@ Examples:
   asc subscriptions offers retention view --id "OFFER_ID"
   asc subscriptions offers retention view --id "OFFER_ID" --include prices,subscription --subscription-fields name,productId`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			opts, err := read.options(d, fs, command, "")
 			if err != nil {
@@ -330,7 +330,7 @@ Commitment plan in each price point's territory.
 Examples:
   asc subscriptions offers retention create --subscription-id "SUB_ID" --reference-name "winter" --offer-id "winter_one_month" --duration ONE_MONTH --offer-mode PAY_UP_FRONT --period-count 1 --eligibility-paid-months 3 --eligibility-wait-months 6 --target-subscription-plan-type UPFRONT --price "SUBSCRIPTION_PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			for _, required := range []struct{ name, value string }{
 				{"subscription-id", *subscriptionID},
@@ -448,7 +448,7 @@ Examples:
   asc subscriptions offers retention update --id "OFFER_ID" --eligibility-paid-months 6
   asc subscriptions offers retention update --id "OFFER_ID" --eligibility-wait-months 4`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			offerID := strings.TrimSpace(*id)
 			if offerID == "" {
@@ -535,7 +535,7 @@ Examples:
   asc subscriptions offers retention prices list --id "OFFER_ID"
   asc subscriptions offers retention prices links --id "OFFER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsRetentionOfferPricesListCommand(d),
 			shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
@@ -589,7 +589,7 @@ Examples:
   asc subscriptions offers retention prices list --id "OFFER_ID"
   asc subscriptions offers retention prices list --id "OFFER_ID" --territory "US,France" --include subscriptionPricePoint --price-point-fields customerPrice,proceeds`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, command, 200, "territory", "fields", "include"); err != nil {
 				return err
@@ -693,7 +693,7 @@ func retentionMessageOffersChangeCommand(d *shared.Deps, action string) *ffcli.C
 Examples:
   ` + example,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {

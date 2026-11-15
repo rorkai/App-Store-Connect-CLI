@@ -41,7 +41,7 @@ Examples:
   asc game-center leaderboard-sets images upload --localization-id "LOC_ID" --file path/to/image.png
   asc game-center leaderboard-sets images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetsListCommand(d),
 			newGameCenterLeaderboardSetsGetCommand(d),
@@ -80,7 +80,7 @@ Examples:
   asc game-center leaderboard-sets localizations delete --id "LOC_ID" --confirm
   asc game-center leaderboard-sets localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetLocalizationsListCommand(d),
 			newGameCenterLeaderboardSetLocalizationsGetCommand(d),
@@ -283,7 +283,7 @@ Examples:
   asc game-center leaderboard-sets create --app "APP_ID" --reference-name "Weekly Challenge" --vendor-id "com.example.weekly"
   asc game-center leaderboard-sets create --reference-name "Season 2" --vendor-id "com.example.season2" --leaderboard-ids "id1,id2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ids := shared.SplitUniqueCSV(leaderboardIDs.String())
 			if leaderboardIDs.Provided() && len(ids) == 0 {
@@ -411,7 +411,7 @@ Examples:
   asc game-center leaderboard-sets releases create --app "APP_ID" --set-id "SET_ID"
   asc game-center leaderboard-sets releases delete --id "RELEASE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetReleasesListCommand(d),
 			newGameCenterLeaderboardSetReleasesCreateCommand(d),
@@ -467,7 +467,7 @@ This associates the leaderboard set with the app's Game Center detail.
 Examples:
   asc game-center leaderboard-sets releases create --app "APP_ID" --set-id "SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -541,7 +541,7 @@ func newGameCenterLeaderboardSetGroupLeaderboardSetCommand(d *shared.Deps) *ffcl
 Examples:
   asc game-center leaderboard-sets group-leaderboard-set view --id "SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetGroupLeaderboardSetGetCommand(d),
 		},
@@ -584,7 +584,7 @@ func newGameCenterLeaderboardSetLocalizationImageCommand(d *shared.Deps) *ffcli.
 Examples:
   asc game-center leaderboard-sets localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetLocalizationImageGetCommand(d),
 		},
@@ -633,7 +633,7 @@ Examples:
   asc game-center leaderboard-sets member-localizations leaderboard view --id "LOCALIZATION_ID"
   asc game-center leaderboard-sets member-localizations leaderboard-set view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetMemberLocalizationsListCommand(d),
 			newGameCenterLeaderboardSetMemberLocalizationsGetCommand(d),
@@ -740,7 +740,7 @@ Examples:
   asc game-center leaderboard-sets member-localizations create --leaderboard-set-id "SET_ID" --leaderboard-id "LEADERBOARD_ID" --locale en-US --name "Top Score"
   asc game-center leaderboard-sets member-localizations create --leaderboard-set-id "SET_ID" --leaderboard-id "LEADERBOARD_ID" --locale de-DE --name "Beste Punktzahl"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			setID := strings.TrimSpace(*leaderboardSetID)
 			if setID == "" {
@@ -845,7 +845,7 @@ func newGameCenterLeaderboardSetMemberLocalizationsLeaderboardCommand(d *shared.
 Examples:
   asc game-center leaderboard-sets member-localizations leaderboard view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand(d),
 		},
@@ -888,7 +888,7 @@ func newGameCenterLeaderboardSetMemberLocalizationsLeaderboardSetCommand(d *shar
 Examples:
   asc game-center leaderboard-sets member-localizations leaderboard-set view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand(d),
 		},

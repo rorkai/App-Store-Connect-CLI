@@ -141,7 +141,7 @@ Examples:
   asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --price "3.99" --base-territory "United States" --start-date "2026-03-01"
   asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --review-note "Purchase from Settings > Upgrade"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			referenceNameValue, err := resolveIAPSetupAlias(*referenceName, *refNameAlias, "--reference-name", "--ref-name")
 			if err != nil {
