@@ -210,36 +210,43 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			name:    "xcode-cloud run mutually exclusive workflow flags",
 			args:    []string{"xcode-cloud", "run", "--workflow", "CI", "--workflow-id", "WF_ID", "--branch", "main"},
 			wantErr: "--workflow and --workflow-id are mutually exclusive",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud run source-run conflicts with workflow flags",
 			args:    []string{"xcode-cloud", "run", "--source-run-id", "RUN_123", "--workflow-id", "WF_ID"},
 			wantErr: "--source-run-id is mutually exclusive with --workflow and --workflow-id",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud issues list conflicting selectors",
 			args:    []string{"xcode-cloud", "issues", "list", "--action-id", "ACT_123", "--run-id", "RUN_123"},
 			wantErr: "--action-id and --run-id are mutually exclusive",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud issues list next with run-id",
 			args:    []string{"xcode-cloud", "issues", "list", "--run-id", "RUN_123", "--next", "https://api.appstoreconnect.apple.com/v1/ciBuildActions/ACT_123/issues?cursor=abc"},
 			wantErr: "--next is not supported with --run-id",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud build-runs invalid sort",
 			args:    []string{"xcode-cloud", "build-runs", "--workflow-id", "WF_ID", "--sort", "nope"},
 			wantErr: "--sort must be one of",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud build-runs invalid limit",
 			args:    []string{"xcode-cloud", "build-runs", "--workflow-id", "WF_ID", "--limit", "201"},
 			wantErr: "--limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud build-runs invalid next",
 			args:    []string{"xcode-cloud", "build-runs", "--next", "http://example.com/not-asc"},
 			wantErr: "--next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "publish appstore invalid timeout",

@@ -21,9 +21,9 @@ type xcodeCloudDoctorOptions struct {
 	SaveLogs     string
 }
 
-// XcodeCloudDoctorCommand returns the xcode-cloud doctor subcommand.
-func XcodeCloudDoctorCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
+// newXcodeCloudDoctorCommand returns the xcode-cloud doctor subcommand.
+func newXcodeCloudDoctorCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("doctor", flag.ExitOnError)
 
 	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to diagnose")
 	wait := fs.Bool("wait", false, "Wait for the build run to complete before diagnosing it")
@@ -31,7 +31,7 @@ func XcodeCloudDoctorCommand() *ffcli.Command {
 	timeout := fs.Duration("timeout", 0, "Timeout for Xcode Cloud requests (0 = use ASC_TIMEOUT or 30m default)")
 	skipLogs := fs.Bool("skip-logs", false, "Skip automatic inspection of failed-action log bundles")
 	saveLogs := fs.String("save-logs", "", "Directory in which to retain inspected log bundles")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "doctor",
@@ -55,33 +55,33 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			runIDValue := strings.TrimSpace(*runID)
 			if runIDValue == "" {
-				return shared.RequiredFlag("--run-id")
+				return d.RequiredFlag("--run-id")
 			}
 			if *timeout < 0 {
-				return shared.UsageError("--timeout must be greater than or equal to 0")
+				return d.UsageError("--timeout must be greater than or equal to 0")
 			}
 			if *wait && *pollInterval <= 0 {
-				return shared.UsageError("--poll-interval must be greater than 0")
+				return d.UsageError("--poll-interval must be greater than 0")
 			}
 			if !*wait && flagProvided(fs, "poll-interval") {
-				return shared.UsageError("--poll-interval requires --wait")
+				return d.UsageError("--poll-interval requires --wait")
 			}
 			if *skipLogs && strings.TrimSpace(*saveLogs) != "" {
-				return shared.UsageError("--save-logs and --skip-logs are mutually exclusive")
+				return d.UsageError("--save-logs and --skip-logs are mutually exclusive")
 			}
 			if flagProvided(fs, "save-logs") && strings.TrimSpace(*saveLogs) == "" {
-				return shared.UsageError("--save-logs must not be empty")
+				return d.UsageError("--save-logs must not be empty")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud doctor: %w", err)
 			}
 
-			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, *timeout)
+			requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, *timeout)
 			defer cancel()
 
 			result, err := diagnoseXcodeCloudRun(requestCtx, client, runIDValue, xcodeCloudDoctorOptions{
@@ -94,7 +94,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud doctor: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

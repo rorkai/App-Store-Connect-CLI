@@ -1,8 +1,6 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -59,22 +57,14 @@ func TestXcodeCloudActionResourcesAggregateFromRunID(t *testing.T) {
 			setupAuth(t)
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for _, step := range test.steps {
 				reg.Register(asctest.GET(step.path, "limit=200"), asctest.JSON(http.StatusOK, step.body))
 			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -101,22 +91,14 @@ func TestXcodeCloudTestResultsListRunIDEmptyResultsStayArray(t *testing.T) {
 	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1/actions", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciBuildActions","id":"act-1","attributes":{"name":"Test iOS","actionType":"TEST"}}]}`))
 	reg.Register(asctest.GET("/v1/ciBuildActions/act-1/testResults"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode-cloud", "test-results", "list", "--run-id", "run-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "xcode-cloud", "test-results", "list", "--run-id", "run-1")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -134,16 +116,19 @@ func TestXcodeCloudActionResourceUsageErrors(t *testing.T) {
 			name:    "issues list rejects next with run id",
 			args:    []string{"xcode-cloud", "issues", "list", "--run-id", "run-1", "--next", "https://api.appstoreconnect.apple.com/v1/ciBuildActions/act-1/issues?cursor=abc"},
 			wantErr: "--next is not supported with --run-id",
+			deps:    true,
 		},
 		{
 			name:    "issues list rejects conflicting selectors",
 			args:    []string{"xcode-cloud", "issues", "list", "--action-id", "act-1", "--run-id", "run-1"},
 			wantErr: "--action-id and --run-id are mutually exclusive",
+			deps:    true,
 		},
 		{
 			name:    "artifacts list rejects conflicting selectors",
 			args:    []string{"xcode-cloud", "artifacts", "list", "--action-id", "act-1", "--run-id", "run-1"},
 			wantErr: "--action-id and --run-id are mutually exclusive",
+			deps:    true,
 		},
 	})
 }

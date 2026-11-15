@@ -75,8 +75,8 @@ type ciProductsListFlags struct {
 	pretty                   *bool
 }
 
-func bindCiProductsListFlags(fs *flag.FlagSet) ciProductsListFlags {
-	outputFlags := shared.BindOutputFlags(fs)
+func bindCiProductsListFlags(d *shared.Deps, fs *flag.FlagSet) ciProductsListFlags {
+	outputFlags := d.BindOutputFlags(fs)
 	return ciProductsListFlags{
 		flagSet:                  fs,
 		appID:                    fs.String("app", "", xcodeCloudAppFlagUsage),
