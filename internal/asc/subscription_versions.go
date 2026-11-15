@@ -294,18 +294,18 @@ func buildSubscriptionVersionsQuery(q *subscriptionVersionsQuery) string {
 	return values.Encode()
 }
 
-func buildSubscriptionVersionQuery(q *subscriptionVersionQuery) string {
+func buildSubscriptionVersionQuery(query *subscriptionVersionQuery) string {
 	values := url.Values{}
-	addCSV(values, "fields[subscriptionVersions]", q.fields)
-	addCSV(values, "fields[subscriptions]", q.subscriptionFields)
-	addCSV(values, "fields[subscriptionImages]", q.imageFields)
-	addCSV(values, "fields[subscriptionLocalizations]", q.localizationFields)
-	addCSV(values, "include", q.include)
-	if q.imageLimit > 0 {
-		values.Set("limit[images]", strconv.Itoa(q.imageLimit))
+	addCSV(values, "fields[subscriptionVersions]", query.fields)
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	addCSV(values, "fields[subscriptionImages]", query.imageFields)
+	addCSV(values, "fields[subscriptionLocalizations]", query.localizationFields)
+	addCSV(values, "include", query.include)
+	if query.imageLimit > 0 {
+		values.Set("limit[images]", strconv.Itoa(query.imageLimit))
 	}
-	if q.localizationLimit > 0 {
-		values.Set("limit[localizations]", strconv.Itoa(q.localizationLimit))
+	if query.localizationLimit > 0 {
+		values.Set("limit[localizations]", strconv.Itoa(query.localizationLimit))
 	}
 	return values.Encode()
 }
@@ -326,16 +326,16 @@ func buildSubscriptionVersionImagesQuery(q *subscriptionVersionImagesQuery) stri
 	return values.Encode()
 }
 
-func buildSubscriptionLocalizationV2Query(q *subscriptionLocalizationV2Query) string {
+func buildSubscriptionLocalizationV2Query(query *subscriptionLocalizationV2Query) string {
 	values := url.Values{}
-	addCSV(values, "fields[subscriptionLocalizations]", q.fields)
-	addCSV(values, "fields[subscriptionVersions]", q.versionFields)
-	addCSV(values, "include", q.include)
+	addCSV(values, "fields[subscriptionLocalizations]", query.fields)
+	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
+	addCSV(values, "include", query.include)
 	return values.Encode()
 }
 
-func buildSubscriptionImageV2Query(q *subscriptionImageV2Query) string {
+func buildSubscriptionImageV2Query(query *subscriptionImageV2Query) string {
 	values := url.Values{}
-	addCSV(values, "fields[subscriptionImages]", q.fields)
+	addCSV(values, "fields[subscriptionImages]", query.fields)
 	return values.Encode()
 }
