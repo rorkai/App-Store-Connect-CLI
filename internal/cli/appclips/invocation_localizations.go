@@ -91,14 +91,8 @@ Examples:
 
 // AppClipInvocationLocalizationsCreateCommand creates a localization.
 func AppClipInvocationLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	invocationID := shared.BindResourceIDFlag(fs, "invocation-id", "betaAppClipInvocations", "Invocation ID")
-	locale := fs.String("locale", "", "Locale (e.g., en-US)")
-	title := fs.String("title", "", "Title")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.BetaAppClipInvocationLocalizationCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc app-clips invocations localizations create --invocation-id \"INVOCATION_ID\" --locale \"en-US\" --title \"Try it\"",
 		ShortHelp:  "Create a beta App Clip invocation localization.",
@@ -106,56 +100,23 @@ func AppClipInvocationLocalizationsCreateCommand() *ffcli.Command {
 
 Examples:
   asc app-clips invocations localizations create --invocation-id "INVOCATION_ID" --locale "en-US" --title "Try it"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			invocationValue := strings.TrimSpace(*invocationID)
-			if invocationValue == "" {
-				return shared.RequiredFlag("--invocation-id")
-			}
-
-			localeValue := strings.TrimSpace(*locale)
-			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
-			}
-
-			titleValue := strings.TrimSpace(*title)
-			if titleValue == "" {
-				return shared.RequiredFlag("--title")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips invocations localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			attrs := asc.BetaAppClipInvocationLocalizationCreateAttributes{
-				Locale: localeValue,
-				Title:  titleValue,
-			}
-
-			resp, err := client.CreateBetaAppClipInvocationLocalization(requestCtx, invocationValue, attrs)
-			if err != nil {
-				return fmt.Errorf("app-clips invocations localizations create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "invocation-id",
+		IDUsage: "Invocation ID",
+		IDType:  "betaAppClipInvocations",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale (e.g., en-US)"),
+			shared.RequiredStringFlag(&attrs.Title, "title", "Title"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateBetaAppClipInvocationLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // AppClipInvocationLocalizationsUpdateCommand updates a localization.
 func AppClipInvocationLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaAppClipInvocationLocalizations", "Localization ID")
-	title := fs.String("title", "", "Title")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.BetaAppClipInvocationLocalizationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc app-clips invocations localizations update --localization-id \"LOC_ID\" [flags]",
 		ShortHelp:  "Update a beta App Clip invocation localization.",
@@ -163,41 +124,16 @@ func AppClipInvocationLocalizationsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc app-clips invocations localizations update --localization-id "LOC_ID" --title "Try it"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			locValue := strings.TrimSpace(*localizationID)
-			if locValue == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-
-			visited := map[string]bool{}
-			fs.Visit(func(f *flag.Flag) {
-				visited[f.Name] = true
-			})
-			if !visited["title"] {
-				return shared.UpdateFlagRequired(fs, title)
-			}
-
-			titleValue := strings.TrimSpace(*title)
-			attrs := &asc.BetaAppClipInvocationLocalizationUpdateAttributes{Title: &titleValue}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips invocations localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateBetaAppClipInvocationLocalization(requestCtx, locValue, attrs)
-			if err != nil {
-				return fmt.Errorf("app-clips invocations localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "localization-id",
+		IDUsage: "Localization ID",
+		IDType:  "betaAppClipInvocationLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.ExplicitStringFlag(&attrs.Title, "title", "Title"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateBetaAppClipInvocationLocalization(ctx, id, &attrs)
+		},
+	})
 }
 
 // AppClipInvocationLocalizationsDeleteCommand deletes a localization.

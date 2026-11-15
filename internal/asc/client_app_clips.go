@@ -308,40 +308,6 @@ type AppClipAdvancedExperienceRemoveResult struct {
 	Removed bool   `json:"removed"`
 }
 
-// GetAppClips retrieves App Clips for an app.
-func (c *Client) GetAppClips(ctx context.Context, appID string, opts ...AppClipsOption) (*AppClipsResponse, error) {
-	query := applyOptions(opts)
-
-	appID = strings.TrimSpace(appID)
-	if query.nextURL == "" && appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-
-	return getJSON[AppClipsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/appClips", appID),
-		Query:       buildAppClipsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appClips",
-	})
-}
-
-// GetAppClipDefaultExperiences retrieves default experiences for an App Clip.
-func (c *Client) GetAppClipDefaultExperiences(ctx context.Context, appClipID string, opts ...AppClipDefaultExperiencesOption) (*AppClipDefaultExperiencesResponse, error) {
-	query := applyOptions(opts)
-
-	appClipID = strings.TrimSpace(appClipID)
-	if query.nextURL == "" && appClipID == "" {
-		return nil, fmt.Errorf("appClipID is required")
-	}
-
-	return getJSON[AppClipDefaultExperiencesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appClips/%s/appClipDefaultExperiences", appClipID),
-		Query:       buildAppClipDefaultExperiencesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appClipDefaultExperiences",
-	})
-}
-
 // CreateAppClipDefaultExperience creates a default experience for an App Clip.
 func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID string, attrs *AppClipDefaultExperienceCreateAttributes, releaseVersionID string, templateID string) (*AppClipDefaultExperienceResponse, error) {
 	appClipID = strings.TrimSpace(appClipID)
@@ -417,40 +383,6 @@ func (c *Client) UpdateAppClipDefaultExperience(ctx context.Context, experienceI
 	}
 
 	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), Payload: payload})
-}
-
-// GetAppClipDefaultExperienceLocalizations retrieves localizations for a default experience.
-func (c *Client) GetAppClipDefaultExperienceLocalizations(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceLocalizationsOption) (*AppClipDefaultExperienceLocalizationsResponse, error) {
-	query := applyOptions(opts)
-
-	experienceID = strings.TrimSpace(experienceID)
-	if query.nextURL == "" && experienceID == "" {
-		return nil, fmt.Errorf("experienceID is required")
-	}
-
-	return getJSON[AppClipDefaultExperienceLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appClipDefaultExperiences/%s/appClipDefaultExperienceLocalizations", experienceID),
-		Query:       buildAppClipDefaultExperienceLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appClipDefaultExperienceLocalizations",
-	})
-}
-
-// GetAppClipAdvancedExperiences retrieves advanced experiences for an App Clip.
-func (c *Client) GetAppClipAdvancedExperiences(ctx context.Context, appClipID string, opts ...AppClipAdvancedExperiencesOption) (*AppClipAdvancedExperiencesResponse, error) {
-	query := applyOptions(opts)
-
-	appClipID = strings.TrimSpace(appClipID)
-	if query.nextURL == "" && appClipID == "" {
-		return nil, fmt.Errorf("appClipID is required")
-	}
-
-	return getJSON[AppClipAdvancedExperiencesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appClips/%s/appClipAdvancedExperiences", appClipID),
-		Query:       buildAppClipAdvancedExperiencesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appClipAdvancedExperiences",
-	})
 }
 
 // CreateAppClipAdvancedExperience creates an advanced experience.

@@ -3,8 +3,6 @@ package gamecenter
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -63,15 +61,7 @@ Examples:
 
 // GameCenterEnabledVersionsCompatibleVersionsCommand returns the compatible versions subcommand.
 func GameCenterEnabledVersionsCompatibleVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("compatible-versions", flag.ExitOnError)
-
-	enabledVersionID := fs.String("id", "", "Game Center enabled version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "compatible-versions",
 		ShortUsage: "asc game-center enabled-versions compatible-versions --id \"ENABLED_VERSION_ID\"",
 		ShortHelp:  "List compatible Game Center enabled versions.",
@@ -81,57 +71,13 @@ Examples:
   asc game-center enabled-versions compatible-versions --id "ENABLED_VERSION_ID"
   asc game-center enabled-versions compatible-versions --id "ENABLED_VERSION_ID" --limit 50
   asc game-center enabled-versions compatible-versions --id "ENABLED_VERSION_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "game-center enabled-versions compatible-versions", 200); err != nil {
-				return err
-			}
-			id := strings.TrimSpace(*enabledVersionID)
-			nextURL := strings.TrimSpace(*next)
-			if id == "" && nextURL == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCEnabledVersionsOption{
-				asc.Limit[asc.GCEnabledVersionsOption](*limit),
-				asc.NextURL[asc.GCEnabledVersionsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := []asc.GCEnabledVersionsOption{asc.NextURL[asc.GCEnabledVersionsOption](*next)}
-				if nextURL == "" {
-					paginateOpts = []asc.GCEnabledVersionsOption{asc.Limit[asc.GCEnabledVersionsOption](200)}
-				}
-				firstPage, err := client.GetGameCenterEnabledVersionCompatibleVersions(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center enabled-versions compatible-versions: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterEnabledVersionCompatibleVersions(ctx, id, asc.NextURL[asc.GCEnabledVersionsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterEnabledVersionCompatibleVersions(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center enabled-versions compatible-versions: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "id",
+		ParentUsage:          "Game Center enabled version ID",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		FetchPage: func(ctx context.Context, client *asc.Client, enabledVersionID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterEnabledVersionCompatibleVersions(ctx, enabledVersionID, asc.Limit[asc.GCEnabledVersionsOption](limit), asc.NextURL[asc.GCEnabledVersionsOption](next))
 		},
-	}
+	})
 }

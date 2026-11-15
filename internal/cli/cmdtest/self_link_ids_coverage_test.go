@@ -228,6 +228,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/profiles/profile-1": `{"data":{"type":"profiles","id":"profile-1","attributes":{"name":"Dev"}}}`,
 			},
+			deps: true,
 		},
 	}
 
@@ -479,8 +480,8 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"nominations", "view"}, flag: "id", wantType: "nominations", deps: true},
 		{args: []string{"pricing", "availability", "view"}, flag: "id", wantType: "appAvailabilities"},
 		{args: []string{"pricing", "schedule", "view"}, flag: "id", wantType: "appPriceSchedules"},
-		{args: []string{"profiles", "view"}, flag: "id", wantType: "profiles"},
-		{args: []string{"profiles", "create"}, flag: "bundle", wantType: "bundleIds"},
+		{args: []string{"profiles", "view"}, flag: "id", wantType: "profiles", deps: true},
+		{args: []string{"profiles", "create"}, flag: "bundle", wantType: "bundleIds", deps: true},
 		{args: []string{"review", "submissions-get"}, flag: "id", wantType: "reviewSubmissions"},
 		{args: []string{"review", "details-get"}, flag: "id", wantType: "appStoreReviewDetails"},
 		{args: []string{"review", "attachments-get"}, flag: "id", wantType: "appStoreReviewAttachments"},

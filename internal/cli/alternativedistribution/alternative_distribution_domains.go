@@ -3,8 +3,6 @@ package alternativedistribution
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -90,13 +88,8 @@ Examples:
 
 // newAlternativeDistributionDomainsCreateCommand returns the domains create subcommand.
 func newAlternativeDistributionDomainsCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("create", flag.ExitOnError)
-
-	domain := fs.String("domain", "", "Domain name")
-	referenceName := fs.String("reference-name", "", "Reference name for the domain")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var domain, referenceName string
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc alternative-distribution domains create --domain \"example.com\" --reference-name \"Example\"",
 		ShortHelp:  "Create an alternative distribution domain.",
@@ -104,35 +97,16 @@ func newAlternativeDistributionDomainsCreateCommand(d *shared.Deps) *ffcli.Comma
 
 Examples:
   asc alternative-distribution domains create --domain "example.com" --reference-name "Example"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			domainValue := strings.TrimSpace(*domain)
-			if domainValue == "" {
-				return d.RequiredFlag("--domain")
-			}
-
-			referenceValue := strings.TrimSpace(*referenceName)
-			if referenceValue == "" {
-				return d.RequiredFlag("--reference-name")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("alternative-distribution domains create: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateAlternativeDistributionDomain(requestCtx, domainValue, referenceValue)
-			if err != nil {
-				return fmt.Errorf("alternative-distribution domains create: failed to create: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel: true,
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&domain, "domain", "Domain name"),
+			shared.RequiredStringFlag(&referenceName, "reference-name", "Reference name for the domain"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, _ string) (any, error) {
+			return client.CreateAlternativeDistributionDomain(ctx, domain, referenceName)
+		},
+	})
 }
 
 // newAlternativeDistributionDomainsDeleteCommand returns the domains delete subcommand.

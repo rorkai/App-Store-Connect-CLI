@@ -2,6 +2,12 @@
 
 package asc
 
+import (
+	"context"
+	"net/http"
+	"strings"
+)
+
 // WebhookDeliveryCreateData is the data object of the WebhookDeliveryCreateRequest schema.
 type WebhookDeliveryCreateData struct {
 	Type          ResourceType                       `json:"type"`
@@ -20,3 +26,26 @@ type WebhookDeliveryCreateRequest struct {
 
 // WebhookDeliveryResponse is the WebhookDeliveryResponse schema.
 type WebhookDeliveryResponse = SingleResponse[WebhookDeliveryAttributes]
+
+// CreateWebhookDelivery sends POST /v1/webhookDeliveries (webhookDeliveries_createInstance).
+func (c *Client) CreateWebhookDelivery(ctx context.Context, deliveryID string) (*WebhookDeliveryResponse, error) {
+	payload := WebhookDeliveryCreateRequest{
+		Data: WebhookDeliveryCreateData{
+			Type: ResourceTypeWebhookDeliveries,
+			Relationships: WebhookDeliveryCreateRelationships{
+				Template: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeWebhookDeliveries,
+						ID:   strings.TrimSpace(deliveryID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[WebhookDeliveryResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/webhookDeliveries",
+		Payload:  payload,
+		ParseErr: "failed to parse webhook delivery response",
+	})
+}

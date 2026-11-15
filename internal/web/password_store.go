@@ -8,6 +8,7 @@ import (
 	"github.com/99designs/keyring"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
 
 const (
@@ -20,7 +21,7 @@ const (
 var ErrPasswordStoreUnavailable = errors.New("native password store unavailable")
 
 var passwordKeyringOpen = func() (keyring.Keyring, error) {
-	return keyring.Open(keyring.Config{
+	return testguard.OpenKeyring(keyring.Config{
 		ServiceName:                    webPasswordKeyringService,
 		KeychainTrustApplication:       true,
 		KeychainSynchronizable:         false,

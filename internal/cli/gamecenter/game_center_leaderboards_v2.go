@@ -204,12 +204,7 @@ Examples:
 
 // GameCenterLeaderboardVersionsV2CreateCommand returns the leaderboard versions v2 create subcommand.
 func GameCenterLeaderboardVersionsV2CreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center leaderboards v2 versions create --leaderboard-id \"LB_ID\"",
 		ShortHelp:  "Create a new Game Center leaderboard version (v2).",
@@ -217,30 +212,13 @@ func GameCenterLeaderboardVersionsV2CreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboards v2 versions create --leaderboard-id "LB_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*leaderboardID)
-			if id == "" {
-				return shared.RequiredFlag("--leaderboard-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards v2 versions create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterLeaderboardVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards v2 versions create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "leaderboard-id",
+		IDUsage: "Game Center leaderboard ID",
+		IDType:  "gameCenterLeaderboards",
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterLeaderboardVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardLocalizationsV2Command returns the leaderboard localizations v2 command group.

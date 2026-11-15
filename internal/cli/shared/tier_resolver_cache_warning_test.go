@@ -18,6 +18,7 @@ func TestResolveTiersWithFetcherWarnsWhenCacheSaveFails(t *testing.T) {
 	t.Cleanup(func() { os.Stderr = origStderr })
 
 	tiers, resolveErr := resolveTiersWithFetcher(
+		os.Stderr,
 		true,
 		func() ([]TierEntry, error) { return nil, nil },
 		func([]TierEntry) error { return errors.New("disk full") },

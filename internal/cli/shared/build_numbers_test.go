@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -390,7 +391,7 @@ func TestResolveLatestBuildSelectionCarriesEveryEquivalentUploadVersion(t *testi
 				}
 			})
 
-			selection, err := resolveLatestBuildSelection(context.Background(), client, LatestBuildSelectionOptions{
+			selection, err := resolveLatestBuildSelection(context.Background(), os.Stderr, client, LatestBuildSelectionOptions{
 				AppID:    "123456789",
 				Version:  "1.2.0",
 				Platform: "IOS",

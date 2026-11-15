@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -32,6 +33,33 @@ type AlternativeDistributionPackageCreateRequest struct {
 
 // AlternativeDistributionPackageResponse is the AlternativeDistributionPackageResponse schema.
 type AlternativeDistributionPackageResponse = SingleResponse[AlternativeDistributionPackageAttributes]
+
+// CreateAlternativeDistributionPackage sends POST /v1/alternativeDistributionPackages (alternativeDistributionPackages_createInstance).
+func (c *Client) CreateAlternativeDistributionPackage(ctx context.Context, appStoreVersionID string) (*AlternativeDistributionPackageResponse, error) {
+	appStoreVersionID = strings.TrimSpace(appStoreVersionID)
+	if appStoreVersionID == "" {
+		return nil, fmt.Errorf("appStoreVersionID is required")
+	}
+	payload := AlternativeDistributionPackageCreateRequest{
+		Data: AlternativeDistributionPackageCreateData{
+			Type: ResourceTypeAlternativeDistributionPackages,
+			Relationships: AlternativeDistributionPackageCreateRelationships{
+				AppStoreVersion: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersions,
+						ID:   appStoreVersionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AlternativeDistributionPackageResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/alternativeDistributionPackages",
+		Payload:  payload,
+		ParseErr: "failed to parse alternative distribution package response",
+	})
+}
 
 // GetAlternativeDistributionPackage sends GET /v1/alternativeDistributionPackages/{id} (alternativeDistributionPackages_getInstance).
 func (c *Client) GetAlternativeDistributionPackage(ctx context.Context, packageID string) (*AlternativeDistributionPackageResponse, error) {

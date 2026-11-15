@@ -47,13 +47,13 @@ type profileInspectResult struct {
 	Entitlements           map[string]any       `json:"entitlements,omitempty"`
 }
 
-// ProfilesInspectCommand returns the profiles inspect subcommand.
-func ProfilesInspectCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("inspect", flag.ExitOnError)
+// newProfilesInspectCommand returns the profiles inspect subcommand.
+func newProfilesInspectCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("inspect", flag.ExitOnError)
 
 	sourcePath := fs.String("path", "", "Path to a .mobileprovision or .provisionprofile file to inspect")
 	showEntitlements := fs.Bool("entitlements", false, "Include entitlement key/value rows in table or markdown output")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "inspect",
@@ -75,7 +75,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*sourcePath)
 			if pathValue == "" {
-				return shared.RequiredFlag("--path")
+				return d.RequiredFlag("--path")
 			}
 
 			file, err := shared.OpenExistingNoFollow(pathValue)
@@ -94,13 +94,13 @@ Examples:
 				return fmt.Errorf("profiles inspect: %w", err)
 			}
 
-			result := buildProfileInspectResult(pathValue, parsed, time.Now())
-			return shared.PrintOutputWithRenderers(
+			result := buildProfileInspectResult(pathValue, parsed, d.Now())
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderProfileInspectResult(result, *showEntitlements, false) },
-				func() error { return renderProfileInspectResult(result, *showEntitlements, true) },
+				func() error { return renderProfileInspectResult(d.IO.Out, result, *showEntitlements, false) },
+				func() error { return renderProfileInspectResult(d.IO.Out, result, *showEntitlements, true) },
 			)
 		},
 	}
@@ -138,15 +138,16 @@ func buildProfileInspectResult(path string, parsed *mobileProvision, now time.Ti
 	return result
 }
 
-func renderProfileInspectResult(result *profileInspectResult, showEntitlements bool, markdown bool) error {
+func renderProfileInspectResult(w io.Writer, result *profileInspectResult, showEntitlements bool, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
 
-	render := asc.RenderTable
+	renderTo := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		renderTo = asc.RenderMarkdownTo
 	}
+	render := func(headers []string, rows [][]string) { renderTo(w, headers, rows) }
 
 	render(
 		[]string{"Field", "Value"},

@@ -100,30 +100,23 @@ Examples:
 }
 
 func IAPVersionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions create", flag.ExitOnError)
-	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "create", ShortUsage: `asc iap versions create --iap-id "IAP_ID"`, ShortHelp: "Create an in-app purchase version.",
-		LongHelp: "Create an in-app purchase version.\n\nExamples:\n  asc iap versions create --iap-id \"IAP_ID\"", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*iapID)
-			if id == "" {
-				return shared.RequiredFlag("--iap-id")
-			}
-			client, err := iapVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("iap versions create: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.CreateInAppPurchaseVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("iap versions create: failed to create: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
+
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
+		FlagSetName: "versions create",
+		Name:        "create",
+		ShortUsage:  `asc iap versions create --iap-id "IAP_ID"`,
+		ShortHelp:   "Create an in-app purchase version.",
+		LongHelp:    "Create an in-app purchase version.\n\nExamples:\n  asc iap versions create --iap-id \"IAP_ID\"",
+		IDFlag:      "iap-id",
+		IDUsage:     "In-app purchase ID",
+		IDType:      "inAppPurchases",
+		Deps:        d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateInAppPurchaseVersion(ctx, id)
 		},
-	}
+	})
 }
 
 func normalizeIAPVersionStates(value string) ([]string, error) {

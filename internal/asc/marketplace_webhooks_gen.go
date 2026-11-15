@@ -56,6 +56,33 @@ type MarketplaceWebhookUpdateRequest struct {
 // MarketplaceWebhooksResponse is the MarketplaceWebhooksResponse schema.
 type MarketplaceWebhooksResponse = Response[MarketplaceWebhookAttributes]
 
+// CreateMarketplaceWebhook sends POST /v1/marketplaceWebhooks (marketplaceWebhooks_createInstance).
+func (c *Client) CreateMarketplaceWebhook(ctx context.Context, endpointURL, secret string) (*MarketplaceWebhookResponse, error) {
+	endpointURL = strings.TrimSpace(endpointURL)
+	secret = strings.TrimSpace(secret)
+	if endpointURL == "" {
+		return nil, fmt.Errorf("endpointURL is required")
+	}
+	if secret == "" {
+		return nil, fmt.Errorf("secret is required")
+	}
+	payload := MarketplaceWebhookCreateRequest{
+		Data: MarketplaceWebhookCreateData{
+			Type: ResourceTypeMarketplaceWebhooks,
+			Attributes: MarketplaceWebhookCreateAttributes{
+				EndpointURL: endpointURL,
+				Secret:      secret,
+			},
+		},
+	}
+	return sendJSON[MarketplaceWebhookResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/marketplaceWebhooks",
+		Payload:  payload,
+		ParseErr: "failed to parse marketplace webhook response",
+	})
+}
+
 // DeleteMarketplaceWebhook sends DELETE /v1/marketplaceWebhooks/{id} (marketplaceWebhooks_deleteInstance).
 func (c *Client) DeleteMarketplaceWebhook(ctx context.Context, webhookID string) error {
 	webhookID = strings.TrimSpace(webhookID)
@@ -74,6 +101,29 @@ func (c *Client) GetMarketplaceWebhooks(ctx context.Context, opts ...Marketplace
 		Next:        query.nextURL,
 		NextContext: "marketplaceWebhooks",
 		ParseErr:    "failed to parse marketplace webhooks response",
+	})
+}
+
+// UpdateMarketplaceWebhook sends PATCH /v1/marketplaceWebhooks/{id} (marketplaceWebhooks_updateInstance).
+func (c *Client) UpdateMarketplaceWebhook(ctx context.Context, webhookID string, attrs MarketplaceWebhookUpdateAttributes) (*MarketplaceWebhookResponse, error) {
+	webhookID = strings.TrimSpace(webhookID)
+	if webhookID == "" {
+		return nil, fmt.Errorf("webhookID is required")
+	}
+	payload := MarketplaceWebhookUpdateRequest{
+		Data: MarketplaceWebhookUpdateData{
+			Type: ResourceTypeMarketplaceWebhooks,
+			ID:   webhookID,
+		},
+	}
+	if attrs.EndpointURL != nil || attrs.Secret != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[MarketplaceWebhookResponse](ctx, c, writeRequest{
+		Method:   http.MethodPatch,
+		Path:     fmt.Sprintf("/v1/marketplaceWebhooks/%s", webhookID),
+		Payload:  payload,
+		ParseErr: "failed to parse marketplace webhook response",
 	})
 }
 

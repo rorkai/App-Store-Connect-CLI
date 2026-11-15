@@ -211,15 +211,7 @@ Examples:
 
 // GameCenterLeaderboardSetsListCommand returns the leaderboard-sets list subcommand.
 func GameCenterLeaderboardSetsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center leaderboard-sets list [flags]",
 		ShortHelp:  "List Game Center leaderboard sets for an app.",
@@ -229,68 +221,17 @@ Examples:
   asc game-center leaderboard-sets list --app "APP_ID"
   asc game-center leaderboard-sets list --app "APP_ID" --limit 50
   asc game-center leaderboard-sets list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "game-center leaderboard-sets list", 200); err != nil {
-				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			nextURL := strings.TrimSpace(*next)
-			if resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			gcDetailID := ""
-			if nextURL == "" {
-				// Get Game Center detail ID first
-				var err error
-				gcDetailID, err = client.GetGameCenterDetailID(requestCtx, resolvedAppID)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets list: failed to get Game Center detail: %w", err)
-				}
-			}
-
-			opts := []asc.GCLeaderboardSetsOption{
-				asc.Limit[asc.GCLeaderboardSetsOption](*limit),
-				asc.NextURL[asc.GCLeaderboardSetsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetsOption](200))
-				firstPage, err := client.GetGameCenterLeaderboardSets(requestCtx, gcDetailID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSets(ctx, gcDetailID, asc.NextURL[asc.GCLeaderboardSetsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterLeaderboardSets(requestCtx, gcDetailID, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		LookupParent:         gameCenterDetailParent("game-center leaderboard-sets list"),
+		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterLeaderboardSets(ctx, gcDetailID, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetsGetCommand returns the leaderboard-sets get subcommand.
@@ -402,13 +343,8 @@ Examples:
 
 // GameCenterLeaderboardSetsUpdateCommand returns the leaderboard-sets update subcommand.
 func GameCenterLeaderboardSetsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard set")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterLeaderboardSetUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center leaderboard-sets update [flags]",
 		ShortHelp:  "Update a Game Center leaderboard set.",
@@ -416,43 +352,15 @@ func GameCenterLeaderboardSetsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets update --id "SET_ID" --reference-name "Season 1 - Updated"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*setID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			attrs := asc.GameCenterLeaderboardSetUpdateAttributes{}
-			hasUpdate := false
-
-			if strings.TrimSpace(*referenceName) != "" {
-				name := strings.TrimSpace(*referenceName)
-				attrs.ReferenceName = &name
-				hasUpdate = true
-			}
-
-			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, referenceName)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterLeaderboardSet(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Game Center leaderboard set ID",
+		IDType:  "gameCenterLeaderboardSets",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.ReferenceName, "reference-name", "Reference name for the leaderboard set"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterLeaderboardSet(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterLeaderboardSetsDeleteCommand returns the leaderboard-sets delete subcommand.
@@ -865,13 +773,8 @@ Examples:
 
 // GameCenterLeaderboardSetMemberLocalizationsUpdateCommand returns the member localizations update subcommand.
 func GameCenterLeaderboardSetMemberLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetMemberLocalizations", "Leaderboard set member localization ID")
-	name := fs.String("name", "", "Display name for the member localization")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterLeaderboardSetMemberLocalizationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center leaderboard-sets member-localizations update --id \"LOCALIZATION_ID\" --name \"NAME\"",
 		ShortHelp:  "Update a leaderboard set member localization.",
@@ -879,43 +782,15 @@ func GameCenterLeaderboardSetMemberLocalizationsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets member-localizations update --id "LOCALIZATION_ID" --name "New Name"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			attrs := asc.GameCenterLeaderboardSetMemberLocalizationUpdateAttributes{}
-			hasUpdate := false
-
-			if strings.TrimSpace(*name) != "" {
-				nameVal := strings.TrimSpace(*name)
-				attrs.Name = &nameVal
-				hasUpdate = true
-			}
-
-			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, name)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets member-localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterLeaderboardSetMemberLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets member-localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Leaderboard set member localization ID",
+		IDType:  "gameCenterLeaderboardSetMemberLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.Name, "name", "Display name for the member localization"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterLeaderboardSetMemberLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterLeaderboardSetMemberLocalizationsDeleteCommand returns the member localizations delete subcommand.
