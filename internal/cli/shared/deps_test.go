@@ -1247,25 +1247,39 @@ func TestDefaultDepsStdinMatchesProcessStdin(t *testing.T) {
 
 func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 	timeoutEnv := []string{"ASC_TIMEOUT", "ASC_TIMEOUT_SECONDS", "ASC_UPLOAD_TIMEOUT", "ASC_UPLOAD_TIMEOUT_SECONDS"}
+	const commandDefault, mediaBytes = 2 * time.Minute, 3 << 20
+	ifSet := func(set bool, setting, fallback time.Duration) time.Duration {
+		if set {
+			return setting
+		}
+		return fallback
+	}
 
+	// requestSet and uploadSet say whether the setting is given with a valid
+	// value, in which case it replaces a command's own default too.
 	tests := []struct {
 		name        string
 		env         map[string]string
 		config      string
 		wantRequest time.Duration
 		wantUpload  time.Duration
+		requestSet  bool
+		uploadSet   bool
 	}{
 		{name: "unset", wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
-		{name: "ASC_TIMEOUT", env: map[string]string{"ASC_TIMEOUT": "7s"}, wantRequest: 7 * time.Second, wantUpload: asc.DefaultUploadTimeout},
-		{name: "ASC_TIMEOUT_SECONDS", env: map[string]string{"ASC_TIMEOUT_SECONDS": "9"}, wantRequest: 9 * time.Second, wantUpload: asc.DefaultUploadTimeout},
-		{name: "ASC_UPLOAD_TIMEOUT", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second},
-		{name: "ASC_UPLOAD_TIMEOUT_SECONDS", env: map[string]string{"ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 45 * time.Second},
-		{name: "ASC_UPLOAD_TIMEOUT wins over its seconds form", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second},
+		{name: "ASC_TIMEOUT", env: map[string]string{"ASC_TIMEOUT": "7s"}, wantRequest: 7 * time.Second, wantUpload: asc.DefaultUploadTimeout, requestSet: true},
+		{name: "ASC_TIMEOUT_SECONDS", env: map[string]string{"ASC_TIMEOUT_SECONDS": "9"}, wantRequest: 9 * time.Second, wantUpload: asc.DefaultUploadTimeout, requestSet: true},
+		{name: "ASC_TIMEOUT equal to the default", env: map[string]string{"ASC_TIMEOUT": asc.DefaultTimeout.String()}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout, requestSet: true},
+		{name: "invalid ASC_TIMEOUT keeps the default", env: map[string]string{"ASC_TIMEOUT": "soon"}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
+		{name: "ASC_UPLOAD_TIMEOUT", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second, uploadSet: true},
+		{name: "ASC_UPLOAD_TIMEOUT_SECONDS", env: map[string]string{"ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 45 * time.Second, uploadSet: true},
+		{name: "ASC_UPLOAD_TIMEOUT equal to the default", env: map[string]string{"ASC_UPLOAD_TIMEOUT": asc.DefaultUploadTimeout.String()}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout, uploadSet: true},
+		{name: "ASC_UPLOAD_TIMEOUT wins over its seconds form", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "90s", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: 90 * time.Second, uploadSet: true},
 		{name: "invalid ASC_UPLOAD_TIMEOUT keeps the default", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "soon", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
 		{name: "empty ASC_UPLOAD_TIMEOUT keeps the default", env: map[string]string{"ASC_UPLOAD_TIMEOUT": "", "ASC_UPLOAD_TIMEOUT_SECONDS": "45"}, wantRequest: asc.DefaultTimeout, wantUpload: asc.DefaultUploadTimeout},
-		{name: "config timeouts", config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 11 * time.Second, wantUpload: 75 * time.Second},
-		{name: "config seconds timeouts", config: `{"timeout_seconds":"13","upload_timeout_seconds":"50"}`, wantRequest: 13 * time.Second, wantUpload: 50 * time.Second},
-		{name: "environment wins over config", env: map[string]string{"ASC_TIMEOUT": "7s", "ASC_UPLOAD_TIMEOUT": "90s"}, config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 7 * time.Second, wantUpload: 90 * time.Second},
+		{name: "config timeouts", config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 11 * time.Second, wantUpload: 75 * time.Second, requestSet: true, uploadSet: true},
+		{name: "config seconds timeouts", config: `{"timeout_seconds":"13","upload_timeout_seconds":"50"}`, wantRequest: 13 * time.Second, wantUpload: 50 * time.Second, requestSet: true, uploadSet: true},
+		{name: "environment wins over config", env: map[string]string{"ASC_TIMEOUT": "7s", "ASC_UPLOAD_TIMEOUT": "90s"}, config: `{"timeout":"11s","upload_timeout":"75s"}`, wantRequest: 7 * time.Second, wantUpload: 90 * time.Second, requestSet: true, uploadSet: true},
 	}
 
 	for _, test := range tests {
@@ -1297,6 +1311,56 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 				{"Timeout", ContextWithTimeout, d.Timeout, test.wantRequest},
 				{"UploadTimeout", ContextWithUploadTimeout, d.UploadTimeout, test.wantUpload},
 				{"DownloadTimeout", ContextWithDownloadTimeout, d.DownloadTimeout, test.wantUpload},
+				{
+					"ResolvedTimeout",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithResolvedTimeout(ctx, commandDefault)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.ResolvedTimeout(ctx, commandDefault)
+					},
+					ifSet(test.requestSet, test.wantRequest, commandDefault),
+				},
+				{
+					"ResolvedUploadTimeout",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithResolvedUploadTimeout(ctx, commandDefault)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.ResolvedUploadTimeout(ctx, commandDefault)
+					},
+					ifSet(test.uploadSet, test.wantUpload, commandDefault),
+				},
+				{
+					"MediaUploadTimeout",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithMediaUploadTimeout(ctx, mediaBytes)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.MediaUploadTimeout(ctx, mediaBytes)
+					},
+					ifSet(test.uploadSet, test.wantUpload, MediaUploadTimeoutForWork(1, mediaBytes)),
+				},
+				{
+					"AvailabilityTimeout for all territories",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithAvailabilityTimeout(ctx, true)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.AvailabilityTimeout(ctx, true)
+					},
+					ifSet(test.requestSet, test.wantRequest, bulkAvailabilityTimeout),
+				},
+				{
+					"AvailabilityTimeout for some territories",
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return ContextWithAvailabilityTimeout(ctx, false)
+					},
+					func(ctx context.Context) (context.Context, context.CancelFunc) {
+						return d.AvailabilityTimeout(ctx, false)
+					},
+					test.wantRequest,
+				},
 			}
 			synctest.Test(t, func(t *testing.T) {
 				want := func(d time.Duration) time.Time { return time.Now().Add(d) }
@@ -1322,6 +1386,63 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 			})
 		})
 	}
+
+	t.Run("per-call defaults use d.ResolveTimeout", func(t *testing.T) {
+		const injected = 4 * time.Minute
+		type call struct {
+			setting        TimeoutSetting
+			defaultTimeout time.Duration
+		}
+		var calls []call
+		d := &Deps{
+			ResolveTimeout: func(setting TimeoutSetting, defaultTimeout time.Duration) time.Duration {
+				calls = append(calls, call{setting, defaultTimeout})
+				return injected
+			},
+			Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+				return ContextWithTimeoutDuration(ctx, injected)
+			},
+		}
+		synctest.Test(t, func(t *testing.T) {
+			for _, build := range []func(context.Context) (context.Context, context.CancelFunc){
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.ResolvedTimeout(ctx, commandDefault)
+				},
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.ResolvedUploadTimeout(ctx, commandDefault)
+				},
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.MediaUploadTimeout(ctx, mediaBytes)
+				},
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.AvailabilityTimeout(ctx, true)
+				},
+				func(ctx context.Context) (context.Context, context.CancelFunc) {
+					return d.AvailabilityTimeout(ctx, false)
+				},
+			} {
+				ctx, cancel := build(context.Background())
+				deadline, ok := ctx.Deadline()
+				_, liftedOK := ContextWithoutTimeout(ctx).Deadline()
+				cancel()
+				if !ok || !deadline.Equal(time.Now().Add(injected)) {
+					t.Fatalf("deadline = %v (set = %v), want %v", deadline, ok, time.Now().Add(injected))
+				}
+				if liftedOK {
+					t.Fatal("ContextWithoutTimeout kept the deadline")
+				}
+			}
+		})
+		want := []call{
+			{RequestTimeoutSetting, commandDefault},
+			{UploadTimeoutSetting, commandDefault},
+			{UploadTimeoutSetting, MediaUploadTimeoutForWork(1, mediaBytes)},
+			{RequestTimeoutSetting, bulkAvailabilityTimeout},
+		}
+		if !reflect.DeepEqual(calls, want) {
+			t.Fatalf("ResolveTimeout calls = %v, want %v", calls, want)
+		}
+	})
 
 	t.Run("DownloadTimeout uses d.UploadTimeout", func(t *testing.T) {
 		const injected = 3 * time.Minute
@@ -1370,18 +1491,26 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 	keyPath := filepath.Join(t.TempDir(), "key.p8")
 	writeECDSAPEM(t, keyPath)
 	var reads []time.Duration
-	client, err := asc.NewClientWithHTTPClient("KEY123", "ISS456", keyPath, &http.Client{Transport: buildUploadsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := buildUploadsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		reads = append(reads, budget(req.Context()))
+		body := `{"data":{"type":"reviewSubmissions","id":"sub-1","attributes":{"state":"COMPLETE"}}}`
+		switch req.URL.Path {
+		case "/v1/appAssetLibraryPlacements":
+			body = `{"data":{"type":"appAssetLibraryPlacements","id":"placement-1","attributes":{"state":"PROCESSING"}}}`
+		case "/v1/appAssetLibraryPlacementOrderingRequests":
+			body = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"order-1"}}`
+		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"reviewSubmissions","id":"sub-1","attributes":{"state":"COMPLETE"}}}`)),
+			Body:       io.NopCloser(strings.NewReader(body)),
 			Request:    req,
 		}, nil
-	})})
-	if err != nil {
-		t.Fatalf("NewClientWithHTTPClient() error: %v", err)
-	}
+	})
+	// The client is built inside each synctest bubble: it keeps a channel
+	// that limits concurrent mutations.
+	var client *asc.Client
+	var err error
 
 	// Each run uses the process form when d is nil and the Deps form otherwise,
 	// and returns the budget of every request context the helper made.
@@ -1452,6 +1581,32 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 			}
 			return reads
 		}},
+		{name: "CreateLibraryPlacement", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
+			reads = nil
+			var id string
+			if d == nil {
+				id, _, err = CreateLibraryPlacement(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "image", "image-1", "APP_SCREENSHOT", "group-1")
+			} else {
+				id, _, err = d.CreateLibraryPlacement(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "image", "image-1", "APP_SCREENSHOT", "group-1")
+			}
+			if err != nil || id != "placement-1" {
+				t.Fatalf("placement = %q, error = %v", id, err)
+			}
+			return reads
+		}},
+		{name: "OrderLibraryPlacements", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
+			reads = nil
+			var id string
+			if d == nil {
+				id, err = OrderLibraryPlacements(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
+			} else {
+				id, err = d.OrderLibraryPlacements(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
+			}
+			if err != nil || id != "order-1" {
+				t.Fatalf("ordering request = %q, error = %v", id, err)
+			}
+			return reads
+		}},
 	}
 
 	for _, test := range tests {
@@ -1466,6 +1621,10 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 					{"DefaultDeps", DefaultDeps(), processTimeout},
 					{"injected Timeout", injected, injectedTimeout},
 				} {
+					client, err = asc.NewClientWithHTTPClient("KEY123", "ISS456", keyPath, &http.Client{Transport: transport})
+					if err != nil {
+						t.Fatalf("NewClientWithHTTPClient() error: %v", err)
+					}
 					got := test.run(t, variant.d)
 					want := make([]time.Duration, test.attempts)
 					for i := range want {

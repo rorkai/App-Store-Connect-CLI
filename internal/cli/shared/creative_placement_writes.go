@@ -137,7 +137,7 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 			if err != nil {
 				return err
 			}
-			placementID, state, err := postLibraryPlacement(ctx, client, payload)
+			placementID, state, err := postLibraryPlacement(ctx, ContextWithTimeout, client, payload)
 			if err != nil {
 				return fmt.Errorf("placements %s: %w", operation, err)
 			}
@@ -152,6 +152,16 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 // CreateLibraryPlacement assigns uploaded library media to one localization.
 // mediaRelationship is "image" or "video".
 func CreateLibraryPlacement(ctx context.Context, client *asc.Client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup string) (id, state string, err error) {
+	return createLibraryPlacement(ctx, ContextWithTimeout, client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup)
+}
+
+// CreateLibraryPlacement is CreateLibraryPlacement with the request deadline
+// from d.Timeout.
+func (d *Deps) CreateLibraryPlacement(ctx context.Context, client *asc.Client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup string) (id, state string, err error) {
+	return createLibraryPlacement(ctx, d.Timeout, client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup)
+}
+
+func createLibraryPlacement(ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup string) (id, state string, err error) {
 	mediaType := "appAssetLibraryImages"
 	if mediaRelationship == "video" {
 		mediaType = "appAssetLibraryVideos"
@@ -167,11 +177,11 @@ func CreateLibraryPlacement(ctx context.Context, client *asc.Client, resource, l
 	if err != nil {
 		return "", "", err
 	}
-	return postLibraryPlacement(ctx, client, payload)
+	return postLibraryPlacement(ctx, timeout, client, payload)
 }
 
-func postLibraryPlacement(ctx context.Context, client *asc.Client, payload []byte) (id, state string, err error) {
-	requestCtx, cancel := ContextWithTimeout(ctx)
+func postLibraryPlacement(ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, payload []byte) (id, state string, err error) {
+	requestCtx, cancel := timeout(ctx)
 	defer cancel()
 	response, err := client.RawRequest(requestCtx, "POST", "/v1/appAssetLibraryPlacements", payload)
 	if err != nil {

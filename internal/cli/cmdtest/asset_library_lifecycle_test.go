@@ -27,7 +27,6 @@ func TestAssetLibraryLifecycle(t *testing.T) {
 				typ = "appAssetLibraryVideos"
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			if tc.name == "delete" {
 				reg.Register(asctest.DELETE("/v1/"+typ+"/asset"), asctest.JSON(204, ""))
 			} else {
@@ -42,7 +41,7 @@ func TestAssetLibraryLifecycle(t *testing.T) {
 			if tc.flag != "" {
 				args = append(args, "--"+tc.flag+"="+tc.value)
 			}
-			out, errout, err := runAssetLibrary(t, args...)
+			out, errout, err := runAssetLibrary(t, stubClient(t, reg), args...)
 			if err != nil || errout != "" {
 				t.Fatalf("err=%v stderr=%s", err, errout)
 			}
@@ -64,7 +63,7 @@ func TestAssetLibraryLifecycleValidationBeforeAuth(t *testing.T) {
 		{"images", "rename", "--id", "asset", "--name", "  "},
 		{"videos", "set-poster-frame", "--id", "asset", "--time-code", "bad"},
 	} {
-		_, _, err := runAssetLibrary(t, append([]string{"asset-library"}, args...)...)
+		_, _, err := runAssetLibrary(t, nil, append([]string{"asset-library"}, args...)...)
 		if err == nil || !strings.Contains(err.Error(), "required") && !strings.Contains(err.Error(), "time-code") {
 			t.Fatalf("expected usage validation, got %v", err)
 		}
@@ -74,10 +73,9 @@ func TestAssetLibraryLifecycleValidationBeforeAuth(t *testing.T) {
 func TestAssetLibraryLifecycleVideoEnvelope(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appAssetLibraryVideos/video"),
 		asctest.JSON(200, `{"data":{"type":"appAssetLibraryVideos","id":"video","attributes":{"future":{"opaque":true},"state":"ARCHIVED"}},"meta":{"future":null}}`))
-	out, _, err := runAssetLibrary(t, "asset-library", "videos", "view", "--id", "https://api.appstoreconnect.apple.com/v1/appAssetLibraryVideos/video", "--output", "json")
+	out, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "videos", "view", "--id", "https://api.appstoreconnect.apple.com/v1/appAssetLibraryVideos/video", "--output", "json")
 	if err != nil || !strings.Contains(out, `"future":{"opaque":true}`) || !strings.Contains(out, `"meta":{"future":null}`) {
 		t.Fatalf("envelope changed: %s %v", out, err)
 	}
@@ -86,10 +84,9 @@ func TestAssetLibraryLifecycleVideoEnvelope(t *testing.T) {
 func TestAssetLibraryLifecycleProviderRefusal(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v1/appAssetLibraryImages/asset").JSONBody(`{"data":{"type":"appAssetLibraryImages","id":"asset","attributes":{"archived":true}}}`),
 		asctest.JSON(409, `{"errors":[{"status":"409","code":"STATE_ERROR.INVALID_ASSET_STATE","title":"Invalid state","detail":"Only an approved asset can be archived"}]}`))
-	out, _, err := runAssetLibrary(t, "asset-library", "images", "archive", "--id", "asset", "--confirm")
+	out, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "images", "archive", "--id", "asset", "--confirm")
 	if err == nil || !strings.Contains(err.Error(), "Only an approved asset can be archived") || out != "" {
 		t.Fatalf("refusal lost: out=%s err=%v", out, err)
 	}
@@ -100,10 +97,9 @@ func TestAssetLibraryLifecycleRenderedReceipt(t *testing.T) {
 		t.Run(output, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.PATCH("/v1/appAssetLibraryImages/asset").JSONBody(`{"data":{"type":"appAssetLibraryImages","id":"asset","attributes":{"archived":false}}}`),
 				asctest.JSON(200, `{"data":{"type":"appAssetLibraryImages","id":"asset"}}`))
-			out, _, err := runAssetLibrary(t, "asset-library", "images", "unarchive", "--id", "asset", "--output", output)
+			out, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "images", "unarchive", "--id", "asset", "--output", output)
 			if err != nil || !strings.Contains(out, "Asset ID") || !strings.Contains(out, "false") {
 				t.Fatalf("receipt not rendered: %s %v", out, err)
 			}

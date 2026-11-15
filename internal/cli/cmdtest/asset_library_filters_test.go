@@ -29,10 +29,9 @@ func TestAssetLibraryListFilters(t *testing.T) {
 			}
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/appAssetLibraries/lib/"+group, "filter[category]=CREATIVE_ASSETS,APP_SCREENSHOTS_AND_PREVIEWS", "filter[state]=FAILED,FUTURE_STATE", "filter[specId]=spec-1,spec-2", "sort=referenceName,-lastModifiedDate,createdDate,-createdDate", "filter[referenceName]=Header %26 Search,Spring Campaign", "filter[id]=asset-1,asset-2", "limit=2"),
 				asctest.JSON(200, `{"data":[],"meta":{"unknown":{"preserved":true}}}`))
-			out, _, err := runAssetLibrary(t, "asset-library", group, "list", "--library-id", "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib", "--category", "CREATIVE_ASSETS, APP_SCREENSHOTS_AND_PREVIEWS", "--state", "FAILED,FUTURE_STATE", "--spec-id", "spec-1,spec-2", "--sort", "referenceName,-lastModifiedDate,createdDate,-createdDate", "--reference-name", "Header & Search, Spring Campaign", "--id", "asset-1,asset-2", "--limit", "2", "--output", "json")
+			out, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", group, "list", "--library-id", "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib", "--category", "CREATIVE_ASSETS, APP_SCREENSHOTS_AND_PREVIEWS", "--state", "FAILED,FUTURE_STATE", "--spec-id", "spec-1,spec-2", "--sort", "referenceName,-lastModifiedDate,createdDate,-createdDate", "--reference-name", "Header & Search, Spring Campaign", "--id", "asset-1,asset-2", "--limit", "2", "--output", "json")
 			for _, req := range reg.Requests() {
 				if strings.Contains(req.URL.RawQuery, "[") {
 					t.Fatalf("query not encoded: %s", req.URL.RawQuery)
@@ -50,8 +49,7 @@ func TestAssetLibraryListFilterValidation(t *testing.T) {
 		t.Run(tc.flag+tc.value, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
-			_, _, err := runAssetLibrary(t, "asset-library", "images", "list", "--library-id", "lib", "--"+tc.flag, tc.value)
+			_, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "images", "list", "--library-id", "lib", "--"+tc.flag, tc.value)
 			calls := len(reg.Requests())
 			if err == nil || calls != 0 {
 				t.Fatalf("expected zeroHTTP usage error: %v calls%d", err, calls)
@@ -62,9 +60,8 @@ func TestAssetLibraryListFilterValidation(t *testing.T) {
 		t.Run("next/"+flag, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			values := map[string]string{"category": "CREATIVE_ASSETS", "state": "FAILED", "spec-id": "spec-1", "sort": "referenceName", "reference-name": "Header & Search", "id": "asset-1"}
-			_, _, err := runAssetLibrary(t, "asset-library", "videos", "list", "--next", "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib/videos?cursor=next", "--"+flag, values[flag])
+			_, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "videos", "list", "--next", "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib/videos?cursor=next", "--"+flag, values[flag])
 			calls := len(reg.Requests())
 			if err == nil || calls != 0 || !strings.Contains(err.Error(), "--next") {
 				t.Fatalf("expected specific next conflict: %v", err)
@@ -76,12 +73,11 @@ func TestAssetLibraryListFilterValidation(t *testing.T) {
 func TestAssetLibraryListFilterPagination(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appAssetLibraries/lib/images", "filter[state]=FAILED", "limit=200"),
 		asctest.JSON(200, `{"data":[{"type":"appAssetLibraryImages","id":"a","attributes":{"future":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib/images?cursor=opaque&filter%5Bstate%5D=FAILED"}}`))
 	reg.Register(asctest.GET("/v1/appAssetLibraries/lib/images", "cursor=opaque", "filter[state]=FAILED"),
 		asctest.JSON(200, `{"data":[{"type":"appAssetLibraryImages","id":"b","attributes":{"future":null}}],"links":{"next":null}}`))
-	out, _, err := runAssetLibrary(t, "asset-library", "images", "list", "--library-id", "lib", "--state", "FAILED", "--paginate", "--output", "json")
+	out, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "images", "list", "--library-id", "lib", "--state", "FAILED", "--paginate", "--output", "json")
 	calls := len(reg.Requests())
 	if err != nil || calls != 2 || !strings.Contains(out, `"id":"b"`) || !strings.Contains(out, `"future":null`) {
 		t.Fatalf("pagination lost data: %s calls%d %v", out, calls, err)
@@ -110,10 +106,9 @@ func TestAssetLibrarySpecsFilters(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/appAssetLibraryRefData", tc.want...),
 				asctest.JSON(200, `{"data":[],"links":{"self":"https://example.test"},"future":true}`))
-			out, _, err := runAssetLibrary(t, append([]string{"asset-library", "specs", "--output", "json"}, tc.args...)...)
+			out, _, err := runAssetLibrary(t, stubClient(t, reg), append([]string{"asset-library", "specs", "--output", "json"}, tc.args...)...)
 			requests := reg.Requests()
 			for _, req := range requests {
 				if strings.Contains(req.URL.RawQuery, "[") {
@@ -133,8 +128,7 @@ func TestAssetLibrarySpecsFilterValidation(t *testing.T) {
 		t.Run(tc.flag+"/"+tc.value, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
-			_, _, err := runAssetLibrary(t, "asset-library", "specs", "--"+tc.flag, tc.value)
+			_, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "specs", "--"+tc.flag, tc.value)
 			calls := len(reg.Requests())
 			if !errors.Is(err, flag.ErrHelp) || calls != 0 || !strings.Contains(err.Error(), "--"+tc.flag) {
 				t.Fatalf("expected usage error naming --%s with zero HTTP: %v calls%d", tc.flag, err, calls)
