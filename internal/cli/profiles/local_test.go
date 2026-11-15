@@ -42,7 +42,7 @@ func TestResolveProfilesInstallDirVersionBoundary(t *testing.T) {
 
 	for _, test := range tests {
 		activeXcodeMajorVersionFn = func(context.Context) (int, error) { return test.major, nil }
-		got, err := resolveProfilesInstallDir(context.Background(), "")
+		got, err := resolveProfilesInstallDir(context.Background(), os.Stderr, "")
 		if err != nil {
 			t.Fatalf("resolveProfilesInstallDir() for Xcode %d error = %v", test.major, err)
 		}
@@ -68,7 +68,7 @@ func TestResolveProfilesInstallDirExplicitOverrideSkipsDiscovery(t *testing.T) {
 	activeXcodeMajorVersionFn = func(context.Context) (int, error) { panic("Xcode discovery must not run") }
 
 	input := filepath.Join(t.TempDir(), "nested", "..", "profiles")
-	got, err := resolveProfilesInstallDir(context.Background(), input)
+	got, err := resolveProfilesInstallDir(context.Background(), os.Stderr, input)
 	if err != nil {
 		t.Fatalf("resolveProfilesInstallDir() error = %v", err)
 	}
@@ -106,7 +106,7 @@ func TestResolveProfilesInstallDirFallsBackToLegacyDirectory(t *testing.T) {
 			var got string
 			var err error
 			stderr := captureProfilesStderr(t, func() {
-				got, err = resolveProfilesInstallDir(context.Background(), "")
+				got, err = resolveProfilesInstallDir(context.Background(), os.Stderr, "")
 			})
 			if err != nil {
 				t.Fatalf("resolveProfilesInstallDir() error = %v, want the legacy default", err)
@@ -205,7 +205,7 @@ func TestResolveProfilesInstallDirPreservesCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := resolveProfilesInstallDir(ctx, "")
+	_, err := resolveProfilesInstallDir(ctx, os.Stderr, "")
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("resolveProfilesInstallDir() error = %v, want context.Canceled", err)
 	}
@@ -226,7 +226,7 @@ func TestResolveProfilesInstallDirHomeFailureIsRuntimeError(t *testing.T) {
 	homeErr := errors.New("home unavailable")
 	profilesUserHomeDirFn = func() (string, error) { return "", homeErr }
 
-	_, err := resolveProfilesInstallDirForCommand(context.Background(), "", "profiles local list")
+	_, err := resolveProfilesInstallDirForCommand(context.Background(), newTestDeps(), "", "profiles local list")
 	if !errors.Is(err, homeErr) {
 		t.Fatalf("resolveProfilesInstallDirForCommand() error = %v, want home error", err)
 	}
@@ -243,7 +243,7 @@ func TestResolveProfilesInstallDirNonMacRequiresOverride(t *testing.T) {
 	t.Cleanup(func() { profilesRuntimeGOOS = originalGOOS })
 	profilesRuntimeGOOS = "linux"
 
-	_, err := resolveProfilesInstallDir(context.Background(), "")
+	_, err := resolveProfilesInstallDir(context.Background(), os.Stderr, "")
 	if !errors.Is(err, errProfilesInstallDirRequired) {
 		t.Fatalf("resolveProfilesInstallDir() error = %v, want --install-dir requirement", err)
 	}
@@ -296,7 +296,7 @@ func TestProfilesLocalInstallUsesMacOSProvisioningProfileExtension(t *testing.T)
 		t.Fatalf("write profile fixture: %v", err)
 	}
 
-	cmd := ProfilesLocalInstallCommand()
+	cmd := newProfilesLocalInstallCommand(newTestDeps())
 	if err := cmd.Parse([]string{"--path", sourcePath, "--install-dir", installDir, "--output", "json"}); err != nil {
 		t.Fatalf("parse install flags: %v", err)
 	}
@@ -377,7 +377,7 @@ func TestProfilesLocalInstallForceReplacesLegacyPathWithoutDuplicate(t *testing.
 		t.Fatalf("write legacy profile: %v", err)
 	}
 
-	cmd := ProfilesLocalInstallCommand()
+	cmd := newProfilesLocalInstallCommand(newTestDeps())
 	if err := cmd.Parse([]string{"--path", sourcePath, "--install-dir", installDir, "--force", "--output", "json"}); err != nil {
 		t.Fatalf("parse install flags: %v", err)
 	}
@@ -469,7 +469,7 @@ func TestProfilesLocalCleanRemovesExpiredMacOSProfile(t *testing.T) {
 		t.Fatalf("write profile fixture: %v", err)
 	}
 
-	cmd := ProfilesLocalCleanCommand()
+	cmd := newProfilesLocalCleanCommand(newTestDeps())
 	if err := cmd.Parse([]string{"--install-dir", installDir, "--expired", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse clean flags: %v", err)
 	}

@@ -1,14 +1,22 @@
 package profiles
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"testing"
+	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+func newTestDeps() *shared.Deps {
+	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}, Now: time.Now}
+}
+
 func TestProfilesGetCommand_MissingID(t *testing.T) {
-	cmd := ProfilesGetCommand()
+	cmd := newProfilesGetCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -20,7 +28,7 @@ func TestProfilesGetCommand_MissingID(t *testing.T) {
 }
 
 func TestProfilesCreateCommand_MissingName(t *testing.T) {
-	cmd := ProfilesCreateCommand()
+	cmd := newProfilesCreateCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{"--profile-type", "IOS_APP_DEVELOPMENT", "--bundle", "BUNDLE_ID", "--certificate", "CERT_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -32,7 +40,7 @@ func TestProfilesCreateCommand_MissingName(t *testing.T) {
 }
 
 func TestProfilesCreateCommand_MissingProfileType(t *testing.T) {
-	cmd := ProfilesCreateCommand()
+	cmd := newProfilesCreateCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{"--name", "Profile", "--bundle", "BUNDLE_ID", "--certificate", "CERT_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -44,7 +52,7 @@ func TestProfilesCreateCommand_MissingProfileType(t *testing.T) {
 }
 
 func TestProfilesCreateCommand_MissingBundle(t *testing.T) {
-	cmd := ProfilesCreateCommand()
+	cmd := newProfilesCreateCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{"--name", "Profile", "--profile-type", "IOS_APP_DEVELOPMENT", "--certificate", "CERT_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -56,7 +64,7 @@ func TestProfilesCreateCommand_MissingBundle(t *testing.T) {
 }
 
 func TestProfilesCreateCommand_MissingCertificate(t *testing.T) {
-	cmd := ProfilesCreateCommand()
+	cmd := newProfilesCreateCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{"--name", "Profile", "--profile-type", "IOS_APP_DEVELOPMENT", "--bundle", "BUNDLE_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -68,7 +76,7 @@ func TestProfilesCreateCommand_MissingCertificate(t *testing.T) {
 }
 
 func TestProfilesDeleteCommand_MissingID(t *testing.T) {
-	cmd := ProfilesDeleteCommand()
+	cmd := newProfilesDeleteCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{"--confirm"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -80,7 +88,7 @@ func TestProfilesDeleteCommand_MissingID(t *testing.T) {
 }
 
 func TestProfilesDeleteCommand_MissingConfirm(t *testing.T) {
-	cmd := ProfilesDeleteCommand()
+	cmd := newProfilesDeleteCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{"--id", "PROFILE_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -92,7 +100,7 @@ func TestProfilesDeleteCommand_MissingConfirm(t *testing.T) {
 }
 
 func TestProfilesDownloadCommand_MissingID(t *testing.T) {
-	cmd := ProfilesDownloadCommand()
+	cmd := newProfilesDownloadCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{"--output", "./profile.mobileprovision"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -104,7 +112,7 @@ func TestProfilesDownloadCommand_MissingID(t *testing.T) {
 }
 
 func TestProfilesDownloadCommand_MissingOutput(t *testing.T) {
-	cmd := ProfilesDownloadCommand()
+	cmd := newProfilesDownloadCommand(newTestDeps())
 
 	if err := cmd.FlagSet.Parse([]string{"--id", "PROFILE_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)

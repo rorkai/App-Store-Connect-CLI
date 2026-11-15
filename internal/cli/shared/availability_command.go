@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -37,16 +38,21 @@ type AvailabilitySetCommandConfig struct {
 	LongHelp                         string
 	ErrorPrefix                      string
 	IncludeAvailableInNewTerritories bool
+	// Deps supplies the streams. It defaults to DefaultDeps().
+	Deps *Deps
 }
 
 // AvailabilityRemoveFromSaleCommandConfig configures the remove-from-sale command.
 type AvailabilityRemoveFromSaleCommandConfig struct {
 	ClientFactory func() (*asc.Client, error)
+	// Deps supplies the streams. It defaults to DefaultDeps().
+	Deps *Deps
 }
 
 // NewAvailabilitySetCommand builds a shared availability set command.
 func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	d := builderDeps(config.Deps)
+	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := BindOnceCSVFlag(fs, "territory", "Territory inputs (comma-separated; accepts alpha-2, alpha-3, or exact English country names, e.g., US,USA,France)")
@@ -57,7 +63,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 	if config.IncludeAvailableInNewTerritories {
 		fs.Var(&availableInNewTerritories, "available-in-new-territories", "Verify the existing new-territory policy (optional; this API cannot change it): true or false")
 	}
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       config.CommandName,
@@ -69,26 +75,26 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := resolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return MissingRequiredUsageError("--app")
 			}
 			if !*allTerritories && strings.TrimSpace(territory.String()) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory or --all-territories is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory or --all-territories is required")
 				return MissingRequiredUsageError("")
 			}
 			if !available.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: --available is required (true or false)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --available is required (true or false)")
 				return MissingRequiredUsageError("--available")
 			}
 			var territories []string
 			if !*allTerritories {
 				normalizedTerritories, normalizeErr := normalizeASCTerritoryCSV(territory.String())
 				if normalizeErr != nil {
-					return UsageError(normalizeErr.Error())
+					return d.UsageError(normalizeErr.Error())
 				}
 				territories = normalizedTerritories
 				if len(territories) == 0 {
-					fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --territory must include at least one value")
 					return flag.ErrHelp
 				}
 			}
@@ -108,7 +114,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				value := availableInNewTerritories.Value()
 				expectedAvailableInNewTerritories = &value
 			}
-			resp, _, err := executeTerritoryAvailabilityUpdate(requestCtx, client, availabilityUpdateRequest{
+			resp, _, err := executeTerritoryAvailabilityUpdate(requestCtx, d.IO.ErrOut, client, availabilityUpdateRequest{
 				AppID:                             resolvedAppID,
 				Territories:                       territories,
 				AllTerritories:                    *allTerritories,
@@ -119,7 +125,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 			if err != nil {
 				return err
 			}
-			return printOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -127,11 +133,12 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 // NewAvailabilityRemoveFromSaleCommand builds a command that makes every
 // existing territory unavailable while preserving the app's new-territory policy.
 func NewAvailabilityRemoveFromSaleCommand(config AvailabilityRemoveFromSaleCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet("pricing availability remove-from-sale", flag.ExitOnError)
+	d := builderDeps(config.Deps)
+	fs := d.NewFlagSet("pricing availability remove-from-sale", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	confirm := fs.Bool("confirm", false, "Confirm removal from sale in all current territories")
 	allPlatforms := fs.Bool("all-platforms", false, "Acknowledge removal of every live platform listing (required when more than one platform is live)")
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-from-sale",
@@ -161,11 +168,11 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				return RequiredFlag("--confirm")
+				return d.RequiredFlag("--confirm")
 			}
 			resolvedAppID := resolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return MissingRequiredUsageError("--app")
 			}
 			if config.ClientFactory == nil {
@@ -187,19 +194,19 @@ Examples:
 				if !*allPlatforms {
 					return fmt.Errorf("pricing availability remove-from-sale: could not verify live platform listings; retry or pass --all-platforms to acknowledge the unknown app-wide blast radius: %w", listingsErr)
 				}
-				fmt.Fprintf(os.Stderr, "Warning: could not verify live platform listings; proceeding because --all-platforms acknowledges the unknown app-wide blast radius: %v\n", listingsErr)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: could not verify live platform listings; proceeding because --all-platforms acknowledges the unknown app-wide blast radius: %v\n", listingsErr)
 			} else if len(liveListings) > 0 {
-				fmt.Fprintf(os.Stderr, "Removal is app-wide; %d live platform listing(s) leave sale together:\n", len(liveListings))
+				fmt.Fprintf(d.IO.ErrOut, "Removal is app-wide; %d live platform listing(s) leave sale together:\n", len(liveListings))
 				for _, listing := range liveListings {
-					fmt.Fprintf(os.Stderr, "  %s %s (%s)\n", listing.Platform, listing.VersionString, listing.State)
+					fmt.Fprintf(d.IO.ErrOut, "  %s %s (%s)\n", listing.Platform, listing.VersionString, listing.State)
 				}
 				if len(liveListings) > 1 && !*allPlatforms {
-					fmt.Fprintln(os.Stderr, "Error: --all-platforms is required because more than one platform is live. Apple does not support removing a single platform from sale; to remove one platform listing, file an App Store Connect support request.")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --all-platforms is required because more than one platform is live. Apple does not support removing a single platform from sale; to remove one platform listing, file an App Store Connect support request.")
 					return MissingRequiredUsageError("--all-platforms")
 				}
 			}
 
-			_, summary, updateErr := executeTerritoryAvailabilityUpdate(requestCtx, client, availabilityUpdateRequest{
+			_, summary, updateErr := executeTerritoryAvailabilityUpdate(requestCtx, d.IO.ErrOut, client, availabilityUpdateRequest{
 				AppID:          resolvedAppID,
 				AllTerritories: true,
 				Available:      false,
@@ -233,7 +240,7 @@ Examples:
 			}
 			if updateErr != nil {
 				fmt.Fprintf(
-					os.Stderr,
+					d.IO.ErrOut,
 					"App %s removal is incomplete: %d of %d current territories are verified unavailable; preserved availableInNewTerritories=%t.\n",
 					resolvedAppID,
 					result.VerifiedUnavailableTerritories,
@@ -242,7 +249,7 @@ Examples:
 				)
 			} else {
 				fmt.Fprintf(
-					os.Stderr,
+					d.IO.ErrOut,
 					"App %s is unavailable in all %d current territories; preserved availableInNewTerritories=%t.\n",
 					resolvedAppID,
 					result.VerifiedUnavailableTerritories,
@@ -250,9 +257,9 @@ Examples:
 				)
 			}
 			if result.AvailableInNewTerritories {
-				fmt.Fprintln(os.Stderr, "Warning: Apple may automatically enable future App Store territories under the preserved policy.")
+				fmt.Fprintln(d.IO.ErrOut, "Warning: Apple may automatically enable future App Store territories under the preserved policy.")
 			}
-			renderErr := PrintOutput(result, *output.Output, *output.Pretty)
+			renderErr := d.PrintOutput(result, *output.Output, *output.Pretty)
 			return errors.Join(updateErr, renderErr)
 		},
 	}
@@ -277,7 +284,7 @@ type availabilityUpdateSummary struct {
 	FailedTerritories         []string
 }
 
-func executeTerritoryAvailabilityUpdate(ctx context.Context, client *asc.Client, request availabilityUpdateRequest) (*asc.AppAvailabilityV2Response, availabilityUpdateSummary, error) {
+func executeTerritoryAvailabilityUpdate(ctx context.Context, stderr io.Writer, client *asc.Client, request availabilityUpdateRequest) (*asc.AppAvailabilityV2Response, availabilityUpdateSummary, error) {
 	summary := availabilityUpdateSummary{}
 	resp, err := client.GetAppAvailabilityV2(ctx, request.AppID)
 	if err != nil {
@@ -357,11 +364,11 @@ func executeTerritoryAvailabilityUpdate(ctx context.Context, client *asc.Client,
 	}
 	if len(pending) == 0 {
 		summary.VerifiedTerritories = summary.SkippedTerritories
-		fmt.Fprintf(os.Stderr, "Updated 0 territories; %d already matched.\n", summary.SkippedTerritories)
+		fmt.Fprintf(stderr, "Updated 0 territories; %d already matched.\n", summary.SkippedTerritories)
 		return resp, summary, nil
 	}
 
-	fmt.Fprintf(os.Stderr, "Updating availability for %d territories (%d already matched)...\n", len(pending), summary.SkippedTerritories)
+	fmt.Fprintf(stderr, "Updating availability for %d territories (%d already matched)...\n", len(pending), summary.SkippedTerritories)
 	patchErrors := updateTerritoryAvailabilityTargets(ctx, client, pending, request.Available)
 	verifiedResp, err := getAllTerritoryAvailabilities(ctx, client, availabilityID)
 	if err != nil {
@@ -415,7 +422,7 @@ func executeTerritoryAvailabilityUpdate(ctx context.Context, client *asc.Client,
 		)
 	}
 
-	fmt.Fprintf(os.Stderr, "Updated %d territories; %d already matched; verified %d updated territories.\n", summary.UpdatedTerritories, summary.SkippedTerritories, len(pending))
+	fmt.Fprintf(stderr, "Updated %d territories; %d already matched; verified %d updated territories.\n", summary.UpdatedTerritories, summary.SkippedTerritories, len(pending))
 	return resp, summary, nil
 }
 
@@ -740,7 +747,17 @@ type TerritoryAvailabilityUpdateRequest struct {
 // "asc pricing availability edit" runs, exported so a create-style command can
 // route --if-exists update to it instead of duplicating the update logic.
 func ApplyTerritoryAvailabilityUpdate(ctx context.Context, client *asc.Client, request TerritoryAvailabilityUpdateRequest) (*asc.AppAvailabilityV2Response, int, error) {
-	resp, summary, err := executeTerritoryAvailabilityUpdate(ctx, client, availabilityUpdateRequest(request))
+	return applyTerritoryAvailabilityUpdateTo(ctx, os.Stderr, client, request)
+}
+
+// ApplyTerritoryAvailabilityUpdate is ApplyTerritoryAvailabilityUpdate with
+// its progress lines written to d's stderr.
+func (d *Deps) ApplyTerritoryAvailabilityUpdate(ctx context.Context, client *asc.Client, request TerritoryAvailabilityUpdateRequest) (*asc.AppAvailabilityV2Response, int, error) {
+	return applyTerritoryAvailabilityUpdateTo(ctx, d.IO.ErrOut, client, request)
+}
+
+func applyTerritoryAvailabilityUpdateTo(ctx context.Context, stderr io.Writer, client *asc.Client, request TerritoryAvailabilityUpdateRequest) (*asc.AppAvailabilityV2Response, int, error) {
+	resp, summary, err := executeTerritoryAvailabilityUpdate(ctx, stderr, client, availabilityUpdateRequest(request))
 	if err != nil {
 		return nil, 0, err
 	}

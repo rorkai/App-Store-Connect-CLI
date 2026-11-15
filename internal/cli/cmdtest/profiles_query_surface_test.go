@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,8 +18,6 @@ import (
 )
 
 func TestProfilesListSendsQuerySurface(t *testing.T) {
-	setupAuth(t)
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
@@ -54,34 +51,26 @@ func TestProfilesListSendsQuerySurface(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[]}`)
 	}))
 	t.Cleanup(server.Close)
-	installProfilesQueryTestClient(t, server)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"profiles", "list",
-			"--name", "Development, Store",
-			"--id", "profile-1, profile-2",
-			"--profile-type", "IOS_APP_DEVELOPMENT, IOS_APP_STORE",
-			"--profile-state", "ACTIVE, INVALID",
-			"--sort", "name,-id",
-			"--fields", "name,expirationDate",
-			"--bundle-id-fields", "identifier",
-			"--device-fields", "name,udid",
-			"--certificate-fields", "displayName,serialNumber",
-			"--include", "bundleId,devices,certificates",
-			"--limit-devices", "7",
-			"--limit-certificates", "9",
-			"--limit", "5",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server),
+		"profiles", "list",
+		"--name", "Development, Store",
+		"--id", "profile-1, profile-2",
+		"--profile-type", "IOS_APP_DEVELOPMENT, IOS_APP_STORE",
+		"--profile-state", "ACTIVE, INVALID",
+		"--sort", "name,-id",
+		"--fields", "name,expirationDate",
+		"--bundle-id-fields", "identifier",
+		"--device-fields", "name,udid",
+		"--certificate-fields", "displayName,serialNumber",
+		"--include", "bundleId,devices,certificates",
+		"--limit-devices", "7",
+		"--limit-certificates", "9",
+		"--limit", "5",
+		"--output", "json",
+	)
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 	if stdout != `{"data":[],"links":{}}`+"\n" {
 		t.Fatalf("stdout = %q, want empty profiles response", stdout)
 	}
@@ -91,8 +80,6 @@ func TestProfilesListSendsQuerySurface(t *testing.T) {
 }
 
 func TestProfilesListQuerySurfacePaginatesFromServerNextURL(t *testing.T) {
-	setupAuth(t)
-
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/profiles?cursor=next&limit=200"
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -142,20 +129,12 @@ func TestProfilesListQuerySurfacePaginatesFromServerNextURL(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"profiles","id":"profile-2"}],"links":{"next":""}}`)
 	}))
 	t.Cleanup(server.Close)
-	installProfilesQueryTestClient(t, server)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"profiles", "list", "--name", "Development", "--include", "devices", "--device-fields", "name", "--limit-devices", "3", "--paginate", "--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server),
+		"profiles", "list", "--name", "Development", "--include", "devices", "--device-fields", "name", "--limit-devices", "3", "--paginate", "--output", "json",
+	)
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 	if requestCount != 2 {
 		t.Fatalf("request count = %d, want 2", requestCount)
 	}
@@ -168,8 +147,6 @@ func TestProfilesListQuerySurfacePaginatesFromServerNextURL(t *testing.T) {
 }
 
 func TestProfilesListSparseFieldsPreserveAttributePresence(t *testing.T) {
-	setupAuth(t)
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
@@ -185,18 +162,10 @@ func TestProfilesListSparseFieldsPreserveAttributePresence(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"profiles","id":"profile-1","attributes":{"expirationDate":"2026-08-24T00:00:00Z"}}]}`)
 	}))
 	t.Cleanup(server.Close)
-	installProfilesQueryTestClient(t, server)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"profiles", "list", "--fields", "expirationDate", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), "profiles", "list", "--fields", "expirationDate", "--output", "json")
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 
 	const want = `{"data":[{"type":"profiles","id":"profile-1","attributes":{"expirationDate":"2026-08-24T00:00:00Z"}}],"links":{}}` + "\n"
 	if stdout != want {
@@ -210,8 +179,6 @@ func TestProfilesListSparseFieldsPreserveAttributePresence(t *testing.T) {
 func TestProfilesListRelationshipOnlySparseResponsePreservesAttributeAbsence(t *testing.T) {
 	for _, relationship := range []string{"devices", "bundleId", "certificates"} {
 		t.Run(relationship, func(t *testing.T) {
-			setupAuth(t)
-
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
 					t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
@@ -227,18 +194,10 @@ func TestProfilesListRelationshipOnlySparseResponsePreservesAttributeAbsence(t *
 				_, _ = io.WriteString(w, fmt.Sprintf(`{"data":[{"type":"profiles","id":"profile-1","relationships":{"%s":{"data":[]}}}],"included":[]}`, relationship))
 			}))
 			t.Cleanup(server.Close)
-			installProfilesQueryTestClient(t, server)
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"profiles", "list", "--fields", relationship, "--output", "json"}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), "profiles", "list", "--fields", relationship, "--output", "json")
+			if runErr != nil {
+				t.Fatalf("run error: %v", runErr)
+			}
 
 			want := fmt.Sprintf(`{"data":[{"type":"profiles","id":"profile-1","relationships":{"%s":{"data":[]}}}],"links":{},"included":[]}`+"\n", relationship)
 			if stdout != want {
@@ -269,8 +228,6 @@ func TestProfilesListSparseFieldsPreserveIncludedDevices(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-
 			var query url.Values
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				if req.Method != http.MethodGet || req.URL.Path != "/v1/profiles" {
@@ -283,24 +240,16 @@ func TestProfilesListSparseFieldsPreserveIncludedDevices(t *testing.T) {
 				_, _ = io.WriteString(w, test.body)
 			}))
 			t.Cleanup(server.Close)
-			installProfilesQueryTestClient(t, server)
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"profiles", "list",
-					"--fields", "name",
-					"--include", "devices",
-					"--device-fields", "name,udid",
-					"--output", "json",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server),
+				"profiles", "list",
+				"--fields", "name",
+				"--include", "devices",
+				"--device-fields", "name,udid",
+				"--output", "json",
+			)
+			if runErr != nil {
+				t.Fatalf("run error: %v", runErr)
+			}
 
 			wantQuery := map[string]string{
 				"fields[profiles]":     "name",
@@ -363,31 +312,23 @@ func TestProfilesListRejectsInvalidQueryValuesBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			called := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				called = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			t.Cleanup(restore)
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
+			stdout, stderr, err := runRootWithDeps(t, client, test.args...)
+			if err == nil {
+				t.Fatal("run error = nil, want validation error")
+			}
+			if test.concise {
+				if errors.Is(err, flag.ErrHelp) || !shared.IsReportedUsageError(err) {
+					t.Fatalf("expected concise reported usage error without flag.ErrHelp, got %v", err)
 				}
-				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("run error = nil, want validation error")
+				if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
 				}
-				if test.concise {
-					if errors.Is(err, flag.ErrHelp) || !shared.IsReportedUsageError(err) {
-						t.Fatalf("expected concise reported usage error without flag.ErrHelp, got %v", err)
-					}
-					if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-						t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
-					}
-				}
-			})
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
@@ -431,24 +372,15 @@ func TestProfilesListRejectsNextQueryConflictsBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			called := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				called = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			t.Cleanup(restore)
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				args := []string{"profiles", "list", "--next", next, test.flag, test.value}
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("run error = %v, want flag.ErrHelp", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, client, "profiles", "list", "--next", next, test.flag, test.value)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("run error = %v, want flag.ErrHelp", err)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}

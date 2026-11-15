@@ -274,7 +274,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
 			} else {
-				resp, err = PaginateWithSpinner(requestCtx, fetchFirst, fetchNext)
+				resp, err = d.PaginateWithSpinner(requestCtx, fetchFirst, fetchNext)
 				if err != nil {
 					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
