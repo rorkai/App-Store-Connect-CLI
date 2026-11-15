@@ -3,22 +3,16 @@ package cmdtest
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAnalyticsSalesDefaultsSubscriptionsToVersion1_4(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	var reportPayload bytes.Buffer
@@ -61,50 +55,17 @@ func TestAnalyticsSalesDefaultsSubscriptionsToVersion1_4(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	})
-	client, err := asc.NewClientWithHTTPClient(
-		os.Getenv("ASC_KEY_ID"),
-		os.Getenv("ASC_ISSUER_ID"),
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: transport},
-	)
-	if err != nil {
-		t.Fatalf("create analytics sales test client: %v", err)
-	}
-	restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restoreClient)
-
 	outputPath := filepath.Join(t.TempDir(), "subscription.tsv.gz")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"analytics", "sales",
-			"--vendor", "12345678",
-			"--type", "SUBSCRIPTION",
-			"--subtype", "SUMMARY",
-			"--frequency", "DAILY",
-			"--date", "2026-07-30",
-			"--output", outputPath,
-			"--output-format", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server),
+		"analytics", "sales",
+		"--vendor", "12345678",
+		"--type", "SUBSCRIPTION",
+		"--subtype", "SUMMARY",
+		"--frequency", "DAILY",
+		"--date", "2026-07-30",
+		"--output", outputPath,
+		"--output-format", "json",
+	)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}

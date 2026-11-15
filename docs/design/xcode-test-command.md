@@ -68,7 +68,11 @@ aggregate fields such as `totalTestCount`, `passedTests`, `failedTests`,
 `skippedTests`, and `testFailures`; `xcresulttool get test-results tests
 --path PATH --compact` supplies the recursive `testNodes` tree. The parser
 flattens only `Test Case` nodes and takes bounded failure text from structured
-failure-message children. It accepts closed `passed`, `failed`, `skipped`, and
+failure-message children. When a case has `Device`, `Arguments`, or
+`Repetition` children, the failure text lists every failure message in tree
+order, each prefixed with its variant path, such as
+`iPhone 18 Pro, argument '2', Retry 1: ...`; otherwise it is the first failure
+message. It accepts closed `passed`, `failed`, `skipped`, and
 expected-failure case statuses; expected failures remain nonfailing while their
 count is reported separately. Aggregate counts must be nonnegative and cannot
 exceed `totalTestCount`; `expectedFailures` reconciles any remaining aggregate

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,10 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var pricingAvailabilityClientFactory = shared.GetASCClient
-
-// PricingCommand returns the pricing command group.
-func PricingCommand() *ffcli.Command {
+// NewPricingCommand returns the pricing command group.
+func NewPricingCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "pricing",
 		ShortUsage: "asc pricing <subcommand> [flags]",
@@ -50,13 +47,13 @@ Examples:
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PricingCurrentCommand(),
-			PricingTerritoriesCommand(),
-			PricingPricePointsCommand(),
-			PricingTiersCommand(),
-			PricingScheduleCommand(),
-			PricingPPPCommand(),
-			PricingAvailabilityCommand(),
+			newPricingCurrentCommand(d),
+			newPricingTerritoriesCommand(d),
+			newPricingPricePointsCommand(d),
+			newPricingTiersCommand(d),
+			newPricingScheduleCommand(d),
+			newPricingPPPCommand(d),
+			newPricingAvailabilityCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -64,8 +61,8 @@ Examples:
 	}
 }
 
-// PricingTerritoriesCommand returns the territories subcommand group.
-func PricingTerritoriesCommand() *ffcli.Command {
+// newPricingTerritoriesCommand returns the territories subcommand group.
+func newPricingTerritoriesCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "territories",
 		ShortUsage: "asc pricing territories <subcommand> [flags]",
@@ -76,7 +73,7 @@ Examples:
   asc pricing territories list`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PricingTerritoriesListCommand(),
+			newPricingTerritoriesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -84,14 +81,14 @@ Examples:
 	}
 }
 
-// PricingTerritoriesListCommand returns the territories list subcommand.
-func PricingTerritoriesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing territories list", flag.ExitOnError)
+// newPricingTerritoriesListCommand returns the territories list subcommand.
+func newPricingTerritoriesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing territories list", flag.ExitOnError)
 
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -105,16 +102,16 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "pricing territories list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "pricing territories list", 200); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing territories list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.TerritoriesOption{
@@ -136,7 +133,7 @@ Examples:
 					return fmt.Errorf("pricing territories list: %w", err)
 				}
 
-				return shared.PrintOutput(territories, *output.Output, *output.Pretty)
+				return d.PrintOutput(territories, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetTerritories(requestCtx, opts...)
@@ -144,14 +141,14 @@ Examples:
 				return fmt.Errorf("pricing territories list: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PricingPricePointsCommand returns the price points command.
-func PricingPricePointsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing price-points", flag.ExitOnError)
+// newPricingPricePointsCommand returns the price points command.
+func newPricingPricePointsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing price-points", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := fs.String("territory", "", "Filter by territories, comma-separated (accepts alpha-2, alpha-3, or exact English country name)")
@@ -160,7 +157,7 @@ func PricingPricePointsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "price-points",
@@ -181,41 +178,41 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PricingPricePointsGetCommand(),
-			PricingPricePointsEqualizationsCommand(),
+			newPricingPricePointsGetCommand(d),
+			newPricingPricePointsEqualizationsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "pricing price-points", 200, "territory", "include"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "pricing price-points", 200, "territory", "include"); err != nil {
 				return err
 			}
 			includes := shared.SplitCSV(*include)
 			for _, value := range includes {
 				if value != "territory" {
-					return shared.UsageError("--include must be: territory")
+					return d.UsageError("--include must be: territory")
 				}
 			}
-			included, err := includedFields.Resolve("pricing price-points", *next, includes)
+			included, err := includedFields.ResolveWith(d, "pricing price-points", *next, includes)
 			if err != nil {
 				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing price-points: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territory)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			opts := []asc.PricePointsOption{
@@ -240,7 +237,7 @@ Examples:
 					return fmt.Errorf("pricing price-points: %w", err)
 				}
 
-				return shared.PrintOutput(points, *output.Output, *output.Pretty)
+				return d.PrintOutput(points, *output.Output, *output.Pretty)
 			}
 
 			points, err := client.GetAppPricePoints(requestCtx, resolvedAppID, opts...)
@@ -248,17 +245,17 @@ Examples:
 				return fmt.Errorf("pricing price-points: %w", err)
 			}
 
-			return shared.PrintOutput(points, *output.Output, *output.Pretty)
+			return d.PrintOutput(points, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PricingPricePointsGetCommand returns the price point get subcommand.
-func PricingPricePointsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing price-points view", flag.ExitOnError)
+// newPricingPricePointsGetCommand returns the price point get subcommand.
+func newPricingPricePointsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing price-points view", flag.ExitOnError)
 
 	pricePointID := shared.BindResourceIDFlag(fs, "price-point", "appPricePoints", "App price point ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -273,15 +270,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedPricePointID := strings.TrimSpace(*pricePointID)
 			if trimmedPricePointID == "" {
-				return shared.RequiredFlag("--price-point")
+				return d.RequiredFlag("--price-point")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing price-points view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppPricePoint(requestCtx, trimmedPricePointID)
@@ -289,14 +286,15 @@ Examples:
 				return fmt.Errorf("pricing price-points view: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PricingPricePointsEqualizationsCommand returns the price point equalizations subcommand.
-func PricingPricePointsEqualizationsCommand() *ffcli.Command {
+// newPricingPricePointsEqualizationsCommand returns the price point equalizations subcommand.
+func newPricingPricePointsEqualizationsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPricePointEqualizationsCommand(shared.PricePointEqualizationsCommandConfig{
+		Deps:        d,
 		FlagSetName: "pricing price-points equalizations",
 		Name:        "equalizations",
 		ShortUsage:  "asc pricing price-points equalizations --price-point PRICE_POINT_ID",
@@ -319,8 +317,8 @@ func PricingPricePointsEqualizationsCommand() *ffcli.Command {
 	})
 }
 
-// PricingScheduleCommand returns the pricing schedule command group.
-func PricingScheduleCommand() *ffcli.Command {
+// newPricingScheduleCommand returns the pricing schedule command group.
+func newPricingScheduleCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "schedule",
 		ShortUsage: "asc pricing schedule <subcommand> [flags]",
@@ -336,10 +334,10 @@ Examples:
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PricingScheduleGetCommand(),
-			PricingScheduleCreateCommand(),
-			PricingScheduleManualPricesCommand(),
-			PricingScheduleAutomaticPricesCommand(),
+			newPricingScheduleGetCommand(d),
+			newPricingScheduleCreateCommand(d),
+			newPricingScheduleManualPricesCommand(d),
+			newPricingScheduleAutomaticPricesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -347,13 +345,13 @@ Examples:
 	}
 }
 
-// PricingScheduleGetCommand returns the schedule get subcommand.
-func PricingScheduleGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing schedule view", flag.ExitOnError)
+// newPricingScheduleGetCommand returns the schedule get subcommand.
+func newPricingScheduleGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing schedule view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	id := shared.BindResourceIDFlag(fs, "id", "appPriceSchedules", "App price schedule ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -373,20 +371,20 @@ Examples:
 				appValue = shared.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app or --id is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
 			}
 			if idValue != "" && strings.TrimSpace(*appID) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --id and --app are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id and --app are mutually exclusive")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing schedule view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var resp *asc.AppPriceScheduleResponse
@@ -399,14 +397,15 @@ Examples:
 				return fmt.Errorf("pricing schedule view: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PricingScheduleCreateCommand returns the schedule create subcommand.
-func PricingScheduleCreateCommand() *ffcli.Command {
+// newPricingScheduleCreateCommand returns the schedule create subcommand.
+func newPricingScheduleCreateCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewPricingSetCommand(shared.PricingSetCommandConfig{
+		Deps:        d,
 		FlagSetName: "pricing schedule create",
 		CommandName: "create",
 		ShortUsage:  "asc pricing schedule create [flags]",
@@ -440,16 +439,16 @@ Examples:
 	})
 }
 
-// PricingScheduleManualPricesCommand returns the schedule manual-prices subcommand.
-func PricingScheduleManualPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing schedule manual-prices", flag.ExitOnError)
+// newPricingScheduleManualPricesCommand returns the schedule manual-prices subcommand.
+func newPricingScheduleManualPricesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing schedule manual-prices", flag.ExitOnError)
 
 	scheduleID := shared.BindResourceIDFlag(fs, "schedule", "appPriceSchedules", "App price schedule ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	resolved := fs.Bool("resolved", false, "Return the current effective price per territory")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "manual-prices",
@@ -464,33 +463,33 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "pricing schedule manual-prices", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "pricing schedule manual-prices", 200); err != nil {
 				return err
 			}
 			if *resolved && strings.TrimSpace(*next) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --resolved cannot be combined with --next")
 				return flag.ErrHelp
 			}
 
 			trimmedScheduleID := strings.TrimSpace(*scheduleID)
 			if trimmedScheduleID == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--schedule")
+				return d.RequiredFlag("--schedule")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing schedule manual-prices: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if *resolved {
-				resp, err := fetchResolvedAppSchedulePrices(requestCtx, client, trimmedScheduleID, "manual", *limit, *next, shared.PricingNow(), false)
+				resp, err := fetchResolvedAppSchedulePrices(requestCtx, client, trimmedScheduleID, "manual", *limit, *next, d.Now(), false)
 				if err != nil {
 					return fmt.Errorf("pricing schedule manual-prices: failed to resolve: %w", err)
 				}
-				return shared.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
+				return d.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
 			}
 
 			opts := []asc.AppPriceSchedulePricesOption{
@@ -512,7 +511,7 @@ Examples:
 					return fmt.Errorf("pricing schedule manual-prices: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppPriceScheduleManualPrices(requestCtx, trimmedScheduleID, opts...)
@@ -520,21 +519,21 @@ Examples:
 				return fmt.Errorf("pricing schedule manual-prices: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PricingScheduleAutomaticPricesCommand returns the schedule automatic-prices subcommand.
-func PricingScheduleAutomaticPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing schedule automatic-prices", flag.ExitOnError)
+// newPricingScheduleAutomaticPricesCommand returns the schedule automatic-prices subcommand.
+func newPricingScheduleAutomaticPricesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing schedule automatic-prices", flag.ExitOnError)
 
 	scheduleID := shared.BindResourceIDFlag(fs, "schedule", "appPriceSchedules", "App price schedule ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	resolved := fs.Bool("resolved", false, "Return the current effective price per territory")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "automatic-prices",
@@ -549,33 +548,33 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "pricing schedule automatic-prices", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "pricing schedule automatic-prices", 200); err != nil {
 				return err
 			}
 			if *resolved && strings.TrimSpace(*next) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --resolved cannot be combined with --next")
 				return flag.ErrHelp
 			}
 
 			trimmedScheduleID := strings.TrimSpace(*scheduleID)
 			if trimmedScheduleID == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--schedule")
+				return d.RequiredFlag("--schedule")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing schedule automatic-prices: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if *resolved {
-				resp, err := fetchResolvedAppSchedulePrices(requestCtx, client, trimmedScheduleID, "automatic", *limit, *next, shared.PricingNow(), false)
+				resp, err := fetchResolvedAppSchedulePrices(requestCtx, client, trimmedScheduleID, "automatic", *limit, *next, d.Now(), false)
 				if err != nil {
 					return fmt.Errorf("pricing schedule automatic-prices: failed to resolve: %w", err)
 				}
-				return shared.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
+				return d.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
 			}
 
 			opts := []asc.AppPriceSchedulePricesOption{
@@ -597,7 +596,7 @@ Examples:
 					return fmt.Errorf("pricing schedule automatic-prices: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppPriceScheduleAutomaticPrices(requestCtx, trimmedScheduleID, opts...)
@@ -605,13 +604,13 @@ Examples:
 				return fmt.Errorf("pricing schedule automatic-prices: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PricingAvailabilityCommand returns the availability command group.
-func PricingAvailabilityCommand() *ffcli.Command {
+// newPricingAvailabilityCommand returns the availability command group.
+func newPricingAvailabilityCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "availability",
 		ShortUsage: "asc pricing availability <subcommand> [flags]",
@@ -630,12 +629,12 @@ Examples:
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PricingAvailabilityGetCommand(),
-			PricingAvailabilityCreateCommand(),
-			PricingAvailabilityTerritoryAvailabilitiesCommand(),
-			PricingAvailabilitySetCommand(),
-			PricingAvailabilityPlatformsCommand(),
-			PricingAvailabilityRemoveFromSaleCommand(),
+			newPricingAvailabilityGetCommand(d),
+			newPricingAvailabilityCreateCommand(d),
+			newPricingAvailabilityTerritoryAvailabilitiesCommand(d),
+			newPricingAvailabilitySetCommand(d),
+			newPricingAvailabilityPlatformsCommand(d),
+			newPricingAvailabilityRemoveFromSaleCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -643,13 +642,13 @@ Examples:
 	}
 }
 
-// PricingAvailabilityGetCommand returns the availability get subcommand.
-func PricingAvailabilityGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing availability view", flag.ExitOnError)
+// newPricingAvailabilityGetCommand returns the availability get subcommand.
+func newPricingAvailabilityGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing availability view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	id := shared.BindResourceIDFlag(fs, "id", "appAvailabilities", "App availability ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -669,20 +668,20 @@ Examples:
 				appValue = shared.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app or --id is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
 			}
 			if idValue != "" && strings.TrimSpace(*appID) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --id and --app are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id and --app are mutually exclusive")
 				return flag.ErrHelp
 			}
 
-			client, err := pricingAvailabilityClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing availability view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var resp *asc.AppAvailabilityV2Response
@@ -694,7 +693,7 @@ Examples:
 			if err != nil {
 				if idValue == "" && asc.IsMissingResourceOfType(err, "appAvailabilities") {
 					safeAppID := asc.SanitizeTerminalText(appValue)
-					fmt.Fprintf(os.Stderr, "App %s has no availability configured yet; create it with: asc pricing availability create --app %s --territory \"USA\" --available true --available-in-new-territories true\n", safeAppID, safeAppID)
+					fmt.Fprintf(d.IO.ErrOut, "App %s has no availability configured yet; create it with: asc pricing availability create --app %s --territory \"USA\" --available true --available-in-new-territories true\n", safeAppID, safeAppID)
 					return shared.NewNotConfiguredReportedError(fmt.Errorf("pricing availability view: app %q has no availability configured", appValue))
 				}
 				if idValue == "" && shared.IsAppAvailabilityMissing(err) {
@@ -706,16 +705,17 @@ Examples:
 				return fmt.Errorf("pricing availability view: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 const territoryAvailabilitiesLimitMax = 200
 
-// PricingAvailabilityTerritoryAvailabilitiesCommand returns the availability territory-availabilities subcommand.
-func PricingAvailabilityTerritoryAvailabilitiesCommand() *ffcli.Command {
+// newPricingAvailabilityTerritoryAvailabilitiesCommand returns the availability territory-availabilities subcommand.
+func newPricingAvailabilityTerritoryAvailabilitiesCommand(d *shared.Deps) *ffcli.Command {
 	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "pricing availability territory-availabilities",
 		Name:        "territory-availabilities",
 		ShortUsage:  "asc pricing availability territory-availabilities --app APP_ID | --availability AVAILABILITY_ID [--limit N] [--next URL] [--paginate]",
@@ -749,10 +749,10 @@ Examples:
 
 	originalExec := cmd.Exec
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		if err := shared.ValidatePaginationFlags(ctx, cmd.FlagSet, "pricing availability territory-availabilities", territoryAvailabilitiesLimitMax); err != nil {
+		if err := d.ValidatePaginationFlags(ctx, cmd.FlagSet, "pricing availability territory-availabilities", territoryAvailabilitiesLimitMax); err != nil {
 			return err
 		}
-		if err := resolveTerritoryAvailabilitiesAvailability(ctx, cmd.FlagSet, *appID); err != nil {
+		if err := resolveTerritoryAvailabilitiesAvailability(ctx, d, cmd.FlagSet, *appID); err != nil {
 			return err
 		}
 		err := originalExec(ctx, args)
@@ -760,7 +760,7 @@ Examples:
 			return err
 		}
 		if isPricingAvailabilityTerritoryAvailabilitiesUsageError(err) {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		return err
 	}
@@ -770,26 +770,26 @@ Examples:
 
 // resolveTerritoryAvailabilitiesAvailability sets --availability from the
 // app's v2 availability when the caller names an app instead.
-func resolveTerritoryAvailabilitiesAvailability(ctx context.Context, fs *flag.FlagSet, appFlag string) error {
+func resolveTerritoryAvailabilitiesAvailability(ctx context.Context, d *shared.Deps, fs *flag.FlagSet, appFlag string) error {
 	availabilityID := strings.TrimSpace(fs.Lookup("availability").Value.String())
 	next := strings.TrimSpace(fs.Lookup("next").Value.String())
 	explicitApp := strings.TrimSpace(appFlag) != ""
 	if explicitApp && availabilityID != "" {
-		return shared.UsageError("--app and --availability are mutually exclusive")
+		return d.UsageError("--app and --availability are mutually exclusive")
 	}
 	if availabilityID != "" || next != "" {
 		return nil
 	}
 	appID := shared.ResolveAppID(appFlag)
 	if appID == "" {
-		return shared.UsageError("--app or --availability is required (or set ASC_APP_ID)")
+		return d.UsageError("--app or --availability is required (or set ASC_APP_ID)")
 	}
 
-	client, err := pricingAvailabilityClientFactory()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("pricing availability territory-availabilities: %w", err)
 	}
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	resp, err := client.GetAppAvailabilityV2(requestCtx, appID)
@@ -815,9 +815,9 @@ func isPricingAvailabilityTerritoryAvailabilitiesUsageError(err error) bool {
 		strings.HasPrefix(message, "pricing availability territory-availabilities: --next ")
 }
 
-// PricingAvailabilityCreateCommand returns the availability create subcommand.
-func PricingAvailabilityCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing availability create", flag.ExitOnError)
+// newPricingAvailabilityCreateCommand returns the availability create subcommand.
+func newPricingAvailabilityCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing availability create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	var availableInNewTerritories shared.OptionalBool
@@ -830,7 +830,7 @@ func PricingAvailabilityCreateCommand() *ffcli.Command {
 	var preOrderEnabled shared.OptionalBool
 	fs.Var(&preOrderEnabled, "pre-order-enabled", "Set pre-order enabled for the selected territories: true or false; requires --available true")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -872,11 +872,11 @@ bootstrap, keeps failing.`,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if !availableInNewTerritories.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: --available-in-new-territories is required (true or false)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --available-in-new-territories is required (true or false)")
 				return shared.MissingRequiredUsageError("--available-in-new-territories")
 			}
 
@@ -891,31 +891,31 @@ bootstrap, keeps failing.`,
 				}
 			})
 			if territoryProvided && *allTerritories {
-				fmt.Fprintln(os.Stderr, "Error: --territory and --all-territories are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory and --all-territories are mutually exclusive")
 				return shared.WithDiagnostic(shared.InvalidValueUsageError("--all-territories"), shared.DiagnosticConflictingInput, "--all-territories")
 			}
 			if !territoryProvided && !*allTerritories {
-				fmt.Fprintln(os.Stderr, "Error: --territory or --all-territories is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory or --all-territories is required")
 				return shared.MissingRequiredUsageError("--territory")
 			}
 			var territories []string
 			if !*allTerritories {
 				normalizedTerritories, err := shared.NormalizeASCTerritoryCSV(*territory)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				if len(normalizedTerritories) == 0 {
-					fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --territory must include at least one value")
 					return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--territory")
 				}
 				territories = normalizedTerritories
 			}
 			if !available.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: --available is required (true or false)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --available is required (true or false)")
 				return shared.MissingRequiredUsageError("--available")
 			}
 
-			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
+			ifExistsMode, err := d.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
 			if err != nil {
 				return err
 			}
@@ -923,32 +923,32 @@ bootstrap, keeps failing.`,
 			selection := asc.TerritoryAvailabilityCreate{Available: available.Value()}
 			if releaseDateProvided || preOrderEnabled.IsSet() {
 				if !available.Value() {
-					return shared.UsageError("--release-date and --pre-order-enabled require --available true")
+					return d.UsageError("--release-date and --pre-order-enabled require --available true")
 				}
 				if ifExistsMode == shared.IfExistsUpdate {
-					return shared.UsageError("--release-date and --pre-order-enabled cannot be used with --if-exists update; use \"asc pre-orders enable\" or \"asc pre-orders update\" on the existing record")
+					return d.UsageError("--release-date and --pre-order-enabled cannot be used with --if-exists update; use \"asc pre-orders enable\" or \"asc pre-orders update\" on the existing record")
 				}
 			}
 			if releaseDateProvided {
 				selection.ReleaseDate, err = shared.NormalizeDate(*releaseDate, "--release-date")
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 			if preOrderEnabled.IsSet() {
 				v := preOrderEnabled.Value()
 				if !v && releaseDateProvided {
-					return shared.UsageError("--release-date cannot be set when disabling pre-orders (releaseDate must be null)")
+					return d.UsageError("--release-date cannot be set when disabling pre-orders (releaseDate must be null)")
 				}
 				selection.PreOrderEnabled = &v
 			}
 
-			client, err := pricingAvailabilityClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing availability create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithAvailabilityTimeout(ctx, *allTerritories)
+			requestCtx, cancel := d.AvailabilityTimeout(ctx, *allTerritories)
 			defer cancel()
 
 			availableInNewTerritoriesValue := availableInNewTerritories.Value()
@@ -984,7 +984,7 @@ bootstrap, keeps failing.`,
 				resp = existing
 				outcome := "left unchanged"
 				if ifExistsMode == shared.IfExistsUpdate {
-					updated, changedTerritories, updateErr := shared.ApplyTerritoryAvailabilityUpdate(requestCtx, client, shared.TerritoryAvailabilityUpdateRequest{
+					updated, changedTerritories, updateErr := d.ApplyTerritoryAvailabilityUpdate(requestCtx, client, shared.TerritoryAvailabilityUpdateRequest{
 						AppID:                             resolvedAppID,
 						Territories:                       territories,
 						AllTerritories:                    *allTerritories,
@@ -1003,11 +1003,11 @@ bootstrap, keeps failing.`,
 						outcome = "updated it in place"
 					}
 				}
-				fmt.Fprintf(os.Stderr, "pricing availability create: app %s already has availability %s; %s (--if-exists %s)\n",
+				fmt.Fprintf(d.IO.ErrOut, "pricing availability create: app %s already has availability %s; %s (--if-exists %s)\n",
 					resolvedAppID, existing.Data.ID, outcome, ifExistsMode)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -1024,9 +1024,10 @@ func isAvailabilityBootstrapRelationshipRejection(err error) bool {
 		strings.Contains(detail, "no matching resource was included")
 }
 
-// PricingAvailabilitySetCommand returns the availability edit subcommand.
-func PricingAvailabilitySetCommand() *ffcli.Command {
+// newPricingAvailabilitySetCommand returns the availability edit subcommand.
+func newPricingAvailabilitySetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewAvailabilitySetCommand(shared.AvailabilitySetCommandConfig{
+		Deps:        d,
 		FlagSetName: "pricing availability edit",
 		CommandName: "edit",
 		ShortUsage:  "asc pricing availability edit [flags]",
@@ -1051,11 +1052,11 @@ Note:
 	})
 }
 
-// PricingAvailabilityPlatformsCommand returns the platforms subcommand.
-func PricingAvailabilityPlatformsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing availability platforms", flag.ExitOnError)
+// newPricingAvailabilityPlatformsCommand returns the platforms subcommand.
+func newPricingAvailabilityPlatformsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing availability platforms", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "platforms",
@@ -1076,15 +1077,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
-			client, err := pricingAvailabilityClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing availability platforms: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			listings, err := shared.FetchAvailabilityPlatformListings(requestCtx, client, resolvedAppID)
 			if err != nil {
@@ -1092,15 +1093,16 @@ Examples:
 			}
 
 			result := &asc.AvailabilityPlatformsResult{AppID: resolvedAppID, Platforms: listings}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PricingAvailabilityRemoveFromSaleCommand returns the remove-from-sale subcommand.
-func PricingAvailabilityRemoveFromSaleCommand() *ffcli.Command {
+// newPricingAvailabilityRemoveFromSaleCommand returns the remove-from-sale subcommand.
+func newPricingAvailabilityRemoveFromSaleCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewAvailabilityRemoveFromSaleCommand(shared.AvailabilityRemoveFromSaleCommandConfig{
-		ClientFactory: pricingAvailabilityClientFactory,
+		ClientFactory: d.Client,
+		Deps:          d,
 	})
 }
 

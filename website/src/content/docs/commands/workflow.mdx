@@ -116,6 +116,7 @@ Run a workflow by name and pass runtime parameters as `KEY:VALUE` arguments:
 asc workflow run beta
 asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
 asc workflow run release VERSION:2.1.0
+asc workflow run --env-file ./release.env release
 asc workflow run --dry-run beta
 asc workflow run release --resume release-20260312T120000Z-deadbeef
 ```

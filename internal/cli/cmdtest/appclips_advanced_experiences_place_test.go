@@ -13,8 +13,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	appclipscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // The values and key a typed model would drop, rewrite, or refuse.
@@ -72,14 +70,10 @@ func TestAppClipsAdvancedExperiencesPlaceRequestBody(t *testing.T) {
 				t.Fatalf("new client: %v", err)
 			}
 			factory := func() (*asc.Client, error) { return client, nil }
-			t.Cleanup(appclipscli.SetClientFactory(factory))
-			t.Cleanup(shared.SetASCClientFactoryForTesting(factory))
-
-			_, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(append(test.args, "--output", "json"), "1.2.3"); code != 0 {
-					t.Errorf("exit code = %d, want 0", code)
-				}
-			})
+			_, stderr, code := runWithDeps(t, factory, append(test.args, "--output", "json")...)
+			if code != 0 {
+				t.Errorf("exit code = %d, want 0", code)
+			}
 			if stderr != "" {
 				t.Fatalf("stderr = %q, want empty", stderr)
 			}
@@ -138,13 +132,7 @@ func TestAppClipsAdvancedExperiencesPlaceValidatedBeforeClient(t *testing.T) {
 					clientCalls++
 					return nil, errors.New("client factory must not run")
 				}
-				t.Cleanup(appclipscli.SetClientFactory(factory))
-				t.Cleanup(shared.SetASCClientFactoryForTesting(factory))
-
-				var exitCode int
-				stdout, stderr := captureOutput(t, func() {
-					exitCode = rootcmd.Run(command.args("--place", value.value), "1.2.3")
-				})
+				stdout, stderr, exitCode := runWithDeps(t, factory, command.args("--place", value.value)...)
 				if exitCode != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d; stderr = %q", exitCode, rootcmd.ExitUsage, stderr)
 				}

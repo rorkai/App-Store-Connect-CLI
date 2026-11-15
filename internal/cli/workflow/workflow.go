@@ -157,6 +157,8 @@ func workflowRunCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Preview steps without executing")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	resume := fs.String("resume", "", "Resume a prior workflow run by run ID")
+	var envFiles shared.MultiStringFlag
+	fs.Var(&envFiles, "env-file", "Load KEY=VALUE environment variables from a file (repeatable)")
 
 	return &ffcli.Command{
 		Name:       "run",
@@ -187,6 +189,19 @@ explicit repeat-safety opt-in.
 Workflow-call steps and before_all/after_all/error hooks do not accept retry or timeout.
 Omit retry or timeout to disable it; explicit null values are invalid.
 
+Environment files:
+  --env-file loads variables from a file; repeat it to load several, and a later
+  file overrides an earlier one. No file is loaded unless named with --env-file.
+  A file value acts like a variable exported before the run: a variable already
+  set in the process environment is never overridden by a file, and workflow env,
+  step env, and KEY:VALUE params override file values.
+  Format: one KEY=VALUE per line, with an optional leading "export ". Blank lines
+  and lines starting with # are ignored. Matching single or double quotes around
+  a value are removed. There is no interpolation, no escape sequences, and no
+  multi-line values. A line that does not fit is a usage error naming the file
+  and line number; values are never printed.
+  Env files are not saved in run state; pass them again with --resume.
+
 Security note:
   Workflows intentionally execute arbitrary shell commands.
   Only run workflow files you trust (especially when using --file).
@@ -198,6 +213,7 @@ Tip: See "asc workflow --help" for a complete workflow.json example and file for
 Examples:
   asc workflow run beta
   asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
+  asc workflow run --env-file ./release.env beta
   asc workflow run --dry-run beta
   asc workflow run beta --resume beta-20260312T120000Z-deadbeef`,
 		FlagSet:   fs,
@@ -234,11 +250,17 @@ Examples:
 				return shared.UsageError("resume runs do not accept additional KEY:VALUE parameters")
 			}
 
+			fileEnv, err := wf.LoadEnvFiles(envFiles)
+			if err != nil {
+				return shared.UsageErrorf("--env-file: %s", err)
+			}
+
 			stateDir := filepath.Join(filepath.Dir(absPath), "runs")
 
 			result, err := wf.Run(ctx, def, wf.RunOptions{
 				WorkflowName: workflowName,
 				Params:       params,
+				FileEnv:      fileEnv,
 				DryRun:       *dryRun,
 				WorkflowFile: absPath,
 				StateDir:     stateDir,
@@ -394,7 +416,7 @@ func parseRunTailArgs(args []string, fs *flag.FlagSet) ([]string, error) {
 					return nil, shared.UsageErrorf("invalid value for --%s: %v", name, err)
 				}
 				continue
-			case "file", "resume":
+			case "file", "resume", "env-file":
 				if !hasValue {
 					if i+1 >= len(args) {
 						return nil, shared.UsageErrorf("--%s requires a value", name)
@@ -433,7 +455,7 @@ func isRunTailFlagToken(token string) bool {
 	nameValue := strings.TrimPrefix(token, "--")
 	name, _, _ := strings.Cut(nameValue, "=")
 	switch name {
-	case "dry-run", "pretty", "file", "resume":
+	case "dry-run", "pretty", "file", "resume", "env-file":
 		return true
 	default:
 		return false

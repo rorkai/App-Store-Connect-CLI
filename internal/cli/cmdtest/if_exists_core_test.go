@@ -280,6 +280,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name: "pricing availability create default fail keeps Apple's detail",
+			deps: true,
 			args: availabilityCreateArgs(),
 			replies: map[string]ifExistsReply{
 				territoriesGet:   {http.StatusOK, territoryCatalog},
@@ -291,6 +292,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		{
 			// The bootstrap rejection shares the existence conflict's 409 code.
 			name: "pricing availability create skip keeps the bootstrap remediation",
+			deps: true,
 			args: availabilityCreateArgs("--if-exists", "skip"),
 			replies: map[string]ifExistsReply{
 				territoriesGet:   {http.StatusOK, territoryCatalog},
@@ -301,6 +303,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name: "pricing availability create update does not read back a state conflict",
+			deps: true,
 			args: availabilityCreateArgs("--if-exists", "update"),
 			replies: map[string]ifExistsReply{
 				territoriesGet:   {http.StatusOK, territoryCatalog},
@@ -310,6 +313,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name: "pricing availability create skip read-back finds nothing",
+			deps: true,
 			args: availabilityCreateArgs("--if-exists", "skip"),
 			replies: map[string]ifExistsReply{
 				territoriesGet:   {http.StatusOK, territoryCatalog},
@@ -373,6 +377,7 @@ func TestIfExistsRejectsUnsupportedModeBeforeHTTP(t *testing.T) {
 		},
 		{
 			name: "pricing availability create",
+			deps: true,
 			args: availabilityCreateArgs("--if-exists", "replace"),
 			want: "Error: --if-exists must be one of fail, skip, update",
 		},

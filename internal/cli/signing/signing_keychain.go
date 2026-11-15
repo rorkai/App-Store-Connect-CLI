@@ -28,6 +28,7 @@ type signingKeychainInstallOptions struct {
 	ExpectedCertificateSHA256 string
 	AddToSearchList           bool
 	AddAppleIntermediates     bool
+	LockOnSleep               bool
 }
 
 type signingKeychainInstallDeps struct {
@@ -85,6 +86,7 @@ func SigningKeychainInstallCommand() *ffcli.Command {
 	expectedCertificateSHA256 := fs.String("expected-certificate-sha256", "", "Expected identity certificate SHA-256")
 	addToSearchList := fs.Bool("add-to-search-list", false, "Append the new keychain to the user search list")
 	addAppleIntermediates := fs.Bool("add-apple-intermediates", false, "Import the embedded Apple intermediate certificate that issued the identity into the new keychain")
+	lockOnSleep := fs.Bool("lock-on-sleep", true, "Lock the new keychain when the machine sleeps")
 	confirm := fs.Bool("confirm", false, "Confirm persistent keychain creation")
 	output := shared.BindOutputFlags(fs)
 
@@ -147,6 +149,7 @@ Examples:
 				ExpectedCertificateSHA256: expectedDigest,
 				AddToSearchList:           *addToSearchList,
 				AddAppleIntermediates:     *addAppleIntermediates,
+				LockOnSleep:               *lockOnSleep,
 			})
 			if err != nil {
 				return classifySigningInputError(err)
@@ -165,7 +168,7 @@ func normalizeOptionalSigningKeychainSHA256(value string) (string, error) {
 }
 
 func executeSigningKeychainInstall(ctx context.Context, options signingKeychainInstallOptions) (*asc.SigningKeychainInstallResult, error) {
-	return executeSigningKeychainInstallWith(ctx, options, platformSigningKeychainInstallDeps())
+	return executeSigningKeychainInstallWith(ctx, options, platformSigningKeychainInstallDeps(options.LockOnSleep))
 }
 
 func executeSigningKeychainInstallWith(ctx context.Context, options signingKeychainInstallOptions, deps signingKeychainInstallDeps) (result *asc.SigningKeychainInstallResult, resultErr error) {

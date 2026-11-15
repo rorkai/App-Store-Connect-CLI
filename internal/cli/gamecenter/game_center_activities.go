@@ -199,7 +199,7 @@ Examples:
 				}
 				attrs.SupportsPartyCode = &val
 			}
-			properties, err := parseStringMapFlag(fs, "properties")
+			properties, err := parseStringMapFlag(shared.DefaultDeps(), fs, "properties")
 			if err != nil {
 				return err
 			}
@@ -313,7 +313,7 @@ Examples:
 				attrs.Archived = &val
 				hasUpdate = true
 			}
-			properties, err := parseStringMapFlag(fs, "properties")
+			properties, err := parseStringMapFlag(shared.DefaultDeps(), fs, "properties")
 			if err != nil {
 				return err
 			}

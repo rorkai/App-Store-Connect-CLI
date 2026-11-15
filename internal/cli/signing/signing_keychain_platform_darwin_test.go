@@ -28,9 +28,34 @@ func TestConfigurePersistentSigningKeychainLeavesCleanupToCaller(t *testing.T) {
 			cancel()
 			return nil, nil, configureErr
 		},
+		true,
 	)
 	if !errors.Is(err, configureErr) || deleted {
 		t.Fatalf("configure error = %v, deleted = %v", err, deleted)
+	}
+}
+
+func TestConfigurePersistentSigningKeychainLockOnSleepArguments(t *testing.T) {
+	for _, test := range []struct {
+		lockOnSleep bool
+		want        []string
+	}{
+		{lockOnSleep: true, want: []string{"set-keychain-settings", "-l", "/tmp/persistent.keychain-db"}},
+		{lockOnSleep: false, want: []string{"set-keychain-settings", "/tmp/persistent.keychain-db"}},
+	} {
+		var got []string
+		err := configurePersistentSigningKeychain(
+			context.Background(),
+			"/tmp/persistent.keychain-db",
+			func(_ context.Context, _ []byte, args ...string) ([]byte, []byte, error) {
+				got = args
+				return nil, nil, nil
+			},
+			test.lockOnSleep,
+		)
+		if err != nil || !reflect.DeepEqual(got, test.want) {
+			t.Fatalf("lockOnSleep=%v: args = %q, err = %v, want %q", test.lockOnSleep, got, err, test.want)
+		}
 	}
 }
 
@@ -100,7 +125,7 @@ func TestSigningKeychainInstallLiveDedicatedKeychain(t *testing.T) {
 	if os.Getenv("ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST") != "1" {
 		t.Skip("set ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST=1 to exercise a disposable persistent keychain")
 	}
-	deps := platformSigningKeychainInstallDeps()
+	deps := platformSigningKeychainInstallDeps(true)
 	if deps.GOOS != "darwin" || !deps.SecurityAvailable {
 		t.Skip("requires a cgo-enabled macOS build")
 	}
@@ -156,7 +181,7 @@ func testSigningKeychainInstallLive(t *testing.T, deps signingKeychainInstallDep
 	})
 
 	createKeychain := func(ctx context.Context, path string, password []byte) (bool, error) {
-		return createPersistentSigningKeychain(ctx, path, password)
+		return createPersistentSigningKeychain(ctx, path, password, true)
 	}
 	importIdentity := func(ctx context.Context, path string, keychainPassword, identityData, identityPassword []byte, expectedSHA1 string) error {
 		if err := importPKCS12WithSecurityFramework(path, identityData, []byte("incorrect-password")); err == nil {

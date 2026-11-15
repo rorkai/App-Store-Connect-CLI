@@ -1,12 +1,15 @@
 package winbackoffers
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestWinBackOffersCreateHelpDescribesPricePointIDs(t *testing.T) {
-	cmd := WinBackOffersCreateCommand()
+	cmd := newWinBackOffersCreateCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
 	priceFlag := cmd.FlagSet.Lookup("price")
 	if priceFlag == nil {
 		t.Fatal("expected --price flag")

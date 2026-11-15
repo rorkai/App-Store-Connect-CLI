@@ -33,6 +33,9 @@ const (
 	ActionSwipe       StepAction = "swipe"
 	ActionLongPress   StepAction = "long_press"
 	ActionButton      StepAction = "button"
+	ActionPinch       StepAction = "pinch"
+	ActionRotate      StepAction = "rotate"
+	ActionDoubleTap   StepAction = "double_tap"
 )
 
 // PlanValidationCode classifies validation failures.
@@ -62,6 +65,10 @@ const (
 	PlanErrSwipeDuration      PlanValidationCode = "swipe_invalid_duration"
 	PlanErrHoldDuration       PlanValidationCode = "hold_duration_out_of_range"
 	PlanErrButtonInvalid      PlanValidationCode = "button_invalid"
+	PlanErrPinchScale         PlanValidationCode = "pinch_invalid_scale"
+	PlanErrRotateDegrees      PlanValidationCode = "rotate_degrees_out_of_range"
+	PlanErrGestureRadius      PlanValidationCode = "gesture_invalid_radius"
+	PlanErrGestureCoordinates PlanValidationCode = "gesture_invalid_coordinates"
 	PlanErrUnexpectedField    PlanValidationCode = "unexpected_field"
 	PlanErrUnsupportedAction  PlanValidationCode = "unsupported_action"
 )
@@ -128,6 +135,9 @@ type PlanStep struct {
 	TimeoutMS      *int       `json:"timeout_ms,omitempty"`
 	PollIntervalMS *int       `json:"poll_interval_ms,omitempty"`
 	Button         *string    `json:"button,omitempty"`
+	Scale          *float64   `json:"scale,omitempty"`
+	Radius         *float64   `json:"radius,omitempty"`
+	Degrees        *float64   `json:"degrees,omitempty"`
 }
 
 // LoadPlan reads and validates a plan file.
@@ -364,6 +374,57 @@ func validatePlan(plan *Plan) error {
 					fmt.Sprintf("steps[%d] button must be one of apple-pay, home, lock, side-button, siri", idx),
 				)
 			}
+		case ActionPinch:
+			if err := validateHoldStep(step, idx, "x", "y", "scale", "radius"); err != nil {
+				return err
+			}
+			if step.Scale == nil || *step.Scale <= 0 || *step.Scale == 1 {
+				return newPlanValidationError(
+					PlanErrPinchScale,
+					idx,
+					fmt.Sprintf("steps[%d] pinch requires scale > 0 and not 1", idx),
+				)
+			}
+			if step.X != nil || step.Y != nil {
+				if err := validateGesturePoint(step, idx); err != nil {
+					return err
+				}
+			}
+			if step.Radius != nil && *step.Radius <= 0 {
+				return newPlanValidationError(
+					PlanErrGestureRadius,
+					idx,
+					fmt.Sprintf("steps[%d] pinch radius must be > 0", idx),
+				)
+			}
+		case ActionRotate:
+			if err := validateHoldStep(step, idx, "x", "y", "radius", "degrees"); err != nil {
+				return err
+			}
+			if err := validateGesturePoint(step, idx); err != nil {
+				return err
+			}
+			if step.Radius == nil || *step.Radius <= 0 {
+				return newPlanValidationError(
+					PlanErrGestureRadius,
+					idx,
+					fmt.Sprintf("steps[%d] rotate requires radius > 0", idx),
+				)
+			}
+			if step.Degrees == nil || *step.Degrees == 0 || *step.Degrees < -360 || *step.Degrees > 360 {
+				return newPlanValidationError(
+					PlanErrRotateDegrees,
+					idx,
+					fmt.Sprintf("steps[%d] rotate requires degrees from -360 to 360, not 0", idx),
+				)
+			}
+		case ActionDoubleTap:
+			if err := validateHoldStep(step, idx, "x", "y"); err != nil {
+				return err
+			}
+			if err := validateGesturePoint(step, idx); err != nil {
+				return err
+			}
 		default:
 			return newPlanValidationError(
 				PlanErrUnsupportedAction,
@@ -399,6 +460,9 @@ func validateHoldStep(step *PlanStep, idx int, allowed ...string) error {
 		{"timeout_ms", step.TimeoutMS != nil},
 		{"poll_interval_ms", step.PollIntervalMS != nil},
 		{"button", step.Button != nil},
+		{"scale", step.Scale != nil},
+		{"radius", step.Radius != nil},
+		{"degrees", step.Degrees != nil},
 	}
 	for _, field := range fields {
 		if field.set && !slices.Contains(allowed, field.name) {
@@ -414,6 +478,17 @@ func validateHoldStep(step *PlanStep, idx int, allowed ...string) error {
 			PlanErrHoldDuration,
 			idx,
 			fmt.Sprintf("steps[%d] %s duration_ms must be from 1 to 10000", idx, step.Action),
+		)
+	}
+	return nil
+}
+
+func validateGesturePoint(step *PlanStep, idx int) error {
+	if step.X == nil || step.Y == nil || *step.X < 0 || *step.Y < 0 {
+		return newPlanValidationError(
+			PlanErrGestureCoordinates,
+			idx,
+			fmt.Sprintf("steps[%d] %s requires x and y >= 0", idx, step.Action),
 		)
 	}
 	return nil

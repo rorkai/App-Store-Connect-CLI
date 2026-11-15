@@ -1535,6 +1535,23 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 			}
 			return budgets
 		}},
+		{name: "CollectPricePointsByTerritory", attempts: 3, run: func(t *testing.T, d *Deps) []time.Duration {
+			var budgets []time.Duration
+			fetch := func(ctx context.Context, _ string) (*asc.Response[asc.AppPricePointV3Attributes], error) {
+				budgets = append(budgets, budget(ctx))
+				return nil, expire(ctx)
+			}
+			customerPrice := func(attributes asc.AppPricePointV3Attributes) string { return attributes.CustomerPrice }
+			if d == nil {
+				_, err = CollectPricePointsByTerritory(context.Background(), nil, fetch, customerPrice)
+			} else {
+				_, err = CollectPricePointsByTerritoryWith(context.Background(), d, nil, fetch, customerPrice)
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("error = %v, want the last attempt's deadline", err)
+			}
+			return budgets
+		}},
 		{name: "RunReconciledMutation", attempts: 3, run: func(t *testing.T, d *Deps) []time.Duration {
 			var budgets []time.Duration
 			mutate := func(ctx context.Context) (int, error) {

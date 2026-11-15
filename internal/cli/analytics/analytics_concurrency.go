@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const analyticsInstanceFetchConcurrency = 8
@@ -16,7 +17,7 @@ var (
 	fetchAnalyticsReportInstancesFn   = fetchAnalyticsReportInstances
 )
 
-func collectAnalyticsReports(ctx context.Context, client *asc.Client, reports []asc.Resource[asc.AnalyticsReportAttributes], instanceOpts []asc.AnalyticsReportInstancesOption, includeSegments bool, processingDateFilter string) ([]asc.AnalyticsReportGetReport, int, error) {
+func collectAnalyticsReports(ctx context.Context, d *shared.Deps, client *asc.Client, reports []asc.Resource[asc.AnalyticsReportAttributes], instanceOpts []asc.AnalyticsReportInstancesOption, includeSegments bool, processingDateFilter string) ([]asc.AnalyticsReportGetReport, int, error) {
 	results := make([]asc.AnalyticsReportGetReport, len(reports))
 	include := make([]bool, len(reports))
 	counts := make([]int, len(reports))
@@ -56,7 +57,7 @@ func collectAnalyticsReports(ctx context.Context, client *asc.Client, reports []
 				inFlight.Add(-1)
 				<-sem
 			}()
-			reportResult, count, err := analyticsReportResult(workCtx, client, report, instanceOpts, includeSegments)
+			reportResult, count, err := analyticsReportResult(workCtx, d, client, report, instanceOpts, includeSegments)
 			if err != nil {
 				recordError(err)
 				return
@@ -84,19 +85,19 @@ func collectAnalyticsReports(ctx context.Context, client *asc.Client, reports []
 	return collected, total, nil
 }
 
-func analyticsReportResult(ctx context.Context, client *asc.Client, report asc.Resource[asc.AnalyticsReportAttributes], instanceOpts []asc.AnalyticsReportInstancesOption, includeSegments bool) (asc.AnalyticsReportGetReport, int, error) {
-	instances, err := fetchAnalyticsReportInstancesFn(ctx, client, report.ID, instanceOpts...)
+func analyticsReportResult(ctx context.Context, d *shared.Deps, client *asc.Client, report asc.Resource[asc.AnalyticsReportAttributes], instanceOpts []asc.AnalyticsReportInstancesOption, includeSegments bool) (asc.AnalyticsReportGetReport, int, error) {
+	instances, err := fetchAnalyticsReportInstancesFn(ctx, d, client, report.ID, instanceOpts...)
 	if err != nil {
 		return asc.AnalyticsReportGetReport{}, 0, fmt.Errorf("analytics view: failed to fetch instances: %w", err)
 	}
-	result, err := analyticsReportResultFromInstances(ctx, client, report, instances, includeSegments)
+	result, err := analyticsReportResultFromInstances(ctx, d, client, report, instances, includeSegments)
 	if err != nil {
 		return asc.AnalyticsReportGetReport{}, 0, err
 	}
 	return result, len(instances), nil
 }
 
-func analyticsReportResultFromInstances(ctx context.Context, client *asc.Client, report asc.Resource[asc.AnalyticsReportAttributes], instances []asc.Resource[asc.AnalyticsReportInstanceAttributes], includeSegments bool) (asc.AnalyticsReportGetReport, error) {
+func analyticsReportResultFromInstances(ctx context.Context, d *shared.Deps, client *asc.Client, report asc.Resource[asc.AnalyticsReportAttributes], instances []asc.Resource[asc.AnalyticsReportInstanceAttributes], includeSegments bool) (asc.AnalyticsReportGetReport, error) {
 	reportResult := asc.AnalyticsReportGetReport{
 		ID:          report.ID,
 		ReportType:  report.Attributes.ReportType,
@@ -113,7 +114,7 @@ func analyticsReportResultFromInstances(ctx context.Context, client *asc.Client,
 			Version:        instance.Attributes.Version,
 		}
 		if includeSegments {
-			segments, err := fetchAnalyticsReportSegments(ctx, client, instance.ID)
+			segments, err := fetchAnalyticsReportSegments(ctx, d, client, instance.ID)
 			if err != nil {
 				return asc.AnalyticsReportGetReport{}, fmt.Errorf("analytics view: failed to fetch segments: %w", err)
 			}

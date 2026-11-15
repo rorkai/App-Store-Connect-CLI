@@ -8,9 +8,9 @@ import (
 
 // validateGameCenterReplacementConfirm enforces --confirm on relationship
 // replacements, which can drop existing relationships.
-func validateGameCenterReplacementConfirm(fs *flag.FlagSet, confirmed bool) error {
+func validateGameCenterReplacementConfirm(d *shared.Deps, fs *flag.FlagSet, confirmed bool) error {
 	if !confirmed && flagPassed(fs, "confirm") {
-		return shared.UsageError("--confirm must be true when specified")
+		return d.UsageError("--confirm must be true when specified")
 	}
-	return shared.RequireConfirm(confirmed)
+	return d.RequireConfirm(confirmed)
 }
