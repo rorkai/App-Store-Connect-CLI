@@ -25,7 +25,7 @@ import (
 )
 
 func TestSubmitCommandShape(t *testing.T) {
-	cmd := NewSubmitCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}, LookupEnv: os.LookupEnv})
+	cmd := NewSubmitCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}})
 	if cmd == nil {
 		t.Fatal("expected submit command")
 		return

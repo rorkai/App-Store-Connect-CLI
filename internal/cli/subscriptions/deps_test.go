@@ -114,7 +114,7 @@ func TestSubscriptionsStableSelectorWithoutAppWritesToDepsStderr(t *testing.T) {
 func TestSubscriptionPriceImportSummaryRendersToDepsStdout(t *testing.T) {
 	for _, markdown := range []bool{false, true} {
 		var stdout bytes.Buffer
-		d := &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &bytes.Buffer{}}, LookupEnv: os.LookupEnv}
+		d := &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &bytes.Buffer{}}}
 		summary := &subscriptionPriceImportSummary{SubscriptionID: "sub-1", InputFile: "prices.csv", Total: 1, Created: 1}
 		if err := renderSubscriptionPriceImportSummaryTables(d, summary, markdown); err != nil {
 			t.Fatalf("render (markdown=%v): %v", markdown, err)

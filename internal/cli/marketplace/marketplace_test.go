@@ -75,7 +75,7 @@ func TestMarketplaceSearchDetailsDeleteCommand_MissingConfirm(t *testing.T) {
 }
 
 func TestMarketplaceWebhooksCommandIncludesView(t *testing.T) {
-	command := newMarketplaceWebhooksCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}, LookupEnv: os.LookupEnv})
+	command := newMarketplaceWebhooksCommand(&shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}})
 	for _, subcommand := range command.Subcommands {
 		if subcommand.Name == "view" {
 			if subcommand.ShortUsage != `asc marketplace webhooks view --webhook-id "WEBHOOK_ID" [flags]` {

@@ -13,7 +13,7 @@ import (
 // csvTestDeps returns deps whose streams are buffers, for the CSV readers
 // that print notes and usage errors.
 func csvTestDeps() *shared.Deps {
-	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}, LookupEnv: os.LookupEnv}
+	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}}
 }
 
 func TestReadBetaTestersCSV_CanonicalHeaderWithSemicolonGroups(t *testing.T) {

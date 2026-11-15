@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -35,9 +34,8 @@ var errClientRequested = errors.New("client requested")
 
 func passedValidationDeps() *shared.Deps {
 	return &shared.Deps{
-		Client:    func() (*asc.Client, error) { return nil, errClientRequested },
-		IO:        &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
-		LookupEnv: os.LookupEnv,
+		Client: func() (*asc.Client, error) { return nil, errClientRequested },
+		IO:     &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
 	}
 }
 
@@ -66,7 +64,7 @@ func TestBetaTestersAddCommand_FirstNameOnlyPassesValidation(t *testing.T) {
 func TestBetaTestersAddCommand_NameWithoutEmailFailsValidation(t *testing.T) {
 	isolateTestFlightAuthEnvForAddTests(t)
 
-	cmd := newBetaTestersAddCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}, LookupEnv: os.LookupEnv})
+	cmd := newBetaTestersAddCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--first-name", "Only",
