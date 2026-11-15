@@ -31,10 +31,14 @@ func (target signingResignTarget) sourceBundleID() string {
 // mapSigningResignBundleIDs plans a --bundle-id change without touching the
 // tree: the main app gets newID, every nested target replaces the OLD. prefix
 // with newID., and each target carries its rewritten Info.plist for
-// prepareSigningResignTree to write once the whole plan is valid.
+// prepareSigningResignTree to write once the whole plan is valid. Refusals
+// are usage errors; cancellation and read failures are returned unchanged.
 func mapSigningResignBundleIDs(ctx context.Context, tree rootfs.Root, archive signingResignArchive, newID string) (signingResignArchive, error) {
+	if err := ctx.Err(); err != nil {
+		return archive, err
+	}
 	if err := validateSigningResignBundleID(newID); err != nil {
-		return archive, fmt.Errorf("--bundle-id %q is not a valid bundle identifier: %w", newID, err)
+		return archive, signingResignUsage(fmt.Errorf("--bundle-id %q is not a valid bundle identifier: %w", newID, err))
 	}
 	mainIndex := slices.IndexFunc(archive.Targets, func(target signingResignTarget) bool {
 		return target.RelativePath == archive.MainPath
@@ -44,7 +48,7 @@ func mapSigningResignBundleIDs(ctx context.Context, tree rootfs.Root, archive si
 	}
 	oldID := archive.Targets[mainIndex].BundleID
 	if strings.EqualFold(newID, oldID) {
-		return archive, fmt.Errorf("--bundle-id %s equals the current bundle identifier %s", newID, oldID)
+		return archive, signingResignUsage(fmt.Errorf("--bundle-id %s equals the current bundle identifier %s", newID, oldID))
 	}
 	sources := make(map[string]string, len(archive.Targets))
 	for _, target := range archive.Targets {
@@ -55,21 +59,21 @@ func mapSigningResignBundleIDs(ctx context.Context, tree rootfs.Root, archive si
 	for index := range mapped.Targets {
 		target := &mapped.Targets[index]
 		if target.Kind == "app-clip" {
-			return archive, fmt.Errorf("--bundle-id does not support App Clip targets; %s is an App Clip", target.BundleID)
+			return archive, signingResignUsage(fmt.Errorf("--bundle-id does not support App Clip targets; %s is an App Clip", target.BundleID))
 		}
 		targetID := newID
 		if index != mainIndex {
 			suffix, ok := strings.CutPrefix(target.BundleID, oldID+".")
 			if !ok {
-				return archive, fmt.Errorf("--bundle-id requires every nested bundle identifier to start with %s.; %s does not", oldID, target.BundleID)
+				return archive, signingResignUsage(fmt.Errorf("--bundle-id requires every nested bundle identifier to start with %s.; %s does not", oldID, target.BundleID))
 			}
 			targetID = newID + "." + suffix
 		}
 		if err := validateSigningResignBundleID(targetID); err != nil {
-			return archive, fmt.Errorf("--bundle-id maps %s to an invalid bundle identifier %s: %w", target.BundleID, targetID, err)
+			return archive, signingResignUsage(fmt.Errorf("--bundle-id maps %s to an invalid bundle identifier %s: %w", target.BundleID, targetID, err))
 		}
 		if owner, exists := sources[strings.ToLower(targetID)]; exists && owner != target.RelativePath {
-			return archive, fmt.Errorf("--bundle-id maps %s to %s, which collides with the target at %s", target.BundleID, targetID, owner)
+			return archive, signingResignUsage(fmt.Errorf("--bundle-id maps %s to %s, which collides with the target at %s", target.BundleID, targetID, owner))
 		}
 		target.SourceBundleID, target.BundleID = target.BundleID, targetID
 		byPath[target.RelativePath] = *target
@@ -133,7 +137,7 @@ func rewriteSigningResignWatchKey(values map[string]any, key string, owner signi
 	}
 	text, _ := value.(string)
 	if !found || text != owner.SourceBundleID {
-		return fmt.Errorf("--bundle-id cannot rewrite Info.plist %s %q: it does not name the bundle identifier of the app it belongs to", key, text)
+		return signingResignUsage(fmt.Errorf("--bundle-id cannot rewrite Info.plist %s %q: it does not name the bundle identifier of the app it belongs to", key, text))
 	}
 	values[key] = owner.BundleID
 	return nil

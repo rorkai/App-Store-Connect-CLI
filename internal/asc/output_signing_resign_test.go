@@ -120,6 +120,15 @@ func TestSigningResignResultEntitlementRewritesOmitDisabledAndEmitEnabledEmpty(t
 	if strings.Contains(string(encoded), "entitlementRewrites") {
 		t.Fatalf("disabled result unexpectedly emitted entitlementRewrites: %s", encoded)
 	}
+	for _, target := range []SigningResignTargetResult{{BundleID: "com.example.app"}, {BundleID: "com.example.new", SourceBundleID: "com.example.app"}} {
+		encoded, err := json.Marshal(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(string(encoded), `"sourceBundleId":"com.example.app"`); got != (target.SourceBundleID != "") || strings.Count(string(encoded), "sourceBundleId") > 1 || (!got && strings.Contains(string(encoded), "sourceBundleId")) {
+			t.Fatalf("target JSON = %s, want sourceBundleId only for a mapped target", encoded)
+		}
+	}
 	empty := []SigningResignEntitlementRewrite{}
 	withEmptyRewrites := &SigningResignResult{EntitlementRewrites: &empty}
 	encoded, err = json.Marshal(withEmptyRewrites)

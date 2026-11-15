@@ -489,6 +489,13 @@ func TestSigningResignCommandClassifiesManifestTargetMappingErrorsAsUsage(t *tes
 			wantMessage: "com.example.white, com.example.white.extension",
 		},
 		{
+			name:        "unchanged bundle identifier",
+			writeIPA:    writeSigningResignMinimalIPA,
+			manifest:    `{"schemaVersion":1,"profiles":[{"bundleId":"com.example.app","profilePath":"profile.mobileprovision"}]}`,
+			args:        []string{"--bundle-id", "com.example.app"},
+			wantMessage: "equals the current bundle identifier",
+		},
+		{
 			name:        "empty bundle identifier",
 			writeIPA:    writeSigningResignMinimalIPA,
 			manifest:    `{"schemaVersion":1,"profiles":[{"bundleId":"com.example.app","profilePath":"profile.mobileprovision"}]}`,

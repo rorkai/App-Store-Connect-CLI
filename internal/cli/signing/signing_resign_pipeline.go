@@ -205,7 +205,7 @@ func executeSigningResignImplementation(ctx context.Context, options signingResi
 	if options.BundleID != "" {
 		archive, err = mapSigningResignBundleIDs(ctx, treeRoot, archive, options.BundleID)
 		if err != nil {
-			return result, signingResignUsage(err)
+			return result, err
 		}
 	}
 

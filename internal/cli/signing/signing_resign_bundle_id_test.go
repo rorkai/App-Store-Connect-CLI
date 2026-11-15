@@ -3,6 +3,7 @@ package signing
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,7 +58,15 @@ func TestMapSigningResignBundleIDs(t *testing.T) {
 		targets []signingResignBundleIDFixtureTarget
 		want    map[string]string
 		wantErr string
+		cancel  bool
 	}{
+		{
+			name:    "cancelled context is not a usage error",
+			newID:   "com.example.white",
+			targets: []signingResignBundleIDFixtureTarget{main(nil)},
+			wantErr: context.Canceled.Error(),
+			cancel:  true,
+		},
 		{
 			name:    "app with one extension keeps XML",
 			newID:   "com.example.white",
@@ -157,7 +166,12 @@ func TestMapSigningResignBundleIDs(t *testing.T) {
 			}
 			defer tree.Close()
 
-			mapped, err := mapSigningResignBundleIDs(context.Background(), tree, archive, test.newID)
+			ctx, cancel := context.WithCancel(context.Background())
+			if test.cancel {
+				cancel()
+			}
+			defer cancel()
+			mapped, err := mapSigningResignBundleIDs(ctx, tree, archive, test.newID)
 			for relativePath, data := range original {
 				if got := mustReadFile(t, filepath.Join(root, filepath.FromSlash(relativePath), "Info.plist")); !bytes.Equal(got, data) {
 					t.Fatalf("planning changed %s/Info.plist before the plan was applied", relativePath)
@@ -166,6 +180,9 @@ func TestMapSigningResignBundleIDs(t *testing.T) {
 			if test.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 					t.Fatalf("mapSigningResignBundleIDs() error = %v, want %q", err, test.wantErr)
+				}
+				if errors.Is(err, context.Canceled) == isSigningResignUsageError(err) {
+					t.Fatalf("mapSigningResignBundleIDs() error = %v: usage=%t, want usage only for refusals", err, isSigningResignUsageError(err))
 				}
 				return
 			}
