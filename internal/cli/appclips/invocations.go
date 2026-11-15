@@ -124,7 +124,6 @@ Examples:
 
 // newAppClipInvocationsGetCommand gets a beta App Clip invocation by ID.
 func newAppClipInvocationsGetCommand(d *shared.Deps) *ffcli.Command {
-
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc app-clips invocations view --invocation-id \"INVOCATION_ID\"",
@@ -248,7 +247,6 @@ Examples:
 
 // newAppClipInvocationsDeleteCommand deletes a beta App Clip invocation.
 func newAppClipInvocationsDeleteCommand(d *shared.Deps) *ffcli.Command {
-
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc app-clips invocations delete --invocation-id \"INVOCATION_ID\" --confirm",
