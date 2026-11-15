@@ -50,6 +50,9 @@ func TestParseDeliverfile(t *testing.T) {
 	if got.SkipScreenshots {
 		t.Fatalf("expected skip_screenshots false, got true")
 	}
+	if len(got.IgnoredKeys) != 0 {
+		t.Fatalf("expected no ignored keys, got %+v", got.IgnoredKeys)
+	}
 }
 
 func TestParseDeliverfile_InvalidBool(t *testing.T) {

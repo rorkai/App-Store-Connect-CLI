@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -17,6 +19,14 @@ type DeliverfileConfig struct {
 	Platform        string
 	SkipMetadata    bool
 	SkipScreenshots bool
+	IgnoredKeys     []IgnoredConfigKey
+}
+
+// IgnoredConfigKey is a configuration file key that import does not apply.
+type IgnoredConfigKey struct {
+	Key   string
+	Value string
+	Line  int
 }
 
 func parseDeliverfile(path string) (DeliverfileConfig, error) {
@@ -84,6 +94,10 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 				return DeliverfileConfig{}, err
 			}
 			config.SkipScreenshots = parsed
+		default:
+			if slices.Contains(unappliedConfigKeys, key) && isConfigOptionCall(strings.TrimPrefix(strings.TrimSpace(line), key)) {
+				config.IgnoredKeys = append(config.IgnoredKeys, IgnoredConfigKey{Key: key, Value: value, Line: lineNumber})
+			}
 		}
 	}
 
@@ -224,4 +238,86 @@ func parseDeliverfileBool(path string, line int, key, value string) (bool, error
 
 func deliverfileLineError(path string, line int, message string) error {
 	return fmt.Errorf("deliverfile %s line %d: %s", filepath.Base(path), line, message)
+}
+
+// unappliedConfigKeys are the configuration file options that import
+// recognises and does not apply. Any other line is ordinary script syntax
+// (a condition, an assignment, a field inside a multi-line value) and is not
+// reported.
+var unappliedConfigKeys = []string{
+	"api_key_path", "api_key", "username", "ipa", "pkg", "build_number", "edit_live", "use_live_version",
+	"app_clip_header_images_path", "app_clip_default_experience_metadata_path", "app_previews_path",
+	"preview_frame_time_code", "overwrite_preview_videos", "skip_binary_upload", "skip_app_version_update",
+	"force", "overwrite_screenshots", "screenshot_processing_timeout", "sync_screenshots", "submit_for_review",
+	"verify_only", "reject_if_possible", "version_check_wait_retry_limit", "automatic_release",
+	"auto_release_date", "phased_release", "reset_ratings", "price_tier", "app_rating_config_path",
+	"submission_information", "team_id", "team_name", "dev_portal_team_id", "dev_portal_team_name",
+	"itc_provider", "provider_public_id", "run_precheck_before_submit", "precheck_default_rule_level",
+	"individual_metadata_items", "app_icon", "apple_watch_app_icon", "copyright", "primary_category",
+	"secondary_category", "primary_first_sub_category", "primary_second_sub_category",
+	"secondary_first_sub_category", "secondary_second_sub_category", "trade_representative_contact_information",
+	"app_review_information", "app_clip_review_information", "app_review_attachment_file",
+	"routing_app_coverage_file", "description", "name", "subtitle", "keywords", "promotional_text",
+	"release_notes", "privacy_url", "apple_tv_privacy_policy", "support_url", "marketing_url", "languages",
+	"ignore_language_directory_validation", "precheck_include_in_app_purchases",
+	"app_clip_default_experience_subtitle", "app_clip_default_experience_action",
+}
+
+// notOptionValue matches text after an option name that is not a value: an
+// assignment ("= x", "||= x", "+= 1") or the rest of an expression ("- 1",
+// "<< x", "!= x", "? a : b").
+var notOptionValue = regexp.MustCompile(`^(?:=|!=|!~|(?:\+|-|\*\*?|/|%|\|\|?|&&?|\^|<<|>>)=|(?:\+|-|\*\*?|/|%|\|\|?|&&?|\^|<=>|<=|>=|<<|>>|<|>|\?)\s)`)
+
+// isConfigOptionCall reports whether rest, the text that follows an option
+// name, sets the option: "name value" or "name(value)". "name: x" is a field
+// inside a multi-line value, and "name.x" and "name[0]" are expressions.
+func isConfigOptionCall(rest string) bool {
+	if rest == "" || rest[0] == '(' {
+		return true
+	}
+	if rest[0] != ' ' && rest[0] != '\t' {
+		return false
+	}
+	return !notOptionValue.MatchString(strings.TrimSpace(rest))
+}
+
+func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
+	items := make([]SkippedItem, 0, len(keys))
+	scheduled := slices.ContainsFunc(keys, func(key IgnoredConfigKey) bool { return key.Key == "auto_release_date" && hasConfigValue(key.Value) })
+	for _, ignored := range keys {
+		reason := fmt.Sprintf("line %d: %s is not applied by import", ignored.Line, ignored.Key)
+		if hint := ignoredConfigKeyHint(ignored, scheduled); hint != "" {
+			reason += "; to apply it, run: " + hint
+		}
+		items = append(items, SkippedItem{Path: path, Reason: reason})
+	}
+	return items
+}
+
+// hasConfigValue reports whether an option was given a value other than nil.
+func hasConfigValue(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	return value != "" && value != "nil"
+}
+
+// ignoredConfigKeyHint returns the command that applies an ignored option, or
+// "" when no single command does. scheduled means the file also sets a release
+// date, which decides the release type, so automatic_release gets no hint.
+func ignoredConfigKeyHint(ignored IgnoredConfigKey, scheduled bool) string {
+	value := strings.ToLower(strings.TrimSpace(ignored.Value))
+	switch {
+	case ignored.Key == "auto_release_date" && hasConfigValue(ignored.Value):
+		return "asc versions update --version-id VERSION_ID --release-type SCHEDULED --earliest-release-date DATE"
+	case ignored.Key == "automatic_release" && scheduled:
+		return ""
+	case ignored.Key == "submit_for_review" && value == "true":
+		return "asc review submit --app APP_ID --version-id VERSION_ID --build-id BUILD_ID --confirm"
+	case ignored.Key == "phased_release" && value == "true":
+		return "asc versions phased-release create --version-id VERSION_ID"
+	case ignored.Key == "automatic_release" && value == "true":
+		return "asc versions update --version-id VERSION_ID --release-type AFTER_APPROVAL"
+	case ignored.Key == "automatic_release" && value == "false":
+		return "asc versions update --version-id VERSION_ID --release-type MANUAL"
+	}
+	return ""
 }
