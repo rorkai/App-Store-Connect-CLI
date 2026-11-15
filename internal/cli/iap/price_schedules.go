@@ -365,9 +365,9 @@ func IAPPriceSchedulesManualPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("schedules manual-prices", flag.ExitOnError)
 
 	scheduleID := shared.BindResourceIDFlag(fs, "schedule-id", "inAppPurchasePriceSchedules", "Price schedule ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	resolved := fs.Bool("resolved", false, "Return the current effective price per territory")
 	output := shared.BindOutputFlags(fs)
 
@@ -450,9 +450,9 @@ func IAPPriceSchedulesAutomaticPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("schedules automatic-prices", flag.ExitOnError)
 
 	scheduleID := shared.BindResourceIDFlag(fs, "schedule-id", "inAppPurchasePriceSchedules", "Price schedule ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	resolved := fs.Bool("resolved", false, "Return the current effective price per territory")
 	output := shared.BindOutputFlags(fs)
 

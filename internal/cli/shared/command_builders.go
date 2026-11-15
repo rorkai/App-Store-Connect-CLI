@@ -194,9 +194,9 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	if !config.TopLevel {
 		parentID = bindBuilderIDFlag(fs, parentFlagName, config.ParentType, parentUsage)
 	}
-	limit := fs.Int("limit", 0, fmt.Sprintf("Maximum results per page (1-%d)", limitMax))
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, LimitFlagUsage(limitMax))
+	next := fs.String("next", "", NextFlagUsage)
+	paginate := fs.Bool("paginate", false, PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 	validate := bindBuilderFlags(fs, config.Flags)
 

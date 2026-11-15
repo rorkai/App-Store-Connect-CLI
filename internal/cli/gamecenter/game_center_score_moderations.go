@@ -27,9 +27,9 @@ func gameCenterScoreModerationsListCommand() *ffcli.Command {
 	fields := fs.String("fields", "", "Fields: rank, score, submittedDate, blocked, preReleased, context, challengeIds, player")
 	playerFields := fs.String("player-fields", "", "Player fields: nickname, blocked, bundleId (requires --include player)")
 	include := fs.String("include", "", "Relationships to include: player")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "list", ShortUsage: "asc " + command + " --leaderboard-id ID [flags]", ShortHelp: "List scores submitted to a v2 leaderboard.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		provided := map[string]bool{}

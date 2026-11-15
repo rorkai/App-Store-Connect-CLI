@@ -63,9 +63,9 @@ func AppEventsListCommand() *ffcli.Command {
 	localizationFields := fs.String("localization-fields", "", "Fields to include for localizations: "+strings.Join(appEventLocalizationFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(appEventIncludeList(), ", "))
 	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

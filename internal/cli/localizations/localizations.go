@@ -70,9 +70,9 @@ func LocalizationsListCommand() *ffcli.Command {
 	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources for version localizations", versionLocalizationIncludeList())
 	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"appStoreVersion": "appStoreVersions", "appScreenshotSets": "appScreenshotSets", "appPreviewSets": "appPreviewSets"})
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -409,7 +409,7 @@ func LocalizationsDownloadCommand() *ffcli.Command {
 	locType := fs.String("type", shared.LocalizationTypeVersion, "Localization type: version (default) or app-info")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	path := fs.String("path", "localizations", "Output path (directory or .strings file)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", "Start from a links.next URL")
 	fs.Bool("paginate", false, "Fetch all pages (always on; kept for compatibility)")
 	output := shared.BindOutputFlags(fs)

@@ -215,9 +215,9 @@ func BetaGroupsListCommand() *ffcli.Command {
 	testersLimit := fs.Int("testers-limit", 0, "Maximum included beta testers (1-50)")
 	buildsLimit := fs.Int("builds-limit", 0, "Maximum included builds (1-1000)")
 	output := shared.BindOutputFlags(fs)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 
 	return &ffcli.Command{
 		Name:       "list",

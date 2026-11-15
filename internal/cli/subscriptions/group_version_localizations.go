@@ -65,9 +65,9 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 	include := fs.String("include", "", "Include relationship: version")
 	fields := fs.String("fields", "", "Localization fields: name,customAppName,locale,version")
 	versionFields := fs.String("version-fields", "", "Included version fields (comma-separated)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc subscriptions groups versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for a subscription group version.",

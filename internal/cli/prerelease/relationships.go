@@ -60,9 +60,9 @@ func PreReleaseVersionsRelationshipsGetCommand() *ffcli.Command {
 
 	versionID := shared.BindResourceIDFlag(fs, "id", "preReleaseVersions", "Pre-release version ID")
 	relType := fs.String("type", "", shared.RelationshipTypeFlagUsage(preReleaseRelationshipList()))
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

@@ -13,9 +13,9 @@ import (
 func xcodeCloudBuildRunsListFlags(fs *flag.FlagSet) (workflowID *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
 	workflowID = shared.BindResourceIDFlag(fs, "workflow-id", "ciWorkflows", "Workflow ID to list build runs for")
 	sort = fs.String("sort", "", "Sort by number or -number")
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit = fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next = fs.String("next", "", shared.NextFlagUsage)
+	paginate = fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	outputFlags := shared.BindOutputFlags(fs)
 	output = outputFlags.Output
 	pretty = outputFlags.Pretty

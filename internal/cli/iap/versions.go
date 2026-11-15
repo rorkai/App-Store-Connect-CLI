@@ -139,11 +139,11 @@ func normalizeIAPVersionStates(value string) ([]string, error) {
 func bindIAPVersionQueryFlags(fs *flag.FlagSet) (state, include *string, limit, imagesLimit, localizationsLimit *int, next *string, paginate *bool) {
 	state = fs.String("state", "", "Filter by state (comma-separated)")
 	include = fs.String("include", "", "Include relationships: inAppPurchase,image,images,localizations")
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
+	limit = fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	imagesLimit = fs.Int("images-limit", 0, "Maximum included images (1-50)")
 	localizationsLimit = fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages")
+	next = fs.String("next", "", shared.NextFlagUsage)
+	paginate = fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	return
 }
 
@@ -403,9 +403,9 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 		idHelp = "In-app purchase ID"
 	}
 	id := shared.BindResourceIDFlag(fs, idFlag, idType, idHelp)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: name, ShortUsage: fmt.Sprintf("asc iap versions links %s --%s \"ID\"", name, idFlag), ShortHelp: "View relationship linkages.", LongHelp: "View relationship linkages.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,

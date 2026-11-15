@@ -983,8 +983,8 @@ func GameCenterMatchmakingQueueSizesCommand() *ffcli.Command {
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
 	sort := fs.String("sort", "", "Sort fields (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return metricsQueueCommand("queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error) {
@@ -1003,8 +1003,8 @@ func GameCenterMatchmakingQueueRequestsCommand() *ffcli.Command {
 	filterDetail := shared.BindResourceIDFlag(fs, "filter-detail", "gameCenterDetails", "Filter by Game Center detail ID")
 	sort := fs.String("sort", "", "Sort fields (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return metricsQueueCommandWithFilters("queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error) {
@@ -1020,8 +1020,8 @@ func GameCenterMatchmakingQueueSessionsCommand() *ffcli.Command {
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
 	sort := fs.String("sort", "", "Sort fields (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return metricsQueueCommand("queue-sessions", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSessionsResponse, error) {
@@ -1037,8 +1037,8 @@ func GameCenterMatchmakingQueueExperimentSizesCommand() *ffcli.Command {
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
 	sort := fs.String("sort", "", "Sort fields (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return metricsQueueCommand("experiment-queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentSizesResponse, error) {
@@ -1057,8 +1057,8 @@ func GameCenterMatchmakingQueueExperimentRequestsCommand() *ffcli.Command {
 	filterDetail := shared.BindResourceIDFlag(fs, "filter-detail", "gameCenterDetails", "Filter by Game Center detail ID")
 	sort := fs.String("sort", "", "Sort fields (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return metricsQueueCommandWithFilters("experiment-queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentRequestsResponse, error) {
@@ -1096,8 +1096,8 @@ func GameCenterMatchmakingBooleanRuleResultsCommand() *ffcli.Command {
 	filterQueue := shared.BindResourceIDFlag(fs, "filter-queue", "gameCenterMatchmakingQueues", "Filter by matchmaking queue ID")
 	sort := fs.String("sort", "", "Sort fields (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return metricsRuleCommand("rule-boolean-results", fs, booleanRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error) {
@@ -1116,8 +1116,8 @@ func GameCenterMatchmakingNumberRuleResultsCommand() *ffcli.Command {
 	filterQueue := shared.BindResourceIDFlag(fs, "filter-queue", "gameCenterMatchmakingQueues", "Filter by matchmaking queue ID")
 	sort := fs.String("sort", "", "Sort fields (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return metricsRuleCommand("rule-number-results", fs, queueOnlyRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingNumberRuleResultsResponse, error) {
@@ -1136,8 +1136,8 @@ func GameCenterMatchmakingRuleErrorsCommand() *ffcli.Command {
 	filterQueue := shared.BindResourceIDFlag(fs, "filter-queue", "gameCenterMatchmakingQueues", "Filter by matchmaking queue ID")
 	sort := fs.String("sort", "", "Sort fields (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return metricsRuleCommand("rule-errors", fs, queueOnlyRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingRuleErrorsResponse, error) {
