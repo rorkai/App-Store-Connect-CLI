@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func preserveInstallerGlobals(t *testing.T) {
@@ -23,14 +26,12 @@ func preserveInstallerGlobals(t *testing.T) {
 	originalCheckout := checkoutSkillsSource
 	originalHome := userHomeDirectory
 	originalRename := renameWithinRoot
-	originalTime := currentTime
 	t.Cleanup(func() {
 		lookupExecutable = originalLookup
 		runGitCommand = originalRunGit
 		checkoutSkillsSource = originalCheckout
 		userHomeDirectory = originalHome
 		renameWithinRoot = originalRename
-		currentTime = originalTime
 	})
 }
 
@@ -40,9 +41,6 @@ func installFixture(t *testing.T, checkout func(gitIsolationPaths) error) string
 	t.Setenv("XDG_STATE_HOME", "")
 
 	home := t.TempDir()
-	currentTime = func() time.Time {
-		return time.Date(2026, time.July, 30, 12, 0, 0, 0, time.UTC)
-	}
 	userHomeDirectory = func() (string, error) { return home, nil }
 	lookupExecutable = func(name string) (string, error) {
 		if name != "git" {
@@ -82,7 +80,13 @@ func populatePinnedSkillsFixture(t *testing.T, sourceDir string, names []string)
 
 func runInstallCommand(t *testing.T) error {
 	t.Helper()
-	cmd := InstallSkillsCommand()
+	cmd := NewInstallSkillsCommand(&shared.Deps{
+		IO: &shared.IO{In: strings.NewReader(""), Out: io.Discard, ErrOut: io.Discard},
+		Now: func() time.Time {
+			return time.Date(2026, time.July, 30, 12, 0, 0, 0, time.UTC)
+		},
+		Timeout: shared.ContextWithTimeout,
+	})
 	if err := cmd.Parse(nil); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
