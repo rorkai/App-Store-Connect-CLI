@@ -11,16 +11,16 @@ import (
 // RetryReadWithFreshTimeout retries child request deadlines with a fresh
 // timeout budget while the operation's parent context remains healthy.
 func RetryReadWithFreshTimeout[T any](ctx context.Context, read func(context.Context) (T, error)) (T, error) {
-	return retryReadWithFreshTimeout(ctx, ContextWithTimeout, read)
+	return retryReadWithFreshTimeout(ctx, ContextWithTimeout, time.After, read)
 }
 
 // RetryReadWithFreshTimeoutWith is RetryReadWithFreshTimeout with each
-// attempt's deadline from d.Timeout.
+// attempt's deadline from d.Timeout and the waits between attempts on d.After.
 func RetryReadWithFreshTimeoutWith[T any](ctx context.Context, d *Deps, read func(context.Context) (T, error)) (T, error) {
-	return retryReadWithFreshTimeout(ctx, d.Timeout, read)
+	return retryReadWithFreshTimeout(ctx, d.Timeout, d.After, read)
 }
 
-func retryReadWithFreshTimeout[T any](ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), read func(context.Context) (T, error)) (T, error) {
+func retryReadWithFreshTimeout[T any](ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), after func(time.Duration) <-chan time.Time, read func(context.Context) (T, error)) (T, error) {
 	var zero T
 	if err := ctx.Err(); err != nil {
 		return zero, err
@@ -39,7 +39,7 @@ func retryReadWithFreshTimeout[T any](ctx context.Context, timeout func(context.
 		if !childTimedOut || attempt >= retryOpts.MaxRetries {
 			return zero, err
 		}
-		if err := sleepForReadRetry(ctx, readRetryDelay(retryOpts, attempt)); err != nil {
+		if err := sleepForReadRetry(ctx, after, readRetryDelay(retryOpts, attempt)); err != nil {
 			return zero, err
 		}
 	}
@@ -56,14 +56,12 @@ func readRetryDelay(opts asc.RetryOptions, attempt int) time.Duration {
 	return delay
 }
 
-func sleepForReadRetry(ctx context.Context, delay time.Duration) error {
+func sleepForReadRetry(ctx context.Context, after func(time.Duration) <-chan time.Time, delay time.Duration) error {
 	if delay <= 0 {
 		return nil
 	}
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
 	select {
-	case <-timer.C:
+	case <-after(delay):
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

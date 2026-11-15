@@ -2050,6 +2050,7 @@ func newSubmitTestDeps(t *testing.T, transport http.RoundTripper) (*shared.Deps,
 		Client:  func() (*asc.Client, error) { return client, nil },
 		IO:      &shared.IO{In: strings.NewReader(""), Out: stdout, ErrOut: io.Discard},
 		Timeout: shared.ContextWithTimeout,
+		After:   time.After,
 	}, stdout
 }
 
