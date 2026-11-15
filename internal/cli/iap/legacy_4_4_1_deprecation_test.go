@@ -2,8 +2,6 @@ package iap
 
 import (
 	"context"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -36,32 +34,6 @@ func TestIAPProductScoped441SurfacesAreRemoved(t *testing.T) {
 			t.Fatalf("LongHelp still teaches removed command %q: %q", legacy, cmd.LongHelp)
 		}
 	}
-}
-
-func captureIAPLegacy441Stderr(t *testing.T, run func()) string {
-	t.Helper()
-
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	oldStderr := os.Stderr
-	os.Stderr = writer
-	t.Cleanup(func() { os.Stderr = oldStderr })
-
-	run()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	os.Stderr = oldStderr
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return string(data)
 }
 
 func TestIAPVersionScoped441CommandsAreNotDeprecated(t *testing.T) {

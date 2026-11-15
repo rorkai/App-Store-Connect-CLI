@@ -27,7 +27,7 @@ func newIAPPromotedPurchasesCommand(d *shared.Deps) *ffcli.Command {
 			OwnerIDUsage:       "In-app purchase ID, product ID, or exact current name",
 			OwnerIDPlaceholder: "IAP_SELECTOR",
 			ResolveOwnerID: func(ctx context.Context, client *asc.Client, selector string) (string, error) {
-				return resolveIAPLookupIDWithTimeoutWith(ctx, d, client, *lookupAppID, selector)
+				return resolveIAPLookupIDWithTimeout(ctx, d, client, *lookupAppID, selector)
 			},
 			FetchForOwner: func(ctx context.Context, client *asc.Client, iapID string, opts ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error) {
 				return client.GetInAppPurchasePromotedPurchase(ctx, iapID, opts...)

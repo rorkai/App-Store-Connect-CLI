@@ -10,9 +10,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// IAPOfferCodesPricesCommand returns the offer code prices subcommand.
-func IAPOfferCodesPricesCommand() *ffcli.Command {
+// newIAPOfferCodesPricesCommand returns the offer code prices subcommand.
+func newIAPOfferCodesPricesCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes prices",
 		Name:        "prices",
 		ShortUsage:  "asc iap offer-codes prices --offer-code-id \"OFFER_CODE_ID\" [flags]",

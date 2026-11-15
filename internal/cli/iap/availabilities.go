@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// IAPAvailabilitiesCommand returns the canonical pricing availabilities command group.
-func IAPAvailabilitiesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availabilities", flag.ExitOnError)
+// newIAPAvailabilitiesCommand returns the canonical pricing availabilities command group.
+func newIAPAvailabilitiesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("availabilities", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "availabilities",
@@ -26,8 +26,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			IAPAvailabilitiesGetCommand(),
-			IAPAvailabilitiesAvailableTerritoriesCommand(),
+			newIAPAvailabilitiesGetCommand(d),
+			newIAPAvailabilitiesAvailableTerritoriesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -35,9 +35,10 @@ Examples:
 	}
 }
 
-// IAPAvailabilitiesGetCommand returns the availability get subcommand.
-func IAPAvailabilitiesGetCommand() *ffcli.Command {
+// newIAPAvailabilitiesGetCommand returns the availability get subcommand.
+func newIAPAvailabilitiesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "pricing availabilities view",
 		Name:        "view",
 		ShortUsage:  "asc iap pricing availabilities view --id \"AVAILABILITY_ID\"",
@@ -56,9 +57,10 @@ Examples:
 	})
 }
 
-// IAPAvailabilitiesAvailableTerritoriesCommand returns the available territories subcommand.
-func IAPAvailabilitiesAvailableTerritoriesCommand() *ffcli.Command {
+// newIAPAvailabilitiesAvailableTerritoriesCommand returns the available territories subcommand.
+func newIAPAvailabilitiesAvailableTerritoriesCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "pricing availabilities available-territories",
 		Name:        "available-territories",
 		ShortUsage:  "asc iap pricing availabilities available-territories --id \"AVAILABILITY_ID\"",

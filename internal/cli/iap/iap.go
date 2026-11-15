@@ -78,7 +78,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			newIAPListCommand(d),
 			newIAPVersionsCommand(d),
-			IAPPricingCommand(),
+			newIAPPricingCommand(d),
 			newIAPGetCommand(d),
 			newIAPCreateCommand(d),
 			newIAPImportCommand(d),
@@ -88,7 +88,7 @@ Examples:
 			newIAPReviewScreenshotsCommand(d),
 			newIAPPromotedPurchasesCommand(d),
 			newIAPContentCommand(d),
-			IAPOfferCodesCommand(),
+			newIAPOfferCodesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
