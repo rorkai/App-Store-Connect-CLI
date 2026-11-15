@@ -31,7 +31,7 @@ func newSubscriptionsVersionLocalizationsCommand(d *shared.Deps) *ffcli.Command 
 Examples:
   asc subscriptions versions localizations list --version-id "VERSION_ID"
   asc subscriptions versions localizations create --version-id "VERSION_ID" --locale "en-US" --name "Premium"`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsVersionLocalizationsListCommand(d),
 			newSubscriptionsVersionLocalizationsLinksCommand(d),
@@ -58,7 +58,7 @@ func newSubscriptionsVersionLocalizationsListCommand(d *shared.Deps) *ffcli.Comm
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: "asc subscriptions versions localizations list [flags]", ShortHelp: "List localizations for a subscription version.",
-		LongHelp: "List version-scoped subscription localizations.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "List version-scoped subscription localizations.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions localizations list", 200, "fields", "version-fields", "include", "limit"); err != nil {
 				return err
@@ -124,7 +124,7 @@ func newSubscriptionsVersionLocalizationsLinksCommand(d *shared.Deps) *ffcli.Com
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "links", ShortUsage: "asc subscriptions versions localizations links [flags]", ShortHelp: "List raw localization linkages.",
-		LongHelp: "List raw localization relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "List raw localization relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions localizations links", 200, "limit"); err != nil {
 				return err
@@ -207,7 +207,7 @@ func newSubscriptionsVersionLocalizationsCreateCommand(d *shared.Deps) *ffcli.Co
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "create", ShortUsage: "asc subscriptions versions localizations create [flags]", ShortHelp: "Create a version-scoped localization.",
-		LongHelp: "Create a localization associated with a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "Create a localization associated with a subscription version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id, localeValue, nameValue := strings.TrimSpace(*versionID), strings.TrimSpace(*locale), strings.TrimSpace(*name)
 			if id == "" {
@@ -254,7 +254,7 @@ func newSubscriptionsVersionLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Co
 
 Examples:
   asc subscriptions versions localizations update --id "LOCALIZATION_ID" --name "Pro Plus"
-  asc subscriptions versions localizations update --id "LOCALIZATION_ID" --clear-description`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+  asc subscriptions versions localizations update --id "LOCALIZATION_ID" --clear-description`, FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			localizationID := strings.TrimSpace(*id)
 			if localizationID == "" {

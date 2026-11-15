@@ -34,11 +34,11 @@ func SetSimulatorListLoaderForTesting(fn func(context.Context) ([]byte, error)) 
 }
 
 // XcodeTestDestinationsCommand lists destinations that can be pasted into xcode test --destination.
-func XcodeTestDestinationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode test-destinations", flag.ExitOnError)
+func newXcodeTestDestinationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode test-destinations", flag.ExitOnError)
 	platform := fs.String("platform", "", "Platform: iOS, watchOS, tvOS, visionOS, or macOS")
 	availableOnly := fs.Bool("available-only", false, "Omit simulators marked unavailable")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "test-destinations",
@@ -55,22 +55,22 @@ Examples:
   asc xcode test-destinations --output json
   asc xcode test-destinations --platform iOS --available-only`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			normalized, err := normalizeDestinationPlatform(*platform)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			readCtx, cancel := shared.ContextWithTimeout(ctx)
+			readCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			result, err := listTestDestinations(readCtx, normalized, *availableOnly)
 			if err != nil {
 				return fmt.Errorf("xcode test-destinations: %w", err)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

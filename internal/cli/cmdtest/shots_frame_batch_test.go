@@ -39,7 +39,7 @@ func TestShotsFrame_FrameColorAndTextControlsReachRenderer(t *testing.T) {
 		return frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{Device: req.Device, UploadWidth: 2064, UploadHeight: 2752}), nil
 	})
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", outputDir,
@@ -51,7 +51,7 @@ func TestShotsFrame_FrameColorAndTextControlsReachRenderer(t *testing.T) {
 		"--text-position", "bottom",
 		"--bg-color", "#111111",
 		"--output", "json",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error = %v (stderr %q)", err, stderr)
 	}
@@ -77,7 +77,7 @@ func TestShotsFrame_BGColorAppliesToBezelDevice(t *testing.T) {
 		}
 		return frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{Device: req.Device}), nil
 	})
-	if _, stderr, err := runCommand(t, []string{"screenshots", "frame", "--input", rawPath, "--output-dir", outputDir, "--bg-color", "#fff", "--output", "json"}); err != nil {
+	if _, stderr, err := runRootWithDeps(t, nil, []string{"screenshots", "frame", "--input", rawPath, "--output-dir", outputDir, "--bg-color", "#fff", "--output", "json"}...); err != nil {
 		t.Fatalf("run error = %v (stderr %q)", err, stderr)
 	}
 }
@@ -226,14 +226,14 @@ func TestShotsFrame_InputDirFramesEveryPNG(t *testing.T) {
 		}), nil
 	})
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input-dir", inputDir,
 		"--output-dir", outputDir,
 		"--device", "watch-ultra-3",
 		"--overlay-config", overlayPath,
 		"--output", "json",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error = %v (stderr %q)", err, stderr)
 	}
@@ -294,12 +294,12 @@ func TestShotsFrame_InputDirRendersEnumeratedBytesNotLaterSymlink(t *testing.T) 
 		return frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{Device: req.Device}), nil
 	})
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input-dir", inputDir,
 		"--output-dir", filepath.Join(t.TempDir(), "framed"),
 		"--output", "json",
-	})
+	}...)
 	if err == nil {
 		t.Fatalf("expected the replaced input to fail (stdout %q)", stdout)
 	}
@@ -347,7 +347,7 @@ func TestShotsFrame_InputDirKeepsCaseDistinctOutputsOnCaseSensitiveFilesystem(t 
 		rendered = append(rendered, filepath.Base(req.OutputPath))
 		return frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{Device: req.Device}), nil
 	})
-	_, stderr, err := runCommand(t, []string{"screenshots", "frame", "--input-dir", inputDir, "--output-dir", outputDir, "--output", "json"})
+	_, stderr, err := runRootWithDeps(t, nil, []string{"screenshots", "frame", "--input-dir", inputDir, "--output-dir", outputDir, "--output", "json"}...)
 	if err != nil {
 		t.Fatalf("run error = %v (stderr %q)", err, stderr)
 	}
@@ -388,7 +388,7 @@ func TestShotsFrame_InputDirReportsPartialFailureAndResumes(t *testing.T) {
 		"--resume",
 		"--output", "json",
 	}
-	stdout, stderr, err := runCommand(t, args)
+	stdout, stderr, err := runRootWithDeps(t, nil, args...)
 	if err == nil {
 		t.Fatal("expected partial batch failure")
 	}
@@ -411,7 +411,7 @@ func TestShotsFrame_InputDirReportsPartialFailureAndResumes(t *testing.T) {
 
 	failSearch = false
 	rendered = nil
-	stdout, stderr, err = runCommand(t, args)
+	stdout, stderr, err = runRootWithDeps(t, nil, args...)
 	if err != nil {
 		t.Fatalf("resume run error = %v (stderr %q)", err, stderr)
 	}

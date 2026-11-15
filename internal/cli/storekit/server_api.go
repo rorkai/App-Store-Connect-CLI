@@ -110,7 +110,7 @@ func transactionsViewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit transactions view", flag.ExitOnError)
 	transactionID := fs.String("transaction-id", "", "Transaction ID or original transaction ID")
 	flags := bindServerReadFlags(d, fs, true)
-	return documentedLeafCommand("view", "asc storekit transactions view --transaction-id ID --environment ENV [flags]",
+	return documentedLeafCommand(d, "view", "asc storekit transactions view --transaction-id ID --environment ENV [flags]",
 		"Get one transaction (Get Transaction Info).",
 		"Get one transaction with Apple's Get Transaction Info endpoint.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
@@ -141,7 +141,7 @@ func transactionsHistoryCommand(d *shared.Deps) *ffcli.Command {
 	fs.Var(&revoked, "revoked", "true for only revoked transactions, false for only non-revoked")
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	flags := bindServerReadFlags(d, fs, true)
-	return documentedLeafCommand("history", "asc storekit transactions history --transaction-id ID --environment ENV [flags]",
+	return documentedLeafCommand(d, "history", "asc storekit transactions history --transaction-id ID --environment ENV [flags]",
 		"Get a customer's transaction history (Get Transaction History v2).",
 		"Get a customer's In-App Purchase history with Apple's Get Transaction History v2\nendpoint. Apple returns up to 20 transactions per page; use --paginate for all\npages or --revision to continue from a stored revision with the same filters.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
@@ -169,7 +169,7 @@ func subscriptionsStatusCommand(d *shared.Deps) *ffcli.Command {
 	transactionID := fs.String("transaction-id", "", "Any transaction, original transaction, or app transaction ID for the customer")
 	status := fs.String("status", "", "Status filter (comma-separated): 1 active, 2 expired, 3 billing retry, 4 grace period, 5 revoked")
 	flags := bindServerReadFlags(d, fs, true)
-	return documentedLeafCommand("status", "asc storekit subscriptions status --transaction-id ID --environment ENV [flags]",
+	return documentedLeafCommand(d, "status", "asc storekit subscriptions status --transaction-id ID --environment ENV [flags]",
 		"Get all subscription statuses for a customer (Get All Subscription Statuses).",
 		"Get the status of every auto-renewable subscription a customer has in your app\nwith Apple's Get All Subscription Statuses endpoint.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
@@ -196,7 +196,7 @@ func refundsHistoryCommand(d *shared.Deps) *ffcli.Command {
 	revision := fs.String("revision", "", "Revision token from a previous response, to continue from that page")
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	flags := bindServerReadFlags(d, fs, true)
-	return documentedLeafCommand("history", "asc storekit refunds history --transaction-id ID --environment ENV [flags]",
+	return documentedLeafCommand(d, "history", "asc storekit refunds history --transaction-id ID --environment ENV [flags]",
 		"Get a customer's refunded purchases (Get Refund History v2).",
 		"Get a customer's App Store-approved refunds with Apple's Get Refund History v2\nendpoint. Apple returns up to 20 transactions per page; use --paginate for all\npages or --revision to continue from a stored revision.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
@@ -219,7 +219,7 @@ func ordersLookupCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit orders lookup", flag.ExitOnError)
 	orderID := fs.String("order-id", "", "Order ID from the customer's App Store receipt")
 	flags := bindServerReadFlags(d, fs, true)
-	return documentedLeafCommand("lookup", "asc storekit orders lookup --order-id ID --environment production [flags]",
+	return documentedLeafCommand(d, "lookup", "asc storekit orders lookup --order-id ID --environment production [flags]",
 		"Look up In-App Purchases by order ID (Look Up Order ID).",
 		"Look up the In-App Purchases in a customer's order with Apple's Look Up Order ID\nendpoint. A status of 0 means the order ID is valid; 1 means it's invalid or\nhas no In-App Purchases for your app. Apple doesn't offer this endpoint in\nsandbox, so --environment must be production.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
@@ -251,7 +251,7 @@ func notificationsHistoryCommand(d *shared.Deps) *ffcli.Command {
 	paginationToken := fs.String("pagination-token", "", "Pagination token from a previous response, to continue from that page")
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	flags := bindServerReadFlags(d, fs, true)
-	return documentedLeafCommand("history", "asc storekit notifications history --start DATE --end DATE --environment ENV [flags]",
+	return documentedLeafCommand(d, "history", "asc storekit notifications history --start DATE --end DATE --environment ENV [flags]",
 		"Get App Store Server Notifications history (Get Notification History).",
 		"Get the version 2 notifications the App Store attempted to send to your server\nwith Apple's Get Notification History endpoint. Apple transports this read as a\nPOST; it changes nothing and runs in read-only mode. Apple returns up to 20\nrecords per page; use --paginate for all pages.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
@@ -278,7 +278,7 @@ func notificationsTestCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit notifications test", flag.ExitOnError)
 	confirm := fs.Bool("confirm", false, "Confirm sending a TEST notification to your configured server URL")
 	flags := bindServerReadFlags(d, fs, false)
-	return documentedLeafCommand("test", "asc storekit notifications test --environment ENV --confirm [flags]",
+	return documentedLeafCommand(d, "test", "asc storekit notifications test --environment ENV --confirm [flags]",
 		"Ask the App Store to send a TEST notification (Request a Test Notification).",
 		`Ask the App Store to send one TEST notification to the App Store Server
 Notifications URL configured for the chosen environment, with Apple's Request a
@@ -308,7 +308,7 @@ func notificationsTestStatusCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit notifications test-status", flag.ExitOnError)
 	token := fs.String("token", "", "testNotificationToken from asc storekit notifications test")
 	flags := bindServerReadFlags(d, fs, true)
-	return documentedLeafCommand("test-status", "asc storekit notifications test-status --token TOKEN --environment ENV [flags]",
+	return documentedLeafCommand(d, "test-status", "asc storekit notifications test-status --token TOKEN --environment ENV [flags]",
 		"Check a TEST notification's delivery (Get Test Notification Status).",
 		"Check whether the App Store delivered a TEST notification to your server with\nApple's Get Test Notification Status endpoint. Apple returns 404 until the\nstatus is available.\n\n"+unverifiedJWSHelp, fs,
 		func(ctx context.Context, args []string) error {
@@ -329,7 +329,7 @@ func groupsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit groups list", flag.ExitOnError)
 	transactionID := fs.String("transaction-id", "", "Any transaction, original transaction, or app transaction ID for the customer")
 	flags := bindServerReadFlags(d, fs, false)
-	return documentedLeafCommand("list", "asc storekit groups list --transaction-id ID --environment ENV [flags]",
+	return documentedLeafCommand(d, "list", "asc storekit groups list --transaction-id ID --environment ENV [flags]",
 		"List the groups a customer belongs to (Get Customer Groups).",
 		`List the multiseat groups a customer belongs to, and their role for each
 product, with Apple's Get Customer Groups endpoint. In sandbox, a customer
@@ -359,7 +359,7 @@ func groupsMembersCommand(d *shared.Deps) *ffcli.Command {
 	paginationToken := fs.String("pagination-token", "", "Pagination token from a previous response, to continue from that page")
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	flags := bindServerReadFlags(d, fs, false)
-	return documentedLeafCommand("members", "asc storekit groups members --group-id ID --environment ENV [flags]",
+	return documentedLeafCommand(d, "members", "asc storekit groups members --group-id ID --environment ENV [flags]",
 		"List the members of a group (Get Group Members).",
 		`List the customers in a multiseat group, by app transaction ID, with Apple's
 Get Group Members endpoint.
@@ -393,13 +393,13 @@ func groupCommand(d *shared.Deps, name, short, long string, subcommands ...*ffcl
 		LongHelp:    long,
 		FlagSet:     d.NewFlagSet("storekit "+name, flag.ExitOnError),
 		Subcommands: subcommands,
-		UsageFunc:   shared.DefaultUsageFunc,
+		UsageFunc:   d.DefaultUsageFunc,
 		Exec:        func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
 
-func documentedLeafCommand(name, usage, short, long string, fs *flag.FlagSet, exec func(context.Context, []string) error) *ffcli.Command {
-	command := leafCommand(name, usage, short, fs, exec)
+func documentedLeafCommand(d *shared.Deps, name, usage, short, long string, fs *flag.FlagSet, exec func(context.Context, []string) error) *ffcli.Command {
+	command := leafCommand(d, name, usage, short, fs, exec)
 	command.LongHelp = long
 	return command
 }

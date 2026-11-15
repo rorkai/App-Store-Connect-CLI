@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -16,9 +15,9 @@ import (
 
 var runBuild = localxcode.Build
 
-// XcodeBuildCommand returns the ordinary local build command.
-func XcodeBuildCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode build", flag.ExitOnError)
+// newXcodeBuildCommand returns the ordinary local build command.
+func newXcodeBuildCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode build", flag.ExitOnError)
 
 	workspacePath := fs.String("workspace", "", "Path to .xcworkspace directory")
 	projectPath := fs.String("project", "", "Path to .xcodeproj directory")
@@ -31,7 +30,7 @@ func XcodeBuildCommand() *ffcli.Command {
 	noCodeSigning := fs.Bool("no-code-signing", false, "Set CODE_SIGNING_ALLOWED=NO explicitly")
 	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "build",
@@ -55,48 +54,48 @@ Examples:
   asc xcode build --workspace App.xcworkspace --scheme App --configuration Release --destination 'generic/platform=iOS' --derived-data-path /tmp/AppDerivedData --result-bundle-path /tmp/App.xcresult
   asc xcode build --project App.xcodeproj --scheme App --xcodebuild-flag=-quiet --xcodebuild-flag=SWIFT_ACTIVE_COMPILATION_CONDITIONS=CI`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project"); emptyFlag != "" {
-				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+				return d.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
 			if *workspacePath == "" && *projectPath == "" && strings.TrimSpace(*scheme) == "" {
-				return shared.RequiredFlag("--scheme")
+				return d.RequiredFlag("--scheme")
 			}
-			containerNotice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace or --project is required")
+			containerNotice, err := detectXcodeContainer(d, fs, workspacePath, projectPath, "exactly one of --workspace or --project is required")
 			if err != nil {
 				return err
 			}
 			opts := localxcode.BuildOptions{
-				WorkspacePath:    strings.TrimSpace(*workspacePath),
-				ProjectPath:      strings.TrimSpace(*projectPath),
+				WorkspacePath:    osPath(d, strings.TrimSpace(*workspacePath)),
+				ProjectPath:      osPath(d, strings.TrimSpace(*projectPath)),
 				Scheme:           strings.TrimSpace(*scheme),
 				Configuration:    strings.TrimSpace(*configuration),
 				Destination:      strings.TrimSpace(*destination),
-				DerivedDataPath:  strings.TrimSpace(*derivedDataPath),
-				ResultBundlePath: strings.TrimSpace(*resultBundlePath),
+				DerivedDataPath:  osPath(d, strings.TrimSpace(*derivedDataPath)),
+				ResultBundlePath: osPath(d, strings.TrimSpace(*resultBundlePath)),
 				Clean:            *clean,
 				NoCodeSigning:    *noCodeSigning,
 				XcodebuildArgs:   []string(xcodebuildFlags),
-				LogWriter:        os.Stderr,
+				LogWriter:        d.IO.ErrOut,
 			}
 			if err := localxcode.ValidateBuildOptions(opts); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "configuration", "destination", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
-				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+				return d.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			if containerNotice != "" {
-				fmt.Fprintln(os.Stderr, containerNotice)
+				fmt.Fprintln(d.IO.ErrOut, containerNotice)
 			}
 
 			result, buildErr := runBuild(ctx, opts)
 			if result != nil {
-				if outputErr := printBuildResult(result, *output.Output, *output.Pretty); outputErr != nil {
+				if outputErr := printBuildResult(d, result, *output.Output, *output.Pretty); outputErr != nil {
 					if buildErr != nil {
 						return shared.NewErrorWithCause(outputErr, buildErr)
 					}
@@ -107,7 +106,7 @@ Examples:
 				if result == nil {
 					return xcodeCommandError("xcode build", buildErr)
 				}
-				reportXcodeFailure("xcode build", result.ExitStatus, buildErr)
+				reportXcodeFailure(d, "xcode build", result.ExitStatus, buildErr)
 				return shared.NewStderrReportedError(classifyXcodeLocalFailure(fmt.Errorf("xcode build: %w", buildErr)))
 			}
 			if result == nil {
@@ -118,17 +117,17 @@ Examples:
 	}
 }
 
-func printBuildResult(result *localxcode.BuildResult, output string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printBuildResult(d *shared.Deps, result *localxcode.BuildResult, output string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		output,
 		pretty,
 		func() error {
-			asc.RenderTable([]string{"field", "value"}, buildResultRows(result))
+			asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, buildResultRows(result))
 			return nil
 		},
 		func() error {
-			asc.RenderMarkdown([]string{"field", "value"}, buildResultRows(result))
+			asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, buildResultRows(result))
 			return nil
 		},
 	)

@@ -22,7 +22,7 @@ func newSubscriptionsGroupsVersionLocalizationsCommand(d *shared.Deps) *ffcli.Co
 These commands use the v2 localization API. Existing group-scoped commands at
 asc subscriptions groups localizations are deprecated; use these version-scoped
 commands for new workflows.`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsGroupsVersionLocalizationsListCommand(d),
 			newSubscriptionsGroupsVersionLocalizationsCreateCommand(d),
@@ -70,7 +70,7 @@ func newSubscriptionsGroupsVersionLocalizationsListCommand(d *shared.Deps) *ffcl
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc subscriptions groups versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for a subscription group version.",
-		LongHelp: "List localizations for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations list --version-id \"VERSION_ID\" --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "List localizations for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations list --version-id \"VERSION_ID\" --paginate", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions localizations list", 200, "include", "fields", "version-fields", "limit"); err != nil {
 				return err
@@ -121,7 +121,7 @@ func newSubscriptionsGroupsVersionLocalizationsCreateCommand(d *shared.Deps) *ff
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "create", ShortUsage: `asc subscriptions groups versions localizations create --version-id "VERSION_ID" --name "Premium" --locale "en-US"`, ShortHelp: "Create a localization for a subscription group version.",
-		LongHelp: "Create a localization for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations create --version-id \"VERSION_ID\" --name \"Premium\" --locale \"en-US\"", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "Create a localization for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations create --version-id \"VERSION_ID\" --name \"Premium\" --locale \"en-US\"", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
@@ -208,7 +208,7 @@ func newSubscriptionsGroupsVersionLocalizationsUpdateCommand(d *shared.Deps) *ff
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "update", ShortUsage: `asc subscriptions groups versions localizations update --id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped subscription group localization.",
-		LongHelp: "Update a version-scoped subscription group localization.\n\nExamples:\n  asc subscriptions groups versions localizations update --id \"LOCALIZATION_ID\" --name \"Premium Plus\"\n  asc subscriptions groups versions localizations update --id \"LOCALIZATION_ID\" --clear-custom-app-name", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "Update a version-scoped subscription group localization.\n\nExamples:\n  asc subscriptions groups versions localizations update --id \"LOCALIZATION_ID\" --name \"Premium Plus\"\n  asc subscriptions groups versions localizations update --id \"LOCALIZATION_ID\" --clear-custom-app-name", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {

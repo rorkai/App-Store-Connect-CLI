@@ -2505,7 +2505,7 @@ func resumeFromPersistedSession(ctx context.Context, sess persistedSession) (*Au
 	if loaded == 0 {
 		return nil, false, nil
 	}
-	client := newWebHTTPClient(newSessionCookieTrackingJarWithCached(jar, &sess))
+	client := newWebHTTPClient(newSessionCookieTrackingJarWithCached(jar, &sess), http.DefaultTransport)
 	info, err := sessionInfoFetcher(ctx, client)
 	if err != nil {
 		if isSessionInfoAuthExpired(err) {
@@ -2530,7 +2530,7 @@ func resumeFromPersistedSession(ctx context.Context, sess persistedSession) (*Au
 	return session, true, nil
 }
 
-func validatePersistedSessionReadOnly(ctx context.Context, sess persistedSession) (*http.Client, *sessionInfo, bool, error) {
+func validatePersistedSessionReadOnly(ctx context.Context, sess persistedSession, transport http.RoundTripper) (*http.Client, *sessionInfo, bool, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, nil, false, err
@@ -2539,7 +2539,7 @@ func validatePersistedSessionReadOnly(ctx context.Context, sess persistedSession
 	if loaded == 0 {
 		return nil, nil, false, nil
 	}
-	client := newWebHTTPClient(jar)
+	client := newWebHTTPClient(jar, transport)
 	info, err := sessionInfoFetcher(ctx, client)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
@@ -2553,9 +2553,9 @@ func validatePersistedSessionReadOnly(ctx context.Context, sess persistedSession
 	return client, info, true, nil
 }
 
-func resumeFromPersistedSessionReadOnly(ctx context.Context, sess persistedSession) (*AuthSession, bool, error) {
+func resumeFromPersistedSessionReadOnly(ctx context.Context, sess persistedSession, transport http.RoundTripper) (*AuthSession, bool, error) {
 	identity := &AuthSession{UserEmail: strings.TrimSpace(sess.UserEmail)}
-	client, info, ok, err := validatePersistedSessionReadOnly(ctx, sess)
+	client, info, ok, err := validatePersistedSessionReadOnly(ctx, sess, transport)
 	if err != nil || !ok {
 		return identity, ok, err
 	}
@@ -2601,7 +2601,7 @@ func loadSessionFromPersistedSession(sess persistedSession) (*AuthSession, bool,
 		return nil, false, nil
 	}
 	return &AuthSession{
-		Client:           newWebHTTPClient(newSessionCookieTrackingJarWithCached(jar, &sess)),
+		Client:           newWebHTTPClient(newSessionCookieTrackingJarWithCached(jar, &sess), http.DefaultTransport),
 		UserEmail:        strings.TrimSpace(sess.UserEmail),
 		DeveloperTeamID:  strings.TrimSpace(sess.DeveloperTeamID),
 		ProviderID:       sess.ProviderID,
@@ -2774,8 +2774,9 @@ func LoadCachedSessionFromSource(username string, source CachedSessionSource) (*
 }
 
 // ResumeCachedSessionWithoutPersist validates a cached session for one Apple
-// ID without prompting or writing/migrating cached state.
-func ResumeCachedSessionWithoutPersist(ctx context.Context, username string) (*AuthSession, bool, error) {
+// ID without prompting or writing/migrating cached state. The session client
+// sends through transport.
+func ResumeCachedSessionWithoutPersist(ctx context.Context, username string, transport http.RoundTripper) (*AuthSession, bool, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -2797,7 +2798,7 @@ func ResumeCachedSessionWithoutPersist(ctx context.Context, username string) (*A
 	if strings.TrimSpace(sess.UserEmail) == "" {
 		sess.UserEmail = username
 	}
-	return resumeFromPersistedSessionReadOnly(ctx, sess)
+	return resumeFromPersistedSessionReadOnly(ctx, sess, transport)
 }
 
 // TryResumeSession attempts to resume a session for a specific Apple ID.
@@ -2894,8 +2895,9 @@ func LoadLastCachedSession() (*AuthSession, bool, error) {
 }
 
 // ResumeLastCachedSessionWithoutPersist validates the last cached session
-// without prompting or writing/migrating cached state.
-func ResumeLastCachedSessionWithoutPersist(ctx context.Context) (*AuthSession, bool, error) {
+// without prompting or writing/migrating cached state. The session client
+// sends through transport.
+func ResumeLastCachedSessionWithoutPersist(ctx context.Context, transport http.RoundTripper) (*AuthSession, bool, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -2909,7 +2911,7 @@ func ResumeLastCachedSessionWithoutPersist(ctx context.Context) (*AuthSession, b
 	if err != nil || !ok {
 		return nil, false, err
 	}
-	return resumeFromPersistedSessionReadOnly(ctx, sess)
+	return resumeFromPersistedSessionReadOnly(ctx, sess, transport)
 }
 
 // TryResumeLastSession attempts to resume the last successful web session.
