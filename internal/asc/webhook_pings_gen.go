@@ -2,6 +2,12 @@
 
 package asc
 
+import (
+	"context"
+	"net/http"
+	"strings"
+)
+
 // WebhookPingCreateData is the data object of the WebhookPingCreateRequest schema.
 type WebhookPingCreateData struct {
 	Type          ResourceType                   `json:"type"`
@@ -16,4 +22,27 @@ type WebhookPingCreateRelationships struct {
 // WebhookPingCreateRequest is the WebhookPingCreateRequest schema.
 type WebhookPingCreateRequest struct {
 	Data WebhookPingCreateData `json:"data"`
+}
+
+// CreateWebhookPing sends POST /v1/webhookPings (webhookPings_createInstance).
+func (c *Client) CreateWebhookPing(ctx context.Context, webhookID string) (*WebhookPingResponse, error) {
+	payload := WebhookPingCreateRequest{
+		Data: WebhookPingCreateData{
+			Type: ResourceTypeWebhookPings,
+			Relationships: WebhookPingCreateRelationships{
+				Webhook: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeWebhooks,
+						ID:   strings.TrimSpace(webhookID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[WebhookPingResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/webhookPings",
+		Payload:  payload,
+		ParseErr: "failed to parse webhook ping response",
+	})
 }

@@ -14,6 +14,21 @@ type AppClipAttributes struct {
 	BundleID string `json:"bundleId,omitempty"`
 }
 
+// GetAppClipAdvancedExperiences sends GET /v1/appClips/{id}/appClipAdvancedExperiences (appClips_appClipAdvancedExperiences_getToManyRelated).
+func (c *Client) GetAppClipAdvancedExperiences(ctx context.Context, appClipID string, opts ...AppClipAdvancedExperiencesOption) (*AppClipAdvancedExperiencesResponse, error) {
+	query := applyOptions(opts)
+	appClipID = strings.TrimSpace(appClipID)
+	if query.nextURL == "" && appClipID == "" {
+		return nil, fmt.Errorf("appClipID is required")
+	}
+	return getJSON[AppClipAdvancedExperiencesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appClips/%s/appClipAdvancedExperiences", appClipID),
+		Query:       buildAppClipAdvancedExperiencesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClipAdvancedExperiences",
+	})
+}
+
 // GetAppClipAdvancedExperiencesRelationships sends GET /v1/appClips/{id}/relationships/appClipAdvancedExperiences (appClips_appClipAdvancedExperiences_getToManyRelationship).
 func (c *Client) GetAppClipAdvancedExperiencesRelationships(ctx context.Context, appClipID string, opts ...LinkagesOption) (*AppClipAdvancedExperiencesLinkagesResponse, error) {
 	query := applyOptions(opts)
@@ -23,6 +38,21 @@ func (c *Client) GetAppClipAdvancedExperiencesRelationships(ctx context.Context,
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appClipAdvancedExperiencesRelationships",
+	})
+}
+
+// GetAppClipDefaultExperiences sends GET /v1/appClips/{id}/appClipDefaultExperiences (appClips_appClipDefaultExperiences_getToManyRelated).
+func (c *Client) GetAppClipDefaultExperiences(ctx context.Context, appClipID string, opts ...AppClipDefaultExperiencesOption) (*AppClipDefaultExperiencesResponse, error) {
+	query := applyOptions(opts)
+	appClipID = strings.TrimSpace(appClipID)
+	if query.nextURL == "" && appClipID == "" {
+		return nil, fmt.Errorf("appClipID is required")
+	}
+	return getJSON[AppClipDefaultExperiencesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appClips/%s/appClipDefaultExperiences", appClipID),
+		Query:       buildAppClipDefaultExperiencesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClipDefaultExperiences",
 	})
 }
 

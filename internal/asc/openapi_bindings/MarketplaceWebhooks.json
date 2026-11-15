@@ -13,8 +13,10 @@
     "MarketplaceWebhooksResponse"
   ],
   "operations": [
+    {"operation":"marketplaceWebhooks_createInstance","name":"CreateMarketplaceWebhook","check":"require","parseErr":"failed to parse marketplace webhook response","args":[{"name":"endpointURL","attribute":"endpointUrl","param":true},{"name":"secret","param":true}]},
     {"operation":"marketplaceWebhooks_deleteInstance","name":"DeleteMarketplaceWebhook","params":["webhookID"],"check":"require"},
-    {"operation":"marketplaceWebhooks_getCollection","name":"GetMarketplaceWebhooks","options":"MarketplaceWebhooksOption","query":"buildMarketplaceWebhooksQuery","nextContext":"marketplaceWebhooks","parseErr":"failed to parse marketplace webhooks response"}
+    {"operation":"marketplaceWebhooks_getCollection","name":"GetMarketplaceWebhooks","options":"MarketplaceWebhooksOption","query":"buildMarketplaceWebhooksQuery","nextContext":"marketplaceWebhooks","parseErr":"failed to parse marketplace webhooks response"},
+    {"operation":"marketplaceWebhooks_updateInstance","name":"UpdateMarketplaceWebhook","params":["webhookID"],"check":"require","parseErr":"failed to parse marketplace webhook response","skipEmptyAttributes":true}
   ],
   "queries": [
     {"operation":"marketplaceWebhooks_getCollection","name":"MarketplaceWebhooks","params":[{"name":"fields[marketplaceWebhooks]"}]}

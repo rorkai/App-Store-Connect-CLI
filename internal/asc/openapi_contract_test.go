@@ -56,7 +56,9 @@ type contractOpBinding struct {
 	// SkipEmptyAttributes is set on an update that sends its attributes only
 	// when one of them is set.
 	SkipEmptyAttributes bool `json:"skipEmptyAttributes"`
-	Args                []struct {
+	// ParseErr prefixes the error of a response the method cannot decode.
+	ParseErr string `json:"parseErr"`
+	Args     []struct {
 		Name      string `json:"name"`
 		Attribute string `json:"attribute"`
 	} `json:"args"`
@@ -632,12 +634,27 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	if b.SkipEmptyAttributes {
 		problems = append(problems, checkContractAttributesIfSet(call, response)...)
 	}
+	if method.Type().NumOut() == 2 {
+		problems = append(problems, checkContractParseErr(call, args, response, b.ParseErr)...)
+	}
 	problems = append(problems, checkContractBody(spec, op, req.body, call)...)
 	if call.attrsArg != nil {
 		attrs := spec.property(spec.property(op.RequestBody.schema(spec), "data"), "attributes")
 		problems = append(problems, checkContractAttributeFields(call, response, attrs)...)
 	}
 	return problems
+}
+
+// checkContractParseErr answers with a body that is not JSON and checks that
+// the method wraps the decode failure with the text its binding names.
+func checkContractParseErr(call *contractCall, args []reflect.Value, response contractResponse, parseErr string) []string {
+	response.body = "not json"
+	_, _, err := call.invoke(args, response)
+	want := cmp.Or(parseErr, "failed to parse response") + ": "
+	if err == nil || !strings.HasPrefix(err.Error(), want) {
+		return []string{fmt.Sprintf("a response that is not JSON fails with %v, want an error starting %q", err, want)}
+	}
+	return nil
 }
 
 func contractPath(template string, args []string) string {

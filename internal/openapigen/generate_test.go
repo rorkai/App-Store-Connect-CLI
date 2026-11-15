@@ -170,6 +170,8 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"param arg with the inline check style", &Family{Relationships: []*RelBind{{Data: "WristbandCreateData", Type: "*WristbandCreateRelationships"}}, Operations: []*OpBind{{Operation: "wristbands_createInstance", Name: "X", Params: []string{"widgetID"}, Links: []string{"widget"}, Args: []ArgBind{{Name: "label", Param: true}}}}}},
 		{"named arg type for an attribute that is no enum", wristband(ArgBind{Name: "label", Type: "WristbandLabel"})},
 		{"named arg type that is not a type name", wristband(ArgBind{Name: "color", Type: "*WristbandColor"})},
+		{"decode error text on a delete", &Family{Operations: []*OpBind{{Operation: "widgets_deleteInstance", Name: "X", Params: []string{"id"}, ParseErr: "failed to parse widget"}}}},
+		{"decode error text on a relationship change", &Family{Operations: []*OpBind{{Operation: "widgets_gadgets_replaceToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", ParseErr: "failed to parse gadgets"}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

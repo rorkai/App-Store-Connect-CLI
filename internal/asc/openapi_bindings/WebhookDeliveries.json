@@ -9,5 +9,8 @@
   ],
   "relationships": [
     {"data":"WebhookDeliveryCreateData","type":"WebhookDeliveryCreateRelationships"}
+  ],
+  "operations": [
+    {"operation":"webhookDeliveries_createInstance","name":"CreateWebhookDelivery","params":["deliveryID"],"parseErr":"failed to parse webhook delivery response","links":["template"]}
   ]
 }
