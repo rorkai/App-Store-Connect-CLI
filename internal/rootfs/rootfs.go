@@ -658,7 +658,17 @@ func validateMissingRootComponent(component string) error {
 // final-component O_NOFOLLOW open, this rejects symlinks in parent components
 // below the selected root.
 func OpenFile(path string) (*os.File, error) {
-	root, relative, err := trustedAnchorFor(path)
+	return openAnchoredFile(trustedAnchorFor(path))
+}
+
+// OpenFileIn is OpenFile with workingDir in place of the current working
+// directory as the trusted anchor. A relative path still resolves against the
+// current working directory, so callers resolve it against workingDir first.
+func OpenFileIn(workingDir, path string) (*os.File, error) {
+	return openAnchoredFile(trustedAnchorIn(workingDir, path))
+}
+
+func openAnchoredFile(root Root, relative string, err error) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -717,6 +727,10 @@ func ChmodFileIfSame(path string, expected os.FileInfo, mode os.FileMode) error 
 // or OS temporary directory use that anchor; other paths use their filesystem
 // root.
 func trustedAnchorFor(path string) (Root, string, error) {
+	return trustedAnchorIn(workingDirectory(), path)
+}
+
+func trustedAnchorIn(workingDir, path string) (Root, string, error) {
 	if path == "" {
 		return Root{}, "", fmt.Errorf("%w: path is empty", ErrEscapesRoot)
 	}
@@ -726,7 +740,7 @@ func trustedAnchorFor(path string) (Root, string, error) {
 	}
 	volumeRoot := filepath.VolumeName(absolute) + string(filepath.Separator)
 	rootPath := volumeRoot
-	candidates := []string{workingDirectory(), os.TempDir()}
+	candidates := []string{workingDir, os.TempDir()}
 	candidates = append(candidates, trustedPathAliases()...)
 	for _, candidate := range candidates {
 		candidate, err = filepath.Abs(candidate)

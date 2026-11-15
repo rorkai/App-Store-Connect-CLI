@@ -59,7 +59,13 @@ func ResolveReportOutputPaths(outputPath, defaultCompressed, decompressedExt str
 
 // WriteStreamToFile writes a reader to a file securely.
 func WriteStreamToFile(path string, reader io.Reader) (int64, error) {
-	return createNewOutputFile(path, reader)
+	return createNewOutputFile(filepath.Abs, os.Getwd, path, reader)
+}
+
+// WriteStreamToFile is WriteStreamToFile with a relative path resolved against
+// d's working directory.
+func (d *Deps) WriteStreamToFile(path string, reader io.Reader) (int64, error) {
+	return createNewOutputFile(d.Abs, d.Getwd, path, reader)
 }
 
 // DecompressGzipFile inflates a gzip file to the destination path.
@@ -69,28 +75,51 @@ func DecompressGzipFile(sourcePath, destPath string) (int64, error) {
 		return 0, err
 	}
 	defer in.Close()
+	return decompressGzipTo(filepath.Abs, os.Getwd, in, destPath)
+}
 
+// DecompressGzipFile is DecompressGzipFile with relative paths resolved
+// against d's working directory.
+func (d *Deps) DecompressGzipFile(sourcePath, destPath string) (int64, error) {
+	source := sourcePath
+	if source != "" {
+		absolute, err := d.Abs(source)
+		if err != nil {
+			return 0, fmt.Errorf("resolve path %q: %w", sourcePath, err)
+		}
+		source = absolute
+	}
+	workingDir, _ := d.Getwd()
+	in, err := rootfs.OpenFileIn(workingDir, source)
+	if err != nil {
+		return 0, err
+	}
+	defer in.Close()
+	return decompressGzipTo(d.Abs, d.Getwd, in, destPath)
+}
+
+func decompressGzipTo(abs func(string) (string, error), getwd func() (string, error), in io.Reader, destPath string) (int64, error) {
 	reader, err := gzip.NewReader(in)
 	if err != nil {
 		return 0, err
 	}
 	defer reader.Close()
 
-	return createNewOutputFile(destPath, reader)
+	return createNewOutputFile(abs, getwd, destPath, reader)
 }
 
 // createNewOutputFile writes a complete stream below the filesystem root. The
 // rooted traversal rejects symlinks in every parent component, and atomic
 // no-replace publication keeps a failed stream from leaving a partial output.
-func createNewOutputFile(path string, reader io.Reader) (int64, error) {
-	absolute, err := filepath.Abs(path)
+func createNewOutputFile(abs func(string) (string, error), getwd func() (string, error), path string, reader io.Reader) (int64, error) {
+	absolute, err := abs(path)
 	if err != nil {
 		return 0, fmt.Errorf("resolve output path %q: %w", path, err)
 	}
 	rootPath := filepath.VolumeName(absolute) + string(filepath.Separator)
-	workingDir, _ := os.Getwd()
+	workingDir, _ := getwd()
 	for _, candidate := range []string{workingDir, os.TempDir()} {
-		candidate, err := filepath.Abs(candidate)
+		candidate, err := abs(candidate)
 		if err != nil {
 			continue
 		}
