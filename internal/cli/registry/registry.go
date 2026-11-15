@@ -321,7 +321,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", func() *ffcli.Command {
 			return migrate.NewMigrateCommand(d)
 		}),
-		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
+		commandFactory("notify", "Send notifications to external services.", func() *ffcli.Command { return notify.NewNotifyCommand(d) }),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", func() *ffcli.Command {
 			return gamecenter.NewGameCenterCommand(d)
 		}),
