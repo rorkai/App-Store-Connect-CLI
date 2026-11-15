@@ -225,7 +225,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("build-bundles", "Manage build bundles and App Clip data.", func() *ffcli.Command {
 			return buildbundles.NewBuildBundlesCommand(d)
 		}),
-		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", publish.PublishCommand),
+		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", func() *ffcli.Command {
+			return publish.NewPublishCommand(d)
+		}),
 		commandFactory("release", "Run high-level App Store release workflows.", func() *ffcli.Command {
 			return release.NewReleaseCommand(d)
 		}),

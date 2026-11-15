@@ -20,7 +20,7 @@ type publishVersionMetadataOptions struct {
 	ValuesByLocale map[string]map[string]string
 }
 
-func applyPublishVersionMetadata(ctx context.Context, client *asc.Client, opts publishVersionMetadataOptions) ([]asc.LocalizationUploadLocaleResult, error) {
+func applyPublishVersionMetadata(ctx context.Context, d *shared.Deps, client *asc.Client, opts publishVersionMetadataOptions) ([]asc.LocalizationUploadLocaleResult, error) {
 	versionID := strings.TrimSpace(opts.VersionID)
 	if versionID == "" {
 		return nil, fmt.Errorf("version ID is required")
@@ -29,18 +29,18 @@ func applyPublishVersionMetadata(ctx context.Context, client *asc.Client, opts p
 	valuesByLocale := opts.ValuesByLocale
 	if valuesByLocale == nil {
 		var err error
-		valuesByLocale, err = loadPublishVersionMetadataValues(opts.Dir, opts.Version)
+		valuesByLocale, err = loadPublishVersionMetadataValues(d.OSPath(opts.Dir), opts.Version)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	results, warnings, err := shared.UploadVersionLocalizationsWithWarnings(ctx, client, versionID, valuesByLocale, false, shared.SubmitReadinessOptions{})
+	results, warnings, err := d.UploadVersionLocalizationsWithWarnings(ctx, client, versionID, valuesByLocale, false, shared.SubmitReadinessOptions{})
 	if err != nil && len(results) == 0 {
 		return nil, err
 	}
 	if len(warnings) > 0 {
-		if warnErr := shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings); warnErr != nil {
+		if warnErr := shared.PrintSubmitReadinessCreateWarnings(d.IO.ErrOut, warnings); warnErr != nil {
 			return nil, warnErr
 		}
 	}

@@ -53,10 +53,11 @@ func TestUploadBuildAndWaitForIDRecoversAmbiguousCommit(t *testing.T) {
 
 	var result *publishUploadResult
 	var uploadErr error
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	d := newPublishTestDeps()
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		result, uploadErr = uploadBuildAndWaitForID(ctx, client, "app-1", path, fileInfo, "1.2.3", "42", asc.PlatformIOS, time.Millisecond, time.Second, true)
+		result, uploadErr = uploadBuildAndWaitForID(ctx, d, client, "app-1", path, fileInfo, "1.2.3", "42", asc.PlatformIOS, time.Millisecond, time.Second, true)
 		return uploadErr
 	})
 
@@ -117,7 +118,7 @@ func TestUploadPKGBuildAndWaitForIDPinsValidatedFile(t *testing.T) {
 		}
 	}))
 
-	_, err = uploadPKGBuildAndWaitForID(context.Background(), newPublishCommandTestClient(t), "app-1", path, fileInfo, "1.2.3", "42", asc.PlatformMacOS, time.Millisecond, time.Second, true)
+	_, err = uploadPKGBuildAndWaitForID(context.Background(), newPublishTestDeps(), newPublishCommandTestClient(t), "app-1", path, fileInfo, "1.2.3", "42", asc.PlatformMacOS, time.Millisecond, time.Second, true)
 	if err == nil || !strings.Contains(err.Error(), "stop after upload") {
 		t.Fatalf("expected commit sentinel, got %v", err)
 	}

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
@@ -32,7 +33,8 @@ func TestPublishTestFlightUploadOnlyIPAWaitsThenStopsBeforeDistribution(t *testi
 		return publishUploadOnlyResult("1.2.3", "42", asc.BuildProcessingStateValid).Build, nil
 	}
 
-	cmd := PublishTestFlightCommand()
+	d := newPublishTestDeps()
+	cmd := newPublishTestFlightCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "friendly-app",
@@ -46,7 +48,7 @@ func TestPublishTestFlightUploadOnlyIPAWaitsThenStopsBeforeDistribution(t *testi
 		t.Fatalf("parse flags: %v", err)
 	}
 
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		return cmd.Exec(context.Background(), nil)
 	})
 	if strings.TrimSpace(stderr) != "" {
@@ -118,13 +120,14 @@ func TestPublishTestFlightUploadOnlyLocalBuildStopsBeforeDistribution(t *testing
 		}, nil
 	}
 	uploadCalls := 0
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		uploadCalls++
 		return publishUploadOnlyResult(version, buildNumber, asc.BuildProcessingStateProcessing), nil
 	}
 	requestCalls := rejectPublishUploadOnlyHTTP(t)
 
-	cmd := PublishTestFlightCommand()
+	d := newPublishTestDeps()
+	cmd := newPublishTestFlightCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "friendly-app",
@@ -140,7 +143,7 @@ func TestPublishTestFlightUploadOnlyLocalBuildStopsBeforeDistribution(t *testing
 		t.Fatalf("parse flags: %v", err)
 	}
 
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		return cmd.Exec(context.Background(), nil)
 	})
 	if strings.TrimSpace(stderr) != "" {
@@ -205,14 +208,15 @@ func TestPublishTestFlightUploadOnlyRejectsContradictoryFlagsDeterministically(t
 			}
 			args = append(args, test.args...)
 
-			cmd := PublishTestFlightCommand()
+			d := newPublishTestDeps()
+			cmd := newPublishTestFlightCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(args); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}
 
 			var runErr error
-			stdout, stderr := capturePublishCommandOutput(t, func() error {
+			stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})
@@ -233,7 +237,8 @@ func TestPublishTestFlightUploadOnlyRejectsContradictoryFlagsDeterministically(t
 }
 
 func TestPublishTestFlightUploadOnlyRequiresUploadSource(t *testing.T) {
-	cmd := PublishTestFlightCommand()
+	d := newPublishTestDeps()
+	cmd := newPublishTestFlightCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
@@ -244,7 +249,7 @@ func TestPublishTestFlightUploadOnlyRequiresUploadSource(t *testing.T) {
 	}
 
 	var runErr error
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -275,7 +280,8 @@ func TestPublishTestFlightUploadOnlyProcessingFailurePrintsPartialBuildAndDoesNo
 		return nil, errors.New("processing sentinel")
 	}
 
-	cmd := PublishTestFlightCommand()
+	d := newPublishTestDeps()
+	cmd := newPublishTestFlightCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "friendly-app",
@@ -290,7 +296,7 @@ func TestPublishTestFlightUploadOnlyProcessingFailurePrintsPartialBuildAndDoesNo
 	}
 
 	var runErr error
-	stdout, _ := capturePublishCommandOutput(t, func() error {
+	stdout, _ := capturePublishDepsOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -332,7 +338,7 @@ func configurePublishUploadOnlyIPA(t *testing.T, processingState string) *int {
 	}
 	validatePublishIPAPathFn = func(string) (os.FileInfo, error) { return newPublishTestFileInfo(t) }
 	uploadCalls := 0
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, appID, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, appID, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		uploadCalls++
 		if appID != "app-123" {
 			t.Fatalf("expected resolved app ID, got %q", appID)

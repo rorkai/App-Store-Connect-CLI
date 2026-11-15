@@ -16,6 +16,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
@@ -64,6 +65,7 @@ func TestPublishLocalBuildExportOptionsPrecedence(t *testing.T) {
 			}
 
 			config, err := resolveLocalBuildConfig(
+				newPublishTestDeps(),
 				publishExportOptionsTestFlagValues(t, tc.explicit),
 				"IOS",
 				"1.2.3",
@@ -99,10 +101,10 @@ func TestPublishLocalBuildGenerationFlagsBypassConventionalOptions(t *testing.T)
 		t.Fatalf("parse local-build flags: %v", err)
 	}
 	setFlags := collectSetFlags(fs)
-	if err := validatePublishExportOptionsFlags(values, setFlags); err != nil {
+	if err := validatePublishExportOptionsFlags(newPublishTestDeps(), values, setFlags); err != nil {
 		t.Fatalf("validatePublishExportOptionsFlags() error: %v", err)
 	}
-	config, err := resolveLocalBuildConfig(values, "IOS", "1.2.3", "42")
+	config, err := resolveLocalBuildConfig(newPublishTestDeps(), values, "IOS", "1.2.3", "42")
 	if err != nil {
 		t.Fatalf("resolveLocalBuildConfig() error: %v", err)
 	}
@@ -187,13 +189,14 @@ func TestPublishLocalBuildGeneratesExportOptionsAfterArchive(t *testing.T) {
 	validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
 		return newPublishTestFileInfo(t)
 	}
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		callOrder = append(callOrder, "upload")
 		return &publishUploadResult{Version: version, BuildNumber: buildNumber}, nil
 	}
 
 	result, err := runPublishLocalBuild(
 		context.Background(),
+		newPublishTestDeps(),
 		nil,
 		"app-123",
 		"IOS",
@@ -249,7 +252,7 @@ func TestPublishLocalBuildThreadsManualSigningOptionsAfterArchive(t *testing.T) 
 	}
 
 	_, err := runPublishLocalBuild(
-		context.Background(), nil, "app-123", "IOS", "1.2.3", "42",
+		context.Background(), newPublishTestDeps(), nil, "app-123", "IOS", "1.2.3", "42",
 		5*time.Second, time.Minute, false,
 		publishLocalBuildConfig{
 			WorkspacePath: "Demo.xcworkspace",
@@ -274,12 +277,12 @@ func TestPublishLocalBuildThreadsManualSigningOptionsAfterArchive(t *testing.T) 
 func TestPublishRejectsExplicitOptionsWithGenerationFlagsBeforeSideEffects(t *testing.T) {
 	for _, command := range []struct {
 		name     string
-		cmd      func() *ffcli.Command
+		cmd      func(*shared.Deps) *ffcli.Command
 		baseArgs []string
 	}{
 		{
 			name: "testflight",
-			cmd:  PublishTestFlightCommand,
+			cmd:  newPublishTestFlightCommand,
 			baseArgs: []string{
 				"--app", "app-123", "--workspace", "Demo.xcworkspace", "--scheme", "Demo",
 				"--version", "1.2.3", "--group", "group-1", "--export-options", "ExportOptions.plist",
@@ -287,7 +290,7 @@ func TestPublishRejectsExplicitOptionsWithGenerationFlagsBeforeSideEffects(t *te
 		},
 		{
 			name: "appstore",
-			cmd:  PublishAppStoreCommand,
+			cmd:  newPublishAppStoreCommand,
 			baseArgs: []string{
 				"--app", "app-123", "--workspace", "Demo.xcworkspace", "--scheme", "Demo",
 				"--version", "1.2.3", "--export-options", "ExportOptions.plist",
@@ -306,7 +309,8 @@ func TestPublishRejectsExplicitOptionsWithGenerationFlagsBeforeSideEffects(t *te
 					t.Fatal("ASC client must not be created for conflicting export-options flags")
 					return nil, nil
 				}
-				cmd := command.cmd()
+				d := newPublishTestDeps()
+				cmd := command.cmd(d)
 				cmd.FlagSet.SetOutput(io.Discard)
 				if err := cmd.FlagSet.Parse(append(append([]string(nil), command.baseArgs...), generationFlag...)); err != nil {
 					t.Fatalf("parse flags: %v", err)
@@ -324,12 +328,12 @@ func TestPublishRejectsExplicitOptionsWithGenerationFlagsBeforeSideEffects(t *te
 func TestPublishRejectsInvalidSigningStyleBeforeSideEffects(t *testing.T) {
 	for _, command := range []struct {
 		name string
-		cmd  func() *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 		args []string
 	}{
 		{
 			name: "testflight",
-			cmd:  PublishTestFlightCommand,
+			cmd:  newPublishTestFlightCommand,
 			args: []string{
 				"--app", "app-123", "--workspace", "Demo.xcworkspace", "--scheme", "Demo",
 				"--version", "1.2.3", "--group", "group-1", "--signing-style", "heuristic",
@@ -337,7 +341,7 @@ func TestPublishRejectsInvalidSigningStyleBeforeSideEffects(t *testing.T) {
 		},
 		{
 			name: "appstore",
-			cmd:  PublishAppStoreCommand,
+			cmd:  newPublishAppStoreCommand,
 			args: []string{
 				"--app", "app-123", "--workspace", "Demo.xcworkspace", "--scheme", "Demo",
 				"--version", "1.2.3", "--signing-style", "heuristic",
@@ -353,7 +357,8 @@ func TestPublishRejectsInvalidSigningStyleBeforeSideEffects(t *testing.T) {
 					t.Fatal("ASC client must not be created for an invalid signing style")
 					return nil, nil
 				}
-				cmd := command.cmd()
+				d := newPublishTestDeps()
+				cmd := command.cmd(d)
 				cmd.FlagSet.SetOutput(io.Discard)
 				args := append([]string(nil), command.args...)
 				args[len(args)-1] = signingStyle
@@ -373,12 +378,12 @@ func TestPublishRejectsInvalidSigningStyleBeforeSideEffects(t *testing.T) {
 func TestPublishRejectsExplicitlyEmptyTeamIDBeforeSideEffects(t *testing.T) {
 	for _, command := range []struct {
 		name string
-		cmd  func() *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 		args []string
 	}{
 		{
 			name: "testflight",
-			cmd:  PublishTestFlightCommand,
+			cmd:  newPublishTestFlightCommand,
 			args: []string{
 				"--app", "app-123", "--workspace", "Demo.xcworkspace", "--scheme", "Demo",
 				"--version", "1.2.3", "--group", "group-1", "--team-id", "",
@@ -386,7 +391,7 @@ func TestPublishRejectsExplicitlyEmptyTeamIDBeforeSideEffects(t *testing.T) {
 		},
 		{
 			name: "appstore",
-			cmd:  PublishAppStoreCommand,
+			cmd:  newPublishAppStoreCommand,
 			args: []string{
 				"--app", "app-123", "--workspace", "Demo.xcworkspace", "--scheme", "Demo",
 				"--version", "1.2.3", "--team-id", "",
@@ -409,7 +414,8 @@ func TestPublishRejectsExplicitlyEmptyTeamIDBeforeSideEffects(t *testing.T) {
 				t.Fatal("ASC client must not be created for an empty team ID")
 				return nil, nil
 			}
-			cmd := command.cmd()
+			d := newPublishTestDeps()
+			cmd := command.cmd(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(command.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
@@ -478,7 +484,7 @@ func TestPublishLocalBuildPreflightsIPADestinationBeforeSideEffects(t *testing.T
 			}
 
 			_, err := runPublishLocalBuild(
-				context.Background(), nil, "app-123", "IOS", "1.2.3", "42",
+				context.Background(), newPublishTestDeps(), nil, "app-123", "IOS", "1.2.3", "42",
 				5*time.Second, time.Minute, false,
 				publishLocalBuildConfig{IPAPath: tc.ipaPath(t)},
 			)
@@ -509,7 +515,7 @@ func TestPublishLocalBuildChecksXcodeBeforeCreatingIPAParent(t *testing.T) {
 	}
 
 	_, err := runPublishLocalBuild(
-		context.Background(), nil, "app-123", "IOS", "1.2.3", "42",
+		context.Background(), newPublishTestDeps(), nil, "app-123", "IOS", "1.2.3", "42",
 		5*time.Second, time.Minute, false,
 		publishLocalBuildConfig{IPAPath: filepath.Join(outputParent, "Demo.ipa")},
 	)
