@@ -17,6 +17,10 @@ import (
 
 var shellWaitDelay = 5 * time.Second
 
+// bash evaluates BASH_ENV for non-interactive shells; never inherit or allow
+// callers to provide it because workflow params and env are untrusted input.
+const bashEnvKey = "BASH_ENV"
+
 var (
 	lookPathFn       = exec.LookPath
 	commandContextFn = exec.CommandContext
@@ -106,9 +110,6 @@ func evalStepIf(expr string, env map[string]string) (bool, error) {
 func buildEnvSlice(env map[string]string) []string {
 	base := os.Environ()
 
-	// bash evaluates BASH_ENV for non-interactive shells; never inherit or allow
-	// callers to provide it because workflow params and env are untrusted input.
-	const bashEnvKey = "BASH_ENV"
 	sanitized := make([]string, 0, len(base))
 	for _, entry := range base {
 		if strings.HasPrefix(entry, bashEnvKey+"=") {
@@ -303,6 +304,9 @@ func LoadEnvFiles(paths []string) (map[string]string, error) {
 			key = strings.TrimSpace(key)
 			if !stepIfName.MatchString(key) {
 				return nil, fmt.Errorf("env file %s:%d: invalid variable name", path, i+1)
+			}
+			if key == bashEnvKey {
+				return nil, fmt.Errorf("env file %s:%d: %s cannot be set from an env file", path, i+1, bashEnvKey)
 			}
 			value = strings.TrimSpace(value)
 			if n := len(value); n >= 2 && (value[0] == '"' || value[0] == '\'') && value[n-1] == value[0] {

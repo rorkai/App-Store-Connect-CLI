@@ -700,6 +700,14 @@ func TestWorkflowRun_EnvFile(t *testing.T) {
 			notOutput:  []string{"s3cret-bad-line"},
 		},
 		{
+			name:       "shell startup variable is rejected",
+			workflow:   echoStep,
+			files:      []string{"EF_OK=1\nexport BASH_ENV=s3cret-startup-file\n"},
+			wantCode:   rootcmd.ExitUsage,
+			wantStderr: []string{"env-0:2: BASH_ENV cannot be set from an env file"},
+			notOutput:  []string{"s3cret-startup-file"},
+		},
+		{
 			name:       "invalid name names file and line only",
 			workflow:   echoStep,
 			files:      []string{"\n1EF=s3cret-bad-name\n"},
