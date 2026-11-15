@@ -296,7 +296,16 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 		case i == 0 && typ == "context.Context":
 		case typ == "string":
 			for _, n := range field.Names {
-				b.Params = append(b.Params, n.Name)
+				if argFields[n.Name] == "" {
+					b.Params = append(b.Params, n.Name)
+					continue
+				}
+				arg, reason := deriveArg(spec, op, n.Name, argFields[n.Name], typ)
+				if reason != "" {
+					return nil, reason
+				}
+				arg.Param = true
+				b.Args = append(b.Args, arg)
 			}
 		case typ == "[]string" && op.Method == "GET":
 		case typ == "[]string" && len(field.Names) == 1:
@@ -372,7 +381,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 		}
 		return true
 	})
-	if !trimmed && len(b.Params) > 0 {
+	if !trimmed && len(b.stringParams()) > 0 {
 		b.Check = checkRaw
 	}
 	if *list != (IDList{}) {
@@ -385,7 +394,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 		b.Attrs = attrsValue
 	}
 	for i, msg := range messages {
-		if i >= len(b.Params) || msg != b.Params[i]+" is required" {
+		if params := b.stringParams(); i >= len(params) || msg != params[i]+" is required" {
 			b.Messages = messages
 			break
 		}

@@ -18,7 +18,8 @@
   ],
   "relationships": [
     {"data":"WidgetNoteCreateData","type":"*WidgetNoteRelationships","omitempty":true},
-    {"data":"WidgetReleaseCreateData","type":"WidgetReleaseCreateRelationships"}
+    {"data":"WidgetReleaseCreateData","type":"WidgetReleaseCreateRelationships"},
+    {"data":"WristbandCreateData","type":"*WristbandCreateRelationships"}
   ],
   "operations": [
     {"operation":"widgetNotes_createInstance","name":"CreateWidgetNote","params":["widgetID"],"check":"require","messages":["widget ID is required"],"links":["widget"]},
@@ -44,7 +45,8 @@
     {"operation":"wizardsV3_updateInstance","name":"UpdateWizardV3","params":["wizardID"],"check":"require","attrs":"pointer"},
     {"operation":"wizards_updateInstance","name":"UpdateWizard","params":["wizardID"],"check":"require","skipEmptyAttributes":true},
     {"operation":"wrenches_createInstance","name":"CreateWrench","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
-    {"operation":"wrenches_updateInstance","name":"UpdateWrench","params":["wrenchID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksum","attribute":"sourceFileChecksum"}]}
+    {"operation":"wrenches_updateInstance","name":"UpdateWrench","params":["wrenchID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksum","attribute":"sourceFileChecksum"}]},
+    {"operation":"wristbands_createInstance","name":"CreateWristband","params":["widgetID"],"check":"require","messages":["widget ID is required"],"links":["widget"],"args":[{"name":"label","param":true},{"name":"color","type":"WristbandColor"},{"name":"size"}]}
   ],
   "queries": [
     {"operation":"widgets_getCollection","name":"Widgets","params":[{"name":"filter[name]","field":"names"},{"name":"fields[widgets]"},{"name":"fields[gadgets]","arg":"fields"},{"name":"include","with":"WithWidgetsIncluded"}]},

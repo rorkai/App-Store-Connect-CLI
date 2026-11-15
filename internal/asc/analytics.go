@@ -276,25 +276,6 @@ func (c *Client) GetSalesReport(ctx context.Context, params SalesReportParams) (
 	return &ReportDownload{Body: resp.Body, ContentLength: resp.ContentLength}, nil
 }
 
-// CreateAnalyticsReportRequest creates a new analytics report request.
-func (c *Client) CreateAnalyticsReportRequest(ctx context.Context, appID string, accessType AnalyticsAccessType) (*AnalyticsReportRequestResponse, error) {
-	payload := AnalyticsReportRequestCreateRequest{
-		Data: AnalyticsReportRequestCreateData{
-			Type: ResourceTypeAnalyticsReportRequests,
-			Attributes: AnalyticsReportRequestCreateAttributes{
-				AccessType: accessType,
-			},
-			Relationships: AnalyticsReportRequestCreateRelationships{
-				App: Relationship{
-					Data: ResourceData{Type: ResourceTypeApps, ID: appID},
-				},
-			},
-		},
-	}
-
-	return sendJSON[AnalyticsReportRequestResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/analyticsReportRequests", Payload: payload})
-}
-
 // GetAnalyticsReportRequests retrieves analytics report requests for an app.
 func (c *Client) GetAnalyticsReportRequests(ctx context.Context, appID string, opts ...AnalyticsReportRequestsOption) (*AnalyticsReportRequestsResponse, error) {
 	query := applyOptions(opts)

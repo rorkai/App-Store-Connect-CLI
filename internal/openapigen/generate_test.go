@@ -161,6 +161,12 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"record of a schema that is neither an enum nor an object", &Family{RefTypes: []*RefType{{Schema: "YoyoNote", Type: "YoyoText"}}}},
 		{"schema recorded twice", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoState", Type: "YoyoStatus"}, {Schema: "YoyoState", Type: "YoyoPhase"}}}},
 		{"type recorded by its Go name instead of its schema name", &Family{Types: []string{"ZoneIDAttributes"}}},
+		{"param arg after an arg that is not one", wristband(ArgBind{Name: "color", Type: "WristbandColor"}, ArgBind{Name: "label", Param: true})},
+		{"param arg of an attribute that is not a string", wristband(ArgBind{Name: "size", Param: true})},
+		{"param arg with its own Go type", wristband(ArgBind{Name: "color", Param: true, Type: "WristbandColor"})},
+		{"param arg with the inline check style", &Family{Relationships: []*RelBind{{Data: "WristbandCreateData", Type: "*WristbandCreateRelationships"}}, Operations: []*OpBind{{Operation: "wristbands_createInstance", Name: "X", Params: []string{"widgetID"}, Links: []string{"widget"}, Args: []ArgBind{{Name: "label", Param: true}}}}}},
+		{"named arg type for an attribute that is no enum", wristband(ArgBind{Name: "label", Type: "WristbandLabel"})},
+		{"named arg type that is not a type name", wristband(ArgBind{Name: "color", Type: "*WristbandColor"})},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -168,6 +174,14 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 				t.Fatal("expected an error")
 			}
 		})
+	}
+}
+
+// wristband binds the wristband create, which links a widget, with args.
+func wristband(args ...ArgBind) *Family {
+	return &Family{
+		Relationships: []*RelBind{{Data: "WristbandCreateData", Type: "*WristbandCreateRelationships"}},
+		Operations:    []*OpBind{{Operation: "wristbands_createInstance", Name: "X", Params: []string{"widgetID"}, Check: checkRequire, Links: []string{"widget"}, Args: args}},
 	}
 }
 

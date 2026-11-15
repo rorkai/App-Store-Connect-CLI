@@ -2,6 +2,11 @@
 
 package asc
 
+import (
+	"context"
+	"net/http"
+)
+
 // AnalyticsReportRequestCreateData is the data object of the AnalyticsReportRequestCreateRequest schema.
 type AnalyticsReportRequestCreateData struct {
 	Type          ResourceType                              `json:"type"`
@@ -17,4 +22,29 @@ type AnalyticsReportRequestCreateRelationships struct {
 // AnalyticsReportRequestCreateRequest is the AnalyticsReportRequestCreateRequest schema.
 type AnalyticsReportRequestCreateRequest struct {
 	Data AnalyticsReportRequestCreateData `json:"data"`
+}
+
+// CreateAnalyticsReportRequest sends POST /v1/analyticsReportRequests (analyticsReportRequests_createInstance).
+func (c *Client) CreateAnalyticsReportRequest(ctx context.Context, appID string, accessType AnalyticsAccessType) (*AnalyticsReportRequestResponse, error) {
+	payload := AnalyticsReportRequestCreateRequest{
+		Data: AnalyticsReportRequestCreateData{
+			Type: ResourceTypeAnalyticsReportRequests,
+			Attributes: AnalyticsReportRequestCreateAttributes{
+				AccessType: accessType,
+			},
+			Relationships: AnalyticsReportRequestCreateRelationships{
+				App: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AnalyticsReportRequestResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/analyticsReportRequests",
+		Payload: payload,
+	})
 }
