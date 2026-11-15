@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AnalyticsSegmentsCommand returns the analytics segments command group.
-func AnalyticsSegmentsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("segments", flag.ExitOnError)
+// newAnalyticsSegmentsCommand returns the analytics segments command group.
+func newAnalyticsSegmentsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("segments", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "segments",
@@ -27,7 +27,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AnalyticsSegmentsGetCommand(),
+			newAnalyticsSegmentsGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -35,12 +35,12 @@ Examples:
 	}
 }
 
-// AnalyticsSegmentsGetCommand retrieves a specific analytics report segment.
-func AnalyticsSegmentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newAnalyticsSegmentsGetCommand retrieves a specific analytics report segment.
+func newAnalyticsSegmentsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	segmentID := shared.BindResourceIDFlag(fs, "segment-id", "analyticsReportSegments", "Analytics report segment ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -55,20 +55,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*segmentID)
 			if id == "" {
-				return shared.RequiredFlag("--segment-id")
+				return d.RequiredFlag("--segment-id")
 			}
 			var err error
 			id, err = asc.ValidateResourcePathSegment(id)
 			if err != nil {
-				return shared.UsageErrorf("analytics segments view: --segment-id: %v", err)
+				return d.UsageErrorf("analytics segments view: --segment-id: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("analytics segments view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAnalyticsReportSegment(requestCtx, id)
@@ -76,7 +76,7 @@ Examples:
 				return fmt.Errorf("analytics segments view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

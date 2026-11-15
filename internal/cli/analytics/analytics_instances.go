@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AnalyticsInstancesCommand returns the analytics instances command group.
-func AnalyticsInstancesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("instances", flag.ExitOnError)
+// newAnalyticsInstancesCommand returns the analytics instances command group.
+func newAnalyticsInstancesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("instances", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "instances",
@@ -29,8 +29,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AnalyticsInstancesGetCommand(),
-			AnalyticsInstancesRelationshipsCommand(),
+			newAnalyticsInstancesGetCommand(d),
+			newAnalyticsInstancesRelationshipsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -38,12 +38,12 @@ Examples:
 	}
 }
 
-// AnalyticsInstancesGetCommand retrieves a specific analytics report instance.
-func AnalyticsInstancesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newAnalyticsInstancesGetCommand retrieves a specific analytics report instance.
+func newAnalyticsInstancesGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Analytics report instance ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -58,20 +58,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*instanceID)
 			if id == "" {
-				return shared.RequiredFlag("--instance-id")
+				return d.RequiredFlag("--instance-id")
 			}
 			var err error
 			id, err = asc.ValidateResourcePathSegment(id)
 			if err != nil {
-				return shared.UsageErrorf("analytics instances view: --instance-id: %v", err)
+				return d.UsageErrorf("analytics instances view: --instance-id: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("analytics instances view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAnalyticsReportInstance(requestCtx, id)
@@ -79,14 +79,15 @@ Examples:
 				return fmt.Errorf("analytics instances view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AnalyticsInstancesRelationshipsCommand lists segment links for an instance.
-func AnalyticsInstancesRelationshipsCommand() *ffcli.Command {
+// newAnalyticsInstancesRelationshipsCommand lists segment links for an instance.
+func newAnalyticsInstancesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:       d,
 		Name:       "links",
 		ShortUsage: "asc analytics instances links --instance-id \"INSTANCE_ID\" [flags]",
 		ShortHelp:  "List analytics report segment relationships.",
@@ -106,7 +107,7 @@ Examples:
 			return func() error {
 				if id := strings.TrimSpace(instanceID.String()); id != "" {
 					if _, err := asc.ValidateResourcePathSegment(id); err != nil {
-						return shared.UsageErrorf("analytics instances links: --instance-id: %v", err)
+						return d.UsageErrorf("analytics instances links: --instance-id: %v", err)
 					}
 				}
 				return nil

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // analyticsFetchGateTimeout only guards against hangs: a gated fetch that
@@ -89,7 +90,7 @@ func TestCollectAnalyticsReportsBoundsInstanceFetch(t *testing.T) {
 	// exercised, not just the report count.
 	reportCount := 2*analyticsInstanceFetchConcurrency + 3
 	gate := newAnalyticsFetchGate(analyticsInstanceFetchConcurrency, reportCount)
-	fetchAnalyticsReportInstancesFn = func(_ context.Context, _ *asc.Client, reportID string, _ ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
+	fetchAnalyticsReportInstancesFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, reportID string, _ ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
 		done := gate.begin()
 		defer done()
 		return []asc.Resource[asc.AnalyticsReportInstanceAttributes]{{ID: "instance-" + reportID}}, nil
@@ -99,7 +100,7 @@ func TestCollectAnalyticsReportsBoundsInstanceFetch(t *testing.T) {
 		reports[i].ID = fmt.Sprintf("report-%02d", i)
 	}
 
-	collected, count, err := collectAnalyticsReports(context.Background(), nil, reports, nil, false, "")
+	collected, count, err := collectAnalyticsReports(context.Background(), nil, nil, reports, nil, false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +130,7 @@ func TestCollectAnalyticsReportsCancelsSiblingsAndPreservesFirstError(t *testing
 	previous := fetchAnalyticsReportInstancesFn
 	t.Cleanup(func() { fetchAnalyticsReportInstancesFn = previous })
 	ready := make(chan struct{}, 3)
-	fetchAnalyticsReportInstancesFn = func(ctx context.Context, _ *asc.Client, reportID string, _ ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
+	fetchAnalyticsReportInstancesFn = func(ctx context.Context, _ *shared.Deps, _ *asc.Client, reportID string, _ ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
 		if reportID == "fail" {
 			for i := 0; i < 3; i++ {
 				<-ready
@@ -145,7 +146,7 @@ func TestCollectAnalyticsReportsCancelsSiblingsAndPreservesFirstError(t *testing
 		reports[i].ID = id
 	}
 
-	_, _, err := collectAnalyticsReports(context.Background(), nil, reports, nil, false, "")
+	_, _, err := collectAnalyticsReports(context.Background(), nil, nil, reports, nil, false, "")
 	if !errors.Is(err, sentinel) {
 		t.Fatalf("error = %v, want original sentinel", err)
 	}

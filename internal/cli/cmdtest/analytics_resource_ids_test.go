@@ -9,9 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAnalyticsInstancesLinksAcceptsPrefixedInstanceID(t *testing.T) {
@@ -38,14 +35,11 @@ func TestAnalyticsInstancesLinksAcceptsPrefixedInstanceID(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client := newReviewTestServerClient(t, server)
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
-
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server),
 		"analytics", "instances", "links",
 		"--instance-id", instanceID,
 		"--output", "json",
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -121,18 +115,15 @@ func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string, matc
 	}))
 	t.Cleanup(server.Close)
 
-	client := newReviewTestServerClient(t, server)
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
-
 	outputPath := filepath.Join(t.TempDir(), "analytics-report.csv.gz")
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server),
 		"analytics", "download",
 		"--request-id", analyticsViewRequestID,
 		"--instance-id", instanceID,
 		"--segment-id", segmentID,
 		"--output", outputPath,
 		"--output-format", "json",
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -170,7 +161,6 @@ func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string, matc
 
 func setupAnalyticsResourceIDAuth(t *testing.T) {
 	t.Helper()
-	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 }
