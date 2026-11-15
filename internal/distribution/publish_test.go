@@ -3,13 +3,20 @@ package distribution
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"io"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1255,4 +1262,64 @@ type publishVerifyRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f publishVerifyRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
 	return f(request)
+}
+
+func TestHTTPVerifierCABundleAddsToTransportRootPool(t *testing.T) {
+	transportServer := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer transportServer.Close()
+	bundleCertificate, bundleDER := newLoopbackTestCertificate(t)
+	bundleServer := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	bundleServer.TLS = &tls.Config{Certificates: []tls.Certificate{bundleCertificate}}
+	bundleServer.StartTLS()
+	defer bundleServer.Close()
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: bundleDER}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AWS_CA_BUNDLE", caPath)
+	pool := x509.NewCertPool()
+	pool.AddCert(transportServer.Certificate())
+	base := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool}}
+
+	verifier, err := NewHTTPVerifierWithEnvironmentTrust(base, time.Second)
+	if err != nil {
+		t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() error = %v", err)
+	}
+	for name, url := range map[string]string{"the transport's root pool": transportServer.URL, "the CA bundle": bundleServer.URL} {
+		response, err := verifier.client.Get(url)
+		if err != nil {
+			t.Fatalf("request to a server trusted by %s: %v", name, err)
+		}
+		_ = response.Body.Close()
+	}
+	if response, err := (&http.Client{Transport: base}).Get(bundleServer.URL); err == nil {
+		_ = response.Body.Close()
+		t.Fatal("the given transport's root pool gained the CA bundle")
+	}
+}
+
+// newLoopbackTestCertificate returns a self-signed certificate for 127.0.0.1,
+// distinct from the one every httptest server shares, and its DER bytes.
+func newLoopbackTestCertificate(t *testing.T) (tls.Certificate, []byte) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "bundle test CA"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1")},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, der
 }

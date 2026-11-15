@@ -1112,14 +1112,16 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	if err != nil {
 		return nil, fmt.Errorf("read custom CA bundle")
 	}
-	roots, err := x509.SystemCertPool()
-	if err != nil {
+	base, ok := transport.(*http.Transport)
+	var roots *x509.CertPool
+	if ok && base.TLSClientConfig != nil && base.TLSClientConfig.RootCAs != nil {
+		roots = base.TLSClientConfig.RootCAs.Clone()
+	} else if roots, err = x509.SystemCertPool(); err != nil {
 		roots = x509.NewCertPool()
 	}
 	if !roots.AppendCertsFromPEM(pemBytes) {
 		return nil, fmt.Errorf("custom CA bundle contains no certificates")
 	}
-	base, ok := transport.(*http.Transport)
 	if !ok {
 		// Only an *http.Transport exposes TLS settings to add the roots to; any
 		// other round tripper keeps the trust it was built with.
