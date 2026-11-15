@@ -6,16 +6,21 @@ import (
 	"strings"
 )
 
-type (
-	IAPOfferCodesOption               func(*iapOfferCodesQuery)
-	IAPPricePointsOption              func(*iapPricePointsQuery)
-	IAPOfferCodeCustomCodesOption     func(*iapOfferCodeCustomCodesQuery)
-	IAPOfferCodeOneTimeUseCodesOption func(*iapOfferCodeOneTimeUseCodesQuery)
-	IAPOfferCodePricesOption          func(*iapOfferCodePricesQuery)
-	IAPAvailabilityTerritoriesOption  func(*iapAvailabilityTerritoriesQuery)
-	IAPPriceSchedulePricesOption      func(*iapPriceSchedulePricesQuery)
-	IAPPriceScheduleOption            func(*iapPriceScheduleQuery)
-)
+type IAPOfferCodesOption func(*iapOfferCodesQuery)
+
+type IAPPricePointsOption func(*iapPricePointsQuery)
+
+type IAPOfferCodeCustomCodesOption func(*iapOfferCodeCustomCodesQuery)
+
+type IAPOfferCodeOneTimeUseCodesOption func(*iapOfferCodeOneTimeUseCodesQuery)
+
+type IAPOfferCodePricesOption func(*iapOfferCodePricesQuery)
+
+type IAPAvailabilityTerritoriesOption func(*iapAvailabilityTerritoriesQuery)
+
+type IAPPriceSchedulePricesOption func(*iapPriceSchedulePricesQuery)
+
+type IAPPriceScheduleOption func(*iapPriceScheduleQuery)
 
 type iapOfferCodesQuery struct {
 	listQuery
