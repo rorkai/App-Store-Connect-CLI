@@ -318,13 +318,8 @@ Examples:
 
 // newUsersDeleteCommand returns the users delete subcommand.
 func newUsersDeleteCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("delete", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "users", "User ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc users delete --id USER_ID --confirm",
 		ShortHelp:  "Delete a user.",
@@ -332,37 +327,17 @@ func newUsersDeleteCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc users delete --id "USER_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return d.RequiredFlag("--id")
-			}
-			if err := d.RequireConfirm(*confirm); err != nil {
-				return err
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("users delete: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteUser(requestCtx, idValue); err != nil {
-				return fmt.Errorf("users delete: failed to delete: %w", err)
-			}
-
-			result := &asc.DeleteResult{
-				ID:      idValue,
-				Deleted: true,
-			}
-
-			return d.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "User ID",
+		IDType:             "users",
+		RequiredDiagnostic: true,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteUser(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.DeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // newUsersInviteCommand returns the users invite subcommand.
@@ -545,13 +520,8 @@ Examples:
 
 // newUsersInvitesRevokeCommand returns the users invites revoke subcommand.
 func newUsersInvitesRevokeCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("revoke", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "userInvitations", "Invitation ID")
-	confirm := fs.Bool("confirm", false, "Confirm revocation")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "revoke",
 		ShortUsage: "asc users invites revoke --id INVITE_ID --confirm",
 		ShortHelp:  "Revoke a user invitation.",
@@ -559,37 +529,19 @@ func newUsersInvitesRevokeCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc users invites revoke --id "INVITE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return d.RequiredFlag("--id")
-			}
-			if err := d.RequireConfirm(*confirm); err != nil {
-				return err
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("users invites revoke: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteUserInvitation(requestCtx, idValue); err != nil {
-				return fmt.Errorf("users invites revoke: failed to revoke: %w", err)
-			}
-
-			result := &asc.UserInvitationRevokeResult{
-				ID:      idValue,
-				Revoked: true,
-			}
-
-			return d.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Invitation ID",
+		IDType:             "userInvitations",
+		RequiredDiagnostic: true,
+		ConfirmUsage:       "Confirm revocation",
+		DeleteErrorPrefix:  "users invites revoke: failed to revoke",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteUserInvitation(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.UserInvitationRevokeResult{ID: id, Revoked: true}
+		},
+	})
 }
 
 func normalizeUsersInclude(value string) ([]string, error) {
