@@ -21,6 +21,7 @@ func TestRunUnknownSubcommandTaskHints(t *testing.T) {
 		wantOrder    []string
 		wantContains []string
 		wantAbsent   []string
+		deps         bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:      "unplaceable guess on a curated group",
@@ -41,6 +42,7 @@ func TestRunUnknownSubcommandTaskHints(t *testing.T) {
 		{
 			name:      "unplaceable guess on a curated nested group",
 			args:      []string{"testflight", "groups", "qqqqq"},
+			deps:      true,
 			wantOrder: []string{"Error: unknown command `asc testflight groups qqqqq`", "Common tasks:", "For help:"},
 			wantContains: []string{
 				"  add testers     asc testflight groups add-testers --group GROUP_ID --email EMAIL\n",
@@ -64,11 +66,20 @@ func TestRunUnknownSubcommandTaskHints(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {
+			var stdout, stderr string
+			if test.deps {
+				var code int
+				stdout, stderr, code = runWithDeps(t, nil, test.args...)
+				if code != cmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
 				}
-			})
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {
+						t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+					}
+				})
+			}
 
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)

@@ -28,7 +28,7 @@ Examples:
   asc marketplace search-details update --search-detail-id "DETAIL_ID" --catalog-url "https://example.com"
   asc marketplace search-details delete --search-detail-id "DETAIL_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newMarketplaceSearchDetailsGetCommand(d),
 			newMarketplaceSearchDetailsCreateCommand(d),
@@ -90,7 +90,7 @@ func newMarketplaceSearchDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc marketplace search-details create --app "APP_ID" --catalog-url "https://example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

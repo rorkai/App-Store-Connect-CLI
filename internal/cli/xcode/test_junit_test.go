@@ -2,6 +2,7 @@ package xcode
 
 import (
 	"context"
+	"encoding/xml"
 	"errors"
 	"os"
 	"path/filepath"
@@ -70,6 +71,146 @@ func TestXcodeTestJUnitWritesGoldenReportFromFixtureSummary(t *testing.T) {
 	for _, want := range []string{`name="testPass"`, `name="testFail"`, `failures="1"`, `asc xcode test junit`} {
 		if !strings.Contains(xml, want) {
 			t.Fatalf("junit xml missing %q:\n%s", want, xml)
+		}
+	}
+}
+
+const junitVariantSummaryFixture = `{
+  "totalTestCount": 5,
+  "passedTests": 2,
+  "failedTests": 3,
+  "skippedTests": 0,
+  "expectedFailures": 0
+}`
+
+// Trimmed from a merged two-device result bundle run with retries enabled.
+const junitVariantCasesFixture = `{
+  "testNodes": [{
+    "nodeType": "Test Plan",
+    "name": "DemoKit",
+    "result": "Failed",
+    "children": [{
+      "nodeType": "Unit test bundle",
+      "name": "DemoKitTests",
+      "result": "Failed",
+      "children": [
+        {"nodeType": "Test Case", "nodeIdentifier": "greetsByName()", "name": "greetsByName()", "result": "Passed", "children": [
+          {"nodeType": "Device", "name": "iPhone 18 Pro", "result": "Passed"},
+          {"nodeType": "Device", "name": "My Mac", "result": "Passed"}
+        ]},
+        {"nodeType": "Test Case", "nodeIdentifier": "failsOnlyOnPhone()", "name": "failsOnlyOnPhone()", "result": "Failed", "children": [
+          {"nodeType": "Device", "name": "iPhone 18 Pro", "result": "Failed", "children": [
+            {"nodeType": "Repetition", "name": "First Run", "result": "Failed", "children": [
+              {"nodeType": "Failure Message", "name": "Expectation failed: fails on iPhone only"}
+            ]},
+            {"nodeType": "Repetition", "name": "Retry 1", "result": "Failed", "children": [
+              {"nodeType": "Failure Message", "name": "Expectation failed: fails on iPhone only"}
+            ]}
+          ]},
+          {"nodeType": "Device", "name": "My Mac", "result": "Passed"}
+        ]},
+        {"nodeType": "Test Case", "nodeIdentifier": "parameterised(value:)", "name": "parameterised(value:)", "result": "Failed", "children": [
+          {"nodeType": "Device", "name": "iPhone 18 Pro", "result": "Failed", "children": [
+            {"nodeType": "Arguments", "name": "1", "result": "Passed"},
+            {"nodeType": "Arguments", "name": "2", "result": "Failed", "children": [
+              {"nodeType": "Repetition", "name": "First Run", "result": "Failed", "children": [
+                {"nodeType": "Failure Message", "name": "Expectation failed: value != 2"}
+              ]}
+            ]},
+            {"nodeType": "Arguments", "name": "3", "result": "Passed"}
+          ]},
+          {"nodeType": "Device", "name": "My Mac", "result": "Failed", "children": [
+            {"nodeType": "Arguments", "name": "1", "result": "Passed"},
+            {"nodeType": "Arguments", "name": "2", "result": "Failed", "children": [
+              {"nodeType": "Repetition", "name": "First Run", "result": "Failed", "children": [
+                {"nodeType": "Failure Message", "name": "Expectation failed: value != 2"}
+              ]}
+            ]},
+            {"nodeType": "Arguments", "name": "3", "result": "Passed"}
+          ]}
+        ]},
+        {"nodeType": "Test Case", "nodeIdentifier": "withCaseMessage()", "name": "withCaseMessage()", "result": "Failed", "message": "case failed", "children": [
+          {"nodeType": "Device", "name": "iPhone 18 Pro", "result": "Failed", "children": [
+            {"nodeType": "Failure Message", "name": "Expectation failed: case on iPhone"}
+          ]}
+        ]},
+        {"nodeType": "Test Suite", "name": "FlakyTests", "result": "Passed", "children": [
+          {"nodeType": "Test Case", "nodeIdentifier": "FlakyTests/testPassesOnSecondAttempt()", "name": "testPassesOnSecondAttempt()", "result": "Passed", "children": [
+            {"nodeType": "Device", "name": "iPhone 18 Pro", "result": "Passed", "children": [
+              {"nodeType": "Repetition", "name": "First Run", "result": "Failed", "children": [
+                {"nodeType": "Failure Message", "name": "failed - first attempt fails"}
+              ]},
+              {"nodeType": "Repetition", "name": "Retry 1", "result": "Passed"}
+            ]}
+          ]}
+        ]}
+      ]
+    }]
+  }]
+}`
+
+func TestXcodeTestJUnitAttributesFailuresToVariants(t *testing.T) {
+	summary, err := localxcode.ParseTestResultSummary([]byte(junitVariantSummaryFixture))
+	if err != nil {
+		t.Fatalf("parse summary: %v", err)
+	}
+	cases, err := localxcode.ParseTestResultCases([]byte(junitVariantCasesFixture))
+	if err != nil {
+		t.Fatalf("parse cases: %v", err)
+	}
+	summary.Cases = cases
+	reportFile := filepath.Join(t.TempDir(), "junit.xml")
+	t.Cleanup(SetXCResultSummaryLoaderForTesting(func(context.Context, string) (*localxcode.TestSummary, error) {
+		return summary, nil
+	}))
+
+	cmd := XcodeTestJUnitCommand()
+	if err := cmd.Parse([]string{"--xcresult", "Test.xcresult", "--report-file", reportFile, "--output", "json", "--allow-failures"}); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if err := cmd.Run(context.Background()); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	data, err := os.ReadFile(reportFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var suite struct {
+		Tests     int `xml:"tests,attr"`
+		Failures  int `xml:"failures,attr"`
+		TestCases []struct {
+			Name    string `xml:"name,attr"`
+			Failure *struct {
+				Message string `xml:"message,attr"`
+			} `xml:"failure"`
+		} `xml:"testcase"`
+	}
+	if err := xml.Unmarshal(data, &suite); err != nil {
+		t.Fatalf("decode junit: %v\n%s", err, data)
+	}
+	if suite.Tests != 5 || suite.Failures != 3 {
+		t.Fatalf("tests=%d failures=%d, want 5 and 3:\n%s", suite.Tests, suite.Failures, data)
+	}
+	want := map[string]string{
+		"greetsByName()": "",
+		"failsOnlyOnPhone()": "iPhone 18 Pro, First Run: Expectation failed: fails on iPhone only\n" +
+			"iPhone 18 Pro, Retry 1: Expectation failed: fails on iPhone only",
+		"parameterised(value:)": "iPhone 18 Pro, argument '2', First Run: Expectation failed: value != 2\n" +
+			"My Mac, argument '2', First Run: Expectation failed: value != 2",
+		"withCaseMessage()":           "iPhone 18 Pro: Expectation failed: case on iPhone",
+		"testPassesOnSecondAttempt()": "",
+	}
+	for _, testCase := range suite.TestCases {
+		wantMessage, ok := want[testCase.Name]
+		if !ok {
+			t.Fatalf("unexpected testcase %q:\n%s", testCase.Name, data)
+		}
+		gotMessage := ""
+		if testCase.Failure != nil {
+			gotMessage = testCase.Failure.Message
+		}
+		if (testCase.Failure != nil) != (wantMessage != "") || gotMessage != wantMessage {
+			t.Errorf("testcase %q failure = %q, want %q", testCase.Name, gotMessage, wantMessage)
 		}
 	}
 }

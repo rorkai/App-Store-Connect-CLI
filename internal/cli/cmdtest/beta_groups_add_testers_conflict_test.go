@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -49,7 +47,6 @@ func stubAddTestersTransport(
 	t.Helper()
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
 	testers := make([]string, 0, len(testerIDs))
 	for _, testerID := range testerIDs {
@@ -90,20 +87,10 @@ type betaGroupAddTestersReceipt struct {
 	AlreadyPresent bool     `json:"alreadyPresent"`
 }
 
-func runAddTesters(t *testing.T, args ...string) (string, string, error) {
+func runAddTesters(t *testing.T, reg *asctest.Registry, args ...string) (string, string, error) {
 	t.Helper()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
+	return runRootWithDeps(t, stubClient(t, reg), args...)
 }
 
 func TestBetaGroupsAddTestersAlreadyMemberIsExpectedNegative(t *testing.T) {
@@ -115,7 +102,6 @@ func TestBetaGroupsAddTestersAlreadyMemberIsExpectedNegative(t *testing.T) {
 		{name: "relationship invalid", body: betaGroupAddTestersRelationshipConflictBody},
 	} {
 		t.Run(conflict.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusConflict, conflict.body, map[string][]string{
@@ -124,6 +110,7 @@ func TestBetaGroupsAddTestersAlreadyMemberIsExpectedNegative(t *testing.T) {
 
 			stdout, stderr, err := runAddTesters(
 				t,
+				requests,
 				"testflight", "groups", "add-testers",
 				"--group", "group-1",
 				"--tester", "tester-1",
@@ -160,7 +147,6 @@ func TestBetaGroupsAddTestersAlreadyMemberIsExpectedNegative(t *testing.T) {
 }
 
 func TestBetaGroupsAddTestersConflictWithoutMembershipStillFails(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusConflict, betaGroupAddTestersStateConflictBody, map[string][]string{
@@ -169,6 +155,7 @@ func TestBetaGroupsAddTestersConflictWithoutMembershipStillFails(t *testing.T) {
 
 	stdout, _, err := runAddTesters(
 		t,
+		requests,
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", "tester-1",
@@ -192,7 +179,6 @@ func TestBetaGroupsAddTestersConflictWithoutMembershipStillFails(t *testing.T) {
 }
 
 func TestBetaGroupsAddTestersPartialMembershipStillFails(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	requests := stubAddTestersTransport(t, []string{"tester-1", "tester-2"}, http.StatusConflict, betaGroupAddTestersStateConflictBody, map[string][]string{
@@ -202,6 +188,7 @@ func TestBetaGroupsAddTestersPartialMembershipStillFails(t *testing.T) {
 
 	_, _, err := runAddTesters(
 		t,
+		requests,
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", "tester-1,tester-2",
@@ -222,7 +209,6 @@ func TestBetaGroupsAddTestersPartialMembershipStillFails(t *testing.T) {
 }
 
 func TestBetaGroupsAddTestersConflictReadBackChunksTesterIDs(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	testerIDs := make([]string, 51)
@@ -235,6 +221,7 @@ func TestBetaGroupsAddTestersConflictReadBackChunksTesterIDs(t *testing.T) {
 
 	stdout, _, err := runAddTesters(
 		t,
+		requests,
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", strings.Join(testerIDs, ","),
@@ -256,11 +243,9 @@ func TestBetaGroupsAddTestersConflictReadBackChunksTesterIDs(t *testing.T) {
 }
 
 func TestBetaGroupsAddTestersConflictReadBackPaginates(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/betaGroups/group-1/relationships/betaTesters").JSONBody(`{"data":[{"type":"betaTesters","id":"tester-1"},{"type":"betaTesters","id":"tester-2"}]}`),
 		asctest.JSON(http.StatusConflict, betaGroupAddTestersStateConflictBody))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[betaGroups]=group-1", "filter[id]=tester-1,tester-2", "limit=200"),
@@ -270,6 +255,7 @@ func TestBetaGroupsAddTestersConflictReadBackPaginates(t *testing.T) {
 
 	stdout, _, err := runAddTesters(
 		t,
+		reg,
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", "tester-1,tester-2",
@@ -291,7 +277,6 @@ func TestBetaGroupsAddTestersConflictReadBackPaginates(t *testing.T) {
 }
 
 func TestBetaGroupsAddTestersNonConflictFailureSkipsReadBack(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusForbidden,
@@ -300,6 +285,7 @@ func TestBetaGroupsAddTestersNonConflictFailureSkipsReadBack(t *testing.T) {
 
 	_, _, err := runAddTesters(
 		t,
+		requests,
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", "tester-1",
@@ -313,7 +299,6 @@ func TestBetaGroupsAddTestersNonConflictFailureSkipsReadBack(t *testing.T) {
 }
 
 func TestBetaGroupsAddTestersConflictCodeWithoutHTTP409SkipsReadBack(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusUnprocessableEntity,
@@ -322,6 +307,7 @@ func TestBetaGroupsAddTestersConflictCodeWithoutHTTP409SkipsReadBack(t *testing.
 
 	_, _, err := runAddTesters(
 		t,
+		requests,
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", "tester-1",
@@ -338,14 +324,14 @@ func TestBetaGroupsAddTestersConflictCodeWithoutHTTP409SkipsReadBack(t *testing.
 }
 
 func TestBetaGroupsAddTestersReadBackFailureReportsBothErrors(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	stubAddTestersTransport(t, []string{"tester-1"}, http.StatusConflict, betaGroupAddTestersStateConflictBody,
+	requests := stubAddTestersTransport(t, []string{"tester-1"}, http.StatusConflict, betaGroupAddTestersStateConflictBody,
 		map[string][]string{"tester-1": {"group-1"}}, http.StatusInternalServerError)
 
 	_, _, err := runAddTesters(
 		t,
+		requests,
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", "tester-1",
@@ -362,13 +348,13 @@ func TestBetaGroupsAddTestersReadBackFailureReportsBothErrors(t *testing.T) {
 }
 
 func TestBetaGroupsAddTestersSuccessPrintsCreatedReceipt(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	requests := stubAddTestersTransport(t, []string{"tester-1", "tester-2"}, http.StatusNoContent, "", nil, 0)
 
 	stdout, stderr, err := runAddTesters(
 		t,
+		requests,
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", "tester-1,tester-2",

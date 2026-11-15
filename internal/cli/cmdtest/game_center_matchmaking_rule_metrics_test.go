@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestGameCenterMatchmakingRuleMetricsRejectUnsupportedResultDimension(t *testing.T) {
@@ -51,13 +49,12 @@ func TestGameCenterMatchmakingRuleMetricsRejectUnsupportedResultDimension(t *tes
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			factory := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, factory, test.args, test.wantErr)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before rule metrics validation")
 			}
@@ -143,18 +140,11 @@ func TestGameCenterMatchmakingRuleMetricsBuildDocumentedQueries(t *testing.T) {
 				_, _ = io.WriteString(w, `{"data":[{"dataPoints":[{"start":"2026-01-01","values":{"count":7}}]}],"links":{"self":"metrics-self"}}`)
 			}))
 			t.Cleanup(server.Close)
-			installDefaultTransportForServer(t, server)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), test.args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("stderr = %q, want empty", stderr)
 			}

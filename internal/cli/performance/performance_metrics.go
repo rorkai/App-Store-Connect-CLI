@@ -25,7 +25,7 @@ Examples:
   asc performance metrics list --app "APP_ID"
   asc performance metrics view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPerformanceMetricsListCommand(d),
 			newPerformanceMetricsGetCommand(d),
@@ -55,7 +55,7 @@ Examples:
   asc performance metrics list --app "APP_ID"
   asc performance metrics list --app "APP_ID" --metric-type "MEMORY,DISK" --device-type "iPhone15,2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

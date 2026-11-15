@@ -42,6 +42,12 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildAnalyticsReportSegmentsQuery,
 		options: map[string]any{},
 	},
+	"androidToIosAppMappingDetails_getInstance": {
+		build: buildAndroidToIosAppMappingDetailQuery,
+		options: map[string]any{
+			"fields[androidToIosAppMappingDetails]": WithAndroidToIosAppMappingDetailsFields,
+		},
+	},
 	"appClipDefaultExperiences_appClipDefaultExperienceLocalizations_getToManyRelated": {
 		build: buildAppClipDefaultExperienceLocalizationsQuery,
 		options: map[string]any{
@@ -168,6 +174,12 @@ var generatedQueries = map[string]generatedQuery{
 			"filter[deviceFamily]":              WithAccessibilityDeclarationsDeviceFamilies,
 			"filter[state]":                     WithAccessibilityDeclarationsStates,
 			"fields[accessibilityDeclarations]": WithAccessibilityDeclarationsFields,
+		},
+	},
+	"apps_androidToIosAppMappingDetails_getToManyRelated": {
+		build: buildAndroidToIosAppMappingDetailsQuery,
+		options: map[string]any{
+			"fields[androidToIosAppMappingDetails]": WithAndroidToIosAppMappingDetailsFields,
 		},
 	},
 	"apps_appClips_getToManyRelated": {
@@ -625,8 +637,71 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildGCMatchmakingTeamsQuery,
 		options: map[string]any{},
 	},
+	"inAppPurchaseAvailabilities_availableTerritories_getToManyRelated": {
+		build:   buildIAPAvailabilityTerritoriesQuery,
+		options: map[string]any{},
+	},
+	"inAppPurchaseOfferCodes_customCodes_getToManyRelated": {
+		build:   buildIAPOfferCodeCustomCodesQuery,
+		options: map[string]any{},
+	},
+	"inAppPurchaseOfferCodes_oneTimeUseCodes_getToManyRelated": {
+		build:   buildIAPOfferCodeOneTimeUseCodesQuery,
+		options: map[string]any{},
+	},
+	"inAppPurchaseOfferCodes_prices_getToManyRelated": {
+		build: buildIAPOfferCodePricesQuery,
+		options: map[string]any{
+			"fields[inAppPurchaseOfferPrices]": WithIAPOfferCodePricesFields,
+			"include":                          WithIAPOfferCodePricesInclude,
+		},
+	},
+	"inAppPurchasePriceSchedules_automaticPrices_getToManyRelated": {
+		build: buildIAPPriceSchedulePricesQuery,
+		options: map[string]any{
+			"include":                          WithIAPPriceSchedulePricesInclude,
+			"fields[inAppPurchasePrices]":      WithIAPPriceSchedulePricesFields,
+			"fields[inAppPurchasePricePoints]": WithIAPPriceSchedulePricesPricePointFields,
+			"fields[territories]":              WithIAPPriceSchedulePricesTerritoryFields,
+		},
+	},
+	"inAppPurchasePriceSchedules_getInstance": {
+		build: buildIAPPriceScheduleQuery,
+		options: map[string]any{
+			"include":                             WithIAPPriceScheduleInclude,
+			"fields[inAppPurchasePriceSchedules]": WithIAPPriceScheduleFields,
+			"fields[territories]":                 WithIAPPriceScheduleTerritoryFields,
+			"fields[inAppPurchasePrices]":         WithIAPPriceSchedulePriceFields,
+			"limit[manualPrices]":                 WithIAPPriceScheduleManualPricesLimit,
+			"limit[automaticPrices]":              WithIAPPriceScheduleAutomaticPricesLimit,
+		},
+	},
+	"inAppPurchasePriceSchedules_manualPrices_getToManyRelated": {
+		build: buildIAPPriceSchedulePricesQuery,
+		options: map[string]any{
+			"include":                          WithIAPPriceSchedulePricesInclude,
+			"fields[inAppPurchasePrices]":      WithIAPPriceSchedulePricesFields,
+			"fields[inAppPurchasePricePoints]": WithIAPPriceSchedulePricesPricePointFields,
+			"fields[territories]":              WithIAPPriceSchedulePricesTerritoryFields,
+		},
+	},
+	"inAppPurchasesV2_iapPriceSchedule_getToOneRelated": {
+		build: buildIAPPriceScheduleQuery,
+		options: map[string]any{
+			"include":                             WithIAPPriceScheduleInclude,
+			"fields[inAppPurchasePriceSchedules]": WithIAPPriceScheduleFields,
+			"fields[territories]":                 WithIAPPriceScheduleTerritoryFields,
+			"fields[inAppPurchasePrices]":         WithIAPPriceSchedulePriceFields,
+			"limit[manualPrices]":                 WithIAPPriceScheduleManualPricesLimit,
+			"limit[automaticPrices]":              WithIAPPriceScheduleAutomaticPricesLimit,
+		},
+	},
 	"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated": {
 		build:   buildIAPLocalizationsQuery,
+		options: map[string]any{},
+	},
+	"inAppPurchasesV2_offerCodes_getToManyRelated": {
+		build:   buildIAPOfferCodesQuery,
 		options: map[string]any{},
 	},
 	"marketplaceWebhooks_getCollection": {

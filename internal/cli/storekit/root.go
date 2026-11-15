@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// Command returns the StoreKit API command group.
-func Command() *ffcli.Command {
-	fs := flag.NewFlagSet("storekit", flag.ExitOnError)
+// NewCommand returns the StoreKit API command group.
+func NewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("storekit", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "storekit",
 		ShortUsage: "asc storekit <subcommand> [flags]",
@@ -29,15 +29,15 @@ Examples:
   asc storekit retention-messaging endpoint set --url https://example.com/retention --environment production`,
 		FlagSet: fs,
 		Subcommands: []*ffcli.Command{
-			AuthCommand(),
-			TransactionsCommand(),
-			AppTransactionsCommand(),
-			SubscriptionsCommand(),
-			RefundsCommand(),
-			OrdersCommand(),
-			NotificationsCommand(),
-			GroupsCommand(),
-			RetentionMessagingCommand(),
+			authCommand(d),
+			transactionsCommand(d),
+			appTransactionsCommand(d),
+			subscriptionsCommand(d),
+			refundsCommand(d),
+			ordersCommand(d),
+			notificationsCommand(d),
+			groupsCommand(d),
+			retentionMessagingCommand(d),
 		},
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

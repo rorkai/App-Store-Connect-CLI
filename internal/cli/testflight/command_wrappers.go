@@ -217,9 +217,9 @@ func findSubcommand(cmd *ffcli.Command, name string) *ffcli.Command {
 	return nil
 }
 
-func TestFlightGroupsCommand() *ffcli.Command {
+func newTestFlightGroupsCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		BetaGroupsCommand(),
+		newBetaGroupsCommand(d),
 		"asc testflight beta-groups",
 		"asc testflight groups",
 		map[string]string{
@@ -272,9 +272,9 @@ Examples:
 	return cmd
 }
 
-func TestFlightTestersCommand() *ffcli.Command {
+func newTestFlightTestersCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		BetaTestersCommand(),
+		newBetaTestersCommand(d),
 		"asc testflight beta-testers",
 		"asc testflight testers",
 		map[string]string{

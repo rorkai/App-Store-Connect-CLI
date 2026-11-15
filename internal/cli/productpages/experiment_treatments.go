@@ -27,7 +27,7 @@ Examples:
   asc product-pages experiments treatments create --experiment-id "EXPERIMENT_ID" --name "Variant A"
   asc product-pages experiments treatments delete --treatment-id "TREATMENT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newExperimentTreatmentsListCommand(d),
 			newExperimentTreatmentsGetCommand(d),
@@ -127,7 +127,7 @@ Examples:
   asc product-pages experiments treatments create --experiment-id "EXPERIMENT_ID" --name "Variant A" --app-icon-name "Icon A"
   asc product-pages experiments treatments create --experiment-id "EXPERIMENT_ID" --name "Variant A" --v2`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
@@ -181,7 +181,7 @@ Examples:
   asc product-pages experiments treatments update --treatment-id "TREATMENT_ID" --name "Updated"
   asc product-pages experiments treatments update --treatment-id "TREATMENT_ID" --app-icon-name "Icon B"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {

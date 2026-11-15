@@ -25,7 +25,7 @@ Examples:
   asc background-assets versions view --version-id "VERSION_ID"
   asc background-assets versions create --background-asset-id "ASSET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBackgroundAssetsVersionsListCommand(d),
 			newBackgroundAssetsVersionsGetCommand(d),

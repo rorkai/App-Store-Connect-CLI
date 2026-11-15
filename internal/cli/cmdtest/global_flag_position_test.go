@@ -13,6 +13,7 @@ func TestMisplacedGlobalFlagExplainsRootPlacement(t *testing.T) {
 		args        []string
 		commandName string
 		flagName    string
+		deps        bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:        "boolean flag",
@@ -35,6 +36,7 @@ func TestMisplacedGlobalFlagExplainsRootPlacement(t *testing.T) {
 		{
 			name:        "nested command",
 			args:        []string{"testflight", "groups", "list", "--api-debug"},
+			deps:        true,
 			commandName: "asc testflight groups list",
 			flagName:    "--api-debug",
 		},
@@ -43,9 +45,14 @@ func TestMisplacedGlobalFlagExplainsRootPlacement(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(test.args, "1.2.3")
-			})
+			var stdout, stderr string
+			if test.deps {
+				stdout, stderr, code = runWithDeps(t, nil, test.args...)
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					code = rootcmd.Run(test.args, "1.2.3")
+				})
+			}
 
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)

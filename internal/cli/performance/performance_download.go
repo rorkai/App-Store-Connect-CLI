@@ -40,7 +40,7 @@ Examples:
   asc performance download --build-id "BUILD_ID" --output ./metrics.json
   asc performance download --diagnostic-id "SIGNATURE_ID" --output ./diagnostic.json --decompress`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
 				return err

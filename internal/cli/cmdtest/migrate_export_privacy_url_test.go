@@ -37,6 +37,8 @@ func TestMigrateExportPreservesAppInfoPrivacyPolicyURL(t *testing.T) {
 		],"links":{"next":""}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
 		asctest.JSON(http.StatusOK, `{"data":null}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreReviewDetail"),
+		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`))
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)

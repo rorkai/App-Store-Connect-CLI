@@ -1,11 +1,15 @@
 package testflight
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"path/filepath"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func isolateTestFlightAuthEnvForAddTests(t *testing.T) {
@@ -24,10 +28,21 @@ func isolateTestFlightAuthEnvForAddTests(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 }
 
+// errClientRequested is what passedValidationDeps' client returns, so a
+// command that returns it got past validation and asked for a client.
+var errClientRequested = errors.New("client requested")
+
+func passedValidationDeps() *shared.Deps {
+	return &shared.Deps{
+		Client: func() (*asc.Client, error) { return nil, errClientRequested },
+		IO:     &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
+	}
+}
+
 func TestBetaTestersAddCommand_FirstNameOnlyPassesValidation(t *testing.T) {
 	isolateTestFlightAuthEnvForAddTests(t)
 
-	cmd := BetaTestersAddCommand()
+	cmd := newBetaTestersAddCommand(passedValidationDeps())
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--email", "tester@example.com",
@@ -41,12 +56,15 @@ func TestBetaTestersAddCommand_FirstNameOnlyPassesValidation(t *testing.T) {
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("first-name + email add should pass validation, got %v", err)
 	}
+	if !errors.Is(err, errClientRequested) {
+		t.Fatalf("first-name + email add should request a client after validation, got %v", err)
+	}
 }
 
 func TestBetaTestersAddCommand_NameWithoutEmailFailsValidation(t *testing.T) {
 	isolateTestFlightAuthEnvForAddTests(t)
 
-	cmd := BetaTestersAddCommand()
+	cmd := newBetaTestersAddCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--first-name", "Only",
@@ -65,7 +83,8 @@ func TestBetaTestersAddCommand_NameWithoutEmailFailsValidation(t *testing.T) {
 func TestBetaGroupsAddTestersCommand_EmailFlagPassesValidation(t *testing.T) {
 	isolateTestFlightAuthEnvForAddTests(t)
 
-	cmd := BetaGroupsAddTestersCommand()
+	d := passedValidationDeps()
+	cmd := newBetaGroupsAddTestersCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--group", "group-1",
 		"--email", "tester@example.com",
@@ -76,5 +95,11 @@ func TestBetaGroupsAddTestersCommand_EmailFlagPassesValidation(t *testing.T) {
 	err := cmd.Exec(context.Background(), []string{})
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("email-based add-testers should pass validation, got %v", err)
+	}
+	if !errors.Is(err, errClientRequested) {
+		t.Fatalf("email-based add-testers should request a client after validation, got %v", err)
+	}
+	if stderr := d.IO.ErrOut.(*bytes.Buffer).String(); stderr != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
 	}
 }

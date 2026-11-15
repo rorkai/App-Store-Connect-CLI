@@ -1,18 +1,15 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
@@ -59,18 +56,10 @@ func validValidateIAPFixture() validateIAPFixture {
 func TestValidateIAPRequiresApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "iap"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "validate", "iap")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -83,20 +72,10 @@ func TestValidateIAPRequiresApp(t *testing.T) {
 func TestValidateIAPOutputsJSONAndTable(t *testing.T) {
 	fixture := validValidateIAPFixture()
 	client := newValidateIAPClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "iap", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "iap", "--app", "app-1")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -110,15 +89,10 @@ func TestValidateIAPOutputsJSONAndTable(t *testing.T) {
 		t.Fatalf("expected no issues, got %+v", report.Summary)
 	}
 
-	root = RootCommand("1.2.3")
-	stdout, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "iap", "--app", "app-1", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err = runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "iap", "--app", "app-1", "--output", "table")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stdout, "Severity") {
 		t.Fatalf("expected table output to include headers, got %q", stdout)
@@ -130,20 +104,10 @@ func TestValidateIAPWarnsAndStrictFails(t *testing.T) {
 	fixture.iaps = `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"NON_CONSUMABLE","state":"READY_TO_SUBMIT"}}]}`
 
 	client := newValidateIAPClient(t, fixture)
-	restore := validate.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "iap", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected no error (warning-only), got %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "iap", "--app", "app-1")
+	if err != nil {
+		t.Fatalf("expected no error (warning-only), got %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -156,14 +120,7 @@ func TestValidateIAPWarnsAndStrictFails(t *testing.T) {
 		t.Fatalf("expected warnings, got %+v", report.Summary)
 	}
 
-	root = RootCommand("1.2.3")
-	var runErr error
-	stdout, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"validate", "iap", "--app", "app-1", "--strict"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "iap", "--app", "app-1", "--strict")
 	if runErr == nil {
 		t.Fatalf("expected error with --strict")
 	}

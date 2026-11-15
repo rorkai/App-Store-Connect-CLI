@@ -36,7 +36,7 @@ Examples:
   asc sandbox list --limit 50
   asc sandbox list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "sandbox list", 200); err != nil {
 				return err

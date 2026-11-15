@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -12,13 +11,13 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type certificatesListQuerySurfaceRequest struct {
-	calls int
-	path  string
-	query url.Values
+	calls  int
+	path   string
+	query  url.Values
+	client func() (*asc.Client, error)
 }
 
 func certificatesListQuerySurfaceStub(t *testing.T) *certificatesListQuerySurfaceRequest {
@@ -41,9 +40,9 @@ func certificatesListQuerySurfaceStubBody(t *testing.T, body string) *certificat
 	t.Cleanup(server.Close)
 
 	client := newReviewTestServerClient(t, server)
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	captured.client = func() (*asc.Client, error) {
 		return client, nil
-	}))
+	}
 
 	return captured
 }
@@ -52,35 +51,24 @@ func certificatesListQuerySurfaceValidationStub(t *testing.T) *certificatesListQ
 	t.Helper()
 
 	captured := &certificatesListQuerySurfaceRequest{}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	captured.client = func() (*asc.Client, error) {
 		captured.calls++
 		return nil, errors.New("client factory must not run during validation")
-	}))
+	}
 	return captured
 }
 
-func runCertificatesListQuerySurface(t *testing.T, args ...string) (string, string, error) {
+func runCertificatesListQuerySurface(t *testing.T, captured *certificatesListQuerySurfaceRequest, args ...string) (string, string, error) {
 	t.Helper()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	return stdout, stderr, runErr
+	return runRootWithDeps(t, captured.client, args...)
 }
 
 func TestCertificatesListQuerySurfaceEmitsDocumentedParameters(t *testing.T) {
 	captured := certificatesListQuerySurfaceStub(t)
 
 	stdout, stderr, err := runCertificatesListQuerySurface(
-		t,
+		t, captured,
 		"certificates", "list",
 		"--display-name", "Alpha,Beta",
 		"--certificate-type", "ios_distribution,pass_type_id",
@@ -147,7 +135,7 @@ func TestCertificatesListSparseFieldsPreserveIncludedPassTypeID(t *testing.T) {
 			captured := certificatesListQuerySurfaceStubBody(t, test.body)
 
 			stdout, stderr, err := runCertificatesListQuerySurface(
-				t,
+				t, captured,
 				"certificates", "list",
 				"--fields", "displayName",
 				"--include", "passTypeId",
@@ -204,7 +192,7 @@ func TestCertificatesListRejectsQueryFlagsCombinedWithNext(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			captured := certificatesListQuerySurfaceValidationStub(t)
 			args := append([]string{"certificates", "list", "--next", nextURL}, testCase.args...)
-			_, stderr, err := runCertificatesListQuerySurface(t, args...)
+			_, stderr, err := runCertificatesListQuerySurface(t, captured, args...)
 			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
 			}
@@ -233,7 +221,7 @@ func TestCertificatesListRejectsInvalidQuerySelections(t *testing.T) {
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			captured := certificatesListQuerySurfaceValidationStub(t)
-			_, stderr, err := runCertificatesListQuerySurface(t, append([]string{"certificates", "list"}, testCase.args...)...)
+			_, stderr, err := runCertificatesListQuerySurface(t, captured, append([]string{"certificates", "list"}, testCase.args...)...)
 			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
 			}
@@ -260,7 +248,7 @@ func TestCertificatesListRejectsExplicitlyEmptySelectors(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			captured := certificatesListQuerySurfaceValidationStub(t)
-			_, stderr, err := runCertificatesListQuerySurface(t, "certificates", "list", "--"+name, ",")
+			_, stderr, err := runCertificatesListQuerySurface(t, captured, "certificates", "list", "--"+name, ",")
 			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
 			}
@@ -279,7 +267,7 @@ func TestCertificatesListPassTypeIDFieldsRequiresInclude(t *testing.T) {
 	captured := certificatesListQuerySurfaceValidationStub(t)
 
 	_, stderr, err := runCertificatesListQuerySurface(
-		t,
+		t, captured,
 		"certificates", "list",
 		"--pass-type-id-fields", "name",
 	)

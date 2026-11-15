@@ -94,7 +94,6 @@ var (
 	checkoutSkillsSource  = checkoutPinnedSkills
 	userHomeDirectory     = os.UserHomeDir
 	renameWithinRoot      = func(root *os.Root, oldName, newName string) error { return root.Rename(oldName, newName) }
-	currentTime           = time.Now
 	errGitNotFound        = errors.New("git not found")
 	errIncompleteSkillSet = errors.New("pinned checkout does not contain the complete asc skill pack")
 )
@@ -104,9 +103,9 @@ const (
 	skillLockName   = ".skill-lock.json"
 )
 
-// InstallSkillsCommand returns the top-level `install-skills` command.
-func InstallSkillsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("install-skills", flag.ExitOnError)
+// NewInstallSkillsCommand returns the top-level `install-skills` command.
+func NewInstallSkillsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("install-skills", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "install-skills",
@@ -129,7 +128,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := installSkills(ctx); err != nil {
+			if err := installSkills(ctx, d); err != nil {
 				return fmt.Errorf("install skills: %w", err)
 			}
 			return nil
@@ -137,8 +136,8 @@ Examples:
 	}
 }
 
-func installSkills(ctx context.Context) (resultErr error) {
-	ctx, cancel := shared.ContextWithTimeout(ctx)
+func installSkills(ctx context.Context, d *shared.Deps) (resultErr error) {
+	ctx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	gitPath, err := lookupExecutable("git")
@@ -254,7 +253,7 @@ func installSkills(ctx context.Context) (resultErr error) {
 		return err
 	}
 	defer lockState.close()
-	if err := lockState.bind(names); err != nil {
+	if err := lockState.bind(names, d.Now); err != nil {
 		return err
 	}
 
@@ -271,7 +270,7 @@ func installSkills(ctx context.Context) (resultErr error) {
 		}
 		return err
 	}
-	fmt.Fprintf(os.Stdout, "Installed %d asc skills from reviewed commit %s.\n", len(names), skillsSourceCommit)
+	fmt.Fprintf(d.IO.Out, "Installed %d asc skills from reviewed commit %s.\n", len(names), skillsSourceCommit)
 	return nil
 }
 
@@ -367,8 +366,8 @@ func (state *pinnedSkillLock) close() {
 	}
 }
 
-func (state *pinnedSkillLock) bind(names []string) error {
-	data, err := buildPinnedSkillLock(state.original, names, currentTime().UTC())
+func (state *pinnedSkillLock) bind(names []string, now func() time.Time) error {
+	data, err := buildPinnedSkillLock(state.original, names, now().UTC())
 	if err != nil {
 		return fmt.Errorf("prepare pinned skills lock %s: %w", state.path, err)
 	}

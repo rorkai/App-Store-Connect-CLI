@@ -26,7 +26,7 @@ Examples:
   asc alternative-distribution packages versions deltas --version-id "VERSION_ID"
   asc alternative-distribution packages versions variants --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAlternativeDistributionPackageVersionsListCommand(d),
 			newAlternativeDistributionPackageVersionsGetCommand(d),

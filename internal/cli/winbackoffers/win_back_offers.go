@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -77,7 +76,12 @@ var winBackOfferPromotionIntentMap = map[string]asc.WinBackOfferPromotionIntent{
 
 // WinBackOffersCommand returns the win-back offers command group.
 func WinBackOffersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("win-back-offers", flag.ExitOnError)
+	return NewWinBackOffersCommand(shared.DefaultDeps())
+}
+
+// NewWinBackOffersCommand returns the win-back offers command group built on d.
+func NewWinBackOffersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("win-back-offers", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "win-back-offers",
@@ -94,14 +98,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WinBackOffersListCommand(),
-			WinBackOffersGetCommand(),
-			WinBackOffersCreateCommand(),
-			WinBackOffersUpdateCommand(),
-			WinBackOffersDeleteCommand(),
-			WinBackOffersPricesCommand(),
-			WinBackOffersPricesRelationshipsCommand(),
-			WinBackOffersRelationshipsCommand(),
+			newWinBackOffersListCommand(d),
+			newWinBackOffersGetCommand(d),
+			newWinBackOffersCreateCommand(d),
+			newWinBackOffersUpdateCommand(d),
+			newWinBackOffersDeleteCommand(d),
+			newWinBackOffersPricesCommand(d),
+			newWinBackOffersPricesRelationshipsCommand(d),
+			newWinBackOffersRelationshipsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -109,9 +113,9 @@ Examples:
 	}
 }
 
-// WinBackOffersListCommand returns the win-back offers list subcommand.
-func WinBackOffersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newWinBackOffersListCommand returns the win-back offers list subcommand.
+func newWinBackOffersListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)")
@@ -122,7 +126,7 @@ func WinBackOffersListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -137,51 +141,51 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "win-back-offers list", winBackOffersMaxLimit, "fields", "price-fields", "include", "prices-limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "win-back-offers list", winBackOffersMaxLimit, "fields", "price-fields", "include", "prices-limit"); err != nil {
 				return err
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
 			if *pricesLimit != 0 && (*pricesLimit < 1 || *pricesLimit > winBackOffersPricesMaxLimit) {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers list: --prices-limit must be between 1 and %d", winBackOffersPricesMaxLimit)
+				return d.UsageErrorfCtx(ctx, "win-back-offers list: --prices-limit must be between 1 and %d", winBackOffersPricesMaxLimit)
 			}
 
 			fieldsValue, err := normalizeWinBackOfferFields(*fields, "--fields")
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			priceFieldsValue, err := normalizeWinBackOfferPriceFields(*priceFields, "--price-fields")
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			includeValue, err := normalizeWinBackOfferInclude(*include, "--include")
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			if len(priceFieldsValue) > 0 && !shared.HasInclude(includeValue, "prices") {
-				fmt.Fprintln(os.Stderr, "Error: --price-fields requires --include prices")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --price-fields requires --include prices")
 				return flag.ErrHelp
 			}
 			if *pricesLimit != 0 && !shared.HasInclude(includeValue, "prices") {
-				fmt.Fprintln(os.Stderr, "Error: --prices-limit requires --include prices")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --prices-limit requires --include prices")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("win-back-offers list: %w", err)
 			}
 
 			if strings.TrimSpace(*next) == "" {
 				resolvedAppID := shared.ResolveAppID(strings.TrimSpace(*appID))
-				if err := shared.RequireAppForStableSelector(resolvedAppID, id, "--subscription-id"); err != nil {
+				if err := d.RequireAppForStableSelector(resolvedAppID, id, "--subscription-id"); err != nil {
 					return err
 				}
-				resolveCtx, resolveCancel := shared.ContextWithTimeout(ctx)
+				resolveCtx, resolveCancel := d.Timeout(ctx)
 				id, err = shared.ResolveSubscriptionID(resolveCtx, client, resolvedAppID, id)
 				resolveCancel()
 				if err != nil {
@@ -189,7 +193,7 @@ Examples:
 				}
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.WinBackOffersOption{
@@ -215,7 +219,7 @@ Examples:
 					return fmt.Errorf("win-back-offers list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionWinBackOffers(requestCtx, id, opts...)
@@ -223,14 +227,15 @@ Examples:
 				return fmt.Errorf("win-back-offers list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WinBackOffersGetCommand returns the win-back offers get subcommand.
-func WinBackOffersGetCommand() *ffcli.Command {
+// newWinBackOffersGetCommand returns the win-back offers get subcommand.
+func newWinBackOffersGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc win-back-offers view --id OFFER_ID",
 		ShortHelp:  "View a win-back offer by ID.",
@@ -248,9 +253,9 @@ Examples:
 	})
 }
 
-// WinBackOffersCreateCommand returns the win-back offers create subcommand.
-func WinBackOffersCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newWinBackOffersCreateCommand returns the win-back offers create subcommand.
+func newWinBackOffersCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)")
@@ -274,8 +279,8 @@ func WinBackOffersCreateCommand() *ffcli.Command {
 	promotionIntent := fs.String("promotion-intent", "", "Promotion intent: "+strings.Join(winBackOfferPromotionIntentValues, ", "))
 	priceIDs := shared.BindOnceCSVFlag(fs, "price", "Subscription price point ID(s), comma-separated (required for paid offer modes)")
 	territories := shared.BindOnceCSVFlag(fs, "territory", "Territories for FREE_TRIAL offers, comma-separated (accepts alpha-2, alpha-3, or exact English country names)")
-	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
-	output := shared.BindOutputFlags(fs)
+	targetPlanType := d.BindTargetSubscriptionPlanTypeFlag(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -296,61 +301,61 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			subscription := strings.TrimSpace(*subscriptionID)
 			if subscription == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 
 			offer := strings.TrimSpace(*offerID)
 			if offer == "" {
-				return shared.RequiredFlag("--offer-id")
+				return d.RequiredFlag("--offer-id")
 			}
 
 			if strings.TrimSpace(*duration) == "" {
-				return shared.RequiredFlag("--duration")
+				return d.RequiredFlag("--duration")
 			}
 			durationValue, err := normalizeWinBackOfferDuration(*duration)
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 			}
 
 			if strings.TrimSpace(*offerMode) == "" {
-				return shared.RequiredFlag("--offer-mode")
+				return d.RequiredFlag("--offer-mode")
 			}
 			offerModeValue, err := normalizeWinBackOfferMode(*offerMode)
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 			}
 
 			if !periodCount.set {
-				return shared.RequiredFlag("--period-count")
+				return d.RequiredFlag("--period-count")
 			}
 			if periodCount.value <= 0 {
-				return shared.UsageErrorCtx(ctx, "win-back-offers create: --period-count must be greater than 0")
+				return d.UsageErrorCtx(ctx, "win-back-offers create: --period-count must be greater than 0")
 			}
 
 			if !eligibilityPaidMonths.set {
-				return shared.RequiredFlag("--eligibility-paid-months")
+				return d.RequiredFlag("--eligibility-paid-months")
 			}
 			if eligibilityPaidMonths.value < 0 {
-				return shared.UsageErrorCtx(ctx, "win-back-offers create: --eligibility-paid-months must be 0 or greater")
+				return d.UsageErrorCtx(ctx, "win-back-offers create: --eligibility-paid-months must be 0 or greater")
 			}
 
 			if !eligibilityLastSubscribedMin.set && !eligibilityLastSubscribedMax.set {
-				fmt.Fprintln(os.Stderr, "Error: --eligibility-last-subscribed-min or --eligibility-last-subscribed-max is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --eligibility-last-subscribed-min or --eligibility-last-subscribed-max is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMin.value < 0 {
-				return shared.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed min must be 0 or greater")
+				return d.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed min must be 0 or greater")
 			}
 			if eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMax.value < 0 {
-				return shared.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed max must be 0 or greater")
+				return d.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed max must be 0 or greater")
 			}
 			if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMin.value > eligibilityLastSubscribedMax.value {
-				return shared.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed min must be less than or equal to max")
+				return d.UsageErrorCtx(ctx, "win-back-offers create: eligibility last subscribed min must be less than or equal to max")
 			}
 
 			rangeValue := asc.IntegerRange{}
@@ -362,19 +367,19 @@ Examples:
 			}
 
 			if strings.TrimSpace(*startDate) == "" {
-				return shared.RequiredFlag("--start-date")
+				return d.RequiredFlag("--start-date")
 			}
 			normalizedStartDate, err := shared.NormalizeDate(*startDate, "--start-date")
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 			}
 
 			if strings.TrimSpace(*priority) == "" {
-				return shared.RequiredFlag("--priority")
+				return d.RequiredFlag("--priority")
 			}
 			priorityValue, err := normalizeWinBackOfferPriority(*priority)
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 			}
 
 			isFreeTrial := offerModeValue == asc.SubscriptionOfferModeFreeTrial
@@ -384,36 +389,36 @@ Examples:
 			var freeTrialTerritories []string
 			if isFreeTrial {
 				if priceProvided {
-					fmt.Fprintln(os.Stderr, "Error: --price is not supported when --offer-mode is FREE_TRIAL; use --territory to choose territories")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --price is not supported when --offer-mode is FREE_TRIAL; use --territory to choose territories")
 					return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--price")
 				}
 				freeTrialTerritories, err = shared.NormalizeASCTerritoryCSV(territories.String())
 				if err != nil {
-					return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
+					return d.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 				}
 				if len(freeTrialTerritories) == 0 {
-					fmt.Fprintln(os.Stderr, "Error: --territory is required when --offer-mode is FREE_TRIAL")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --territory is required when --offer-mode is FREE_TRIAL")
 					return shared.MissingRequiredUsageError("--territory")
 				}
 			} else {
 				if strings.TrimSpace(territories.String()) != "" {
-					fmt.Fprintln(os.Stderr, "Error: --territory is only supported when --offer-mode is FREE_TRIAL")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --territory is only supported when --offer-mode is FREE_TRIAL")
 					return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--territory")
 				}
 				if len(prices) == 0 {
-					return shared.RequiredFlag("--price")
+					return d.RequiredFlag("--price")
 				}
 			}
 
 			if eligibilityWaitMonths.set && eligibilityWaitMonths.value < 0 {
-				return shared.UsageErrorCtx(ctx, "win-back-offers create: --eligibility-wait-months must be 0 or greater")
+				return d.UsageErrorCtx(ctx, "win-back-offers create: --eligibility-wait-months must be 0 or greater")
 			}
 
 			normalizedEndDate := ""
 			if strings.TrimSpace(*endDate) != "" {
 				normalizedEndDate, err = shared.NormalizeDate(*endDate, "--end-date")
 				if err != nil {
-					return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
+					return d.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 				}
 			}
 
@@ -421,7 +426,7 @@ Examples:
 			if strings.TrimSpace(*promotionIntent) != "" {
 				intent, err := normalizeWinBackOfferPromotionIntent(*promotionIntent)
 				if err != nil {
-					return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
+					return d.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 				}
 				promotionIntentValue = &intent
 			}
@@ -461,7 +466,7 @@ Examples:
 				for _, priceID := range prices {
 					territory, err := territoryFromPricePointID(priceID)
 					if err != nil {
-						return shared.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
+						return d.UsageErrorfCtx(ctx, "win-back-offers create: %v", err)
 					}
 					appendInlinePrice(&asc.WinBackOfferPriceRelationships{
 						Territory: asc.Relationship{
@@ -495,23 +500,23 @@ Examples:
 				endDateValue = &normalizedEndDate
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("win-back-offers create: %w", err)
 			}
 
 			resolvedAppID := shared.ResolveAppID(strings.TrimSpace(*appID))
-			if err := shared.RequireAppForStableSelector(resolvedAppID, subscription, "--subscription-id"); err != nil {
+			if err := d.RequireAppForStableSelector(resolvedAppID, subscription, "--subscription-id"); err != nil {
 				return err
 			}
-			resolveCtx, resolveCancel := shared.ContextWithTimeout(ctx)
+			resolveCtx, resolveCancel := d.Timeout(ctx)
 			subscription, err = shared.ResolveSubscriptionID(resolveCtx, client, resolvedAppID, subscription)
 			resolveCancel()
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			req := asc.WinBackOfferCreateRequest{
@@ -550,14 +555,14 @@ Examples:
 				return fmt.Errorf("win-back-offers create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WinBackOffersUpdateCommand returns the win-back offers update subcommand.
-func WinBackOffersUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newWinBackOffersUpdateCommand returns the win-back offers update subcommand.
+func newWinBackOffersUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "winBackOffers", "Win-back offer ID")
 	var eligibilityPaidMonths optionalInt
@@ -572,7 +577,7 @@ func WinBackOffersUpdateCommand() *ffcli.Command {
 	endDate := fs.String("end-date", "", "End date (YYYY-MM-DD)")
 	priority := fs.String("priority", "", "Offer priority: "+strings.Join(winBackOfferPriorityValues, ", "))
 	promotionIntent := fs.String("promotion-intent", "", "Promotion intent: "+strings.Join(winBackOfferPromotionIntentValues, ", "))
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -588,7 +593,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			hasUpdates := false
@@ -596,7 +601,7 @@ Examples:
 
 			if eligibilityPaidMonths.set {
 				if eligibilityPaidMonths.value < 0 {
-					return shared.UsageErrorCtx(ctx, "win-back-offers update: --eligibility-paid-months must be 0 or greater")
+					return d.UsageErrorCtx(ctx, "win-back-offers update: --eligibility-paid-months must be 0 or greater")
 				}
 				attrs.CustomerEligibilityPaidSubscriptionDurationInMonths = &eligibilityPaidMonths.value
 				hasUpdates = true
@@ -604,13 +609,13 @@ Examples:
 
 			if eligibilityLastSubscribedMin.set || eligibilityLastSubscribedMax.set {
 				if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMin.value < 0 {
-					return shared.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed min must be 0 or greater")
+					return d.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed min must be 0 or greater")
 				}
 				if eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMax.value < 0 {
-					return shared.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed max must be 0 or greater")
+					return d.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed max must be 0 or greater")
 				}
 				if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMax.set && eligibilityLastSubscribedMin.value > eligibilityLastSubscribedMax.value {
-					return shared.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed min must be less than or equal to max")
+					return d.UsageErrorCtx(ctx, "win-back-offers update: eligibility last subscribed min must be less than or equal to max")
 				}
 				rangeValue := asc.IntegerRange{}
 				if eligibilityLastSubscribedMin.set {
@@ -625,7 +630,7 @@ Examples:
 
 			if eligibilityWaitMonths.set {
 				if eligibilityWaitMonths.value < 0 {
-					return shared.UsageErrorCtx(ctx, "win-back-offers update: --eligibility-wait-months must be 0 or greater")
+					return d.UsageErrorCtx(ctx, "win-back-offers update: --eligibility-wait-months must be 0 or greater")
 				}
 				attrs.CustomerEligibilityWaitBetweenOffersInMonths = &eligibilityWaitMonths.value
 				hasUpdates = true
@@ -634,7 +639,7 @@ Examples:
 			if strings.TrimSpace(*startDate) != "" {
 				normalized, err := shared.NormalizeDate(*startDate, "--start-date")
 				if err != nil {
-					return shared.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
+					return d.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
 				}
 				attrs.StartDate = &normalized
 				hasUpdates = true
@@ -643,7 +648,7 @@ Examples:
 			if strings.TrimSpace(*endDate) != "" {
 				normalized, err := shared.NormalizeDate(*endDate, "--end-date")
 				if err != nil {
-					return shared.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
+					return d.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
 				}
 				attrs.EndDate = &normalized
 				hasUpdates = true
@@ -652,7 +657,7 @@ Examples:
 			if strings.TrimSpace(*priority) != "" {
 				value, err := normalizeWinBackOfferPriority(*priority)
 				if err != nil {
-					return shared.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
+					return d.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
 				}
 				attrs.Priority = &value
 				hasUpdates = true
@@ -661,22 +666,22 @@ Examples:
 			if strings.TrimSpace(*promotionIntent) != "" {
 				value, err := normalizeWinBackOfferPromotionIntent(*promotionIntent)
 				if err != nil {
-					return shared.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
+					return d.UsageErrorfCtx(ctx, "win-back-offers update: %v", err)
 				}
 				attrs.PromotionIntent = &value
 				hasUpdates = true
 			}
 
 			if !hasUpdates {
-				return shared.UpdateFlagRequired(fs, &eligibilityPaidMonths, &eligibilityLastSubscribedMin, &eligibilityLastSubscribedMax, &eligibilityWaitMonths, startDate, endDate, priority, promotionIntent)
+				return d.UpdateFlagRequired(fs, &eligibilityPaidMonths, &eligibilityLastSubscribedMin, &eligibilityLastSubscribedMax, &eligibilityWaitMonths, startDate, endDate, priority, promotionIntent)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("win-back-offers update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateWinBackOffer(requestCtx, trimmedID, attrs)
@@ -684,14 +689,15 @@ Examples:
 				return fmt.Errorf("win-back-offers update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WinBackOffersDeleteCommand returns the win-back offers delete subcommand.
-func WinBackOffersDeleteCommand() *ffcli.Command {
+// newWinBackOffersDeleteCommand returns the win-back offers delete subcommand.
+func newWinBackOffersDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc win-back-offers delete --id OFFER_ID --confirm",
 		ShortHelp:  "Delete a win-back offer.",
@@ -712,9 +718,9 @@ Examples:
 	})
 }
 
-// WinBackOffersPricesCommand returns the win-back offers prices subcommand.
-func WinBackOffersPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices", flag.ExitOnError)
+// newWinBackOffersPricesCommand returns the win-back offers prices subcommand.
+func newWinBackOffersPricesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("prices", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "winBackOffers", "Win-back offer ID")
 	territories := fs.String("territory", "", "Territory inputs, comma-separated (accepts alpha-2, alpha-3, or exact English country names)")
@@ -725,7 +731,7 @@ func WinBackOffersPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "prices",
@@ -739,50 +745,50 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "win-back-offers prices", winBackOffersMaxLimit, "territory", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "win-back-offers prices", winBackOffersMaxLimit, "territory", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
 				return err
 			}
 
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			fieldsValue, err := normalizeWinBackOfferPriceFields(*fields, "--fields")
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			territoryFieldsValue, err := normalizeWinBackOfferTerritoryFields(*territoryFields, "--territory-fields")
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			pricePointFieldsValue, err := normalizeWinBackOfferSubscriptionPricePointFields(*pricePointFields, "--price-point-fields")
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			includeValue, err := normalizeWinBackOfferPriceInclude(*include, "--include")
 			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
+				return d.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			territoryFilter, err := shared.NormalizeASCTerritoryCSV(*territories)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if len(territoryFieldsValue) > 0 && !shared.HasInclude(includeValue, "territory") {
-				fmt.Fprintln(os.Stderr, "Error: --territory-fields requires --include territory")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory-fields requires --include territory")
 				return flag.ErrHelp
 			}
 			if len(pricePointFieldsValue) > 0 && !shared.HasInclude(includeValue, "subscriptionPricePoint") {
-				fmt.Fprintln(os.Stderr, "Error: --price-point-fields requires --include subscriptionPricePoint")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --price-point-fields requires --include subscriptionPricePoint")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("win-back-offers prices: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.WinBackOfferPricesOption{
@@ -809,7 +815,7 @@ Examples:
 					return fmt.Errorf("win-back-offers prices: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetWinBackOfferPrices(requestCtx, trimmedID, opts...)
@@ -817,14 +823,15 @@ Examples:
 				return fmt.Errorf("win-back-offers prices: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WinBackOffersPricesRelationshipsCommand returns the price links subcommand.
-func WinBackOffersPricesRelationshipsCommand() *ffcli.Command {
+// newWinBackOffersPricesRelationshipsCommand returns the price links subcommand.
+func newWinBackOffersPricesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:       d,
 		Name:       "prices-links",
 		ShortUsage: "asc win-back-offers prices-links --id OFFER_ID [flags]",
 		ShortHelp:  "List price relationships for a win-back offer.",
@@ -848,16 +855,16 @@ Examples:
 	})
 }
 
-// WinBackOffersRelationshipsCommand returns the win-back offer links subcommand.
-func WinBackOffersRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("links", flag.ExitOnError)
+// newWinBackOffersRelationshipsCommand returns the win-back offer links subcommand.
+func newWinBackOffersRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("links", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(winBackOffersMaxLimit))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "links",
@@ -871,26 +878,26 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "win-back-offers links", winBackOffersMaxLimit); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "win-back-offers links", winBackOffersMaxLimit); err != nil {
 				return err
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.UsageError("--subscription-id is required")
+				return d.UsageError("--subscription-id is required")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("win-back-offers links: %w", err)
 			}
 
 			if strings.TrimSpace(*next) == "" {
 				resolvedAppID := shared.ResolveAppID(strings.TrimSpace(*appID))
-				if err := shared.RequireAppForStableSelector(resolvedAppID, id, "--subscription-id"); err != nil {
+				if err := d.RequireAppForStableSelector(resolvedAppID, id, "--subscription-id"); err != nil {
 					return err
 				}
-				resolveCtx, resolveCancel := shared.ContextWithTimeout(ctx)
+				resolveCtx, resolveCancel := d.Timeout(ctx)
 				id, err = shared.ResolveSubscriptionID(resolveCtx, client, resolvedAppID, id)
 				resolveCancel()
 				if err != nil {
@@ -898,7 +905,7 @@ Examples:
 				}
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			fetchPage := func(ctx context.Context, perPage int, nextURL string) (asc.PaginatedResponse, error) {
@@ -910,7 +917,7 @@ Examples:
 			}
 
 			if *paginate {
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return fetchPage(ctx, winBackOffersMaxLimit, *next)
@@ -922,14 +929,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("win-back-offers links: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := fetchPage(requestCtx, *limit, *next)
 			if err != nil {
 				return fmt.Errorf("win-back-offers links: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

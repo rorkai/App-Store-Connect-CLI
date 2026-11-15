@@ -12,15 +12,15 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppClipDefaultExperiencesRelationshipsCommand returns the default experiences links subcommand.
-func AppClipDefaultExperiencesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("default-experiences-links", flag.ExitOnError)
+// newAppClipDefaultExperiencesRelationshipsCommand returns the default experiences links subcommand.
+func newAppClipDefaultExperiencesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("default-experiences-links", flag.ExitOnError)
 
 	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "default-experiences-links",
@@ -34,21 +34,21 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-clips default-experiences-links", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips default-experiences-links", 200); err != nil {
 				return err
 			}
 
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--app-clip-id")
+				return d.RequiredFlag("--app-clip-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips default-experiences-links: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -70,7 +70,7 @@ Examples:
 					return fmt.Errorf("app-clips default-experiences-links: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppClipDefaultExperiencesRelationships(requestCtx, appClipValue, opts...)
@@ -78,20 +78,20 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences-links: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipAdvancedExperiencesRelationshipsCommand returns the advanced experiences links subcommand.
-func AppClipAdvancedExperiencesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("advanced-experiences-links", flag.ExitOnError)
+// newAppClipAdvancedExperiencesRelationshipsCommand returns the advanced experiences links subcommand.
+func newAppClipAdvancedExperiencesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("advanced-experiences-links", flag.ExitOnError)
 
 	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "advanced-experiences-links",
@@ -105,21 +105,21 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-clips advanced-experiences-links", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips advanced-experiences-links", 200); err != nil {
 				return err
 			}
 
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--app-clip-id")
+				return d.RequiredFlag("--app-clip-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences-links: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -141,7 +141,7 @@ Examples:
 					return fmt.Errorf("app-clips advanced-experiences-links: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppClipAdvancedExperiencesRelationships(requestCtx, appClipValue, opts...)
@@ -149,7 +149,7 @@ Examples:
 				return fmt.Errorf("app-clips advanced-experiences-links: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

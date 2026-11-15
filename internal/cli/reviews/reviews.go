@@ -54,7 +54,7 @@ Examples:
   asc reviews response delete --id "RESPONSE_ID" --confirm
   asc reviews response for-review --review-id "REVIEW_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newReviewsListCommand(d),
 			newReviewsGetCommand(d),
@@ -112,7 +112,7 @@ Examples:
   asc reviews list --next "<links.next>"
   asc reviews list --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "reviews list", 200, ReviewNextConflicts...); err != nil {
 				return err

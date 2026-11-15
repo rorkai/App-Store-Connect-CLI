@@ -6,8 +6,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestBuildReadinessReport_VerifiesExplicitVersionBindingBeforeReadiness(t *testing.T) {
@@ -51,10 +49,8 @@ func TestBuildReadinessReport_VerifiesExplicitVersionBindingBeforeReadiness(t *t
 				mu.Unlock()
 				return buildsJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_READINESS_REQUEST"}]}`)
 			}))
-			restoreClient := SetClientFactory(func() (*asc.Client, error) { return client, nil })
-			t.Cleanup(restoreClient)
 
-			_, err := BuildReadinessReport(context.Background(), ReadinessOptions{
+			_, err := BuildReadinessReportWith(context.Background(), readinessTestDeps(client), ReadinessOptions{
 				AppID:     "app-1",
 				VersionID: "ver-1",
 				Platform:  test.platform,

@@ -56,6 +56,7 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 		{
 			name: "testflight testers import",
 			args: []string{"testflight", "testers", "import", "--app", "123456789", "--input", testersCSV},
+			deps: true,
 		},
 		{
 			name: "reviews respond-batch",
@@ -119,6 +120,7 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 		{
 			name: "testflight testers import",
 			args: []string{"testflight", "testers", "import", "--app", "123456789", "--input", missingInput},
+			deps: true,
 		},
 		{
 			name: "reviews respond-batch",

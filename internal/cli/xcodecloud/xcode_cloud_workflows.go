@@ -158,7 +158,7 @@ func newXcodeCloudWorkflowsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc xcode-cloud workflows create --file ./workflow.json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
@@ -204,7 +204,7 @@ func newXcodeCloudWorkflowsUpdateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc xcode-cloud workflows update --id "WORKFLOW_ID" --file ./workflow.json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

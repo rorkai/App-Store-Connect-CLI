@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
@@ -132,7 +134,8 @@ func XcodeArchiveCommand() *ffcli.Command {
 		LongHelp: `Create an .xcarchive at an exact path.
 
 Provide exactly one of --workspace or --project, plus --scheme and
---archive-path. Signing follows Xcode defaults; --no-code-signing explicitly
+--archive-path. When both are omitted, asc uses the only .xcworkspace, or else
+the only .xcodeproj, in the current directory. Signing follows Xcode defaults; --no-code-signing explicitly
 sets CODE_SIGNING_ALLOWED=NO.
 
 When --derived-data-path is omitted, xcodebuild uses its own default
@@ -147,13 +150,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*workspacePath) == "" && strings.TrimSpace(*projectPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
-				return shared.MissingRequiredUsageError("")
-			}
-			if strings.TrimSpace(*workspacePath) != "" && strings.TrimSpace(*projectPath) != "" {
-				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
-				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
+			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project"); emptyFlag != "" {
+				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
 			if strings.TrimSpace(*scheme) == "" {
 				return shared.RequiredFlag("--scheme")
@@ -163,6 +161,18 @@ Examples:
 			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "configuration", "destination", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+			}
+			containerNotice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace or --project is required")
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(*workspacePath) == "" && strings.TrimSpace(*projectPath) == "" {
+				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
+				return shared.MissingRequiredUsageError("")
+			}
+			if strings.TrimSpace(*workspacePath) != "" && strings.TrimSpace(*projectPath) != "" {
+				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
+				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 			opts := localxcode.ArchiveOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
@@ -184,6 +194,9 @@ Examples:
 			}
 			if _, err := os.Stat(strings.TrimSpace(*archivePath)); err == nil && !*overwrite {
 				return shared.UsageErrorf("--archive-path already exists: %s (use --overwrite to replace it)", strings.TrimSpace(*archivePath))
+			}
+			if containerNotice != "" {
+				fmt.Fprintln(os.Stderr, containerNotice)
 			}
 
 			result, err := runArchive(ctx, opts)
@@ -214,7 +227,7 @@ func XcodeExportCommand() *ffcli.Command {
 
 	archivePath := fs.String("archive-path", "", "Path to the .xcarchive input (required)")
 	exportOptions := fs.String("export-options", "", "Path to ExportOptions.plist (generated automatically when omitted)")
-	method := fs.String("method", "app-store-connect", "Method for generated options: app-store-connect or release-testing")
+	method := fs.String("method", "app-store-connect", "Method for generated options: app-store-connect, release-testing, debugging, or enterprise")
 	signingStyle := fs.String("signing-style", "automatic", "Signing style for generated options: automatic or manual")
 	teamID := fs.String("team-id", "", "Apple Developer team ID for generated options (overrides archive metadata)")
 	ipaPath := fs.String("ipa-path", "", "Destination path for a local .ipa when one is produced")
@@ -237,7 +250,9 @@ func XcodeExportCommand() *ffcli.Command {
 This command runs xcodebuild -exportArchive into a temporary directory.
 When --export-options is omitted, asc generates archive-adjacent options. It
 uses app-store-connect and automatic signing by default. Use
---method release-testing for a local IPA installable on registered devices. Use
+--method release-testing for a local IPA installable on registered devices,
+debugging for a development-signed IPA, or enterprise for in-house
+distribution; debugging and enterprise support automatic signing only. Use
 --signing-style manual to match locally installed certificates and profiles;
 --team-id optionally overrides archive metadata.
 Automatic signing may need --xcodebuild-flag=-allowProvisioningUpdates so
@@ -246,7 +261,8 @@ For local exports, provide exactly one destination: --ipa-path for iOS, tvOS,
 or visionOS, or --pkg-path for macOS. asc moves the exported artifact to that
 exact path and discards the other export outputs unless --export-dir keeps
 them. Generated manual signing options support iOS, tvOS, and App Store
-macOS archives; provide an explicit --export-options plist for other macOS methods.
+macOS archives. Methods that export a .app, such as developer-id and
+mac-application, are not supported.
 When ExportOptions.plist uses destination=upload, xcodebuild uploads directly
 to App Store Connect and asc returns archive metadata without writing a local
 artifact or requiring a destination path. Use --wait to generate direct-upload
@@ -277,14 +293,12 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 			generationFlagsSet := false
-			methodSet := false
 			signingStyleSet := false
 			teamIDSet := false
 			fs.Visit(func(f *flag.Flag) {
 				switch f.Name {
 				case "method":
 					generationFlagsSet = true
-					methodSet = true
 				case "signing-style":
 					generationFlagsSet = true
 					signingStyleSet = true
@@ -293,9 +307,6 @@ Examples:
 					teamIDSet = true
 				}
 			})
-			if methodSet && strings.TrimSpace(*method) == "" {
-				return shared.UsageError("--method must be one of: app-store-connect, release-testing")
-			}
 			methodValue, err := localxcode.NormalizeExportOptionsMethod(*method)
 			if err != nil {
 				return shared.UsageError(err.Error())
@@ -321,11 +332,14 @@ Examples:
 			if exportOptionsPath != "" && generationFlagsSet {
 				return shared.UsageError("--export-options cannot be combined with --method, --signing-style, or --team-id")
 			}
-			if *wait && methodValue == "release-testing" {
-				return shared.UsageError("--wait cannot be combined with --method release-testing")
+			if *wait && methodValue != "app-store-connect" {
+				return shared.UsageErrorf("--wait cannot be combined with --method %s", methodValue)
 			}
-			if exportOptionsPath == "" && trimmedPKGPath != "" && methodValue == "release-testing" {
-				return shared.UsageError("--pkg-path cannot be combined with --method release-testing")
+			if exportOptionsPath == "" && trimmedPKGPath != "" && methodValue != "app-store-connect" {
+				return shared.UsageErrorf("--pkg-path cannot be combined with --method %s", methodValue)
+			}
+			if err := localxcode.ValidateExportOptionsMethodSigningStyle(methodValue, signingStyleValue); err != nil {
+				return shared.UsageError(err.Error())
 			}
 			directUpload := *wait
 			if exportOptionsPath != "" {
@@ -782,4 +796,73 @@ func validateResultRows(result *localxcode.ValidateResult) [][]string {
 		rows = append(rows, []string{"ipa_path", result.IPAPath})
 	}
 	return append(rows, []string{"validated", fmt.Sprintf("%t", result.Validated)})
+}
+
+// detectXcodeContainer fills --workspace or --project, when neither was
+// given, with the only workspace, or else the only project, at the top of the
+// working directory. It returns the notice to print once the command passes
+// validation. When the choice is ambiguous it returns the required usage
+// error with what was found.
+func detectXcodeContainer(fs *flag.FlagSet, workspacePath, projectPath *string, required string) (string, error) {
+	given := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "workspace" || f.Name == "project" {
+			given = true
+		}
+	})
+	if given {
+		return "", nil
+	}
+	entries, err := readWorkingDirectory()
+	if err != nil {
+		return "", shared.UsageErrorf("%s; could not list the current directory: %v", required, err)
+	}
+	var workspaces, projects []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		switch strings.ToLower(filepath.Ext(entry.Name())) {
+		case ".xcworkspace":
+			workspaces = append(workspaces, entry.Name())
+		case ".xcodeproj":
+			projects = append(projects, entry.Name())
+		}
+	}
+	slices.Sort(workspaces)
+	slices.Sort(projects)
+	for _, kind := range []struct {
+		name  string
+		found []string
+		flag  string
+		value *string
+	}{
+		{"workspace", workspaces, "--workspace", workspacePath},
+		{"project", projects, "--project", projectPath},
+	} {
+		switch len(kind.found) {
+		case 0:
+			continue
+		case 1:
+			*kind.value = kind.found[0]
+			return fmt.Sprintf("Using %s %s", kind.name, kind.found[0]), nil
+		default:
+			return "", shared.UsageErrorf("%s; found %d %ss: %s; pass %s", required, len(kind.found), kind.name, strings.Join(kind.found, ", "), kind.flag)
+		}
+	}
+	return "", nil
+}
+
+func readWorkingDirectory() ([]os.DirEntry, error) {
+	root, err := rootfs.New(".")
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	dir, err := root.OpenDir(".")
+	if err != nil {
+		return nil, err
+	}
+	defer dir.Close()
+	return dir.ReadDir(-1)
 }

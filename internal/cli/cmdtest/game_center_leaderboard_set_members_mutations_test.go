@@ -26,7 +26,6 @@ func TestGameCenterLeaderboardSetMembersSetAddsMembersToEmptySet(t *testing.T) {
 
 			const members = `{"data":[{"type":"gameCenterLeaderboards","id":"lb-1"},{"type":"gameCenterLeaderboards","id":"lb-2"}]}`
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET(test.prefix+"/gameCenterLeaderboardSets/set-1/gameCenterLeaderboards", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 			reg.Register(asctest.POST(test.prefix+"/gameCenterLeaderboardSets/set-1/relationships/gameCenterLeaderboards").JSONBody(members),
@@ -34,11 +33,11 @@ func TestGameCenterLeaderboardSetMembersSetAddsMembersToEmptySet(t *testing.T) {
 			reg.Register(asctest.PATCH(test.prefix+"/gameCenterLeaderboardSets/set-1/relationships/gameCenterLeaderboards").JSONBody(members),
 				asctest.JSON(http.StatusNoContent, ""))
 
-			stdout, stderr, err := runCommand(t, append(test.command,
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), append(test.command,
 				"--set-id", "set-1",
 				"--leaderboard-ids", "lb-1,lb-1,lb-2",
 				"--confirm",
-			))
+			)...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

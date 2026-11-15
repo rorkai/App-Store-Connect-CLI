@@ -10,7 +10,7 @@ import (
 )
 
 func TestGameCenterActivitiesValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "activities", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "activities", "create", "--reference-name", "Seasonal"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "activities", "create", "--app", "APP_ID", "--group-id", "GROUP_ID", "--reference-name", "Seasonal", "--vendor-id", "com.example.seasonal"}, "--app cannot be used with --group-id"},
@@ -75,7 +75,6 @@ func TestGameCenterActivityRelationshipsSetRequestWiring(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			match := asctest.POST
 			if test.wantMethod == http.MethodDelete {
 				match = asctest.DELETE
@@ -83,7 +82,7 @@ func TestGameCenterActivityRelationshipsSetRequestWiring(t *testing.T) {
 			reg.Register(match(test.wantPath), asctest.JSON(http.StatusNoContent, ""))
 
 			args := []string{"game-center", "activities", test.resource, "set", "--activity-id", "ACTIVITY_ID", "--ids", "RES_1,RES_2"}
-			stdout, stderr, err := runCommand(t, append(args, test.extraArgs...))
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), append(args, test.extraArgs...)...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

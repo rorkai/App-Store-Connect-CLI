@@ -44,14 +44,17 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 			args:     []string{"localizations", "update", "--id", "loc-1", "--description", "Description"},
 			request:  asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Description"}}}`),
 			wantHint: "Hint: Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
+			deps:     true,
 		},
 		{
 			args:     []string{"testflight", "testers", "add", "--email", "tester@example.com", "--build-id", "build-1"},
+			deps:     true,
 			request:  asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"email":"tester@example.com"},"relationships":{"builds":{"data":[{"type":"builds","id":"build-1"}]}}}}`),
 			wantHint: "Hint: Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
 		},
 		{
 			args:         []string{"testflight", "testers", "invite", "--app", "app-1", "--email", "tester@example.com"},
+			deps:         true,
 			lookupTester: true,
 			request:      asctest.POST("/v1/betaTesterInvitations").JSONBody(`{"data":{"type":"betaTesterInvitations","relationships":{"app":{"data":{"type":"apps","id":"app-1"}},"betaTester":{"data":{"type":"betaTesters","id":"tester-1"}}}}}`),
 			wantHint:     "Hint: Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",

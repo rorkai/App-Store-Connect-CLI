@@ -5,7 +5,7 @@ import (
 )
 
 func TestGameCenterAchievementsV2ValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "achievements", "v2", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "achievements", "v2", "versions", "list"}, "--achievement-id is required"},
 		{[]string{"game-center", "achievements", "v2", "localizations", "create", "--locale", "en-US", "--name", "Test", "--before-earned-description", "Before", "--after-earned-description", "After"}, "--version-id is required"},

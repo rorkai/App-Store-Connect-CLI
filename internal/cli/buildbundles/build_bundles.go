@@ -30,7 +30,7 @@ Examples:
   asc build-bundles app-clip debug-status view --id "BUILD_BUNDLE_ID"
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBuildBundlesListCommand(d),
 			newBuildBundleFileSizesCommand(d),
@@ -60,7 +60,7 @@ Examples:
   asc build-bundles list --build-id "BUILD_ID"
   asc build-bundles list --build-id "BUILD_ID" --limit 10`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "build-bundles list", 50); err != nil {
 				return err
@@ -108,7 +108,7 @@ Examples:
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID"
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBuildBundleFileSizesListCommand(d),
 		},
@@ -157,7 +157,7 @@ Examples:
   asc build-bundles app-clip debug-status view --id "BUILD_BUNDLE_ID"
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBuildBundlesAppClipCacheStatusCommand(d),
 			newBuildBundlesAppClipDebugStatusCommand(d),
@@ -182,7 +182,7 @@ func newBuildBundlesAppClipCacheStatusCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc build-bundles app-clip cache-status view --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBuildBundlesAppClipCacheStatusGetCommand(d),
 		},
@@ -231,7 +231,7 @@ func newBuildBundlesAppClipDebugStatusCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc build-bundles app-clip debug-status view --id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBuildBundlesAppClipDebugStatusGetCommand(d),
 		},
@@ -281,7 +281,7 @@ Examples:
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID"
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBuildBundlesAppClipInvocationsListCommand(d),
 		},
@@ -312,7 +312,7 @@ Examples:
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID" --limit 50
   asc build-bundles app-clip invocations list --id "BUILD_BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "build-bundles app-clip invocations list", 200); err != nil {
 				return err

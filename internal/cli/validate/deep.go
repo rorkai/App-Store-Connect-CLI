@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -30,7 +29,7 @@ var (
 )
 
 func loadDeepSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := readinessRequestContext(ctx)
 	defer cancel()
 	var session *webcore.AuthSession
 	var ok bool
@@ -196,7 +195,7 @@ func scopeResolutionCommands(resolution *validation.Resolution, appleID string) 
 }
 
 func collectPrivacyDeepCheck(ctx context.Context, client deepWebClient, appID string) (validation.DeepCheck, *validation.CheckResult) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := readinessRequestContext(ctx)
 	defer cancel()
 	state, err := client.GetAppDataUsagesPublishState(requestCtx, strings.TrimSpace(appID))
 	link := appStoreConnectURL(appID, "appPrivacy")
@@ -251,7 +250,7 @@ func collectSubscriptionDeepCheck(ctx context.Context, client deepWebClient, app
 		}, nil
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := readinessRequestContext(ctx)
 	defer cancel()
 	subscriptions, err := client.ListReviewSubscriptions(requestCtx, strings.TrimSpace(appID))
 	if err != nil {
@@ -391,7 +390,7 @@ func isSubscriptionAttachmentEditableVersionState(state string) bool {
 }
 
 func collectAgreementsDeepCheck(ctx context.Context, client deepWebClient, requiresPaidAgreement, paidAgreementRelevanceKnown bool) (validation.DeepCheck, *validation.CheckResult) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := readinessRequestContext(ctx)
 	defer cancel()
 	status, err := client.GetAgreementsStatus(requestCtx)
 	if status == nil {

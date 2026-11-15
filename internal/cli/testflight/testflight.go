@@ -9,9 +9,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// TestFlightCommand returns the testflight command with subcommands.
-func TestFlightCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("testflight", flag.ExitOnError)
+// NewTestFlightCommand returns the testflight command with subcommands built
+// on d.
+func NewTestFlightCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("testflight", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "testflight",
@@ -37,8 +38,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			TestFlightGroupsCommand(),
-			TestFlightTestersCommand(),
+			newTestFlightGroupsCommand(d),
+			newTestFlightTestersCommand(d),
 			TestFlightFeedbackCommand(),
 			TestFlightCrashesCommand(),
 			TestFlightAgreementsCommand(),

@@ -30,7 +30,7 @@ Examples:
   asc android-ios-mapping update --mapping-id "MAPPING_ID" --android-package-name "com.example.android.new"
   asc android-ios-mapping delete --mapping-id "MAPPING_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAndroidIosMappingListCommand(d),
 			newAndroidIosMappingGetCommand(d),
@@ -138,7 +138,7 @@ func newAndroidIosMappingCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc android-ios-mapping create --app "APP_ID" --android-package-name "com.example.android" --fingerprints "SHA1,SHA2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -199,7 +199,7 @@ Examples:
   asc android-ios-mapping update --mapping-id "MAPPING_ID" --clear-android-package-name
   asc android-ios-mapping update --mapping-id "MAPPING_ID" --clear-fingerprints`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {

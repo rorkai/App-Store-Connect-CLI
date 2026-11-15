@@ -10,16 +10,15 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
-	"io"
 	"math/big"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/artifacts"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 var developerIDCheckTestNow = time.Date(2026, time.October, 31, 12, 0, 0, 0, time.UTC)
@@ -154,47 +153,23 @@ func TestBuildDeveloperIDCheckAuthorityClock(t *testing.T) {
 	}
 }
 
-func captureDeveloperIDCheckOutput(t *testing.T, run func() error) (string, string, error) {
-	t.Helper()
-	capture := func(target **os.File) func() string {
-		reader, writer, err := os.Pipe()
-		if err != nil {
-			t.Fatal(err)
-		}
-		original := *target
-		*target = writer
-		done := make(chan string)
-		go func() {
-			var buffer bytes.Buffer
-			_, _ = io.Copy(&buffer, reader)
-			done <- buffer.String()
-		}()
-		return func() string {
-			*target = original
-			_ = writer.Close()
-			return <-done
-		}
-	}
-	stopStdout, stopStderr := capture(&os.Stdout), capture(&os.Stderr)
-	err := run()
-	return stopStdout(), stopStderr(), err
-}
-
 func runDeveloperIDCheck(t *testing.T, transport http.RoundTripper, args ...string) (string, string, error) {
 	t.Helper()
 	client := newCertificatesTestClient(t, transport)
-	originalClient, originalNow := getCertificatesASCClient, developerIDCheckNow
-	getCertificatesASCClient = func() (*asc.Client, error) { return client, nil }
-	developerIDCheckNow = func() time.Time { return developerIDCheckTestNow }
-	t.Cleanup(func() { getCertificatesASCClient, developerIDCheckNow = originalClient, originalNow })
+	var stdout, stderr bytes.Buffer
+	d := &shared.Deps{
+		Client:  func() (*asc.Client, error) { return client, nil },
+		IO:      &shared.IO{In: strings.NewReader(""), Out: &stdout, ErrOut: &stderr},
+		Now:     func() time.Time { return developerIDCheckTestNow },
+		Timeout: shared.ContextWithTimeout,
+	}
 
-	command := CertificatesDeveloperIDCheckCommand()
+	command := newCertificatesDeveloperIDCheckCommand(d)
 	if err := command.FlagSet.Parse(args); err != nil {
 		t.Fatal(err)
 	}
-	return captureDeveloperIDCheckOutput(t, func() error {
-		return command.Exec(context.Background(), command.FlagSet.Args())
-	})
+	err := command.Exec(context.Background(), command.FlagSet.Args())
+	return stdout.String(), stderr.String(), err
 }
 
 func developerIDCheckTransport(t *testing.T, requests *[]*http.Request, pages ...string) roundTripFunc {

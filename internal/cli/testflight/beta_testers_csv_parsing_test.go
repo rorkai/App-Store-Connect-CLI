@@ -1,11 +1,20 @@
 package testflight
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+// csvTestDeps returns deps whose streams are buffers, for the CSV readers
+// that print notes and usage errors.
+func csvTestDeps() *shared.Deps {
+	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}}
+}
 
 func TestReadBetaTestersCSV_CanonicalHeaderWithSemicolonGroups(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "canonical.csv")
@@ -18,7 +27,7 @@ func TestReadBetaTestersCSV_CanonicalHeaderWithSemicolonGroups(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	rows, err := readBetaTestersCSV(path)
+	rows, err := readBetaTestersCSV(csvTestDeps(), path)
 	if err != nil {
 		t.Fatalf("readBetaTestersCSV() error: %v", err)
 	}
@@ -44,7 +53,7 @@ func TestReadBetaTestersCSV_SemicolonGroupsPreserveCommaInGroupName(t *testing.T
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	rows, err := readBetaTestersCSV(path)
+	rows, err := readBetaTestersCSV(csvTestDeps(), path)
 	if err != nil {
 		t.Fatalf("readBetaTestersCSV() error: %v", err)
 	}
@@ -67,7 +76,7 @@ func TestReadBetaTestersCSV_FastlaneHeaderAliases(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	rows, err := readBetaTestersCSV(path)
+	rows, err := readBetaTestersCSV(csvTestDeps(), path)
 	if err != nil {
 		t.Fatalf("readBetaTestersCSV() error: %v", err)
 	}
@@ -96,7 +105,7 @@ func TestReadBetaTestersCSV_FastlaneHeaderlessRows(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	rows, err := readBetaTestersCSV(path)
+	rows, err := readBetaTestersCSV(csvTestDeps(), path)
 	if err != nil {
 		t.Fatalf("readBetaTestersCSV() error: %v", err)
 	}
@@ -118,7 +127,7 @@ func TestReadBetaTestersCSV_HeaderlessRowWithHeaderWordsParsesAsData(t *testing.
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	rows, err := readBetaTestersCSV(path)
+	rows, err := readBetaTestersCSV(csvTestDeps(), path)
 	if err != nil {
 		t.Fatalf("readBetaTestersCSV() error: %v", err)
 	}
@@ -137,7 +146,7 @@ func TestReadBetaTestersCSV_HeaderlessTooFewColumns(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readBetaTestersCSV(path)
+	_, err := readBetaTestersCSV(csvTestDeps(), path)
 	if err == nil {
 		t.Fatal("expected error for invalid headerless format")
 	}
@@ -145,7 +154,7 @@ func TestReadBetaTestersCSV_HeaderlessTooFewColumns(t *testing.T) {
 
 func TestReadBetaTestersCSV_RandomFixtureParses(t *testing.T) {
 	path := filepath.Join("testdata", "beta_testers_random.csv")
-	rows, err := readBetaTestersCSV(path)
+	rows, err := readBetaTestersCSV(csvTestDeps(), path)
 	if err != nil {
 		t.Fatalf("readBetaTestersCSV() error: %v", err)
 	}

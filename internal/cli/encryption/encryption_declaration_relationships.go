@@ -21,7 +21,7 @@ func newEncryptionDeclarationsAppCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc encryption declarations app view --id "DECL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newEncryptionDeclarationsAppGetCommand(d),
 		},
@@ -63,7 +63,7 @@ func newEncryptionDeclarationsDeclarationDocumentCommand(d *shared.Deps) *ffcli.
 Examples:
   asc encryption declarations app-encryption-declaration-document view --id "DECL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newEncryptionDeclarationsDeclarationDocumentGetCommand(d),
 		},

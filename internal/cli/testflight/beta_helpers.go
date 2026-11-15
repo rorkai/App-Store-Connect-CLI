@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -18,8 +17,8 @@ var errBetaTesterNotFound = errors.New("beta tester not found")
 // helper into a usage error so the command exits 2, preserving both the
 // diagnostic the helper attached and the command-path rewrites the command
 // tree installed on ctx.
-func usageErrorFromValidation(ctx context.Context, format string, err error) error {
-	usageErr := shared.UsageErrorfCtx(ctx, format, err)
+func usageErrorFromValidation(ctx context.Context, d *shared.Deps, format string, err error) error {
+	usageErr := d.UsageErrorfCtx(ctx, format, err)
 	if diagnostic, ok := shared.DiagnosticFromError(err); ok {
 		return shared.WithDiagnostic(usageErr, diagnostic.Code, diagnostic.Parameter)
 	}
@@ -28,10 +27,10 @@ func usageErrorFromValidation(ctx context.Context, format string, err error) err
 
 // parseCreateRelationshipIDs reads a create command's relationship flag. A
 // provided flag with no IDs is a usage error, so it is never dropped silently.
-func parseCreateRelationshipIDs(value *shared.OnceCSVValue, flagName string) ([]string, error) {
+func parseCreateRelationshipIDs(d *shared.Deps, value *shared.OnceCSVValue, flagName string) ([]string, error) {
 	ids := shared.SplitUniqueCSV(value.String())
 	if value.Provided() && len(ids) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: %s must include at least one ID\n", flagName)
+		fmt.Fprintf(d.IO.ErrOut, "Error: %s must include at least one ID\n", flagName)
 		return nil, shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, flagName)
 	}
 	return ids, nil

@@ -188,6 +188,7 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "certificates view", operation: "certificates_getInstance", resource: true, noNext: true,
 			command: []string{"certificates", "view"}, selector: []string{"--id", "certificate-1"},
+			deps:    true,
 			include: "passTypeId", path: "/v1/certificates/certificate-1",
 			flags: map[string]string{"pass-type-id-fields": "passTypeIds"},
 		},
@@ -234,12 +235,14 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "app price points", operation: "apps_appPricePoints_getToManyRelated",
 			command: []string{"pricing", "price-points"}, selector: []string{"--app", "app-1"},
+			deps:    true,
 			include: "territory", path: "/v1/apps/app-1/appPricePoints",
 			flags: map[string]string{"territory-fields": "territories"},
 		},
 		{
 			name: "app price point equalizations", operation: "appPricePointsV3_equalizations_getToManyRelated",
 			command: []string{"pricing", "price-points", "equalizations"}, selector: []string{"--price-point", "point-1"},
+			deps:    true,
 			include: "territory", path: "/v3/appPricePoints/point-1/equalizations",
 			flags: map[string]string{"territory-fields": "territories"},
 		},
@@ -258,6 +261,7 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "testflight testers list", operation: "betaTesters_getCollection",
 			command: []string{"testflight", "testers", "list"}, selector: []string{"--app", "app-1"},
+			deps:    true,
 			include: "apps,betaGroups,builds", path: "/v1/betaTesters", query: map[string]string{"filter[apps]": "app-1"},
 			flags: map[string]string{"app-fields": "apps", "beta-group-fields": "betaGroups", "build-fields": "builds"},
 		},
@@ -339,6 +343,7 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"localizations", "placements", "list"}, selector: []string{"--localization-id", "localization-1"},
 			include: "image,video,retentionMessageVersion", path: "/v1/appStoreVersionLocalizations/localization-1/placements",
 			flags: map[string]string{"asset-image-fields": "appAssetLibraryImages", "asset-video-fields": "appAssetLibraryVideos", "retention-message-version-fields": "retentionMessageVersions"},
+			deps:  true,
 		},
 		{
 			name: "iap list", operation: "apps_inAppPurchasesV2_getToManyRelated",
@@ -357,12 +362,14 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"localizations", "list"}, selector: []string{"--version", "version-1"},
 			include: "appStoreVersion,appScreenshotSets,appPreviewSets", path: "/v1/appStoreVersions/version-1/appStoreVersionLocalizations",
 			flags: map[string]string{"app-store-version-fields": "appStoreVersions", "screenshot-set-fields": "appScreenshotSets", "preview-set-fields": "appPreviewSets"},
+			deps:  true,
 		},
 		{
 			name: "localization screenshot sets list", operation: "appStoreVersionLocalizations_appScreenshotSets_getToManyRelated",
 			command: []string{"localizations", "screenshot-sets", "list"}, selector: []string{"--localization-id", "localization-1"},
 			include: "appScreenshots", path: "/v1/appStoreVersionLocalizations/localization-1/appScreenshotSets", query: map[string]string{"limit[appScreenshots]": "50"},
 			flags: map[string]string{"screenshot-fields": "appScreenshots"},
+			deps:  true,
 		},
 	}
 }

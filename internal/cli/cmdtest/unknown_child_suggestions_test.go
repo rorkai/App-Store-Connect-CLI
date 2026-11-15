@@ -18,6 +18,7 @@ func TestUnknownChildSuggestionsAcrossCommandGroups(t *testing.T) {
 		name       string
 		args       []string
 		wantStderr string
+		deps       bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name: "versions",
@@ -52,6 +53,7 @@ func TestUnknownChildSuggestionsAcrossCommandGroups(t *testing.T) {
 		{
 			name: "testflight groups",
 			args: []string{"testflight", "groups", "create-group"},
+			deps: true,
 			wantStderr: "Error: unknown command `asc testflight groups create-group`\n" +
 				"Try:\n" +
 				"  asc testflight groups create --app APP_ID --name NAME\n" +
@@ -82,11 +84,20 @@ func TestUnknownChildSuggestionsAcrossCommandGroups(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitUsage {
+			var stdout, stderr string
+			if test.deps {
+				var code int
+				stdout, stderr, code = runWithDeps(t, nil, test.args...)
+				if code != rootcmd.ExitUsage {
 					t.Fatalf("Run() exit code = %d, want %d", code, rootcmd.ExitUsage)
 				}
-			})
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitUsage {
+						t.Fatalf("Run() exit code = %d, want %d", code, rootcmd.ExitUsage)
+					}
+				})
+			}
 
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)

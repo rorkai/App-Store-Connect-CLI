@@ -61,6 +61,8 @@ func TestMigrateExportFetchesAppClipMetadata(t *testing.T) {
 		asctest.JSON(200, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
 		asctest.JSON(200, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreReviewDetail"),
+		asctest.JSON(404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
 		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`))
 	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations"),
@@ -219,6 +221,8 @@ func TestMigrateStoreAssetsProductionRoundTrip(t *testing.T) {
 			return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
 		case "GET /v1/apps/APP_ID/appInfos":
 			return migrateJSONResponse(200, `{"data":[]}`), nil
+		case "GET /v1/appStoreVersions/VERSION_ID/appStoreReviewDetail":
+			return migrateJSONResponse(404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`), nil
 		case "GET /v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
 			return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`), nil
 		case "GET /v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
@@ -459,4 +463,50 @@ func TestMigrateSkippedAssetsAreNotReadOrUploaded(t *testing.T) {
 	if !seen["skipped by --skip-app-clip"] || !seen["skipped by --skip-previews"] {
 		t.Fatalf("missing skip provenance: %s", stdout)
 	}
+}
+
+func TestMigrateImportReportsPreviewOutsideDeviceFolder(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX executable fixture")
+	}
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	root := t.TempDir()
+	for _, dir := range []string{"metadata", "app_previews/en-US/iphone_65"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(root, "app_previews/en-US/iphone_65/nested.mp4"), "fixture-video")
+	writeFile(t, filepath.Join(root, "app_previews/en-US/flat.mp4"), "fixture-video")
+	installValidStoreAssetProbe(t)
+	asctest.NewRegistry(t).Install()
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--skip-app-clip", "--dry-run", "--output", "json"})
+	})
+	if runErr != nil {
+		t.Fatal(runErr)
+	}
+	var receipt struct {
+		Previews []struct {
+			FileName string `json:"fileName"`
+		} `json:"previews"`
+		Skipped []struct {
+			Path   string `json:"path"`
+			Reason string `json:"reason"`
+		} `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if len(receipt.Previews) != 1 || receipt.Previews[0].FileName != "nested.mp4" {
+		t.Fatalf("nested preview not planned: %s", stdout)
+	}
+	for _, item := range receipt.Skipped {
+		if item.Path == filepath.Join(root, "app_previews/en-US/flat.mp4") && strings.Contains(item.Reason, "app_previews/<locale>/<device>/<file>") {
+			return
+		}
+	}
+	t.Fatalf("flat preview not reported in skipped: %s", stdout)
 }

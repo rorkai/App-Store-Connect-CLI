@@ -95,12 +95,10 @@ func TestRun_GameCenter43Flags_InvalidValuesReturnUsage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, stderr := captureOutput(t, func() {
-				code := cmd.Run(test.args, "1.0.0")
-				if code != cmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-				}
-			})
+			_, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+			}
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
 			}

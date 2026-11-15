@@ -13,12 +13,15 @@ import (
 
 func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 	tests := []struct {
-		name      string
-		command   func() *ffcli.Command
-		args      []string
-		wantError string
-		wantCode  shared.DiagnosticCode
-		wantParam string
+		name    string
+		command func() *ffcli.Command
+		// depsCommand builds a command on shared.Deps; see
+		// runTestFlightDiagnosticCommand.
+		depsCommand func(*shared.Deps) *ffcli.Command
+		args        []string
+		wantError   string
+		wantCode    shared.DiagnosticCode
+		wantParam   string
 		// usageError marks a pre-request flag check that reports its own
 		// diagnostic and exits with usage semantics (#518). The raw command
 		// renders the command path it was written with; the re-parented tree
@@ -26,22 +29,22 @@ func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 		usageError bool
 	}{
 		{
-			name:       "beta groups list limit",
-			command:    BetaGroupsListCommand,
-			args:       []string{"--limit", "201"},
-			wantError:  "testflight beta-groups list: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta groups list limit",
+			depsCommand: newBetaGroupsListCommand,
+			args:        []string{"--limit", "201"},
+			wantError:   "testflight beta-groups list: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
-			name:       "beta groups relationships limit",
-			command:    BetaGroupsRelationshipsGetCommand,
-			args:       []string{"--group-id", "group-1", "--type", "betaTesters", "--limit", "201"},
-			wantError:  "testflight beta-groups relationships view: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta groups relationships limit",
+			depsCommand: newBetaGroupsRelationshipsGetCommand,
+			args:        []string{"--group-id", "group-1", "--type", "betaTesters", "--limit", "201"},
+			wantError:   "testflight beta-groups relationships view: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
 			name:       "beta license agreements list limit",
@@ -53,49 +56,49 @@ func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 			usageError: true,
 		},
 		{
-			name:       "beta testers list limit",
-			command:    BetaTestersListCommand,
-			args:       []string{"--limit", "201"},
-			wantError:  "testflight beta-testers list: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta testers list limit",
+			depsCommand: newBetaTestersListCommand,
+			args:        []string{"--limit", "201"},
+			wantError:   "testflight beta-testers list: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
-			name:       "beta tester apps limit",
-			command:    BetaTestersAppsListCommand,
-			args:       []string{"--tester-id", "tester-1", "--limit", "201"},
-			wantError:  "testflight beta-testers apps list: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta tester apps limit",
+			depsCommand: newBetaTestersAppsListCommand,
+			args:        []string{"--tester-id", "tester-1", "--limit", "201"},
+			wantError:   "testflight beta-testers apps list: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
-			name:       "beta tester beta groups limit",
-			command:    BetaTestersBetaGroupsListCommand,
-			args:       []string{"--tester-id", "tester-1", "--limit", "201"},
-			wantError:  "testflight beta-testers beta-groups list: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta tester beta groups limit",
+			depsCommand: newBetaTestersBetaGroupsListCommand,
+			args:        []string{"--tester-id", "tester-1", "--limit", "201"},
+			wantError:   "testflight beta-testers beta-groups list: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
-			name:       "beta tester builds limit",
-			command:    BetaTestersBuildsListCommand,
-			args:       []string{"--tester-id", "tester-1", "--limit", "201"},
-			wantError:  "testflight beta-testers builds list: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta tester builds limit",
+			depsCommand: newBetaTestersBuildsListCommand,
+			args:        []string{"--tester-id", "tester-1", "--limit", "201"},
+			wantError:   "testflight beta-testers builds list: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
-			name:       "beta tester relationships limit",
-			command:    BetaTestersRelationshipsGetCommand,
-			args:       []string{"--tester-id", "tester-1", "--type", "apps", "--limit", "201"},
-			wantError:  "testflight beta-testers relationships view: --limit must be between 1 and 200",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--limit",
-			usageError: true,
+			name:        "beta tester relationships limit",
+			depsCommand: newBetaTestersRelationshipsGetCommand,
+			args:        []string{"--tester-id", "tester-1", "--type", "apps", "--limit", "201"},
+			wantError:   "testflight beta-testers relationships view: --limit must be between 1 and 200",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--limit",
+			usageError:  true,
 		},
 		{
 			name:       "review view limit",
@@ -134,85 +137,85 @@ func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 			usageError: true,
 		},
 		{
-			name:       "beta groups relationship aliases conflict",
-			command:    BetaGroupsRelationshipsGetCommand,
-			args:       []string{"--group-id", "group-1", "--id", "group-2", "--type", "betaTesters"},
-			wantError:  "testflight beta-groups relationships view: --group-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta groups relationship aliases conflict",
+			depsCommand: newBetaGroupsRelationshipsGetCommand,
+			args:        []string{"--group-id", "group-1", "--id", "group-2", "--type", "betaTesters"},
+			wantError:   "testflight beta-groups relationships view: --group-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta group app aliases conflict",
-			command:    BetaGroupsAppGetCommand,
-			args:       []string{"--group-id", "group-1", "--id", "group-2"},
-			wantError:  "testflight beta-groups app view: --group-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta group app aliases conflict",
+			depsCommand: newBetaGroupsAppGetCommand,
+			args:        []string{"--group-id", "group-1", "--id", "group-2"},
+			wantError:   "testflight beta-groups app view: --group-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta group recruitment criteria aliases conflict",
-			command:    BetaGroupsRecruitmentCriteriaGetCommand,
-			args:       []string{"--group-id", "group-1", "--id", "group-2"},
-			wantError:  "testflight beta-groups beta-recruitment-criteria view: --group-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta group recruitment criteria aliases conflict",
+			depsCommand: newBetaGroupsRecruitmentCriteriaGetCommand,
+			args:        []string{"--group-id", "group-1", "--id", "group-2"},
+			wantError:   "testflight beta-groups beta-recruitment-criteria view: --group-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta group compatible build aliases conflict",
-			command:    BetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand,
-			args:       []string{"--group-id", "group-1", "--id", "group-2"},
-			wantError:  "testflight beta-groups beta-recruitment-criterion-compatible-build-check view: --group-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta group compatible build aliases conflict",
+			depsCommand: newBetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand,
+			args:        []string{"--group-id", "group-1", "--id", "group-2"},
+			wantError:   "testflight beta-groups beta-recruitment-criterion-compatible-build-check view: --group-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta tester apps aliases conflict",
-			command:    BetaTestersAppsListCommand,
-			args:       []string{"--tester-id", "tester-1", "--id", "tester-2"},
-			wantError:  "testflight beta-testers apps list: --tester-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta tester apps aliases conflict",
+			depsCommand: newBetaTestersAppsListCommand,
+			args:        []string{"--tester-id", "tester-1", "--id", "tester-2"},
+			wantError:   "testflight beta-testers apps list: --tester-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta tester beta groups aliases conflict",
-			command:    BetaTestersBetaGroupsListCommand,
-			args:       []string{"--tester-id", "tester-1", "--id", "tester-2"},
-			wantError:  "testflight beta-testers beta-groups list: --tester-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta tester beta groups aliases conflict",
+			depsCommand: newBetaTestersBetaGroupsListCommand,
+			args:        []string{"--tester-id", "tester-1", "--id", "tester-2"},
+			wantError:   "testflight beta-testers beta-groups list: --tester-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta tester builds aliases conflict",
-			command:    BetaTestersBuildsListCommand,
-			args:       []string{"--tester-id", "tester-1", "--id", "tester-2"},
-			wantError:  "testflight beta-testers builds list: --tester-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta tester builds aliases conflict",
+			depsCommand: newBetaTestersBuildsListCommand,
+			args:        []string{"--tester-id", "tester-1", "--id", "tester-2"},
+			wantError:   "testflight beta-testers builds list: --tester-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta tester relationships aliases conflict",
-			command:    BetaTestersRelationshipsGetCommand,
-			args:       []string{"--tester-id", "tester-1", "--id", "tester-2", "--type", "apps"},
-			wantError:  "testflight beta-testers relationships view: --tester-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta tester relationships aliases conflict",
+			depsCommand: newBetaTestersRelationshipsGetCommand,
+			args:        []string{"--tester-id", "tester-1", "--id", "tester-2", "--type", "apps"},
+			wantError:   "testflight beta-testers relationships view: --tester-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta tester metrics aliases conflict",
-			command:    BetaTestersMetricsCommand,
-			args:       []string{"--tester-id", "tester-1", "--id", "tester-2"},
-			wantError:  "testflight beta-testers metrics: --tester-id and --id must match",
-			wantCode:   shared.DiagnosticConflictingInput,
-			usageError: true,
+			name:        "beta tester metrics aliases conflict",
+			depsCommand: newBetaTestersMetricsCommand,
+			args:        []string{"--tester-id", "tester-1", "--id", "tester-2"},
+			wantError:   "testflight beta-testers metrics: --tester-id and --id must match",
+			wantCode:    shared.DiagnosticConflictingInput,
+			usageError:  true,
 		},
 		{
-			name:       "beta tester metrics period",
-			command:    BetaTestersMetricsCommand,
-			args:       []string{"--tester-id", "tester-1", "--app", "app-1", "--period", "P10D"},
-			wantError:  "--period must be one of: P7D, P30D, P90D, P365D",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--period",
-			usageError: true,
+			name:        "beta tester metrics period",
+			depsCommand: newBetaTestersMetricsCommand,
+			args:        []string{"--tester-id", "tester-1", "--app", "app-1", "--period", "P10D"},
+			wantError:   "--period must be one of: P7D, P30D, P90D, P365D",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--period",
+			usageError:  true,
 		},
 		{
 			name:       "recruitment options fields",
@@ -236,15 +239,7 @@ func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := test.command()
-			if err := cmd.FlagSet.Parse(test.args); err != nil {
-				t.Fatalf("parse flags: %v", err)
-			}
-
-			var runErr error
-			stderr := captureTestFlightDiagnosticStderr(t, func() {
-				runErr = cmd.Exec(context.Background(), nil)
-			})
+			stderr, runErr := runTestFlightDiagnosticCommand(t, test.command, test.depsCommand, test.args)
 			if runErr == nil {
 				t.Fatal("expected validation error")
 			}

@@ -678,7 +678,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "UploadPrevalidatedVersionLocalizationsWithWarnings",
 			process: func() (any, error) {
-				results, warnings, err := UploadPrevalidatedVersionLocalizationsWithWarnings(context.Background(), whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
+				results, warnings, err := uploadPrevalidatedVersionLocalizationsWithWarningsTo(context.Background(), os.Stderr, whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
 				return []any{results, warnings}, err
 			},
 			deps: func(d *Deps) (any, error) {
@@ -1164,6 +1164,7 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 							StdinTTY: stdinTTY, StdoutTTY: tty.stdout, StderrTTY: tty.stderr,
 						},
 						Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) { return context.WithCancel(ctx) },
+						After:   time.After,
 					}
 					processStdout, processStderr := captureOutput(t, func() {
 						withTTYStub(t, false, false)
@@ -1474,7 +1475,7 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 	const processTimeout, injectedTimeout = 7 * time.Second, 3 * time.Minute
 	injected := &Deps{Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 		return ContextWithTimeoutDuration(ctx, injectedTimeout)
-	}}
+	}, After: time.After}
 
 	budget := func(ctx context.Context) time.Duration {
 		deadline, ok := ctx.Deadline()
@@ -1529,6 +1530,23 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 				_, err = RetryReadWithFreshTimeout(context.Background(), read)
 			} else {
 				_, err = RetryReadWithFreshTimeoutWith(context.Background(), d, read)
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("error = %v, want the last attempt's deadline", err)
+			}
+			return budgets
+		}},
+		{name: "CollectPricePointsByTerritory", attempts: 3, run: func(t *testing.T, d *Deps) []time.Duration {
+			var budgets []time.Duration
+			fetch := func(ctx context.Context, _ string) (*asc.Response[asc.AppPricePointV3Attributes], error) {
+				budgets = append(budgets, budget(ctx))
+				return nil, expire(ctx)
+			}
+			customerPrice := func(attributes asc.AppPricePointV3Attributes) string { return attributes.CustomerPrice }
+			if d == nil {
+				_, err = CollectPricePointsByTerritory(context.Background(), nil, fetch, customerPrice)
+			} else {
+				_, err = CollectPricePointsByTerritoryWith(context.Background(), d, nil, fetch, customerPrice)
 			}
 			if !errors.Is(err, context.DeadlineExceeded) {
 				t.Fatalf("error = %v, want the last attempt's deadline", err)
@@ -1598,7 +1616,7 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 			reads = nil
 			var id string
 			if d == nil {
-				id, err = OrderLibraryPlacements(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
+				id, err = orderLibraryPlacements(context.Background(), ContextWithTimeout, client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
 			} else {
 				id, err = d.OrderLibraryPlacements(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
 			}

@@ -19,6 +19,7 @@ func TestTestFlightHelpSurface(t *testing.T) {
 		args         []string
 		wantShown    []string
 		wantNotShown []string
+		deps         bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:         "root help hides deprecated compatibility commands",
@@ -29,6 +30,7 @@ func TestTestFlightHelpSurface(t *testing.T) {
 		{
 			name: "testflight help shows canonical subcommands",
 			args: []string{"testflight"},
+			deps: true,
 			wantShown: []string{
 				"feedback",
 				"crashes",
@@ -84,6 +86,7 @@ func TestTestFlightHelpSurface(t *testing.T) {
 		{
 			name:      "groups help hides raw relationship surface",
 			args:      []string{"testflight", "groups"},
+			deps:      true,
 			wantShown: []string{"asc testflight groups <subcommand> [flags]", "compatibility"},
 			wantNotShown: []string{
 				"asc testflight beta-groups <subcommand> [flags]",
@@ -94,24 +97,28 @@ func TestTestFlightHelpSurface(t *testing.T) {
 		{
 			name:         "beta groups leaf removed",
 			args:         []string{"testflight", "groups", "view"},
+			deps:         true,
 			wantShown:    []string{"asc testflight groups view [flags]", "--id is required"},
 			wantNotShown: []string{"Get a TestFlight beta group by ID."},
 		},
 		{
 			name:         "beta groups relationships alias removed",
 			args:         []string{"testflight", "groups", "relationships"},
+			deps:         true,
 			wantShown:    []string{"asc testflight groups <subcommand> [flags]", "links"},
 			wantNotShown: []string{"asc testflight groups relationships <subcommand> [flags]"},
 		},
 		{
 			name:         "beta testers alias removed",
 			args:         []string{"testflight", "testers"},
+			deps:         true,
 			wantShown:    []string{"asc testflight testers <subcommand> [flags]", "invite"},
 			wantNotShown: []string{"asc testflight beta-testers <subcommand> [flags]"},
 		},
 		{
 			name:         "beta testers relationships alias removed",
 			args:         []string{"testflight", "testers", "relationships"},
+			deps:         true,
 			wantShown:    []string{"asc testflight testers <subcommand> [flags]", "links"},
 			wantNotShown: []string{"asc testflight testers relationships <subcommand> [flags]"},
 		},
@@ -216,15 +223,19 @@ func TestTestFlightHelpSurface(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
-			root := RootCommand("1.2.3")
-
+			var stdout, stderr string
 			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			if test.deps {
+				stdout, stderr, runErr = runRootWithDeps(t, nil, test.args...)
+			} else {
+				root := RootCommand("1.2.3")
+				stdout, stderr = captureOutput(t, func() {
+					if err := root.Parse(test.args); err != nil {
+						t.Fatalf("parse error: %v", err)
+					}
+					runErr = root.Run(context.Background())
+				})
+			}
 
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", runErr)

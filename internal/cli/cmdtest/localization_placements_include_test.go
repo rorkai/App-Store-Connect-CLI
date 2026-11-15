@@ -37,6 +37,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:       "/v1/appStoreVersions/version-1/appStoreVersionLocalizations",
 			flags:      []string{"--include", "placements", "--placements-limit", "50"},
 			query:      "include=placements&limit%5Bplacements%5D=50",
+			deps:       true,
 		},
 		{
 			name:    "version localization view",
@@ -44,6 +45,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:    "/v1/appStoreVersionLocalizations/loc-1",
 			flags:   []string{"--include", "appScreenshotSets,placements", "--placements-limit", "1"},
 			query:   "include=appScreenshotSets%2Cplacements&limit%5Bplacements%5D=1",
+			deps:    true,
 		},
 		{
 			name:       "app event localizations list",

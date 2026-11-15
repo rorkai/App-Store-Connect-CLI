@@ -1,14 +1,12 @@
 package cmdtest
 
 import (
-	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,9 +14,6 @@ import (
 )
 
 func TestCertificatesCSRGenerate_GeneratesKeyAndCSR(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	dir := t.TempDir()
 	keyOut := filepath.Join(dir, "cert.key")
 	csrOut := filepath.Join(dir, "cert.csr")
@@ -38,24 +33,20 @@ func TestCertificatesCSRGenerate_GeneratesKeyAndCSR(t *testing.T) {
 		Subject subject `json:"subject"`
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "csr", "generate",
-			"--key-out", keyOut,
-			"--csr-out", csrOut,
-			"--common-name", "ASC Signing",
-			"--email", "ci@example.com",
-			"--organization", "Example Co",
-			"--organizational-unit", "Dev",
-			"--country", "US",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil,
+		"certificates", "csr", "generate",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+		"--common-name", "ASC Signing",
+		"--email", "ci@example.com",
+		"--organization", "Example Co",
+		"--organizational-unit", "Dev",
+		"--country", "US",
+		"--output", "json",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -143,9 +134,6 @@ func TestCertificatesCSRGenerate_GeneratesKeyAndCSR(t *testing.T) {
 }
 
 func TestCertificatesCSRGenerate_RefusesOverwriteWithoutForce(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	dir := t.TempDir()
 	keyOut := filepath.Join(dir, "cert.key")
 	csrOut := filepath.Join(dir, "cert.csr")
@@ -157,18 +145,12 @@ func TestCertificatesCSRGenerate_RefusesOverwriteWithoutForce(t *testing.T) {
 		t.Fatalf("WriteFile(csrOut) error: %v", err)
 	}
 
-	var runErr error
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "csr", "generate",
-			"--key-out", keyOut,
-			"--csr-out", csrOut,
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, _, runErr := runRootWithDeps(t, nil,
+		"certificates", "csr", "generate",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+		"--output", "json",
+	)
 
 	if runErr == nil {
 		t.Fatalf("expected error")
@@ -195,9 +177,6 @@ func TestCertificatesCSRGenerate_RefusesOverwriteWithoutForce(t *testing.T) {
 }
 
 func TestCertificatesCSRGenerate_DoesNotOrphanKeyWhenCSROutExistsWithoutForce(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	dir := t.TempDir()
 	keyOut := filepath.Join(dir, "cert.key")
 	csrOut := filepath.Join(dir, "cert.csr")
@@ -206,18 +185,12 @@ func TestCertificatesCSRGenerate_DoesNotOrphanKeyWhenCSROutExistsWithoutForce(t 
 		t.Fatalf("WriteFile(csrOut) error: %v", err)
 	}
 
-	var runErr error
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "csr", "generate",
-			"--key-out", keyOut,
-			"--csr-out", csrOut,
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, _, runErr := runRootWithDeps(t, nil,
+		"certificates", "csr", "generate",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+		"--output", "json",
+	)
 
 	if runErr == nil {
 		t.Fatalf("expected error")
@@ -284,15 +257,7 @@ func TestCertificatesCSRGenerate_ValidatesLexicallyNestedOutputPaths(t *testing.
 				args = append(args, "--force")
 			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			var runErr error
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, _, runErr := runRootWithDeps(t, nil, args...)
 
 			if test.wantNested {
 				if !errors.Is(runErr, flag.ErrHelp) {
@@ -339,21 +304,13 @@ func TestCertificatesCSRGenerate_RejectsEquivalentSpellingsOfSameOutputPath(t *t
 	}
 	t.Chdir(dir)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "csr", "generate",
-			"--key-out", "cert.key",
-			"--csr-out", keyOut,
-			"--force",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil,
+		"certificates", "csr", "generate",
+		"--key-out", "cert.key",
+		"--csr-out", keyOut,
+		"--force",
+		"--output", "json",
+	)
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("run error = %v, want usage error", runErr)
@@ -441,21 +398,13 @@ func TestCertificatesCSRGenerate_ForcePreflightsCSRDestination(t *testing.T) {
 			}
 			csrOut := test.setup(t, dir)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			var runErr error
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"certificates", "csr", "generate",
-					"--key-out", keyOut,
-					"--csr-out", csrOut,
-					"--force",
-					"--output", "json",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, _, runErr := runRootWithDeps(t, nil,
+				"certificates", "csr", "generate",
+				"--key-out", keyOut,
+				"--csr-out", csrOut,
+				"--force",
+				"--output", "json",
+			)
 
 			if runErr == nil {
 				t.Fatal("expected CSR destination failure")
@@ -485,9 +434,6 @@ func TestCertificatesCSRGenerate_ForcePreflightsCSRDestination(t *testing.T) {
 }
 
 func TestCertificatesCSRGenerate_RefusesSymlinkOutputs(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.key")
 	if err := os.WriteFile(target, []byte("TARGET"), 0o600); err != nil {
@@ -500,19 +446,13 @@ func TestCertificatesCSRGenerate_RefusesSymlinkOutputs(t *testing.T) {
 	}
 	csrOut := filepath.Join(dir, "cert.csr")
 
-	var runErr error
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "csr", "generate",
-			"--key-out", keyOut,
-			"--csr-out", csrOut,
-			"--force",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, _, runErr := runRootWithDeps(t, nil,
+		"certificates", "csr", "generate",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+		"--force",
+		"--output", "json",
+	)
 
 	if runErr == nil {
 		t.Fatalf("expected error")

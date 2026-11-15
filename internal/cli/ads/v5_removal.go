@@ -107,14 +107,14 @@ var adsV5Replacements = map[string]string{
 // namespace was removed and names the Platform API v1 replacement for the
 // requested command when one is known. Only paths from the replacement table
 // are echoed, never raw arguments.
-func removedAdsV5UsageError(args []string) error {
+func removedAdsV5UsageError(d *shared.Deps, args []string) error {
 	command := "asc ads v5"
 	guidance := "Use the Platform API v1 commands listed by `asc ads --help`."
 	if path, replacement, ok := adsV5Replacement(args); ok {
 		command += " " + path
 		guidance = replacement
 	}
-	return shared.WithDiagnostic(shared.UsageErrorf(
+	return shared.WithDiagnostic(d.UsageErrorf(
 		"`%s` was removed in 6.0.0. Apple has scheduled Campaign Management API v5 retirement for January 26, 2027. %s Platform API v1 commands take --ad-account and v1 request bodies.",
 		command, guidance,
 	), shared.DiagnosticInvalidInput, "")

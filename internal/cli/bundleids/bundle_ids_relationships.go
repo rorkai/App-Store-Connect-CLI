@@ -26,7 +26,7 @@ func newBundleIDsAppCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc bundle-ids app view --id "BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBundleIDsAppGetCommand(d),
 		},
@@ -69,7 +69,7 @@ func newBundleIDsProfilesCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc bundle-ids profiles list --id "BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBundleIDsProfilesListCommand(d),
 		},

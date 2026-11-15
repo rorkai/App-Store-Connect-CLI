@@ -32,7 +32,7 @@ Examples:
   asc eula update --id "EULA_ID" --territory "US,Canada"
   asc eula delete --id "EULA_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newEULAGetCommand(d),
 			newEULAListCommand(d),
@@ -64,7 +64,7 @@ Examples:
   asc eula view --id "EULA_ID"
   asc eula view --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
@@ -119,7 +119,7 @@ func newEULAListCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc eula list --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appValue := shared.ResolveAppID(*appID)
 			if appValue == "" {
@@ -163,7 +163,7 @@ func newEULACreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc eula create --app "APP_ID" --agreement-text "Terms..." --territory "US,Canada"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appValue := shared.ResolveAppID(*appID)
 			if appValue == "" {
@@ -220,7 +220,7 @@ Examples:
   asc eula update --id "EULA_ID" --agreement-text "Updated terms"
   asc eula update --id "EULA_ID" --territory "US,Canada"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

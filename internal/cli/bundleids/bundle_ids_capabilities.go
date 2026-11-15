@@ -31,7 +31,7 @@ Examples:
   asc bundle-ids capabilities update --id "CAPABILITY_ID" --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'
   asc bundle-ids capabilities remove --id "CAPABILITY_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBundleIDsCapabilitiesListCommand(d),
 			newBundleIDsCapabilitiesAddCommand(d),
@@ -64,7 +64,7 @@ Examples:
   asc bundle-ids capabilities list --bundle "BUNDLE_ID"
   asc bundle-ids capabilities list --bundle "BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "bundle-ids capabilities list", 200); err != nil {
 				return err
@@ -147,7 +147,7 @@ the existing capability with PATCH /v1/bundleIdCapabilities/{id}; with no
 409 keeps failing, including ENTITY_ERROR.ATTRIBUTE.TYPE for a capability type
 the API cannot create, even when that capability is already enabled.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
@@ -235,7 +235,7 @@ Examples:
   asc bundle-ids capabilities update --id "CAPABILITY_ID" --capability PUSH_NOTIFICATIONS
   asc bundle-ids capabilities update --id "CAPABILITY_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,8 +51,8 @@ type csrGenerateOptions struct {
 }
 
 // CertificatesCSRCommand returns the certificates csr command group.
-func CertificatesCSRCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("csr", flag.ExitOnError)
+func newCertificatesCSRCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("csr", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "csr",
@@ -65,7 +66,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			CertificatesCSRGenerateCommand(),
+			newCertificatesCSRGenerateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -74,8 +75,8 @@ Examples:
 }
 
 // CertificatesCSRGenerateCommand returns the certificates csr generate subcommand.
-func CertificatesCSRGenerateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("generate", flag.ExitOnError)
+func newCertificatesCSRGenerateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("generate", flag.ExitOnError)
 
 	keyOut := fs.String("key-out", "", "Private key output path (PEM)")
 	csrOut := fs.String("csr-out", "", "CSR output path (PEM)")
@@ -87,7 +88,7 @@ func CertificatesCSRGenerateCommand() *ffcli.Command {
 	keyType := fs.String("key-type", "rsa", "Key type: rsa")
 	keySize := fs.Int("key-size", 2048, "RSA key size in bits (e.g., 2048)")
 	force := fs.Bool("force", false, "Overwrite existing output files")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "generate",
@@ -106,17 +107,17 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			keyOutValue := strings.TrimSpace(*keyOut)
 			if keyOutValue == "" {
-				return shared.RequiredFlag("--key-out")
+				return d.RequiredFlag("--key-out")
 			}
 			csrOutValue := strings.TrimSpace(*csrOut)
 			if csrOutValue == "" {
-				return shared.RequiredFlag("--csr-out")
+				return d.RequiredFlag("--csr-out")
 			}
-			if err := validateCSRPairOutputPaths(keyOutValue, csrOutValue); err != nil {
+			if err := validateCSRPairOutputPaths(d, keyOutValue, csrOutValue); err != nil {
 				return err
 			}
 
-			result, _, err := generateCSRFiles(csrGenerateOptions{
+			result, _, err := generateCSRFiles(d, csrGenerateOptions{
 				KeyOut:             keyOutValue,
 				CSROut:             csrOutValue,
 				CommonName:         *commonName,
@@ -132,18 +133,18 @@ Examples:
 				return fmt.Errorf("certificates csr generate: %w", err)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderCSRGenerateResult(result, false) },
-				func() error { return renderCSRGenerateResult(result, true) },
+				func() error { return renderCSRGenerateResult(d.IO.Out, result, false) },
+				func() error { return renderCSRGenerateResult(d.IO.Out, result, true) },
 			)
 		},
 	}
 }
 
-func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, error) {
+func generateCSRFiles(d *shared.Deps, opts csrGenerateOptions) (*csrGenerateResult, []byte, error) {
 	keyOutValue := strings.TrimSpace(opts.KeyOut)
 	if keyOutValue == "" {
 		return nil, nil, fmt.Errorf("--key-out is required")
@@ -152,7 +153,7 @@ func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, erro
 	if csrOutValue == "" {
 		return nil, nil, fmt.Errorf("--csr-out is required")
 	}
-	if err := validateCSRPairOutputPaths(keyOutValue, csrOutValue); err != nil {
+	if err := validateCSRPairOutputPaths(d, keyOutValue, csrOutValue); err != nil {
 		return nil, nil, err
 	}
 
@@ -161,10 +162,10 @@ func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, erro
 		normalizedKeyType = "rsa"
 	}
 	if normalizedKeyType != "rsa" {
-		return nil, nil, shared.UsageError("--key-type must be one of: rsa")
+		return nil, nil, d.UsageError("--key-type must be one of: rsa")
 	}
 	if opts.KeySize < 2048 {
-		return nil, nil, shared.UsageError("--key-size must be at least 2048")
+		return nil, nil, d.UsageError("--key-size must be at least 2048")
 	}
 
 	subject := csrGenerateSubject{
@@ -251,17 +252,17 @@ func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, erro
 	return result, csrPEM, nil
 }
 
-func renderCSRGenerateResult(result *csrGenerateResult, markdown bool) error {
+func renderCSRGenerateResult(w io.Writer, result *csrGenerateResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
 
-	render := asc.RenderTable
+	render := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		render = asc.RenderMarkdownTo
 	}
 
-	render(
+	render(w,
 		[]string{"Key Out", "CSR Out", "Key Type", "Key Size"},
 		[][]string{{
 			result.KeyOut,
@@ -270,7 +271,7 @@ func renderCSRGenerateResult(result *csrGenerateResult, markdown bool) error {
 			fmt.Sprintf("%d", result.KeySize),
 		}},
 	)
-	render(
+	render(w,
 		[]string{"Common Name", "Email", "Organization", "Org Unit", "Country"},
 		[][]string{{
 			result.Subject.CommonName,
@@ -283,7 +284,7 @@ func renderCSRGenerateResult(result *csrGenerateResult, markdown bool) error {
 	return nil
 }
 
-func validateCSRPairOutputPaths(keyOut string, csrOut string) error {
+func validateCSRPairOutputPaths(d *shared.Deps, keyOut string, csrOut string) error {
 	keyPath, err := filepath.Abs(keyOut)
 	if err != nil {
 		return fmt.Errorf("resolve --key-out: %w", err)
@@ -293,10 +294,10 @@ func validateCSRPairOutputPaths(keyOut string, csrOut string) error {
 		return fmt.Errorf("resolve --csr-out: %w", err)
 	}
 	if keyPath == csrPath {
-		return shared.UsageError("--key-out and --csr-out must be different paths")
+		return d.UsageError("--key-out and --csr-out must be different paths")
 	}
 	if csrLexicalPathContains(keyPath, csrPath) || csrLexicalPathContains(csrPath, keyPath) {
-		return shared.UsageError("--key-out and --csr-out must not be nested paths")
+		return d.UsageError("--key-out and --csr-out must not be nested paths")
 	}
 	return nil
 }
