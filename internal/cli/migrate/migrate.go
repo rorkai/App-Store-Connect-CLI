@@ -216,7 +216,7 @@ Examples:
 				}
 
 				var copyrightSkipped []SkippedItem
-				copyright, copyrightSkipped, err = readFastlaneCopyright(metadataDir)
+				copyright, copyrightSkipped, err = readCopyrightFile(metadataDir)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
@@ -1149,9 +1149,9 @@ var appLevelMetadataFiles = map[string]string{
 	"secondary_second_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-two SUBCATEGORY_ID",
 }
 
-// readFastlaneCopyright reads the metadata folder's copyright.txt. An empty file
+// readCopyrightFile reads the metadata folder's copyright.txt. An empty file
 // is reported as skipped so it never clears the version's copyright.
-func readFastlaneCopyright(metadataDir string) (string, []SkippedItem, error) {
+func readCopyrightFile(metadataDir string) (string, []SkippedItem, error) {
 	root, prefix, err := newMigrateContentRoot(metadataDir)
 	if err != nil {
 		return "", nil, err
