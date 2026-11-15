@@ -1,8 +1,6 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -42,7 +40,7 @@ func TestReviewsRatingsValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
@@ -54,16 +52,10 @@ func TestReviewsRatingsValidationErrors(t *testing.T) {
 func TestReviewsRatingsUsesASCAppID(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "123")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "ratings", "--workers", "0"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); !isUsageClassError(err) {
-			t.Fatalf("error = %v, want the --workers usage error", err)
-		}
-	})
+	_, stderr, err := runRootWithDeps(t, nil, "reviews", "ratings", "--workers", "0")
+	if !isUsageClassError(err) {
+		t.Fatalf("error = %v, want the --workers usage error", err)
+	}
 	if strings.Contains(stderr, "--app is required") || !strings.Contains(stderr, "--workers must be at least 1") {
 		t.Fatalf("stderr = %q, want ASC_APP_ID to satisfy --app", stderr)
 	}

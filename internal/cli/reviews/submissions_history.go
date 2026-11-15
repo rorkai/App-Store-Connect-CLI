@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -39,9 +38,8 @@ type submissionVersionContext struct {
 	Platform      string
 }
 
-// ReviewHistoryCommand returns the history subcommand.
-func ReviewHistoryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("history", flag.ExitOnError)
+func newReviewHistoryCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("history", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
@@ -49,7 +47,7 @@ func ReviewHistoryCommand() *ffcli.Command {
 	version := fs.String("version", "", "Filter by version string (e.g. 1.2.0)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "history",
@@ -68,31 +66,31 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "review history", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "review history", 200); err != nil {
 				return err
 			}
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
 			}
 			states, err := shared.NormalizeReviewSubmissionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--state")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--state")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review history: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.ReviewSubmissionsOption{
@@ -105,7 +103,7 @@ Examples:
 				opts = append(opts, asc.Limit[asc.ReviewSubmissionsOption](200))
 			}
 
-			submissions, versionContexts, err := fetchReviewSubmissions(requestCtx, client, resolvedAppID, opts, *paginate)
+			submissions, versionContexts, err := fetchReviewSubmissions(requestCtx, d, client, resolvedAppID, opts, *paginate)
 			if err != nil {
 				return fmt.Errorf("review history: %w", err)
 			}
@@ -115,14 +113,14 @@ Examples:
 				return fmt.Errorf("review history: %w", err)
 			}
 
-			tableFunc := func() error { return printHistoryTable(entries) }
-			markdownFunc := func() error { return printHistoryMarkdown(entries) }
-			return shared.PrintOutputWithRenderers(entries, *output.Output, *output.Pretty, tableFunc, markdownFunc)
+			tableFunc := func() error { return printHistoryTable(d, entries) }
+			markdownFunc := func() error { return printHistoryMarkdown(d, entries) }
+			return d.PrintOutputWithRenderers(entries, *output.Output, *output.Pretty, tableFunc, markdownFunc)
 		},
 	}
 }
 
-func fetchReviewSubmissions(ctx context.Context, client *asc.Client, appID string, opts []asc.ReviewSubmissionsOption, paginate bool) ([]asc.ReviewSubmissionResource, map[string]submissionVersionContext, error) {
+func fetchReviewSubmissions(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, opts []asc.ReviewSubmissionsOption, paginate bool) ([]asc.ReviewSubmissionResource, map[string]submissionVersionContext, error) {
 	submissions := make([]asc.ReviewSubmissionResource, 0)
 	versionContexts := make(map[string]submissionVersionContext)
 
@@ -178,7 +176,7 @@ func fetchReviewSubmissions(ctx context.Context, client *asc.Client, appID strin
 	}
 
 	if paginate {
-		if err := shared.WithSpinner("", fetchAll); err != nil {
+		if err := d.WithSpinner("", fetchAll); err != nil {
 			return nil, nil, err
 		}
 	} else if err := fetchAll(); err != nil {
@@ -443,7 +441,7 @@ func populateSubmissionHistoryItem(histItem *SubmissionHistoryItem, item asc.Rev
 	}
 }
 
-func printHistoryTable(entries []SubmissionHistoryEntry) error {
+func printHistoryTable(d *shared.Deps, entries []SubmissionHistoryEntry) error {
 	headers := []string{"VERSION", "PLATFORM", "STATE", "SUBMITTED", "OUTCOME", "ITEMS"}
 	rows := make([][]string, 0, len(entries))
 	for _, e := range entries {
@@ -456,11 +454,11 @@ func printHistoryTable(entries []SubmissionHistoryEntry) error {
 			formatItemsSummary(e.Items),
 		})
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }
 
-func printHistoryMarkdown(entries []SubmissionHistoryEntry) error {
+func printHistoryMarkdown(d *shared.Deps, entries []SubmissionHistoryEntry) error {
 	headers := []string{"VERSION", "PLATFORM", "STATE", "SUBMITTED", "OUTCOME", "ITEMS"}
 	rows := make([][]string, 0, len(entries))
 	for _, e := range entries {
@@ -473,7 +471,7 @@ func printHistoryMarkdown(entries []SubmissionHistoryEntry) error {
 			formatItemsSummary(e.Items),
 		})
 	}
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 	return nil
 }
 

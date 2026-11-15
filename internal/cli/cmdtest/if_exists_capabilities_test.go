@@ -178,7 +178,7 @@ func TestCapabilitiesAddIfExistsUpdateWithoutSettingsDoesNotPatch(t *testing.T) 
 }
 
 func TestReviewItemsAddIfExistsSkipReturnsExistingItem(t *testing.T) {
-	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
+	stdout, stderr, seen, runErr := runIfExistsCommandWithDeps(t, []string{
 		"review", "items-add", "--submission", "submission-1",
 		"--item-type", "appStoreVersions", "--item-id", "version-1",
 		"--if-exists", "skip", "--output", "json",
@@ -215,7 +215,7 @@ func TestReviewItemsAddIfExistsSkipReturnsExistingItem(t *testing.T) {
 }
 
 func TestReviewItemsAddIfExistsSkipRecoversAppleAlreadyAddedConflict(t *testing.T) {
-	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
+	stdout, stderr, seen, runErr := runIfExistsCommandWithDeps(t, []string{
 		"review", "items", "add", "--submission", "submission-1",
 		"--item-type", "subscriptionVersions", "--item-id", "version-1",
 		"--if-exists", "skip", "--output", "json",

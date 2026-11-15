@@ -36,6 +36,7 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
+		deps bool
 	}{
 		{
 			name: "subscription prices import",
@@ -59,6 +60,7 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 		{
 			name: "reviews respond-batch",
 			args: []string{"reviews", "respond-batch", "--app", "123456789", "--file", repliesJSON},
+			deps: true,
 		},
 		{
 			name: "migrate import",
@@ -72,11 +74,7 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-
-			asctest.NewRegistry(t).Install()
-
-			stdout, stderr, err := runCommand(t, test.args)
+			stdout, stderr, err := runFileDrivenMutation(t, test.deps, test.args)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected usage error, got %v", err)
 			}
@@ -101,6 +99,7 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
+		deps bool
 	}{
 		{
 			name: "subscription prices import",
@@ -124,6 +123,7 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 		{
 			name: "reviews respond-batch",
 			args: []string{"reviews", "respond-batch", "--app", "123456789", "--file", missingInput},
+			deps: true,
 		},
 		{
 			name: "migrate import",
@@ -137,11 +137,7 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-
-			asctest.NewRegistry(t).Install()
-
-			stdout, stderr, err := runCommand(t, test.args)
+			stdout, stderr, err := runFileDrivenMutation(t, test.deps, test.args)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected usage error, got %v", err)
 			}
@@ -216,4 +212,17 @@ func TestFileDrivenMutationsAcceptDryRunWithConfirm(t *testing.T) {
 	if !strings.Contains(stdout, `"dryRun":true`) {
 		t.Fatalf("expected dry-run plan on stdout, got %q", stdout)
 	}
+}
+
+// runFileDrivenMutation runs args with every request refused, on test deps
+// when deps is set.
+func runFileDrivenMutation(t *testing.T, deps bool, args []string) (string, string, error) {
+	t.Helper()
+
+	if deps {
+		return runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), args...)
+	}
+	setupAuth(t)
+	asctest.NewRegistry(t).Install()
+	return runCommand(t, args)
 }

@@ -53,6 +53,11 @@ func SubmissionLocalizationPreflight(ctx context.Context, client *asc.Client, ap
 	return SubmissionLocalizationPreflightWithTimeout(ctx, client, appID, versionID, platform, 0, retryCommand)
 }
 
+// SubmissionLocalizationPreflightWith is SubmissionLocalizationPreflight on d.
+func SubmissionLocalizationPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, versionID, platform, retryCommand string) error {
+	return runSubmissionLocalizationPreflight(ctx, d, client, appID, versionID, platform, 0, "", retryCommand)
+}
+
 // SubmissionLocalizationPreflightWithTimeout runs localization preflight with
 // an explicit request budget when the caller needs a per-phase timeout.
 func SubmissionLocalizationPreflightWithTimeout(
@@ -69,6 +74,11 @@ func SubmissionLocalizationPreflightWithTimeout(
 // by submit-style App Store review flows.
 func SubmissionSubscriptionPreflight(ctx context.Context, client *asc.Client, appID, retryCommand string) {
 	SubmissionSubscriptionPreflightWithTimeout(ctx, client, appID, 0, retryCommand)
+}
+
+// SubmissionSubscriptionPreflightWith is SubmissionSubscriptionPreflight on d.
+func SubmissionSubscriptionPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, retryCommand string) {
+	runSubmissionSubscriptionPreflight(ctx, d, client, appID, 0, retryCommand)
 }
 
 // SubmissionSubscriptionPreflightWithTimeout runs subscription preflight with
@@ -175,6 +185,11 @@ func ensureBuildAttached(ctx context.Context, d *shared.Deps, client *asc.Client
 // already-resolved version ID.
 func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {
 	return submitResolvedVersion(ctx, shared.DefaultDeps(), client, opts)
+}
+
+// SubmitResolvedVersionWith is SubmitResolvedVersion on d.
+func SubmitResolvedVersionWith(ctx context.Context, d *shared.Deps, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {
+	return submitResolvedVersion(ctx, d, client, opts)
 }
 
 func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {

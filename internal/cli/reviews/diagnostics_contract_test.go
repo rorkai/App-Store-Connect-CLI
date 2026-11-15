@@ -32,13 +32,13 @@ func TestReviewUsageErrorsCarryStructuredDiagnostics(t *testing.T) {
 			}
 			stack = append(stack, node)
 			call, ok := node.(*ast.CallExpr)
-			if !ok || !isSharedReviewCall(call, "UsageError", "UsageErrorf") {
+			if !ok || !(isReviewCall(call, "shared", "UsageError", "UsageErrorf") || isReviewCall(call, "d", "UsageError", "UsageErrorf")) {
 				return true
 			}
 
 			for index := len(stack) - 2; index >= 0; index-- {
 				ancestor, ok := stack[index].(*ast.CallExpr)
-				if ok && isSharedReviewCall(ancestor, "WithDiagnostic") {
+				if ok && isReviewCall(ancestor, "shared", "WithDiagnostic") {
 					return true
 				}
 			}
@@ -49,13 +49,13 @@ func TestReviewUsageErrorsCarryStructuredDiagnostics(t *testing.T) {
 	}
 }
 
-func isSharedReviewCall(call *ast.CallExpr, names ...string) bool {
+func isReviewCall(call *ast.CallExpr, receiver string, names ...string) bool {
 	selector, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return false
 	}
 	identifier, ok := selector.X.(*ast.Ident)
-	if !ok || identifier.Name != "shared" {
+	if !ok || identifier.Name != receiver {
 		return false
 	}
 	for _, name := range names {

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 const includedFieldsNextURL = "https://api.appstoreconnect.apple.com/v1/next?cursor=abc"
@@ -40,6 +41,7 @@ type includedFieldsCase struct {
 	// removed lists field flags the command must not define because Apple
 	// rejected every value live.
 	removed []string
+	deps    bool
 }
 
 // liveRejectedFields lists fields[type] values the spec allows but Apple
@@ -286,18 +288,21 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "review submissions list", operation: "apps_reviewSubmissions_getToManyRelated",
 			command: []string{"review", "submissions-list"}, selector: []string{"--app", "app-1"},
+			deps:    true,
 			include: "app,appStoreVersionForReview,submittedByActor", path: "/v1/apps/app-1/reviewSubmissions",
 			flags: reviewSubmissionIncludedFieldFlags,
 		},
 		{
 			name: "review submissions get", operation: "reviewSubmissions_getInstance", resource: true, noNext: true,
 			command: []string{"review", "submissions-get"}, selector: []string{"--id", "submission-1"},
+			deps:    true,
 			include: "app,appStoreVersionForReview,lastUpdatedByActor", path: "/v1/reviewSubmissions/submission-1",
 			flags: reviewSubmissionIncludedFieldFlags,
 		},
 		{
 			name: "review items list", operation: "reviewSubmissions_items_getToManyRelated",
 			command: []string{"review", "items", "list"}, selector: []string{"--submission", "submission-1"},
+			deps:    true,
 			include: "appStoreVersion,appCustomProductPageVersion,appStoreVersionExperiment,appEvent,appAssetLibraryImage,appAssetLibraryVideo,backgroundAssetVersion,gameCenterAchievementVersion,gameCenterActivityVersion,gameCenterChallengeVersion,gameCenterLeaderboardSetVersion,gameCenterLeaderboardVersion",
 			path:    "/v1/reviewSubmissions/submission-1/items",
 			flags: map[string]string{
@@ -369,6 +374,7 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 
 	var requests []*url.URL
 	var resource bool
+	var depsClient func() (*asc.Client, error)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requests = append(requests, req.URL)
 		w.Header().Set("Content-Type", "application/json")
@@ -381,10 +387,17 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 	t.Cleanup(server.Close)
 	installDefaultTransportForServer(t, server)
 
+	runRoot := func(t *testing.T, args []string) (string, string, error) {
+		t.Helper()
+		if depsClient != nil {
+			return runRootWithDeps(t, depsClient, args...)
+		}
+		return runRootCommand(t, args)
+	}
 	run := func(t *testing.T, args []string) (*url.URL, error) {
 		t.Helper()
 		requests = nil
-		_, stderr, err := runRootCommand(t, append(args, "--output", "json"))
+		_, stderr, err := runRoot(t, append(args, "--output", "json"))
 		if err != nil {
 			return nil, err
 		}
@@ -396,7 +409,7 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 	assertUsageError := func(t *testing.T, args []string, want string) {
 		t.Helper()
 		requests = nil
-		_, _, err := runRootCommand(t, append(args, "--output", "json"))
+		_, _, err := runRoot(t, append(args, "--output", "json"))
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Fatalf("error = %v, want it to mention %q", err, want)
 		}
@@ -411,6 +424,10 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 	for _, tc := range includedFieldsCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			resource = tc.resource
+			depsClient = nil
+			if tc.deps {
+				depsClient = stubServerClient(t, server)
+			}
 			allowed := openAPIFieldValues(t, tc.operation)
 			selected := slices.Concat(tc.command, tc.selector)
 
@@ -474,9 +491,15 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 			for _, flagName := range tc.removed {
 				requests = nil
 				var code int
-				_, stderr := captureOutput(t, func() {
-					code = rootcmd.Run(slices.Concat(selected, []string{"--include", tc.include, "--" + flagName, "name"}), "1.2.3")
-				})
+				var stderr string
+				removedArgs := slices.Concat(selected, []string{"--include", tc.include, "--" + flagName, "name"})
+				if tc.deps {
+					_, stderr, code = runWithDeps(t, depsClient, removedArgs...)
+				} else {
+					_, stderr = captureOutput(t, func() {
+						code = rootcmd.Run(removedArgs, "1.2.3")
+					})
+				}
 				if code != rootcmd.ExitUsage || !strings.Contains(stderr, "unknown flag `--"+flagName+"`") || len(requests) != 0 {
 					t.Fatalf("--%s: exit %d, stderr %q, requests %v; want an unknown-flag usage error before any request", flagName, code, stderr, requests)
 				}

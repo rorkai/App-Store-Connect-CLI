@@ -306,11 +306,13 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 		{
 			name:    "reviews ratings rejects positional args",
 			args:    []string{"reviews", "ratings", "--app", "123", "extra"},
+			deps:    true,
 			wantErr: `unexpected argument "extra"`,
 		},
 		{
 			name:    "reviews ratings unsupported country",
 			args:    []string{"reviews", "ratings", "--app", "123", "--country", "zz"},
+			deps:    true,
 			wantErr: "unsupported country code",
 		},
 		{

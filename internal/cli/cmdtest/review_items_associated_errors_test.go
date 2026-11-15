@@ -10,12 +10,10 @@ import (
 )
 
 func TestReviewItemsAddIncludesAssociatedErrorsInReturnedError(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/reviewSubmissionItems").JSONBody(`{"data":{"type":"reviewSubmissionItems","relationships":{"reviewSubmission":{"data":{"type":"reviewSubmissions","id":"submission-1"}},"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`),
 		asctest.JSON(http.StatusConflict, `{
 		"errors": [{
@@ -40,7 +38,7 @@ func TestReviewItemsAddIncludesAssociatedErrorsInReturnedError(t *testing.T) {
 		}]
 	}`))
 
-	stdout, _, runErr := runCommand(t, []string{"review", "items-add", "--submission", "submission-1", "--item-type", "appStoreVersions", "--item-id", "version-1"})
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "review", "items-add", "--submission", "submission-1", "--item-type", "appStoreVersions", "--item-id", "version-1")
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")

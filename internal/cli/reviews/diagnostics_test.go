@@ -1,15 +1,16 @@
 package reviews
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -19,7 +20,7 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		run        func() error
+		run        func(d *shared.Deps) error
 		wantError  string
 		wantStderr string
 		wantUsage  bool
@@ -28,7 +29,7 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 	}{
 		{
 			name:       "reviews missing app",
-			run:        func() error { return ReviewsCommand().ParseAndRun(context.Background(), nil) },
+			run:        func(d *shared.Deps) error { return NewReviewsCommand(d).ParseAndRun(context.Background(), nil) },
 			wantError:  "--app is required (or set ASC_APP_ID)",
 			wantStderr: "Error: --app is required (or set ASC_APP_ID)\n",
 			wantUsage:  true,
@@ -37,8 +38,8 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 		},
 		{
 			name: "reviews invalid limit",
-			run: func() error {
-				return ReviewsCommand().ParseAndRun(context.Background(), []string{"--app", "app-1", "--limit", "201"})
+			run: func(d *shared.Deps) error {
+				return NewReviewsCommand(d).ParseAndRun(context.Background(), []string{"--app", "app-1", "--limit", "201"})
 			},
 			wantError:  "reviews: --limit must be between 1 and 200",
 			wantStderr: "Error: reviews: --limit must be between 1 and 200\n",
@@ -48,8 +49,8 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 		},
 		{
 			name: "ratings invalid workers",
-			run: func() error {
-				return ReviewsRatingsCommand().ParseAndRun(context.Background(), []string{"--app", "123", "--workers", "0"})
+			run: func(d *shared.Deps) error {
+				return newReviewsRatingsCommand(d).ParseAndRun(context.Background(), []string{"--app", "123", "--workers", "0"})
 			},
 			wantError:  flag.ErrHelp.Error(),
 			wantStderr: "Error: --workers must be at least 1\n",
@@ -59,8 +60,8 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 		},
 		{
 			name: "respond batch missing file",
-			run: func() error {
-				return ReviewsRespondBatchCommand().ParseAndRun(context.Background(), []string{"--app", "app-1", "--dry-run"})
+			run: func(d *shared.Deps) error {
+				return newReviewsRespondBatchCommand(d).ParseAndRun(context.Background(), []string{"--app", "app-1", "--dry-run"})
 			},
 			wantError:  "--file is required",
 			wantStderr: "Error: --file is required\n",
@@ -70,8 +71,8 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 		},
 		{
 			name: "respond batch file not found",
-			run: func() error {
-				return ReviewsRespondBatchCommand().ParseAndRun(context.Background(), []string{"--app", "app-1", "--file", notFoundPath, "--dry-run"})
+			run: func(d *shared.Deps) error {
+				return newReviewsRespondBatchCommand(d).ParseAndRun(context.Background(), []string{"--app", "app-1", "--file", notFoundPath, "--dry-run"})
 			},
 			wantUsage: true,
 			wantCode:  shared.DiagnosticFileNotFound,
@@ -79,8 +80,8 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 		},
 		{
 			name: "attachment file not found",
-			run: func() error {
-				return ReviewDetailsAttachmentsUploadCommand().ParseAndRun(context.Background(), []string{"--review-detail", "detail-1", "--file", notFoundPath})
+			run: func(d *shared.Deps) error {
+				return newReviewDetailsAttachmentsUploadCommand(d).ParseAndRun(context.Background(), []string{"--review-detail", "detail-1", "--file", notFoundPath})
 			},
 			wantCode:  shared.DiagnosticFileNotFound,
 			wantParam: "--file",
@@ -89,10 +90,9 @@ func TestReviewValidationDiagnosticsPreserveErrorContracts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var err error
-			stderr := captureReviewDiagnosticStderr(t, func() {
-				err = test.run()
-			})
+			d, _, stderrBuffer := newReviewTestDeps(nil)
+			err := test.run(d)
+			stderr := stderrBuffer.String()
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -175,15 +175,14 @@ func TestReviewSubmitInputFailuresKeepStructuredDiagnostics(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := ReviewSubmitCommand()
+			d, _, stderrBuffer := newReviewTestDeps(nil)
+			command := newReviewSubmitCommand(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}
 
-			var err error
-			stderr := captureReviewDiagnosticStderr(t, func() {
-				err = command.Exec(context.Background(), nil)
-			})
+			err := command.Exec(context.Background(), nil)
+			stderr := stderrBuffer.String()
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -232,7 +231,8 @@ func TestReviewAttachmentUnreadableSourceIsDiagnosedBeforeAuth(t *testing.T) {
 	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
 	t.Setenv("ASC_PRIVATE_KEY_B64", "")
 
-	err := ReviewDetailsAttachmentsUploadCommand().ParseAndRun(context.Background(), []string{
+	d, _, _ := newReviewTestDeps(nil)
+	err := newReviewDetailsAttachmentsUploadCommand(d).ParseAndRun(context.Background(), []string{
 		"--review-detail", "detail-1",
 		"--file", attachmentPath,
 	})
@@ -254,35 +254,11 @@ func TestReviewAttachmentUnreadableSourceIsDiagnosedBeforeAuth(t *testing.T) {
 	}
 }
 
-func captureReviewDiagnosticStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	original := os.Stderr
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	readResult := make(chan []byte, 1)
-	readError := make(chan error, 1)
-	go func() {
-		data, readErr := io.ReadAll(reader)
-		readResult <- data
-		readError <- readErr
-	}()
-
-	os.Stderr = writer
-	defer func() { os.Stderr = original }()
-	fn()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	os.Stderr = original
-	data := <-readResult
-	if err := <-readError; err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return string(data)
+func newReviewTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
+	var stdout, stderr bytes.Buffer
+	return &shared.Deps{
+		Client:  client,
+		IO:      &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Timeout: shared.ContextWithTimeout,
+	}, &stdout, &stderr
 }

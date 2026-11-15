@@ -79,13 +79,10 @@ func TestReviewContinuationsRejectServerQueryFlagsBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			assertUsageExitWithDeps(t, func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
-
-			assertUsageExit(t, test.args, test.wantErr)
+			}, test.args, test.wantErr)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before --next conflict validation")
 			}
@@ -119,7 +116,6 @@ func TestReviewPaginationFollowsServerNextURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			nextURL := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=next"
@@ -151,9 +147,8 @@ func TestReviewPaginationFollowsServerNextURL(t *testing.T) {
 				}
 			}))
 			t.Cleanup(server.Close)
-			installDefaultTransport(t, serverRoundTripper(t, server))
 
-			stdout, stderr, runErr := runRootCommand(t, append(test.args, "--paginate", "--output", "json"))
+			stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), append(test.args, "--paginate", "--output", "json")...)
 			if runErr != nil {
 				t.Fatalf("run error: %v", runErr)
 			}

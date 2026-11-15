@@ -13,8 +13,8 @@ func TestSandboxReviewsPromotedListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
 		{args: []string{"sandbox", "list"}, wantErr: "sandbox list: --next", deps: true},
 		{args: []string{"subscriptions", "promoted-purchases", "list"}, wantErr: "subscriptions promoted-purchases list: --next"},
-		{args: []string{"reviews", "list"}, wantErr: "reviews list: --next"},
-		{args: []string{"reviews", "summarizations"}, wantErr: "reviews summarizations: --next"},
+		{args: []string{"reviews", "list"}, wantErr: "reviews list: --next", deps: true},
+		{args: []string{"reviews", "summarizations"}, wantErr: "reviews summarizations: --next", deps: true},
 	})
 }
 
@@ -28,11 +28,13 @@ func TestSandboxReviewsPromotedListsPaginateFromNext(t *testing.T) {
 		},
 		{
 			args:     []string{"reviews", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/customerReviews?cursor=AQ&limit=200",
 			dataType: "customerReviews",
 		},
 		{
 			args:     []string{"reviews", "summarizations"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/customerReviewSummarizations?cursor=AQ&limit=200",
 			dataType: "customerReviewSummarizations",
 		},

@@ -1911,7 +1911,11 @@ func TestReviewCommandDetailsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestReviewCommandAttachmentsValidationErrors(t *testing.T) {
@@ -1958,7 +1962,11 @@ func TestReviewCommandAttachmentsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestReviewSubmissionsValidationErrors(t *testing.T) {
@@ -1985,7 +1993,11 @@ func TestReviewSubmissionsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestRoutingCoverageValidationErrors(t *testing.T) {

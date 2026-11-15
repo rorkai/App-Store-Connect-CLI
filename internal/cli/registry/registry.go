@@ -142,8 +142,12 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("status", "Show a release pipeline dashboard for an app.", status.StatusCommand),
 		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", insights.InsightsCommand),
 		commandFactory("release-notes", "Generate and manage App Store release notes.", releasenotes.ReleaseNotesCommand),
-		commandFactory("reviews", "List and manage App Store customer reviews.", reviews.ReviewsCommand),
-		commandFactory("review", "Manage App Store review details, attachments, and submissions.", reviews.ReviewCommand),
+		commandFactory("reviews", "List and manage App Store customer reviews.", func() *ffcli.Command {
+			return reviews.NewReviewsCommand(d)
+		}),
+		commandFactory("review", "Manage App Store review details, attachments, and submissions.", func() *ffcli.Command {
+			return reviews.NewReviewCommand(d)
+		}),
 		commandFactory("analytics", "Request and download analytics and sales reports.", analytics.AnalyticsCommand),
 		commandFactory("ads", "Manage Apple Ads API resources.", ads.AdsCommand),
 		commandFactory("optimize", "Build cross-API optimization plans.", optimize.OptimizeCommand),

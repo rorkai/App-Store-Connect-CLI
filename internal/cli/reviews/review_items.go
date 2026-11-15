@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
@@ -15,11 +14,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var reviewItemsClientFactory = shared.GetASCClient
-
-// ReviewItemsCommand returns the nested review items command group.
-func ReviewItemsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("items", flag.ExitOnError)
+func newReviewItemsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("items", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "items",
@@ -40,48 +36,47 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			reviewItemsListCommand("list", "review items list", `asc review items list [flags]`, `asc review items list --submission "SUBMISSION_ID"
+			reviewItemsListCommand(d, "list", "review items list", `asc review items list [flags]`, `asc review items list --submission "SUBMISSION_ID"
   asc review items list --submission "SUBMISSION_ID" --paginate`),
-			reviewItemsAddCommand("add", "review items add", `asc review items add [flags]`, `asc review items add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
+			reviewItemsAddCommand(d, "add", "review items add", `asc review items add [flags]`, `asc review items add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type retentionMessageVersions --item-id "RETENTION_MESSAGE_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type appAssetLibraryImages --item-id "IMAGE_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type gameCenterChallengeVersions --item-id "VERSION_ID"`),
-			reviewItemsUpdateCommand("update", "review items update", `asc review items update --id "ITEM_ID" [flags]`, `asc review items update --id "ITEM_ID" --resolved true
+			reviewItemsUpdateCommand(d, "update", "review items update", `asc review items update --id "ITEM_ID" [flags]`, `asc review items update --id "ITEM_ID" --resolved true
   asc review items update --id "ITEM_ID" --clear-removed`),
-			reviewItemsRemoveCommand("remove", "review items remove", `asc review items remove [flags]`, `asc review items remove --id "ITEM_ID" --confirm`),
+			reviewItemsRemoveCommand(d, "remove", "review items remove", `asc review items remove [flags]`, `asc review items remove --id "ITEM_ID" --confirm`),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				subcommand := strings.TrimSpace(args[0])
 				if subcommand == "view" {
-					return removedReviewItemDetailUsageError("asc review items view")
+					return removedReviewItemDetailUsageError(d, "asc review items view")
 				}
-				return shared.WithDiagnostic(shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(subcommand)), shared.DiagnosticInvalidInput, "")
+				return shared.WithDiagnostic(d.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(subcommand)), shared.DiagnosticInvalidInput, "")
 			}
 			return flag.ErrHelp
 		},
 	}
 }
 
-func removedReviewItemDetailUsageError(command string) error {
-	return shared.WithDiagnostic(shared.UsageErrorf(
+func removedReviewItemDetailUsageError(d *shared.Deps, command string) error {
+	return shared.WithDiagnostic(d.UsageErrorf(
 		"`%s` was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead",
 		command,
 	), shared.DiagnosticInvalidInput, "")
 }
 
-// ReviewItemsListCommand returns the review items list subcommand.
-func ReviewItemsListCommand() *ffcli.Command {
-	return reviewItemsListCommand("items-list", "review items-list", `asc review items-list [flags]`, `asc review items-list --submission "SUBMISSION_ID"
+func newReviewItemsListCommand(d *shared.Deps) *ffcli.Command {
+	return reviewItemsListCommand(d, "items-list", "review items-list", `asc review items-list [flags]`, `asc review items-list --submission "SUBMISSION_ID"
   asc review items-list --submission "SUBMISSION_ID" --include appStoreVersion
   asc review items-list --submission "SUBMISSION_ID" --paginate`)
 }
 
-func reviewItemsListCommand(name, errorPrefix, shortUsage, examples string) *ffcli.Command {
-	fs := flag.NewFlagSet(name, flag.ExitOnError)
+func reviewItemsListCommand(d *shared.Deps, name, errorPrefix, shortUsage, examples string) *ffcli.Command {
+	fs := d.NewFlagSet(name, flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "submission", "reviewSubmissions", "Review submission ID (required)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -93,7 +88,7 @@ func reviewItemsListCommand(name, errorPrefix, shortUsage, examples string) *ffc
 	subscriptionVersionFields := fs.String("subscription-version-fields", "", "Subscription version fields: "+strings.Join(reviewSubmissionItemSubscriptionVersionFields, ", "))
 	subscriptionGroupVersionFields := fs.String("subscription-group-version-fields", "", "Subscription group version fields: "+strings.Join(reviewSubmissionItemSubscriptionGroupVersionFields, ", "))
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
@@ -106,17 +101,17 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, errorPrefix, 200, "limit", "fields", "include", "iap-version-fields", "subscription-version-fields", "subscription-group-version-fields"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, errorPrefix, 200, "limit", "fields", "include", "iap-version-fields", "subscription-version-fields", "subscription-group-version-fields"); err != nil {
 				return err
 			}
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--submission")
+				return d.RequiredFlag("--submission")
 			}
-			opts, err := reviewItemsListOptions(*limit, *next, *fields, *include, *iapVersionFields, *subscriptionVersionFields, *subscriptionGroupVersionFields)
+			opts, err := reviewItemsListOptions(d, *limit, *next, *fields, *include, *iapVersionFields, *subscriptionVersionFields, *subscriptionGroupVersionFields)
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
-			included, err := includedFields.Resolve(errorPrefix, *next, shared.SplitCSV(*include))
+			included, err := includedFields.ResolveWith(d, errorPrefix, *next, shared.SplitCSV(*include))
 			if err != nil {
 				return err
 			}
@@ -125,21 +120,21 @@ Examples:
 			if strings.TrimSpace(*next) != "" {
 				submissionValue, err = asc.ReviewSubmissionItemsCursorSubmissionID(*next)
 				if err != nil {
-					return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("%s: %v", errorPrefix, err)), shared.DiagnosticInvalidInput, "--next")
+					return shared.WithDiagnostic(shared.NewValidationError(d.UsageErrorf("%s: %v", errorPrefix, err)), shared.DiagnosticInvalidInput, "--next")
 				}
 			}
 
-			client, err := reviewItemsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.ReviewSubmissionItemsOption](200))
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetReviewSubmissionItems(ctx, submissionValue, paginateOpts...)
@@ -152,7 +147,7 @@ Examples:
 					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetReviewSubmissionItems(requestCtx, submissionValue, opts...)
@@ -160,7 +155,7 @@ Examples:
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -200,31 +195,31 @@ var (
 	reviewSubmissionItemSubscriptionGroupVersionFields = []string{"version", "state", "subscriptionGroup", "localizations"}
 )
 
-func reviewItemsListOptions(limit int, next, fields, include, iapVersionFields, subscriptionVersionFields, subscriptionGroupVersionFields string) ([]asc.ReviewSubmissionItemsOption, error) {
+func reviewItemsListOptions(d *shared.Deps, limit int, next, fields, include, iapVersionFields, subscriptionVersionFields, subscriptionGroupVersionFields string) ([]asc.ReviewSubmissionItemsOption, error) {
 	if strings.TrimSpace(next) != "" && (limit != 0 || strings.TrimSpace(fields) != "" || strings.TrimSpace(include) != "" ||
 		strings.TrimSpace(iapVersionFields) != "" || strings.TrimSpace(subscriptionVersionFields) != "" || strings.TrimSpace(subscriptionGroupVersionFields) != "") {
-		return nil, shared.WithDiagnostic(shared.UsageError("--next cannot be combined with --limit, --fields, --include, or version sparse-field flags"), shared.DiagnosticConflictingInput, "")
+		return nil, shared.WithDiagnostic(d.UsageError("--next cannot be combined with --limit, --fields, --include, or version sparse-field flags"), shared.DiagnosticConflictingInput, "")
 	}
 
 	itemFields, err := shared.NormalizeSelection(fields, reviewSubmissionItemFields, "--fields")
 	if err != nil {
-		return nil, shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--fields")
+		return nil, shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--fields")
 	}
 	includes, err := shared.NormalizeSelection(include, reviewSubmissionItemIncludes, "--include")
 	if err != nil {
-		return nil, shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
+		return nil, shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
 	}
 	iapFields, err := shared.NormalizeSelection(iapVersionFields, reviewSubmissionItemIAPVersionFields, "--iap-version-fields")
 	if err != nil {
-		return nil, shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--iap-version-fields")
+		return nil, shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--iap-version-fields")
 	}
 	subscriptionFields, err := shared.NormalizeSelection(subscriptionVersionFields, reviewSubmissionItemSubscriptionVersionFields, "--subscription-version-fields")
 	if err != nil {
-		return nil, shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--subscription-version-fields")
+		return nil, shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--subscription-version-fields")
 	}
 	groupFields, err := shared.NormalizeSelection(subscriptionGroupVersionFields, reviewSubmissionItemSubscriptionGroupVersionFields, "--subscription-group-version-fields")
 	if err != nil {
-		return nil, shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--subscription-group-version-fields")
+		return nil, shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--subscription-group-version-fields")
 	}
 	addVersionRelationship := func(versionFields []string, relationship string) {
 		if len(versionFields) == 0 {
@@ -252,9 +247,8 @@ func reviewItemsListOptions(limit int, next, fields, include, iapVersionFields, 
 	}, nil
 }
 
-// ReviewItemsAddCommand returns the review items add subcommand.
-func ReviewItemsAddCommand() *ffcli.Command {
-	return reviewItemsAddCommand("items-add", "review items-add", `asc review items-add [flags]`, `asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
+func newReviewItemsAddCommand(d *shared.Deps) *ffcli.Command {
+	return reviewItemsAddCommand(d, "items-add", "review items-add", `asc review items-add [flags]`, `asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items-add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
   asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
   asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
@@ -262,15 +256,15 @@ func ReviewItemsAddCommand() *ffcli.Command {
   asc review items-add --submission "SUBMISSION_ID" --item-type gameCenterChallengeVersions --item-id "VERSION_ID"`)
 }
 
-func reviewItemsAddCommand(name, errorPrefix, shortUsage, examples string) *ffcli.Command {
-	fs := flag.NewFlagSet(name, flag.ExitOnError)
+func reviewItemsAddCommand(d *shared.Deps, name, errorPrefix, shortUsage, examples string) *ffcli.Command {
+	fs := d.NewFlagSet(name, flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "submission", "reviewSubmissions", "Review submission ID (required)")
 	itemTypeValues := strings.Join(reviewSubmissionItemTypeList(), ", ")
 	itemType := fs.String("item-type", "", fmt.Sprintf("Item type: %s (required)", itemTypeValues))
 	itemID := fs.String("item-id", "", "Item ID (required)")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
@@ -295,31 +289,31 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" {
-				return shared.RequiredFlag("--submission")
+				return d.RequiredFlag("--submission")
 			}
 			if strings.TrimSpace(*itemType) == "" {
-				return shared.RequiredFlag("--item-type")
+				return d.RequiredFlag("--item-type")
 			}
 			if strings.TrimSpace(*itemID) == "" {
-				return shared.RequiredFlag("--item-id")
+				return d.RequiredFlag("--item-id")
 			}
 
 			normalizedType, err := normalizeReviewSubmissionItemType(*itemType)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--item-type")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--item-type")
 			}
 
-			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip)
+			ifExistsMode, err := d.ParseIfExistsMode(*ifExists, shared.IfExistsSkip)
 			if err != nil {
 				return err
 			}
 
-			client, err := reviewItemsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			submissionValue := strings.TrimSpace(*submissionID)
@@ -340,23 +334,22 @@ Examples:
 					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
 				resp = existing
-				fmt.Fprintf(os.Stderr, "%s: %s %s is already on submission %s as item %s; left unchanged (--if-exists %s)\n",
+				fmt.Fprintf(d.IO.ErrOut, "%s: %s %s is already on submission %s as item %s; left unchanged (--if-exists %s)\n",
 					errorPrefix, normalizedType, itemValue, submissionValue, existing.Data.ID, ifExistsMode)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewItemsUpdateCommand returns the review items update subcommand.
-func ReviewItemsUpdateCommand() *ffcli.Command {
-	return reviewItemsUpdateCommand("items-update", "review items-update", `asc review items-update --id "ITEM_ID" [flags]`, `asc review items-update --id "ITEM_ID" --resolved true
+func newReviewItemsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	return reviewItemsUpdateCommand(d, "items-update", "review items-update", `asc review items-update --id "ITEM_ID" [flags]`, `asc review items-update --id "ITEM_ID" --resolved true
   asc review items-update --id "ITEM_ID" --clear-removed`)
 }
 
-func reviewItemsUpdateCommand(name, errorPrefix, shortUsage, examples string) *ffcli.Command {
-	fs := flag.NewFlagSet(name, flag.ExitOnError)
+func reviewItemsUpdateCommand(d *shared.Deps, name, errorPrefix, shortUsage, examples string) *ffcli.Command {
+	fs := d.NewFlagSet(name, flag.ExitOnError)
 
 	itemID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissionItems", "Review submission item ID (required)")
 	resolved := fs.String("resolved", "", "Whether the item is resolved: true or false")
@@ -364,7 +357,7 @@ func reviewItemsUpdateCommand(name, errorPrefix, shortUsage, examples string) *f
 	clearResolved := fs.Bool("clear-resolved", false, "Set resolved to JSON null")
 	clearRemoved := fs.Bool("clear-removed", false, "Set removed to JSON null")
 	confirm := fs.Bool("confirm", false, "Confirm removal when --removed=true")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
@@ -381,23 +374,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*itemID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			resolvedProvided := reviewFlagWasProvided(fs, "resolved")
 			removedProvided := reviewFlagWasProvided(fs, "removed")
 			if resolvedProvided && *clearResolved {
-				return fmt.Errorf("%s: %w", errorPrefix, shared.WithDiagnostic(shared.UsageError("--resolved cannot be combined with --clear-resolved"), shared.DiagnosticConflictingInput, ""))
+				return fmt.Errorf("%s: %w", errorPrefix, shared.WithDiagnostic(d.UsageError("--resolved cannot be combined with --clear-resolved"), shared.DiagnosticConflictingInput, ""))
 			}
 			if removedProvided && *clearRemoved {
-				return fmt.Errorf("%s: %w", errorPrefix, shared.WithDiagnostic(shared.UsageError("--removed cannot be combined with --clear-removed"), shared.DiagnosticConflictingInput, ""))
+				return fmt.Errorf("%s: %w", errorPrefix, shared.WithDiagnostic(d.UsageError("--removed cannot be combined with --clear-removed"), shared.DiagnosticConflictingInput, ""))
 			}
 			if !resolvedProvided && !removedProvided && !*clearResolved && !*clearRemoved {
-				return fmt.Errorf("%s: %w", errorPrefix, shared.UpdateFlagRequired(fs, resolved, removed, clearResolved, clearRemoved))
+				return fmt.Errorf("%s: %w", errorPrefix, d.UpdateFlagRequired(fs, resolved, removed, clearResolved, clearRemoved))
 			}
 
 			attrs := asc.ReviewSubmissionItemUpdateAttributes{}
 			if resolvedProvided {
-				value, err := parseReviewSubmissionItemBool(*resolved, "--resolved")
+				value, err := parseReviewSubmissionItemBool(d, *resolved, "--resolved")
 				if err != nil {
 					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
@@ -406,24 +399,24 @@ Examples:
 				attrs.Resolved = &asc.NullableBool{}
 			}
 			if removedProvided {
-				value, err := parseReviewSubmissionItemBool(*removed, "--removed")
+				value, err := parseReviewSubmissionItemBool(d, *removed, "--removed")
 				if err != nil {
 					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
 				if value && !*confirm {
-					return fmt.Errorf("%s: %w", errorPrefix, shared.WithDiagnostic(shared.UsageError("--confirm is required when --removed=true"), shared.DiagnosticRequiredInputMissing, "--confirm"))
+					return fmt.Errorf("%s: %w", errorPrefix, shared.WithDiagnostic(d.UsageError("--confirm is required when --removed=true"), shared.DiagnosticRequiredInputMissing, "--confirm"))
 				}
 				attrs.Removed = &asc.NullableBool{Value: &value}
 			} else if *clearRemoved {
 				attrs.Removed = &asc.NullableBool{}
 			}
 
-			client, err := reviewItemsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateReviewSubmissionItem(requestCtx, trimmedID, attrs)
@@ -431,7 +424,7 @@ Examples:
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -444,28 +437,27 @@ func reviewFlagWasProvided(fs *flag.FlagSet, name string) bool {
 	return provided
 }
 
-func parseReviewSubmissionItemBool(value, name string) (bool, error) {
+func parseReviewSubmissionItemBool(d *shared.Deps, value, name string) (bool, error) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "true":
 		return true, nil
 	case "false":
 		return false, nil
 	default:
-		return false, shared.WithDiagnostic(shared.UsageErrorf("%s must be true or false", name), shared.DiagnosticInvalidInput, name)
+		return false, shared.WithDiagnostic(d.UsageErrorf("%s must be true or false", name), shared.DiagnosticInvalidInput, name)
 	}
 }
 
-// ReviewItemsRemoveCommand returns the review items remove subcommand.
-func ReviewItemsRemoveCommand() *ffcli.Command {
-	return reviewItemsRemoveCommand("items-remove", "review items-remove", `asc review items-remove [flags]`, `asc review items-remove --id "ITEM_ID" --confirm`)
+func newReviewItemsRemoveCommand(d *shared.Deps) *ffcli.Command {
+	return reviewItemsRemoveCommand(d, "items-remove", "review items-remove", `asc review items-remove [flags]`, `asc review items-remove --id "ITEM_ID" --confirm`)
 }
 
-func reviewItemsRemoveCommand(name, errorPrefix, shortUsage, examples string) *ffcli.Command {
-	fs := flag.NewFlagSet(name, flag.ExitOnError)
+func reviewItemsRemoveCommand(d *shared.Deps, name, errorPrefix, shortUsage, examples string) *ffcli.Command {
+	fs := d.NewFlagSet(name, flag.ExitOnError)
 
 	itemID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissionItems", "Review submission item ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
@@ -479,18 +471,18 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*itemID) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := reviewItemsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteReviewSubmissionItem(requestCtx, strings.TrimSpace(*itemID)); err != nil {
@@ -502,7 +494,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

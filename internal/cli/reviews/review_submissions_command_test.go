@@ -10,7 +10,8 @@ import (
 )
 
 func TestReviewSubmissionsListCommand_InvalidState(t *testing.T) {
-	cmd := ReviewSubmissionsListCommand()
+	d, _, _ := newReviewTestDeps(nil)
+	cmd := newReviewSubmissionsListCommand(d)
 	t.Setenv("ASC_APP_ID", "test-app")
 
 	err := cmd.ParseAndRun(context.Background(), []string{"--state", "NOT_A_REAL_STATE"})

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"reflect"
@@ -9,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	reviewcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 )
 
 // Recorded App Store Connect response for a PATCH that asks to cancel a
@@ -47,18 +45,9 @@ func runReviewCancelStateCommand(t *testing.T, args []string, patchStatus int, p
 		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
 		return nil, nil
 	}))
-	restore := reviewcli.SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+	run.stdout, run.stderr, run.err = runRootWithDeps(t, func() (*asc.Client, error) {
 		return client, nil
-	})
-	t.Cleanup(restore)
-
-	root := RootCommand("1.2.3")
-	run.stdout, run.stderr = captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		run.err = root.Run(context.Background())
-	})
+	}, args...)
 	return run
 }
 

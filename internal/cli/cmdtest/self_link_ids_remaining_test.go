@@ -298,6 +298,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "reviews respond rejects apps link",
 			args:    []string{"reviews", "respond"},
+			deps:    true,
 			flag:    "review-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type customerReviews, got apps",

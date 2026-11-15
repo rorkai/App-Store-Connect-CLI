@@ -12,7 +12,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const (
@@ -27,7 +26,7 @@ const (
 	],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/customerReviews?cursor=page3"}}`
 )
 
-func newReviewsDigestServer(t *testing.T, pages map[string]string, versionOverrides ...map[string]string) *[]string {
+func newReviewsDigestServer(t *testing.T, pages map[string]string, versionOverrides ...map[string]string) (func() (*asc.Client, error), *[]string) {
 	t.Helper()
 	versionPages := map[string]string{
 		"/v1/apps/app-1/appStoreVersions?":                 `{"data":[{"type":"appStoreVersions","id":"v1","attributes":{"versionString":"1.0","platform":"IOS"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=versions2"}}`,
@@ -69,27 +68,20 @@ func newReviewsDigestServer(t *testing.T, pages map[string]string, versionOverri
 	}))
 	t.Cleanup(server.Close)
 
-	client := newReviewTestServerClient(t, server)
-	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
-	t.Cleanup(restore)
-	return &requests
+	return stubServerClient(t, server), &requests
 }
 
-func runReviewsDigest(t *testing.T, args ...string) (int, string, string) {
+func runReviewsDigest(t *testing.T, client func() (*asc.Client, error), args ...string) (int, string, string) {
 	t.Helper()
-	code := 0
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run(append([]string{"reviews", "digest"}, args...), "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, client, append([]string{"reviews", "digest"}, args...)...)
 	return code, stdout, stderr
 }
 
 func TestReviewsDigestStopsPaginatingAtCursorAndAggregates(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	requests := newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2})
+	client, requests := newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2})
 
-	code, stdout, stderr := runReviewsDigest(t, "--app", "app-1", "--since", "2026-10-16", "--lowest", "2", "--output", "json")
+	code, stdout, stderr := runReviewsDigest(t, client, "--app", "app-1", "--since", "2026-10-16", "--lowest", "2", "--output", "json")
 	if code != rootcmd.ExitSuccess {
 		t.Fatalf("exit code = %d, stderr = %q", code, stderr)
 	}
@@ -140,7 +132,7 @@ func TestReviewsDigestStopsPaginatingAtCursorAndAggregates(t *testing.T) {
 		t.Fatalf("digest =\n%s\nwant\n%s", gotJSON, wantJSON)
 	}
 	for _, format := range []string{"table", "markdown"} {
-		code, stdout, stderr := runReviewsDigest(t, "--app", "app-1", "--since", "2026-10-16", "--lowest", "2", "--output", format)
+		code, stdout, stderr := runReviewsDigest(t, client, "--app", "app-1", "--since", "2026-10-16", "--lowest", "2", "--output", format)
 		rows := strings.Join(strings.Fields(strings.NewReplacer("|", " ", "│", " ").Replace(stdout)), " ")
 		if code != rootcmd.ExitSuccess || stderr != "" || !strings.Contains(rows, "1.0 IOS v1 2 3.00 1") || !strings.Contains(rows, "1.0 MAC_OS v2 1 2.00 1") {
 			t.Fatalf("format=%s code=%d stdout=%q stderr=%q", format, code, stdout, stderr)
@@ -149,14 +141,13 @@ func TestReviewsDigestStopsPaginatingAtCursorAndAggregates(t *testing.T) {
 }
 
 func TestReviewsDigestStopsVersionLookupOnceAllReviewsMapped(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	requests := newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2}, map[string]string{
+	client, requests := newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2}, map[string]string{
 		"/v1/appStoreVersions/v1/customerReviews?":         `{"data":[{"type":"customerReviews","id":"r1","attributes":{"createdDate":"2026-10-20T10:00:00-07:00"}},{"type":"customerReviews","id":"r2","attributes":{"createdDate":"2026-10-19T09:00:00Z"}},{"type":"customerReviews","id":"r3","attributes":{"createdDate":"2026-10-18T08:00:00Z"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/appStoreVersions/v1/customerReviews?cursor=reviews2"}}`,
 		"/v1/appStoreVersions/v1/customerReviews?reviews2": "invalid-json",
 		"/v1/apps/app-1/appStoreVersions?versions2":        "invalid-json",
 	})
-	code, stdout, stderr := runReviewsDigest(t, "--app", "app-1", "--since", "2026-10-16", "--output", "json")
+	code, stdout, stderr := runReviewsDigest(t, client, "--app", "app-1", "--since", "2026-10-16", "--output", "json")
 	if code != rootcmd.ExitSuccess || stderr != "" {
 		t.Fatalf("completed associations must not read irrelevant pages: code=%d stdout=%q stderr=%q requests=%v", code, stdout, stderr, *requests)
 	}
@@ -170,11 +161,10 @@ func TestReviewsDigestStopsVersionLookupOnceAllReviewsMapped(t *testing.T) {
 }
 
 func TestReviewsDigestReportsUnassignedVersions(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2}, map[string]string{"/v1/apps/app-1/appStoreVersions?": `{"data":[]}`})
+	client, _ := newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2}, map[string]string{"/v1/apps/app-1/appStoreVersions?": `{"data":[]}`})
 	for _, format := range []string{"json", "table", "markdown"} {
-		code, stdout, stderr := runReviewsDigest(t, "--app", "app-1", "--since", "2026-10-16", "--output", format)
+		code, stdout, stderr := runReviewsDigest(t, client, "--app", "app-1", "--since", "2026-10-16", "--output", format)
 		if code != rootcmd.ExitSuccess || stderr != "" {
 			t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 		}
@@ -198,15 +188,14 @@ func TestReviewsDigestReportsUnassignedVersions(t *testing.T) {
 func TestReviewsDigestVersionFailurePreservesCursor(t *testing.T) {
 	for _, path := range []string{"/v1/apps/app-1/appStoreVersions?versions2", "/v1/appStoreVersions/v1/customerReviews?reviews2"} {
 		t.Run(path, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2}, map[string]string{path: "invalid-json"})
+			client, _ := newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2}, map[string]string{path: "invalid-json"})
 			statePath := filepath.Join(t.TempDir(), "cursor.json")
 			original := `{"cursor":"2026-10-16T00:00:00Z"}`
 			if err := os.WriteFile(statePath, []byte(original), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			code, stdout, stderr := runReviewsDigest(t, "--app", "app-1", "--state-file", statePath, "--write-state", "--output", "json")
+			code, stdout, stderr := runReviewsDigest(t, client, "--app", "app-1", "--state-file", statePath, "--write-state", "--output", "json")
 			after, err := os.ReadFile(statePath)
 			if err != nil {
 				t.Fatal(err)
@@ -260,9 +249,8 @@ func TestReviewsDigestStateFileCursor(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			requests := newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2})
+			client, requests := newReviewsDigestServer(t, map[string]string{"": reviewsDigestPage1, "page2": reviewsDigestPage2})
 
 			statePath := filepath.Join(t.TempDir(), "digest-state.json")
 			if test.state != "" {
@@ -272,7 +260,7 @@ func TestReviewsDigestStateFileCursor(t *testing.T) {
 			}
 
 			args := append([]string{"--app", "app-1", "--state-file", statePath, "--output", "json"}, test.args...)
-			code, stdout, stderr := runReviewsDigest(t, args...)
+			code, stdout, stderr := runReviewsDigest(t, client, args...)
 			if code != rootcmd.ExitSuccess {
 				t.Fatalf("exit code = %d, stderr = %q", code, stderr)
 			}
@@ -328,12 +316,11 @@ func TestReviewsDigestRejectsInvalidInputBeforeRequests(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
-			requests := newReviewsDigestServer(t, map[string]string{})
+			client, requests := newReviewsDigestServer(t, map[string]string{})
 
-			code, stdout, stderr := runReviewsDigest(t, test.args...)
+			code, stdout, stderr := runReviewsDigest(t, client, test.args...)
 			if code != test.wantCode {
 				t.Fatalf("exit code = %d, want %d; stderr = %q", code, test.wantCode, stderr)
 			}

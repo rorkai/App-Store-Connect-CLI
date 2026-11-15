@@ -17,22 +17,26 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 
 	tests := []struct {
 		args         []string
+		deps         bool
 		lookupTester bool
 		request      asctest.Matcher
 		wantHint     string
 	}{
 		{
 			args:     []string{"review", "items", "add", "--submission", "sub-1", "--item-type", "appStoreVersions", "--item-id", "version-1"},
+			deps:     true,
 			request:  asctest.POST("/v1/reviewSubmissionItems").JSONBody(reviewItemBody),
 			wantHint: "Hint: Check the submission's state and items with `asc review submissions-get --id SUBMISSION_ID --include items`. If the item is already on it, `--if-exists skip` accepts it.",
 		},
 		{
 			args:     []string{"review", "items-add", "--submission", "sub-1", "--item-type", "appStoreVersions", "--item-id", "version-1"},
+			deps:     true,
 			request:  asctest.POST("/v1/reviewSubmissionItems").JSONBody(reviewItemBody),
 			wantHint: "Hint: Check the submission's state and items with `asc review submissions-get --id SUBMISSION_ID --include items`. If the item is already on it, `--if-exists skip` accepts it.",
 		},
 		{
 			args:     []string{"review", "submissions-submit", "--id", "sub-1", "--confirm"},
+			deps:     true,
 			request:  asctest.PATCH("/v1/reviewSubmissions/sub-1").JSONBody(`{"data":{"type":"reviewSubmissions","id":"sub-1","attributes":{"submitted":true}}}`),
 			wantHint: "Hint: Check the submission's state and items with `asc review submissions-get --id SUBMISSION_ID --include items`, and what blocks review with `asc review doctor --app APP_ID`.",
 		},
@@ -61,18 +65,28 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(strings.Join(test.args[:3], " "), func(t *testing.T) {
-			setupAuth(t)
+			if !test.deps {
+				setupAuth(t)
+			}
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
-			reg.Install()
+			if !test.deps {
+				reg.Install()
+			}
 			if test.lookupTester {
 				reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=tester@example.com"),
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}],"links":{"self":"/v1/betaTesters"}}`))
 			}
 			reg.Register(test.request, asctest.JSON(http.StatusConflict, conflictBody))
 
-			code, stdout, stderr := runASCForExitCode(t, test.args...)
+			var code int
+			var stdout, stderr string
+			if test.deps {
+				stdout, stderr, code = runWithDeps(t, stubClient(t, reg), test.args...)
+			} else {
+				code, stdout, stderr = runASCForExitCode(t, test.args...)
+			}
 
 			if code != cmd.ExitConflict {
 				t.Fatalf("exit code = %d, want %d (stderr %q)", code, cmd.ExitConflict, stderr)
