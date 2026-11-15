@@ -278,6 +278,42 @@ func resetShellCacheForTest() {
 	cachedShellFlags = nil
 }
 
+// LoadEnvFiles reads KEY=VALUE files in order; a later file overrides an
+// earlier one. Errors name the file and line but never include line content,
+// because values are often secrets.
+func LoadEnvFiles(paths []string) (map[string]string, error) {
+	env := make(map[string]string)
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read env file: %w", err)
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			if rest, ok := strings.CutPrefix(line, "export"); ok && rest != "" && (rest[0] == ' ' || rest[0] == '\t') {
+				line = strings.TrimSpace(rest)
+			}
+			key, value, ok := strings.Cut(line, "=")
+			if !ok {
+				return nil, fmt.Errorf("env file %s:%d: expected KEY=VALUE", path, i+1)
+			}
+			key = strings.TrimSpace(key)
+			if !stepIfName.MatchString(key) {
+				return nil, fmt.Errorf("env file %s:%d: invalid variable name", path, i+1)
+			}
+			value = strings.TrimSpace(value)
+			if n := len(value); n >= 2 && (value[0] == '"' || value[0] == '\'') && value[n-1] == value[0] {
+				value = value[1 : n-1]
+			}
+			env[key] = value
+		}
+	}
+	return env, nil
+}
+
 // ParseParams converts CLI arguments in KEY:VALUE or KEY=VALUE format to a map.
 func ParseParams(args []string) (map[string]string, error) {
 	params := make(map[string]string, len(args))

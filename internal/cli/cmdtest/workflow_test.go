@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -625,6 +626,120 @@ func TestWorkflowRun_WithParams(t *testing.T) {
 			}
 			if result["status"] != "ok" {
 				t.Fatalf("expected status=ok, got %v", result["status"])
+			}
+		})
+	}
+}
+
+func TestWorkflowRun_EnvFile(t *testing.T) {
+	const echoStep = `{"workflows": {"test": {"steps": ["echo GOT=$EF_VALUE"]}}}`
+	tests := []struct {
+		name       string
+		workflow   string
+		files      []string
+		processEnv map[string]string
+		extraArgs  []string
+		wantCode   int
+		wantStderr []string
+		notOutput  []string
+	}{
+		{
+			name:       "step sees file value with export and quotes",
+			workflow:   `{"workflows": {"test": {"steps": ["echo GOT=$EF_A,$EF_B,$EF_C"]}}}`,
+			files:      []string{"# comment\n\nexport EF_A=\"double quoted\"\nEF_B='single'\n  EF_C = plain  \n"},
+			wantStderr: []string{"GOT=double quoted,single,plain"},
+		},
+		{
+			name:       "process environment wins over file",
+			workflow:   echoStep,
+			files:      []string{"EF_VALUE=from-file\n"},
+			processEnv: map[string]string{"EF_VALUE": "from-process"},
+			wantStderr: []string{"GOT=from-process"},
+			notOutput:  []string{"from-file"},
+		},
+		{
+			name:       "later file wins over earlier file",
+			workflow:   echoStep,
+			files:      []string{"EF_VALUE=first\n", "EF_VALUE=second\n"},
+			wantStderr: []string{"GOT=second"},
+		},
+		{
+			name:       "workflow env wins over file",
+			workflow:   `{"env": {"EF_VALUE": "from-workflow"}, "workflows": {"test": {"steps": ["echo GOT=$EF_VALUE"]}}}`,
+			files:      []string{"EF_VALUE=from-file\n"},
+			wantStderr: []string{"GOT=from-workflow"},
+		},
+		{
+			name: "called workflow env wins over file",
+			workflow: `{"workflows": {
+				"test": {"steps": [{"workflow": "helper"}]},
+				"helper": {"private": true, "env": {"EF_VALUE": "from-helper"}, "steps": ["echo GOT=$EF_VALUE"]}
+			}}`,
+			files:      []string{"EF_VALUE=from-file\n"},
+			wantStderr: []string{"GOT=from-helper"},
+		},
+		{
+			name:       "step if and hooks see file value",
+			workflow:   `{"before_all": "echo HOOK=$EF_VALUE", "workflows": {"test": {"steps": [{"if": "EF_DEPLOY", "run": "echo STEP_RAN"}]}}}`,
+			files:      []string{"EF_DEPLOY=true\nEF_VALUE=hooked\n"},
+			wantStderr: []string{"HOOK=hooked", "STEP_RAN"},
+		},
+		{
+			name:      "dry run does not print file values",
+			workflow:  `{"before_all": "echo $EF_VALUE", "workflows": {"test": {"steps": ["echo $EF_VALUE"]}}}`,
+			files:     []string{"EF_VALUE=s3cret-dry-run\n"},
+			extraArgs: []string{"--dry-run"},
+			notOutput: []string{"s3cret-dry-run"},
+		},
+		{
+			name:       "line without equals names file and line only",
+			workflow:   echoStep,
+			files:      []string{"EF_OK=1\nnot-a-pair s3cret-bad-line\n"},
+			wantCode:   rootcmd.ExitUsage,
+			wantStderr: []string{"env-0:2:"},
+			notOutput:  []string{"s3cret-bad-line"},
+		},
+		{
+			name:       "invalid name names file and line only",
+			workflow:   echoStep,
+			files:      []string{"\n1EF=s3cret-bad-name\n"},
+			wantCode:   rootcmd.ExitUsage,
+			wantStderr: []string{"env-0:2:"},
+			notOutput:  []string{"s3cret-bad-name"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := writeWorkflowJSON(t, dir, test.workflow)
+			for k, v := range test.processEnv {
+				t.Setenv(k, v)
+			}
+			args := []string{"workflow", "run", "--file", path}
+			for i, content := range test.files {
+				envPath := filepath.Join(dir, fmt.Sprintf("env-%d", i))
+				if err := os.WriteFile(envPath, []byte(content), 0o600); err != nil {
+					t.Fatalf("write env file: %v", err)
+				}
+				args = append(args, "--env-file", envPath)
+			}
+			args = append(append(args, "test"), test.extraArgs...)
+
+			stdout, stderr := captureOutput(t, func() {
+				if code := rootcmd.Run(args, "1.2.3"); code != test.wantCode {
+					t.Errorf("exit code = %d, want %d", code, test.wantCode)
+				}
+			})
+			for _, want := range test.wantStderr {
+				if !strings.Contains(stderr, want) {
+					t.Errorf("stderr missing %q: %q", want, stderr)
+				}
+			}
+			for _, secret := range test.notOutput {
+				if strings.Contains(stdout+stderr, secret) {
+					t.Errorf("output contains %q: stdout=%q stderr=%q", secret, stdout, stderr)
+				}
 			}
 		})
 	}
