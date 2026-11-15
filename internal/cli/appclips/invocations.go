@@ -246,13 +246,10 @@ Examples:
 
 // AppClipInvocationsUpdateCommand updates a beta App Clip invocation.
 func AppClipInvocationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	invocationID := shared.BindResourceIDFlag(fs, "invocation-id", "betaAppClipInvocations", "Invocation ID")
-	url := fs.String("url", "", "Invocation URL")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return appClipsClientFactory() }
+	var attrs asc.BetaAppClipInvocationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc app-clips invocations update --invocation-id \"INVOCATION_ID\" [flags]",
 		ShortHelp:  "Update a beta App Clip invocation.",
@@ -260,41 +257,17 @@ func AppClipInvocationsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc app-clips invocations update --invocation-id "INVOCATION_ID" --url "https://example.com/clip"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			invocationValue := strings.TrimSpace(*invocationID)
-			if invocationValue == "" {
-				return shared.RequiredFlag("--invocation-id")
-			}
-
-			visited := map[string]bool{}
-			fs.Visit(func(f *flag.Flag) {
-				visited[f.Name] = true
-			})
-			if !visited["url"] {
-				return shared.UpdateFlagRequired(fs, url)
-			}
-
-			urlValue := strings.TrimSpace(*url)
-			attrs := &asc.BetaAppClipInvocationUpdateAttributes{URL: &urlValue}
-
-			client, err := appClipsClientFactory()
-			if err != nil {
-				return fmt.Errorf("app-clips invocations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateBetaAppClipInvocation(requestCtx, invocationValue, attrs)
-			if err != nil {
-				return fmt.Errorf("app-clips invocations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "invocation-id",
+		IDUsage: "Invocation ID",
+		IDType:  "betaAppClipInvocations",
+		Fields: []shared.AttributeFlag{
+			shared.ExplicitStringFlag(&attrs.URL, "url", "Invocation URL"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateBetaAppClipInvocation(ctx, id, &attrs)
+		},
+	})
 }
 
 // AppClipInvocationsDeleteCommand deletes a beta App Clip invocation.

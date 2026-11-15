@@ -168,13 +168,8 @@ Examples:
 
 // AppClipDefaultExperienceLocalizationsUpdateCommand updates a localization.
 func AppClipDefaultExperienceLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appClipDefaultExperienceLocalizations", "Localization ID")
-	subtitle := fs.String("subtitle", "", "Subtitle")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var subtitle *string
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc app-clips default-experiences localizations update --localization-id \"LOC_ID\" [flags]",
 		ShortHelp:  "Update a localization.",
@@ -182,47 +177,16 @@ func AppClipDefaultExperienceLocalizationsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc app-clips default-experiences localizations update --localization-id "LOC_ID" --subtitle "Try it"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			locValue := strings.TrimSpace(*localizationID)
-			if locValue == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-
-			visited := map[string]bool{}
-			fs.Visit(func(f *flag.Flag) {
-				visited[f.Name] = true
-			})
-
-			if !visited["subtitle"] {
-				return shared.UpdateFlagRequired(fs, subtitle)
-			}
-
-			var attrs *asc.AppClipDefaultExperienceLocalizationUpdateAttributes
-			if visited["subtitle"] {
-				value := strings.TrimSpace(*subtitle)
-				attrs = &asc.AppClipDefaultExperienceLocalizationUpdateAttributes{
-					Subtitle: &value,
-				}
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips default-experiences localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateAppClipDefaultExperienceLocalization(requestCtx, locValue, attrs)
-			if err != nil {
-				return fmt.Errorf("app-clips default-experiences localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "localization-id",
+		IDUsage: "Localization ID",
+		IDType:  "appClipDefaultExperienceLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.ExplicitStringFlag(&subtitle, "subtitle", "Subtitle"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateAppClipDefaultExperienceLocalization(ctx, id, &asc.AppClipDefaultExperienceLocalizationUpdateAttributes{Subtitle: subtitle})
+		},
+	})
 }
 
 // AppClipDefaultExperienceLocalizationsDeleteCommand deletes a localization.

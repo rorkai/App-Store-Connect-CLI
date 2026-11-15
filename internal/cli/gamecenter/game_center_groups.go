@@ -109,12 +109,8 @@ Examples:
 
 // GameCenterGroupsCreateCommand returns the groups create subcommand.
 func GameCenterGroupsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	referenceName := fs.String("reference-name", "", "Reference name for the group")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var referenceName *string
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center groups create [flags]",
 		ShortHelp:  "Create a Game Center group.",
@@ -122,31 +118,14 @@ func GameCenterGroupsCreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center groups create --reference-name "Group 1"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			var ref *string
-			if strings.TrimSpace(*referenceName) != "" {
-				value := strings.TrimSpace(*referenceName)
-				ref = &value
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center groups create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterGroup(requestCtx, ref)
-			if err != nil {
-				return fmt.Errorf("game-center groups create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel: true,
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&referenceName, "reference-name", "Reference name for the group"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, _ string) (any, error) {
+			return client.CreateGameCenterGroup(ctx, referenceName)
+		},
+	})
 }
 
 // GameCenterGroupsUpdateCommand returns the groups update subcommand.

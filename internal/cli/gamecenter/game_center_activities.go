@@ -633,13 +633,8 @@ Examples:
 
 // GameCenterActivityVersionsCreateCommand returns the activity versions create subcommand.
 func GameCenterActivityVersionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
-	fallbackURL := fs.String("fallback-url", "", "Fallback URL")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var fallbackURL string
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center activities versions create --activity-id \"ACTIVITY_ID\"",
 		ShortHelp:  "Create a Game Center activity version.",
@@ -648,30 +643,16 @@ func GameCenterActivityVersionsCreateCommand() *ffcli.Command {
 Examples:
   asc game-center activities versions create --activity-id "ACTIVITY_ID"
   asc game-center activities versions create --activity-id "ACTIVITY_ID" --fallback-url "https://example.com"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*activityID)
-			if id == "" {
-				return shared.RequiredFlag("--activity-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center activities versions create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterActivityVersion(requestCtx, id, strings.TrimSpace(*fallbackURL))
-			if err != nil {
-				return fmt.Errorf("game-center activities versions create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "activity-id",
+		IDUsage: "Game Center activity ID",
+		IDType:  "gameCenterActivities",
+		Fields: []shared.AttributeFlag{
+			shared.StringFlag(&fallbackURL, "fallback-url", "Fallback URL"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterActivityVersion(ctx, id, fallbackURL)
+		},
+	})
 }
 
 // GameCenterActivityVersionsUpdateCommand returns the activity versions update subcommand.
