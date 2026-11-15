@@ -191,7 +191,7 @@ type webAuthStatus struct {
 	DeveloperTeamID  string `json:"developerTeamId,omitempty"`
 }
 
-func printWebAuthStatus(status webAuthStatus, format string, pretty bool) error {
+func printWebAuthStatus(d *shared.Deps, status webAuthStatus, format string, pretty bool) error {
 	providerID := ""
 	if status.ProviderID != 0 {
 		providerID = strconv.FormatInt(status.ProviderID, 10)
@@ -206,7 +206,7 @@ func printWebAuthStatus(status webAuthStatus, format string, pretty bool) error 
 		{"Public Provider ID", status.PublicProviderID},
 		{"Developer Team ID", status.DeveloperTeamID},
 	}
-	return shared.PrintOutputRows(status, format, pretty, []string{"Field", "Value"}, rows)
+	return d.PrintOutputRows(status, format, pretty, []string{"Field", "Value"}, rows)
 }
 
 func expiredWebAuthStatus(appleID string) webAuthStatus {
@@ -1755,9 +1755,9 @@ func callResolveSessionForProviderSelectionWith(ctx context.Context, d *shared.D
 	return callSessionResolverHook(ctx, resolveSessionWithoutPersistFn, "resolveSessionWithoutPersistFn", appleID, password, twoFactorCode, twoFactorCodeCommand)
 }
 
-// WebAuthCommand returns the detached web auth command group.
-func WebAuthCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web auth", flag.ExitOnError)
+// newWebAuthCommand returns the detached web auth command group.
+func newWebAuthCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web auth", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "auth",
@@ -1769,15 +1769,15 @@ Manage Apple web-session authentication used by "asc web" commands.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAuthLoginCommand(),
-			WebAuthStatusCommand(),
-			WebAuthCapabilitiesCommand(),
-			WebAuthMessagesCodeCommand(),
-			WebAuthExportCommand(),
-			WebAuthImportCommand(),
-			WebAuthLogoutCommand(),
+			newWebAuthLoginCommand(d),
+			newWebAuthStatusCommand(d),
+			newWebAuthCapabilitiesCommand(d),
+			newWebAuthMessagesCodeCommand(d),
+			newWebAuthExportCommand(d),
+			newWebAuthImportCommand(d),
+			newWebAuthLogoutCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1785,16 +1785,16 @@ Manage Apple web-session authentication used by "asc web" commands.
 	}
 }
 
-// WebAuthLoginCommand creates or refreshes a web session.
-func WebAuthLoginCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web auth login", flag.ExitOnError)
+// newWebAuthLoginCommand creates or refreshes a web session.
+func newWebAuthLoginCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web auth login", flag.ExitOnError)
 
 	appleID := fs.String("apple-id", "", "Apple Account email (defaults to "+webAppleIDEnv+", then the last or only cached session)")
 	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
 	twoFactorDelivery := bindTwoFactorDeliveryFlags(fs)
 	providerID := fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session")
 	publicProviderID := fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "login",
@@ -1888,9 +1888,9 @@ Examples:
 			webTwoFactorCodeCommandEnv,
 		),
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			preference, err := twoFactorDelivery.resolve()
+			preference, err := twoFactorDelivery.resolveWith(d)
 			if err != nil {
 				return err
 			}
@@ -1899,17 +1899,17 @@ Examples:
 				PublicProviderID: *publicProviderID,
 			}
 			signInCtx := contextWithTwoFactorPreference(contextForWebSignIn(ctx), preference)
-			session, source, err := callResolveSessionForProviderSelection(signInCtx, *appleID, "", "", *twoFactorCodeCommand, selection)
+			session, source, err := callResolveSessionForProviderSelectionWith(signInCtx, d, *appleID, "", "", *twoFactorCodeCommand, selection)
 			if err != nil {
 				return err
 			}
 
 			// Provider selection is a request, so its budget starts once the
 			// interactive login finished.
-			requestCtx, cancel := newWebRequestContext(ctx)
+			requestCtx, cancel := newWebRequestContextWith(ctx, d)
 			defer cancel()
 
-			if err := selectResolvedWebSessionProvider(requestCtx, session, selection); err != nil {
+			if err := selectResolvedWebSessionProviderWith(requestCtx, d, session, selection); err != nil {
 				return err
 			}
 
@@ -1923,17 +1923,17 @@ Examples:
 				PublicProviderID: session.PublicProviderID,
 				DeveloperTeamID:  session.DeveloperTeamID,
 			}
-			return printWebAuthStatus(status, *output.Output, *output.Pretty)
+			return printWebAuthStatus(d, status, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAuthStatusCommand checks whether a cached session is currently valid.
-func WebAuthStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web auth status", flag.ExitOnError)
+// newWebAuthStatusCommand checks whether a cached session is currently valid.
+func newWebAuthStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web auth status", flag.ExitOnError)
 
 	appleID := fs.String("apple-id", "", "Apple Account email (checks this account cache; default checks last cached session)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -1946,9 +1946,9 @@ If --apple-id is not provided, this checks the last cached session.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			trimmedAppleID := strings.TrimSpace(*appleID)
@@ -1965,19 +1965,19 @@ If --apple-id is not provided, this checks the last cached session.
 			if err != nil {
 				if errors.Is(err, webcore.ErrCachedSessionExpired) {
 					status := expiredWebAuthStatus(trimmedAppleID)
-					return printWebAuthStatus(status, *output.Output, *output.Pretty)
+					return printWebAuthStatus(d, status, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("web auth status failed: %w", err)
 			}
 
 			if !ok || session == nil {
-				return printWebAuthStatus(webAuthStatus{
+				return printWebAuthStatus(d, webAuthStatus{
 					Authenticated:  false,
 					PasswordStored: storedWebPasswordStatus(trimmedAppleID),
 					AppleID:        trimmedAppleID,
 				}, *output.Output, *output.Pretty)
 			}
-			return printWebAuthStatus(webAuthStatus{
+			return printWebAuthStatus(d, webAuthStatus{
 				Authenticated:    true,
 				PasswordStored:   storedWebPasswordStatus(session.UserEmail),
 				Source:           "cache",
@@ -1991,9 +1991,9 @@ If --apple-id is not provided, this checks the last cached session.
 	}
 }
 
-// WebAuthLogoutCommand clears cached web sessions.
-func WebAuthLogoutCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web auth logout", flag.ExitOnError)
+// newWebAuthLogoutCommand clears cached web sessions.
+func newWebAuthLogoutCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web auth logout", flag.ExitOnError)
 
 	appleID := fs.String("apple-id", "", "Apple Account email to remove from cache")
 	all := fs.Bool("all", false, "Remove all cached web sessions")
@@ -2011,17 +2011,17 @@ Pass --forget-password --confirm to also remove the native credential-store pass
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedAppleID := strings.TrimSpace(*appleID)
 			if *all && trimmedAppleID != "" {
-				return shared.UsageError("--all and --apple-id are mutually exclusive")
+				return d.UsageError("--all and --apple-id are mutually exclusive")
 			}
 			if *confirm && !*forgetPassword {
-				return shared.UsageError("--confirm requires --forget-password")
+				return d.UsageError("--confirm requires --forget-password")
 			}
 			if *forgetPassword && !*confirm {
-				return shared.UsageError("--forget-password requires --confirm")
+				return d.UsageError("--forget-password requires --confirm")
 			}
 			if *all {
 				if *forgetPassword {
@@ -2036,14 +2036,14 @@ Pass --forget-password --confirm to also remove the native credential-store pass
 					return fmt.Errorf("web auth logout failed: %w", err)
 				}
 				if *forgetPassword {
-					_, _ = fmt.Fprintln(os.Stdout, "Removed all cached web sessions and stored passwords.")
+					_, _ = fmt.Fprintln(d.IO.Out, "Removed all cached web sessions and stored passwords.")
 					return nil
 				}
-				_, _ = fmt.Fprintln(os.Stdout, "Removed all cached web sessions.")
+				_, _ = fmt.Fprintln(d.IO.Out, "Removed all cached web sessions.")
 				return nil
 			}
 			if trimmedAppleID == "" {
-				return shared.UsageError("provide --apple-id or --all")
+				return d.UsageError("provide --apple-id or --all")
 			}
 			if *forgetPassword {
 				if err := deleteStoredWebPasswordFn(trimmedAppleID); err != nil {
@@ -2057,10 +2057,10 @@ Pass --forget-password --confirm to also remove the native credential-store pass
 				return fmt.Errorf("web auth logout failed: %w", err)
 			}
 			if *forgetPassword {
-				_, _ = fmt.Fprintf(os.Stdout, "Removed cached web session and stored password for %s.\n", trimmedAppleID)
+				_, _ = fmt.Fprintf(d.IO.Out, "Removed cached web session and stored password for %s.\n", trimmedAppleID)
 				return nil
 			}
-			_, _ = fmt.Fprintf(os.Stdout, "Removed cached web session for %s.\n", trimmedAppleID)
+			_, _ = fmt.Fprintf(d.IO.Out, "Removed cached web session for %s.\n", trimmedAppleID)
 			return nil
 		},
 	}

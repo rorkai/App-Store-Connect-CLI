@@ -2401,7 +2401,8 @@ func TestWebAuthLoginReportsInvalidCredentialMessage(t *testing.T) {
 		return nil, errors.New("srp login failed: signin complete failed: incorrect Apple Account email or password")
 	}
 
-	cmd := WebAuthLoginCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAuthLoginCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
