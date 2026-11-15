@@ -1100,10 +1100,9 @@ the new profiles; every other claim from the old signature must still be
 allowed by the new profile, or the run is refused. `--bundle-id` works with
 or without `--rebase-team-claims`. JSON adds `sourceBundleId` to each target.
 
-The command refuses, with exit code 2, a new identifier that is invalid,
-equals the current one, or collides with another target after mapping; a
-nested identifier outside the old prefix; any App Clip target; and a watch key
-that names any other identifier. It cannot verify offline that a device
+The command refuses, with exit code 2, a new identifier that is invalid or
+equals the current one; a nested identifier outside the old prefix; any App
+Clip target; and a watch key that names any other identifier. It cannot verify offline that a device
 installs the result, that extensions load, or that keychain and app-group
 access, push notifications, universal links, and iCloud work under the new
 identifier.

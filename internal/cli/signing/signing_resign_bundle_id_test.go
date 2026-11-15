@@ -133,10 +133,11 @@ func TestMapSigningResignBundleIDs(t *testing.T) {
 			wantErr: "not a valid bundle identifier",
 		},
 		{
-			name:    "collision with another target",
+			name:    "new identifier equal to a source-only nested identifier",
 			newID:   "com.example.app.widget",
+			format:  plist.XMLFormat,
 			targets: []signingResignBundleIDFixtureTarget{extension, main(nil)},
-			wantErr: "collides",
+			want:    map[string]string{mainPath: "com.example.app.widget", extension.relativePath: "com.example.app.widget.widget"},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

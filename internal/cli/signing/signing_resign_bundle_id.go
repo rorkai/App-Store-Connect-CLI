@@ -50,10 +50,6 @@ func mapSigningResignBundleIDs(ctx context.Context, tree rootfs.Root, archive si
 	if strings.EqualFold(newID, oldID) {
 		return archive, signingResignUsage(fmt.Errorf("--bundle-id %s equals the current bundle identifier %s", newID, oldID))
 	}
-	sources := make(map[string]string, len(archive.Targets))
-	for _, target := range archive.Targets {
-		sources[strings.ToLower(target.BundleID)] = target.RelativePath
-	}
 	mapped := signingResignArchive{MainPath: archive.MainPath, Targets: slices.Clone(archive.Targets)}
 	byPath := make(map[string]signingResignTarget, len(mapped.Targets))
 	for index := range mapped.Targets {
@@ -71,9 +67,6 @@ func mapSigningResignBundleIDs(ctx context.Context, tree rootfs.Root, archive si
 		}
 		if err := validateSigningResignBundleID(targetID); err != nil {
 			return archive, signingResignUsage(fmt.Errorf("--bundle-id maps %s to an invalid bundle identifier %s: %w", target.BundleID, targetID, err))
-		}
-		if owner, exists := sources[strings.ToLower(targetID)]; exists && owner != target.RelativePath {
-			return archive, signingResignUsage(fmt.Errorf("--bundle-id maps %s to %s, which collides with the target at %s", target.BundleID, targetID, owner))
 		}
 		target.SourceBundleID, target.BundleID = target.BundleID, targetID
 		byPath[target.RelativePath] = *target
