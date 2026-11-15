@@ -26,9 +26,9 @@ func (f *keywordAuditTermsFlag) Set(value string) error {
 	return nil
 }
 
-// MetadataKeywordsAuditCommand returns the keywords audit subcommand.
-func MetadataKeywordsAuditCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata keywords audit", flag.ExitOnError)
+// newMetadataKeywordsAuditCommand returns the keywords audit subcommand.
+func newMetadataKeywordsAuditCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata keywords audit", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info", "appInfos", "App Info ID (optional override for apps with multiple app-infos)")
@@ -39,7 +39,7 @@ func MetadataKeywordsAuditCommand() *ffcli.Command {
 	blockedTermsFile := fs.String("blocked-terms-file", "", "Optional newline/comma-separated blocked terms file (supports # comments)")
 	var blockedTerms keywordAuditTermsFlag
 	fs.Var(&blockedTerms, "blocked-term", "Blocked term to flag during keyword audit (repeatable)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "audit",
@@ -63,42 +63,42 @@ Examples:
   asc metadata keywords audit --app "APP_ID" --version "1.2.3" --blocked-term "free"
   asc metadata keywords audit --app "APP_ID" --version "1.2.3" --blocked-terms-file "./blocked-terms.txt"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
 			versionValue := strings.TrimSpace(*version)
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionValue == "" && versionIDValue == "" {
-				return shared.UsageError("--version or --version-id is required")
+				return d.UsageError("--version or --version-id is required")
 			}
 			if versionValue != "" && versionIDValue != "" {
-				return shared.UsageError("--version and --version-id are mutually exclusive")
+				return d.UsageError("--version and --version-id are mutually exclusive")
 			}
 
 			platformValue := strings.TrimSpace(*platform)
 			if platformValue != "" {
 				normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(platformValue)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				platformValue = normalizedPlatform
 			}
 
 			resolvedBlockedTerms, err := loadKeywordAuditBlockedTerms(blockedTerms, strings.TrimSpace(*blockedTermsFile))
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("metadata keywords audit: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var versionStateValue string
@@ -114,7 +114,7 @@ Examples:
 					platformValue = strings.TrimSpace(string(versionResource.Attributes.Platform))
 				}
 			} else {
-				resolvedVersionID, resolvedVersionState, err := resolveVersionID(requestCtx, shared.DefaultDeps(), client, resolvedAppID, versionValue, platformValue)
+				resolvedVersionID, resolvedVersionState, err := resolveVersionID(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
 				if err != nil {
 					return fmt.Errorf("metadata keywords audit: %w", err)
 				}
@@ -124,6 +124,7 @@ Examples:
 
 			appInfoIDValue, err := resolveMetadataKeywordsAuditAppInfoID(
 				requestCtx,
+				d,
 				client,
 				resolvedAppID,
 				strings.TrimSpace(*appInfoID),
@@ -138,11 +139,11 @@ Examples:
 				return fmt.Errorf("metadata keywords audit: %w", err)
 			}
 
-			versionItems, err := fetchVersionLocalizations(ctx, shared.DefaultDeps(), client, versionIDValue)
+			versionItems, err := fetchVersionLocalizations(ctx, d, client, versionIDValue)
 			if err != nil {
 				return fmt.Errorf("metadata keywords audit: %w", err)
 			}
-			appInfoItems, err := fetchAppInfoLocalizations(ctx, shared.DefaultDeps(), client, appInfoIDValue)
+			appInfoItems, err := fetchAppInfoLocalizations(ctx, d, client, appInfoIDValue)
 			if err != nil {
 				return fmt.Errorf("metadata keywords audit: %w", err)
 			}
@@ -157,12 +158,12 @@ Examples:
 				AppInfoLocalizations: mapAppInfoLocalizationsForAudit(appInfoItems),
 			}, *strict)
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				report,
 				*output.Output,
 				*output.Pretty,
-				func() error { return printKeywordAuditTable(report) },
-				func() error { return printKeywordAuditMarkdown(report) },
+				func() error { return printKeywordAuditTable(d, report) },
+				func() error { return printKeywordAuditMarkdown(d, report) },
 			); err != nil {
 				return err
 			}
@@ -177,6 +178,7 @@ Examples:
 
 func resolveMetadataKeywordsAuditAppInfoID(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	appID string,
 	appInfoID string,
@@ -184,7 +186,7 @@ func resolveMetadataKeywordsAuditAppInfoID(
 	platform string,
 	versionState string,
 ) (string, error) {
-	return resolveMetadataAppInfoID(ctx, shared.DefaultDeps(), client, appID, appInfoID, version, platform, "", versionState, func(aid, v, p, _ string, infoID string) string {
+	return resolveMetadataAppInfoID(ctx, d, client, appID, appInfoID, version, platform, "", versionState, func(aid, v, p, _ string, infoID string) string {
 		return buildMetadataKeywordsAuditAppInfoExample(aid, v, p, infoID)
 	})
 }
@@ -278,8 +280,9 @@ func mapAppInfoLocalizationsForAudit(items []asc.Resource[asc.AppInfoLocalizatio
 	return result
 }
 
-func printKeywordAuditTable(report validation.KeywordAuditReport) error {
-	asc.RenderTable(
+func printKeywordAuditTable(d *shared.Deps, report validation.KeywordAuditReport) error {
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"app", "version", "version id", "platform", "strict", "locales", "errors", "warnings", "infos", "blocking", "blocked terms"},
 		[][]string{{
 			report.AppID,
@@ -312,17 +315,18 @@ func printKeywordAuditTable(report validation.KeywordAuditReport) error {
 	if len(localeRows) == 0 {
 		localeRows = append(localeRows, []string{"", "0", "0", "0", "0", "0", "0", ""})
 	}
-	fmt.Println()
-	asc.RenderTable([]string{"locale", "count", "used chars", "remaining", "errors", "warnings", "infos", "keywords"}, localeRows)
+	fmt.Fprintln(d.IO.Out)
+	asc.RenderTableTo(d.IO.Out, []string{"locale", "count", "used chars", "remaining", "errors", "warnings", "infos", "keywords"}, localeRows)
 
 	checkRows := buildKeywordAuditCheckRows(report.Checks)
-	fmt.Println()
-	asc.RenderTable([]string{"severity", "locale", "related locales", "id", "keyword", "term", "message"}, checkRows)
+	fmt.Fprintln(d.IO.Out)
+	asc.RenderTableTo(d.IO.Out, []string{"severity", "locale", "related locales", "id", "keyword", "term", "message"}, checkRows)
 	return nil
 }
 
-func printKeywordAuditMarkdown(report validation.KeywordAuditReport) error {
-	asc.RenderMarkdown(
+func printKeywordAuditMarkdown(d *shared.Deps, report validation.KeywordAuditReport) error {
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"app", "version", "version id", "platform", "strict", "locales", "errors", "warnings", "infos", "blocking", "blocked terms"},
 		[][]string{{
 			report.AppID,
@@ -355,12 +359,12 @@ func printKeywordAuditMarkdown(report validation.KeywordAuditReport) error {
 	if len(localeRows) == 0 {
 		localeRows = append(localeRows, []string{"", "0", "0", "0", "0", "0", "0", ""})
 	}
-	fmt.Println()
-	asc.RenderMarkdown([]string{"locale", "count", "used chars", "remaining", "errors", "warnings", "infos", "keywords"}, localeRows)
+	fmt.Fprintln(d.IO.Out)
+	asc.RenderMarkdownTo(d.IO.Out, []string{"locale", "count", "used chars", "remaining", "errors", "warnings", "infos", "keywords"}, localeRows)
 
 	checkRows := buildKeywordAuditCheckRows(report.Checks)
-	fmt.Println()
-	asc.RenderMarkdown([]string{"severity", "locale", "related locales", "id", "keyword", "term", "message"}, checkRows)
+	fmt.Fprintln(d.IO.Out)
+	asc.RenderMarkdownTo(d.IO.Out, []string{"severity", "locale", "related locales", "id", "keyword", "term", "message"}, checkRows)
 	return nil
 }
 

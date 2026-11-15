@@ -53,9 +53,9 @@ type metadataKeywordFieldDetails struct {
 	duplicates []string
 }
 
-// MetadataKeywordsCommand returns the canonical metadata keywords subtree.
-func MetadataKeywordsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("keywords", flag.ExitOnError)
+// newMetadataKeywordsCommand returns the canonical metadata keywords subtree.
+func newMetadataKeywordsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("keywords", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "keywords",
@@ -86,16 +86,16 @@ Examples:
   asc metadata keywords push --version-id "VERSION_ID" --input "./keywords.json"
   asc metadata keywords sync --app "APP_ID" --version "1.2.3" --dir "./metadata" --input "./keywords.json" --format json --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			MetadataKeywordsImportCommand(),
-			MetadataKeywordsAuditCommand(),
-			MetadataKeywordsPlanCommand(),
-			MetadataKeywordsDiffCommand(),
-			MetadataKeywordsLocalizeCommand(),
-			MetadataKeywordsApplyCommand(),
-			MetadataKeywordsPushCommand(),
-			MetadataKeywordsSyncCommand(),
+			newMetadataKeywordsImportCommand(d),
+			newMetadataKeywordsAuditCommand(d),
+			newMetadataKeywordsPlanCommand(d),
+			newMetadataKeywordsDiffCommand(d),
+			newMetadataKeywordsLocalizeCommand(d),
+			newMetadataKeywordsApplyCommand(d),
+			newMetadataKeywordsPushCommand(d),
+			newMetadataKeywordsSyncCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -103,14 +103,14 @@ Examples:
 	}
 }
 
-func validateMetadataKeywordDirVersion(dir string, version string) (string, string, error) {
+func validateMetadataKeywordDirVersion(d *shared.Deps, dir string, version string) (string, string, error) {
 	dirValue := strings.TrimSpace(dir)
 	if dirValue == "" {
-		return "", "", shared.UsageError("--dir is required")
+		return "", "", d.UsageError("--dir is required")
 	}
 	versionValue := strings.TrimSpace(version)
 	if versionValue == "" {
-		return "", "", shared.UsageError("--version is required")
+		return "", "", d.UsageError("--version is required")
 	}
 	return dirValue, versionValue, nil
 }
@@ -126,7 +126,7 @@ func validateMetadataKeywordLocale(locale string) (string, error) {
 	return resolvedLocale, nil
 }
 
-func buildMetadataKeywordWriteResults(dir, version string, valuesByLocale map[string][]string, overwrite bool) (map[string]keywordLocalState, []MetadataKeywordFileResult, []WritePlan, []MetadataKeywordIssue, error) {
+func buildMetadataKeywordWriteResults(d *shared.Deps, dir, version string, valuesByLocale map[string][]string, overwrite bool) (map[string]keywordLocalState, []MetadataKeywordFileResult, []WritePlan, []MetadataKeywordIssue, error) {
 	locales := make([]string, 0, len(valuesByLocale))
 	for locale := range valuesByLocale {
 		locales = append(locales, locale)
@@ -139,13 +139,13 @@ func buildMetadataKeywordWriteResults(dir, version string, valuesByLocale map[st
 	issues := make([]MetadataKeywordIssue, 0)
 
 	for _, locale := range locales {
-		path, err := resolveExistingVersionLocalizationPath(dir, version, locale)
+		path, err := resolveExistingVersionLocalizationPath(d, dir, version, locale)
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
 		keywordField, keywordCount, duplicateCount, skippedDuplicates, keywordIssues, err := buildMetadataKeywordPreview(valuesByLocale[locale])
 		if err != nil {
-			return nil, nil, nil, nil, shared.UsageErrorf("locale %q: %v", locale, err)
+			return nil, nil, nil, nil, d.UsageErrorf("locale %q: %v", locale, err)
 		}
 
 		existing, exists, err := readExistingVersionLocalization(path)
@@ -230,7 +230,7 @@ func readExistingVersionLocalization(path string) (VersionLocalization, bool, er
 	return VersionLocalization{}, false, err
 }
 
-func resolveExistingVersionLocalizationPath(dir string, version string, canonicalLocale string) (string, error) {
+func resolveExistingVersionLocalizationPath(d *shared.Deps, dir string, version string, canonicalLocale string) (string, error) {
 	canonicalPath, err := VersionLocalizationFilePath(dir, version, canonicalLocale)
 	if err != nil {
 		return "", err
@@ -261,10 +261,10 @@ func resolveExistingVersionLocalizationPath(dir string, version string, canonica
 		}
 		resolvedLocale, localeErr := validateMetadataKeywordLocale(rawLocale)
 		if localeErr != nil {
-			return "", shared.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), localeErr)
+			return "", d.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), localeErr)
 		}
 		if err := recordCanonicalLocaleFile(seenLocales, resolvedLocale, entry.Name()); err != nil {
-			return "", shared.UsageError(err.Error())
+			return "", d.UsageError(err.Error())
 		}
 		if resolvedLocale == canonicalLocale {
 			existingPath = filepath.Join(versionPath, entry.Name())
@@ -369,17 +369,17 @@ func parseMetadataKeywordField(field string) ([]string, error) {
 	return normalized, nil
 }
 
-func printMetadataKeywordFileResultTable(title string, results []MetadataKeywordFileResult, detectedLocales []string, issues []MetadataKeywordIssue, dir string, version string, dryRun bool, sideDataCount int, sideDataReportPath string) error {
-	fmt.Printf("%s\n", title)
-	fmt.Printf("Dir: %s\n", dir)
-	fmt.Printf("Version: %s\n", version)
-	fmt.Printf("Dry Run: %t\n\n", dryRun)
+func printMetadataKeywordFileResultTable(d *shared.Deps, title string, results []MetadataKeywordFileResult, detectedLocales []string, issues []MetadataKeywordIssue, dir string, version string, dryRun bool, sideDataCount int, sideDataReportPath string) error {
+	fmt.Fprintf(d.IO.Out, "%s\n", title)
+	fmt.Fprintf(d.IO.Out, "Dir: %s\n", dir)
+	fmt.Fprintf(d.IO.Out, "Version: %s\n", version)
+	fmt.Fprintf(d.IO.Out, "Dry Run: %t\n\n", dryRun)
 	if len(detectedLocales) > 0 {
-		fmt.Printf("Detected Locales: %s\n\n", strings.Join(detectedLocales, ","))
+		fmt.Fprintf(d.IO.Out, "Detected Locales: %s\n\n", strings.Join(detectedLocales, ","))
 	}
 	if sideDataCount > 0 {
-		fmt.Printf("Side Data Records: %d\n", sideDataCount)
-		fmt.Printf("Side Data Report: %s\n\n", sideDataReportPath)
+		fmt.Fprintf(d.IO.Out, "Side Data Records: %d\n", sideDataCount)
+		fmt.Fprintf(d.IO.Out, "Side Data Report: %s\n\n", sideDataReportPath)
 	}
 
 	rows := make([][]string, 0, len(results))
@@ -398,25 +398,25 @@ func printMetadataKeywordFileResultTable(title string, results []MetadataKeyword
 	if len(rows) == 0 {
 		rows = append(rows, []string{"", "none", "no changes", "0", "0", "", "", ""})
 	}
-	asc.RenderTable([]string{"locale", "action", "reason", "count", "duplicates", "skipped", "keywords", "file"}, rows)
+	asc.RenderTableTo(d.IO.Out, []string{"locale", "action", "reason", "count", "duplicates", "skipped", "keywords", "file"}, rows)
 	if len(issues) > 0 {
-		fmt.Println()
-		asc.RenderTable([]string{"locale", "severity", "message", "keywords", "length", "limit"}, buildMetadataKeywordIssueRows(issues))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"locale", "severity", "message", "keywords", "length", "limit"}, buildMetadataKeywordIssueRows(issues))
 	}
 	return nil
 }
 
-func printMetadataKeywordFileResultMarkdown(title string, results []MetadataKeywordFileResult, detectedLocales []string, issues []MetadataKeywordIssue, dir string, version string, dryRun bool, sideDataCount int, sideDataReportPath string) error {
-	fmt.Printf("## %s\n\n", title)
-	fmt.Printf("**Dir:** %s\n\n", dir)
-	fmt.Printf("**Version:** %s\n\n", version)
-	fmt.Printf("**Dry Run:** %t\n\n", dryRun)
+func printMetadataKeywordFileResultMarkdown(d *shared.Deps, title string, results []MetadataKeywordFileResult, detectedLocales []string, issues []MetadataKeywordIssue, dir string, version string, dryRun bool, sideDataCount int, sideDataReportPath string) error {
+	fmt.Fprintf(d.IO.Out, "## %s\n\n", title)
+	fmt.Fprintf(d.IO.Out, "**Dir:** %s\n\n", dir)
+	fmt.Fprintf(d.IO.Out, "**Version:** %s\n\n", version)
+	fmt.Fprintf(d.IO.Out, "**Dry Run:** %t\n\n", dryRun)
 	if len(detectedLocales) > 0 {
-		fmt.Printf("**Detected Locales:** %s\n\n", strings.Join(detectedLocales, ","))
+		fmt.Fprintf(d.IO.Out, "**Detected Locales:** %s\n\n", strings.Join(detectedLocales, ","))
 	}
 	if sideDataCount > 0 {
-		fmt.Printf("**Side Data Records:** %d\n\n", sideDataCount)
-		fmt.Printf("**Side Data Report:** %s\n\n", sideDataReportPath)
+		fmt.Fprintf(d.IO.Out, "**Side Data Records:** %d\n\n", sideDataCount)
+		fmt.Fprintf(d.IO.Out, "**Side Data Report:** %s\n\n", sideDataReportPath)
 	}
 
 	rows := make([][]string, 0, len(results))
@@ -435,10 +435,10 @@ func printMetadataKeywordFileResultMarkdown(title string, results []MetadataKeyw
 	if len(rows) == 0 {
 		rows = append(rows, []string{"", "none", "no changes", "0", "0", "", "", ""})
 	}
-	asc.RenderMarkdown([]string{"locale", "action", "reason", "count", "duplicates", "skipped", "keywords", "file"}, rows)
+	asc.RenderMarkdownTo(d.IO.Out, []string{"locale", "action", "reason", "count", "duplicates", "skipped", "keywords", "file"}, rows)
 	if len(issues) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"locale", "severity", "message", "keywords", "length", "limit"}, buildMetadataKeywordIssueRows(issues))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"locale", "severity", "message", "keywords", "length", "limit"}, buildMetadataKeywordIssueRows(issues))
 	}
 	return nil
 }

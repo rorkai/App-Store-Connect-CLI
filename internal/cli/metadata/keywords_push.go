@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -56,14 +55,14 @@ type metadataKeywordsPushInputObject struct {
 	Keywords *string `json:"keywords"`
 }
 
-// MetadataKeywordsPushCommand pushes locale-keyed keyword input directly to ASC.
-func MetadataKeywordsPushCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata keywords push", flag.ExitOnError)
+// newMetadataKeywordsPushCommand pushes locale-keyed keyword input directly to ASC.
+func newMetadataKeywordsPushCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata keywords push", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	inputPath := fs.String("input", "", "Input JSON file path (required)")
 	continueOnError := fs.String("continue-on-error", "true", "Continue processing locales after failures (default true)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "push",
@@ -82,34 +81,34 @@ Examples:
   asc metadata keywords push --version-id "VERSION_ID" --input "./keywords.json"
   asc metadata keywords push --version-id "VERSION_ID" --input "./keywords.json" --continue-on-error=false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 
 			inputValue := strings.TrimSpace(*inputPath)
 			if inputValue == "" {
-				return shared.RequiredFlag("--input")
+				return d.RequiredFlag("--input")
 			}
 
-			entries, err := readMetadataKeywordsPushEntries(inputValue)
+			entries, err := readMetadataKeywordsPushEntries(d, inputValue)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			continueOnErrorValue, err := shared.ParseBoolFlag(*continueOnError, "--continue-on-error")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("metadata keywords push: %w", err)
 			}
 
-			listCtx, listCancel := shared.ContextWithTimeout(ctx)
+			listCtx, listCancel := d.Timeout(ctx)
 			existing, err := client.GetAppStoreVersionLocalizations(listCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 			listCancel()
 			if err != nil {
@@ -141,7 +140,7 @@ Examples:
 				if exists {
 					result.Action = "update"
 
-					updateCtx, updateCancel := shared.ContextWithTimeout(ctx)
+					updateCtx, updateCancel := d.Timeout(ctx)
 					resp, updateErr := client.UpdateAppStoreVersionLocalization(updateCtx, existingItem.ID, asc.AppStoreVersionLocalizationAttributes{
 						Keywords: entry.Keywords,
 					})
@@ -168,7 +167,7 @@ Examples:
 
 				result.Action = "create"
 
-				createCtx, createCancel := shared.ContextWithTimeout(ctx)
+				createCtx, createCancel := d.Timeout(ctx)
 				resp, createErr := client.CreateAppStoreVersionLocalization(createCtx, vid, asc.AppStoreVersionLocalizationAttributes{
 					Locale:   entry.Locale,
 					Keywords: entry.Keywords,
@@ -195,7 +194,7 @@ Examples:
 
 			var failureArtifactErr error
 			if summary.Failed > 0 {
-				artifactPath, artifactErr := writeMetadataKeywordsPushFailureArtifact(summary)
+				artifactPath, artifactErr := writeMetadataKeywordsPushFailureArtifact(d, summary)
 				if artifactErr != nil {
 					failureArtifactErr = fmt.Errorf("metadata keywords push: write failure artifact: %w", artifactErr)
 				} else {
@@ -203,7 +202,7 @@ Examples:
 				}
 			}
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				summary,
 				*output.Output,
 				*output.Pretty,
@@ -215,7 +214,7 @@ Examples:
 
 			if failureArtifactErr != nil {
 				if refused != nil {
-					fmt.Fprintf(os.Stderr, "Warning: %s\n", shared.SanitizeTerminal(failureArtifactErr.Error()))
+					fmt.Fprintf(d.IO.ErrOut, "Warning: %s\n", shared.SanitizeTerminal(failureArtifactErr.Error()))
 				}
 				return shared.NewErrorWithCause(failureArtifactErr, refused)
 			}
@@ -227,8 +226,8 @@ Examples:
 	}
 }
 
-func readMetadataKeywordsPushEntries(path string) ([]metadataKeywordsPushEntry, error) {
-	payload, err := shared.ReadJSONFilePayload(path)
+func readMetadataKeywordsPushEntries(d *shared.Deps, path string) ([]metadataKeywordsPushEntry, error) {
+	payload, err := d.ReadJSONFilePayload(path)
 	if err != nil {
 		return nil, fmt.Errorf("read input %q: %w", path, err)
 	}
@@ -303,7 +302,7 @@ func parseMetadataKeywordsPushKeywords(value json.RawMessage) (string, error) {
 	return "", fmt.Errorf("value must be a keyword string or object with a keywords field")
 }
 
-func writeMetadataKeywordsPushFailureArtifact(summary *metadataKeywordsPushSummary) (string, error) {
+func writeMetadataKeywordsPushFailureArtifact(d *shared.Deps, summary *metadataKeywordsPushSummary) (string, error) {
 	failures := make([]metadataKeywordsPushResultItem, 0, summary.Failed)
 	for _, result := range summary.Results {
 		if result.Status == "failed" {
@@ -315,7 +314,7 @@ func writeMetadataKeywordsPushFailureArtifact(summary *metadataKeywordsPushSumma
 		VersionID:   summary.VersionID,
 		InputFile:   summary.InputFile,
 		Failed:      summary.Failed,
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt: d.Now().UTC().Format(time.RFC3339),
 		Results:     failures,
 	}
 
@@ -328,7 +327,7 @@ func writeMetadataKeywordsPushFailureArtifact(summary *metadataKeywordsPushSumma
 		".asc",
 		"reports",
 		"metadata-keywords-push",
-		fmt.Sprintf("failures-%d.json", time.Now().UTC().UnixNano()),
+		fmt.Sprintf("failures-%d.json", d.Now().UTC().UnixNano()),
 	)
 	if _, err := shared.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
 		return "", err

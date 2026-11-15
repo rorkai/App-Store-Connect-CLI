@@ -8,7 +8,7 @@ import (
 )
 
 func TestMetadataKeywordsAuditCommandHelpMentionsBlockedTerms(t *testing.T) {
-	cmd := MetadataKeywordsAuditCommand()
+	cmd := newMetadataKeywordsAuditCommand(metadataTestDeps())
 	if cmd == nil {
 		t.Fatal("expected audit command")
 		return
