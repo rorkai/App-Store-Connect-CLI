@@ -47,22 +47,18 @@ Examples:
 
 // newPassTypeIDsListCommand returns the pass type IDs list subcommand.
 func newPassTypeIDsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("list", flag.ExitOnError)
+	var (
+		ids                    *string
+		identifier             *string
+		name                   *string
+		sort                   *string
+		certificatesLimit      *int
+		fieldsValue            []string
+		certificateFieldsValue []string
+		includeValue           []string
+	)
 
-	ids := fs.String("id", "", "Filter by pass type ID(s), comma-separated")
-	identifier := fs.String("identifier", "", "Filter by identifier (comma-separated)")
-	name := fs.String("name", "", "Filter by name (comma-separated)")
-	sort := fs.String("sort", "", "Sort by: "+strings.Join(passTypeIDSortList(), ", "))
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(passTypeIDFieldsList(), ", "))
-	certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
-	include := fs.String("include", "", "Include relationships: "+strings.Join(passTypeIDIncludeList(), ", "))
-	certificatesLimit := fs.Int("limit-certificates", 0, "Maximum included certificates (1-50)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc pass-type-ids list [flags]",
 		ShortHelp:  "List pass type IDs.",
@@ -74,51 +70,56 @@ Examples:
   asc pass-type-ids list --identifier "pass.com.example"
   asc pass-type-ids list --name "Example"
   asc pass-type-ids list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "pass-type-ids list", 200, "id", "identifier", "name", "sort", "fields", "certificate-fields", "include", "limit-certificates", "limit"); err != nil {
-				return err
-			}
-			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-				return d.UsageError("pass-type-ids list: --limit-certificates must be between 1 and 50")
-			}
-			if err := shared.ValidateSort(*sort, passTypeIDSortList()...); err != nil {
-				return d.UsageErrorf("pass-type-ids list: %v", err)
-			}
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"id", "identifier", "name", "sort", "fields", "certificate-fields", "include", "limit-certificates", "limit"},
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			ids = fs.String("id", "", "Filter by pass type ID(s), comma-separated")
+			identifier = fs.String("identifier", "", "Filter by identifier (comma-separated)")
+			name = fs.String("name", "", "Filter by name (comma-separated)")
+			sort = fs.String("sort", "", "Sort by: "+strings.Join(passTypeIDSortList(), ", "))
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(passTypeIDFieldsList(), ", "))
+			certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
+			include := fs.String("include", "", "Include relationships: "+strings.Join(passTypeIDIncludeList(), ", "))
+			certificatesLimit = fs.Int("limit-certificates", 0, "Maximum included certificates (1-50)")
+			return func() error {
+				if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
+					return d.UsageError("pass-type-ids list: --limit-certificates must be between 1 and 50")
+				}
+				if err := shared.ValidateSort(*sort, passTypeIDSortList()...); err != nil {
+					return d.UsageErrorf("pass-type-ids list: %v", err)
+				}
 
-			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
-			if err != nil {
-				return d.UsageErrorf("pass-type-ids list: %v", err)
+				var err error
+				fieldsValue, err = normalizePassTypeIDFields(*fields, "--fields")
+				if err != nil {
+					return d.UsageErrorf("pass-type-ids list: %v", err)
+				}
+				certificateFieldsValue, err = normalizeCertificateFields(*certificateFields, "--certificate-fields")
+				if err != nil {
+					return d.UsageErrorf("pass-type-ids list: %v", err)
+				}
+				includeValue, err = normalizePassTypeIDInclude(*include)
+				if err != nil {
+					return d.UsageErrorf("pass-type-ids list: %v", err)
+				}
+				if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
+					fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
+					return flag.ErrHelp
+				}
+				if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
+					fmt.Fprintln(d.IO.ErrOut, "Error: --limit-certificates requires --include certificates")
+					return flag.ErrHelp
+				}
+				return nil
 			}
-			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
-			if err != nil {
-				return d.UsageErrorf("pass-type-ids list: %v", err)
-			}
-			includeValue, err := normalizePassTypeIDInclude(*include)
-			if err != nil {
-				return d.UsageErrorf("pass-type-ids list: %v", err)
-			}
-			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
-				return flag.ErrHelp
-			}
-			if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --limit-certificates requires --include certificates")
-				return flag.ErrHelp
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("pass-type-ids list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.PassTypeIDsOption{
-				asc.Limit[asc.PassTypeIDsOption](*limit),
-				asc.NextURL[asc.PassTypeIDsOption](*next),
+				asc.Limit[asc.PassTypeIDsOption](limit),
+				asc.NextURL[asc.PassTypeIDsOption](next),
 			}
 			idsValue := shared.SplitCSV(*ids)
 			if len(idsValue) > 0 {
@@ -145,32 +146,9 @@ Examples:
 			if *certificatesLimit > 0 {
 				opts = append(opts, asc.WithPassTypeIDsCertificatesLimit(*certificatesLimit))
 			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.PassTypeIDsOption](200))
-				firstPage, err := client.GetPassTypeIDs(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("pass-type-ids list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetPassTypeIDs(ctx, asc.NextURL[asc.PassTypeIDsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("pass-type-ids list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetPassTypeIDs(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("pass-type-ids list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetPassTypeIDs(ctx, opts...)
 		},
-	}
+	})
 }
 
 // newPassTypeIDsGetCommand returns the pass type IDs get subcommand.
@@ -258,13 +236,8 @@ Examples:
 
 // newPassTypeIDsCreateCommand returns the pass type IDs create subcommand.
 func newPassTypeIDsCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("create", flag.ExitOnError)
-
-	identifier := fs.String("identifier", "", "Pass type identifier (e.g., pass.com.example)")
-	name := fs.String("name", "", "Pass type name")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.PassTypeIDCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc pass-type-ids create --identifier \"pass.com.example\" --name \"Example\"",
 		ShortHelp:  "Create a pass type ID.",
@@ -272,38 +245,16 @@ func newPassTypeIDsCreateCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc pass-type-ids create --identifier "pass.com.example" --name "Example"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			identifierValue := strings.TrimSpace(*identifier)
-			if identifierValue == "" {
-				return d.RequiredFlag("--identifier")
-			}
-			nameValue := strings.TrimSpace(*name)
-			if nameValue == "" {
-				return d.RequiredFlag("--name")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("pass-type-ids create: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			attrs := asc.PassTypeIDCreateAttributes{
-				Name:       nameValue,
-				Identifier: identifierValue,
-			}
-			resp, err := client.CreatePassTypeID(requestCtx, attrs)
-			if err != nil {
-				return fmt.Errorf("pass-type-ids create: failed to create: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel: true,
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Identifier, "identifier", "Pass type identifier (e.g., pass.com.example)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Pass type name"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, _ string) (any, error) {
+			return client.CreatePassTypeID(ctx, attrs)
+		},
+	})
 }
 
 // newPassTypeIDsUpdateCommand returns the pass type IDs update subcommand.

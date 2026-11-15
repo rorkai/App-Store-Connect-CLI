@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/base64"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,8 +29,6 @@ func TestProfilesDownloadExistingOutput(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupAuth(t)
-			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 			dir := t.TempDir()
 			target := filepath.Join(dir, "target.mobileprovision")
 			if err := os.WriteFile(target, []byte("old profile"), 0o600); err != nil {
@@ -47,7 +43,6 @@ func TestProfilesDownloadExistingOutput(t *testing.T) {
 			}
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			if tt.wantCalls > 0 {
 				reg.Register(asctest.GET("/v1/profiles/PROFILE_ID"),
 					asctest.JSON(http.StatusOK, `{"data":{"type":"profiles","id":"PROFILE_ID","attributes":{"name":"Dev","profileContent":"`+base64.StdEncoding.EncodeToString(newContent)+`"}}}`))
@@ -57,15 +52,7 @@ func TestProfilesDownloadExistingOutput(t *testing.T) {
 			if tt.overwrite {
 				args = append(args, "--overwrite")
 			}
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			var runErr error
-			captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			_, _, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
 
 			if calls := len(reg.Requests()); calls != tt.wantCalls {
 				t.Fatalf("requests = %d, want %d", calls, tt.wantCalls)

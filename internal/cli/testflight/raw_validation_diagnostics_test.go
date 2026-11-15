@@ -208,7 +208,7 @@ func TestTestFlightRawValidationDiagnosticsPreserveContracts(t *testing.T) {
 		{
 			name:       "beta tester metrics period",
 			command:    BetaTestersMetricsCommand,
-			args:       []string{"--period", "P10D"},
+			args:       []string{"--tester-id", "tester-1", "--app", "app-1", "--period", "P10D"},
 			wantError:  "--period must be one of: P7D, P30D, P90D, P365D",
 			wantCode:   shared.DiagnosticInvalidInput,
 			wantParam:  "--period",

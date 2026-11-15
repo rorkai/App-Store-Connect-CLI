@@ -412,8 +412,8 @@ Examples:
 			if len(ids) == 0 {
 				return d.RequiredFlag("--territory-availability")
 			}
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := d.Client()

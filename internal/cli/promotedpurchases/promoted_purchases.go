@@ -330,8 +330,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			idValue := strings.TrimSpace(*id)

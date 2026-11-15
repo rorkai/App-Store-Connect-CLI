@@ -383,8 +383,8 @@ func retentionDeleteCommand(path, ownerType, label string, del func(*asc.Client,
 				if err != nil {
 					return nil, err
 				}
-				if !*confirm {
-					return nil, shared.RequiredFlag("--confirm")
+				if err := shared.RequireConfirm(*confirm); err != nil {
+					return nil, err
 				}
 				return func(ctx context.Context, client *asc.Client) (any, error) {
 					if err := del(client, ctx, value); err != nil {

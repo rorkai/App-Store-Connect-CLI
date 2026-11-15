@@ -146,6 +146,13 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-testers list", 200); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			if err := shared.ValidateSort(*sortBy, betaTesterSortValues...); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 				return shared.InvalidValueUsageError("--sort")
@@ -180,12 +187,6 @@ Examples:
 					shared.DiagnosticConflictingInput,
 					"",
 				)
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := shared.GetASCClient()
@@ -463,8 +464,8 @@ Examples:
 			if strings.TrimSpace(*email) == "" {
 				return shared.RequiredFlag("--email")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			waitFlagsProvided := make([]string, 0, 2)
 			fs.Visit(func(f *flag.Flag) {
@@ -654,8 +655,8 @@ Examples:
 			if len(groupIDs) == 0 {
 				return shared.RequiredFlag("--group")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -774,8 +775,8 @@ Examples:
 			if len(parsedBuildIDs) == 0 {
 				return shared.RequiredFlag("--build-id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -836,8 +837,8 @@ Examples:
 			if len(appIDs) == 0 {
 				return shared.RequiredFlag("--app")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

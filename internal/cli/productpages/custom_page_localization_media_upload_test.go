@@ -123,7 +123,7 @@ func TestExecuteCustomPageScreenshotUpload_SyncDeletesExistingScreenshotsAndReor
 		Timeout: shared.ContextWithTimeout,
 	}
 
-	result, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", dir, "IPHONE_65", true)
+	result, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", dir, "IPHONE_65", true, true)
 	if err != nil {
 		t.Fatalf("executeCustomPageScreenshotUpload() error: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestExecuteCustomPageScreenshotUploadFullSetQuotesReplacementPath(t *testin
 		Timeout: shared.ContextWithTimeout,
 	}
 
-	_, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", trickyPath, "IPHONE_65", false)
+	_, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", trickyPath, "IPHONE_65", false, false)
 	if err == nil {
 		t.Fatal("expected full screenshot set error")
 	}

@@ -23,7 +23,7 @@ func TestCustomPagePreviewSyncValidatesFilesBeforeContactingApple(t *testing.T) 
 		return nil, context.Canceled
 	}}
 
-	_, err := executeCustomPagePreviewUpload(context.Background(), d, "loc-1", dir, "IPHONE_65", true)
+	_, err := executeCustomPagePreviewUpload(context.Background(), d, "loc-1", dir, "IPHONE_65", true, true)
 	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "ds_store") {
 		t.Fatalf("error = %v, want a .DS_Store validation failure", err)
 	}

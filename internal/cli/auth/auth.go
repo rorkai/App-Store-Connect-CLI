@@ -875,8 +875,8 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if *local && *configPath != "" {
 				return shared.UsageError("--local and --config are mutually exclusive")
@@ -1064,8 +1064,8 @@ Examples:
 			if trimmedName != "" && *all {
 				return shared.UsageError("--all and --name are mutually exclusive")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required to remove stored credentials")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			if authsvc.ShouldBypassKeychain() {

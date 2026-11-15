@@ -229,8 +229,8 @@ reported without an automatic retry.
 			if resolvedCategoryID == "" {
 				return shared.UsageError("--category is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			desiredConditions, err := normalizeWebTaxConditionIDs([]string(conditionIDs))
 			if err != nil {
@@ -339,8 +339,8 @@ An ambiguous delete is reported without an automatic retry.
 			if resolvedIAPID == "" {
 				return shared.UsageError("--iap is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)

@@ -149,13 +149,13 @@ Examples:
 			if trimmedID == "" {
 				return d.RequiredFlag("--localization-id")
 			}
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
-			}
 
 			keywordValues := shared.SplitCSV(*keywords)
 			if len(keywordValues) == 0 {
 				return d.RequiredFlag("--keywords")
+			}
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := d.Client()

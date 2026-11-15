@@ -70,8 +70,10 @@ func lifecycleCommand(d *shared.Deps, action, resourceType string) *ffcli.Comman
 			if !resourceIDPattern.MatchString(assetID) {
 				return d.UsageError("asset-library: --id must be a resource ID")
 			}
-			if confirm != nil && !*confirm {
-				return d.UsageError("asset-library: --confirm is required")
+			if confirm != nil {
+				if err := d.RequireConfirm(*confirm); err != nil {
+					return err
+				}
 			}
 			result := asc.AssetLibraryMutationResult{AssetID: assetID, AssetType: resourceType, Action: action}
 			attrs := map[string]any{}

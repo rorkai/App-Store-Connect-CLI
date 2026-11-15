@@ -41,70 +41,31 @@ Examples:
 
 // newCustomPageLocalizationsPreviewSetsListCommand returns the preview sets list subcommand.
 func newCustomPageLocalizationsPreviewSetsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-localizations preview-sets list", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc product-pages custom-pages localizations preview-sets list --localization-id \"LOCALIZATION_ID\"",
-		ShortHelp:  "List preview sets for a custom product page localization.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "custom-page-localizations preview-sets list",
+		Name:        "list",
+		ShortUsage:  "asc product-pages custom-pages localizations preview-sets list --localization-id \"LOCALIZATION_ID\"",
+		ShortHelp:   "List preview sets for a custom product page localization.",
 		LongHelp: `List preview sets for a custom product page localization.
 
 Examples:
   asc product-pages custom-pages localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages localizations preview-sets list", productPagesMaxLimit); err != nil {
-				return err
-			}
-			trimmedID := strings.TrimSpace(*localizationID)
-			trimmedNext := strings.TrimSpace(*next)
-			if trimmedID == "" && trimmedNext == "" {
-				return d.RequiredFlag("--localization-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations preview-sets list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppCustomProductPageLocalizationPreviewSetsOption{
-				asc.Limit[asc.AppCustomProductPageLocalizationPreviewSetsOption](*limit),
-				asc.NextURL[asc.AppCustomProductPageLocalizationPreviewSetsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppCustomProductPageLocalizationPreviewSetsOption](productPagesMaxLimit))
-				firstPage, err := client.GetAppCustomProductPageLocalizationPreviewSets(requestCtx, trimmedID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("custom-pages localizations preview-sets list: failed to fetch: %w", err)
-				}
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCustomProductPageLocalizationPreviewSets(ctx, trimmedID, asc.NextURL[asc.AppCustomProductPageLocalizationPreviewSetsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("custom-pages localizations preview-sets list: %w", err)
-				}
-				return d.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppCustomProductPageLocalizationPreviewSets(requestCtx, trimmedID, opts...)
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations preview-sets list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "localization-id",
+		ParentUsage:          "Custom product page localization ID",
+		ParentType:           "appCustomProductPageLocalizations",
+		RequiredDiagnostic:   true,
+		LimitMax:             productPagesMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "custom-pages localizations preview-sets list",
+		Deps:                 d,
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppCustomProductPageLocalizationPreviewSets(ctx, id,
+				asc.Limit[asc.AppCustomProductPageLocalizationPreviewSetsOption](limit),
+				asc.NextURL[asc.AppCustomProductPageLocalizationPreviewSetsOption](next),
+			)
 		},
-	}
+	})
 }
 
 // newCustomPageLocalizationsScreenshotSetsCommand returns the screenshot sets command group.

@@ -107,6 +107,13 @@ Examples:
 			if err := d.ValidatePaginationFlags(ctx, fs, "encryption declarations list", 200, "build-id", "fields", "document-fields", "include", "build-limit"); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
 				return d.UsageError("encryption declarations list: --build-limit must be between 1 and 50")
 			}
@@ -126,12 +133,6 @@ Examples:
 			included, err := includedFields.ResolveWith(d, "encryption declarations list", *next, includeValue)
 			if err != nil {
 				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			buildIDs := shared.SplitCSV(*builds)

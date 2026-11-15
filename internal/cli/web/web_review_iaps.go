@@ -61,7 +61,7 @@ func validateReviewIAPAttachInputs(appID, iapID string, confirm bool) error {
 	case strings.TrimSpace(iapID) == "":
 		return shared.UsageError("--iap-id is required")
 	case !confirm:
-		return shared.UsageError("--confirm is required")
+		return shared.RequireConfirm(confirm)
 	default:
 		return nil
 	}

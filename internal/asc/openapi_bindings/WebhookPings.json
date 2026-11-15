@@ -8,5 +8,8 @@
   ],
   "relationships": [
     {"data":"WebhookPingCreateData","type":"WebhookPingCreateRelationships"}
+  ],
+  "operations": [
+    {"operation":"webhookPings_createInstance","name":"CreateWebhookPing","params":["webhookID"],"parseErr":"failed to parse webhook ping response","links":["webhook"],"deviations":[{"problem":"result data holds types.Resource[struct {}], not the attributes of resource WebhookPing","reason":"The WebhookPing resource defines no attributes, and the hand-written WebhookPingResponse is SingleResponse[struct{}], an attributes type with no fields instead of a named one; the resource type and ID it holds are this operation's. Reached by asc webhooks ping."}]}
   ]
 }

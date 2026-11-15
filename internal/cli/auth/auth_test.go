@@ -1289,7 +1289,7 @@ func TestAuthLogoutCommand(t *testing.T) {
 				if stdout != "" {
 					t.Fatalf("stdout = %q, want empty", stdout)
 				}
-				if !strings.Contains(stderr, "--confirm is required to remove stored credentials") {
+				if !strings.Contains(stderr, "Error: --confirm is required\n") {
 					t.Fatalf("stderr = %q, want --confirm usage error", stderr)
 				}
 				if strings.Contains(stderr, "Warning") || strings.Contains(stderr, "5.0.0") {

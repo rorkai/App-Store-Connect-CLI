@@ -56,6 +56,40 @@ type MarketplaceSearchDetailUpdateRequest struct {
 	Data MarketplaceSearchDetailUpdateData `json:"data"`
 }
 
+// CreateMarketplaceSearchDetail sends POST /v1/marketplaceSearchDetails (marketplaceSearchDetails_createInstance).
+func (c *Client) CreateMarketplaceSearchDetail(ctx context.Context, appID, catalogURL string) (*MarketplaceSearchDetailResponse, error) {
+	appID = strings.TrimSpace(appID)
+	catalogURL = strings.TrimSpace(catalogURL)
+	if appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+	if catalogURL == "" {
+		return nil, fmt.Errorf("catalogURL is required")
+	}
+	payload := MarketplaceSearchDetailCreateRequest{
+		Data: MarketplaceSearchDetailCreateData{
+			Type: ResourceTypeMarketplaceSearchDetails,
+			Attributes: MarketplaceSearchDetailCreateAttributes{
+				CatalogURL: catalogURL,
+			},
+			Relationships: &MarketplaceSearchDetailCreateRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[MarketplaceSearchDetailResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/marketplaceSearchDetails",
+		Payload:  payload,
+		ParseErr: "failed to parse marketplace search detail response",
+	})
+}
+
 // DeleteMarketplaceSearchDetail sends DELETE /v1/marketplaceSearchDetails/{id} (marketplaceSearchDetails_deleteInstance).
 func (c *Client) DeleteMarketplaceSearchDetail(ctx context.Context, detailID string) error {
 	detailID = strings.TrimSpace(detailID)
@@ -63,4 +97,27 @@ func (c *Client) DeleteMarketplaceSearchDetail(ctx context.Context, detailID str
 		return fmt.Errorf("detailID is required")
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/marketplaceSearchDetails/%s", detailID), nil)
+}
+
+// UpdateMarketplaceSearchDetail sends PATCH /v1/marketplaceSearchDetails/{id} (marketplaceSearchDetails_updateInstance).
+func (c *Client) UpdateMarketplaceSearchDetail(ctx context.Context, detailID string, attrs MarketplaceSearchDetailUpdateAttributes) (*MarketplaceSearchDetailResponse, error) {
+	detailID = strings.TrimSpace(detailID)
+	if detailID == "" {
+		return nil, fmt.Errorf("detailID is required")
+	}
+	payload := MarketplaceSearchDetailUpdateRequest{
+		Data: MarketplaceSearchDetailUpdateData{
+			Type: ResourceTypeMarketplaceSearchDetails,
+			ID:   detailID,
+		},
+	}
+	if attrs.CatalogURL != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[MarketplaceSearchDetailResponse](ctx, c, writeRequest{
+		Method:   http.MethodPatch,
+		Path:     fmt.Sprintf("/v1/marketplaceSearchDetails/%s", detailID),
+		Payload:  payload,
+		ParseErr: "failed to parse marketplace search detail response",
+	})
 }

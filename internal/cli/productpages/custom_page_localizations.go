@@ -78,14 +78,15 @@ Examples:
 			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages localizations list", productPagesMaxLimit, "include", "placements-limit"); err != nil {
 				return err
 			}
-			includeValues, placementsLimit, err := include.Resolve()
-			if err != nil {
-				return err
-			}
 
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--custom-page-version-id")
+			}
+
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
 			}
 
 			client, err := d.Client()
@@ -179,102 +180,56 @@ Examples:
 
 // newCustomPageLocalizationsCreateCommand returns the custom page localizations create subcommand.
 func newCustomPageLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-localizations create", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
-	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
-	promotionalText := fs.String("promotional-text", "", "Promotional text")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "create",
-		ShortUsage: "asc product-pages custom-pages localizations create --custom-page-version-id \"VERSION_ID\" --locale \"en-US\"",
-		ShortHelp:  "Create a custom product page localization.",
+	var locale, promotionalText string
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
+		FlagSetName: "custom-page-localizations create",
+		Name:        "create",
+		ShortUsage:  "asc product-pages custom-pages localizations create --custom-page-version-id \"VERSION_ID\" --locale \"en-US\"",
+		ShortHelp:   "Create a custom product page localization.",
 		LongHelp: `Create a custom product page localization.
 
 Examples:
   asc product-pages custom-pages localizations create --custom-page-version-id "VERSION_ID" --locale "en-US"
   asc product-pages custom-pages localizations create --custom-page-version-id "VERSION_ID" --locale "en-US" --promotional-text "Promo copy"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--custom-page-version-id")
-			}
-
-			localeValue := strings.TrimSpace(*locale)
-			if localeValue == "" {
-				return d.RequiredFlag("--locale")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations create: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateAppCustomProductPageLocalization(requestCtx, trimmedID, localeValue, strings.TrimSpace(*promotionalText))
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations create: failed to create: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ErrorPrefix: "custom-pages localizations create",
+		IDFlag:      "custom-page-version-id",
+		IDUsage:     "Custom product page version ID",
+		IDType:      "appCustomProductPageVersions",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&locale, "locale", "Localization locale (e.g., en-US)"),
+			shared.StringFlag(&promotionalText, "promotional-text", "Promotional text"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateAppCustomProductPageLocalization(ctx, id, locale, promotionalText)
+		},
+	})
 }
 
 // newCustomPageLocalizationsUpdateCommand returns the custom page localizations update subcommand.
 func newCustomPageLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-localizations update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
-	promotionalText := fs.String("promotional-text", "", "Update promotional text")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "update",
-		ShortUsage: "asc product-pages custom-pages localizations update --localization-id \"LOCALIZATION_ID\" --promotional-text \"TEXT\"",
-		ShortHelp:  "Update a custom product page localization.",
+	var promotionalText string
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
+		FlagSetName: "custom-page-localizations update",
+		Name:        "update",
+		ShortUsage:  "asc product-pages custom-pages localizations update --localization-id \"LOCALIZATION_ID\" --promotional-text \"TEXT\"",
+		ShortHelp:   "Update a custom product page localization.",
 		LongHelp: `Update a custom product page localization.
 
 Examples:
   asc product-pages custom-pages localizations update --localization-id "LOCALIZATION_ID" --promotional-text "Updated copy"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*localizationID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--localization-id")
-			}
-
-			promoValue := strings.TrimSpace(*promotionalText)
-			if promoValue == "" {
-				return d.RequiredFlag("--promotional-text")
-			}
-
-			attrs := asc.AppCustomProductPageLocalizationUpdateAttributes{
-				PromotionalText: &promoValue,
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations update: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateAppCustomProductPageLocalization(requestCtx, trimmedID, attrs)
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations update: failed to update: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ErrorPrefix: "custom-pages localizations update",
+		IDFlag:      "localization-id",
+		IDUsage:     "Custom product page localization ID",
+		IDType:      "appCustomProductPageLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&promotionalText, "promotional-text", "Update promotional text"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateAppCustomProductPageLocalization(ctx, id, asc.AppCustomProductPageLocalizationUpdateAttributes{PromotionalText: &promotionalText})
+		},
+	})
 }
 
 // newCustomPageLocalizationsDeleteCommand returns the custom page localizations delete subcommand.

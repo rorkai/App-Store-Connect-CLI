@@ -154,6 +154,7 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		{
 			name:    "report file without report",
@@ -203,6 +204,7 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			name:    "performance download mutually exclusive selectors",
 			args:    []string{"performance", "download", "--app", "APP_ID", "--build-id", "BUILD_ID"},
 			wantErr: "mutually exclusive",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud run mutually exclusive workflow flags",
@@ -340,12 +342,21 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, stderr := captureOutput(t, func() {
-				code := cmd.Run(test.args, "1.0.0")
+			var stderr string
+			if test.deps {
+				var code int
+				_, stderr, code = runWithDeps(t, nil, test.args...)
 				if code != cmd.ExitUsage {
 					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
 				}
-			})
+			} else {
+				_, stderr = captureOutput(t, func() {
+					code := cmd.Run(test.args, "1.0.0")
+					if code != cmd.ExitUsage {
+						t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+					}
+				})
+			}
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
 			}

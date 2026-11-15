@@ -48,21 +48,17 @@ Examples:
 
 // MerchantIDsListCommand returns the merchant IDs list subcommand.
 func MerchantIDsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	var (
+		identifier             *string
+		name                   *string
+		sort                   *string
+		certificatesLimit      *int
+		fieldsValue            []string
+		certificateFieldsValue []string
+		includeValue           []string
+	)
 
-	identifier := fs.String("identifier", "", "Filter by merchant ID identifier(s), comma-separated")
-	name := fs.String("name", "", "Filter by merchant ID name(s), comma-separated")
-	sort := fs.String("sort", "", "Sort by: "+strings.Join(merchantIDSortValues, ", "))
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(merchantIDFieldsList(), ", "))
-	certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
-	include := fs.String("include", "", "Include related resources: "+strings.Join(merchantIDIncludeList(), ", "))
-	certificatesLimit := fs.Int("certificates-limit", 0, "Maximum included certificates per merchant ID (1-50)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc merchant-ids list [flags]",
 		ShortHelp:  "List merchant IDs.",
@@ -73,51 +69,54 @@ Examples:
   asc merchant-ids list --identifier "merchant.com.example"
   asc merchant-ids list --name "Example"
   asc merchant-ids list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "merchant-ids list", 200, "identifier", "name", "sort", "fields", "certificate-fields", "include", "certificates-limit", "limit"); err != nil {
-				return err
-			}
-			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-				return shared.UsageError("merchant-ids list: --certificates-limit must be between 1 and 50")
-			}
-			if err := shared.ValidateSort(*sort, merchantIDSortValues...); err != nil {
-				return shared.UsageErrorf("merchant-ids list: %v", err)
-			}
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"identifier", "name", "sort", "fields", "certificate-fields", "include", "certificates-limit", "limit"},
+		Flags: func(fs *flag.FlagSet) func() error {
+			identifier = fs.String("identifier", "", "Filter by merchant ID identifier(s), comma-separated")
+			name = fs.String("name", "", "Filter by merchant ID name(s), comma-separated")
+			sort = fs.String("sort", "", "Sort by: "+strings.Join(merchantIDSortValues, ", "))
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(merchantIDFieldsList(), ", "))
+			certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
+			include := fs.String("include", "", "Include related resources: "+strings.Join(merchantIDIncludeList(), ", "))
+			certificatesLimit = fs.Int("certificates-limit", 0, "Maximum included certificates per merchant ID (1-50)")
+			return func() error {
+				if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
+					return shared.UsageError("merchant-ids list: --certificates-limit must be between 1 and 50")
+				}
+				if err := shared.ValidateSort(*sort, merchantIDSortValues...); err != nil {
+					return shared.UsageErrorf("merchant-ids list: %v", err)
+				}
 
-			fieldsValue, err := normalizeMerchantIDFields(*fields, "--fields")
-			if err != nil {
-				return shared.UsageErrorf("merchant-ids list: %v", err)
+				var err error
+				fieldsValue, err = normalizeMerchantIDFields(*fields, "--fields")
+				if err != nil {
+					return shared.UsageErrorf("merchant-ids list: %v", err)
+				}
+				certificateFieldsValue, err = normalizeCertificateFields(*certificateFields, "--certificate-fields")
+				if err != nil {
+					return shared.UsageErrorf("merchant-ids list: %v", err)
+				}
+				includeValue, err = normalizeMerchantIDInclude(*include, "--include")
+				if err != nil {
+					return shared.UsageErrorf("merchant-ids list: %v", err)
+				}
+				if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
+					fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
+					return flag.ErrHelp
+				}
+				if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
+					fmt.Fprintln(os.Stderr, "Error: --certificates-limit requires --include certificates")
+					return flag.ErrHelp
+				}
+				return nil
 			}
-			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
-			if err != nil {
-				return shared.UsageErrorf("merchant-ids list: %v", err)
-			}
-			includeValue, err := normalizeMerchantIDInclude(*include, "--include")
-			if err != nil {
-				return shared.UsageErrorf("merchant-ids list: %v", err)
-			}
-			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
-				return flag.ErrHelp
-			}
-			if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(os.Stderr, "Error: --certificates-limit requires --include certificates")
-				return flag.ErrHelp
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("merchant-ids list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.MerchantIDsOption{
-				asc.Limit[asc.MerchantIDsOption](*limit),
-				asc.NextURL[asc.MerchantIDsOption](*next),
+				asc.Limit[asc.MerchantIDsOption](limit),
+				asc.NextURL[asc.MerchantIDsOption](next),
 				asc.WithMerchantIDsSort(*sort),
 				asc.WithMerchantIDsFields(fieldsValue),
 				asc.WithMerchantIDsCertificateFields(certificateFieldsValue),
@@ -130,32 +129,9 @@ Examples:
 			if strings.TrimSpace(*name) != "" {
 				opts = append(opts, asc.WithMerchantIDsFilterName(*name))
 			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.MerchantIDsOption](200))
-				firstPage, err := client.GetMerchantIDs(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("merchant-ids list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetMerchantIDs(ctx, asc.NextURL[asc.MerchantIDsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("merchant-ids list: %w", err)
-				}
-
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetMerchantIDs(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("merchant-ids list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetMerchantIDs(ctx, opts...)
 		},
-	}
+	})
 }
 
 // MerchantIDsGetCommand returns the merchant IDs get subcommand.
@@ -236,13 +212,8 @@ Examples:
 
 // MerchantIDsCreateCommand returns the merchant IDs create subcommand.
 func MerchantIDsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	identifier := fs.String("identifier", "", "Merchant ID identifier (e.g., merchant.com.example)")
-	name := fs.String("name", "", "Merchant ID name")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.MerchantIDCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc merchant-ids create --identifier \"merchant.com.example\" --name \"Example\"",
 		ShortHelp:  "Create a merchant ID.",
@@ -250,38 +221,15 @@ func MerchantIDsCreateCommand() *ffcli.Command {
 
 Examples:
   asc merchant-ids create --identifier "merchant.com.example" --name "Example"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			identifierValue := strings.TrimSpace(*identifier)
-			if identifierValue == "" {
-				return shared.RequiredFlag("--identifier")
-			}
-			nameValue := strings.TrimSpace(*name)
-			if nameValue == "" {
-				return shared.RequiredFlag("--name")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("merchant-ids create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			attrs := asc.MerchantIDCreateAttributes{
-				Name:       nameValue,
-				Identifier: identifierValue,
-			}
-			resp, err := client.CreateMerchantID(requestCtx, attrs)
-			if err != nil {
-				return fmt.Errorf("merchant-ids create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		TopLevel: true,
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Identifier, "identifier", "Merchant ID identifier (e.g., merchant.com.example)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Merchant ID name"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, _ string) (any, error) {
+			return client.CreateMerchantID(ctx, attrs)
+		},
+	})
 }
 
 // MerchantIDsUpdateCommand returns the merchant IDs update subcommand.

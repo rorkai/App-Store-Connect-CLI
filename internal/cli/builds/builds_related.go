@@ -193,86 +193,45 @@ Examples:
 
 // BuildsIconsListCommand returns the builds icons list subcommand.
 func BuildsIconsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("icons list", flag.ExitOnError)
+	var selectors buildSelectorFlags
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc builds icons list [flags]",
-		ShortHelp:  "List build icons for a build.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "icons list",
+		Name:        "list",
+		ShortUsage:  "asc builds icons list [flags]",
+		ShortHelp:   "List build icons for a build.",
 		LongHelp: `List build icons for a build.
 
 Examples:
   asc builds icons list --build-id "BUILD_ID"
   asc builds icons list --app "123456789" --latest
   asc builds icons list --app "123456789" --latest --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "builds icons list", 200); err != nil {
-				return err
-			}
-
-			nextValue := strings.TrimSpace(*next)
-			if nextValue == "" {
-				if err := selectors.validate(); err != nil {
-					return err
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			selectors = bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+			next := fs.Lookup("next").Value
+			return func() error {
+				if strings.TrimSpace(next.String()) == "" {
+					return selectors.validate()
 				}
-			} else if err := selectors.validateNextPageSelectorFlags(); err != nil {
-				return fmt.Errorf("builds icons list: %w", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("builds icons list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			buildID := ""
-			if nextValue == "" {
-				buildID, err = selectors.resolveBuildID(requestCtx, client)
-				if err != nil {
+				if err := selectors.validateNextPageSelectorFlags(); err != nil {
 					return fmt.Errorf("builds icons list: %w", err)
 				}
+				return nil
 			}
-
-			opts := []asc.BuildIconsOption{
-				asc.Limit[asc.BuildIconsOption](*limit),
-				asc.NextURL[asc.BuildIconsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.BuildIconsOption](200))
-				resp, err := shared.PaginateWithSpinner(
-					requestCtx,
-					func(ctx context.Context) (asc.PaginatedResponse, error) {
-						return client.GetBuildIcons(ctx, buildID, paginateOpts...)
-					},
-					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuildIcons(ctx, buildID, asc.NextURL[asc.BuildIconsOption](nextURL))
-					},
-				)
-				if err != nil {
-					return fmt.Errorf("builds icons list: %w", err)
-				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetBuildIcons(requestCtx, buildID, opts...)
-			if err != nil {
-				return fmt.Errorf("builds icons list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		LookupParent: func(ctx context.Context, client *asc.Client, _ string) (string, error) {
+			buildID, err := selectors.resolveBuildID(ctx, client)
+			if err != nil {
+				return "", fmt.Errorf("builds icons list: %w", err)
+			}
+			return buildID, nil
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, buildID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetBuildIcons(ctx, buildID, asc.Limit[asc.BuildIconsOption](limit), asc.NextURL[asc.BuildIconsOption](next))
+		},
+	})
 }
 
 // BuildsBetaAppReviewSubmissionCommand returns the beta-app-review-submission command group.

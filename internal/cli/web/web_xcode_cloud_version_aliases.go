@@ -393,8 +393,8 @@ Example:
 			if err != nil {
 				return shared.UsageError("--type " + err.Error())
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -493,8 +493,8 @@ Example:
 					return shared.UsageError("--type " + typeErr.Error())
 				}
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -576,8 +576,8 @@ Example:
 			if id == "" {
 				return shared.RequiredFlag("--id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)

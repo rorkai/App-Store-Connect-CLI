@@ -1,11 +1,9 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -49,18 +47,10 @@ func TestFinanceReportsValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, test.args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -95,20 +85,18 @@ func TestFinanceReportsInvalidFlags(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestFinanceRegionsCommandOutputsJSON(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"finance", "regions"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "finance", "regions")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -138,18 +126,13 @@ func TestFinanceRegionsCommandOutputsJSON(t *testing.T) {
 }
 
 func TestFinanceReportsNotFoundExplainsReportAvailability(t *testing.T) {
-	setupAuth(t)
 	const detail = "The requested report was not found."
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/financeReports", "filter[vendorNumber]=12345678", "filter[reportType]=FINANCIAL", "filter[regionCode]=US", "filter[reportDate]=2026-10"),
 		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`))
 	outputPath := filepath.Join(t.TempDir(), "finance.tsv.gz")
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"finance", "reports", "--vendor", "12345678", "--report-type", "FINANCIAL", "--region", "US", "--date", "2026-10", "--output", outputPath}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "finance", "reports", "--vendor", "12345678", "--report-type", "FINANCIAL", "--region", "US", "--date", "2026-10", "--output", outputPath)
 	if code != rootcmd.ExitNotFound {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitNotFound, stderr)
 	}

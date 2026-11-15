@@ -47,16 +47,9 @@ Examples:
 // newAndroidIosMappingListCommand returns the mapping list subcommand built on
 // d.
 func newAndroidIosMappingListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("list", flag.ExitOnError)
+	var fieldValues []string
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	fields := fs.String("fields", "", "Fields to return (comma-separated: "+strings.Join(androidIosMappingFieldsList(), ", ")+")")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc android-ios-mapping list --app \"APP_ID\"",
 		ShortHelp:  "List Android-to-iOS app mappings for an app.",
@@ -65,61 +58,33 @@ func newAndroidIosMappingListCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc android-ios-mapping list --app "APP_ID"
   asc android-ios-mapping list --app "APP_ID" --limit 10`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "android-ios-mapping list", 200, "fields"); err != nil {
-				return err
-			}
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-			fieldValues, err := normalizeAndroidIosMappingFields(*fields)
-			if err != nil {
-				return d.UsageErrorf("android-ios-mapping list: %v", err)
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("android-ios-mapping list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AndroidToIosAppMappingDetailsOption{
-				asc.WithAndroidToIosAppMappingDetailsFields(fieldValues),
-				asc.Limit[asc.AndroidToIosAppMappingDetailsOption](*limit),
-				asc.NextURL[asc.AndroidToIosAppMappingDetailsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AndroidToIosAppMappingDetailsOption](200))
-				firstPage, err := client.GetAndroidToIosAppMappingDetails(requestCtx, resolvedAppID, paginateOpts...)
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"fields"},
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Fields to return (comma-separated: "+strings.Join(androidIosMappingFieldsList(), ", ")+")")
+			return func() error {
+				var err error
+				fieldValues, err = normalizeAndroidIosMappingFields(*fields)
 				if err != nil {
-					return fmt.Errorf("android-ios-mapping list: failed to fetch: %w", err)
+					return d.UsageErrorf("android-ios-mapping list: %v", err)
 				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAndroidToIosAppMappingDetails(ctx, resolvedAppID, asc.NextURL[asc.AndroidToIosAppMappingDetailsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("android-ios-mapping list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return nil
 			}
-
-			resp, err := client.GetAndroidToIosAppMappingDetails(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("android-ios-mapping list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAndroidToIosAppMappingDetails(ctx, appID,
+				asc.WithAndroidToIosAppMappingDetailsFields(fieldValues),
+				asc.Limit[asc.AndroidToIosAppMappingDetailsOption](limit),
+				asc.NextURL[asc.AndroidToIosAppMappingDetailsOption](next),
+			)
+		},
+	})
 }
 
 // newAndroidIosMappingGetCommand returns the mapping get subcommand built on d.

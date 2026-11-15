@@ -140,6 +140,12 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "win-back-offers list", winBackOffersMaxLimit, "fields", "price-fields", "include", "prices-limit"); err != nil {
 				return err
 			}
+
+			id := strings.TrimSpace(*subscriptionID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				return shared.RequiredFlag("--subscription-id")
+			}
+
 			if *pricesLimit != 0 && (*pricesLimit < 1 || *pricesLimit > winBackOffersPricesMaxLimit) {
 				return shared.UsageErrorfCtx(ctx, "win-back-offers list: --prices-limit must be between 1 and %d", winBackOffersPricesMaxLimit)
 			}
@@ -163,11 +169,6 @@ Examples:
 			if *pricesLimit != 0 && !shared.HasInclude(includeValue, "prices") {
 				fmt.Fprintln(os.Stderr, "Error: --prices-limit requires --include prices")
 				return flag.ErrHelp
-			}
-
-			id := strings.TrimSpace(*subscriptionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--subscription-id")
 			}
 
 			client, err := shared.GetASCClient()

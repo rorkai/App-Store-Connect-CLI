@@ -86,8 +86,8 @@ Examples:
 			if *confirm && *dryRun {
 				return shared.UsageError("--confirm and --dry-run are mutually exclusive")
 			}
-			if !*confirm && !*dryRun {
-				return shared.UsageError("--confirm is required to pause or complete the phased release (or pass --dry-run to preview)")
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 			if *pollInterval <= 0 {
 				return shared.UsageError("--poll-interval must be greater than 0")

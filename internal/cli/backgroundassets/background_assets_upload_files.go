@@ -43,15 +43,7 @@ Examples:
 }
 
 func newBackgroundAssetsUploadFilesListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("list", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "backgroundAssetVersions", "Background asset version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc background-assets upload-files list --version-id \"VERSION_ID\"",
 		ShortHelp:  "List upload files for a background asset version.",
@@ -60,55 +52,21 @@ func newBackgroundAssetsUploadFilesListCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc background-assets upload-files list --version-id "VERSION_ID"
   asc background-assets upload-files list --version-id "VERSION_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "background-assets upload-files list", backgroundAssetsMaxLimit); err != nil {
-				return err
-			}
-			versionIDValue := strings.TrimSpace(*versionID)
-			if versionIDValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--version-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("background-assets upload-files list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.BackgroundAssetUploadFilesOption{
-				asc.Limit[asc.BackgroundAssetUploadFilesOption](*limit),
-				asc.NextURL[asc.BackgroundAssetUploadFilesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.BackgroundAssetUploadFilesOption](backgroundAssetsMaxLimit))
-				firstPage, err := client.GetBackgroundAssetUploadFiles(requestCtx, versionIDValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("background-assets upload-files list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBackgroundAssetUploadFiles(ctx, versionIDValue, asc.NextURL[asc.BackgroundAssetUploadFilesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("background-assets upload-files list: %w", err)
-				}
-
-				return d.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetBackgroundAssetUploadFiles(requestCtx, versionIDValue, opts...)
-			if err != nil {
-				return fmt.Errorf("background-assets upload-files list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "version-id",
+		ParentUsage:          "Background asset version ID",
+		ParentType:           "backgroundAssetVersions",
+		RequiredDiagnostic:   true,
+		LimitMax:             backgroundAssetsMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		FetchPage: func(ctx context.Context, client *asc.Client, versionID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetBackgroundAssetUploadFiles(ctx, versionID,
+				asc.Limit[asc.BackgroundAssetUploadFilesOption](limit),
+				asc.NextURL[asc.BackgroundAssetUploadFilesOption](next),
+			)
 		},
-	}
+	})
 }
 
 func newBackgroundAssetsUploadFilesGetCommand(d *shared.Deps) *ffcli.Command {

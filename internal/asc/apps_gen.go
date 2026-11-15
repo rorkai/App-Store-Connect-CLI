@@ -75,6 +75,21 @@ func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAv
 	})
 }
 
+// GetAppClips sends GET /v1/apps/{id}/appClips (apps_appClips_getToManyRelated).
+func (c *Client) GetAppClips(ctx context.Context, appID string, opts ...AppClipsOption) (*AppClipsResponse, error) {
+	query := applyOptions(opts)
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+	return getJSON[AppClipsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appClips", appID),
+		Query:       buildAppClipsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appClips",
+	})
+}
+
 // GetAppCustomProductPages sends GET /v1/apps/{id}/appCustomProductPages (apps_appCustomProductPages_getToManyRelated).
 func (c *Client) GetAppCustomProductPages(ctx context.Context, appID string, opts ...AppCustomProductPagesOption) (*AppCustomProductPagesResponse, error) {
 	query := applyOptions(opts)

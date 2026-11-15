@@ -290,8 +290,8 @@ Examples:
 			if len(groupIDs) == 0 {
 				return shared.RequiredFlag("--group")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

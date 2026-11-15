@@ -16,6 +16,8 @@
     {"data":"MarketplaceSearchDetailCreateData","type":"*MarketplaceSearchDetailCreateRelationships"}
   ],
   "operations": [
-    {"operation":"marketplaceSearchDetails_deleteInstance","name":"DeleteMarketplaceSearchDetail","params":["detailID"],"check":"require"}
+    {"operation":"marketplaceSearchDetails_createInstance","name":"CreateMarketplaceSearchDetail","params":["appID"],"check":"require","parseErr":"failed to parse marketplace search detail response","links":["app"],"args":[{"name":"catalogURL","attribute":"catalogUrl","param":true}]},
+    {"operation":"marketplaceSearchDetails_deleteInstance","name":"DeleteMarketplaceSearchDetail","params":["detailID"],"check":"require"},
+    {"operation":"marketplaceSearchDetails_updateInstance","name":"UpdateMarketplaceSearchDetail","params":["detailID"],"check":"require","parseErr":"failed to parse marketplace search detail response","skipEmptyAttributes":true}
   ]
 }

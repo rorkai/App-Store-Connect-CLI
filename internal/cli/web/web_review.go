@@ -1004,8 +1004,8 @@ Examples:
 			if strings.TrimSpace(messageBody) == "" {
 				return shared.UsageError("--message must not be empty")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)

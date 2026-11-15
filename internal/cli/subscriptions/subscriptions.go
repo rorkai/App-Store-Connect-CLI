@@ -134,6 +134,13 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions groups list", 200, "limit", "include", "fields", "version-fields", "subscription-fields", "localization-fields", "versions-limit"); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return shared.UsageError("subscriptions groups list: --versions-limit must be between 1 and 50")
 			}
@@ -156,12 +163,6 @@ Examples:
 			includedLocalizationFields, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
 			if err != nil {
 				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := subscriptionGroupVersionClientFactory()
@@ -343,53 +344,25 @@ Examples:
 
 // SubscriptionsGroupsUpdateCommand returns the groups update subcommand.
 func SubscriptionsGroupsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups update", flag.ExitOnError)
-
-	groupID := shared.BindResourceIDFlag(fs, "id", "subscriptionGroups", "Subscription group ID")
-	referenceName := fs.String("reference-name", "", "Reference name")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "update",
-		ShortUsage: "asc subscriptions groups update [flags]",
-		ShortHelp:  "Update a subscription group.",
+	var attrs asc.SubscriptionGroupUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
+		FlagSetName: "groups update",
+		Name:        "update",
+		ShortUsage:  "asc subscriptions groups update [flags]",
+		ShortHelp:   "Update a subscription group.",
 		LongHelp: `Update a subscription group.
 
 Examples:
   asc subscriptions groups update --id "GROUP_ID" --reference-name "Premium"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*groupID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			name := strings.TrimSpace(*referenceName)
-			if name == "" {
-				return shared.UpdateFlagRequired(fs, referenceName)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions groups update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			attrs := asc.SubscriptionGroupUpdateAttributes{
-				ReferenceName: &name,
-			}
-
-			resp, err := client.UpdateSubscriptionGroup(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("subscriptions groups update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Subscription group ID",
+		IDType:  "subscriptionGroups",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.ReferenceName, "reference-name", "Reference name"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateSubscriptionGroup(ctx, id, attrs)
+		},
+	})
 }
 
 // SubscriptionsGroupsDeleteCommand returns the groups delete subcommand.
@@ -452,13 +425,21 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions list", 200, conflicts...); err != nil {
 				return err
 			}
-			if err := validateRelationshipLimit("--versions-limit", *versionsLimit); err != nil {
-				return err
-			}
 
 			id := strings.TrimSpace(*groupID)
 			appFlag := strings.TrimSpace(*appID)
 			nextURL := strings.TrimSpace(*next)
+			resolvedAppID := ""
+			if appFlag != "" || (id == "" && nextURL == "") {
+				resolvedAppID = shared.ResolveAppID(*appID)
+			}
+			if id == "" && resolvedAppID == "" && nextURL == "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-id or --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("")
+			}
+			if err := validateRelationshipLimit("--versions-limit", *versionsLimit); err != nil {
+				return err
+			}
 			if id != "" && appFlag != "" {
 				return shared.UsageError("--group-id and --app are mutually exclusive")
 			}
@@ -478,16 +459,8 @@ Examples:
 			if err != nil {
 				return err
 			}
-			resolvedAppID := ""
-			if appFlag != "" || (id == "" && nextURL == "") {
-				resolvedAppID = shared.ResolveAppID(*appID)
-			}
 			if resolvedAppID != "" && (strings.TrimSpace(*fields) != "" || strings.TrimSpace(*versionFields) != "" || strings.TrimSpace(*include) != "" || *versionsLimit != 0 || flagWasProvided(fs, subscriptionRelatedFieldFlagNames()...)) {
 				return shared.UsageError("--fields, --version-fields, --include, --versions-limit, and included resource field flags require --group-id")
-			}
-			if id == "" && resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id or --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("")
 			}
 
 			client, err := subscriptionQueryClientFactory()

@@ -10,12 +10,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PerformanceOverviewCommand returns the app performance overview command.
-func PerformanceOverviewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("overview", flag.ExitOnError)
+func newPerformanceOverviewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("overview", flag.ExitOnError)
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID)")
 	deviceType := fs.String("device-type", "", "Device types (comma-separated)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "overview", ShortUsage: "asc performance overview --app APP_ID [flags]", ShortHelp: "Read an app's Xcode performance overview.",
 		LongHelp: `Read aggregated performance data, regressions, and trends for an app.
@@ -31,25 +30,25 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolved := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolved == "" {
-				return shared.UsageError("performance overview: --app is required (or set ASC_APP_ID)")
+				return d.UsageError("performance overview: --app is required (or set ASC_APP_ID)")
 			}
 			devices := shared.SplitCSV(*deviceType)
 			supplied := false
 			fs.Visit(func(f *flag.Flag) { supplied = supplied || f.Name == "device-type" })
 			if supplied && len(devices) == 0 {
-				return shared.UsageError("performance overview: --device-type must not be empty")
+				return d.UsageError("performance overview: --device-type must not be empty")
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("performance overview: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetPerformanceOverviewForApp(requestCtx, resolved, devices)
 			if err != nil {
 				return fmt.Errorf("performance overview: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

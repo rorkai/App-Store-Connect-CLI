@@ -70,12 +70,7 @@ Examples:
 
 // newAlternativeDistributionPackagesCreateCommand returns the packages create subcommand.
 func newAlternativeDistributionPackagesCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("create", flag.ExitOnError)
-
-	appStoreVersionID := shared.BindResourceIDFlag(fs, "app-store-version-id", "appStoreVersions", "App Store version ID for the package")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc alternative-distribution packages create --app-store-version-id \"APP_STORE_VERSION_ID\"",
 		ShortHelp:  "Create an alternative distribution package.",
@@ -83,30 +78,14 @@ func newAlternativeDistributionPackagesCreateCommand(d *shared.Deps) *ffcli.Comm
 
 Examples:
   asc alternative-distribution packages create --app-store-version-id "APP_STORE_VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*appStoreVersionID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--app-store-version-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("alternative-distribution packages create: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateAlternativeDistributionPackage(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("alternative-distribution packages create: failed to create: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "app-store-version-id",
+		IDUsage: "App Store version ID for the package",
+		IDType:  "appStoreVersions",
+		Deps:    d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateAlternativeDistributionPackage(ctx, id)
 		},
-	}
+	})
 }
 
 // newAlternativeDistributionPackagesAppStoreVersionCommand returns the app-store-version package subcommand.

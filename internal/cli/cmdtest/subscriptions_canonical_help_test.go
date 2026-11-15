@@ -10,6 +10,8 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 )
 
@@ -146,6 +148,8 @@ func TestRemovedLegacyCommerceRootCommandsAreNotRegistered(t *testing.T) {
 }
 
 func TestCanonicalWrapperErrorsUseCanonicalPaths(t *testing.T) {
+	errClient := errors.New("client requested")
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, errClient }))
 	tests := []struct {
 		name    string
 		args    []string
@@ -175,9 +179,9 @@ func TestCanonicalWrapperErrorsUseCanonicalPaths(t *testing.T) {
 			usageError: true,
 		},
 		{
-			name:    "subscriptions offers offer-codes values auth error",
+			name:    "subscriptions offers offer-codes values client error",
 			args:    []string{"subscriptions", "offers", "offer-codes", "values", "--batch-id", "batch-1"},
-			wantErr: "subscriptions offers offer-codes values:",
+			wantErr: "subscriptions offers offer-codes values: client requested",
 		},
 		{
 			name:       "subscriptions pricing prices next validation",

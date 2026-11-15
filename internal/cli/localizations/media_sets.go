@@ -181,12 +181,11 @@ func LocalizationsScreenshotSetsDeleteCommand() *ffcli.Command {
 
 Examples:
   asc localizations screenshot-sets delete --id "SCREENSHOT_SET_ID" --confirm`,
-		IDFlag:                 "id",
-		IDUsage:                "App screenshot set ID",
-		IDType:                 "appScreenshotSets",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
-		DeleteErrorPrefix:      "localizations screenshot-sets delete",
+		IDFlag:             "id",
+		IDUsage:            "App screenshot set ID",
+		IDType:             "appScreenshotSets",
+		RequiredDiagnostic: true,
+		DeleteErrorPrefix:  "localizations screenshot-sets delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppScreenshotSet(ctx, id)
 		},
@@ -200,7 +199,7 @@ Examples:
 func LocalizationsScreenshotSetsListCommand() *ffcli.Command {
 	include := new(string)
 	var included asc.IncludedFields
-	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		FlagSetName: "localizations screenshot-sets list",
 		Name:        "list",
 		ShortUsage:  "asc localizations screenshot-sets list --localization-id \"LOCALIZATION_ID\" [--include appScreenshots]",
@@ -218,6 +217,23 @@ Examples:
 		ParentType:       "appStoreVersionLocalizations",
 		LimitMax:         200,
 		FetchErrorPrefix: "localizations screenshot-sets list",
+		Flags: func(fs *flag.FlagSet) func() error {
+			fs.StringVar(include, "include", "", "Include related resources: appScreenshots")
+			includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"appScreenshots": "appScreenshots"})
+			return func() error {
+				next := fs.Lookup("next").Value.String()
+				*include = strings.TrimSpace(*include)
+				if *include != "" && strings.TrimSpace(next) != "" {
+					return shared.UsageError("localizations screenshot-sets list: --next cannot be combined with --include")
+				}
+				if *include != "" && *include != "appScreenshots" {
+					return shared.UsageError("localizations screenshot-sets list: --include must be appScreenshots")
+				}
+				var err error
+				included, err = includedFields.Resolve("localizations screenshot-sets list", next, shared.SplitCSV(*include))
+				return err
+			}
+		},
 		FetchPage: func(ctx context.Context, client *asc.Client, localizationID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.AppStoreVersionLocalizationScreenshotSetsOption{
 				asc.Limit[asc.AppStoreVersionLocalizationScreenshotSetsOption](limit),
@@ -233,28 +249,6 @@ Examples:
 			return resp, nil
 		},
 	})
-	cmd.FlagSet.StringVar(include, "include", "", "Include related resources: appScreenshots")
-	includedFields := shared.BindIncludedFieldFlags(cmd.FlagSet, map[string]string{"appScreenshots": "appScreenshots"})
-	list := cmd.Exec
-	cmd.Exec = func(ctx context.Context, args []string) error {
-		if err := shared.ValidatePaginationFlags(ctx, cmd.FlagSet, "localizations screenshot-sets list", 200); err != nil {
-			return err
-		}
-		*include = strings.TrimSpace(*include)
-		if *include != "" && strings.TrimSpace(cmd.FlagSet.Lookup("next").Value.String()) != "" {
-			return shared.UsageError("localizations screenshot-sets list: --next cannot be combined with --include")
-		}
-		if *include != "" && *include != "appScreenshots" {
-			return shared.UsageError("localizations screenshot-sets list: --include must be appScreenshots")
-		}
-		var err error
-		included, err = includedFields.Resolve("localizations screenshot-sets list", cmd.FlagSet.Lookup("next").Value.String(), shared.SplitCSV(*include))
-		if err != nil {
-			return err
-		}
-		return list(ctx, args)
-	}
-	return cmd
 }
 
 // LocalizationsScreenshotSetsRelationshipsCommand returns the screenshot sets links subcommand.

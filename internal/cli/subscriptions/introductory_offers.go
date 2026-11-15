@@ -88,6 +88,12 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions introductory-offers list", 200, "limit", "territory", "include", "subscription-fields", "price-point-fields"); err != nil {
 				return err
 			}
+
+			id := strings.TrimSpace(*subscriptionID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				return shared.RequiredFlag("--subscription-id")
+			}
+
 			selectedTerritories, err := normalizeOptionalTerritoryFilter(fs, "territory", *territory)
 			if err != nil {
 				return shared.UsageError(err.Error())
@@ -106,11 +112,6 @@ Examples:
 			}
 			selectedIncludes = appendIncludeForFields(selectedIncludes, selectedSubscriptionFields, "subscription")
 			selectedIncludes = appendIncludeForFields(selectedIncludes, selectedPricePointFields, "subscriptionPricePoint")
-
-			id := strings.TrimSpace(*subscriptionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--subscription-id")
-			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {

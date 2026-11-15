@@ -8,9 +8,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PerformanceCommand returns the performance command group.
-func PerformanceCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("performance", flag.ExitOnError)
+// NewPerformanceCommand returns the performance command group.
+func NewPerformanceCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("performance", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "performance",
@@ -27,10 +27,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PerformanceMetricsCommand(),
-			PerformanceOverviewCommand(),
-			PerformanceDiagnosticsCommand(),
-			PerformanceDownloadCommand(),
+			newPerformanceMetricsCommand(d),
+			newPerformanceOverviewCommand(d),
+			newPerformanceDiagnosticsCommand(d),
+			newPerformanceDownloadCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

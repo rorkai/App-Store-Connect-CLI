@@ -3,8 +3,6 @@ package iap
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -60,71 +58,28 @@ Examples:
 
 // IAPAvailabilitiesAvailableTerritoriesCommand returns the available territories subcommand.
 func IAPAvailabilitiesAvailableTerritoriesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing availabilities available-territories", flag.ExitOnError)
-
-	availabilityID := shared.BindResourceIDFlag(fs, "id", "inAppPurchaseAvailabilities", "Availability ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "available-territories",
-		ShortUsage: "asc iap pricing availabilities available-territories --id \"AVAILABILITY_ID\"",
-		ShortHelp:  "List available territories for an availability.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "pricing availabilities available-territories",
+		Name:        "available-territories",
+		ShortUsage:  "asc iap pricing availabilities available-territories --id \"AVAILABILITY_ID\"",
+		ShortHelp:   "List available territories for an availability.",
 		LongHelp: `List available territories for an in-app purchase availability.
 
 Examples:
   asc iap pricing availabilities available-territories --id "AVAILABILITY_ID"
   asc iap pricing availabilities available-territories --id "AVAILABILITY_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "iap pricing availabilities available-territories", 200); err != nil {
-				return err
-			}
-
-			id := strings.TrimSpace(*availabilityID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("iap availabilities available-territories: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.IAPAvailabilityTerritoriesOption{
-				asc.Limit[asc.IAPAvailabilityTerritoriesOption](*limit),
-				asc.NextURL[asc.IAPAvailabilityTerritoriesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.IAPAvailabilityTerritoriesOption](200))
-				firstPage, err := client.GetInAppPurchaseAvailabilityAvailableTerritories(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("iap availabilities available-territories: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseAvailabilityAvailableTerritories(ctx, id, asc.NextURL[asc.IAPAvailabilityTerritoriesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("iap availabilities available-territories: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetInAppPurchaseAvailabilityAvailableTerritories(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("iap availabilities available-territories: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "id",
+		ParentUsage:          "Availability ID",
+		ParentType:           "inAppPurchaseAvailabilities",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "iap availabilities available-territories",
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetInAppPurchaseAvailabilityAvailableTerritories(ctx, id,
+				asc.Limit[asc.IAPAvailabilityTerritoriesOption](limit),
+				asc.NextURL[asc.IAPAvailabilityTerritoriesOption](next),
+			)
 		},
-	}
+	})
 }

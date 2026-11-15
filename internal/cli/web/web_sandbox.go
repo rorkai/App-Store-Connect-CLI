@@ -108,8 +108,8 @@ Examples:
 			if len(requestedIDs) == 0 {
 				return shared.RequiredFlag("--id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)

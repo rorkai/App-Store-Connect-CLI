@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"sort"
@@ -50,12 +51,22 @@ const (
 // ResolveTiers fetches all price points for a territory, sorts by customerPrice ascending,
 // and assigns tier numbers starting at 1. Free (0.00) price points are excluded.
 func ResolveTiers(ctx context.Context, client *asc.Client, appID, territory string, refresh bool) ([]TierEntry, error) {
+	return resolveTiersTo(ctx, os.Stderr, client, appID, territory, refresh)
+}
+
+// ResolveTiers is ResolveTiers with the cache warning written to d's stderr.
+func (d *Deps) ResolveTiers(ctx context.Context, client *asc.Client, appID, territory string, refresh bool) ([]TierEntry, error) {
+	return resolveTiersTo(ctx, d.IO.ErrOut, client, appID, territory, refresh)
+}
+
+func resolveTiersTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, territory string, refresh bool) ([]TierEntry, error) {
 	normalizedAppID, normalizedTerritory, err := normalizeTierResolverInputs("app", appID, territory)
 	if err != nil {
 		return nil, err
 	}
 
 	return resolveTiersWithFetcher(
+		stderr,
 		refresh,
 		func() ([]TierEntry, error) {
 			return LoadTierCache(normalizedAppID, normalizedTerritory)
@@ -95,8 +106,18 @@ func ResolveTiers(ctx context.Context, client *asc.Client, appID, territory stri
 
 // ResolveSubscriptionTiers resolves subscription price point tiers for a subscription and territory.
 func ResolveSubscriptionTiers(ctx context.Context, client *asc.Client, subscriptionID, territory string, refresh bool) ([]TierEntry, error) {
+	return resolveSubscriptionTiersTo(ctx, os.Stderr, client, subscriptionID, territory, refresh)
+}
+
+// ResolveSubscriptionTiers is ResolveSubscriptionTiers with the cache warning
+// written to d's stderr.
+func (d *Deps) ResolveSubscriptionTiers(ctx context.Context, client *asc.Client, subscriptionID, territory string, refresh bool) ([]TierEntry, error) {
+	return resolveSubscriptionTiersTo(ctx, d.IO.ErrOut, client, subscriptionID, territory, refresh)
+}
+
+func resolveSubscriptionTiersTo(ctx context.Context, stderr io.Writer, client *asc.Client, subscriptionID, territory string, refresh bool) ([]TierEntry, error) {
 	return resolveScopedTiers(
-		ctx, client, "subscription", subscriptionID, territory, tierCacheScopeSubscription, refresh,
+		ctx, stderr, client, "subscription", subscriptionID, territory, tierCacheScopeSubscription, refresh,
 		func(ctx context.Context, client *asc.Client, resourceID, territory, nextURL string) (tierPage, error) {
 			opts := []asc.SubscriptionPricePointsOption{
 				asc.WithSubscriptionPricePointsLimit(200),
@@ -120,8 +141,18 @@ func ResolveSubscriptionTiers(ctx context.Context, client *asc.Client, subscript
 
 // ResolveIAPTiers resolves in-app purchase price point tiers for an IAP and territory.
 func ResolveIAPTiers(ctx context.Context, client *asc.Client, iapID, territory string, refresh bool) ([]TierEntry, error) {
+	return resolveIAPTiersTo(ctx, os.Stderr, client, iapID, territory, refresh)
+}
+
+// ResolveIAPTiers is ResolveIAPTiers with the cache warning written to d's
+// stderr.
+func (d *Deps) ResolveIAPTiers(ctx context.Context, client *asc.Client, iapID, territory string, refresh bool) ([]TierEntry, error) {
+	return resolveIAPTiersTo(ctx, d.IO.ErrOut, client, iapID, territory, refresh)
+}
+
+func resolveIAPTiersTo(ctx context.Context, stderr io.Writer, client *asc.Client, iapID, territory string, refresh bool) ([]TierEntry, error) {
 	return resolveScopedTiers(
-		ctx, client, "in-app purchase", iapID, territory, tierCacheScopeIAP, refresh,
+		ctx, stderr, client, "in-app purchase", iapID, territory, tierCacheScopeIAP, refresh,
 		func(ctx context.Context, client *asc.Client, resourceID, territory, nextURL string) (tierPage, error) {
 			opts := []asc.IAPPricePointsOption{
 				asc.Limit[asc.IAPPricePointsOption](200),
@@ -147,6 +178,7 @@ type scopedTierPageFetcher func(context.Context, *asc.Client, string, string, st
 
 func resolveScopedTiers(
 	ctx context.Context,
+	stderr io.Writer,
 	client *asc.Client,
 	resourceName string,
 	resourceID string,
@@ -161,6 +193,7 @@ func resolveScopedTiers(
 	}
 
 	return resolveTiersWithFetcher(
+		stderr,
 		refresh,
 		func() ([]TierEntry, error) {
 			return loadScopedTierCache(cacheScope, normalizedResourceID, normalizedTerritory)
@@ -215,6 +248,7 @@ func buildTierPage(nextURL string, appendEntries func(add func(string, string, s
 }
 
 func resolveTiersWithFetcher(
+	stderr io.Writer,
 	refresh bool,
 	loadCache func() ([]TierEntry, error),
 	saveCache func([]TierEntry) error,
@@ -259,7 +293,7 @@ func resolveTiersWithFetcher(
 
 	if len(tiers) > 0 {
 		if err := saveCache(tiers); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to cache price tiers: %v\n", err)
+			fmt.Fprintf(stderr, "Warning: failed to cache price tiers: %v\n", err)
 		}
 	}
 

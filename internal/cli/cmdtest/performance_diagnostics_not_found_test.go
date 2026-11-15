@@ -21,17 +21,12 @@ func TestPerformanceDiagnosticsListNotFoundHint(t *testing.T) {
 	} {
 		extra := test.extra
 		t.Run(strings.Join(append([]string{"default"}, extra...), " "), func(t *testing.T) {
-			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/builds/build-1/diagnosticSignatures", test.query...),
 				asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`))
 
 			args := append([]string{"performance", "diagnostics", "list", "--build-id", "build-1"}, extra...)
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = cmd.Run(args, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
 			if code != cmd.ExitNotFound {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitNotFound, stderr)
 			}

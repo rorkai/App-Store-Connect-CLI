@@ -105,6 +105,12 @@ Examples:
 			); err != nil {
 				return err
 			}
+
+			id := strings.TrimSpace(*subscriptionID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				return shared.UsageError("--subscription-id is required")
+			}
+
 			if *stream && !*paginate {
 				return shared.UsageError("--stream requires --paginate")
 			}
@@ -129,11 +135,6 @@ Examples:
 			}
 			if priceFilter.HasFilter() && *stream {
 				return shared.UsageError("price filtering is not supported with --stream")
-			}
-
-			id := strings.TrimSpace(*subscriptionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.UsageError("--subscription-id is required")
 			}
 
 			territoryFilter := strings.TrimSpace(*territory)

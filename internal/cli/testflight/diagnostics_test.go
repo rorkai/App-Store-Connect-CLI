@@ -35,7 +35,7 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 		{
 			name:       "beta groups internal and external conflict",
 			command:    BetaGroupsListCommand,
-			args:       []string{"--internal", "--external"},
+			args:       []string{"--app", "app-1", "--internal", "--external"},
 			wantStderr: "Error: --internal and --external are mutually exclusive\n",
 			wantCode:   shared.DiagnosticConflictingInput,
 		},
@@ -141,7 +141,7 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 		{
 			name:       "beta tester metrics period enum",
 			command:    BetaTestersMetricsCommand,
-			args:       []string{"--period", "P10D"},
+			args:       []string{"--tester-id", "tester-1", "--app", "app-1", "--period", "P10D"},
 			wantStderr: "Error: --period must be one of: P7D, P30D, P90D, P365D\n",
 			wantError:  "--period must be one of: P7D, P30D, P90D, P365D",
 			wantCode:   shared.DiagnosticInvalidInput,
@@ -192,7 +192,7 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 		{
 			name:       "app tester usage period enum",
 			command:    TestFlightMetricsBetaTesterUsagesCommand,
-			args:       []string{"--period", "P10D"},
+			args:       []string{"--app", "app-1", "--period", "P10D"},
 			wantStderr: "Error: --period must be one of: P7D, P30D, P90D, P365D\n",
 			wantCode:   shared.DiagnosticInvalidInput,
 			wantParam:  "--period",

@@ -75,6 +75,15 @@ Examples:
 				return err
 			}
 
+			if *v2 {
+				if shared.ResolveAppID(*appID) == "" && strings.TrimSpace(*next) == "" {
+					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
+					return shared.MissingRequiredUsageError("--app")
+				}
+			} else if strings.TrimSpace(*versionID) == "" && strings.TrimSpace(*next) == "" {
+				return d.RequiredFlag("--version-id")
+			}
+
 			stateValues, err := normalizeExperimentStates(shared.SplitCSVUpper(*state))
 			if err != nil {
 				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
@@ -83,10 +92,6 @@ Examples:
 
 			if *v2 {
 				resolvedAppID := shared.ResolveAppID(*appID)
-				if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-					return shared.MissingRequiredUsageError("--app")
-				}
 
 				client, err := d.Client()
 				if err != nil {
@@ -128,9 +133,6 @@ Examples:
 			}
 
 			trimmedVersionID := strings.TrimSpace(*versionID)
-			if trimmedVersionID == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--version-id")
-			}
 
 			client, err := d.Client()
 			if err != nil {
@@ -433,8 +435,8 @@ Examples:
 			if trimmedID == "" {
 				return d.RequiredFlag("--experiment-id")
 			}
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := d.Client()

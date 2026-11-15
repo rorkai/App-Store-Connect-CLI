@@ -43,18 +43,9 @@ Examples:
 
 // BetaLicenseAgreementsListCommand returns the beta license agreements list subcommand.
 func BetaLicenseAgreementsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	var appIDs, fields, appFields, include *string
 
-	appIDs := fs.String("app", "", "App Store Connect app ID(s), comma-separated")
-	fields := fs.String("fields", "", "Fields to include (betaLicenseAgreements), comma-separated")
-	appFields := fs.String("app-fields", "", "App fields to include, comma-separated")
-	include := fs.String("include", "", "Include related resources (e.g., app), comma-separated")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc testflight beta-license-agreements list [flags]",
 		ShortHelp:  "List beta license agreements.",
@@ -65,53 +56,29 @@ Examples:
   asc testflight beta-license-agreements list --app "APP_ID"
   asc testflight beta-license-agreements list --limit 50
   asc testflight beta-license-agreements list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-license-agreements list", 200, "app", "fields", "app-fields", "include"); err != nil {
-				return err
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("beta-license-agreements list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.BetaLicenseAgreementsOption{
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"app", "fields", "app-fields", "include"},
+		ErrorPrefix:          "beta-license-agreements list",
+		Flags: func(fs *flag.FlagSet) func() error {
+			appIDs = fs.String("app", "", "App Store Connect app ID(s), comma-separated")
+			fields = fs.String("fields", "", "Fields to include (betaLicenseAgreements), comma-separated")
+			appFields = fs.String("app-fields", "", "App fields to include, comma-separated")
+			include = fs.String("include", "", "Include related resources (e.g., app), comma-separated")
+			return nil
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetBetaLicenseAgreements(ctx,
 				asc.WithBetaLicenseAgreementsAppIDs(shared.SplitCSV(*appIDs)),
 				asc.WithBetaLicenseAgreementsFields(shared.SplitCSV(*fields)),
 				asc.WithBetaLicenseAgreementsAppFields(shared.SplitCSV(*appFields)),
 				asc.WithBetaLicenseAgreementsInclude(shared.SplitCSV(*include)),
-				asc.Limit[asc.BetaLicenseAgreementsOption](*limit),
-				asc.NextURL[asc.BetaLicenseAgreementsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.BetaLicenseAgreementsOption](200))
-				firstPage, err := client.GetBetaLicenseAgreements(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("beta-license-agreements list: failed to fetch: %w", err)
-				}
-				agreements, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaLicenseAgreements(ctx, asc.NextURL[asc.BetaLicenseAgreementsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("beta-license-agreements list: %w", err)
-				}
-				return shared.PrintOutput(agreements, *output.Output, *output.Pretty)
-			}
-
-			agreements, err := client.GetBetaLicenseAgreements(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("beta-license-agreements list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(agreements, *output.Output, *output.Pretty)
+				asc.Limit[asc.BetaLicenseAgreementsOption](limit),
+				asc.NextURL[asc.BetaLicenseAgreementsOption](next),
+			)
 		},
-	}
+	})
 }
 
 // BetaLicenseAgreementsGetCommand returns the beta license agreements get subcommand.
@@ -188,13 +155,8 @@ Examples:
 
 // BetaLicenseAgreementsUpdateCommand returns the beta license agreements update subcommand.
 func BetaLicenseAgreementsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaLicenseAgreements", "Beta license agreement ID")
-	agreementText := fs.String("agreement-text", "", "Updated agreement text")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var agreementText string
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc testflight beta-license-agreements update --id \"AGREEMENT_ID\" --agreement-text \"Text\"",
 		ShortHelp:  "Update a beta license agreement.",
@@ -202,32 +164,14 @@ func BetaLicenseAgreementsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc testflight beta-license-agreements update --id "AGREEMENT_ID" --agreement-text "Updated terms"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-			textValue := strings.TrimSpace(*agreementText)
-			if textValue == "" {
-				return shared.RequiredFlag("--agreement-text")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("beta-license-agreements update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateBetaLicenseAgreement(requestCtx, idValue, &textValue)
-			if err != nil {
-				return fmt.Errorf("beta-license-agreements update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ErrorPrefix: "beta-license-agreements update",
+		IDUsage:     "Beta license agreement ID",
+		IDType:      "betaLicenseAgreements",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&agreementText, "agreement-text", "Updated agreement text"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateBetaLicenseAgreement(ctx, id, &agreementText)
+		},
+	})
 }

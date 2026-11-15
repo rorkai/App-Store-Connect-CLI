@@ -388,6 +388,12 @@ Examples:
 				}
 			})
 
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if !buildIDSet && !*global && resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app or --global is required (or set ASC_APP_ID)\n\n")
+				return shared.MissingRequiredUsageError("")
+			}
+
 			command := shared.RewriteUsageMessage(ctx, "beta-groups list")
 			sortValue := strings.TrimSpace(*sort)
 			if sortSet && sortValue == "" {
@@ -486,7 +492,6 @@ Examples:
 				return shared.UsageError(command + ": --builds-limit requires --include builds")
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
 			resolvedBuildID := strings.TrimSpace(*buildID)
 			queryFilterSet := idSet || publicLinkEnabledSet || publicLinkLimitEnabledSet || publicLinkSet
 
@@ -544,12 +549,6 @@ Examples:
 			if *global && strings.TrimSpace(*appID) != "" {
 				fmt.Fprintln(os.Stderr, "Error: --global and --app are mutually exclusive")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
-			}
-
-			// Require one of --app or --global (unless --next is provided)
-			if !*global && resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app or --global is required (or set ASC_APP_ID)\n\n")
-				return shared.MissingRequiredUsageError("")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1249,9 +1248,8 @@ Examples:
 			if strings.TrimSpace(*id) == "" {
 				return shared.RequiredFlag("--id")
 			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return shared.MissingRequiredUsageError("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -1473,8 +1471,8 @@ Examples:
 			if len(testerIDs) == 0 {
 				return shared.RequiredFlag("--tester")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

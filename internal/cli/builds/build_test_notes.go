@@ -387,8 +387,8 @@ Examples:
 			if err := validateTestNotesLocalizationTarget("builds test-notes delete", id, localeValue, selectors); err != nil {
 				return fmt.Errorf("builds test-notes delete: %w", err)
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

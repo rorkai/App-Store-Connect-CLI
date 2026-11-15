@@ -183,9 +183,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*dryRun && !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required unless --dry-run is set")
-				return shared.MissingRequiredUsageError("--confirm")
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 
 			input, err := collectCommunityWallSubmitInput(*appID, *name, *link, *country)

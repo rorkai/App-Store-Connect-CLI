@@ -80,6 +80,10 @@ Examples:
 			if err := d.ValidatePaginationFlags(ctx, fs, "nominations list", 200, "app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
 				return err
 			}
+			statusInput := shared.SplitCSVUpper(*status)
+			if len(statusInput) == 0 && strings.TrimSpace(*next) == "" {
+				return d.RequiredFlag("--status")
+			}
 			if err := shared.ValidateSort(*sort, nominationSortList()...); err != nil {
 				return d.UsageErrorf("nominations list: %v", err)
 			}
@@ -93,12 +97,9 @@ Examples:
 				return d.UsageError("nominations list: --supported-territories-limit must be between 1 and 200")
 			}
 
-			statusValues, err := normalizeNominationStates(shared.SplitCSVUpper(*status))
+			statusValues, err := normalizeNominationStates(statusInput)
 			if err != nil {
 				return d.UsageErrorf("nominations list: %v", err)
-			}
-			if len(statusValues) == 0 && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--status")
 			}
 
 			typeValues, err := normalizeNominationTypes(shared.SplitCSVUpper(*nomType))
@@ -652,11 +653,10 @@ func newNominationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc nominations delete --id "NOMINATION_ID" --confirm`,
-		IDFlag:                 "id",
-		IDUsage:                "Nomination ID (required)",
-		IDType:                 "nominations",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
+		IDFlag:             "id",
+		IDUsage:            "Nomination ID (required)",
+		IDType:             "nominations",
+		RequiredDiagnostic: true,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteNomination(ctx, id)
 		},

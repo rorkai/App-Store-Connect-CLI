@@ -763,8 +763,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			normalized, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
 			if err != nil {

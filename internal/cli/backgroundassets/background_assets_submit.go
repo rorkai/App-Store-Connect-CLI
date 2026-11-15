@@ -91,9 +91,8 @@ Examples:
 			if selectionCount > 1 {
 				return d.UsageError("--all, --asset-pack-identifier, --background-asset-id, and --version-id are mutually exclusive")
 			}
-			if !*confirm && !*dryRun {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required unless --dry-run is set")
-				return shared.MissingRequiredUsageError("--confirm")
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 			if *noSubmit && *dryRun {
 				return d.UsageError("--no-submit and --dry-run are mutually exclusive")

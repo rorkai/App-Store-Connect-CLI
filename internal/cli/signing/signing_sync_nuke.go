@@ -93,8 +93,8 @@ Examples:
 			if *confirm && *dryRun {
 				return shared.UsageError("--confirm and --dry-run are mutually exclusive")
 			}
-			if !*confirm && !*dryRun {
-				return shared.UsageError("--confirm is required to delete profiles and revoke certificates (or pass --dry-run to preview)")
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 			certificateTypes, err := resolveSigningCertificateTypes(profType, *certType)
 			if err != nil {

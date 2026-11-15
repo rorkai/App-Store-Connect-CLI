@@ -402,9 +402,6 @@ func executeEndpoint(ctx context.Context, spec appleads.EndpointSpec, flags endp
 	if err != nil {
 		return shared.UsageError(err.Error())
 	}
-	if spec.RequiresConfirm && flags.confirm != nil && !*flags.confirm {
-		return shared.UsageError("--confirm is required")
-	}
 	pathParams, err := collectPathParams(spec, flags)
 	if err != nil {
 		return shared.UsageError(err.Error())
@@ -412,6 +409,11 @@ func executeEndpoint(ctx context.Context, spec appleads.EndpointSpec, flags endp
 	query, err := collectQuery(spec, flags)
 	if err != nil {
 		return shared.UsageError(err.Error())
+	}
+	if spec.RequiresConfirm && flags.confirm != nil {
+		if err := shared.RequireConfirm(*flags.confirm); err != nil {
+			return err
+		}
 	}
 	if spec.RiskConfirm && spec.RiskConfirmBodyField == "" && flags.confirm != nil && !*flags.confirm {
 		return shared.UsageError("--confirm is required to acknowledge " + riskConfirmationImpact)

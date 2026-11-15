@@ -23,6 +23,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
 
 const (
@@ -111,7 +112,7 @@ type persistedLastSession struct {
 
 var (
 	sessionKeyringOpen = func() (keyring.Keyring, error) {
-		return keyring.Open(keyring.Config{
+		return testguard.OpenKeyring(keyring.Config{
 			ServiceName:                    webSessionKeyringService,
 			KeychainTrustApplication:       true,
 			KeychainSynchronizable:         false,
@@ -191,14 +192,18 @@ func resolveBackendSelection() backendSelection {
 }
 
 func webSessionCacheDir() (string, error) {
-	if custom := strings.TrimSpace(os.Getenv(webSessionCacheDirEnv)); custom != "" {
-		return custom, nil
+	dir := strings.TrimSpace(os.Getenv(webSessionCacheDirEnv))
+	if dir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get home directory: %w", err)
+		}
+		dir = filepath.Join(home, ".asc", "web")
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
+	if testguard.Hides(dir) {
+		return "", fmt.Errorf("%s holds the web sessions of the developer running the tests; set %s or HOME in the test", dir, webSessionCacheDirEnv)
 	}
-	return filepath.Join(home, ".asc", "web"), nil
+	return dir, nil
 }
 
 func webSessionCacheKey(username string) string {

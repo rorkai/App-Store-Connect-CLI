@@ -48,7 +48,7 @@ func stubAuthLogoutRemovers(t *testing.T) *authLogoutCalls {
 }
 
 func TestAuthLogoutUsageErrorsRemoveNothing(t *testing.T) {
-	const missingConfirm = "--confirm is required to remove stored credentials"
+	const missingConfirm = "--confirm is required\n"
 	for _, tt := range []struct {
 		name    string
 		args    []string

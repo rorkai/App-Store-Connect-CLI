@@ -166,7 +166,7 @@ func TestSigningSyncNukeValidatesFlagsBeforeSideEffects(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"missing confirm", []string{"--profile-type", "IOS_APP_DEVELOPMENT", "--repo", "git@github.com:team/certs.git"}, "--confirm is required to delete profiles and revoke certificates (or pass --dry-run to preview)"},
+		{"missing confirm", []string{"--profile-type", "IOS_APP_DEVELOPMENT", "--repo", "git@github.com:team/certs.git"}, "--confirm is required unless --dry-run is set"},
 		{"missing profile type", []string{"--repo", "git@github.com:team/certs.git", "--confirm"}, "--profile-type is required"},
 		{"unsupported profile type", []string{"--profile-type", "WATCH_APP", "--repo", "git@github.com:team/certs.git", "--confirm"}, "--profile-type must be a supported App Store Connect profile type"},
 		{"missing repo", []string{"--profile-type", "IOS_APP_DEVELOPMENT", "--confirm"}, "--repo is required"},

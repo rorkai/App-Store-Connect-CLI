@@ -114,18 +114,11 @@ Examples:
 
 // SubscriptionsPricingPlanAvailabilityAvailableTerritoriesCommand lists every available territory for a plan.
 func SubscriptionsPricingPlanAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing plan-availability available-territories", flag.ExitOnError)
-
-	planAvailabilityID := shared.BindResourceIDFlag(fs, "plan-availability-id", "subscriptionPlanAvailabilities", "Subscription plan availability ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "available-territories",
-		ShortUsage: "asc subscriptions pricing plan-availability available-territories --plan-availability-id \"PLAN_AVAILABILITY_ID\" [flags]",
-		ShortHelp:  "List available territories for a plan availability.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "pricing plan-availability available-territories",
+		Name:        "available-territories",
+		ShortUsage:  "asc subscriptions pricing plan-availability available-territories --plan-availability-id \"PLAN_AVAILABILITY_ID\" [flags]",
+		ShortHelp:   "List available territories for a plan availability.",
 		LongHelp: `List the available territories of one subscription plan availability.
 
 This reads the relationship directly, so it has no 50-territory include cap. Use
@@ -135,55 +128,19 @@ This reads the relationship directly, so it has no 50-territory include cap. Use
 Examples:
   asc subscriptions pricing plan-availability available-territories --plan-availability-id "PLAN_AVAILABILITY_ID"
   asc subscriptions pricing plan-availability available-territories --plan-availability-id "PLAN_AVAILABILITY_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions pricing plan-availability available-territories", 200, "limit"); err != nil {
-				return err
-			}
-			id := strings.TrimSpace(*planAvailabilityID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.UsageError("--plan-availability-id is required")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions pricing plan-availability available-territories: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.SubscriptionAvailabilityTerritoriesOption{
-				asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](*limit),
-				asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200))
-				firstPage, err := client.GetSubscriptionPlanAvailabilityAvailableTerritories(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("subscriptions pricing plan-availability available-territories: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionPlanAvailabilityAvailableTerritories(ctx, id, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("subscriptions pricing plan-availability available-territories: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetSubscriptionPlanAvailabilityAvailableTerritories(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("subscriptions pricing plan-availability available-territories: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "plan-availability-id",
+		ParentUsage:          "Subscription plan availability ID",
+		ParentType:           "subscriptionPlanAvailabilities",
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"limit"},
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetSubscriptionPlanAvailabilityAvailableTerritories(ctx, id,
+				asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](limit),
+				asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](next),
+			)
 		},
-	}
+	})
 }
 
 // SubscriptionsPricingPlanAvailabilitySetCommand sets the complete territory set for a plan.
@@ -267,8 +224,8 @@ Examples:
 					return shared.UsageError("no eligible monthly-commitment territories remain after excluding USA")
 				}
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			printMonthlyCommitmentTerritoryWarning(excludedTerritoryIDs)
 

@@ -63,6 +63,10 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions localizations list", 200, "fields", "version-fields", "include", "limit"); err != nil {
 				return err
 			}
+			id := strings.TrimSpace(*versionID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				return shared.RequiredFlag("--version-id")
+			}
 			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList())
 			if err != nil {
 				return err
@@ -74,10 +78,6 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionLocalizationV2IncludeList())
 			if err != nil {
 				return err
-			}
-			id := strings.TrimSpace(*versionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
