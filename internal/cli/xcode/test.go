@@ -58,6 +58,15 @@ func XcodeTestCommand() *ffcli.Command {
 	resultBundlePath := fs.String("result-bundle-path", "", "Destination for a new Xcode result bundle")
 	clean := fs.Bool("clean", false, "Run clean before the selected Xcode action")
 	noCodeSigning := fs.Bool("no-code-signing", false, "Set CODE_SIGNING_ALLOWED=NO explicitly")
+	codeCoverage := fs.Bool("code-coverage", false, "Enable code coverage and report line coverage from the result bundle")
+	retryTestsOnFailure := fs.Bool("retry-tests-on-failure", false, "Retry failed tests (up to --test-iterations, or 3 times)")
+	testIterations := fs.Int("test-iterations", 0, "Run tests this many times, or retry up to this many times with --retry-tests-on-failure (at least 1)")
+	var parallelTesting shared.OptionalBool
+	fs.Var(&parallelTesting, "parallel-testing", "Turn parallel testing on or off, overriding the scheme: true or false")
+	parallelTestingWorkers := fs.Int("parallel-testing-workers", 0, "Exact number of parallel test runners (at least 1)")
+	addressSanitizer := fs.Bool("address-sanitizer", false, "Enable the address sanitizer (cannot be combined with --thread-sanitizer)")
+	threadSanitizer := fs.Bool("thread-sanitizer", false, "Enable the thread sanitizer")
+	undefinedBehaviorSanitizer := fs.Bool("undefined-behavior-sanitizer", false, "Enable the undefined behavior sanitizer")
 	var xcodebuildFlags exactTestStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
 	output := shared.BindOutputFlags(fs)
@@ -69,14 +78,26 @@ func XcodeTestCommand() *ffcli.Command {
 		LongHelp: `Run a local Xcode test action and report structured results.
 
 For test and build-for-testing, provide exactly one of --workspace, --project,
-or --package-path, plus --scheme and at least one --destination. With
---package-path, xcodebuild runs from that directory. The default action is
+or --package-path, plus --scheme and at least one --destination. When all three
+are omitted, asc uses the only .xcworkspace, or else the only .xcodeproj, in
+the current directory; a Package.swift is not detected. With --package-path,
+xcodebuild runs from that directory. The default action is
 test. Use --action build-for-testing to produce test products, or use
 --action test-without-building with an existing --xctestrun file. Test actions
 write a new .xcresult bundle automatically when --result-bundle-path is omitted.
 The test-without-building action rejects project/build controls, including
 --configuration and --derived-data-path. Convert an existing result bundle
 with asc xcode test junit.
+
+--code-coverage passes -enableCodeCoverage YES to xcodebuild. After test and
+test-without-building, the result adds overall and per-target line coverage
+read with xccov; if coverage cannot be read, a warning is printed on stderr and
+the test outcome is unchanged.
+
+--retry-tests-on-failure, --test-iterations, --parallel-testing,
+--parallel-testing-workers, and the --address-sanitizer, --thread-sanitizer,
+and --undefined-behavior-sanitizer flags pass the matching xcodebuild test
+options. Each conflicts with a --xcodebuild-flag for the same option.
 
 Xcode diagnostics are written to stderr and the selected structured result
 format is written to stdout. This command never calls App Store Connect or
@@ -87,7 +108,8 @@ Examples:
   asc xcode test --workspace App.xcworkspace --scheme App --destination 'platform=iOS Simulator,name=iPhone 17 Pro' --destination 'platform=iOS Simulator,name=iPad Pro (13-inch)'
   asc xcode test --package-path ./MyPackage --scheme MyPackage --destination 'platform=macOS' --output json
   asc xcode test --project App.xcodeproj --scheme App --action build-for-testing --destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-  asc xcode test --action test-without-building --xctestrun App_iphonesimulator.xctestrun --destination 'platform=iOS Simulator,name=iPhone 17 Pro'`,
+  asc xcode test --action test-without-building --xctestrun App_iphonesimulator.xctestrun --destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+  asc xcode test --project App.xcodeproj --scheme App --destination 'platform=iOS Simulator,name=iPhone 17 Pro' --retry-tests-on-failure --test-iterations 3`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -100,6 +122,33 @@ Examples:
 			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project", "package-path", "scheme", "action", "configuration", "test-plan", "xctestrun", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+			}
+			var nonPositiveFlag string
+			fs.Visit(func(f *flag.Flag) {
+				if nonPositiveFlag == "" && ((f.Name == "test-iterations" && *testIterations < 1) || (f.Name == "parallel-testing-workers" && *parallelTestingWorkers < 1)) {
+					nonPositiveFlag = f.Name
+				}
+			})
+			if nonPositiveFlag != "" {
+				return shared.UsageErrorf("--%s must be at least 1", nonPositiveFlag)
+			}
+
+			containerNotice := ""
+			switch localxcode.TestAction(strings.TrimSpace(*action)) {
+			case localxcode.TestActionTest, localxcode.TestActionBuildForTesting:
+				if *packagePath == "" && *workspacePath == "" && *projectPath == "" {
+					if strings.TrimSpace(*scheme) == "" {
+						return shared.RequiredFlag("--scheme")
+					}
+					if len(destinations) == 0 {
+						return shared.RequiredFlag("--destination")
+					}
+					notice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace, --project, or --package-path is required")
+					if err != nil {
+						return err
+					}
+					containerNotice = notice
+				}
 			}
 			opts := localxcode.TestOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
@@ -117,8 +166,20 @@ Examples:
 				ResultBundlePath: strings.TrimSpace(*resultBundlePath),
 				Clean:            *clean,
 				NoCodeSigning:    *noCodeSigning,
+				CodeCoverage:     *codeCoverage,
 				XcodebuildArgs:   []string(xcodebuildFlags),
 				LogWriter:        os.Stderr,
+
+				RetryTestsOnFailure:        *retryTestsOnFailure,
+				TestIterations:             *testIterations,
+				ParallelTestingWorkers:     *parallelTestingWorkers,
+				AddressSanitizer:           *addressSanitizer,
+				ThreadSanitizer:            *threadSanitizer,
+				UndefinedBehaviorSanitizer: *undefinedBehaviorSanitizer,
+			}
+			if parallelTesting.IsSet() {
+				enabled := parallelTesting.Value()
+				opts.ParallelTesting = &enabled
 			}
 			if err := localxcode.ValidateTestOptions(opts); err != nil {
 				return shared.UsageError(err.Error())
@@ -130,6 +191,10 @@ Examples:
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
+			}
+
+			if containerNotice != "" {
+				fmt.Fprintln(os.Stderr, containerNotice)
 			}
 
 			result, testErr := runTest(ctx, opts)
@@ -178,6 +243,9 @@ func toXcodeTestResult(result *localxcode.TestResult) *asc.XcodeTestResult {
 		DurationMs:       result.DurationMS,
 		ExitStatus:       result.ExitStatus,
 	}
+	if result.Coverage != nil {
+		output.Coverage = toXcodeCoverage(*result.Coverage)
+	}
 	if result.Tests == nil {
 		return output
 	}
@@ -210,6 +278,19 @@ func toXcodeTestResult(result *localxcode.TestResult) *asc.XcodeTestResult {
 				Message:    failure.Message,
 			})
 		}
+	}
+	return output
+}
+
+func toXcodeCoverage(coverage localxcode.Coverage) *asc.XcodeCoverage {
+	output := &asc.XcodeCoverage{
+		Name:            coverage.Name,
+		LineCoverage:    coverage.LineCoverage,
+		CoveredLines:    coverage.CoveredLines,
+		ExecutableLines: coverage.ExecutableLines,
+	}
+	for _, target := range coverage.Targets {
+		output.Targets = append(output.Targets, *toXcodeCoverage(target))
 	}
 	return output
 }

@@ -15,9 +15,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// ReviewDetailsAttachmentsListCommand returns the review attachments list subcommand.
-func ReviewDetailsAttachmentsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("attachments-list", flag.ExitOnError)
+func newReviewDetailsAttachmentsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("attachments-list", flag.ExitOnError)
 
 	reviewDetailID := shared.BindResourceIDFlag(fs, "review-detail", "appStoreReviewDetails", "App Store review detail ID (required unless --next is provided)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(reviewAttachmentFieldList(), ", "))
@@ -27,7 +26,7 @@ func ReviewDetailsAttachmentsListCommand() *ffcli.Command {
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attachments-list",
@@ -41,41 +40,41 @@ Examples:
   asc review attachments-list --review-detail "REVIEW_DETAIL_ID" --paginate
   asc review attachments-list --next "<links.next>"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "review attachments-list", 200, "fields", "detail-fields", "include", "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "review attachments-list", 200, "fields", "detail-fields", "include", "limit"); err != nil {
 				return err
 			}
 			nextValue := strings.TrimSpace(*next)
 
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" && nextValue == "" {
-				return shared.RequiredFlag("--review-detail")
+				return d.RequiredFlag("--review-detail")
 			}
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--fields")
+				return shared.WithDiagnostic(d.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--fields")
 			}
 			detailFieldsValue, err := normalizeReviewDetailFields(*detailFields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--detail-fields")
+				return shared.WithDiagnostic(d.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--detail-fields")
 			}
 			includeValue, err := normalizeReviewAttachmentInclude(*include)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--include")
+				return shared.WithDiagnostic(d.UsageErrorf("review attachments-list: %v", err), shared.DiagnosticInvalidInput, "--include")
 			}
 
 			if nextValue != "" {
 				reviewDetailValue = ""
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review attachments-list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreReviewAttachmentsOption{
@@ -91,7 +90,7 @@ Examples:
 				if nextValue == "" {
 					paginateOpts = append(paginateOpts, asc.Limit[asc.AppStoreReviewAttachmentsOption](200))
 				}
-				pages, err := shared.PaginateWithSpinner(
+				pages, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						resp, err := client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, paginateOpts...)
@@ -112,8 +111,8 @@ Examples:
 					return fmt.Errorf("review attachments-list: %w", err)
 				}
 
-				shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
-				return shared.PrintOutput(pages, *output.Output, *output.Pretty)
+				shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
+				return d.PrintOutput(pages, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppStoreReviewAttachmentsForReviewDetail(requestCtx, reviewDetailValue, opts...)
@@ -121,29 +120,28 @@ Examples:
 				return fmt.Errorf("review attachments-list: failed to fetch: %w", err)
 			}
 
-			shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
+			shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
 			if *includeSensitive {
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 			safe, err := asc.RedactAppStoreReviewDetailIncludesInListResponse(resp)
 			if err != nil {
 				return fmt.Errorf("review attachments-list: %w", err)
 			}
-			return shared.PrintOutput(safe, *output.Output, *output.Pretty)
+			return d.PrintOutput(safe, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewDetailsAttachmentsGetCommand returns the review attachments get subcommand.
-func ReviewDetailsAttachmentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("attachments-get", flag.ExitOnError)
+func newReviewDetailsAttachmentsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("attachments-get", flag.ExitOnError)
 
 	attachmentID := shared.BindResourceIDFlag(fs, "id", "appStoreReviewAttachments", "Review attachment ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(reviewAttachmentFieldList(), ", "))
 	detailFields := fs.String("detail-fields", "", "Review detail fields to include: "+strings.Join(reviewDetailFieldList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewAttachmentIncludeList(), ", "))
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attachments-get",
@@ -155,32 +153,32 @@ Examples:
   asc review attachments-get --id "ATTACHMENT_ID"
   asc review attachments-get --id "ATTACHMENT_ID" --fields "fileName,fileSize"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			attachmentValue := strings.TrimSpace(*attachmentID)
 			if attachmentValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--fields")
+				return shared.WithDiagnostic(d.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--fields")
 			}
 			detailFieldsValue, err := normalizeReviewDetailFields(*detailFields)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--detail-fields")
+				return shared.WithDiagnostic(d.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--detail-fields")
 			}
 			includeValue, err := normalizeReviewAttachmentInclude(*include)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--include")
+				return shared.WithDiagnostic(d.UsageErrorf("review attachments-get: %v", err), shared.DiagnosticInvalidInput, "--include")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review attachments-get: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreReviewAttachment(
@@ -193,26 +191,25 @@ Examples:
 				return fmt.Errorf("review attachments-get: failed to fetch: %w", err)
 			}
 
-			shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
+			shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
 			if *includeSensitive {
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 			safe, err := asc.RedactAppStoreReviewDetailIncludesInSingleResponse(resp)
 			if err != nil {
 				return fmt.Errorf("review attachments-get: %w", err)
 			}
-			return shared.PrintOutput(safe, *output.Output, *output.Pretty)
+			return d.PrintOutput(safe, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewDetailsAttachmentsUploadCommand returns the review attachments upload subcommand.
-func ReviewDetailsAttachmentsUploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("attachments-upload", flag.ExitOnError)
+func newReviewDetailsAttachmentsUploadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("attachments-upload", flag.ExitOnError)
 
 	reviewDetailID := shared.BindResourceIDFlag(fs, "review-detail", "appStoreReviewDetails", "App Store review detail ID (required)")
 	filePath := fs.String("file", "", "Path to attachment file (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attachments-upload",
@@ -223,16 +220,16 @@ func ReviewDetailsAttachmentsUploadCommand() *ffcli.Command {
 Examples:
   asc review attachments-upload --review-detail "REVIEW_DETAIL_ID" --file ./review-doc.pdf`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" {
-				return shared.RequiredFlag("--review-detail")
+				return d.RequiredFlag("--review-detail")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
 			info, err := os.Lstat(pathValue)
@@ -268,12 +265,12 @@ Examples:
 			}
 			_ = source.Close()
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review attachments-upload: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreReviewAttachment(requestCtx, reviewDetailValue, filepath.Base(pathValue), info.Size())
@@ -284,7 +281,7 @@ Examples:
 				return fmt.Errorf("review attachments-upload: no upload operations returned")
 			}
 
-			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
+			uploadCtx, uploadCancel := d.UploadTimeout(ctx)
 			err = asc.ExecuteUploadOperations(uploadCtx, pathValue, resp.Data.Attributes.UploadOperations)
 			uploadCancel()
 			if err != nil {
@@ -302,21 +299,21 @@ Examples:
 				Uploaded:           &uploaded,
 			}
 
-			commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
+			commitCtx, commitCancel := d.UploadTimeout(ctx)
 			commitResp, err := client.UpdateAppStoreReviewAttachment(commitCtx, resp.Data.ID, updateAttrs)
 			commitCancel()
 			if err != nil {
 				return fmt.Errorf("review attachments-upload: failed to commit upload: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
+			return d.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewDetailsAttachmentsDeleteCommand returns the review attachments delete subcommand.
-func ReviewDetailsAttachmentsDeleteCommand() *ffcli.Command {
+func newReviewDetailsAttachmentsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "attachments-delete",
 		ShortUsage: "asc review attachments-delete --id \"ATTACHMENT_ID\" --confirm",
 		ShortHelp:  "Delete a review attachment.",

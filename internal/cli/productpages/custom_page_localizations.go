@@ -27,7 +27,7 @@ Examples:
   asc product-pages custom-pages localizations search-keywords list --localization-id "LOCALIZATION_ID"
   asc product-pages custom-pages localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCustomPageLocalizationsListCommand(d),
 			newCustomPageLocalizationsGetCommand(d),

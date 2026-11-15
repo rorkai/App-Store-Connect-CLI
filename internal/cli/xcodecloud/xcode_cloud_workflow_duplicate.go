@@ -232,7 +232,7 @@ Examples:
   asc xcode-cloud workflows duplicate --id "WORKFLOW_ID" --name "Nightly" --description "Nightly build"
   asc xcode-cloud workflows duplicate --id "WORKFLOW_ID" --name "Nightly" --enabled`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

@@ -17,7 +17,10 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+var currentPriceDeps = &shared.Deps{Timeout: shared.ContextWithTimeout}
 
 type currentPriceTransport func(*http.Request) (*http.Response, error)
 
@@ -71,7 +74,7 @@ func TestFetchAppCurrentSchedulePricesOverlapsSiblings(t *testing.T) {
 		}
 		return currentPriceResponse(""), nil
 	})
-	if _, _, _, err := fetchAppCurrentSchedulePrices(ctx, client, "schedule", true); err != nil {
+	if _, _, _, err := fetchAppCurrentSchedulePrices(ctx, currentPriceDeps, client, "schedule", true); err != nil {
 		t.Fatalf("siblings did not overlap: %v; requests=%d", err, started.Load())
 	}
 	if started.Load() != 2 || peak.Load() != 2 {
@@ -100,7 +103,10 @@ func TestFetchAppCurrentSchedulePricesManualErrorCancelsAndJoinsAutomatic(t *tes
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { _, _, _, err := fetchAppCurrentSchedulePrices(ctx, client, "schedule", true); done <- err }()
+	go func() {
+		_, _, _, err := fetchAppCurrentSchedulePrices(ctx, currentPriceDeps, client, "schedule", true)
+		done <- err
+	}()
 	select {
 	case err := <-done:
 		if !errors.Is(err, manualErr) || !strings.Contains(err.Error(), "fetch manual prices:") {
@@ -140,7 +146,7 @@ func TestFetchAppCurrentSchedulePricesManualErrorPrecedesAutomaticError(t *testi
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	_, _, _, err := fetchAppCurrentSchedulePrices(ctx, client, "schedule", true)
+	_, _, _, err := fetchAppCurrentSchedulePrices(ctx, currentPriceDeps, client, "schedule", true)
 	if !errors.Is(err, manualErr) || errors.Is(err, automaticErr) {
 		t.Fatalf("error=%v", err)
 	}
@@ -156,7 +162,7 @@ func TestFetchAppCurrentSchedulePricesBaseOnlyAndCancellation(t *testing.T) {
 			}
 			return currentPriceResponse(""), nil
 		})
-		if _, _, _, err := fetchAppCurrentSchedulePrices(context.Background(), client, "schedule", false); err != nil {
+		if _, _, _, err := fetchAppCurrentSchedulePrices(context.Background(), currentPriceDeps, client, "schedule", false); err != nil {
 			t.Fatal(err)
 		}
 		if calls.Load() != 1 {
@@ -175,7 +181,10 @@ func TestFetchAppCurrentSchedulePricesBaseOnlyAndCancellation(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		done := make(chan error, 1)
-		go func() { _, _, _, err := fetchAppCurrentSchedulePrices(ctx, client, "schedule", true); done <- err }()
+		go func() {
+			_, _, _, err := fetchAppCurrentSchedulePrices(ctx, currentPriceDeps, client, "schedule", true)
+			done <- err
+		}()
 		select {
 		case <-started:
 		case <-time.After(time.Second):
@@ -217,7 +226,7 @@ func TestFetchAppCurrentSchedulePricesMergesInOriginalOrder(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	entries, values, currencies, err := fetchAppCurrentSchedulePrices(ctx, client, "schedule", true)
+	entries, values, currencies, err := fetchAppCurrentSchedulePrices(ctx, currentPriceDeps, client, "schedule", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +260,7 @@ func BenchmarkFetchAppCurrentSchedulePricesLatency(b *testing.B) {
 	})
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, _, _, err := fetchAppCurrentSchedulePrices(context.Background(), client, "schedule", true); err != nil {
+		if _, _, _, err := fetchAppCurrentSchedulePrices(context.Background(), currentPriceDeps, client, "schedule", true); err != nil {
 			b.Fatal(err)
 		}
 	}

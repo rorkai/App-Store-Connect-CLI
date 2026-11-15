@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
@@ -15,11 +14,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var reviewSubmissionsClientFactory = shared.GetASCClient
-
-// ReviewSubmissionsCommand returns the nested review submissions command group.
-func ReviewSubmissionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review submissions", flag.ExitOnError)
+func newReviewSubmissionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review submissions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "submissions",
@@ -31,9 +27,9 @@ Examples:
   asc review submissions list --app "123456789"
   asc review submissions list --app "123456789" --platform IOS --state READY_FOR_REVIEW`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ReviewSubmissionsNestedListCommand(),
+			newReviewSubmissionsNestedListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -41,11 +37,11 @@ Examples:
 	}
 }
 
-// ReviewSubmissionsNestedListCommand exposes the existing list implementation
+// newReviewSubmissionsNestedListCommand exposes the existing list implementation
 // under the discoverable `review submissions list` path.
-func ReviewSubmissionsNestedListCommand() *ffcli.Command {
+func newReviewSubmissionsNestedListCommand(d *shared.Deps) *ffcli.Command {
 	cmd := shared.RewriteCommandTreePath(
-		ReviewSubmissionsListCommand(),
+		newReviewSubmissionsListCommand(d),
 		"asc review submissions-list",
 		"asc review submissions list",
 	)
@@ -53,9 +49,8 @@ func ReviewSubmissionsNestedListCommand() *ffcli.Command {
 	return cmd
 }
 
-// ReviewSubmissionsListCommand returns the review submissions list subcommand.
-func ReviewSubmissionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions-list", flag.ExitOnError)
+func newReviewSubmissionsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submissions-list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	global := fs.Bool("global", false, "Use top-level /v1/reviewSubmissions endpoint")
@@ -67,7 +62,7 @@ func ReviewSubmissionsListCommand() *ffcli.Command {
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionIncludes, ", "))
 	includedFields := shared.BindIncludedFieldFlags(fs, reviewSubmissionIncludedResources)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-list",
@@ -82,12 +77,12 @@ Examples:
   asc review submissions-list --global --app "123456789"
   asc review submissions-list --global --app "123456789" --platform IOS --state READY_FOR_REVIEW`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
-				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
+				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
-			if err := shared.ValidatePaginationFlags(ctx, fs, "review submissions-list", 200, "global", "platform", "state", "limit", "item-fields", "include"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "review submissions-list", 200, "global", "platform", "state", "limit", "item-fields", "include"); err != nil {
 				return err
 			}
 
@@ -96,12 +91,12 @@ Examples:
 
 			// Require one of --app or --global (unless --next is provided)
 			if !*global && resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app or --global is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --global is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
 			}
 			// Top-level /v1/reviewSubmissions requires filter[app].
 			if *global && resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required with --global (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required with --global (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
@@ -109,21 +104,21 @@ Examples:
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
 			}
 			states, err := shared.NormalizeReviewSubmissionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--state")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--state")
 			}
 			normalizedItemFields, err := shared.NormalizeSelection(*itemFields, reviewSubmissionItemFields, "--item-fields")
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--item-fields")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--item-fields")
 			}
 			normalizedIncludes, err := shared.NormalizeSelection(*include, reviewSubmissionIncludes, "--include")
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
 			}
-			included, err := includedFields.Resolve(command, *next, normalizedIncludes)
+			included, err := includedFields.ResolveWith(d, command, *next, normalizedIncludes)
 			if err != nil {
 				return err
 			}
@@ -131,12 +126,12 @@ Examples:
 				normalizedIncludes = append(normalizedIncludes, "items")
 			}
 
-			client, err := reviewSubmissionsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.ReviewSubmissionsOption{
@@ -155,7 +150,7 @@ Examples:
 			if *global {
 				if *paginate {
 					paginateOpts := append(opts, asc.Limit[asc.ReviewSubmissionsOption](200))
-					resp, err := shared.PaginateWithSpinner(
+					resp, err := d.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
 							return client.ListReviewSubmissions(ctx, paginateOpts...)
@@ -168,7 +163,7 @@ Examples:
 						return fmt.Errorf("review submissions-list: %w", err)
 					}
 
-					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+					return d.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := client.ListReviewSubmissions(requestCtx, opts...)
@@ -176,12 +171,12 @@ Examples:
 					return fmt.Errorf("review submissions-list: failed to fetch: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.ReviewSubmissionsOption](200))
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetReviewSubmissions(ctx, resolvedAppID, paginateOpts...)
@@ -194,7 +189,7 @@ Examples:
 					return fmt.Errorf("review submissions-list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetReviewSubmissions(requestCtx, resolvedAppID, opts...)
@@ -202,20 +197,19 @@ Examples:
 				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewSubmissionsGetCommand returns the review submissions get subcommand.
-func ReviewSubmissionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions-get", flag.ExitOnError)
+func newReviewSubmissionsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submissions-get", flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissions", "Review submission ID (required)")
 	itemFields := fs.String("item-fields", "", "Review submission item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionIncludes, ", "))
 	includedFields := shared.BindIncludedFieldFlags(fs, reviewSubmissionIncludedResources)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-get",
@@ -226,20 +220,20 @@ func ReviewSubmissionsGetCommand() *ffcli.Command {
 Examples:
   asc review submissions-get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
-				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
+				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
 			normalizedItemFields, err := shared.NormalizeSelection(*itemFields, reviewSubmissionItemFields, "--item-fields")
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--item-fields")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--item-fields")
 			}
 			normalizedIncludes, err := shared.NormalizeSelection(*include, reviewSubmissionIncludes, "--include")
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--include")
 			}
-			included, err := includedFields.Resolve("review submissions-get", "", normalizedIncludes)
+			included, err := includedFields.ResolveWith(d, "review submissions-get", "", normalizedIncludes)
 			if err != nil {
 				return err
 			}
@@ -247,15 +241,15 @@ Examples:
 				normalizedIncludes = append(normalizedIncludes, "items")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
-			client, err := reviewSubmissionsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review submissions-get: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetReviewSubmission(
@@ -269,7 +263,7 @@ Examples:
 				return fmt.Errorf("review submissions-get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -291,13 +285,12 @@ var reviewSubmissionIncludes = []string{
 	"lastUpdatedByActor",
 }
 
-// ReviewSubmissionsCreateCommand returns the review submissions create subcommand.
-func ReviewSubmissionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions-create", flag.ExitOnError)
+func newReviewSubmissionsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submissions-create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-create",
@@ -308,28 +301,28 @@ func ReviewSubmissionsCreateCommand() *ffcli.Command {
 Examples:
   asc review submissions-create --app "123456789" --platform IOS`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
-				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
+				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("review submissions-create: %w", shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform"))
+				return fmt.Errorf("review submissions-create: %w", shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform"))
 			}
 
-			client, err := reviewSubmissionsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateReviewSubmission(requestCtx, resolvedAppID, asc.Platform(normalizedPlatform))
@@ -351,14 +344,13 @@ Examples:
 				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewSubmissionsUpdateCommand returns the review submissions update subcommand.
-func ReviewSubmissionsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions-update", flag.ExitOnError)
+func newReviewSubmissionsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submissions-update", flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissions", "Review submission ID (required)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
@@ -368,7 +360,7 @@ func ReviewSubmissionsUpdateCommand() *ffcli.Command {
 	clearSubmitted := fs.Bool("clear-submitted", false, "Set submitted to JSON null")
 	clearCanceled := fs.Bool("clear-canceled", false, "Set canceled to JSON null")
 	confirm := fs.Bool("confirm", false, "Confirm submission or cancellation when setting it true")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-update",
@@ -385,46 +377,46 @@ Examples:
   asc review submissions-update --id "SUBMISSION_ID" --clear-platform
   asc review submissions-update --id "SUBMISSION_ID" --canceled=true --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
-				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
+				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			platformProvided := reviewFlagWasProvided(fs, "platform")
 			submittedProvided := reviewFlagWasProvided(fs, "submitted")
 			canceledProvided := reviewFlagWasProvided(fs, "canceled")
 			if platformProvided && *clearPlatform {
-				return shared.WithDiagnostic(shared.UsageError("--platform cannot be combined with --clear-platform"), shared.DiagnosticConflictingInput, "")
+				return shared.WithDiagnostic(d.UsageError("--platform cannot be combined with --clear-platform"), shared.DiagnosticConflictingInput, "")
 			}
 			if submittedProvided && *clearSubmitted {
-				return shared.WithDiagnostic(shared.UsageError("--submitted cannot be combined with --clear-submitted"), shared.DiagnosticConflictingInput, "")
+				return shared.WithDiagnostic(d.UsageError("--submitted cannot be combined with --clear-submitted"), shared.DiagnosticConflictingInput, "")
 			}
 			if canceledProvided && *clearCanceled {
-				return shared.WithDiagnostic(shared.UsageError("--canceled cannot be combined with --clear-canceled"), shared.DiagnosticConflictingInput, "")
+				return shared.WithDiagnostic(d.UsageError("--canceled cannot be combined with --clear-canceled"), shared.DiagnosticConflictingInput, "")
 			}
 			if !platformProvided && !submittedProvided && !canceledProvided && !*clearPlatform && !*clearSubmitted && !*clearCanceled {
-				return shared.UpdateFlagRequired(fs, platform, submitted, canceled, clearPlatform, clearSubmitted, clearCanceled)
+				return d.UpdateFlagRequired(fs, platform, submitted, canceled, clearPlatform, clearSubmitted, clearCanceled)
 			}
 			if canceledProvided && *canceled && !*confirm {
-				return shared.WithDiagnostic(shared.UsageError("--confirm is required when --canceled=true"), shared.DiagnosticRequiredInputMissing, "--confirm")
+				return shared.WithDiagnostic(d.UsageError("--confirm is required when --canceled=true"), shared.DiagnosticRequiredInputMissing, "--confirm")
 			}
 			if submittedProvided && *submitted && !*confirm {
-				return shared.WithDiagnostic(shared.UsageError("--confirm is required when --submitted=true"), shared.DiagnosticRequiredInputMissing, "--confirm")
+				return shared.WithDiagnostic(d.UsageError("--confirm is required when --submitted=true"), shared.DiagnosticRequiredInputMissing, "--confirm")
 			}
 			if submittedProvided && *submitted && canceledProvided && *canceled {
-				return shared.WithDiagnostic(shared.UsageError("--submitted=true cannot be combined with --canceled=true"), shared.DiagnosticConflictingInput, "")
+				return shared.WithDiagnostic(d.UsageError("--submitted=true cannot be combined with --canceled=true"), shared.DiagnosticConflictingInput, "")
 			}
 
 			attrs := asc.ReviewSubmissionUpdateAttributes{}
 			if platformProvided {
 				normalized, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 				if err != nil {
-					return fmt.Errorf("review submissions-update: %w", shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform"))
+					return fmt.Errorf("review submissions-update: %w", shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform"))
 				}
 				value := asc.Platform(normalized)
 				attrs.Platform = &asc.NullablePlatform{Value: &value}
@@ -442,34 +434,33 @@ Examples:
 				attrs.Canceled = &asc.NullableBool{}
 			}
 
-			client, err := reviewSubmissionsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review submissions-update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateReviewSubmission(requestCtx, trimmedID, attrs)
 			if err != nil {
 				if canceledProvided && *canceled {
-					err = shared.ExplainReviewSubmissionNotCancellable(ctx, client, trimmedID, err)
+					err = d.ExplainReviewSubmissionNotCancellable(ctx, client, trimmedID, err)
 				}
 				return fmt.Errorf("review submissions-update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewSubmissionsSubmitCommand returns the review submissions submit subcommand.
-func ReviewSubmissionsSubmitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions-submit", flag.ExitOnError)
+func newReviewSubmissionsSubmitCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submissions-submit", flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissions", "Review submission ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-submit",
@@ -480,24 +471,24 @@ func ReviewSubmissionsSubmitCommand() *ffcli.Command {
 Examples:
   asc review submissions-submit --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
-				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
+				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := reviewSubmissionsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review submissions-submit: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.SubmitReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
@@ -505,18 +496,17 @@ Examples:
 				return fmt.Errorf("review submissions-submit: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewSubmissionsCancelCommand returns the review submissions cancel subcommand.
-func ReviewSubmissionsCancelCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions-cancel", flag.ExitOnError)
+func newReviewSubmissionsCancelCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submissions-cancel", flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissions", "Review submission ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm cancellation (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-cancel",
@@ -527,46 +517,45 @@ func ReviewSubmissionsCancelCommand() *ffcli.Command {
 Examples:
   asc review submissions-cancel --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
-				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
+				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := reviewSubmissionsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review submissions-cancel: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			trimmedID := strings.TrimSpace(*submissionID)
 			resp, err := client.CancelReviewSubmission(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("review submissions-cancel: %w", shared.ExplainReviewSubmissionNotCancellable(ctx, client, trimmedID, err))
+				return fmt.Errorf("review submissions-cancel: %w", d.ExplainReviewSubmissionNotCancellable(ctx, client, trimmedID, err))
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ReviewSubmissionsItemsIDsCommand returns the review submission item IDs subcommand.
-func ReviewSubmissionsItemsIDsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions-items-ids", flag.ExitOnError)
+func newReviewSubmissionsItemsIDsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("submissions-items-ids", flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissions", "Review submission ID (required)")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-items-ids",
@@ -578,25 +567,25 @@ Examples:
   asc review submissions-items-ids --id "SUBMISSION_ID"
   asc review submissions-items-ids --id "SUBMISSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
-				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
+				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
-			if err := shared.ValidatePaginationFlags(ctx, fs, "review submissions-items-ids", 200, "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "review submissions-items-ids", 200, "limit"); err != nil {
 				return err
 			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
-			client, err := reviewSubmissionsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review submissions-items-ids: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -606,7 +595,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetReviewSubmissionItemsRelationships(ctx, trimmedID, paginateOpts...)
@@ -619,7 +608,7 @@ Examples:
 					return fmt.Errorf("review submissions-items-ids: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetReviewSubmissionItemsRelationships(requestCtx, trimmedID, opts...)
@@ -627,7 +616,7 @@ Examples:
 				return fmt.Errorf("review submissions-items-ids: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

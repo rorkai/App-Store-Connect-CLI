@@ -124,9 +124,8 @@ type reviewBatchReviewInfo struct {
 	ExistingResponseID string
 }
 
-// ReviewsRespondBatchCommand returns the reviews respond-batch subcommand.
-func ReviewsRespondBatchCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("respond-batch", flag.ExitOnError)
+func newReviewsRespondBatchCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("respond-batch", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	filePath := fs.String("file", "", "Path to grouped JSON replies file (required)")
@@ -134,7 +133,7 @@ func ReviewsRespondBatchCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm publishing the responses (required unless --dry-run)")
 	skipExisting := fs.Bool("skip-existing", false, "Skip reviews that already have a published response")
 	responseState := fs.String("response-state", reviewResponseStateAny, "Filter by response state: any, unresponded/unreplied, responded/replied")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "respond-batch",
@@ -166,22 +165,22 @@ Examples:
   asc reviews respond-batch --app "123456789" --file replies.json --response-state unresponded --confirm`,
 			reviewBatchMaxFileBytes, reviewBatchMaxTargets, reviewBatchMaxResponseBytes),
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(resolvedAppID) == "" {
-				return shared.WithDiagnostic(shared.UsageError("--app is required (or set ASC_APP_ID)"), shared.DiagnosticRequiredInputMissing, "--app")
+				return shared.WithDiagnostic(d.UsageError("--app is required (or set ASC_APP_ID)"), shared.DiagnosticRequiredInputMissing, "--app")
 			}
 			if *filePath == "" {
-				return shared.WithDiagnostic(shared.UsageError("--file is required"), shared.DiagnosticRequiredInputMissing, "--file")
+				return shared.WithDiagnostic(d.UsageError("--file is required"), shared.DiagnosticRequiredInputMissing, "--file")
 			}
 
 			normalizedResponseState, err := normalizeReviewResponseState(*responseState)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--response-state")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--response-state")
 			}
 
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 
@@ -194,15 +193,15 @@ Examples:
 				case errors.Is(err, os.ErrPermission):
 					code = shared.DiagnosticFilePermissionDenied
 				}
-				return shared.WithDiagnostic(shared.UsageError(err.Error()), code, "--file")
+				return shared.WithDiagnostic(d.UsageError(err.Error()), code, "--file")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("reviews respond-batch: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			result, err := executeReviewsRespondBatch(
@@ -218,7 +217,7 @@ Examples:
 				return err
 			}
 
-			if err := printReviewBatchResult(result, *output.Output, *output.Pretty); err != nil {
+			if err := printReviewBatchResult(d, result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if result.Summary.Failed > 0 {
@@ -844,23 +843,23 @@ func (r *reviewBatchResult) append(item reviewBatchReviewResult) {
 	}
 }
 
-func printReviewBatchResult(result reviewBatchResult, output string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printReviewBatchResult(d *shared.Deps, result reviewBatchResult, output string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		output,
 		pretty,
 		func() error {
-			renderReviewBatchResult(result, false)
+			renderReviewBatchResult(d, result, false)
 			return nil
 		},
 		func() error {
-			renderReviewBatchResult(result, true)
+			renderReviewBatchResult(d, result, true)
 			return nil
 		},
 	)
 }
 
-func renderReviewBatchResult(result reviewBatchResult, markdown bool) {
+func renderReviewBatchResult(d *shared.Deps, result reviewBatchResult, markdown bool) {
 	headers := []string{"Review ID", "Status", "Response ID", "Existing Response ID", "Reason", "Error"}
 	rows := make([][]string, 0, len(result.Results)+1)
 	rows = append(rows, []string{
@@ -882,8 +881,8 @@ func renderReviewBatchResult(result reviewBatchResult, markdown bool) {
 		})
 	}
 	if markdown {
-		asc.RenderMarkdown(headers, rows)
+		asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 		return
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 }

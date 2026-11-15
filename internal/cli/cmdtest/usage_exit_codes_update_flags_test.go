@@ -47,31 +47,37 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "app-clips advanced-experiences update",
 			args:  []string{"app-clips", "advanced-experiences", "update", "--experience-id", "ID"},
 			flags: "--app-clip-id, --action, --category, --place, --default-language, --is-powered-by, --removed, --header-image-id, --localization-id",
+			deps:  true,
 		},
 		{
 			name:  "app-clips default-experiences localizations update",
 			args:  []string{"app-clips", "default-experiences", "localizations", "update", "--localization-id", "ID"},
 			flags: "--subtitle",
+			deps:  true,
 		},
 		{
 			name:  "app-clips default-experiences update",
 			args:  []string{"app-clips", "default-experiences", "update", "--experience-id", "ID"},
 			flags: "--action, --release-version-id",
+			deps:  true,
 		},
 		{
 			name:  "app-clips invocations localizations update",
 			args:  []string{"app-clips", "invocations", "localizations", "update", "--localization-id", "ID"},
 			flags: "--title",
+			deps:  true,
 		},
 		{
 			name:  "app-clips invocations update",
 			args:  []string{"app-clips", "invocations", "update", "--invocation-id", "ID"},
 			flags: "--url",
+			deps:  true,
 		},
 		{
 			name:  "app-clips review-details update",
 			args:  []string{"app-clips", "review-details", "update", "--id", "ID"},
 			flags: "--url",
+			deps:  true,
 		},
 		{
 			name:  "app-events localizations update",
@@ -136,16 +142,19 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center achievements localizations update",
 			args:  []string{"game-center", "achievements", "localizations", "update", "--id", "ID"},
 			flags: "--name, --before-earned-description, --after-earned-description",
+			deps:  true,
 		},
 		{
 			name:  "game-center achievements update",
 			args:  []string{"game-center", "achievements", "update", "--id", "ID"},
 			flags: "--reference-name, --points, --show-before-earned, --repeatable, --archived, --activity-properties",
+			deps:  true,
 		},
 		{
 			name:  "game-center achievements v2 localizations update",
 			args:  []string{"game-center", "achievements", "v2", "localizations", "update", "--id", "ID"},
 			flags: "--name, --before-earned-description, --after-earned-description",
+			deps:  true,
 		},
 		{
 			name:  "game-center activities localizations update",
@@ -186,16 +195,19 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center leaderboards localizations update",
 			args:  []string{"game-center", "leaderboards", "localizations", "update", "--id", "ID"},
 			flags: "--name, --formatter-override, --formatter-suffix, --formatter-suffix-singular, --description",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboards update",
 			args:  []string{"game-center", "leaderboards", "update", "--id", "ID"},
 			flags: "--reference-name, --archived, --formatter, --sort, --submission-type, --score-range-start, --score-range-end, --recurrence-start-date, --recurrence-duration, --recurrence-rule, --visibility, --activity-properties",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboards v2 localizations update",
 			args:  []string{"game-center", "leaderboards", "v2", "localizations", "update", "--id", "ID"},
 			flags: "--name, --formatter-override, --formatter-suffix, --formatter-suffix-singular, --description",
+			deps:  true,
 		},
 		{
 			name:  "game-center matchmaking queues update",
@@ -293,21 +305,25 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 		{
 			name:  "review details-update",
 			args:  []string{"review", "details-update", "--id", "ID"},
+			deps:  true,
 			flags: "--contact-first-name, --contact-last-name, --contact-email, --contact-phone, --demo-account-name, --demo-account-password, --demo-account-required, --notes",
 		},
 		{
 			name:  "review items update",
 			args:  []string{"review", "items", "update", "--id", "ID"},
+			deps:  true,
 			flags: "--resolved, --removed, --clear-resolved, --clear-removed",
 		},
 		{
 			name:  "review items-update",
 			args:  []string{"review", "items-update", "--id", "ID"},
+			deps:  true,
 			flags: "--resolved, --removed, --clear-resolved, --clear-removed",
 		},
 		{
 			name:  "review submissions-update",
 			args:  []string{"review", "submissions-update", "--id", "ID"},
+			deps:  true,
 			flags: "--platform, --submitted, --canceled, --clear-platform, --clear-submitted, --clear-canceled",
 		},
 		{
@@ -405,6 +421,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "webhooks update",
 			args:  []string{"webhooks", "update", "--webhook-id", "ID"},
 			flags: "--name, --url, --secret, --events, --enabled",
+			deps:  true,
 		},
 		{
 			name:  "xcode version edit",

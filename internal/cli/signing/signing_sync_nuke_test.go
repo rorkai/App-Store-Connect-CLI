@@ -105,7 +105,7 @@ func (api *nukeAPI) server(t *testing.T) *httptest.Server {
 				{"type":"profiles","id":"profile-dev-1","attributes":{"name":"Dev","profileType":"IOS_APP_DEVELOPMENT","profileState":"INVALID","expirationDate":"2000-01-01T00:00:00Z"}}
 			]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/certificates":
-			if got := req.URL.Query().Get("filter[certificateType]"); got != "IOS_DEVELOPMENT,DEVELOPMENT" {
+			if got := req.URL.Query().Get("filter[certificateType]"); got != "DEVELOPMENT,IOS_DEVELOPMENT" {
 				t.Errorf("certificates filter[certificateType] = %q", got)
 			}
 			signingFetchWriteJSON(t, w, http.StatusOK, fmt.Sprintf(`{"data":[

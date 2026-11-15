@@ -9,11 +9,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// ReviewsGetCommand gets a customer review by ID.
-func ReviewsGetCommand() *ffcli.Command {
+func newReviewsGetCommand(d *shared.Deps) *ffcli.Command {
 	var opts []asc.ReviewOption
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "reviews view",
 		Name:        "view",
 		ShortUsage:  "asc reviews view --id \"REVIEW_ID\" [flags]",
@@ -30,7 +30,7 @@ Examples:
 		Flags: func(fs *flag.FlagSet) func() error {
 			selection := BindReviewSelectionFlags(fs)
 			return func() (err error) {
-				opts, err = selection.ReviewOptions()
+				opts, err = selection.ReviewOptionsWith(d)
 				return err
 			}
 		},

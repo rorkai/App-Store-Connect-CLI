@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -15,7 +14,12 @@ import (
 
 // OfferCodeCustomCodesCommand returns the custom codes command group.
 func OfferCodeCustomCodesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-codes", flag.ExitOnError)
+	return NewOfferCodeCustomCodesCommand(shared.DefaultDeps())
+}
+
+// NewOfferCodeCustomCodesCommand returns the custom codes command group built on d.
+func NewOfferCodeCustomCodesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-codes", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "custom-codes",
@@ -31,10 +35,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			OfferCodeCustomCodesListCommand(),
-			OfferCodeCustomCodesGetCommand(),
-			OfferCodeCustomCodesCreateCommand(),
-			OfferCodeCustomCodesUpdateCommand(),
+			newOfferCodeCustomCodesListCommand(d),
+			newOfferCodeCustomCodesGetCommand(d),
+			newOfferCodeCustomCodesCreateCommand(d),
+			newOfferCodeCustomCodesUpdateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -42,9 +46,10 @@ Examples:
 	}
 }
 
-// OfferCodeCustomCodesListCommand returns the custom codes list subcommand.
-func OfferCodeCustomCodesListCommand() *ffcli.Command {
+// newOfferCodeCustomCodesListCommand returns the custom codes list subcommand.
+func newOfferCodeCustomCodesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:       d,
 		Name:       "list",
 		ShortUsage: "asc offer-codes custom-codes list [flags]",
 		ShortHelp:  "List custom codes for a subscription offer.",
@@ -73,9 +78,10 @@ Examples:
 	})
 }
 
-// OfferCodeCustomCodesGetCommand returns the custom codes get subcommand.
-func OfferCodeCustomCodesGetCommand() *ffcli.Command {
+// newOfferCodeCustomCodesGetCommand returns the custom codes get subcommand.
+func newOfferCodeCustomCodesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc offer-codes custom-codes view --custom-code-id ID",
 		ShortHelp:  "View a custom code by ID.",
@@ -93,15 +99,15 @@ Examples:
 	})
 }
 
-// OfferCodeCustomCodesCreateCommand returns the custom codes create subcommand.
-func OfferCodeCustomCodesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newOfferCodeCustomCodesCreateCommand returns the custom codes create subcommand.
+func newOfferCodeCustomCodesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Subscription offer code ID (required)")
 	code := fs.String("code", "", "Custom code value (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to create (required)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -117,34 +123,34 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedOfferCodeID := strings.TrimSpace(*offerCodeID)
 			if trimmedOfferCodeID == "" {
-				return shared.RequiredFlag("--offer-code-id")
+				return d.RequiredFlag("--offer-code-id")
 			}
 
 			trimmedCode := strings.TrimSpace(*code)
 			if trimmedCode == "" {
-				return shared.RequiredFlag("--code")
+				return d.RequiredFlag("--code")
 			}
 
 			if *quantity <= 0 {
-				return shared.RequiredFlag("--quantity")
+				return d.RequiredFlag("--quantity")
 			}
 
 			var normalizedExpiration *string
 			if strings.TrimSpace(*expirationDate) != "" {
 				normalized, err := normalizeOfferCodeExpirationDate(*expirationDate)
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err)
+					fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 					return flag.ErrHelp
 				}
 				normalizedExpiration = &normalized
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("offer-codes custom-codes create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			req := asc.SubscriptionOfferCodeCustomCodeCreateRequest{
@@ -171,14 +177,15 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// OfferCodeCustomCodesUpdateCommand returns the custom codes update subcommand.
-func OfferCodeCustomCodesUpdateCommand() *ffcli.Command {
+// newOfferCodeCustomCodesUpdateCommand returns the custom codes update subcommand.
+func newOfferCodeCustomCodesUpdateCommand(d *shared.Deps) *ffcli.Command {
 	return NewActiveUpdateCommand(ActiveUpdateCommandConfig{
+		Deps:        d,
 		FlagSetName: "update",
 		Name:        "update",
 		ShortUsage:  "asc offer-codes custom-codes update [flags]",

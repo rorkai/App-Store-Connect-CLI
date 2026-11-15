@@ -193,6 +193,17 @@ var generatedQueries = map[string]generatedQuery{
 			"filter[state]": WithAppStoreVersionExperimentsV2State,
 		},
 	},
+	"apps_appTags_getToManyRelated": {
+		build: buildAppTagsQuery,
+		options: map[string]any{
+			"filter[visibleInAppStore]": WithAppTagsVisibleInAppStore,
+			"sort":                      WithAppTagsSort,
+			"fields[appTags]":           WithAppTagsFields,
+			"fields[territories]":       WithAppTagsTerritoryFields,
+			"include":                   WithAppTagsInclude,
+			"limit[territories]":        WithAppTagsTerritoryLimit,
+		},
+	},
 	"apps_betaTesterUsages_getMetrics": {
 		build: buildBetaTesterUsagesQuery,
 		options: map[string]any{
@@ -215,6 +226,22 @@ var generatedQueries = map[string]generatedQuery{
 	"apps_gameCenterEnabledVersions_getToManyRelated": {
 		build:   buildGCEnabledVersionsQuery,
 		options: map[string]any{},
+	},
+	"apps_getCollection": {
+		build: buildAppsQuery,
+		options: map[string]any{
+			"filter[bundleId]": WithAppsBundleIDs,
+			"filter[name]":     WithAppsNames,
+			"filter[sku]":      WithAppsSKUs,
+			"filter[appStoreVersions.appVersionState]": WithAppsVersionStates,
+			"filter[reviewSubmissions.state]":          WithAppsReviewSubmissionStates,
+			"sort":                                     WithAppsSort,
+			"fields[appInfos]":                         WithAppsAppInfoFields,
+			"fields[inAppPurchases]":                   WithAppsInAppPurchaseFields,
+			"fields[subscriptionGroups]":               WithAppsSubscriptionGroupFields,
+			"fields[retentionMessages]":                WithAppsRetentionMessageFields,
+			"include":                                  WithAppsInclude,
+		},
 	},
 	"apps_getInstance": {
 		build: buildAppQuery,
@@ -262,6 +289,13 @@ var generatedQueries = map[string]generatedQuery{
 		options: map[string]any{
 			"filter[locale]": WithBetaAppLocalizationLocales,
 			"filter[app]":    WithBetaAppLocalizationAppIDs,
+		},
+	},
+	"betaBuildLocalizations_getCollection": {
+		build: buildBetaBuildLocalizationsQuery,
+		options: map[string]any{
+			"filter[build]":  WithBetaBuildLocalizationBuildIDs,
+			"filter[locale]": WithBetaBuildLocalizationLocales,
 		},
 	},
 	"betaGroups_betaTesters_getToManyRelated": {
@@ -321,6 +355,13 @@ var generatedQueries = map[string]generatedQuery{
 	"buildUploads_buildUploadFiles_getToManyRelated": {
 		build:   buildBuildUploadFilesQuery,
 		options: map[string]any{},
+	},
+	"builds_betaBuildLocalizations_getToManyRelated": {
+		build: buildBetaBuildLocalizationsQuery,
+		options: map[string]any{
+			"filter[build]":  WithBetaBuildLocalizationBuildIDs,
+			"filter[locale]": WithBetaBuildLocalizationLocales,
+		},
 	},
 	"builds_betaBuildUsages_getMetrics": {
 		build:   buildBetaBuildUsagesQuery,
@@ -391,6 +432,12 @@ var generatedQueries = map[string]generatedQuery{
 			"include":                    WithCiProductAppInclude,
 		},
 	},
+	"ciProducts_buildRuns_getToManyRelated": {
+		build: buildCiBuildRunsQuery,
+		options: map[string]any{
+			"sort": WithCiBuildRunsSort,
+		},
+	},
 	"ciProducts_primaryRepositories_getToManyRelated": {
 		build:   buildCiProductRepositoriesQuery,
 		options: map[string]any{},
@@ -398,6 +445,12 @@ var generatedQueries = map[string]generatedQuery{
 	"ciProducts_workflows_getToManyRelated": {
 		build:   buildCiWorkflowsQuery,
 		options: map[string]any{},
+	},
+	"ciWorkflows_buildRuns_getToManyRelated": {
+		build: buildCiBuildRunsQuery,
+		options: map[string]any{
+			"sort": WithCiBuildRunsSort,
+		},
 	},
 	"ciXcodeVersions_getCollection": {
 		build:   buildCiXcodeVersionsQuery,
@@ -572,8 +625,71 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildGCMatchmakingTeamsQuery,
 		options: map[string]any{},
 	},
+	"inAppPurchaseAvailabilities_availableTerritories_getToManyRelated": {
+		build:   buildIAPAvailabilityTerritoriesQuery,
+		options: map[string]any{},
+	},
+	"inAppPurchaseOfferCodes_customCodes_getToManyRelated": {
+		build:   buildIAPOfferCodeCustomCodesQuery,
+		options: map[string]any{},
+	},
+	"inAppPurchaseOfferCodes_oneTimeUseCodes_getToManyRelated": {
+		build:   buildIAPOfferCodeOneTimeUseCodesQuery,
+		options: map[string]any{},
+	},
+	"inAppPurchaseOfferCodes_prices_getToManyRelated": {
+		build: buildIAPOfferCodePricesQuery,
+		options: map[string]any{
+			"fields[inAppPurchaseOfferPrices]": WithIAPOfferCodePricesFields,
+			"include":                          WithIAPOfferCodePricesInclude,
+		},
+	},
+	"inAppPurchasePriceSchedules_automaticPrices_getToManyRelated": {
+		build: buildIAPPriceSchedulePricesQuery,
+		options: map[string]any{
+			"include":                          WithIAPPriceSchedulePricesInclude,
+			"fields[inAppPurchasePrices]":      WithIAPPriceSchedulePricesFields,
+			"fields[inAppPurchasePricePoints]": WithIAPPriceSchedulePricesPricePointFields,
+			"fields[territories]":              WithIAPPriceSchedulePricesTerritoryFields,
+		},
+	},
+	"inAppPurchasePriceSchedules_getInstance": {
+		build: buildIAPPriceScheduleQuery,
+		options: map[string]any{
+			"include":                             WithIAPPriceScheduleInclude,
+			"fields[inAppPurchasePriceSchedules]": WithIAPPriceScheduleFields,
+			"fields[territories]":                 WithIAPPriceScheduleTerritoryFields,
+			"fields[inAppPurchasePrices]":         WithIAPPriceSchedulePriceFields,
+			"limit[manualPrices]":                 WithIAPPriceScheduleManualPricesLimit,
+			"limit[automaticPrices]":              WithIAPPriceScheduleAutomaticPricesLimit,
+		},
+	},
+	"inAppPurchasePriceSchedules_manualPrices_getToManyRelated": {
+		build: buildIAPPriceSchedulePricesQuery,
+		options: map[string]any{
+			"include":                          WithIAPPriceSchedulePricesInclude,
+			"fields[inAppPurchasePrices]":      WithIAPPriceSchedulePricesFields,
+			"fields[inAppPurchasePricePoints]": WithIAPPriceSchedulePricesPricePointFields,
+			"fields[territories]":              WithIAPPriceSchedulePricesTerritoryFields,
+		},
+	},
+	"inAppPurchasesV2_iapPriceSchedule_getToOneRelated": {
+		build: buildIAPPriceScheduleQuery,
+		options: map[string]any{
+			"include":                             WithIAPPriceScheduleInclude,
+			"fields[inAppPurchasePriceSchedules]": WithIAPPriceScheduleFields,
+			"fields[territories]":                 WithIAPPriceScheduleTerritoryFields,
+			"fields[inAppPurchasePrices]":         WithIAPPriceSchedulePriceFields,
+			"limit[manualPrices]":                 WithIAPPriceScheduleManualPricesLimit,
+			"limit[automaticPrices]":              WithIAPPriceScheduleAutomaticPricesLimit,
+		},
+	},
 	"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated": {
 		build:   buildIAPLocalizationsQuery,
+		options: map[string]any{},
+	},
+	"inAppPurchasesV2_offerCodes_getToManyRelated": {
+		build:   buildIAPOfferCodesQuery,
 		options: map[string]any{},
 	},
 	"marketplaceWebhooks_getCollection": {
@@ -635,6 +751,20 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildSubscriptionGroupLocalizationsQuery,
 		options: map[string]any{},
 	},
+	"subscriptionImagesV2_getInstance": {
+		build: buildSubscriptionImageV2Query,
+		options: map[string]any{
+			"fields[subscriptionImages]": WithSubscriptionImageV2Fields,
+		},
+	},
+	"subscriptionLocalizationsV2_getInstance": {
+		build: buildSubscriptionLocalizationV2Query,
+		options: map[string]any{
+			"fields[subscriptionLocalizations]": WithSubscriptionLocalizationV2Fields,
+			"fields[subscriptionVersions]":      WithSubscriptionLocalizationV2VersionFields,
+			"include":                           WithSubscriptionLocalizationV2Include,
+		},
+	},
 	"subscriptionOfferCodes_customCodes_getToManyRelated": {
 		build:   buildSubscriptionOfferCodeCustomCodesQuery,
 		options: map[string]any{},
@@ -665,6 +795,24 @@ var generatedQueries = map[string]generatedQuery{
 		options: map[string]any{
 			"fields[subscriptionPricePoints]": WithSubscriptionPromotionalOfferPricesPricePointFields,
 			"include":                         WithSubscriptionPromotionalOfferPricesInclude,
+		},
+	},
+	"subscriptionVersions_getInstance": {
+		build: buildSubscriptionVersionQuery,
+		options: map[string]any{
+			"fields[subscriptionVersions]":      WithSubscriptionVersionFields,
+			"fields[subscriptions]":             WithSubscriptionVersionSubscriptionFields,
+			"fields[subscriptionImages]":        WithSubscriptionVersionImageFields,
+			"fields[subscriptionLocalizations]": WithSubscriptionVersionLocalizationFields,
+			"include":                           WithSubscriptionVersionInclude,
+			"limit[images]":                     WithSubscriptionVersionImageLimit,
+			"limit[localizations]":              WithSubscriptionVersionLocalizationLimit,
+		},
+	},
+	"subscriptionVersions_image_getToOneRelated": {
+		build: buildSubscriptionImageV2Query,
+		options: map[string]any{
+			"fields[subscriptionImages]": WithSubscriptionImageV2Fields,
 		},
 	},
 	"subscriptions_appStoreReviewScreenshot_getToOneRelated": {

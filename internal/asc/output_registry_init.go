@@ -660,6 +660,7 @@ func registerAllOutputRenderers() {
 	registerRows(certificateExportResultRows)
 	registerRows(endUserLicenseAgreementRows)
 	registerRows(profileDownloadResultRows)
+	registerRows(profilesDownloadAllResultRows)
 	registerRows(signingFetchResultRows)
 	registerDirect(signingFetchBatchResultRender)
 	registerRows(capabilityReconcilePlanRows)

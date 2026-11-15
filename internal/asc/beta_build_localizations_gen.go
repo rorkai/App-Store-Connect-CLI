@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -62,4 +63,35 @@ func (c *Client) GetBetaBuildLocalization(ctx context.Context, localizationID st
 	return getJSON[BetaBuildLocalizationResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID),
 	})
+}
+
+// BetaBuildLocalizationsOption sets the query of GET /v1/betaBuildLocalizations (betaBuildLocalizations_getCollection) and GET /v1/builds/{id}/betaBuildLocalizations (builds_betaBuildLocalizations_getToManyRelated).
+type BetaBuildLocalizationsOption func(*betaBuildLocalizationsQuery)
+
+type betaBuildLocalizationsQuery struct {
+	listQuery
+	buildIDs []string
+	locales  []string
+}
+
+// WithBetaBuildLocalizationBuildIDs sets filter[build].
+func WithBetaBuildLocalizationBuildIDs(ids []string) BetaBuildLocalizationsOption {
+	return func(q *betaBuildLocalizationsQuery) {
+		q.buildIDs = normalizeList(ids)
+	}
+}
+
+// WithBetaBuildLocalizationLocales sets filter[locale].
+func WithBetaBuildLocalizationLocales(locales []string) BetaBuildLocalizationsOption {
+	return func(q *betaBuildLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+func buildBetaBuildLocalizationsQuery(query *betaBuildLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[build]", query.buildIDs)
+	addCSV(values, "filter[locale]", query.locales)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

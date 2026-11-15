@@ -26,7 +26,7 @@ Use:
   - asc validate for canonical readiness checks before submission
   - asc submit status/cancel for lower-level review submission lifecycle work`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubmitStatusCommand(d),
 			newSubmitCancelCommand(d),

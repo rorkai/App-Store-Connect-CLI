@@ -29,7 +29,7 @@ Examples:
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET
   asc background-assets upload-files update --upload-file-id "UPLOAD_FILE_ID" --uploaded true --file "./asset.zip" --checksum`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBackgroundAssetsUploadFilesListCommand(d),
 			newBackgroundAssetsUploadFilesGetCommand(d),
@@ -108,7 +108,7 @@ Examples:
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./manifest.json" --asset-type MANIFEST --checksum`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" {
@@ -219,7 +219,7 @@ Examples:
   asc background-assets upload-files update --upload-file-id "UPLOAD_FILE_ID" --uploaded true
   asc background-assets upload-files update --upload-file-id "UPLOAD_FILE_ID" --uploaded true --file "./asset.zip" --checksum`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {

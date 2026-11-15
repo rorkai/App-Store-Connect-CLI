@@ -116,6 +116,11 @@ or conventional metadata/ and screenshots/ directories:
   │   │   ├── iphone_65_1.png
   │   │   └── ...
 
+metadata/copyright.txt sets the version's copyright; an empty file is skipped.
+The category files directly in metadata/ and a locale or default folder's
+apple_tv_privacy_policy.txt are not imported; non-empty ones are listed in
+skipped with the asc command that sets each value.
+
 App Preview validation requires ffprobe on PATH (provided by FFmpeg).
 Headers must be PNG at 1800 x 1200; previews must be 15-30 seconds.
 By default, dry-run lists local inputs without comparing remote assets.
@@ -188,6 +193,7 @@ Examples:
 			var localizations []FastlaneLocalization
 			var appInfoLocs []AppInfoFastlaneLocalization
 			var reviewInfo *ReviewInformation
+			var copyright string
 			if metadataDir != "" {
 				localeDirs, metadataSkipped, err := scanFastlaneMetadataLocaleDirs(metadataDir)
 				if err != nil {
@@ -208,6 +214,13 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
+
+				var copyrightSkipped []SkippedItem
+				copyright, copyrightSkipped, err = readCopyrightFile(metadataDir)
+				if err != nil {
+					return fmt.Errorf("migrate import: %w", err)
+				}
+				skipped = append(skipped, copyrightSkipped...)
 			}
 			var appClip *AppClipLayout
 			if metadataDir != "" && !*skipAppClip {
@@ -232,6 +245,14 @@ Examples:
 				previews, err = readPreviewLayout(fastlaneRoot)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
+				}
+				outsideDevice, err := storeassets.PreviewsOutsideDeviceFolders(fastlaneRoot)
+				if err != nil {
+					storeassets.ClosePreviews(previews)
+					return fmt.Errorf("migrate import: %w", err)
+				}
+				for _, name := range outsideDevice {
+					skipped = append(skipped, SkippedItem{Path: filepath.Join(fastlaneRoot, name), Reason: "preview video is not in a device folder; asc reads app_previews/<locale>/<device>/<file>"})
 				}
 			}
 
@@ -351,6 +372,7 @@ Examples:
 				MetadataFiles:        metadataFiles,
 				AppInfoFiles:         appInfoFiles,
 				ReviewInformation:    reviewInfo,
+				Copyright:            copyright,
 				ScreenshotPlan:       screenshotPlan,
 				AppClip:              appClip,
 				Previews:             previews,
@@ -472,6 +494,17 @@ Examples:
 				completedStages = append(completedStages, migrateStageReviewInformation)
 			}
 
+			if copyright != "" {
+				copyrightCtx, cancelCopyright := migrateRequestContext(ctx)
+				_, err = client.UpdateAppStoreVersion(copyrightCtx, resolvedVersionID, asc.AppStoreVersionUpdateAttributes{Copyright: &copyright})
+				cancelCopyright()
+				if err != nil {
+					return reportPartialFailure(migrateStageCopyright, fmt.Errorf("migrate import: failed to update copyright: %w", err))
+				}
+				result.CopyrightUpdated = true
+				completedStages = append(completedStages, migrateStageCopyright)
+			}
+
 			screenshotResults, err := uploadScreenshots(ctx, client, resolvedVersionID, localeToID, screenshotPlan)
 			result.ScreenshotResults = screenshotResults
 			if err != nil {
@@ -510,6 +543,7 @@ func migrateImportAppliedAnything(result *MigrateImportResult) bool {
 	return len(result.Uploaded) > 0 ||
 		len(result.AppInfoUploaded) > 0 ||
 		migrateReviewInfoApplied(result.ReviewInfoResult) ||
+		result.CopyrightUpdated ||
 		migrateScreenshotsApplied(result.ScreenshotResults)
 }
 
@@ -561,6 +595,8 @@ func MigrateExportCommand() *ffcli.Command {
 		LongHelp: `Export current App Store metadata to fastlane directory structure.
 
 Creates the standard fastlane structure with all localizations.
+The version's App Review details go to metadata/review_information/ in the
+files import reads; the demo account password is not written.
 
 Examples:
   asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane`,
@@ -611,6 +647,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate export: %w", err)
 				}
+			}
+
+			reviewDetail, err := fetchExportReviewDetail(ctx, client, strings.TrimSpace(*versionID))
+			if err != nil {
+				return fmt.Errorf("migrate export: %w", err)
+			}
+			if reviewDetail != nil && reviewDetail.DemoAccountPassword != "" {
+				fmt.Fprintln(os.Stderr, "Warning: demo account password not exported to metadata/review_information/demo_password.txt")
 			}
 
 			assetPlan, assetWarnings, err := storeassets.ExportPlanWithVersionLocalizations(ctx, client, strings.TrimSpace(*versionID), "metadata", true, true, localizations)
@@ -698,6 +742,12 @@ Examples:
 				}
 			}
 
+			written, err := writeExportReviewInformation(root, reviewDetail)
+			if err != nil {
+				return fmt.Errorf("migrate export: %w", err)
+			}
+			totalFiles += written
+
 			assetFiles, cleanupWarnings, exportErr := assetExport.Write(ctx)
 			for _, warning := range cleanupWarnings {
 				fmt.Fprintln(os.Stderr, "Warning:", warning)
@@ -775,6 +825,7 @@ const (
 	migrateStageVersionLocalizations = "version_localizations"
 	migrateStageAppInfoLocalizations = "app_info_localizations"
 	migrateStageReviewInformation    = "review_information"
+	migrateStageCopyright            = "copyright"
 	migrateStageScreenshots          = "screenshots"
 )
 
@@ -806,6 +857,7 @@ type MigrateImportResult struct {
 	MetadataFiles        []LocalizationFilePlan        `json:"metadataFiles,omitempty"`
 	AppInfoFiles         []LocalizationFilePlan        `json:"appInfoFiles,omitempty"`
 	ReviewInformation    *ReviewInformation            `json:"reviewInformation,omitempty"`
+	Copyright            string                        `json:"copyright,omitempty"`
 	ScreenshotPlan       []ScreenshotPlan              `json:"screenshotPlan,omitempty"`
 	AppClip              *AppClipLayout                `json:"appClip,omitempty"`
 	Previews             []PreviewLayout               `json:"previews,omitempty"`
@@ -813,6 +865,7 @@ type MigrateImportResult struct {
 	Uploaded             []LocalizationUploadItem      `json:"uploaded,omitempty"`
 	AppInfoUploaded      []LocalizationUploadItem      `json:"appInfoUploaded,omitempty"`
 	ReviewInfoResult     *ReviewInfoResult             `json:"reviewInfoResult,omitempty"`
+	CopyrightUpdated     bool                          `json:"copyrightUpdated,omitempty"`
 	ScreenshotResults    []ScreenshotUploadResult      `json:"screenshotResults,omitempty"`
 }
 
@@ -1101,6 +1154,52 @@ type fastlaneLocaleDir struct {
 
 const defaultMetadataDirName = "default"
 
+// appLevelMetadataFiles maps the metadata folder's app-level text files, which
+// import does not apply, to the command that sets each value.
+var appLevelMetadataFiles = map[string]string{
+	"primary_category.txt":              "asc app-setup categories set --app APP_ID --primary CATEGORY_ID",
+	"secondary_category.txt":            "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID",
+	"primary_first_sub_category.txt":    "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-one SUBCATEGORY_ID",
+	"primary_second_sub_category.txt":   "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-two SUBCATEGORY_ID",
+	"secondary_first_sub_category.txt":  "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-one SUBCATEGORY_ID",
+	"secondary_second_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-two SUBCATEGORY_ID",
+}
+
+// readCopyrightFile reads the metadata folder's copyright.txt. An empty file
+// is reported as skipped so it never clears the version's copyright.
+func readCopyrightFile(metadataDir string) (string, []SkippedItem, error) {
+	root, prefix, err := newMigrateContentRoot(metadataDir)
+	if err != nil {
+		return "", nil, err
+	}
+	value, found, err := readOptionalFile(root, filepath.Join(prefix, "copyright.txt"))
+	if err != nil {
+		return "", nil, err
+	}
+	if found && value == "" {
+		return "", []SkippedItem{{Path: filepath.Join(metadataDir, "copyright.txt"), Reason: "copyright.txt is empty; not applied"}}, nil
+	}
+	return value, nil, nil
+}
+
+// localePrivacyPolicyTextFile is a locale folder's privacy policy text, which
+// import does not apply either.
+const localePrivacyPolicyTextFile = "apple_tv_privacy_policy.txt"
+
+// unimportedMetadataFile reports a metadata text file that import does not
+// apply, unless it is missing or empty. An unreadable file is still reported.
+func unimportedMetadataFile(root rootfs.Root, name, displayPath, command string) (SkippedItem, bool) {
+	fileName := filepath.Base(name)
+	reason := fmt.Sprintf("%s is not imported; set it with %s", fileName, command)
+	value, err := readMetadataFile(root, name)
+	if err != nil {
+		reason = fmt.Sprintf("%s is not imported and could not be read; set it with %s", fileName, command)
+	} else if value == "" {
+		return SkippedItem{}, false
+	}
+	return SkippedItem{Path: displayPath, Reason: reason}, true
+}
+
 var localeMetadataFiles = []string{
 	"description.txt", "keywords.txt", "release_notes.txt", "promotional_text.txt",
 	"support_url.txt", "marketing_url.txt", "name.txt", "subtitle.txt", "privacy_url.txt",
@@ -1134,11 +1233,20 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			continue
 		}
 		if !entry.IsDir() {
+			if command, ok := appLevelMetadataFiles[dirName]; ok {
+				if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, dirName), filepath.Join(metadataDir, dirName), command); ok {
+					skipped = append(skipped, item)
+				}
+			}
 			continue
 		}
 
 		if dirName == defaultMetadataDirName {
 			dirs = append(dirs, fastlaneLocaleDir{DirName: dirName, Default: true})
+			policyText := filepath.Join(dirName, localePrivacyPolicyTextFile)
+			if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --app APP_ID --locale LOCALE --privacy-policy-text TEXT"); ok {
+				skipped = append(skipped, item)
+			}
 			continue
 		}
 		if dirName == "review_information" || dirName == "app_clip" {
@@ -1168,6 +1276,10 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			DirName: dirName,
 			Locale:  normalized,
 		})
+		policyText := filepath.Join(dirName, localePrivacyPolicyTextFile)
+		if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --app APP_ID --locale "+normalized+" --privacy-policy-text TEXT"); ok {
+			skipped = append(skipped, item)
+		}
 	}
 
 	if len(dirs) == 1 && dirs[0].Default {
@@ -1438,6 +1550,11 @@ Examples:
 					return fmt.Errorf("migrate validate: %w", err)
 				}
 
+				_, copyrightSkipped, err := readCopyrightFile(metadataDir)
+				if err != nil {
+					return fmt.Errorf("migrate validate: %w", err)
+				}
+				skipped = append(skipped, copyrightSkipped...)
 			}
 			var clip *AppClipLayout
 			if metadataDir != "" {

@@ -296,9 +296,9 @@ func TestRenderReviewDoctorDisclosesWebOnlyCoverage(t *testing.T) {
 		{name: "markdown", markdown: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			output := captureReviewStdout(t, func() {
-				renderReviewDoctor(result, test.markdown)
-			})
+			d, stdout, _ := newReviewTestDeps(nil)
+			renderReviewDoctor(d, result, test.markdown)
+			output := stdout.String()
 			for _, want := range []string{
 				"Coverage Warnings",
 				"review.coverage.app_store_regulations_and_permits",
@@ -312,36 +312,6 @@ func TestRenderReviewDoctorDisclosesWebOnlyCoverage(t *testing.T) {
 			}
 		})
 	}
-}
-
-func captureReviewStdout(t *testing.T, fn func()) string {
-	t.Helper()
-
-	oldStdout := os.Stdout
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stdout pipe: %v", err)
-	}
-	os.Stdout = writer
-	t.Cleanup(func() {
-		os.Stdout = oldStdout
-		_ = reader.Close()
-		_ = writer.Close()
-	})
-
-	done := make(chan []byte, 1)
-	go func() {
-		output, _ := io.ReadAll(reader)
-		done <- output
-	}()
-
-	fn()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stdout writer: %v", err)
-	}
-	os.Stdout = oldStdout
-
-	return string(<-done)
 }
 
 func TestBuildReviewOverviewResultsExposeReviewDetailConfiguredState(t *testing.T) {
@@ -610,10 +580,8 @@ func TestReviewDoctorUsesTimedContextForReadinessReport(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	origBuilder := reviewReadinessReportBuilder
-	origTransport := http.DefaultTransport
 	t.Cleanup(func() {
 		reviewReadinessReportBuilder = origBuilder
-		http.DefaultTransport = origTransport
 	})
 
 	builderCalled := false
@@ -628,7 +596,11 @@ func TestReviewDoctorUsesTimedContextForReadinessReport(t *testing.T) {
 		}, nil
 	}
 
-	http.DefaultTransport = reviewRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	if err := os.WriteFile(keyPath, []byte(os.Getenv("ASC_PRIVATE_KEY")), 0o600); err != nil {
+		t.Fatalf("write test key: %v", err)
+	}
+	transport := reviewRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/appStoreVersions/ver-1":
 			if req.URL.Query().Get("include") != "app" {
@@ -659,7 +631,10 @@ func TestReviewDoctorUsesTimedContextForReadinessReport(t *testing.T) {
 		}
 	})
 
-	cmd := ReviewDoctorCommand()
+	d, _, _ := newReviewTestDeps(func() (*asc.Client, error) {
+		return asc.NewClientWithHTTPClient("KEY_ID", "ISSUER_ID", keyPath, &http.Client{Transport: transport})
+	})
+	cmd := newReviewDoctorCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--app", "123456789", "--version-id", "ver-1"}); err != nil {
 		t.Fatalf("parse flags: %v", err)

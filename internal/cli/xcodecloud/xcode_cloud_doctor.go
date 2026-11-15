@@ -51,7 +51,7 @@ Examples:
   asc xcode-cloud doctor --run-id "BUILD_RUN_ID" --wait --save-logs ./xcode-cloud-logs
   asc xcode-cloud doctor --run-id "BUILD_RUN_ID" --skip-logs --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			runIDValue := strings.TrimSpace(*runID)
 			if runIDValue == "" {

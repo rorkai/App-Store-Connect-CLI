@@ -31,7 +31,7 @@ func newXcodeCloudActionResourceGroupCommand(d *shared.Deps, config xcodeCloudAc
 		ShortHelp:  config.ShortHelp,
 		LongHelp:   config.LongHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			config.List,
 			config.Get,
@@ -78,7 +78,7 @@ func newXcodeCloudActionResourceListCommand(d *shared.Deps, config xcodeCloudAct
 		ShortHelp:  config.ShortHelp,
 		LongHelp:   config.LongHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, config.ErrorPrefix, 200); err != nil {
 				return err

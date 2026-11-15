@@ -29,6 +29,7 @@ type XcodeTestResult struct {
 	DerivedDataPath  string            `json:"derivedDataPath,omitempty"`
 	ResultBundlePath string            `json:"resultBundlePath,omitempty"`
 	Tests            *XcodeTestSummary `json:"tests,omitempty"`
+	Coverage         *XcodeCoverage    `json:"coverage,omitempty"`
 	Clean            bool              `json:"clean"`
 	NoCodeSigning    bool              `json:"noCodeSigning"`
 	Success          bool              `json:"success"`
@@ -72,6 +73,16 @@ type XcodeTestSummary struct {
 	DurationMs       int64              `json:"durationMs"`
 	Cases            []XcodeTestCase    `json:"cases,omitempty"`
 	Failures         []XcodeTestFailure `json:"failures,omitempty"`
+}
+
+// XcodeCoverage is line coverage for a whole test run or, inside Targets,
+// for one target.
+type XcodeCoverage struct {
+	Name            string          `json:"name,omitempty"`
+	LineCoverage    float64         `json:"lineCoverage"`
+	CoveredLines    int             `json:"coveredLines"`
+	ExecutableLines int             `json:"executableLines"`
+	Targets         []XcodeCoverage `json:"targets,omitempty"`
 }
 
 // XcodeTestCase is one parsed Xcode test case.
@@ -153,6 +164,9 @@ func xcodeTestResultRows(result *XcodeTestResult) ([]string, [][]string) {
 			}
 			rows = append(rows, []string{"test_failure", formatXcodeTestFailure(failure)})
 		}
+	}
+	if result.Coverage != nil {
+		rows = append(rows, []string{"line_coverage", fmt.Sprintf("%.2f%% (%d/%d lines)", result.Coverage.LineCoverage*100, result.Coverage.CoveredLines, result.Coverage.ExecutableLines)})
 	}
 	rows = append(
 		rows,

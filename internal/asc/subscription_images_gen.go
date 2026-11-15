@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -71,4 +72,24 @@ func (c *Client) UpdateSubscriptionImageV2(ctx context.Context, imageID string, 
 		Path:    fmt.Sprintf("/v2/subscriptionImages/%s", imageID),
 		Payload: payload,
 	})
+}
+
+// SubscriptionImageV2Option sets the query of GET /v2/subscriptionImages/{id} (subscriptionImagesV2_getInstance) and GET /v1/subscriptionVersions/{id}/image (subscriptionVersions_image_getToOneRelated).
+type SubscriptionImageV2Option func(*subscriptionImageV2Query)
+
+type subscriptionImageV2Query struct {
+	fields []string
+}
+
+// WithSubscriptionImageV2Fields sets fields[subscriptionImages].
+func WithSubscriptionImageV2Fields(fields []string) SubscriptionImageV2Option {
+	return func(q *subscriptionImageV2Query) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildSubscriptionImageV2Query(query *subscriptionImageV2Query) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptionImages]", query.fields)
+	return values.Encode()
 }

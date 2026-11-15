@@ -19,51 +19,61 @@ func TestReviewsUsageErrors(t *testing.T) {
 	runUsageExitCases(t, []usageExitCase{
 		{
 			name:    "reviews respond missing review-id",
+			deps:    true,
 			args:    []string{"reviews", "respond", "--response", "Thanks!"},
 			wantErr: "--review-id is required",
 		},
 		{
 			name:    "reviews respond missing response",
+			deps:    true,
 			args:    []string{"reviews", "respond", "--review-id", "REVIEW_123"},
 			wantErr: "--response is required",
 		},
 		{
 			name:    "reviews without subcommand missing app",
+			deps:    true,
 			args:    []string{"reviews"},
 			wantErr: "--app is required",
 		},
 		{
 			name:    "reviews list missing app",
+			deps:    true,
 			args:    []string{"reviews", "list"},
 			wantErr: "--app is required",
 		},
 		{
 			name:    "reviews list invalid response state",
+			deps:    true,
 			args:    []string{"reviews", "list", "--app", "app-1", "--response-state", "maybe"},
 			wantErr: "--response-state must be one of: any, unresponded, unreplied, responded, replied",
 		},
 		{
 			name:    "reviews list invalid response fields",
+			deps:    true,
 			args:    []string{"reviews", "list", "--app", "app-1", "--response-fields", "bogus"},
 			wantErr: "--response-fields must be a comma-separated list of: responseBody,lastModifiedDate,state,review",
 		},
 		{
 			name:    "reviews response view missing id",
+			deps:    true,
 			args:    []string{"reviews", "response", "view"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "reviews response delete missing id",
+			deps:    true,
 			args:    []string{"reviews", "response", "delete", "--confirm"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "reviews response delete missing confirm",
+			deps:    true,
 			args:    []string{"reviews", "response", "delete", "--id", "RESPONSE_123"},
 			wantErr: "--confirm is required",
 		},
 		{
 			name:    "reviews response for-review missing review-id",
+			deps:    true,
 			args:    []string{"reviews", "response", "for-review"},
 			wantErr: "--review-id is required",
 		},
@@ -162,7 +172,6 @@ func findReviewBatchTestResult(t *testing.T, payload reviewBatchTestOutput, revi
 }
 
 func TestReviewsRespondBatchCreatesGroupedReplies(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	inputPath := writeReviewBatchFile(t, `{
@@ -172,7 +181,6 @@ func TestReviewsRespondBatchCreatesGroupedReplies(t *testing.T) {
 	}`)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "include=response", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [
 			{"type":"customerReviews","id":"review-1","attributes":{"rating":5}},
@@ -185,7 +193,7 @@ func TestReviewsRespondBatchCreatesGroupedReplies(t *testing.T) {
 	reg.Register(asctest.POST("/v1/customerReviewResponses").JSONBody(`{"data":{"type":"customerReviewResponses","attributes":{"responseBody":"Thanks for the feedback."},"relationships":{"review":{"data":{"type":"customerReviews","id":"review-2"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"customerReviewResponses","id":"response-2","attributes":{"responseBody":"Thanks for the feedback.","state":"PENDING_PUBLISH"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--output", "json", "--confirm"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--output", "json", "--confirm")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -231,15 +239,13 @@ func TestReviewsRespondBatchCreatesGroupedReplies(t *testing.T) {
 }
 
 func TestReviewsRespondBatchDryRunDoesNotPost(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	inputPath := writeReviewBatchFile(t, `{"replies":[{"response":"Thanks","reviewIds":["review-1","review-2"]}]}`)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "include=response", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"customerReviews","id":"review-1"},{"type":"customerReviews","id":"review-2"}]}`))
 
-	stdout, stderr, err := runCommand(t, []string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--dry-run", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--dry-run", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -261,12 +267,10 @@ func TestReviewsRespondBatchDryRunDoesNotPost(t *testing.T) {
 }
 
 func TestReviewsRespondBatchSkipExisting(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	inputPath := writeReviewBatchFile(t, `{"replies":[{"response":"Thanks","reviewIds":["review-1","review-2"]}]}`)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "include=response", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[
 		{"type":"customerReviews","id":"review-1","relationships":{"response":{"data":{"type":"customerReviewResponses","id":"existing-response"}}}},
 		{"type":"customerReviews","id":"review-2","relationships":{"response":{"data":null}}}
@@ -274,7 +278,7 @@ func TestReviewsRespondBatchSkipExisting(t *testing.T) {
 	reg.Register(asctest.POST("/v1/customerReviewResponses").JSONBody(`{"data":{"type":"customerReviewResponses","attributes":{"responseBody":"Thanks"},"relationships":{"review":{"data":{"type":"customerReviews","id":"review-2"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"customerReviewResponses","id":"response-2"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--skip-existing", "--output", "json", "--confirm"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--skip-existing", "--output", "json", "--confirm")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -296,12 +300,10 @@ func TestReviewsRespondBatchSkipExisting(t *testing.T) {
 }
 
 func TestReviewsRespondBatchResponseStateUnrespondedSkipsRespondedReviews(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	inputPath := writeReviewBatchFile(t, `{"replies":[{"response":"Thanks","reviewIds":["review-1","review-2"]}]}`)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "include=response", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[
 		{"type":"customerReviews","id":"review-1","relationships":{"response":{"data":{"type":"customerReviewResponses","id":"existing-response"}}}},
 		{"type":"customerReviews","id":"review-2","relationships":{"response":{"data":null}}}
@@ -309,7 +311,7 @@ func TestReviewsRespondBatchResponseStateUnrespondedSkipsRespondedReviews(t *tes
 	reg.Register(asctest.POST("/v1/customerReviewResponses").JSONBody(`{"data":{"type":"customerReviewResponses","attributes":{"responseBody":"Thanks"},"relationships":{"review":{"data":{"type":"customerReviews","id":"review-2"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"customerReviewResponses","id":"response-2"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--response-state", "unresponded", "--output", "json", "--confirm"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--response-state", "unresponded", "--output", "json", "--confirm")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -331,18 +333,14 @@ func TestReviewsRespondBatchResponseStateUnrespondedSkipsRespondedReviews(t *tes
 }
 
 func TestReviewsRespondBatchRejectsOversizedFileWithoutRequests(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	asctest.NewRegistry(t).Install()
 
 	inputPath := writeReviewBatchFile(t, reviewBatchJSONOfSize(t, reviewBatchFileByteLimit+1))
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--confirm"}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--confirm")
+	if code != cmd.ExitUsage {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -353,19 +351,15 @@ func TestReviewsRespondBatchRejectsOversizedFileWithoutRequests(t *testing.T) {
 }
 
 func TestReviewsRespondBatchRejectsOversizedResponseWithoutRequests(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	asctest.NewRegistry(t).Install()
 
 	oversized := `{"replies":[{"response":"` + strings.Repeat("a", reviewBatchResponseByteLimit+1) + `","reviewIds":["review-1"]}]}`
 	inputPath := writeReviewBatchFile(t, oversized)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--dry-run"}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--dry-run")
+	if code != cmd.ExitUsage {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -376,18 +370,14 @@ func TestReviewsRespondBatchRejectsOversizedResponseWithoutRequests(t *testing.T
 }
 
 func TestReviewsRespondBatchRejectsTooManyReviewIDsWithoutRequests(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	asctest.NewRegistry(t).Install()
 
 	inputPath := writeReviewBatchFile(t, reviewBatchJSONWithReviewIDs(t, reviewBatchTargetLimit+1))
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--dry-run"}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--dry-run")
+	if code != cmd.ExitUsage {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -398,7 +388,6 @@ func TestReviewsRespondBatchRejectsTooManyReviewIDsWithoutRequests(t *testing.T)
 }
 
 func TestReviewsRespondBatchDryRunAtReviewIDLimit(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	inputPath := writeReviewBatchFile(t, reviewBatchJSONWithReviewIDs(t, reviewBatchTargetLimit))
@@ -407,10 +396,9 @@ func TestReviewsRespondBatchDryRunAtReviewIDLimit(t *testing.T) {
 		reviews = append(reviews, fmt.Sprintf(`{"type":"customerReviews","id":"review-%d"}`, i))
 	}
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "include=response", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[`+strings.Join(reviews, ",")+`]}`))
 
-	stdout, stderr, err := runCommand(t, []string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--dry-run", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--dry-run", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -499,20 +487,18 @@ func TestReviewsRespondBatchValidationErrors(t *testing.T) {
 				}
 			}
 
-			assertUsageExit(t, args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, args, test.wantErr)
 		})
 	}
 }
 
 func TestReviewsListResponseStateIncludeResponseAndResponseFields(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "exists[publishedResponse]=false", "include=response", "fields[customerReviewResponses]=responseBody,state"), asctest.JSON(http.StatusOK, `{"data":[{"type":"customerReviews","id":"review-1"}]}`))
 
-	stdout, stderr, err := runCommand(t, []string{"reviews", "list", "--app", "app-1", "--response-state", "unreplied", "--include-response", "--response-fields", "responseBody,state", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "reviews", "list", "--app", "app-1", "--response-state", "unreplied", "--include-response", "--response-fields", "responseBody,state", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -534,14 +520,12 @@ func TestReviewsListResponseStateIncludeResponseAndResponseFields(t *testing.T) 
 }
 
 func TestReviewsListOnlyUnrespondedMapsToPublishedResponseFilter(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "exists[publishedResponse]=false"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	stdout, stderr, err := runCommand(t, []string{"reviews", "list", "--app", "app-1", "--only-unresponded", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "reviews", "list", "--app", "app-1", "--only-unresponded", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -555,24 +539,20 @@ func TestReviewsListOnlyUnrespondedMapsToPublishedResponseFilter(t *testing.T) {
 }
 
 func TestRunReviewsRespondBatchPartialFailureReturnsExitError(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	inputPath := writeReviewBatchFile(t, `{"replies":[{"response":"Thanks","reviewIds":["review-1","review-2"]}]}`)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/customerReviews", "include=response", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"customerReviews","id":"review-1"},{"type":"customerReviews","id":"review-2"}]}`))
 	reg.Register(asctest.POST("/v1/customerReviewResponses").JSONBody(`{"data":{"type":"customerReviewResponses","attributes":{"responseBody":"Thanks"},"relationships":{"review":{"data":{"type":"customerReviews","id":"review-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"customerReviewResponses","id":"response-1"}}`))
 	reg.Register(asctest.POST("/v1/customerReviewResponses").JSONBody(`{"data":{"type":"customerReviewResponses","attributes":{"responseBody":"Thanks"},"relationships":{"review":{"data":{"type":"customerReviews","id":"review-2"}}}}}`),
 		asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","title":"Invalid","detail":"review response failed"}]}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--output", "json", "--confirm"}, "1.2.3")
-		if code != cmd.ExitError {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitError, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--output", "json", "--confirm")
+	if code != cmd.ExitError {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitError, code)
+	}
 
 	if want := "Error: reviews respond-batch: 1 review(s) failed\n"; stderr != want {
 		t.Fatalf("stderr = %q, want %q", stderr, want)
@@ -588,15 +568,13 @@ func TestRunReviewsRespondBatchPartialFailureReturnsExitError(t *testing.T) {
 }
 
 func TestReviewsResponseForReviewReturnsNotConfiguredStateWhenUnset(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/customerReviews/review-1/response"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.GET("/v1/customerReviews/review-1"), asctest.JSON(http.StatusOK, `{"data":{"type":"customerReviews","id":"review-1","attributes":{"rating":5,"title":"Great","body":"Loved it"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"reviews", "response", "for-review", "--review-id", "review-1", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "reviews", "response", "for-review", "--review-id", "review-1", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -625,15 +603,13 @@ func TestReviewsResponseForReviewReturnsNotConfiguredStateWhenUnset(t *testing.T
 }
 
 func TestReviewsResponseForReviewPreservesErrorForUnknownReviewID(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/customerReviews/missing-review/response"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.GET("/v1/customerReviews/missing-review"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"reviews", "response", "for-review", "--review-id", "missing-review", "--output", "json"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "reviews", "response", "for-review", "--review-id", "missing-review", "--output", "json")
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")

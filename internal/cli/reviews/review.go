@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// ReviewCommand returns the review parent command.
-func ReviewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review", flag.ExitOnError)
+// NewReviewCommand returns the review parent command.
+func NewReviewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "review",
@@ -39,37 +39,37 @@ Examples:
   asc review items update --id "ITEM_ID" --resolved true
   asc review history --app "123456789"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ReviewStatusCommand(),
-			ReviewDoctorCommand(),
-			ReviewSubmitCommand(),
-			ReviewDetailsGetCommand(),
-			ReviewDetailsForVersionCommand(),
-			ReviewDetailsCreateCommand(),
-			ReviewDetailsUpdateCommand(),
-			ReviewDetailsAttachmentsListCommand(),
-			ReviewDetailsAttachmentsGetCommand(),
-			ReviewDetailsAttachmentsUploadCommand(),
-			ReviewDetailsAttachmentsDeleteCommand(),
-			ReviewHistoryCommand(),
-			ReviewSubmissionsCommand(),
-			ReviewSubmissionsListCommand(),
-			ReviewSubmissionsGetCommand(),
-			ReviewSubmissionsCreateCommand(),
-			ReviewSubmissionsSubmitCommand(),
-			ReviewSubmissionsCancelCommand(),
-			ReviewSubmissionsUpdateCommand(),
-			ReviewSubmissionsItemsIDsCommand(),
-			ReviewItemsCommand(),
-			ReviewItemsListCommand(),
-			ReviewItemsAddCommand(),
-			ReviewItemsUpdateCommand(),
-			ReviewItemsRemoveCommand(),
+			newReviewStatusCommand(d),
+			newReviewDoctorCommand(d),
+			newReviewSubmitCommand(d),
+			newReviewDetailsGetCommand(d),
+			newReviewDetailsForVersionCommand(d),
+			newReviewDetailsCreateCommand(d),
+			newReviewDetailsUpdateCommand(d),
+			newReviewDetailsAttachmentsListCommand(d),
+			newReviewDetailsAttachmentsGetCommand(d),
+			newReviewDetailsAttachmentsUploadCommand(d),
+			newReviewDetailsAttachmentsDeleteCommand(d),
+			newReviewHistoryCommand(d),
+			newReviewSubmissionsCommand(d),
+			newReviewSubmissionsListCommand(d),
+			newReviewSubmissionsGetCommand(d),
+			newReviewSubmissionsCreateCommand(d),
+			newReviewSubmissionsSubmitCommand(d),
+			newReviewSubmissionsCancelCommand(d),
+			newReviewSubmissionsUpdateCommand(d),
+			newReviewSubmissionsItemsIDsCommand(d),
+			newReviewItemsCommand(d),
+			newReviewItemsListCommand(d),
+			newReviewItemsAddCommand(d),
+			newReviewItemsUpdateCommand(d),
+			newReviewItemsRemoveCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 && strings.TrimSpace(args[0]) == "items-get" {
-				return removedReviewItemDetailUsageError("asc review items-get")
+				return removedReviewItemDetailUsageError(d, "asc review items-get")
 			}
 			return flag.ErrHelp
 		},

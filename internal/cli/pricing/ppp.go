@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -14,9 +13,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PricingPPPCommand returns the pricing ppp subcommand.
-func PricingPPPCommand() *ffcli.Command {
+// newPricingPPPCommand returns the pricing ppp subcommand.
+func newPricingPPPCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewPriceSchedulePPPCommand(shared.PriceSchedulePPPCommandConfig{
+		Deps:         d,
 		FlagSetName:  "pricing ppp",
 		ShortUsage:   "asc pricing ppp --app APP_ID --base-price PRICE [flags]",
 		ResourceNoun: "app",
@@ -30,34 +30,34 @@ func PricingPPPCommand() *ffcli.Command {
 			return shared.PriceSchedulePPPResource{
 				Validate: func() error {
 					if shared.ResolveAppID(*appID) == "" {
-						fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+						fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 						return shared.MissingRequiredUsageError("--app")
 					}
 					return nil
 				},
 				Resolve: func(ctx context.Context, client *asc.Client) (shared.PriceSchedulePPPSurface, error) {
-					return appPPPSurface(client, shared.ResolveAppID(*appID)), nil
+					return appPPPSurface(d, client, shared.ResolveAppID(*appID)), nil
 				},
 			}
 		},
 	})
 }
 
-func appPPPSurface(client *asc.Client, appID string) shared.PriceSchedulePPPSurface {
+func appPPPSurface(d *shared.Deps, client *asc.Client, appID string) shared.PriceSchedulePPPSurface {
 	return shared.PriceSchedulePPPSurface{
 		AppID:           appID,
 		LadderBatchSize: 10,
 		ReadSchedule: func(ctx context.Context) (shared.PPPScheduleSnapshot, error) {
-			return readAppPPPSchedule(ctx, client, appID)
+			return readAppPPPSchedule(ctx, d, client, appID)
 		},
 		CurrentPrices: func(ctx context.Context, at time.Time) ([]shared.ResolvedPriceRow, error) {
-			schedule, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppPriceScheduleResponse, error) {
+			schedule, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppPriceScheduleResponse, error) {
 				return client.GetAppPriceSchedule(requestCtx, appID)
 			})
 			if err != nil {
 				return nil, err
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resolved, err := fetchResolvedAppSchedulePrices(requestCtx, client, schedule.Data.ID, "manual", 200, "", at, true)
 			if isAppPriceScheduleNotConfigured(err) {
@@ -69,7 +69,7 @@ func appPPPSurface(client *asc.Client, appID string) shared.PriceSchedulePPPSurf
 			return resolved.Prices, nil
 		},
 		LadderBatch: func(ctx context.Context, territories []string) (map[string][]shared.PriceLadderCandidate, error) {
-			return shared.CollectPricePointsByTerritory(ctx, territories, func(requestCtx context.Context, next string) (*asc.AppPricePointsV3Response, error) {
+			return shared.CollectPricePointsByTerritoryWith(ctx, d, territories, func(requestCtx context.Context, next string) (*asc.AppPricePointsV3Response, error) {
 				if next != "" {
 					return client.GetAppPricePoints(requestCtx, appID, asc.NextURL[asc.PricePointsOption](next))
 				}
@@ -83,7 +83,7 @@ func appPPPSurface(client *asc.Client, appID string) shared.PriceSchedulePPPSurf
 			}, appCustomerPrice)
 		},
 		Equalizations: func(ctx context.Context, pricePointID string) (map[string][]shared.PriceLadderCandidate, error) {
-			return shared.CollectPricePointsByTerritory(ctx, nil, func(requestCtx context.Context, next string) (*asc.AppPricePointsV3Response, error) {
+			return shared.CollectPricePointsByTerritoryWith(ctx, d, nil, func(requestCtx context.Context, next string) (*asc.AppPricePointsV3Response, error) {
 				if next != "" {
 					return client.GetAppPricePointEqualizations(requestCtx, pricePointID, asc.NextURL[asc.PricePointsOption](next))
 				}
@@ -100,7 +100,7 @@ func appPPPSurface(client *asc.Client, appID string) shared.PriceSchedulePPPSurf
 			for _, price := range prices {
 				attrs.Prices = append(attrs.Prices, asc.AppPriceSchedulePrice(price))
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			_, err := client.CreateAppPriceSchedule(requestCtx, appID, attrs)
 			return err

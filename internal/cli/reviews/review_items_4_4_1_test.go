@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestReviewItemsListOptionsValidate441Selections(t *testing.T) {
@@ -26,7 +27,8 @@ func TestReviewItemsListOptionsValidate441Selections(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := reviewItemsListOptions(0, "", test.args[0], test.args[1], test.args[2], test.args[3], test.args[4])
+			d, _, _ := newReviewTestDeps(nil)
+			_, err := reviewItemsListOptions(d, 0, "", test.args[0], test.args[1], test.args[2], test.args[3], test.args[4])
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want containing %q", err, test.want)
 			}
@@ -35,7 +37,8 @@ func TestReviewItemsListOptionsValidate441Selections(t *testing.T) {
 }
 
 func TestReviewItemsListOptionsRejectNextConflicts(t *testing.T) {
-	_, err := reviewItemsListOptions(0, "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-1/items?cursor=next", "subscriptionVersion", "", "", "", "")
+	d, _, _ := newReviewTestDeps(nil)
+	_, err := reviewItemsListOptions(d, 0, "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-1/items?cursor=next", "subscriptionVersion", "", "", "", "")
 	if err == nil || !strings.Contains(err.Error(), "--next cannot be combined") {
 		t.Fatalf("error = %v, want next conflict", err)
 	}
@@ -47,23 +50,23 @@ func TestReviewListNextConflictsUseFlagPresenceBeforeClientFactory(t *testing.T)
 
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 		want    string
 	}{
-		{name: "items zero limit", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--limit", "0"}, want: "--limit"},
-		{name: "items empty fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--fields", ""}, want: "--fields"},
-		{name: "items whitespace include", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--include", "   "}, want: "--include"},
-		{name: "items empty iap fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--iap-version-fields", ""}, want: "--iap-version-fields"},
-		{name: "items whitespace subscription fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--subscription-version-fields", "   "}, want: "--subscription-version-fields"},
-		{name: "items empty group fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--subscription-group-version-fields", ""}, want: "--subscription-group-version-fields"},
-		{name: "submissions true global", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--global"}, want: "--global"},
-		{name: "submissions false global", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--global=false"}, want: "--global"},
-		{name: "submissions empty platform", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--platform", ""}, want: "--platform"},
-		{name: "submissions whitespace state", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--state", "   "}, want: "--state"},
-		{name: "submissions zero limit", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--limit", "0"}, want: "--limit"},
-		{name: "submissions empty item fields", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--item-fields", ""}, want: "--item-fields"},
-		{name: "submissions whitespace include", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--include", "   "}, want: "--include"},
+		{name: "items zero limit", command: newReviewItemsListCommand, args: []string{"--next", itemsNext, "--limit", "0"}, want: "--limit"},
+		{name: "items empty fields", command: newReviewItemsListCommand, args: []string{"--next", itemsNext, "--fields", ""}, want: "--fields"},
+		{name: "items whitespace include", command: newReviewItemsListCommand, args: []string{"--next", itemsNext, "--include", "   "}, want: "--include"},
+		{name: "items empty iap fields", command: newReviewItemsListCommand, args: []string{"--next", itemsNext, "--iap-version-fields", ""}, want: "--iap-version-fields"},
+		{name: "items whitespace subscription fields", command: newReviewItemsListCommand, args: []string{"--next", itemsNext, "--subscription-version-fields", "   "}, want: "--subscription-version-fields"},
+		{name: "items empty group fields", command: newReviewItemsListCommand, args: []string{"--next", itemsNext, "--subscription-group-version-fields", ""}, want: "--subscription-group-version-fields"},
+		{name: "submissions true global", command: newReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--global"}, want: "--global"},
+		{name: "submissions false global", command: newReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--global=false"}, want: "--global"},
+		{name: "submissions empty platform", command: newReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--platform", ""}, want: "--platform"},
+		{name: "submissions whitespace state", command: newReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--state", "   "}, want: "--state"},
+		{name: "submissions zero limit", command: newReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--limit", "0"}, want: "--limit"},
+		{name: "submissions empty item fields", command: newReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--item-fields", ""}, want: "--item-fields"},
+		{name: "submissions whitespace include", command: newReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--include", "   "}, want: "--include"},
 	}
 
 	for _, test := range tests {
@@ -73,12 +76,9 @@ func TestReviewListNextConflictsUseFlagPresenceBeforeClientFactory(t *testing.T)
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
 			}
-			restoreItems := SetReviewItemsClientFactory(poisonFactory)
-			restoreSubmissions := SetReviewSubmissionsClientFactory(poisonFactory)
-			defer restoreItems()
-			defer restoreSubmissions()
+			d, _, _ := newReviewTestDeps(poisonFactory)
 
-			err := test.command().ParseAndRun(context.Background(), test.args)
+			err := test.command(d).ParseAndRun(context.Background(), test.args)
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want usage error containing %q", err, test.want)
 			}
@@ -92,17 +92,17 @@ func TestReviewListNextConflictsUseFlagPresenceBeforeClientFactory(t *testing.T)
 func TestReviewSubmissionsValidateIncludeBeforeAuth(t *testing.T) {
 	tests := []struct {
 		name string
-		cmd  *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 		args []string
 	}{
 		{
 			name: "list invalid include",
-			cmd:  ReviewSubmissionsListCommand(),
+			cmd:  newReviewSubmissionsListCommand,
 			args: []string{"--global", "--app", "app-1", "--include", "invalid"},
 		},
 		{
 			name: "detail invalid include",
-			cmd:  ReviewSubmissionsGetCommand(),
+			cmd:  newReviewSubmissionsGetCommand,
 			args: []string{"--id", "submission-1", "--include", "invalid"},
 		},
 	}
@@ -110,13 +110,12 @@ func TestReviewSubmissionsValidateIncludeBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+			d, _, _ := newReviewTestDeps(func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
 			})
-			defer restore()
 
-			err := test.cmd.ParseAndRun(context.Background(), test.args)
+			err := test.cmd(d).ParseAndRun(context.Background(), test.args)
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "--include must be one of") {
 				t.Fatalf("error = %v, want include usage error", err)
 			}
@@ -167,13 +166,12 @@ func TestReviewItemsAddRejectsRemovedItemTypesBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := SetReviewItemsClientFactory(func() (*asc.Client, error) {
+			d, _, _ := newReviewTestDeps(func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
 			})
-			defer restore()
 
-			err := ReviewItemsAddCommand().ParseAndRun(context.Background(), []string{
+			err := newReviewItemsAddCommand(d).ParseAndRun(context.Background(), []string{
 				"--submission", "submission-1",
 				"--item-type", test.itemType,
 				"--item-id", "item-1",
@@ -203,16 +201,13 @@ func TestReviewItemsUpdateValidatesSchemaFlagsBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := SetReviewItemsClientFactory(func() (*asc.Client, error) {
+			d, _, stderrBuffer := newReviewTestDeps(func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
 			})
-			defer restore()
 
-			var err error
-			stderr := captureReviewDiagnosticStderr(t, func() {
-				err = ReviewItemsUpdateCommand().ParseAndRun(context.Background(), test.args)
-			})
+			err := newReviewItemsUpdateCommand(d).ParseAndRun(context.Background(), test.args)
+			stderr := stderrBuffer.String()
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "Error: "+test.want) {
 				t.Fatalf("error = %v, stderr = %q, want usage error printing %q", err, stderr, test.want)
 			}
@@ -236,13 +231,12 @@ func TestReviewSubmissionItemIDsRejectOpaqueNextConflictsAndPositionals(t *testi
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+			d, _, _ := newReviewTestDeps(func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
 			})
-			defer restore()
 
-			err := ReviewSubmissionsItemsIDsCommand().ParseAndRun(context.Background(), test.args)
+			err := newReviewSubmissionsItemsIDsCommand(d).ParseAndRun(context.Background(), test.args)
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want usage error containing %q", err, test.want)
 			}
@@ -256,24 +250,23 @@ func TestReviewSubmissionItemIDsRejectOpaqueNextConflictsAndPositionals(t *testi
 func TestReviewSubmissionMutationsRejectPositionalsBeforeAuth(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
-		{name: "create", command: ReviewSubmissionsCreateCommand, args: []string{"--app", "app-1", "unexpected"}},
-		{name: "update", command: ReviewSubmissionsUpdateCommand, args: []string{"--id", "sub-1", "--canceled", "true", "unexpected"}},
-		{name: "submit", command: ReviewSubmissionsSubmitCommand, args: []string{"--id", "sub-1", "--confirm", "unexpected"}},
-		{name: "cancel", command: ReviewSubmissionsCancelCommand, args: []string{"--id", "sub-1", "--confirm", "unexpected"}},
+		{name: "create", command: newReviewSubmissionsCreateCommand, args: []string{"--app", "app-1", "unexpected"}},
+		{name: "update", command: newReviewSubmissionsUpdateCommand, args: []string{"--id", "sub-1", "--canceled", "true", "unexpected"}},
+		{name: "submit", command: newReviewSubmissionsSubmitCommand, args: []string{"--id", "sub-1", "--confirm", "unexpected"}},
+		{name: "cancel", command: newReviewSubmissionsCancelCommand, args: []string{"--id", "sub-1", "--confirm", "unexpected"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+			d, _, _ := newReviewTestDeps(func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
 			})
-			defer restore()
 
-			err := test.command().ParseAndRun(context.Background(), test.args)
+			err := test.command(d).ParseAndRun(context.Background(), test.args)
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "unexpected positional arguments") {
 				t.Fatalf("error = %v, want positional usage error", err)
 			}

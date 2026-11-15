@@ -31,11 +31,12 @@ func TestPresentableReviewDetailRedactsUnlessRequested(t *testing.T) {
 }
 
 func TestReviewDetailCommandsExposeIncludeSensitiveFlag(t *testing.T) {
+	d, _, _ := newReviewTestDeps(nil)
 	commands := map[string]*ffcli.Command{
-		"details-get":         ReviewDetailsGetCommand(),
-		"details-for-version": ReviewDetailsForVersionCommand(),
-		"details-create":      ReviewDetailsCreateCommand(),
-		"details-update":      ReviewDetailsUpdateCommand(),
+		"details-get":         newReviewDetailsGetCommand(d),
+		"details-for-version": newReviewDetailsForVersionCommand(d),
+		"details-create":      newReviewDetailsCreateCommand(d),
+		"details-update":      newReviewDetailsUpdateCommand(d),
 	}
 
 	for name, cmd := range commands {

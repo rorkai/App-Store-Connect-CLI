@@ -8,9 +8,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AnalyticsCommand returns the analytics command with subcommands.
-func AnalyticsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("analytics", flag.ExitOnError)
+// NewAnalyticsCommand returns the analytics command with subcommands.
+func NewAnalyticsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("analytics", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "analytics",
@@ -30,15 +30,15 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AnalyticsSalesCommand(),
-			AnalyticsRequestCommand(),
-			AnalyticsRequestsCommand(),
-			AnalyticsViewCommand(),
-			AnalyticsReportsCommand(),
-			AnalyticsInstancesCommand(),
-			AnalyticsSegmentsCommand(),
-			AnalyticsDownloadCommand(),
-			AnalyticsCompareCommand(),
+			newAnalyticsSalesCommand(d),
+			newAnalyticsRequestCommand(d),
+			newAnalyticsRequestsCommand(d),
+			newAnalyticsViewCommand(d),
+			newAnalyticsReportsCommand(d),
+			newAnalyticsInstancesCommand(d),
+			newAnalyticsSegmentsCommand(d),
+			newAnalyticsDownloadCommand(d),
+			newAnalyticsCompareCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

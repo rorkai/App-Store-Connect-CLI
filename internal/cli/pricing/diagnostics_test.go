@@ -75,15 +75,17 @@ func TestPricingScheduleCreateInvalidInputExposesStructuredDiagnostics(t *testin
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := PricingScheduleCreateCommand()
+			d, stdout, stderrBuf := newTestDeps(nil)
+			command := newPricingScheduleCreateCommand(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}
 
-			var err error
-			stderr := capturePricingStderr(t, func() {
-				err = command.Exec(context.Background(), nil)
-			})
+			err := command.Exec(context.Background(), nil)
+			stderr := stderrBuf.String()
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
 			if err == nil {
 				t.Fatal("expected error")
 			}

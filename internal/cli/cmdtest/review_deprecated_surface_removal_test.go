@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"strings"
 	"testing"
 
@@ -68,11 +66,10 @@ func TestReviewRemovedItemCommandsProvideMigrationGuidance(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "4.0.0"); code != cmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -113,9 +110,6 @@ func TestReviewItemsAddRejectsRemovedItemTypesWithMigrationGuidance(t *testing.T
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
 			args := append(
 				append([]string{}, test.command...),
 				"--submission", "SUBMISSION_ID",
@@ -123,15 +117,10 @@ func TestReviewItemsAddRejectsRemovedItemTypesWithMigrationGuidance(t *testing.T
 				"--item-id", "ITEM_ID",
 			)
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -164,11 +153,10 @@ func TestReviewItemsGroupRejectsUnknownSubcommands(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "4.0.0"); code != cmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

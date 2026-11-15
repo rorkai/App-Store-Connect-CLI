@@ -59,18 +59,16 @@ func TestReviewStatusAndDoctorValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
 
 func TestReviewStatusShowsCurrentReviewState(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -109,7 +107,7 @@ func TestReviewStatusShowsCurrentReviewState(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -143,12 +141,10 @@ func TestReviewStatusShowsCurrentReviewState(t *testing.T) {
 }
 
 func TestReviewStatusUsesGenericNextActionForUnhandledSubmissionState(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -187,7 +183,7 @@ func TestReviewStatusUsesGenericNextActionForUnhandledSubmissionState(t *testing
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -210,12 +206,10 @@ func TestReviewStatusUsesGenericNextActionForUnhandledSubmissionState(t *testing
 }
 
 func TestReviewStatusExplainsCompleteSubmissionWithOnlyRemovedItems(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -272,7 +266,7 @@ func TestReviewStatusExplainsCompleteSubmissionWithOnlyRemovedItems(t *testing.T
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -316,12 +310,10 @@ func TestReviewStatusExplainsCompleteSubmissionWithOnlyRemovedItems(t *testing.T
 }
 
 func TestReviewStatusIgnoresUnrelatedActiveSubmissionItems(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -391,7 +383,7 @@ func TestReviewStatusIgnoresUnrelatedActiveSubmissionItems(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -435,12 +427,10 @@ func TestReviewStatusIgnoresUnrelatedActiveSubmissionItems(t *testing.T) {
 }
 
 func TestReviewStatusFiltersSubmissionsToSelectedVersion(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2", "include=app"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"appStoreVersions",
@@ -506,7 +496,7 @@ func TestReviewStatusFiltersSubmissionsToSelectedVersion(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789", "--version-id", "ver-2"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789", "--version-id", "ver-2")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -543,12 +533,10 @@ func TestReviewStatusFiltersSubmissionsToSelectedVersion(t *testing.T) {
 }
 
 func TestReviewStatusPaginatesSubmissionsToSelectedVersion(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2", "include=app"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"appStoreVersions",
@@ -617,7 +605,7 @@ func TestReviewStatusPaginatesSubmissionsToSelectedVersion(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789", "--version-id", "ver-2"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789", "--version-id", "ver-2")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -647,12 +635,10 @@ func TestReviewStatusPaginatesSubmissionsToSelectedVersion(t *testing.T) {
 }
 
 func TestReviewStatusPaginatesVersionsBeforeSelectingLatestTarget(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -694,7 +680,7 @@ func TestReviewStatusPaginatesVersionsBeforeSelectingLatestTarget(t *testing.T) 
 	}`))
 	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -730,12 +716,10 @@ func TestReviewStatusPaginatesVersionsBeforeSelectingLatestTarget(t *testing.T) 
 }
 
 func TestReviewStatusPrefersNewestSubmissionForSelectedVersion(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2", "include=app"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"appStoreVersions",
@@ -801,7 +785,7 @@ func TestReviewStatusPrefersNewestSubmissionForSelectedVersion(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789", "--version-id", "ver-2"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789", "--version-id", "ver-2")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -828,7 +812,6 @@ func TestReviewStatusPrefersNewestSubmissionForSelectedVersion(t *testing.T) {
 }
 
 func TestReviewStatusAndDoctorRejectVersionIDFromDifferentApp(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
@@ -849,7 +832,6 @@ func TestReviewStatusAndDoctorRejectVersionIDFromDifferentApp(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/appStoreVersions/ver-1", "include=app"), asctest.JSON(http.StatusOK, `{
 				"data":{
 					"type":"appStoreVersions",
@@ -859,7 +841,7 @@ func TestReviewStatusAndDoctorRejectVersionIDFromDifferentApp(t *testing.T) {
 				}
 			}`))
 
-			stdout, stderr, runErr := runCommand(t, test.args)
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), test.args...)
 
 			if runErr == nil {
 				t.Fatal("expected version/app mismatch error")

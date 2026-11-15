@@ -264,6 +264,16 @@ func TestVersionsReleaseAttributeValidationBeforeAuth(t *testing.T) {
 			args: []string{"versions", "create", "--app", "app-1", "--version", "1.0", "--earliest-release-date", "2026-02-01"},
 			want: "Error: versions create: --earliest-release-date must be an RFC3339 timestamp",
 		},
+		{
+			name: "create date with a non-scheduled release type",
+			args: []string{"versions", "create", "--app", "app-1", "--version", "1.0", "--release-type", "MANUAL", "--earliest-release-date", "2026-02-01T08:00:00+00:00"},
+			want: "Error: versions create: --earliest-release-date requires --release-type SCHEDULED, got --release-type MANUAL",
+		},
+		{
+			name: "update date with a non-scheduled release type",
+			args: []string{"versions", "update", "--version-id", "version-1", "--release-type", "after_approval", "--earliest-release-date", "2026-02-01T08:00:00+00:00"},
+			want: "Error: versions update: --earliest-release-date requires --release-type SCHEDULED, got --release-type AFTER_APPROVAL",
+		},
 	}
 
 	for _, test := range tests {
@@ -289,6 +299,8 @@ func TestVersionsReleaseAttributeValidationBeforeAuth(t *testing.T) {
 	}
 }
 
+const scheduledReleaseTypeNotice = "Warning: release type set to SCHEDULED because --earliest-release-date was given\n"
+
 func TestVersionsReleaseTypePayloads(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -297,6 +309,7 @@ func TestVersionsReleaseTypePayloads(t *testing.T) {
 		path                string
 		responseID          string
 		earliestReleaseDate string
+		wantStderr          string
 	}{
 		{
 			name:       "create",
@@ -312,6 +325,24 @@ func TestVersionsReleaseTypePayloads(t *testing.T) {
 			path:                "/v1/appStoreVersions",
 			responseID:          "version-new",
 			earliestReleaseDate: "2026-02-01T08:00:00+00:00",
+		},
+		{
+			name:                "create with only earliest release date",
+			args:                []string{"versions", "create", "--app", "app-1", "--version", "2.0", "--earliest-release-date", "2026-02-01T08:00:00+00:00", "--output", "json"},
+			method:              http.MethodPost,
+			path:                "/v1/appStoreVersions",
+			responseID:          "version-new",
+			earliestReleaseDate: "2026-02-01T08:00:00+00:00",
+			wantStderr:          scheduledReleaseTypeNotice,
+		},
+		{
+			name:                "update with only earliest release date",
+			args:                []string{"versions", "update", "--version-id", "version-1", "--earliest-release-date", "2026-02-01T08:00:00+00:00", "--output", "json"},
+			method:              http.MethodPatch,
+			path:                "/v1/appStoreVersions/version-1",
+			responseID:          "version-1",
+			earliestReleaseDate: "2026-02-01T08:00:00+00:00",
+			wantStderr:          scheduledReleaseTypeNotice,
 		},
 		{
 			name:       "update",
@@ -391,8 +422,8 @@ func TestVersionsReleaseTypePayloads(t *testing.T) {
 			if result.ID != test.responseID {
 				t.Fatalf("response id = %q, want %q", result.ID, test.responseID)
 			}
-			if stderr != "" {
-				t.Fatalf("stderr = %q, want empty", stderr)
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
 			}
 			if err := <-requestErr; err != nil {
 				t.Fatal(err)

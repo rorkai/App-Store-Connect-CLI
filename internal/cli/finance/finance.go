@@ -29,7 +29,7 @@ Examples:
   asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12"
   asc finance regions --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newFinanceReportsCommand(d),
 			newFinanceRegionsCommand(d),
@@ -99,7 +99,7 @@ Examples:
   # Save to custom path
   asc finance reports --vendor "12345678" --report-type FINANCIAL --region "US" --date "2025-12" --output "reports/finance.tsv.gz"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
 				return err
@@ -213,7 +213,7 @@ Examples:
   asc finance regions
   asc finance regions --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			result := &asc.FinanceRegionsResult{Regions: asc.FinanceRegions()}
 			return d.PrintOutput(result, *output.Output, *output.Pretty)

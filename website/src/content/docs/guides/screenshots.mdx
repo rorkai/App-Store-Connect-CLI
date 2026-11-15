@@ -309,6 +309,11 @@ prints. The app must already be installed on that simulator.
 | `key_sequence` | `keycodes` |
 | `wait` | `duration_ms` |
 | `wait_for` | `label`, `id`, or `contains`; optional `timeout_ms` and `poll_interval_ms` |
+| `long_press` | `label`, `id`, or `x` and `y`; optional `duration_ms`, 1 to 10000 (default 1000) |
+| `button` | `button`: `apple-pay`, `home`, `lock`, `side-button`, or `siri`; optional `duration_ms`, 1 to 10000 |
+| `pinch` | `scale`, above 0 and not 1 (above 1 zooms in); optional `x` and `y` (default: the screen centre) and `radius` |
+| `rotate` | `x`, `y`, `radius`, and `degrees`, -360 to 360, not 0 (clockwise) |
+| `double_tap` | `x` and `y` |
 | `screenshot` | `name`, the file name without `.png` |
 
 Run the plan:

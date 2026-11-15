@@ -2,14 +2,11 @@ package cmdtest
 
 import (
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAnalyticsPaginateFromNext(t *testing.T) {
@@ -18,37 +15,39 @@ func TestAnalyticsPaginateFromNext(t *testing.T) {
 			args:     []string{"analytics", "requests"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/123456789/analyticsReportRequests?cursor=AQ&limit=200",
 			dataType: "analyticsReportRequests",
+			deps:     true,
 		},
 		{
 			args:     []string{"analytics", "requests", "--app", "123456789"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/123456789/analyticsReportRequests?cursor=AQ&limit=200",
 			dataType: "analyticsReportRequests",
+			deps:     true,
 		},
 		{
 			args:     []string{"analytics", "instances", "links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/analyticsReportInstances/instance-1/relationships/segments?cursor=AQ&limit=200",
 			dataType: "analyticsReportSegments",
+			deps:     true,
 		},
 		{
 			args:     []string{"analytics", "reports", "links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/analyticsReports/report-1/relationships/instances?cursor=AQ&limit=200",
 			dataType: "analyticsReportInstances",
+			deps:     true,
 		},
 	})
 }
 
 func TestAnalyticsReportsRelationshipsAcceptsPrefixedReportID(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const reportID = "r39-11111111-1111-1111-1111-111111111111"
 	const expectedPath = "/v1/analyticsReports/" + reportID + "/relationships/instances"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET(expectedPath), asctest.JSON(http.StatusOK, `{"data":[{"type":"analyticsReportInstances","id":"inst-1"}],"links":{}}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"analytics", "reports", "links", "--report-id", reportID})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "analytics", "reports", "links", "--report-id", reportID)
 
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
@@ -72,7 +71,6 @@ func TestAnalyticsViewPaginateFromNextFollowsReportPages(t *testing.T) {
 
 func testAnalyticsViewPaginateFromNext(t *testing.T, requestArgs ...string) {
 	t.Helper()
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const (
@@ -95,20 +93,7 @@ func testAnalyticsViewPaginateFromNext(t *testing.T, requestArgs ...string) {
 	reg.Register(asctest.GET("/v1/analyticsReportRequests/"+analyticsUsageExitRequestID+"/reports", "cursor=BQ", "limit=200"), asctest.JSON(http.StatusOK, bodies[secondReportsURL]))
 	reg.Register(asctest.GET("/v1/analyticsReports/analytics-report-next-1/instances", "limit=200"), asctest.JSON(http.StatusOK, bodies[firstInstancesURL]))
 	reg.Register(asctest.GET("/v1/analyticsReports/analytics-report-next-2/instances", "limit=200"), asctest.JSON(http.StatusOK, bodies[secondInstancesURL]))
-	client, err := asc.NewClientWithHTTPClient(
-		"TEST_KEY",
-		"TEST_ISSUER",
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: reg},
-	)
-	if err != nil {
-		t.Fatalf("create analytics pagination test client: %v", err)
-	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	}))
-
-	stdout, stderr, err := runCommand(t, append([]string{"analytics", "view", "--paginate", "--next", firstReportsURL}, requestArgs...))
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), append([]string{"analytics", "view", "--paginate", "--next", firstReportsURL}, requestArgs...)...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

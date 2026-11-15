@@ -35,7 +35,7 @@ Examples:
   asc encryption documents view --id "DOC_ID"
   asc encryption documents upload --declaration "DECL_ID" --file ./export.pdf`,
 		FlagSet:   d.NewFlagSet("encryption", flag.ExitOnError),
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newEncryptionDeclarationsCommand(d),
 			newEncryptionDocumentsCommand(d),
@@ -60,7 +60,7 @@ Examples:
   asc encryption declarations exempt-declare --plist ./Info.plist
   asc encryption declarations assign-builds --id "DECL_ID" --build-id "BUILD_ID"`,
 		FlagSet:   d.NewFlagSet("declarations", flag.ExitOnError),
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newEncryptionDeclarationsListCommand(d),
 			newEncryptionDeclarationsGetCommand(d),
@@ -224,7 +224,7 @@ func newEncryptionDeclarationsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc encryption declarations create --app "APP_ID" --app-description "Uses TLS" --contains-proprietary-cryptography=false --contains-third-party-cryptography=true --available-on-french-store=true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -303,7 +303,7 @@ Examples:
   asc encryption declarations exempt-declare
   asc encryption declarations exempt-declare --plist ./MyApp/Info.plist`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			visited := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) {
@@ -500,7 +500,7 @@ Examples:
   asc encryption declarations assign-builds --id "DECL_ID" --build-id "BUILD_ID"
   asc encryption declarations assign-builds --id "DECL_ID" --build-id "BUILD_ID1,BUILD_ID2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			declarationValue := strings.TrimSpace(*declarationID)
 			if declarationValue == "" {
@@ -547,7 +547,7 @@ Examples:
   asc encryption documents view --id "DOC_ID"
   asc encryption documents upload --declaration "DECL_ID" --file ./export.pdf`,
 		FlagSet:   d.NewFlagSet("documents", flag.ExitOnError),
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newEncryptionDocumentsGetCommand(d),
 			newEncryptionDocumentsUploadCommand(d),
@@ -605,7 +605,7 @@ func newEncryptionDocumentsUploadCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc encryption documents upload --declaration "DECL_ID" --file ./export.pdf`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			declarationValue := strings.TrimSpace(*declarationID)
 			if declarationValue == "" {

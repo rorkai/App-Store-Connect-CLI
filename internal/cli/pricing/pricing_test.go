@@ -1,22 +1,23 @@
 package pricing
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestPricingPricePointsCommand_MissingApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	cmd := PricingPricePointsCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingPricePointsCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -28,7 +29,8 @@ func TestPricingPricePointsCommand_MissingApp(t *testing.T) {
 }
 
 func TestPricingPricePointsGetCommand_MissingPricePoint(t *testing.T) {
-	cmd := PricingPricePointsGetCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingPricePointsGetCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -40,7 +42,8 @@ func TestPricingPricePointsGetCommand_MissingPricePoint(t *testing.T) {
 }
 
 func TestPricingScheduleManualPricesCommand_MissingSchedule(t *testing.T) {
-	cmd := PricingScheduleManualPricesCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingScheduleManualPricesCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -52,7 +55,8 @@ func TestPricingScheduleManualPricesCommand_MissingSchedule(t *testing.T) {
 }
 
 func TestPricingScheduleAutomaticPricesCommand_MissingSchedule(t *testing.T) {
-	cmd := PricingScheduleAutomaticPricesCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingScheduleAutomaticPricesCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -66,13 +70,14 @@ func TestPricingScheduleAutomaticPricesCommand_MissingSchedule(t *testing.T) {
 func TestPricingSchedulePriceCommands_HelpMentionsResolved(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		cmd  func() *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 	}{
-		{name: "manual", cmd: PricingScheduleManualPricesCommand},
-		{name: "automatic", cmd: PricingScheduleAutomaticPricesCommand},
+		{name: "manual", cmd: newPricingScheduleManualPricesCommand},
+		{name: "automatic", cmd: newPricingScheduleAutomaticPricesCommand},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := tc.cmd()
+			d, _, _ := newTestDeps(nil)
+			cmd := tc.cmd(d)
 			if cmd.FlagSet.Lookup("resolved") == nil {
 				t.Fatalf("expected --resolved flag")
 			}
@@ -97,7 +102,8 @@ func TestPricingScheduleCreateCommand_MissingFlags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := PricingScheduleCreateCommand()
+			d, _, _ := newTestDeps(nil)
+			cmd := newPricingScheduleCreateCommand(d)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
@@ -110,7 +116,8 @@ func TestPricingScheduleCreateCommand_MissingFlags(t *testing.T) {
 }
 
 func TestPricingScheduleCreateCommand_MutuallyExclusivePriceInputs(t *testing.T) {
-	cmd := PricingScheduleCreateCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingScheduleCreateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "APP",
@@ -132,7 +139,8 @@ func TestPricingScheduleCreateCommand_InvalidPriceValue(t *testing.T) {
 
 	for _, value := range tests {
 		t.Run(value, func(t *testing.T) {
-			cmd := PricingScheduleCreateCommand()
+			d, _, _ := newTestDeps(nil)
+			cmd := newPricingScheduleCreateCommand(d)
 
 			if err := cmd.FlagSet.Parse([]string{
 				"--app", "APP",
@@ -151,7 +159,8 @@ func TestPricingScheduleCreateCommand_InvalidPriceValue(t *testing.T) {
 }
 
 func TestPricingScheduleCreateCommand_InvalidDate(t *testing.T) {
-	cmd := PricingScheduleCreateCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingScheduleCreateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--app", "APP", "--price-point", "PP", "--base-territory", "USA", "--start-date", "invalid"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -167,7 +176,8 @@ func TestPricingScheduleCreateCommand_InvalidDate(t *testing.T) {
 }
 
 func TestPricingScheduleCreateCommand_HelpMentionsFreeExample(t *testing.T) {
-	cmd := PricingScheduleCreateCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingScheduleCreateCommand(d)
 
 	if !strings.Contains(cmd.LongHelp, "--free") {
 		t.Fatalf("expected --free example in long help, got %q", cmd.LongHelp)
@@ -182,7 +192,8 @@ func TestPricingScheduleCreateCommand_HelpMentionsFreeExample(t *testing.T) {
 
 func TestPricingAvailabilityTerritoryAvailabilitiesCommand_MissingAvailability(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	cmd := PricingAvailabilityTerritoryAvailabilitiesCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingAvailabilityTerritoryAvailabilitiesCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -208,7 +219,8 @@ func TestPricingAvailabilitySetCommand_MissingFlags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := PricingAvailabilitySetCommand()
+			d, _, _ := newTestDeps(nil)
+			cmd := newPricingAvailabilitySetCommand(d)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
@@ -218,33 +230,6 @@ func TestPricingAvailabilitySetCommand_MissingFlags(t *testing.T) {
 			}
 		})
 	}
-}
-
-func capturePricingStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	originalStderr := os.Stderr
-	os.Stderr = writer
-	defer func() {
-		os.Stderr = originalStderr
-	}()
-
-	fn()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	output, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return string(output)
 }
 
 func TestPricingAvailabilityCreateCommand_MissingFlags(t *testing.T) {
@@ -265,25 +250,28 @@ func TestPricingAvailabilityCreateCommand_MissingFlags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := PricingAvailabilityCreateCommand()
+			d, stdout, stderr := newTestDeps(nil)
+			cmd := newPricingAvailabilityCreateCommand(d)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
-			stderr := capturePricingStderr(t, func() {
-				if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected flag.ErrHelp, got %v", err)
-				}
-			})
-			if !strings.Contains(stderr, test.wantStderr) {
-				t.Fatalf("expected stderr to contain %q, got %q", test.wantStderr, stderr)
+			if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+			if !strings.Contains(stderr.String(), test.wantStderr) {
+				t.Fatalf("expected stderr to contain %q, got %q", test.wantStderr, stderr.String())
 			}
 		})
 	}
 }
 
 func TestPricingAvailabilitySetCommand_HasAvailableInNewTerritoriesFlag(t *testing.T) {
-	cmd := PricingAvailabilitySetCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingAvailabilitySetCommand(d)
 
 	if f := cmd.FlagSet.Lookup("available-in-new-territories"); f == nil {
 		t.Fatal("expected --available-in-new-territories flag to be defined")
@@ -292,7 +280,8 @@ func TestPricingAvailabilitySetCommand_HasAvailableInNewTerritoriesFlag(t *testi
 
 func TestPricingAvailabilityCommandRegistersSubcommands(t *testing.T) {
 	registered := map[string]bool{}
-	for _, subcommand := range PricingAvailabilityCommand().Subcommands {
+	d, _, _ := newTestDeps(nil)
+	for _, subcommand := range newPricingAvailabilityCommand(d).Subcommands {
 		registered[subcommand.Name] = true
 	}
 	for _, name := range []string{"create", "remove-from-sale", "platforms"} {
@@ -305,34 +294,33 @@ func TestPricingAvailabilityCommandRegistersSubcommands(t *testing.T) {
 func TestPricingAvailabilityRemoveFromSaleCommand_MissingConfirmBeforeAuth(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	called := false
-	originalFactory := pricingAvailabilityClientFactory
-	pricingAvailabilityClientFactory = func() (*asc.Client, error) {
+	d, stdout, stderr := newTestDeps(func() (*asc.Client, error) {
 		called = true
 		return nil, errors.New("unexpected auth")
-	}
-	t.Cleanup(func() { pricingAvailabilityClientFactory = originalFactory })
-
-	cmd := PricingAvailabilityRemoveFromSaleCommand()
+	})
+	cmd := newPricingAvailabilityRemoveFromSaleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "APP"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	stderr := capturePricingStderr(t, func() {
-		err := cmd.Exec(context.Background(), nil)
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected flag.ErrHelp, got %v", err)
-		}
-	})
+	err := cmd.Exec(context.Background(), nil)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", err)
+	}
 	if called {
 		t.Fatal("client factory called before --confirm validation")
 	}
-	if !strings.Contains(stderr, "--confirm is required") {
-		t.Fatalf("expected confirmation diagnostic, got %q", stderr)
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "--confirm is required") {
+		t.Fatalf("expected confirmation diagnostic, got %q", stderr.String())
 	}
 }
 
 func TestPricingAvailabilitySetCommand_HelpMentionsAllTerritories(t *testing.T) {
-	cmd := PricingAvailabilitySetCommand()
+	d, _, _ := newTestDeps(nil)
+	cmd := newPricingAvailabilitySetCommand(d)
 
 	if !strings.Contains(cmd.LongHelp, "--all-territories") {
 		t.Fatalf("expected --all-territories example in long help, got %q", cmd.LongHelp)
@@ -342,28 +330,29 @@ func TestPricingAvailabilitySetCommand_HelpMentionsAllTerritories(t *testing.T) 
 func TestPricingCommands_DefaultOutputJSON(t *testing.T) {
 	commands := []*struct {
 		name string
-		cmd  func() *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 	}{
-		{"current", PricingCurrentCommand},
-		{"territories list", PricingTerritoriesListCommand},
-		{"tiers", PricingTiersCommand},
-		{"price-points", PricingPricePointsCommand},
-		{"price-points get", PricingPricePointsGetCommand},
-		{"price-points equalizations", PricingPricePointsEqualizationsCommand},
-		{"schedule get", PricingScheduleGetCommand},
-		{"schedule create", PricingScheduleCreateCommand},
-		{"schedule manual-prices", PricingScheduleManualPricesCommand},
-		{"schedule automatic-prices", PricingScheduleAutomaticPricesCommand},
-		{"availability get", PricingAvailabilityGetCommand},
-		{"availability create", PricingAvailabilityCreateCommand},
-		{"availability territory-availabilities", PricingAvailabilityTerritoryAvailabilitiesCommand},
-		{"availability set", PricingAvailabilitySetCommand},
-		{"availability remove-from-sale", PricingAvailabilityRemoveFromSaleCommand},
+		{"current", newPricingCurrentCommand},
+		{"territories list", newPricingTerritoriesListCommand},
+		{"tiers", newPricingTiersCommand},
+		{"price-points", newPricingPricePointsCommand},
+		{"price-points get", newPricingPricePointsGetCommand},
+		{"price-points equalizations", newPricingPricePointsEqualizationsCommand},
+		{"schedule get", newPricingScheduleGetCommand},
+		{"schedule create", newPricingScheduleCreateCommand},
+		{"schedule manual-prices", newPricingScheduleManualPricesCommand},
+		{"schedule automatic-prices", newPricingScheduleAutomaticPricesCommand},
+		{"availability get", newPricingAvailabilityGetCommand},
+		{"availability create", newPricingAvailabilityCreateCommand},
+		{"availability territory-availabilities", newPricingAvailabilityTerritoryAvailabilitiesCommand},
+		{"availability set", newPricingAvailabilitySetCommand},
+		{"availability remove-from-sale", newPricingAvailabilityRemoveFromSaleCommand},
 	}
 
 	for _, tc := range commands {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := tc.cmd()
+			d, _, _ := newTestDeps(nil)
+			cmd := tc.cmd(d)
 			f := cmd.FlagSet.Lookup("output")
 			if f == nil {
 				t.Fatalf("expected --output flag to be defined")
@@ -374,4 +363,12 @@ func TestPricingCommands_DefaultOutputJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+func newTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
+	var stdout, stderr bytes.Buffer
+	return &shared.Deps{
+		Client: client,
+		IO:     &shared.IO{Out: &stdout, ErrOut: &stderr},
+	}, &stdout, &stderr
 }

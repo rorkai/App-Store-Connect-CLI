@@ -30,7 +30,7 @@ Examples:
   asc nominations update --id "NOMINATION_ID" --submitted=false --notes "Updated notes"
   asc nominations delete --id "NOMINATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newNominationsListCommand(d),
 			newNominationsGetCommand(d),
@@ -289,7 +289,7 @@ Examples:
   asc nominations create --app "APP_ID" --name "Launch" --type APP_LAUNCH --description "New launch" --submitted=false --publish-start-date "2026-02-01T08:00:00Z"
   asc nominations create --app "APP_ID" --name "Update" --type APP_ENHANCEMENTS --description "Major update" --submitted=true --publish-start-date "2026-03-01T08:00:00Z" --publish-end-date "2026-04-01T08:00:00Z"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			visited := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) {
@@ -445,7 +445,7 @@ Examples:
   asc nominations update --id "NOMINATION_ID" --submitted=false --type NEW_CONTENT --publish-start-date "2026-03-01T08:00:00Z"
   asc nominations update --id "NOMINATION_ID" --archived=true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*nominationID)
 			if trimmedID == "" {

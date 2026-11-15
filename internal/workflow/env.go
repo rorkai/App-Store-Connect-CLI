@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +16,10 @@ import (
 )
 
 var shellWaitDelay = 5 * time.Second
+
+// bash evaluates BASH_ENV for non-interactive shells; never inherit or allow
+// callers to provide it because workflow params and env are untrusted input.
+const bashEnvKey = "BASH_ENV"
 
 var (
 	lookPathFn       = exec.LookPath
@@ -48,14 +53,63 @@ func isTruthy(value string) bool {
 	}
 }
 
+var (
+	errUnsupportedStepIf = errors.New("use NAME, $NAME, NAME == VALUE, or NAME != VALUE")
+	stepIfName           = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
+
+// evalStepIf reports whether a step's `if` passes. NAME or $NAME tests the
+// variable for a truthy value; NAME == VALUE and NAME != VALUE compare its
+// value, or "" when unset, with a literal. Step env wins over process env.
+func evalStepIf(expr string, env map[string]string) (bool, error) {
+	lookup := func(operand string) (string, error) {
+		name := strings.TrimSpace(operand)
+		if val, ok := env[name]; ok {
+			return val, nil
+		}
+		if val, ok := os.LookupEnv(name); ok {
+			return val, nil
+		}
+		name = strings.TrimPrefix(name, "$")
+		if !stepIfName.MatchString(name) {
+			return "", errUnsupportedStepIf
+		}
+		if val, ok := env[name]; ok {
+			return val, nil
+		}
+		return os.Getenv(name), nil
+	}
+
+	op := strings.Index(expr, "==")
+	if neq := strings.Index(expr, "!="); neq >= 0 && (op < 0 || neq < op) {
+		op = neq
+	}
+	if op < 0 {
+		val, err := lookup(expr)
+		return isTruthy(val), err
+	}
+	val, err := lookup(expr[:op])
+	if err != nil {
+		return false, err
+	}
+	literal := strings.TrimSpace(expr[op+2:])
+	if n := len(literal); n >= 2 && (literal[0] == '"' || literal[0] == '\'') && literal[n-1] == literal[0] {
+		quote := literal[:1]
+		literal = literal[1 : n-1]
+		if strings.Contains(literal, quote) {
+			return false, errUnsupportedStepIf
+		}
+	} else if strings.ContainsAny(literal, " \t\n\r=!<>&|") {
+		return false, errUnsupportedStepIf
+	}
+	return (val == literal) == (expr[op] == '='), nil
+}
+
 // buildEnvSlice creates a []string for exec.Cmd.Env by overlaying the
 // tracks env map onto os.Environ().
 func buildEnvSlice(env map[string]string) []string {
 	base := os.Environ()
 
-	// bash evaluates BASH_ENV for non-interactive shells; never inherit or allow
-	// callers to provide it because workflow params and env are untrusted input.
-	const bashEnvKey = "BASH_ENV"
 	sanitized := make([]string, 0, len(base))
 	for _, entry := range base {
 		if strings.HasPrefix(entry, bashEnvKey+"=") {
@@ -223,6 +277,45 @@ func resetShellCacheForTest() {
 	defer cachedShellMu.Unlock()
 	cachedShellName = ""
 	cachedShellFlags = nil
+}
+
+// LoadEnvFiles reads KEY=VALUE files in order; a later file overrides an
+// earlier one. Errors name the file and line but never include line content,
+// because values are often secrets.
+func LoadEnvFiles(paths []string) (map[string]string, error) {
+	env := make(map[string]string)
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read env file: %w", err)
+		}
+		for i, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			if rest, ok := strings.CutPrefix(line, "export"); ok && rest != "" && (rest[0] == ' ' || rest[0] == '\t') {
+				line = strings.TrimSpace(rest)
+			}
+			key, value, ok := strings.Cut(line, "=")
+			if !ok {
+				return nil, fmt.Errorf("env file %s:%d: expected KEY=VALUE", path, i+1)
+			}
+			key = strings.TrimSpace(key)
+			if !stepIfName.MatchString(key) {
+				return nil, fmt.Errorf("env file %s:%d: invalid variable name", path, i+1)
+			}
+			if key == bashEnvKey {
+				return nil, fmt.Errorf("env file %s:%d: %s cannot be set from an env file", path, i+1, bashEnvKey)
+			}
+			value = strings.TrimSpace(value)
+			if n := len(value); n >= 2 && (value[0] == '"' || value[0] == '\'') && value[n-1] == value[0] {
+				value = value[1 : n-1]
+			}
+			env[key] = value
+		}
+	}
+	return env, nil
 }
 
 // ParseParams converts CLI arguments in KEY:VALUE or KEY=VALUE format to a map.

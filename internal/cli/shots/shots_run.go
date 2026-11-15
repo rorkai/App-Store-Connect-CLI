@@ -28,9 +28,18 @@ func ShotsRunCommand() *ffcli.Command {
 		LongHelp: `Run a deterministic screenshot automation sequence.
 
 By default it loads .asc/screenshots.json from the current project root.
-Supported actions: launch, tap, type, key_sequence, wait, wait_for (polling), scroll, swipe, screenshot.
+Supported actions: launch, tap, type, key_sequence, wait, wait_for (polling), scroll, swipe, long_press, button, pinch, rotate, double_tap, screenshot.
 scroll takes direction up, down, left, or right, the way the finger moves: up drags the content up to show what is below it.
-scroll and swipe need AXe 2.0 or later.`,
+long_press takes label, id, or x and y, and duration_ms from 1 to 10000 (default 1000).
+button takes button apple-pay, home, lock, side-button, or siri, and optional duration_ms from 1 to 10000.
+pinch takes scale above 0 and not 1 (above 1 zooms in), and optional x and y (default: the screen centre) and radius.
+rotate takes x, y, radius, and degrees from -360 to 360, not 0 (clockwise).
+double_tap takes x and y; it does not accept label or id.
+scroll and swipe need AXe 2.0 or later.
+Set defaults.status_bar to screenshot, low-battery, no-service, or charging to
+override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).
+When the run ends, every status bar override on that simulator is cleared,
+including any that were set before the run.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

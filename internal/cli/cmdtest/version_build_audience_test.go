@@ -35,6 +35,8 @@ func TestAppStoreLatestSelectionAudience(t *testing.T) {
 						return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`)
 					case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appStoreVersions" && isReleasedVersionStateQuery(req.URL.Query()):
 						return jsonResponse(http.StatusOK, `{"data":[]}`)
+					case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appInfos":
+						return jsonResponse(http.StatusOK, submitPreflightAppInfosJSON("123456789", completeAgeRatingAttributes))
 					case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/subscriptionGroups":
 						return jsonResponse(http.StatusOK, `{"data":[]}`)
 					case req.Method == http.MethodGet && (req.URL.Path == "/v1/appStoreVersions/version-1/build" || req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission"):
@@ -46,7 +48,13 @@ func TestAppStoreLatestSelectionAudience(t *testing.T) {
 			if strings.HasSuffix(mode, "-wait") {
 				args = append(args, "--wait", "--timeout", "1s", "--poll-interval", "1ms")
 			}
-			code, stdout, stderr := runVersionBuildSelector(t, flow, args...)
+			var code int
+			var stdout, stderr string
+			if strings.HasPrefix(mode, "review-dry-run") {
+				stdout, stderr, code = runWithDeps(t, stubClient(t, flow), args...)
+			} else {
+				code, stdout, stderr = runVersionBuildSelector(t, flow, args...)
+			}
 			if code != rootcmd.ExitSuccess {
 				t.Fatalf("code=%d stderr=%q", code, stderr)
 			}

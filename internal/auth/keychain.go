@@ -317,6 +317,20 @@ func LoadValidatedPrivateKey(path string) (*ecdsa.PrivateKey, error) {
 }
 
 func loadValidatedPrivateKeyForOS(path, goos string) (*ecdsa.PrivateKey, error) {
+	data, err := readValidatedKeyFileForOS(path, goos)
+	if err != nil {
+		return nil, err
+	}
+	return LoadPrivateKeyFromPEM(data)
+}
+
+// ReadValidatedKeyFile reads a file holding private key material after the
+// same checks ValidateKeyFile applies before it parses a key file.
+func ReadValidatedKeyFile(path string) ([]byte, error) {
+	return readValidatedKeyFileForOS(path, runtime.GOOS)
+}
+
+func readValidatedKeyFileForOS(path, goos string) ([]byte, error) {
 	if info, err := os.Lstat(path); err == nil && info.IsDir() {
 		return nil, newPrivateKeyError(PrivateKeyInvalidFormat, errors.New("private key path is a directory"))
 	}
@@ -341,7 +355,7 @@ func loadValidatedPrivateKeyForOS(path, goos string) (*ecdsa.PrivateKey, error) 
 	if err != nil {
 		return nil, newPrivateKeyError(privateKeyAccessErrorKind(err), fmt.Errorf("failed to read key file: %w", err))
 	}
-	return LoadPrivateKeyFromPEM(data)
+	return data, nil
 }
 
 // LoadPrivateKey loads the private key from the file
@@ -398,11 +412,6 @@ func LoadPrivateKeyFromPEM(data []byte) (*ecdsa.PrivateKey, error) {
 
 // StoreCredentialsWithKeyType stores credentials with an explicit App Store Connect key type.
 func StoreCredentialsWithKeyType(name, keyID, issuerID, keyPath, keyType string) error {
-	originalName := name
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return fmt.Errorf("credential name is required")
-	}
 	payload := credentialPayload{
 		KeyID:          keyID,
 		IssuerID:       issuerID,
@@ -412,17 +421,102 @@ func StoreCredentialsWithKeyType(name, keyID, issuerID, keyPath, keyType string)
 	if privateKeyPEM, err := loadPrivateKeyPEMForStorage(keyPath); err == nil && strings.TrimSpace(privateKeyPEM) != "" {
 		payload.PrivateKeyPEM = privateKeyPEM
 	}
+	return storeCredentialPayload(name, payload, storeInConfig)
+}
+
+// StoreCredentialsPEMWithKeyType stores credentials whose private key is PEM
+// text rather than a file. The keychain keeps the PEM itself. When the
+// credentials go to a config file instead, the PEM is written to the keys
+// directory beside it and its path is returned; otherwise the path is empty.
+func StoreCredentialsPEMWithKeyType(name, keyID, issuerID, privateKeyPEM, keyType string) (string, error) {
+	payload := credentialPayload{
+		KeyID:         keyID,
+		IssuerID:      issuerID,
+		PrivateKeyPEM: privateKeyPEM,
+		KeyType:       normalizedStoredKeyType(keyType),
+	}
+	writtenPath := ""
+	err := storeCredentialPayload(name, payload, func(name string, payload credentialPayload) error {
+		_, configPath, err := loadDefaultNameConfig()
+		if err != nil && !errors.Is(err, config.ErrNotFound) {
+			return err
+		}
+		writtenPath, err = storePEMInConfigAt(name, payload, configPath)
+		return err
+	})
+	return writtenPath, err
+}
+
+// StoreCredentialsPEMConfigAtWithKeyType stores credentials whose private key
+// is PEM text in the specified config file, writing the PEM to the keys
+// directory beside it, and returns the path of that key file.
+func StoreCredentialsPEMConfigAtWithKeyType(name, keyID, issuerID, privateKeyPEM, configPath, keyType string) (string, error) {
+	return storePEMInConfigAt(name, credentialPayload{
+		KeyID:         keyID,
+		IssuerID:      issuerID,
+		PrivateKeyPEM: privateKeyPEM,
+		KeyType:       normalizedStoredKeyType(keyType),
+	}, configPath)
+}
+
+// storePEMInConfigAt writes the payload's PEM to the directory auth
+// export-to-config uses by default and stores that path in configPath. A key
+// file this call created is removed again when the config cannot be saved.
+func storePEMInConfigAt(name string, payload credentialPayload, configPath string) (string, error) {
+	keyDir, err := resolveMigrationPrivateKeyDir("", configPath)
+	if err != nil {
+		return "", err
+	}
+	fileName := migrationPrivateKeyFilename(strings.TrimSpace(name), payload.KeyID)
+	keyPath := filepath.Join(keyDir, fileName)
+	existed := false
+	if file, err := rootfs.OpenFile(keyPath); err == nil {
+		existed = true
+		_ = file.Close()
+	}
+	if err := writePrivateKeyPEMFile(keyDir, fileName, payload.PrivateKeyPEM); err != nil {
+		return "", err
+	}
+	payload.PrivateKeyPath = keyPath
+	if err := storeInConfigAt(name, payload, configPath); err != nil {
+		if !existed {
+			err = errors.Join(err, removeCreatedPrivateKeyFile(keyDir, fileName))
+		}
+		return "", err
+	}
+	return keyPath, nil
+}
+
+func removeCreatedPrivateKeyFile(keyDir, fileName string) error {
+	root, err := rootfs.New(keyDir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	identity, err := root.CaptureFile(fileName)
+	if err != nil {
+		return err
+	}
+	return root.RemoveFileIfSameIdentity(fileName, identity)
+}
+
+func storeCredentialPayload(name string, payload credentialPayload, storeConfig func(string, credentialPayload) error) error {
+	originalName := name
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("credential name is required")
+	}
 	currentAvailable, legacyAvailable, err := rejectNormalizedCredentialCollision(originalName, name)
 	if err != nil {
 		return err
 	}
 	if !currentAvailable {
-		return storeInConfig(name, payload)
+		return storeConfig(name, payload)
 	}
 	previousCanonical, previousCanonicalFound, err := currentKeychainItem(name)
 	if err != nil {
 		if isKeyringUnavailable(err) {
-			return storeInConfig(name, payload)
+			return storeConfig(name, payload)
 		}
 		return err
 	}
@@ -444,7 +538,7 @@ func StoreCredentialsWithKeyType(name, keyID, issuerID, keyPath, keyType string)
 		return err
 	}
 
-	return storeInConfig(name, payload)
+	return storeConfig(name, payload)
 }
 
 func currentKeychainItem(name string) (keyring.Item, bool, error) {

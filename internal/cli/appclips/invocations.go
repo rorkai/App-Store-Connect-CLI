@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,11 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var appClipsClientFactory = shared.GetASCClient
-
-// AppClipInvocationsCommand returns the invocations command group.
-func AppClipInvocationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("invocations", flag.ExitOnError)
+// newAppClipInvocationsCommand returns the invocations command group.
+func newAppClipInvocationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("invocations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "invocations",
@@ -31,12 +28,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppClipInvocationsListCommand(),
-			AppClipInvocationsGetCommand(),
-			AppClipInvocationsCreateCommand(),
-			AppClipInvocationsUpdateCommand(),
-			AppClipInvocationsDeleteCommand(),
-			AppClipInvocationLocalizationsCommand(),
+			newAppClipInvocationsListCommand(d),
+			newAppClipInvocationsGetCommand(d),
+			newAppClipInvocationsCreateCommand(d),
+			newAppClipInvocationsUpdateCommand(d),
+			newAppClipInvocationsDeleteCommand(d),
+			newAppClipInvocationLocalizationsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -44,15 +41,15 @@ Examples:
 	}
 }
 
-// AppClipInvocationsListCommand lists beta App Clip invocations for a build bundle.
-func AppClipInvocationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newAppClipInvocationsListCommand lists beta App Clip invocations for a build bundle.
+func newAppClipInvocationsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	buildBundleID := fs.String("build-bundle-id", "", "Build bundle ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -66,21 +63,21 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-clips invocations list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips invocations list", 200); err != nil {
 				return err
 			}
 
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--build-bundle-id")
+				return d.RequiredFlag("--build-bundle-id")
 			}
 
-			client, err := appClipsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips invocations list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaAppClipInvocationsOption{
@@ -93,9 +90,9 @@ Examples:
 				firstPage, err := client.GetBuildBundleBetaAppClipInvocations(requestCtx, buildBundleValue, paginateOpts...)
 				if err != nil {
 					if asc.IsNotFound(err) {
-						fmt.Fprintln(os.Stderr, "No invocations found.")
+						fmt.Fprintln(d.IO.ErrOut, "No invocations found.")
 						empty := &asc.BetaAppClipInvocationsResponse{Data: []asc.Resource[asc.BetaAppClipInvocationAttributes]{}}
-						return shared.PrintOutput(empty, *output.Output, *output.Pretty)
+						return d.PrintOutput(empty, *output.Output, *output.Pretty)
 					}
 					return fmt.Errorf("app-clips invocations list: failed to fetch: %w", err)
 				}
@@ -107,29 +104,26 @@ Examples:
 					return fmt.Errorf("app-clips invocations list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBuildBundleBetaAppClipInvocations(requestCtx, buildBundleValue, opts...)
 			if err != nil {
 				if asc.IsNotFound(err) {
-					fmt.Fprintln(os.Stderr, "No invocations found.")
+					fmt.Fprintln(d.IO.ErrOut, "No invocations found.")
 					empty := &asc.BetaAppClipInvocationsResponse{Data: []asc.Resource[asc.BetaAppClipInvocationAttributes]{}}
-					return shared.PrintOutput(empty, *output.Output, *output.Pretty)
+					return d.PrintOutput(empty, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("app-clips invocations list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipInvocationsGetCommand gets a beta App Clip invocation by ID.
-func AppClipInvocationsGetCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return appClipsClientFactory() }
-
+// newAppClipInvocationsGetCommand gets a beta App Clip invocation by ID.
+func newAppClipInvocationsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc app-clips invocations view --invocation-id \"INVOCATION_ID\"",
@@ -149,16 +143,16 @@ Examples:
 	})
 }
 
-// AppClipInvocationsCreateCommand creates a beta App Clip invocation.
-func AppClipInvocationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newAppClipInvocationsCreateCommand creates a beta App Clip invocation.
+func newAppClipInvocationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	buildBundleID := fs.String("build-bundle-id", "", "Build bundle ID")
 	url := fs.String("url", "", "Invocation URL")
 	localizationIDs := shared.BindOnceCSVFlag(fs, "localization-id", "Existing localization ID(s), comma-separated")
 	locale := fs.String("locale", "", "Inline localization locale (use with --title)")
 	title := fs.String("title", "", "Inline localization title (use with --locale)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -176,23 +170,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
-				return shared.RequiredFlag("--build-bundle-id")
+				return d.RequiredFlag("--build-bundle-id")
 			}
 
 			urlValue := strings.TrimSpace(*url)
 			if urlValue == "" {
-				return shared.RequiredFlag("--url")
+				return d.RequiredFlag("--url")
 			}
 
 			localizationValues := shared.SplitCSV(localizationIDs.String())
 			localeValue := strings.TrimSpace(*locale)
 			titleValue := strings.TrimSpace(*title)
 			if titleValue != "" && localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required when --title is set")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --locale is required when --title is set")
 				return shared.MissingRequiredUsageError("--locale")
 			}
 			if localeValue != "" && titleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --title is required when --locale is set")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --title is required when --locale is set")
 				return shared.MissingRequiredUsageError("--title")
 			}
 
@@ -204,16 +198,16 @@ Examples:
 				})
 			}
 			if len(localizationValues) == 0 && len(inlineLocalizations) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: provide --localization-id or both --locale and --title")
+				fmt.Fprintln(d.IO.ErrOut, "Error: provide --localization-id or both --locale and --title")
 				return flag.ErrHelp
 			}
 
-			client, err := appClipsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips invocations create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.BetaAppClipInvocationCreateAttributes{URL: urlValue}
@@ -222,15 +216,13 @@ Examples:
 				return fmt.Errorf("app-clips invocations create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipInvocationsUpdateCommand updates a beta App Clip invocation.
-func AppClipInvocationsUpdateCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return appClipsClientFactory() }
+// newAppClipInvocationsUpdateCommand updates a beta App Clip invocation.
+func newAppClipInvocationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.BetaAppClipInvocationUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -253,11 +245,8 @@ Examples:
 	})
 }
 
-// AppClipInvocationsDeleteCommand deletes a beta App Clip invocation.
-func AppClipInvocationsDeleteCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return appClipsClientFactory() }
-
+// newAppClipInvocationsDeleteCommand deletes a beta App Clip invocation.
+func newAppClipInvocationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc app-clips invocations delete --invocation-id \"INVOCATION_ID\" --confirm",

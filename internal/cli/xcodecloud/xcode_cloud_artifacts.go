@@ -31,7 +31,7 @@ Examples:
   asc xcode-cloud artifacts view --id "ARTIFACT_ID"
   asc xcode-cloud artifacts download --id "ARTIFACT_ID" --path ./artifact.zip`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newXcodeCloudArtifactsListCommand(d),
 			newXcodeCloudArtifactsGetCommand(d),
@@ -67,7 +67,7 @@ Examples:
   asc xcode-cloud artifacts list --action-id "ACTION_ID" --limit 50
   asc xcode-cloud artifacts list --action-id "ACTION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "xcode-cloud artifacts list", 200); err != nil {
 				return err
@@ -140,7 +140,7 @@ Examples:
   asc xcode-cloud artifacts download --id "ARTIFACT_ID" --path ./artifact.zip
   asc xcode-cloud artifacts download --id "ARTIFACT_ID" --path ./artifact.zip --overwrite`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

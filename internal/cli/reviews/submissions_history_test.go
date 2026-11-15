@@ -82,7 +82,8 @@ func TestDeriveOutcome(t *testing.T) {
 }
 
 func TestReviewHistoryCommand_MissingApp(t *testing.T) {
-	cmd := ReviewHistoryCommand()
+	d, _, _ := newReviewTestDeps(nil)
+	cmd := newReviewHistoryCommand(d)
 	if cmd.Name != "history" {
 		t.Fatalf("unexpected command name: %s", cmd.Name)
 	}
@@ -100,7 +101,8 @@ func TestReviewHistoryCommand_MissingApp(t *testing.T) {
 }
 
 func TestReviewHistoryCommand_InvalidLimit(t *testing.T) {
-	cmd := ReviewHistoryCommand()
+	d, _, _ := newReviewTestDeps(nil)
+	cmd := newReviewHistoryCommand(d)
 	t.Setenv("ASC_APP_ID", "test-app")
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
@@ -114,7 +116,8 @@ func TestReviewHistoryCommand_InvalidLimit(t *testing.T) {
 }
 
 func TestReviewHistoryCommand_InvalidPlatform(t *testing.T) {
-	cmd := ReviewHistoryCommand()
+	d, _, _ := newReviewTestDeps(nil)
+	cmd := newReviewHistoryCommand(d)
 	t.Setenv("ASC_APP_ID", "test-app")
 
 	err := cmd.ParseAndRun(context.Background(), []string{"--platform", "NOT_A_REAL_PLATFORM"})
@@ -127,7 +130,8 @@ func TestReviewHistoryCommand_InvalidPlatform(t *testing.T) {
 }
 
 func TestReviewHistoryCommand_InvalidState(t *testing.T) {
-	cmd := ReviewHistoryCommand()
+	d, _, _ := newReviewTestDeps(nil)
+	cmd := newReviewHistoryCommand(d)
 	t.Setenv("ASC_APP_ID", "test-app")
 
 	err := cmd.ParseAndRun(context.Background(), []string{"--state", "NOT_A_REAL_STATE"})
@@ -376,8 +380,10 @@ func TestFetchReviewSubmissions_PaginateDetectsRepeatedNextURL(t *testing.T) {
 	})
 
 	client := newTestHistoryClient(t, transport)
+	d, _, _ := newReviewTestDeps(nil)
 	_, _, err := fetchReviewSubmissions(
 		context.Background(),
+		d,
 		client,
 		"app-1",
 		[]asc.ReviewSubmissionsOption{
@@ -437,8 +443,10 @@ func TestFetchReviewSubmissions_PaginateAnnotatesIncludedParseErrorWithPage(t *t
 	})
 
 	client := newTestHistoryClient(t, transport)
+	d, _, _ := newReviewTestDeps(nil)
 	_, _, err := fetchReviewSubmissions(
 		context.Background(),
+		d,
 		client,
 		"app-1",
 		[]asc.ReviewSubmissionsOption{
@@ -582,7 +590,8 @@ func TestPrintHistoryTable_NoError(t *testing.T) {
 			Items:         []SubmissionHistoryItem{{ID: "i1", State: "APPROVED", Type: "appStoreVersion", ResourceID: "v1"}},
 		},
 	}
-	err := printHistoryTable(entries)
+	d, _, _ := newReviewTestDeps(nil)
+	err := printHistoryTable(d, entries)
 	if err != nil {
 		t.Fatalf("printHistoryTable error: %v", err)
 	}

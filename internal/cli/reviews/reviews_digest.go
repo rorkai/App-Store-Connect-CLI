@@ -39,16 +39,15 @@ type reviewDigestRelationships struct {
 	} `json:"response"`
 }
 
-// ReviewsDigestCommand returns the reviews digest subcommand.
-func ReviewsDigestCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("digest", flag.ExitOnError)
+func newReviewsDigestCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("digest", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	since := fs.String("since", "", "Cursor: include reviews created after this RFC3339 timestamp or YYYY-MM-DD date (UTC); with --state-file, used only when the file does not exist")
 	stateFile := fs.String("state-file", "", "Path to a JSON state file holding the cursor ({\"cursor\":\"<RFC3339>\"})")
 	writeState := fs.Bool("write-state", false, "After the digest prints, write the newest review date to --state-file")
 	lowest := fs.Int("lowest", 5, "Number of lowest-rated reviews to include")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "digest",
@@ -94,39 +93,39 @@ Each attempt starts from the committed cursor, or the explicit initial date:
     mv next-cursor.json reviews-cursor.json
   )`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if *lowest < 0 {
-				return shared.WithDiagnostic(shared.UsageError("--lowest must be 0 or greater"), shared.DiagnosticInvalidInput, "--lowest")
+				return shared.WithDiagnostic(d.UsageError("--lowest must be 0 or greater"), shared.DiagnosticInvalidInput, "--lowest")
 			}
 			path := strings.TrimSpace(*stateFile)
 			if *writeState && path == "" {
-				return shared.WithDiagnostic(shared.UsageError("--write-state requires --state-file"), shared.DiagnosticRequiredInputMissing, "--state-file")
+				return shared.WithDiagnostic(d.UsageError("--write-state requires --state-file"), shared.DiagnosticRequiredInputMissing, "--state-file")
 			}
 			var sinceTime time.Time
 			if strings.TrimSpace(*since) != "" {
 				parsed, err := parseReviewDigestSince(*since)
 				if err != nil {
-					return shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--since")
+					return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--since")
 				}
 				sinceTime = parsed
 			}
 
-			cursor, source, err := resolveReviewDigestCursor(path, sinceTime)
+			cursor, source, err := resolveReviewDigestCursor(d, path, sinceTime)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("reviews digest: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			result, err := buildReviewDigest(requestCtx, client, resolvedAppID, cursor, *lowest)
@@ -135,7 +134,7 @@ Each attempt starts from the committed cursor, or the explicit initial date:
 			}
 			result.CursorSource = source
 
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if *writeState {
@@ -159,7 +158,7 @@ func parseReviewDigestSince(value string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("--since must be an RFC3339 timestamp or YYYY-MM-DD date")
 }
 
-func resolveReviewDigestCursor(path string, since time.Time) (time.Time, string, error) {
+func resolveReviewDigestCursor(d *shared.Deps, path string, since time.Time) (time.Time, string, error) {
 	if path != "" {
 		data, exists, err := readReviewDigestState(path)
 		if err != nil {
@@ -177,11 +176,11 @@ func resolveReviewDigestCursor(path string, since time.Time) (time.Time, string,
 			return cursor, "stateFile", nil
 		}
 		if since.IsZero() {
-			return time.Time{}, "", shared.WithDiagnostic(shared.UsageError("--since is required when --state-file does not exist"), shared.DiagnosticRequiredInputMissing, "--since")
+			return time.Time{}, "", shared.WithDiagnostic(d.UsageError("--since is required when --state-file does not exist"), shared.DiagnosticRequiredInputMissing, "--since")
 		}
 	}
 	if since.IsZero() {
-		return time.Time{}, "", shared.WithDiagnostic(shared.UsageError("--since or --state-file is required"), shared.DiagnosticRequiredInputMissing, "--since")
+		return time.Time{}, "", shared.WithDiagnostic(d.UsageError("--since or --state-file is required"), shared.DiagnosticRequiredInputMissing, "--since")
 	}
 	return since, "since", nil
 }

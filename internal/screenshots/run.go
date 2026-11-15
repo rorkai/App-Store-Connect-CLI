@@ -45,7 +45,7 @@ func runPlanWithRoot(ctx context.Context, plan *Plan, outputRoot rootfs.Root) (*
 	return runPlan(ctx, plan, &outputRoot)
 }
 
-func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (*RunResult, error) {
+func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *RunResult, runErr error) {
 	if plan == nil {
 		return nil, fmt.Errorf("plan is required")
 	}
@@ -58,7 +58,7 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (*RunRe
 		udid = "booted"
 	}
 	for _, step := range plan.Steps {
-		if StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
+		if plan.Defaults.StatusBar != "" || StepAction(strings.TrimSpace(strings.ToLower(string(step.Action)))) != ActionWait {
 			resolved, err := resolveSimulatorUDID(ctx, udid)
 			if err != nil {
 				return nil, err
@@ -92,6 +92,19 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (*RunRe
 		Steps:     make([]RunStepResult, 0, len(plan.Steps)),
 	}
 	terminateRunningProcess := plan.App.terminateRunningProcess
+
+	if preset := plan.Defaults.StatusBar; preset != "" {
+		if err := runExternal(ctx, "axe", "settings", "status-bar", "preset", preset, "--udid", udid); err != nil {
+			return nil, fmt.Errorf("apply status bar preset %q: %w", preset, err)
+		}
+		defer func() {
+			clearCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), matrixSubprocessTimeout)
+			defer cancel()
+			if clearErr := runExternal(clearCtx, "axe", "settings", "status-bar", "clear", "--udid", udid); clearErr != nil {
+				runErr = errors.Join(runErr, fmt.Errorf("clear status bar overrides: %w", clearErr))
+			}
+		}()
+	}
 
 	for i, step := range plan.Steps {
 		start := time.Now()
@@ -138,6 +151,41 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 		return runExternal(ctx, "xcrun", args...)
 	case ActionTap:
 		return runTapStep(ctx, step, udid)
+	case ActionLongPress:
+		holdMS := 1000
+		if step.DurationMS != nil {
+			holdMS = *step.DurationMS
+		}
+		return runTapStep(ctx, step, udid, "--hold", formatFloat(float64(holdMS)/1000))
+	case ActionButton:
+		args := []string{"button", stringValue(step.Button)}
+		if step.DurationMS != nil {
+			args = append(args, "--duration", formatFloat(float64(*step.DurationMS)/1000))
+		}
+		args = append(args, "--udid", udid)
+		return runExternal(ctx, "axe", args...)
+	case ActionPinch:
+		args := []string{"gesture", "pinch", "--scale", formatFloat(floatValue(step.Scale))}
+		if step.X != nil {
+			args = append(args, "-x", formatFloat(*step.X), "-y", formatFloat(floatValue(step.Y)))
+		}
+		if step.Radius != nil {
+			args = append(args, "--radius", formatFloat(*step.Radius))
+		}
+		args = append(args, "--udid", udid)
+		return runExternal(ctx, "axe", args...)
+	case ActionRotate:
+		return runExternal(ctx, "axe", "gesture", "rotate",
+			"-x", formatFloat(floatValue(step.X)),
+			"-y", formatFloat(floatValue(step.Y)),
+			"--radius", formatFloat(floatValue(step.Radius)),
+			"--degrees="+formatFloat(floatValue(step.Degrees)),
+			"--udid", udid)
+	case ActionDoubleTap:
+		return runExternal(ctx, "axe", "gesture", "double-tap",
+			"-x", formatFloat(floatValue(step.X)),
+			"-y", formatFloat(floatValue(step.Y)),
+			"--udid", udid)
 	case ActionType:
 		return runExternal(ctx, "axe", "type", stringValue(step.Text), "--udid", udid)
 	case ActionKeySequence:
@@ -214,17 +262,19 @@ func runWaitForStep(ctx context.Context, step PlanStep, udid string) error {
 	}
 }
 
-func runTapStep(ctx context.Context, step PlanStep, udid string) error {
+func runTapStep(ctx context.Context, step PlanStep, udid string, extra ...string) error {
+	var args []string
 	switch {
 	case hasString(step.Label):
-		return runExternal(ctx, "axe", "tap", "--label", stringValue(step.Label), "--udid", udid)
+		args = []string{"tap", "--label", stringValue(step.Label)}
 	case hasString(step.ID):
-		return runExternal(ctx, "axe", "tap", "--id", stringValue(step.ID), "--udid", udid)
+		args = []string{"tap", "--id", stringValue(step.ID)}
 	default:
-		x := strconv.FormatFloat(floatValue(step.X), 'f', -1, 64)
-		y := strconv.FormatFloat(floatValue(step.Y), 'f', -1, 64)
-		return runExternal(ctx, "axe", "tap", "-x", x, "-y", y, "--udid", udid)
+		args = []string{"tap", "-x", formatFloat(floatValue(step.X)), "-y", formatFloat(floatValue(step.Y))}
 	}
+	args = append(args, extra...)
+	args = append(args, "--udid", udid)
+	return runExternal(ctx, "axe", args...)
 }
 
 func runScrollStep(ctx context.Context, step PlanStep, udid string) error {

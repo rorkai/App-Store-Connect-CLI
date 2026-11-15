@@ -6,27 +6,71 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/artifacts"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 type persistentSigningUtilityRunner func(context.Context, []byte, ...string) ([]byte, []byte, error)
 
-func platformSigningKeychainInstallDeps() signingKeychainInstallDeps {
+func platformSigningKeychainInstallDeps(lockOnSleep bool) signingKeychainInstallDeps {
 	runDeps := platformSigningRunDeps()
+	createKeychain := func(ctx context.Context, keychainPath string, password []byte) (bool, error) {
+		return createPersistentSigningKeychain(ctx, keychainPath, password, lockOnSleep)
+	}
 	return signingKeychainInstallDeps{
 		GOOS:                      "darwin",
 		SecurityAvailable:         signingRunSecurityAvailable(),
 		AcquireLock:               runDeps.AcquireLock,
-		CreateKeychain:            createPersistentSigningKeychain,
+		CreateKeychain:            createKeychain,
 		ImportIdentity:            importPersistentSigningIdentity,
 		KeychainSearchList:        runDeps.KeychainSearchList,
 		SetKeychainSearchList:     runDeps.SetKeychainSearchList,
 		RemoveKeychainSearchEntry: runDeps.RemoveKeychainSearchEntry,
 		DeleteKeychain:            runDeps.DeleteKeychain,
+		AppleIntermediates:        artifacts.AppleIntermediateCertificates,
+		ImportCertificate: func(ctx context.Context, keychainPath string, certificate []byte) error {
+			return importPersistentSigningCertificate(ctx, keychainPath, certificate, createSigningRunTempDir, removeSigningRunTempDir, runSigningUtility)
+		},
 	}
 }
 
-func createPersistentSigningKeychain(ctx context.Context, keychainPath string, password []byte) (bool, error) {
+func importPersistentSigningCertificate(
+	ctx context.Context,
+	keychainPath string,
+	certificate []byte,
+	createTempDir func() (string, error),
+	removeTempDir func(string) error,
+	runUtility persistentSigningUtilityRunner,
+) (resultErr error) {
+	tempDir, err := createTempDir()
+	if err != nil {
+		return fmt.Errorf("create private certificate directory: %w", err)
+	}
+	defer func() {
+		if err := removeTempDir(tempDir); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("remove private certificate directory: %w", err))
+		}
+	}()
+	tempRoot, err := rootfs.New(tempDir)
+	if err != nil {
+		return err
+	}
+	defer tempRoot.Close()
+	const certificateName = "intermediate.cer"
+	if err := tempRoot.CreateNewFile(certificateName, certificate, 0o600); err != nil {
+		return fmt.Errorf("write certificate: %w", err)
+	}
+	_, stderr, err := runUtility(ctx, nil, "add-certificates", "-k", keychainPath, filepath.Join(tempDir, certificateName))
+	if err != nil {
+		return utilityFailure("add certificate", stderr, err)
+	}
+	return nil
+}
+
+func createPersistentSigningKeychain(ctx context.Context, keychainPath string, password []byte, lockOnSleep bool) (bool, error) {
 	if len(password) == 0 {
 		return false, fmt.Errorf("keychain password is empty")
 	}
@@ -34,7 +78,7 @@ func createPersistentSigningKeychain(ctx context.Context, keychainPath string, p
 	if err != nil {
 		return created, err
 	}
-	if err := configurePersistentSigningKeychain(ctx, keychainPath, runSigningUtility); err != nil {
+	if err := configurePersistentSigningKeychain(ctx, keychainPath, runSigningUtility, lockOnSleep); err != nil {
 		return true, err
 	}
 	return true, nil
@@ -44,8 +88,13 @@ func configurePersistentSigningKeychain(
 	ctx context.Context,
 	keychainPath string,
 	runUtility persistentSigningUtilityRunner,
+	lockOnSleep bool,
 ) error {
-	_, stderr, err := runUtility(ctx, nil, "set-keychain-settings", "-l", keychainPath)
+	args := []string{"set-keychain-settings"}
+	if lockOnSleep {
+		args = append(args, "-l")
+	}
+	_, stderr, err := runUtility(ctx, nil, append(args, keychainPath)...)
 	if err != nil {
 		return utilityFailure("configure persistent keychain", stderr, err)
 	}

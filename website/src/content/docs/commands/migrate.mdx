@@ -16,7 +16,9 @@ App Clip default-experience files use `metadata/<locale>/app_clip/subtitle.txt`,
 `metadata/<locale>/app_clip/header_image.png`, and `metadata/app_clip/action.txt`
 (`OPEN`, `PLAY`, or `VIEW`). App Preview videos use
 `app_previews/<locale>/<device_type>/*.mp4`, `*.mov`, or `*.m4v`, with an optional
-`<name>.poster_frame.txt` sidecar (`HH:MM:SS:FF` or `HH:MM:SS.mmm`).
+`<name>.poster_frame.txt` sidecar (`HH:MM:SS:FF` or `HH:MM:SS.mmm`). Import does
+not upload videos kept directly in a locale folder; it lists each one under
+`skipped`, so move it into a device folder.
 
 App Store Connect does not provide original preview videos, only an HLS
 streaming playlist. Exports save each preview, such as `preview.mp4`, as
@@ -177,6 +179,8 @@ fastlane/
 │   │   └── ...
 ```
 
+`metadata/copyright.txt` sets the copyright of the version being imported; an empty file is listed in `skipped` and the copyright is left unchanged. The category files directly in `metadata/` and a locale or `default` folder's `apple_tv_privacy_policy.txt` are not imported. Each non-empty one is listed in `skipped` with the `asc` command that sets that value.
+
 ### migrate export
 
 Export current App Store metadata to fastlane directory structure:
@@ -184,6 +188,8 @@ Export current App Store metadata to fastlane directory structure:
 ```bash
 asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane
 ```
+
+The version's App Review details are written to `metadata/review_information/` in the files `migrate import` reads; empty fields write no file. The demo account password is never written, so add `demo_password.txt` yourself before an import that should set it.
 
 **Flags:**
 
@@ -253,6 +259,17 @@ skip_screenshots false
 * `skip_screenshots` - Skip screenshot import
 * `metadata_path` - Metadata directory, resolved relative to the Deliverfile
 * `screenshots_path` - Screenshots directory, resolved relative to the Deliverfile
+
+The format's other options, such as `submit_for_review`, `phased_release` and
+`price_tier`, are not applied. The file is read line by line: a line that starts
+with one of those option names, followed by a value or an opening parenthesis,
+is reported in `skipped` with its line number. An option that another command
+applies names that command, for example
+`asc versions phased-release create --version-id "VERSION_ID"` for
+`phased_release true`. Assignments and fields inside a multi-line value are not
+reported. The file is not executed, so options set through other script
+constructs are not seen, and the lines of a multi-line text are read like any
+other line: one that starts with an option name followed by a value is reported.
 
 `metadata_path` and `screenshots_path` win over the conventional `metadata/` and
 `screenshots/` directories, including when `--fastlane-dir` selected the
@@ -430,10 +447,13 @@ A device name in the file name overrides the dimensions, for example
 name. A screenshot whose size matches no display type fails the command instead
 of being uploaded to a guessed slot.
 
+When a folder holds both `0_home.png` and its framed copy `0_home_framed.png`,
+only the framed copy is uploaded and the raw file is listed under `skipped`.
+
 ## Partial Imports
 
 `migrate import --confirm` applies version localizations, App Info
-localizations, review information, and screenshots in that order. When a step
+localizations, review information, copyright, and screenshots in that order. When a step
 fails after earlier changes already reached App Store Connect, the command still
 writes the result document to stdout and exits non-zero:
 
@@ -495,8 +515,8 @@ Fastlane uses directory names like `en-US`, `es-ES`, `ja`, etc. The CLI automati
 
 The import command reports directories and files it did not read. Directory
 names that are not locales, symlinked entries, unsupported screenshot files, a
-missing conventional directory, and anything a Deliverfile or flag turned off
-all appear here (`metadata/review_information` and `metadata/default` are read
+missing conventional directory, configuration keys that import does not apply,
+and anything a Deliverfile or flag turned off all appear here (`metadata/review_information` and `metadata/default` are read
 as part of the import and are not reported):
 
 ```json

@@ -12,7 +12,6 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	reviewcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 )
 
 func TestReviewListsOwnerlessNextPaginateAllPages(t *testing.T) {
@@ -23,27 +22,25 @@ func TestReviewListsOwnerlessNextPaginateAllPages(t *testing.T) {
 		resourceType string
 		firstID      string
 		secondID     string
-		setClient    func(*testing.T, *httptest.Server)
 	}{
 		{
 			name: "review items",
 			args: func(next string) []string {
 				return []string{"review", "items-list", "--next", next, "--paginate", "--output", "json", "--pretty=false"}
 			},
-			path: "/v1/reviewSubmissions/sub-1/items", resourceType: "reviewSubmissionItems", firstID: "item-1", secondID: "item-2", setClient: setReviewItemsTestServerClient,
+			path: "/v1/reviewSubmissions/sub-1/items", resourceType: "reviewSubmissionItems", firstID: "item-1", secondID: "item-2",
 		},
 		{
 			name: "review submissions with ambient app id",
 			args: func(next string) []string {
 				return []string{"review", "submissions-list", "--next", next, "--paginate", "--output", "json", "--pretty=false"}
 			},
-			path: "/v1/reviewSubmissions", resourceType: "reviewSubmissions", firstID: "submission-1", secondID: "submission-2", setClient: setReviewSubmissionsTestServerClient,
+			path: "/v1/reviewSubmissions", resourceType: "reviewSubmissions", firstID: "submission-1", secondID: "submission-2",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupSubmitCreateAuth(t)
 			t.Setenv("ASC_APP_ID", "ambient-app-must-not-conflict")
 
 			requestCount := 0
@@ -70,15 +67,12 @@ func TestReviewListsOwnerlessNextPaginateAllPages(t *testing.T) {
 				}
 			}))
 			t.Cleanup(server.Close)
-			test.setClient(t, server)
 
 			next := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=start"
-			stdout, stderr := captureOutput(t, func() {
-				code := cmd.Run(test.args(next), "1.2.3")
-				if code != cmd.ExitSuccess {
-					t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubServerClient(t, server), test.args(next)...)
+			if code != cmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+			}
 			if strings.TrimSpace(stderr) != "" {
 				t.Fatalf("stderr = %q, want empty", stderr)
 			}
@@ -109,7 +103,6 @@ func TestRunReviewItemsAddSupportedItemTypes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupSubmitCreateAuth(t)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissionItems" {
 					t.Fatalf("request = %s %s, want POST /v1/reviewSubmissionItems", req.Method, req.URL.Path)
@@ -128,20 +121,17 @@ func TestRunReviewItemsAddSupportedItemTypes(t *testing.T) {
 				_, _ = fmt.Fprintf(w, `{"data":{"type":"reviewSubmissionItems","id":"item-1","relationships":{%q:{"data":{"type":%q,"id":"version-1"}}}}}`, test.relationshipName, test.resourceType)
 			}))
 			defer server.Close()
-			setReviewItemsTestServerClient(t, server)
 
-			stdout, stderr := captureOutput(t, func() {
-				code := cmd.Run([]string{
-					"review", "items-add",
-					"--submission", "submission-1",
-					"--item-type", test.itemType,
-					"--item-id", "version-1",
-					"--output", "json",
-				}, "1.2.3")
-				if code != cmd.ExitSuccess {
-					t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubServerClient(t, server),
+				"review", "items-add",
+				"--submission", "submission-1",
+				"--item-type", test.itemType,
+				"--item-id", "version-1",
+				"--output", "json",
+			)
+			if code != cmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+			}
 			if strings.TrimSpace(stderr) != "" {
 				t.Fatalf("stderr = %q, want empty", stderr)
 			}
@@ -157,42 +147,22 @@ func TestRunReviewItemsAddSupportedItemTypes(t *testing.T) {
 }
 
 func TestRunReviewItemsAddRejectsPositionalArgsBeforeAuth(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"review", "items-add",
-			"--submission", "submission-1",
-			"--item-type", "subscriptionVersions",
-			"--item-id", "version-1",
-			"unexpected",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"review", "items-add",
+		"--submission", "submission-1",
+		"--item-type", "subscriptionVersions",
+		"--item-id", "version-1",
+		"unexpected",
+	)
+	if code != cmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+	}
 	if strings.TrimSpace(stdout) != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
 	if !strings.Contains(stderr, `unexpected argument "unexpected"`) {
 		t.Fatalf("stderr = %q, want positional argument error", stderr)
 	}
-}
-
-func setReviewItemsTestServerClient(t *testing.T, server *httptest.Server) {
-	t.Helper()
-	client := newReviewTestServerClient(t, server)
-	restore := reviewcli.SetReviewItemsClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restore)
-}
-
-func setReviewSubmissionsTestServerClient(t *testing.T, server *httptest.Server) {
-	t.Helper()
-	client := newReviewTestServerClient(t, server)
-	restore := reviewcli.SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restore)
 }
 
 func newReviewTestServerClient(t *testing.T, server *httptest.Server) *asc.Client {
