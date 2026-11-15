@@ -82,9 +82,9 @@ func TestFlightMetricsBetaTesterUsagesCommand() *ffcli.Command {
 	groupBy := fs.String("group-by", "testers", "Group results by dimension (testers)")
 	filterTester := shared.BindResourceIDFlag(fs, "filter-tester", "betaTesters", "Filter by beta tester ID")
 	resolveTesters := fs.Bool("resolve-testers", false, "Resolve tester IDs to email and name (extra API calls)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

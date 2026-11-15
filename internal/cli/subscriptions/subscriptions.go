@@ -368,9 +368,9 @@ func SubscriptionsListCommand() *ffcli.Command {
 	relatedFields := bindSubscriptionRelatedFieldFlags(fs)
 	include := fs.String("include", "", "Include relationships (comma-separated): "+strings.Join(subscriptionIncludeList(), ", "))
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -892,9 +892,9 @@ func SubscriptionsPricesListCommand() *ffcli.Command {
 	territoryFields := fs.String("territory-fields", "", "Included territory fields (comma-separated): currency")
 	pricePointFields := fs.String("price-point-fields", "", "Included subscription price point fields (comma-separated)")
 	include := fs.String("include", "", "Relationships to include (comma-separated): territory, subscriptionPricePoint")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	resolved := fs.Bool("resolved", false, "Return the current effective price per territory")
 	output := shared.BindOutputFlags(fs)
 
@@ -1560,9 +1560,9 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 	availabilityID := shared.BindResourceIDFlag(fs, "availability-id", "subscriptionAvailabilities", "Subscription availability ID")
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

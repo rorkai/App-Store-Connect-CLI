@@ -53,7 +53,7 @@ change the app's distribution method and never retry an ambiguous write.
 func WebAppsDistributionUsersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web apps distribution users list", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	paginate := fs.Bool("paginate", false, "Fetch every recipient page")
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	authFlags := bindWebSessionFlags(fs)
 	output := shared.BindOutputFlags(fs)
 

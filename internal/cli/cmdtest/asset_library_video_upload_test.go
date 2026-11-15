@@ -76,9 +76,10 @@ printf '%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,
 	if pending {
 		t.Setenv("ASC_UPLOAD_TIMEOUT", "100ms")
 	}
+	calls := []string{}
 	original := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = original })
-	calls := []string{}
+	// Upload operations take their transport from http.DefaultTransport.
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		calls = append(calls, req.Method+" "+req.URL.Path)
 		switch req.Method + " " + req.URL.Path {
@@ -139,7 +140,7 @@ printf '%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,
 	if attributes.timeCode != "" {
 		args = append(args, "--time-code", attributes.timeCode)
 	}
-	stdout, stderr, err := runAssetLibrary(t, args...)
+	stdout, stderr, err := runAssetLibrary(t, stubClient(t, http.DefaultTransport), args...)
 	if requestDeadline {
 		if !errors.Is(err, context.DeadlineExceeded) || errfmt.Classify(err).Hint != "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`)." {
 			t.Fatalf("request deadline uses wrong hint: err=%v hint=%q", err, errfmt.Classify(err).Hint)
@@ -184,9 +185,9 @@ func TestAssetLibraryVideoUploadRejectsInvalidTimeCodeBeforeHTTP(t *testing.T) {
 	if err := os.WriteFile(videoPath, []byte("video"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	asctest.NewRegistry(t).Install()
+	reg := asctest.NewRegistry(t)
 	for _, timeCode := range []string{"  ", "3s", "00:00:03"} {
-		stdout, stderr, err := runAssetLibrary(t, "asset-library", "videos", "upload", "--library-id", "lib", "--file", videoPath, "--time-code", timeCode)
+		stdout, stderr, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "videos", "upload", "--library-id", "lib", "--file", videoPath, "--time-code", timeCode)
 		want := "asset-library videos upload: --time-code must be HH:MM:SS:FF or HH:MM:SS.mmm"
 		if !isUsageClassError(err) || stdout != "" || !strings.Contains(stderr, want) {
 			t.Fatalf("time code %q: err=%v stdout=%q stderr=%q", timeCode, err, stdout, stderr)
@@ -212,8 +213,7 @@ printf '%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	reg := asctest.NewRegistry(t)
-	reg.Install()
-	_, stderr, err := runAssetLibrary(t, "asset-library", "videos", "upload", "--library-id", "library", "--file", file)
+	_, stderr, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "videos", "upload", "--library-id", "library", "--file", file)
 	calls := len(reg.Requests())
 	if err == nil || !strings.Contains(stderr, "container") || calls != 0 {
 		t.Fatalf("expected pre-auth container rejection, calls=%d err=%v stderr=%s", calls, err, stderr)

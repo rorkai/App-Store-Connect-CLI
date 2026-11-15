@@ -39,8 +39,8 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 	includedFields := BindIncludedFieldFlags(fs, map[string]string{"image": "appAssetLibraryImages", "video": "appAssetLibraryVideos", "retentionMessageVersion": "retentionMessageVersions"})
 	filters := BindPlacementFilters(fs, resource)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200; 0 uses server default)")
-	next := fs.String("next", "", "Fetch a links.next URL instead of selecting a localization")
-	paginate := fs.Bool("paginate", false, "Fetch all pages and aggregate the collection")
+	next := fs.String("next", "", NextFlagUsage)
+	paginate := fs.Bool("paginate", false, PaginateFlagUsage)
 	output := BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortHelp: "List asset placements for " + label + ".",

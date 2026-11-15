@@ -101,12 +101,22 @@ func reviewSubmissionNotCancellableGuidance(submissionID string, state asc.Revie
 // cancelErr is not that refusal, or when the state cannot be read, so a failed
 // follow-up read never hides the original error.
 func ExplainReviewSubmissionNotCancellable(ctx context.Context, client *asc.Client, submissionID string, cancelErr error) error {
+	return explainReviewSubmissionNotCancellable(ctx, ContextWithTimeout, client, submissionID, cancelErr)
+}
+
+// ExplainReviewSubmissionNotCancellable is ExplainReviewSubmissionNotCancellable
+// with the follow-up read's deadline from d.Timeout.
+func (d *Deps) ExplainReviewSubmissionNotCancellable(ctx context.Context, client *asc.Client, submissionID string, cancelErr error) error {
+	return explainReviewSubmissionNotCancellable(ctx, d.Timeout, client, submissionID, cancelErr)
+}
+
+func explainReviewSubmissionNotCancellable(ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, submissionID string, cancelErr error) error {
 	submissionID = strings.TrimSpace(submissionID)
 	if client == nil || submissionID == "" || !IsReviewSubmissionNotCancellableError(cancelErr) {
 		return cancelErr
 	}
 
-	readCtx, cancel := ContextWithTimeout(ctx)
+	readCtx, cancel := timeout(ctx)
 	defer cancel()
 
 	resp, err := client.GetReviewSubmissionStrict(readCtx, submissionID)

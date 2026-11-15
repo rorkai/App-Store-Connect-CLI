@@ -85,13 +85,7 @@ Examples:
 }
 
 func TestFlightFeedbackDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackScreenshotSubmissions", "Feedback submission ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc testflight feedback delete --submission-id \"SUBMISSION_ID\" --confirm",
 		ShortHelp:  "Delete a feedback submission by ID.",
@@ -99,19 +93,17 @@ func TestFlightFeedbackDeleteCommand() *ffcli.Command {
 
 Examples:
   asc testflight feedback delete --submission-id "SUBMISSION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			submissionIDValue := strings.TrimSpace(*submissionID)
-			if submissionIDValue == "" {
-				return shared.RequiredFlag("--submission-id")
-			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
-				return err
-			}
-			return runFeedbackSubmissionDelete(ctx, submissionIDValue, output)
+		IDFlag:             "submission-id",
+		IDUsage:            "Feedback submission ID",
+		IDType:             "betaFeedbackScreenshotSubmissions",
+		RequiredDiagnostic: true,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteBetaFeedbackScreenshotSubmission(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.DeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 func TestFlightCrashesCommand() *ffcli.Command {
@@ -186,13 +178,7 @@ Examples:
 }
 
 func TestFlightCrashesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackCrashSubmissions", "Crash submission ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc testflight crashes delete --submission-id \"SUBMISSION_ID\" --confirm",
 		ShortHelp:  "Delete a crash submission by ID.",
@@ -200,19 +186,17 @@ func TestFlightCrashesDeleteCommand() *ffcli.Command {
 
 Examples:
   asc testflight crashes delete --submission-id "SUBMISSION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			submissionIDValue := strings.TrimSpace(*submissionID)
-			if submissionIDValue == "" {
-				return shared.RequiredFlag("--submission-id")
-			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
-				return err
-			}
-			return runCrashSubmissionDelete(ctx, submissionIDValue, output)
+		IDFlag:             "submission-id",
+		IDUsage:            "Crash submission ID",
+		IDType:             "betaFeedbackCrashSubmissions",
+		RequiredDiagnostic: true,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteBetaFeedbackCrashSubmission(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.DeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 func TestFlightCrashesLogCommand() *ffcli.Command {
@@ -269,27 +253,6 @@ func runFeedbackSubmissionView(ctx context.Context, submissionID string, output 
 	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 }
 
-func runFeedbackSubmissionDelete(ctx context.Context, submissionID string, output shared.OutputFlags) error {
-	client, err := shared.GetASCClient()
-	if err != nil {
-		return fmt.Errorf("testflight feedback delete: %w", err)
-	}
-
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-
-	if err := client.DeleteBetaFeedbackScreenshotSubmission(requestCtx, submissionID); err != nil {
-		return fmt.Errorf("testflight feedback delete: failed to delete: %w", err)
-	}
-
-	result := &asc.DeleteResult{
-		ID:      submissionID,
-		Deleted: true,
-	}
-
-	return shared.PrintOutput(result, *output.Output, *output.Pretty)
-}
-
 func runCrashSubmissionView(ctx context.Context, submissionID string, output shared.OutputFlags) error {
 	client, err := shared.GetASCClient()
 	if err != nil {
@@ -305,27 +268,6 @@ func runCrashSubmissionView(ctx context.Context, submissionID string, output sha
 	}
 
 	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-}
-
-func runCrashSubmissionDelete(ctx context.Context, submissionID string, output shared.OutputFlags) error {
-	client, err := shared.GetASCClient()
-	if err != nil {
-		return fmt.Errorf("testflight crashes delete: %w", err)
-	}
-
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-
-	if err := client.DeleteBetaFeedbackCrashSubmission(requestCtx, submissionID); err != nil {
-		return fmt.Errorf("testflight crashes delete: failed to delete: %w", err)
-	}
-
-	result := &asc.DeleteResult{
-		ID:      submissionID,
-		Deleted: true,
-	}
-
-	return shared.PrintOutput(result, *output.Output, *output.Pretty)
 }
 
 func runCrashLogBySubmissionID(ctx context.Context, submissionID string, output shared.OutputFlags) error {

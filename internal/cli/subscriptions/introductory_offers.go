@@ -63,9 +63,9 @@ func SubscriptionsIntroductoryOffersListCommand() *ffcli.Command {
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	territory := fs.String("territory", "", "Filter by territories (comma-separated; alpha-2, alpha-3, or English name, e.g. USA,GB)")
 	include := fs.String("include", "", "Relationships to include (comma-separated): "+strings.Join(subscriptionIntroductoryOfferIncludeList(), ", "))
 	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")

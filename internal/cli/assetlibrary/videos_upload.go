@@ -56,15 +56,15 @@ func uploadTimeCode(fs *flag.FlagSet, value string) (string, error) {
 	return timeCode, nil
 }
 
-func videosUploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("videos upload", flag.ExitOnError)
+func videosUploadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("videos upload", flag.ExitOnError)
 	library := shared.BindResourceIDFlag(fs, "library-id", "appAssetLibraries", "Asset Library ID")
 	path := fs.String("file", "", "Video file to upload (.mp4, .m4v, or .mov)")
 	category := fs.String("category", "CREATIVE_ASSETS", "Asset category: CREATIVE_ASSETS or APP_SCREENSHOTS_AND_PREVIEWS")
 	referenceName := bindUploadReferenceNameFlag(fs)
 	timeCode := fs.String("time-code", "", "Poster frame time code: HH:MM:SS:FF or HH:MM:SS.mmm")
 	pollInterval := shared.BindMediaPollIntervalFlag(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "upload", ShortUsage: "asc asset-library videos upload --library-id ID --file video.mp4 [flags]", ShortHelp: "Upload a video to the Asset Library and wait for processing.", LongHelp: `Upload a video independently of an app version, placement or review submission.
 
 Requires ffprobe (FFmpeg) to inspect the file. Dimensions, frame rate, duration,
@@ -81,59 +81,59 @@ Examples:
   asc asset-library videos upload --library-id LIBRARY_ID --file ./duo-preview.mp4 --category APP_SCREENSHOTS_AND_PREVIEWS
   asc asset-library videos upload --library-id LIBRARY_ID --file ./cms-8f3a21.mp4 --reference-name "Hero en-US 3.14"
   asc asset-library videos upload --library-id LIBRARY_ID --file ./header.mp4 --time-code 00:00:03:00`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
-		ctx, pollErr := pollInterval.Apply(ctx)
+		ctx, pollErr := pollInterval.ApplyWith(ctx, d)
 		if pollErr != nil {
 			return pollErr
 		}
 		if err := shared.ValidateBoundOutputFlags(fs); err != nil {
-			return shared.UsageErrorf("asset-library videos upload: %v", err)
+			return d.UsageErrorf("asset-library videos upload: %v", err)
 		}
 		selected, err := normalizeAssetCategory(*category)
 		if err != nil {
-			return shared.UsageErrorf("asset-library videos upload: %v", err)
+			return d.UsageErrorf("asset-library videos upload: %v", err)
 		}
 		selectedReferenceName, err := uploadReferenceName(fs, *referenceName)
 		if err != nil {
-			return shared.UsageErrorf("asset-library videos upload: %v", err)
+			return d.UsageErrorf("asset-library videos upload: %v", err)
 		}
 		selectedTimeCode, err := uploadTimeCode(fs, *timeCode)
 		if err != nil {
-			return shared.UsageErrorf("asset-library videos upload: %v", err)
+			return d.UsageErrorf("asset-library videos upload: %v", err)
 		}
 		id := strings.TrimSpace(*library)
 		if id == "" || !resourceIDPattern.MatchString(id) {
-			return shared.UsageError("asset-library videos upload: --library-id must be a resource ID")
+			return d.UsageError("asset-library videos upload: --library-id must be a resource ID")
 		}
 		source := strings.TrimSpace(*path)
 		if source == "" {
-			return shared.UsageError("asset-library videos upload: --file is required")
+			return d.UsageError("asset-library videos upload: --file is required")
 		}
-		staged, err := stageLibraryVideo(ctx, "asset-library videos upload", "--file", source)
+		staged, err := stageLibraryVideo(ctx, d, "asset-library videos upload", "--file", source)
 		if err != nil {
 			return err
 		}
 		defer staged.close()
-		client, err := shared.GetASCClient()
+		client, err := d.Client()
 		if err != nil {
 			return fmt.Errorf("asset-library videos upload: %w", err)
 		}
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		reference, err := client.RawRequest(requestCtx, "GET", "/v1/appAssetLibraryRefData", nil)
 		cancel()
 		if err != nil {
 			return fmt.Errorf("asset-library videos upload: read specifications: %w", err)
 		}
 		if err := matchLibraryVideoSpec(reference, selected, staged.properties, staged.size, filepath.Ext(source)); err != nil {
-			return shared.UsageErrorf("asset-library videos upload: %v", err)
+			return d.UsageErrorf("asset-library videos upload: %v", err)
 		}
 		if _, err := staged.file.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
-		uploadCtx, cancel := libraryVideoUploadContext(ctx)
+		uploadCtx, cancel := libraryVideoUploadContext(ctx, d)
 		defer cancel()
-		result, uploadErr := client.UploadAssetLibraryVideoWithCategory(uploadCtx, id, filepath.Base(source), staged.file, staged.size, selected, selectedReferenceName, selectedTimeCode, shared.ContextWithTimeout)
+		result, uploadErr := client.UploadAssetLibraryVideoWithCategory(uploadCtx, id, filepath.Base(source), staged.file, staged.size, selected, selectedReferenceName, selectedTimeCode, d.Timeout)
 		if uploadErr == nil || result.VideoID != "" {
-			if err := shared.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 		}
@@ -164,15 +164,15 @@ func (v *stagedLibraryVideo) close() {
 
 // stageLibraryVideo inspects a private staged copy. Callers upload that same
 // copy so a source-path replacement cannot change the bytes validated by ffprobe.
-func stageLibraryVideo(ctx context.Context, command, flagName, source string) (result *stagedLibraryVideo, err error) {
+func stageLibraryVideo(ctx context.Context, d *shared.Deps, command, flagName, source string) (result *stagedLibraryVideo, err error) {
 	switch strings.ToLower(filepath.Ext(source)) {
 	case ".mp4", ".m4v", ".mov":
 	default:
-		return nil, shared.UsageErrorf("%s: %s must have a .mp4, .m4v, or .mov extension", command, flagName)
+		return nil, d.UsageErrorf("%s: %s must have a .mp4, .m4v, or .mov extension", command, flagName)
 	}
 	file, err := rootfs.OpenFile(source)
 	if err != nil {
-		return nil, shared.UsageErrorf("%s: %s: %v", command, flagName, err)
+		return nil, d.UsageErrorf("%s: %s: %v", command, flagName, err)
 	}
 	defer file.Close()
 	info, err := file.Stat()
@@ -180,10 +180,10 @@ func stageLibraryVideo(ctx context.Context, command, flagName, source string) (r
 		return nil, fmt.Errorf("%s: %w", command, err)
 	}
 	if err := asc.ValidateAssetFileInfo(source, info); err != nil {
-		return nil, shared.UsageErrorf("%s: %v", command, err)
+		return nil, d.UsageErrorf("%s: %v", command, err)
 	}
 	if info.Size() > 524288000 {
-		return nil, shared.UsageErrorf("%s: file exceeds 500 MiB", command)
+		return nil, d.UsageErrorf("%s: file exceeds 500 MiB", command)
 	}
 	staged := &stagedLibraryVideo{size: info.Size()}
 	if staged.dir, err = os.MkdirTemp("", "asc-library-video-"); err != nil {
@@ -211,7 +211,7 @@ func stageLibraryVideo(ctx context.Context, command, flagName, source string) (r
 		return nil, err
 	}
 	if staged.properties, err = inspectLibraryVideo(ctx, filepath.Join(staged.dir, stagedName)); err != nil {
-		return nil, shared.UsageErrorf("%s: %v", command, err)
+		return nil, d.UsageErrorf("%s: %v", command, err)
 	}
 	return staged, nil
 }
@@ -221,6 +221,6 @@ func stageLibraryVideo(ctx context.Context, command, flagName, source string) (r
 // 5 minute upload default would expire before most videos finish.
 const libraryVideoUploadTimeout = 30 * time.Minute
 
-func libraryVideoUploadContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithResolvedUploadTimeout(ctx, libraryVideoUploadTimeout)
+func libraryVideoUploadContext(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return d.ResolvedUploadTimeout(ctx, libraryVideoUploadTimeout)
 }

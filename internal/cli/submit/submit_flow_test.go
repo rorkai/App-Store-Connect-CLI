@@ -853,7 +853,7 @@ func TestReviewSubmissionValidationFailuresAreClassified(t *testing.T) {
 			state: "WAITING_FOR_REVIEW",
 			items: targetItem,
 			run: func(client *asc.Client) error {
-				_, err := addVersionToSubmissionOrRecover(context.Background(), client, "sub-0", "version-1", "app-1", "IOS", func(string) {})
+				_, err := addVersionToSubmissionOrRecover(context.Background(), io.Discard, client, "sub-0", "version-1", "app-1", "IOS", func(string) {})
 				return err
 			},
 			want: shared.DiagnosticResourceConflict,

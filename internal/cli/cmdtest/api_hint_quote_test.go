@@ -11,8 +11,7 @@ import (
 func TestAPIMissingMethodHintPreservesLiteralPath(t *testing.T) {
 	for _, path := range []string{"/v1/apps?limit=5&sort=name", "/v1/apps?filter[name]=Jane's app", "/v1/apps\nforged"} {
 		t.Run(path, func(t *testing.T) {
-			code := -1
-			stdout, stderr := captureOutput(t, func() { code = cmd.Run([]string{"api", path}, "test") })
+			stdout, stderr, code := runWithDeps(t, nil, "api", path)
 			if code != cmd.ExitUsage || stdout != "" {
 				t.Fatalf("code=%d stdout=%q stderr=%q", code, stdout, stderr)
 			}

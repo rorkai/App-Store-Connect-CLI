@@ -60,9 +60,9 @@ func WebRemovedAppsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web removed-apps list", flag.ExitOnError)
 
 	authFlags := bindWebSessionFlagsWithSessionFromEnv(fs)
-	limit := fs.Int("limit", webcore.DefaultRemovedAppsLimit, fmt.Sprintf("Maximum results per page (1-%d)", webcore.MaxRemovedAppsLimit))
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", webcore.DefaultRemovedAppsLimit, shared.LimitFlagUsage(webcore.MaxRemovedAppsLimit))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

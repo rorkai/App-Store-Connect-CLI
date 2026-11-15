@@ -3,6 +3,7 @@ package submit
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -489,7 +490,7 @@ func TestPrepareReviewSubmissionForCreateBoundsDiscoveryPagination(t *testing.T)
 		return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions","next":"`+next+`"}}`)
 	}))
 
-	_, err := prepareReviewSubmissionForCreateWithPageLimit(context.Background(), client, "app-1", "IOS", "version-1", nil, 2)
+	_, err := prepareReviewSubmissionForCreateWithPageLimit(context.Background(), io.Discard, client, "app-1", "IOS", "version-1", nil, 2)
 	if err == nil || !strings.Contains(err.Error(), "must not exceed 2 pages") {
 		t.Fatalf("expected bounded discovery error, got %v", err)
 	}

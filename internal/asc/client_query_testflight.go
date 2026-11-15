@@ -145,8 +145,8 @@ func buildFeedbackQuery(query *feedbackQuery) string {
 	addCSV(values, "filter[build.preReleaseVersion]", query.buildPreReleaseVersionIDs)
 	addCSV(values, "filter[tester]", query.testerIDs)
 	addBetaSubmissionInclude(values, query.include)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addLimit(values, query.limit)
 	query.includedFields.AddTo(values)
@@ -163,8 +163,8 @@ func buildCrashQuery(query *crashQuery) string {
 	addCSV(values, "filter[build.preReleaseVersion]", query.buildPreReleaseVersionIDs)
 	addCSV(values, "filter[tester]", query.testerIDs)
 	addBetaSubmissionInclude(values, query.include)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addLimit(values, query.limit)
 	query.includedFields.AddTo(values)
@@ -183,15 +183,21 @@ func buildBetaGroupsQuery(query *betaGroupsQuery) string {
 	addCSV(values, "filter[app]", query.appIDs)
 	addCSV(values, "filter[builds]", query.buildIDs)
 	addCSV(values, "filter[id]", query.ids)
-	addValue(values, "filter[name]", query.name)
-	addValue(values, "filter[publicLink]", query.publicLink)
+	if strings.TrimSpace(query.name) != "" {
+		values.Set("filter[name]", strings.TrimSpace(query.name))
+	}
+	if strings.TrimSpace(query.publicLink) != "" {
+		values.Set("filter[publicLink]", strings.TrimSpace(query.publicLink))
+	}
 	addCSV(values, "fields[betaGroups]", fields)
 	addCSV(values, "fields[apps]", query.appFields)
 	addCSV(values, "fields[builds]", query.buildFields)
 	addCSV(values, "fields[betaTesters]", query.betaTesterFields)
 	addCSV(values, "fields[betaRecruitmentCriteria]", query.betaRecruitmentCriteriaFields)
 	addCSV(values, "include", query.include)
-	addValue(values, "sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
 	addLimit(values, query.limit)
 	if query.isInternalGroup != nil {
 		values.Set("filter[isInternalGroup]", strconv.FormatBool(*query.isInternalGroup))
@@ -244,7 +250,9 @@ func buildBetaTestersQuery(appID string, query *betaTestersQuery) (string, error
 		// returns no linkage to join the included resources to.
 		addCSV(values, "fields[betaTesters]", normalizeUniqueList(append(fields, query.include...)))
 	}
-	addValue(values, "sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
 	addLimit(values, query.limit)
 	query.includedFields.AddTo(values)
 	return values.Encode(), nil

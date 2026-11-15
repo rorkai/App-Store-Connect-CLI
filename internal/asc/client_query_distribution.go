@@ -43,8 +43,8 @@ func buildBackgroundAssetsQuery(query *backgroundAssetsQuery) string {
 	addCSV(values, "filter[assetPackIdentifier]", query.assetPackIdentifiers)
 	addCSV(values, "filter[versions.locale]", query.versionsLocales)
 	addCSV(values, "filter[versions.platforms]", query.versionsPlatforms)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -59,8 +59,8 @@ func buildBackgroundAssetVersionsQuery(query *backgroundAssetVersionsQuery) stri
 	addCSV(values, "filter[internalBetaRelease.state]", query.internalBetaStates)
 	addCSV(values, "filter[externalBetaRelease.state]", query.externalBetaStates)
 	addCSV(values, "filter[appStoreRelease.state]", query.appStoreStates)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addLimit(values, query.limit)
 	return values.Encode()

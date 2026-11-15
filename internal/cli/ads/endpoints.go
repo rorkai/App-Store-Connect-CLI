@@ -360,7 +360,7 @@ func bindEndpointFlags(spec appleads.EndpointSpec, flagSetName string) (*flag.Fl
 		values.confirm = fs.Bool("confirm", false, "Confirm an Apple Ads update that replaces delegations")
 	}
 	if spec.SupportsPaginate {
-		values.paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+		values.paginate = fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	}
 	return fs, values
 }

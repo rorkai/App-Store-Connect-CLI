@@ -379,8 +379,8 @@ func WithCiProductsPrimaryRepositoriesLimit(limit int) CiProductsOption {
 func buildCiProductsQuery(query *ciProductsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[productType]", query.productTypes)
-	if query.appID != "" {
-		values.Set("filter[app]", query.appID)
+	if strings.TrimSpace(query.appID) != "" {
+		values.Set("filter[app]", strings.TrimSpace(query.appID))
 	}
 	addCSV(values, "fields[ciProducts]", ciProductsFieldsWithIncludes(query.fields, query.include))
 	addCSV(values, "fields[apps]", query.appFields)

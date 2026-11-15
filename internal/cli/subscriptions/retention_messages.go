@@ -82,9 +82,9 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 	var limit *int
 	var paginate *bool
 	if r.list {
-		limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
-		next = fs.String("next", "", "Fetch next page using a links.next URL")
-		paginate = fs.Bool("paginate", false, "Automatically fetch all pages")
+		limit = fs.Int("limit", 0, shared.LimitFlagUsage(200))
+		next = fs.String("next", "", shared.NextFlagUsage)
+		paginate = fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	}
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{

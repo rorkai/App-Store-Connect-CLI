@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -15,19 +14,20 @@ import (
 
 func runSubmissionLocalizationPreflight(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	appID, versionID, platform string,
 	requestTimeout time.Duration,
 	errorPrefix, retryCommand string,
 ) error {
-	localizationsCtx, localizationsCancel := submitPreflightRequestContext(ctx, requestTimeout)
+	localizationsCtx, localizationsCancel := submitPreflightRequestContext(ctx, d, requestTimeout)
 	localizations, err := client.GetAppStoreVersionLocalizations(localizationsCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	localizationsCancel()
 	if err != nil {
 		return submissionPreflightWrap(errorPrefix, fmt.Errorf("failed to fetch version localizations for preflight: %w", err))
 	}
 	if len(localizations.Data) == 0 {
-		fmt.Fprintln(os.Stderr, "Submit preflight failed: no app store version localizations found for this version.")
+		fmt.Fprintln(d.IO.ErrOut, "Submit preflight failed: no app store version localizations found for this version.")
 		return submissionPreflightWrap(
 			errorPrefix,
 			shared.WithDiagnostic(
@@ -38,7 +38,7 @@ func runSubmissionLocalizationPreflight(
 		)
 	}
 
-	updateCtx, updateCancel := submitPreflightRequestContext(ctx, requestTimeout)
+	updateCtx, updateCancel := submitPreflightRequestContext(ctx, d, requestTimeout)
 	requireWhatsNew, err := isAppUpdate(updateCtx, client, appID, platform)
 	updateCancel()
 	if err != nil {
@@ -54,11 +54,11 @@ func runSubmissionLocalizationPreflight(
 		return nil
 	}
 
-	fmt.Fprintln(os.Stderr, "Submit preflight failed: submission-blocking localization fields are missing:")
+	fmt.Fprintln(d.IO.ErrOut, "Submit preflight failed: submission-blocking localization fields are missing:")
 	for _, issue := range issues {
-		fmt.Fprintf(os.Stderr, "  - %s: %s\n", issue.Locale, strings.Join(issue.MissingFields, ", "))
+		fmt.Fprintf(d.IO.ErrOut, "  - %s: %s\n", issue.Locale, strings.Join(issue.MissingFields, ", "))
 	}
-	fmt.Fprintf(os.Stderr, "Fix these with `asc metadata push` or `asc apps info edit` before retrying `%s`.\n", normalizeSubmissionRetryCommand(retryCommand))
+	fmt.Fprintf(d.IO.ErrOut, "Fix these with `asc metadata push` or `asc apps info edit` before retrying `%s`.\n", normalizeSubmissionRetryCommand(retryCommand))
 	return submissionPreflightWrap(
 		errorPrefix,
 		shared.WithDiagnostic(
@@ -78,11 +78,11 @@ func isAppUpdate(ctx context.Context, client *asc.Client, appID, platform string
 	return shared.AppUpdateRequiresWhatsNew(ctx, client, appID, platform)
 }
 
-func runSubmissionSubscriptionPreflight(ctx context.Context, client *asc.Client, appID string, requestTimeout time.Duration, retryCommand string) {
-	groups, warning := fetchSubscriptionPreflightGroups(ctx, client, appID, requestTimeout)
+func runSubmissionSubscriptionPreflight(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, requestTimeout time.Duration, retryCommand string) {
+	groups, warning := fetchSubscriptionPreflightGroups(ctx, d, client, appID, requestTimeout)
 	if warning != "" {
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintf(os.Stderr, "Warning: subscription preflight could not check subscriptions: %s.\n", warning)
+		fmt.Fprintln(d.IO.ErrOut, "")
+		fmt.Fprintf(d.IO.ErrOut, "Warning: subscription preflight could not check subscriptions: %s.\n", warning)
 		return
 	}
 	if len(groups) == 0 {
@@ -100,7 +100,7 @@ func runSubmissionSubscriptionPreflight(ctx context.Context, client *asc.Client,
 		}
 		groupLabel := subscriptionPreflightGroupLabel(group)
 
-		subs, warning := fetchSubscriptionPreflightSubscriptions(ctx, client, groupID, requestTimeout)
+		subs, warning := fetchSubscriptionPreflightSubscriptions(ctx, d, client, groupID, requestTimeout)
 		if warning != "" {
 			skippedGroups = append(skippedGroups, fmt.Sprintf("%s: %s", groupLabel, warning))
 			continue
@@ -126,35 +126,35 @@ func runSubmissionSubscriptionPreflight(ctx context.Context, client *asc.Client,
 	}
 
 	if len(missingMetadata) > 0 {
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Warning: the following subscriptions are MISSING_METADATA and will not be included in review:")
+		fmt.Fprintln(d.IO.ErrOut, "")
+		fmt.Fprintln(d.IO.ErrOut, "Warning: the following subscriptions are MISSING_METADATA and will not be included in review:")
 		for _, name := range missingMetadata {
-			fmt.Fprintf(os.Stderr, "  - %s\n", name)
+			fmt.Fprintf(d.IO.ErrOut, "  - %s\n", name)
 		}
-		fmt.Fprintln(os.Stderr, "Run `asc validate subscriptions` for details on what's missing.")
+		fmt.Fprintln(d.IO.ErrOut, "Run `asc validate subscriptions` for details on what's missing.")
 	}
 
 	if len(readyToSubmit) > 0 {
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Warning: the following subscriptions are READY_TO_SUBMIT but are not automatically included in this submission:")
+		fmt.Fprintln(d.IO.ErrOut, "")
+		fmt.Fprintln(d.IO.ErrOut, "Warning: the following subscriptions are READY_TO_SUBMIT but are not automatically included in this submission:")
 		for _, name := range readyToSubmit {
-			fmt.Fprintf(os.Stderr, "  - %s\n", name)
+			fmt.Fprintf(d.IO.ErrOut, "  - %s\n", name)
 		}
 		fmt.Fprintf(
-			os.Stderr,
+			d.IO.ErrOut,
 			"If this is their first review, run `asc web review subscriptions list --app \"APP_ID\"` to find the relevant IDs, then attach the group with `asc web review subscriptions attach-group --app \"APP_ID\" --group-id \"GROUP_ID\" --confirm` (or use `attach --subscription-id \"SUB_ID\"` for one subscription) before retrying `%s`.\n",
 			normalizeSubmissionRetryCommand(retryCommand),
 		)
-		fmt.Fprintln(os.Stderr, "For subsequent reviews, use `asc subscriptions versions list --subscription-id \"SUB_ID\"` (or `asc subscriptions versions create --subscription-id \"SUB_ID\"` when a new version is needed), then add that version with `asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`.")
+		fmt.Fprintln(d.IO.ErrOut, "For subsequent reviews, use `asc subscriptions versions list --subscription-id \"SUB_ID\"` (or `asc subscriptions versions create --subscription-id \"SUB_ID\"` when a new version is needed), then add that version with `asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`.")
 	}
 
 	if len(skippedGroups) > 0 {
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "Warning: some subscription groups could not be fully checked during preflight:")
+		fmt.Fprintln(d.IO.ErrOut, "")
+		fmt.Fprintln(d.IO.ErrOut, "Warning: some subscription groups could not be fully checked during preflight:")
 		for _, skipped := range skippedGroups {
-			fmt.Fprintf(os.Stderr, "  - %s\n", skipped)
+			fmt.Fprintf(d.IO.ErrOut, "  - %s\n", skipped)
 		}
-		fmt.Fprintln(os.Stderr, "The warnings above only cover the groups that could be checked.")
+		fmt.Fprintln(d.IO.ErrOut, "The warnings above only cover the groups that could be checked.")
 	}
 }
 
@@ -176,8 +176,8 @@ func normalizeSubmissionRetryCommand(retryCommand string) string {
 	return trimmed
 }
 
-func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, appID string, requestTimeout time.Duration) ([]asc.Resource[asc.SubscriptionGroupAttributes], string) {
-	firstCtx, firstCancel := submitPreflightRequestContext(ctx, requestTimeout)
+func fetchSubscriptionPreflightGroups(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, requestTimeout time.Duration) ([]asc.Resource[asc.SubscriptionGroupAttributes], string) {
+	firstCtx, firstCancel := submitPreflightRequestContext(ctx, d, requestTimeout)
 	resp, err := client.GetSubscriptionGroups(firstCtx, appID, asc.Limit[asc.SubscriptionGroupsOption](200))
 	firstCancel()
 	if err != nil {
@@ -185,7 +185,7 @@ func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, a
 	}
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		pageCtx, pageCancel := submitPreflightRequestContext(ctx, requestTimeout)
+		pageCtx, pageCancel := submitPreflightRequestContext(ctx, d, requestTimeout)
 		defer pageCancel()
 		return client.GetSubscriptionGroups(pageCtx, appID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 	})
@@ -200,8 +200,8 @@ func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, a
 	return typed.Data, ""
 }
 
-func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Client, groupID string, requestTimeout time.Duration) ([]asc.Resource[asc.SubscriptionAttributes], string) {
-	firstCtx, firstCancel := submitPreflightRequestContext(ctx, requestTimeout)
+func fetchSubscriptionPreflightSubscriptions(ctx context.Context, d *shared.Deps, client *asc.Client, groupID string, requestTimeout time.Duration) ([]asc.Resource[asc.SubscriptionAttributes], string) {
+	firstCtx, firstCancel := submitPreflightRequestContext(ctx, d, requestTimeout)
 	resp, err := client.GetSubscriptions(firstCtx, groupID, asc.Limit[asc.SubscriptionsOption](200))
 	firstCancel()
 	if err != nil {
@@ -209,7 +209,7 @@ func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Cl
 	}
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		pageCtx, pageCancel := submitPreflightRequestContext(ctx, requestTimeout)
+		pageCtx, pageCancel := submitPreflightRequestContext(ctx, d, requestTimeout)
 		defer pageCancel()
 		return client.GetSubscriptions(pageCtx, groupID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 	})
@@ -224,7 +224,7 @@ func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Cl
 	return typed.Data, ""
 }
 
-func submitPreflightRequestContext(ctx context.Context, requestTimeout time.Duration) (context.Context, context.CancelFunc) {
+func submitPreflightRequestContext(ctx context.Context, d *shared.Deps, requestTimeout time.Duration) (context.Context, context.CancelFunc) {
 	if requestTimeout > 0 {
 		return shared.ContextWithTimeoutDuration(shared.ContextWithoutTimeout(ctx), requestTimeout)
 	}
@@ -233,7 +233,7 @@ func submitPreflightRequestContext(ctx context.Context, requestTimeout time.Dura
 			return ctx, func() {}
 		}
 	}
-	return shared.ContextWithTimeout(ctx)
+	return d.Timeout(ctx)
 }
 
 func subscriptionPreflightGroupLabel(group asc.Resource[asc.SubscriptionGroupAttributes]) string {

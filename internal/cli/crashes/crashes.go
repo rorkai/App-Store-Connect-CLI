@@ -45,9 +45,9 @@ func bindListCommandFlags(fs *flag.FlagSet) listCommandFlags {
 		include:         fs.String("include", "", "Include related resources, comma-separated (build, tester)"),
 		includedFields:  shared.BindIncludedFieldFlagsExcept(fs, map[string]string{"build": "builds", "tester": "betaTesters"}, map[string][]string{"betaTesters": {"appDevices"}}), // Apple rejects spec value appDevices here: 400 "is not a valid field name".
 		sort:            fs.String("sort", "", "Sort by createdDate or -createdDate"),
-		limit:           fs.Int("limit", 0, "Maximum results per page (1-200)"),
-		next:            fs.String("next", "", "Fetch next page using a links.next URL"),
-		paginate:        fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)"),
+		limit:           fs.Int("limit", 0, shared.LimitFlagUsage(200)),
+		next:            fs.String("next", "", shared.NextFlagUsage),
+		paginate:        fs.Bool("paginate", false, shared.PaginateFlagUsage),
 	}
 }
 

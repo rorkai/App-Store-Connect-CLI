@@ -243,8 +243,7 @@ func TestAuthLoginKeyIDFromKeyFileName(t *testing.T) {
 
 func TestAPIPathWithoutMethodSuggestsGET(t *testing.T) {
 	clearAuthEnvWithConfig(t)
-	var code int
-	_, stderr := captureOutput(t, func() { code = rootcmd.Run([]string{"api", "/v1/apps"}, "1.2.3") })
+	_, stderr, code := runWithDeps(t, nil, "api", "/v1/apps")
 	if code != rootcmd.ExitUsage {
 		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 	}

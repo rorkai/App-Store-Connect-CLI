@@ -3,6 +3,7 @@ package submit
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
@@ -50,8 +51,8 @@ func TestPrepareReviewSubmissionForCreateDoesNotCancelSubmissionForAnotherVersio
 		}
 	}))
 
-	stderr := captureSubmitStderr(t, func() {
-		got, err := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		got, err := prepareReviewSubmissionForCreate(context.Background(), w, client, "app-1", "IOS", "version-1", nil)
 		if err != nil {
 			t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
 		}
@@ -98,8 +99,8 @@ func TestPrepareReviewSubmissionForCreateDoesNotCancelUnprovenSubmission(t *test
 		}
 	}))
 
-	stderr := captureSubmitStderr(t, func() {
-		got, err := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
+	stderr := captureSubmitStderr(t, func(w io.Writer) {
+		got, err := prepareReviewSubmissionForCreate(context.Background(), w, client, "app-1", "IOS", "version-1", nil)
 		if err == nil {
 			t.Fatal("expected unproven submission inspection to fail")
 		}

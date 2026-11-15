@@ -5,12 +5,17 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestLibraryUploadContextCoversProcessing(t *testing.T) {
-	video := func(ctx context.Context) (context.Context, context.CancelFunc) { return libraryVideoUploadContext(ctx) }
+	d := &shared.Deps{ResolveTimeout: shared.ResolveTimeoutSetting}
+	video := func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return libraryVideoUploadContext(ctx, d)
+	}
 	image := func(ctx context.Context) (context.Context, context.CancelFunc) {
-		return libraryImageUploadContext(ctx, 3<<19)
+		return libraryImageUploadContext(ctx, d, 3<<19)
 	}
 	tests := []struct {
 		name    string

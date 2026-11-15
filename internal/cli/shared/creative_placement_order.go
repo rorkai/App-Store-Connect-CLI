@@ -103,6 +103,16 @@ func creativePlacementReorderCommand(resource, prefix, label string) *ffcli.Comm
 // OrderLibraryPlacements submits one ordering request for a localization's
 // placement group and returns the request ID.
 func OrderLibraryPlacements(ctx context.Context, client *asc.Client, resource, localizationID, placementGroup string, placementIDs []string) (string, error) {
+	return orderLibraryPlacements(ctx, ContextWithTimeout, client, resource, localizationID, placementGroup, placementIDs)
+}
+
+// OrderLibraryPlacements is OrderLibraryPlacements with the request deadline
+// from d.Timeout.
+func (d *Deps) OrderLibraryPlacements(ctx context.Context, client *asc.Client, resource, localizationID, placementGroup string, placementIDs []string) (string, error) {
+	return orderLibraryPlacements(ctx, d.Timeout, client, resource, localizationID, placementGroup, placementIDs)
+}
+
+func orderLibraryPlacements(ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, resource, localizationID, placementGroup string, placementIDs []string) (string, error) {
 	ordered := make([]map[string]string, len(placementIDs))
 	for i, id := range placementIDs {
 		ordered[i] = map[string]string{"type": "appAssetLibraryPlacements", "id": id}
@@ -111,7 +121,7 @@ func OrderLibraryPlacements(ctx context.Context, client *asc.Client, resource, l
 	if err != nil {
 		return "", err
 	}
-	requestCtx, cancel := ContextWithTimeout(ctx)
+	requestCtx, cancel := timeout(ctx)
 	defer cancel()
 	response, err := client.RawRequest(requestCtx, "POST", "/v1/appAssetLibraryPlacementOrderingRequests", payload)
 	if err != nil {

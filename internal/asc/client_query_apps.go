@@ -73,8 +73,8 @@ func buildAppsQuery(query *appsQuery) string {
 	addCSV(values, "filter[sku]", query.skus)
 	addCSV(values, "filter[appStoreVersions.appVersionState]", query.versionStates)
 	addCSV(values, "filter[reviewSubmissions.state]", query.reviewSubmissionStates)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
@@ -104,8 +104,8 @@ func buildBetaAppClipInvocationQuery(query *betaAppClipInvocationQuery) string {
 func buildAppTagsQuery(query *appTagsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[visibleInAppStore]", query.visibleInAppStore)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[appTags]", query.fields)
 	addCSV(values, "fields[territories]", query.territoryFields)
@@ -122,8 +122,8 @@ func buildNominationsQuery(query *nominationsQuery) string {
 	addCSV(values, "filter[type]", query.types)
 	addCSV(values, "filter[state]", query.states)
 	addCSV(values, "filter[relatedApps]", query.relatedApps)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[nominations]", query.fields)
 	addCSV(values, "include", query.include)

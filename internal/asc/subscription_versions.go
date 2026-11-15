@@ -285,8 +285,12 @@ func buildSubscriptionVersionsQuery(q *subscriptionVersionsQuery) string {
 	addCSV(values, "fields[subscriptionImages]", q.imageFields)
 	addCSV(values, "fields[subscriptionLocalizations]", q.localizationFields)
 	addCSV(values, "include", q.include)
-	addNamedLimit(values, "limit[images]", q.imageLimit)
-	addNamedLimit(values, "limit[localizations]", q.localizationLimit)
+	if q.imageLimit > 0 {
+		values.Set("limit[images]", strconv.Itoa(q.imageLimit))
+	}
+	if q.localizationLimit > 0 {
+		values.Set("limit[localizations]", strconv.Itoa(q.localizationLimit))
+	}
 	return values.Encode()
 }
 
@@ -297,8 +301,12 @@ func buildSubscriptionVersionQuery(q *subscriptionVersionQuery) string {
 	addCSV(values, "fields[subscriptionImages]", q.imageFields)
 	addCSV(values, "fields[subscriptionLocalizations]", q.localizationFields)
 	addCSV(values, "include", q.include)
-	addNamedLimit(values, "limit[images]", q.imageLimit)
-	addNamedLimit(values, "limit[localizations]", q.localizationLimit)
+	if q.imageLimit > 0 {
+		values.Set("limit[images]", strconv.Itoa(q.imageLimit))
+	}
+	if q.localizationLimit > 0 {
+		values.Set("limit[localizations]", strconv.Itoa(q.localizationLimit))
+	}
 	return values.Encode()
 }
 
@@ -330,10 +338,4 @@ func buildSubscriptionImageV2Query(q *subscriptionImageV2Query) string {
 	values := url.Values{}
 	addCSV(values, "fields[subscriptionImages]", q.fields)
 	return values.Encode()
-}
-
-func addNamedLimit(values url.Values, key string, limit int) {
-	if limit > 0 {
-		values.Set(key, strconv.Itoa(limit))
-	}
 }
