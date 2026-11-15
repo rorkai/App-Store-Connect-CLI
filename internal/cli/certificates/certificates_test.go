@@ -31,6 +31,7 @@ func certificatesTestDeps(client func() (*asc.Client, error)) *shared.Deps {
 		IO:      &shared.IO{In: strings.NewReader(""), Out: io.Discard, ErrOut: io.Discard},
 		Now:     time.Now,
 		Timeout: shared.ContextWithTimeout,
+		Getwd:   os.Getwd,
 	}
 }
 

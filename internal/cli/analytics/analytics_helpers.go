@@ -635,7 +635,7 @@ func downloadAnalyticsReportToFile(ctx context.Context, d *shared.Deps, client *
 	}
 	defer download.Body.Close()
 
-	size, err := shared.WriteStreamToFile(outputPath, download.Body)
+	size, err := d.WriteStreamToFile(outputPath, download.Body)
 	if err != nil {
 		return 0, fmt.Errorf("failed to write report: %w", err)
 	}

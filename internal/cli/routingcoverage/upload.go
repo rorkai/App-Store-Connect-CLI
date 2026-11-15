@@ -36,11 +36,11 @@ var errRoutingCoverageSourceChanged = errors.New("routing coverage source change
 
 // PrepareRoutingCoverageFile validates and fingerprints a routing coverage file.
 func PrepareRoutingCoverageFile(path string) (PreparedRoutingCoverageFile, error) {
-	return prepareRoutingCoverageFile(path, asc.ComputeChecksumFromReader)
+	return prepareRoutingCoverageFile(shared.DefaultDeps(), path, asc.ComputeChecksumFromReader)
 }
 
-func prepareRoutingCoverageFile(path string, checksumFunc func(io.Reader, asc.ChecksumAlgorithm) (*asc.Checksum, error)) (PreparedRoutingCoverageFile, error) {
-	rootPath, relativePath, absolutePath, err := resolveRoutingCoverageSource(path)
+func prepareRoutingCoverageFile(d *shared.Deps, path string, checksumFunc func(io.Reader, asc.ChecksumAlgorithm) (*asc.Checksum, error)) (PreparedRoutingCoverageFile, error) {
+	rootPath, relativePath, absolutePath, err := resolveRoutingCoverageSource(d, path)
 	if err != nil {
 		return PreparedRoutingCoverageFile{}, err
 	}
@@ -91,21 +91,21 @@ func prepareRoutingCoverageFile(path string, checksumFunc func(io.Reader, asc.Ch
 	}, nil
 }
 
-func resolveRoutingCoverageSource(path string) (string, string, string, error) {
+func resolveRoutingCoverageSource(d *shared.Deps, path string) (string, string, string, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return "", "", "", fmt.Errorf("file is required")
 	}
 
-	absolutePath, err := filepath.Abs(path)
+	absolutePath, err := d.Abs(path)
 	if err != nil {
 		return "", "", "", fmt.Errorf("resolve file path: %w", err)
 	}
-	workingDir, err := os.Getwd()
+	workingDir, err := d.Getwd()
 	if err != nil {
 		return "", "", "", fmt.Errorf("resolve current directory: %w", err)
 	}
-	rootPath, err := routingCoverageSourceRoot(workingDir, absolutePath)
+	rootPath, err := routingCoverageSourceRoot(d, workingDir, absolutePath)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -124,8 +124,8 @@ func resolveRoutingCoverageSource(path string) (string, string, string, error) {
 	return root.Path(), relativePath, resolvedPath, nil
 }
 
-func routingCoverageSourceRoot(workingDir, absolutePath string) (string, error) {
-	rootPath, err := filepath.Abs(workingDir)
+func routingCoverageSourceRoot(d *shared.Deps, workingDir, absolutePath string) (string, error) {
+	rootPath, err := d.Abs(workingDir)
 	if err != nil {
 		return "", fmt.Errorf("resolve current directory: %w", err)
 	}
@@ -257,7 +257,7 @@ func (file PreparedRoutingCoverageFile) openSource() (*os.File, error) {
 	relativePath := file.relativePath
 	if rootPath == "" || relativePath == "" {
 		var err error
-		rootPath, relativePath, _, err = resolveRoutingCoverageSource(file.Path)
+		rootPath, relativePath, _, err = resolveRoutingCoverageSource(shared.DefaultDeps(), file.Path)
 		if err != nil {
 			return nil, err
 		}

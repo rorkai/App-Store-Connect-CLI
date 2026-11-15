@@ -131,7 +131,7 @@ Examples:
 				return d.RequiredFlag("--file")
 			}
 
-			prepared, err := PrepareRoutingCoverageFile(pathValue)
+			prepared, err := prepareRoutingCoverageFile(d, pathValue, asc.ComputeChecksumFromReader)
 			if err != nil {
 				return fmt.Errorf("routing-coverage create: %w", err)
 			}

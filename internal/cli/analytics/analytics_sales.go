@@ -131,14 +131,14 @@ Examples:
 			}
 			defer download.Body.Close()
 
-			compressedSize, err := shared.WriteStreamToFile(compressedPath, download.Body)
+			compressedSize, err := d.WriteStreamToFile(compressedPath, download.Body)
 			if err != nil {
 				return fmt.Errorf("analytics sales: failed to write report: %w", err)
 			}
 
 			var decompressedSize int64
 			if *decompress {
-				decompressedSize, err = shared.DecompressGzipFile(compressedPath, decompressedPath)
+				decompressedSize, err = d.DecompressGzipFile(compressedPath, decompressedPath)
 				if err != nil {
 					return fmt.Errorf("analytics sales: %w", err)
 				}

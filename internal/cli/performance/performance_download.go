@@ -114,14 +114,14 @@ Examples:
 				shouldDecompress := *decompress && isGzip
 				compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".json", shouldDecompress)
 
-				compressedSize, err := shared.WriteStreamToFile(compressedPath, reader)
+				compressedSize, err := d.WriteStreamToFile(compressedPath, reader)
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
 				}
 
 				var decompressedSize int64
 				if shouldDecompress {
-					decompressedSize, err = shared.DecompressGzipFile(compressedPath, decompressedPath)
+					decompressedSize, err = d.DecompressGzipFile(compressedPath, decompressedPath)
 					if err != nil {
 						return fmt.Errorf("performance download: %w", err)
 					}
@@ -159,14 +159,14 @@ Examples:
 				shouldDecompress := *decompress && isGzip
 				compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".json", shouldDecompress)
 
-				compressedSize, err := shared.WriteStreamToFile(compressedPath, reader)
+				compressedSize, err := d.WriteStreamToFile(compressedPath, reader)
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
 				}
 
 				var decompressedSize int64
 				if shouldDecompress {
-					decompressedSize, err = shared.DecompressGzipFile(compressedPath, decompressedPath)
+					decompressedSize, err = d.DecompressGzipFile(compressedPath, decompressedPath)
 					if err != nil {
 						return fmt.Errorf("performance download: %w", err)
 					}
@@ -204,14 +204,14 @@ Examples:
 				shouldDecompress := *decompress && isGzip
 				compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".json", shouldDecompress)
 
-				compressedSize, err := shared.WriteStreamToFile(compressedPath, reader)
+				compressedSize, err := d.WriteStreamToFile(compressedPath, reader)
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
 				}
 
 				var decompressedSize int64
 				if shouldDecompress {
-					decompressedSize, err = shared.DecompressGzipFile(compressedPath, decompressedPath)
+					decompressedSize, err = d.DecompressGzipFile(compressedPath, decompressedPath)
 					if err != nil {
 						return fmt.Errorf("performance download: %w", err)
 					}
