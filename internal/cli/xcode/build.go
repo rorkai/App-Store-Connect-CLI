@@ -39,8 +39,9 @@ func XcodeBuildCommand() *ffcli.Command {
 		ShortHelp:  "Compile an Xcode scheme for a simulator or device.",
 		LongHelp: `Compile an Xcode scheme with an ordinary xcodebuild build action.
 
-Provide exactly one of --workspace or --project, plus --scheme. Use
---destination to select a simulator or device. Signing follows Xcode defaults;
+Provide exactly one of --workspace or --project, plus --scheme. When both are
+omitted, asc uses the only .xcworkspace, or else the only .xcodeproj, in the
+current directory. Use --destination to select a simulator or device. Signing follows Xcode defaults;
 --no-code-signing explicitly sets CODE_SIGNING_ALLOWED=NO for validation builds.
 
 When --derived-data-path is omitted, asc uses a stable cache path outside the
@@ -56,6 +57,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := detectXcodeContainer(workspacePath, projectPath, "exactly one of --workspace or --project is required"); err != nil {
+				return err
+			}
 			opts := localxcode.BuildOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
 				ProjectPath:      strings.TrimSpace(*projectPath),

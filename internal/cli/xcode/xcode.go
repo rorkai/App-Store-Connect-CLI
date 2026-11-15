@@ -132,7 +132,8 @@ func XcodeArchiveCommand() *ffcli.Command {
 		LongHelp: `Create an .xcarchive at an exact path.
 
 Provide exactly one of --workspace or --project, plus --scheme and
---archive-path. Signing follows Xcode defaults; --no-code-signing explicitly
+--archive-path. When both are omitted, asc uses the only .xcworkspace, or else
+the only .xcodeproj, in the current directory. Signing follows Xcode defaults; --no-code-signing explicitly
 sets CODE_SIGNING_ALLOWED=NO.
 
 When --derived-data-path is omitted, xcodebuild uses its own default
@@ -147,6 +148,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := detectXcodeContainer(workspacePath, projectPath, "exactly one of --workspace or --project is required"); err != nil {
+				return err
+			}
 			if strings.TrimSpace(*workspacePath) == "" && strings.TrimSpace(*projectPath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
 				return shared.MissingRequiredUsageError("")
@@ -782,4 +786,51 @@ func validateResultRows(result *localxcode.ValidateResult) [][]string {
 		rows = append(rows, []string{"ipa_path", result.IPAPath})
 	}
 	return append(rows, []string{"validated", fmt.Sprintf("%t", result.Validated)})
+}
+
+// detectXcodeContainer fills empty --workspace and --project values with the
+// only workspace, or else the only project, at the top of the working
+// directory. When the choice is ambiguous it returns the required usage error
+// with what was found.
+func detectXcodeContainer(workspacePath, projectPath *string, required string) error {
+	if strings.TrimSpace(*workspacePath) != "" || strings.TrimSpace(*projectPath) != "" {
+		return nil
+	}
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		return shared.UsageErrorf("%s; could not list the current directory: %v", required, err)
+	}
+	var workspaces, projects []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		switch strings.ToLower(filepath.Ext(entry.Name())) {
+		case ".xcworkspace":
+			workspaces = append(workspaces, entry.Name())
+		case ".xcodeproj":
+			projects = append(projects, entry.Name())
+		}
+	}
+	for _, kind := range []struct {
+		name  string
+		found []string
+		flag  string
+		value *string
+	}{
+		{"workspace", workspaces, "--workspace", workspacePath},
+		{"project", projects, "--project", projectPath},
+	} {
+		switch len(kind.found) {
+		case 0:
+			continue
+		case 1:
+			*kind.value = kind.found[0]
+			fmt.Fprintf(os.Stderr, "Using %s %s\n", kind.name, kind.found[0])
+			return nil
+		default:
+			return shared.UsageErrorf("%s; found %d %ss: %s; pass %s", required, len(kind.found), kind.name, strings.Join(kind.found, ", "), kind.flag)
+		}
+	}
+	return nil
 }
