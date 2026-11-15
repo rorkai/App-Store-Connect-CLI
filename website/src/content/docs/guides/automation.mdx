@@ -192,7 +192,8 @@ global `env`) and then from the process environment.
 Every other value is falsy, including an unset variable, an empty string, and
 any other non-empty value. `"if": "BUILD_ID"` with `BUILD_ID:abc123`, or
 `"if": "IPA_PATH"` with a path, always skips the step. Use `if` as a boolean
-feature flag, never as a "was this ID supplied?" check.
+feature flag, never as a "was this ID supplied?" check, or compare a value with
+`"if": "CHANNEL == beta"` or `"if": "CHANNEL != beta"`.
 
 <Warning>
   A skipped step is not a failure: the run still reports `"status": "ok"` and

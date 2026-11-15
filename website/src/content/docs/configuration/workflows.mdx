@@ -177,7 +177,8 @@ Steps can be defined in two formats:
   Name of an environment variable that controls whether the step runs
 
   The step runs only when the variable has a truthy value such as `1`, `true`,
-  `yes`, `y`, or `on` (case-insensitive).
+  `yes`, `y`, or `on` (case-insensitive). `NAME == VALUE` and `NAME != VALUE`
+  compare the variable's value with a literal instead.
 </ParamField>
 
 <ParamField path="with" type="object">
@@ -273,7 +274,13 @@ The `if` field holds the **name of a variable**, not a shell expression. The ste
 runs only when that variable holds a truthy value: `1`, `true`, `yes`, `y`, or
 `on` (case-insensitive, surrounding whitespace ignored). Everything else is
 falsy, including an unset variable, an empty string, and any other non-empty
-value such as an ID, a version string, or a file path.
+value such as an ID, a version string, or a file path. `$NAME` means the same as
+`NAME`.
+
+To test a specific value, compare it: `"if": "CHANNEL == beta"` or
+`"if": "$CHANNEL != 'beta'"`. The comparison is exact and case-sensitive, an
+unset variable compares as an empty string, and one pair of quotes around the
+value is removed.
 
 ```json
 {
@@ -304,9 +311,10 @@ environment, so `AUTO_SUBMIT=true asc workflow run release` works too.
 <Warning>
   A skipped step is not a failure. The run still reports `"status": "ok"` and
   exits `0`, and the step appears in `steps[]` with `"status": "skipped"`.
-  Shell-expression forms such as `"if": "test \"$AUTO_SUBMIT\" = \"true\""` are
-  treated as a variable name, never resolve, and silently skip the step, so a
-  `--submit --confirm` step gated that way never runs while CI stays green.
+  Any other expression, such as `"if": "test \"$AUTO_SUBMIT\" = \"true\""` or
+  `"if": "A == yes && B == yes"`, skips the step with a warning on stderr, so a
+  `--submit --confirm` step gated that way never runs. A future major release
+  will reject such expressions.
 </Warning>
 
 ## Sub-workflows
