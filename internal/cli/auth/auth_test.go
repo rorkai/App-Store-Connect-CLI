@@ -233,7 +233,7 @@ func TestPermissionWarningAndHooks(t *testing.T) {
 }
 
 func TestValidateLoginNetwork_InvalidKeyPath(t *testing.T) {
-	err := validateLoginNetwork(context.Background(), "KEY", "ISS", "/definitely/missing/AuthKey.p8", "team")
+	err := validateLoginNetwork(context.Background(), "KEY", "ISS", "/definitely/missing/AuthKey.p8", "", "team")
 	if err == nil {
 		t.Fatal("expected validateLoginNetwork() to fail for invalid key path")
 	}
@@ -341,7 +341,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			return "", errors.New("jwt failed")
 		})
 		prevNetwork := loginNetworkValidate
-		loginNetworkValidate = func(context.Context, string, string, string, string) error {
+		loginNetworkValidate = func(context.Context, string, string, string, string, string) error {
 			t.Fatal("network validation should not run when jwt generation fails")
 			return nil
 		}
@@ -350,7 +350,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			loginNetworkValidate = prevNetwork
 		})
 
-		err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "team", true)
+		err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "", "team", true)
 		if err == nil || !strings.Contains(err.Error(), "failed to generate JWT") {
 			t.Fatalf("expected jwt error, got %v", err)
 		}
@@ -362,7 +362,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			return "token", nil
 		})
 		prevNetwork := loginNetworkValidate
-		loginNetworkValidate = func(context.Context, string, string, string, string) error {
+		loginNetworkValidate = func(context.Context, string, string, string, string, string) error {
 			t.Fatal("network validation should not run when network=false")
 			return nil
 		}
@@ -371,7 +371,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			loginNetworkValidate = prevNetwork
 		})
 
-		if err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "team", false); err != nil {
+		if err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "", "team", false); err != nil {
 			t.Fatalf("validateLoginCredentials() error: %v", err)
 		}
 	})
@@ -381,7 +381,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			return "token", nil
 		})
 		prevNetwork := loginNetworkValidate
-		loginNetworkValidate = func(context.Context, string, string, string, string) error {
+		loginNetworkValidate = func(context.Context, string, string, string, string, string) error {
 			return errors.New("network down")
 		}
 		t.Cleanup(func() {
@@ -389,7 +389,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			loginNetworkValidate = prevNetwork
 		})
 
-		err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "team", true)
+		err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "", "team", true)
 		if err == nil || !strings.Contains(err.Error(), "network validation failed") {
 			t.Fatalf("expected network validation error, got %v", err)
 		}
@@ -401,7 +401,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			return "token", nil
 		})
 		prevNetwork := loginNetworkValidate
-		loginNetworkValidate = func(context.Context, string, string, string, string) error {
+		loginNetworkValidate = func(context.Context, string, string, string, string, string) error {
 			return asc.ErrUnauthorized
 		}
 		t.Cleanup(func() {
@@ -409,7 +409,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			loginNetworkValidate = prevNetwork
 		})
 
-		err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "team", true)
+		err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "", "team", true)
 		if err == nil || !strings.Contains(err.Error(), "network validation failed") {
 			t.Fatalf("expected network validation error, got %v", err)
 		}
@@ -421,7 +421,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			return "token", nil
 		})
 		prevNetwork := loginNetworkValidate
-		loginNetworkValidate = func(context.Context, string, string, string, string) error {
+		loginNetworkValidate = func(context.Context, string, string, string, string, string) error {
 			return asc.ErrForbidden
 		}
 		t.Cleanup(func() {
@@ -429,7 +429,7 @@ func TestValidateLoginCredentials(t *testing.T) {
 			loginNetworkValidate = prevNetwork
 		})
 
-		err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "team", true)
+		err := validateLoginCredentials(context.Background(), "KEY", "ISS", keyPath, "", "team", true)
 		if err == nil || !strings.Contains(err.Error(), "network validation failed") {
 			t.Fatalf("expected network validation error, got %v", err)
 		}

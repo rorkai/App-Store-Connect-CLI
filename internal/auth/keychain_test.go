@@ -3210,3 +3210,41 @@ func TestGetCredentialsWithSource_KeychainAccessDeniedReturnsSentinel(t *testing
 		t.Fatalf("expected ErrKeychainAccessDenied, got %v", err)
 	}
 }
+
+// A keychain login from key content must keep the PEM in the keychain item and
+// write no key file beside the config.
+func TestStoreCredentialsPEMWithKeyTypeKeepsKeyInKeychain(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "0")
+	t.Setenv("HOME", t.TempDir())
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	counting := withCountingKeyring(t)
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	writeECDSAPEM(t, keyPath, 0o600, true)
+	pemData, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatalf("read key: %v", err)
+	}
+
+	written, err := StoreCredentialsPEMWithKeyType("CI", "KEY123", "ISS456", string(pemData), config.CredentialKeyTypeTeam)
+	if err != nil {
+		t.Fatalf("StoreCredentialsPEMWithKeyType() error: %v", err)
+	}
+	if written != "" {
+		t.Fatalf("written key path = %q, want none for keychain storage", written)
+	}
+	item, err := counting.inner.Get(keyringKey("CI"))
+	if err != nil {
+		t.Fatalf("keychain item: %v", err)
+	}
+	var payload credentialPayload
+	if err := json.Unmarshal(item.Data, &payload); err != nil {
+		t.Fatalf("decode keychain item: %v", err)
+	}
+	if payload.KeyID != "KEY123" || payload.PrivateKeyPEM != string(pemData) || payload.PrivateKeyPath != "" {
+		t.Fatalf("keychain payload key %q, path %q; want KEY123 with the PEM and no path", payload.KeyID, payload.PrivateKeyPath)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(configPath), "keys")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected no keys directory, got stat error %v", err)
+	}
+}
