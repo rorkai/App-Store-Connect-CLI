@@ -70,6 +70,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersionLocalizations/loc-1/appPreviewSets": `{"data":[{"type":"appPreviewSets","id":"preview-set-1","attributes":{"previewType":"IPHONE_67"}}],"links":{}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations preview-sets links",
@@ -79,6 +80,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersionLocalizations/loc-1/relationships/appPreviewSets": `{"data":[{"type":"appPreviewSets","id":"preview-set-1"}],"links":{}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations preview-sets view",
@@ -88,6 +90,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appPreviewSets/preview-set-1": `{"data":{"type":"appPreviewSets","id":"preview-set-1","attributes":{"previewType":"IPHONE_67"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations screenshot-sets list",
@@ -97,6 +100,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets": `{"data":[{"type":"appScreenshotSets","id":"screenshot-set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_67"}}],"links":{}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations screenshot-sets view",
@@ -106,6 +110,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appScreenshotSets/screenshot-set-1": `{"data":{"type":"appScreenshotSets","id":"screenshot-set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_67"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "localizations screenshot-sets delete",
@@ -115,6 +120,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appScreenshotSets/screenshot-set-1": ``,
 			},
+			deps: true,
 		},
 		{
 			name:     "video-previews list",
@@ -146,6 +152,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersions/version-1/appStoreVersionLocalizations": `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"links":{}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "subscriptions groups view",
@@ -402,17 +409,17 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		deps     bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		// Localization media sets and the asset commands that read them.
-		{args: []string{"localizations", "preview-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
-		{args: []string{"localizations", "preview-sets", "links"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
-		{args: []string{"localizations", "preview-sets", "view"}, flag: "id", wantType: "appPreviewSets"},
-		{args: []string{"localizations", "screenshot-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
-		{args: []string{"localizations", "screenshot-sets", "links"}, flag: "localization-id", wantType: "appStoreVersionLocalizations"},
-		{args: []string{"localizations", "screenshot-sets", "view"}, flag: "id", wantType: "appScreenshotSets"},
-		{args: []string{"localizations", "screenshot-sets", "delete"}, flag: "id", wantType: "appScreenshotSets"},
-		{args: []string{"localizations", "create"}, flag: "version", wantType: "appStoreVersions"},
-		{args: []string{"localizations", "update"}, flag: "version", wantType: "appStoreVersions"},
-		{args: []string{"localizations", "update"}, flag: "app-info", wantType: "appInfos"},
-		{args: []string{"localizations", "supported-locales"}, flag: "version", wantType: "appStoreVersions"},
+		{args: []string{"localizations", "preview-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations", deps: true},
+		{args: []string{"localizations", "preview-sets", "links"}, flag: "localization-id", wantType: "appStoreVersionLocalizations", deps: true},
+		{args: []string{"localizations", "preview-sets", "view"}, flag: "id", wantType: "appPreviewSets", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "list"}, flag: "localization-id", wantType: "appStoreVersionLocalizations", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "links"}, flag: "localization-id", wantType: "appStoreVersionLocalizations", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "view"}, flag: "id", wantType: "appScreenshotSets", deps: true},
+		{args: []string{"localizations", "screenshot-sets", "delete"}, flag: "id", wantType: "appScreenshotSets", deps: true},
+		{args: []string{"localizations", "create"}, flag: "version", wantType: "appStoreVersions", deps: true},
+		{args: []string{"localizations", "update"}, flag: "version", wantType: "appStoreVersions", deps: true},
+		{args: []string{"localizations", "update"}, flag: "app-info", wantType: "appInfos", deps: true},
+		{args: []string{"localizations", "supported-locales"}, flag: "version", wantType: "appStoreVersions", deps: true},
 		{args: []string{"screenshots", "list"}, flag: "version-localization", wantType: "appStoreVersionLocalizations"},
 		{args: []string{"screenshots", "upload"}, flag: "version-localization", wantType: "appStoreVersionLocalizations"},
 		{args: []string{"screenshots", "download"}, flag: "version-localization", wantType: "appStoreVersionLocalizations"},

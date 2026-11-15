@@ -339,6 +339,7 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"localizations", "placements", "list"}, selector: []string{"--localization-id", "localization-1"},
 			include: "image,video,retentionMessageVersion", path: "/v1/appStoreVersionLocalizations/localization-1/placements",
 			flags: map[string]string{"asset-image-fields": "appAssetLibraryImages", "asset-video-fields": "appAssetLibraryVideos", "retention-message-version-fields": "retentionMessageVersions"},
+			deps:  true,
 		},
 		{
 			name: "iap list", operation: "apps_inAppPurchasesV2_getToManyRelated",
@@ -357,12 +358,14 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"localizations", "list"}, selector: []string{"--version", "version-1"},
 			include: "appStoreVersion,appScreenshotSets,appPreviewSets", path: "/v1/appStoreVersions/version-1/appStoreVersionLocalizations",
 			flags: map[string]string{"app-store-version-fields": "appStoreVersions", "screenshot-set-fields": "appScreenshotSets", "preview-set-fields": "appPreviewSets"},
+			deps:  true,
 		},
 		{
 			name: "localization screenshot sets list", operation: "appStoreVersionLocalizations_appScreenshotSets_getToManyRelated",
 			command: []string{"localizations", "screenshot-sets", "list"}, selector: []string{"--localization-id", "localization-1"},
 			include: "appScreenshots", path: "/v1/appStoreVersionLocalizations/localization-1/appScreenshotSets", query: map[string]string{"limit[appScreenshots]": "50"},
 			flags: map[string]string{"screenshot-fields": "appScreenshots"},
+			deps:  true,
 		},
 	}
 }

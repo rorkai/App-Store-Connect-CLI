@@ -259,12 +259,14 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 			replies:      map[string]ifExistsReply{localizationPost: {http.StatusConflict, localizationDuplicate409}},
 			wantErr:      "already exists. Try updating.",
 			wantRequests: []string{localizationPost},
+			deps:         true,
 		},
 		{
 			name:         "localizations create update does not read back a state conflict",
 			args:         with(localizationArgs, "--if-exists", "update"),
 			replies:      map[string]ifExistsReply{localizationPost: {http.StatusConflict, localizationState409}},
 			wantRequests: []string{localizationPost},
+			deps:         true,
 		},
 		{
 			name: "localizations create skip read-back finds nothing",
@@ -274,6 +276,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 				localizationGet:  {http.StatusOK, noLocalizationsList},
 			},
 			wantRequests: []string{localizationPost, localizationGet},
+			deps:         true,
 		},
 		{
 			name: "pricing availability create default fail keeps Apple's detail",
@@ -366,6 +369,7 @@ func TestIfExistsRejectsUnsupportedModeBeforeHTTP(t *testing.T) {
 			name: "localizations create",
 			args: []string{"localizations", "create", "--version", "version-1", "--locale", "ja", "--description", "new description", "--if-exists", "replace", "--output", "json"},
 			want: "Error: --if-exists must be one of fail, skip, update",
+			deps: true,
 		},
 		{
 			name: "pricing availability create",

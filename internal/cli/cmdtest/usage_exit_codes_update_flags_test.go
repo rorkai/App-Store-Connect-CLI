@@ -241,11 +241,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "localizations update",
 			args:  []string{"localizations", "update", "--locale", "en-US"},
 			flags: "--description, --keywords, --whats-new, --promotional-text, --clear-promotional-text, --support-url, --marketing-url",
+			deps:  true,
 		},
 		{
 			name:  "localizations update app-info",
 			args:  []string{"localizations", "update", "--type", "app-info", "--locale", "en-US"},
 			flags: "--name, --subtitle, --clear-subtitle, --privacy-policy-url, --clear-privacy-policy-url, --privacy-choices-url, --privacy-policy-text",
+			deps:  true,
 		},
 		{
 			name:  "marketplace search-details update",
