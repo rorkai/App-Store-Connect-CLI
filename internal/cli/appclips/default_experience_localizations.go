@@ -144,14 +144,8 @@ Examples:
 
 // AppClipDefaultExperienceLocalizationsCreateCommand creates a localization.
 func AppClipDefaultExperienceLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
-	locale := fs.String("locale", "", "Locale (e.g., en-US)")
-	subtitle := fs.String("subtitle", "", "Subtitle")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.AppClipDefaultExperienceLocalizationCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc app-clips default-experiences localizations create --experience-id \"EXP_ID\" --locale \"en-US\" [flags]",
 		ShortHelp:  "Create a localization for a default experience.",
@@ -159,46 +153,17 @@ func AppClipDefaultExperienceLocalizationsCreateCommand() *ffcli.Command {
 
 Examples:
   asc app-clips default-experiences localizations create --experience-id "EXP_ID" --locale "en-US" --subtitle "Try it"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			experienceValue := strings.TrimSpace(*experienceID)
-			if experienceValue == "" {
-				return shared.RequiredFlag("--experience-id")
-			}
-
-			localeValue := strings.TrimSpace(*locale)
-			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
-			}
-
-			var subtitleValue *string
-			if strings.TrimSpace(*subtitle) != "" {
-				value := strings.TrimSpace(*subtitle)
-				subtitleValue = &value
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips default-experiences localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			attrs := asc.AppClipDefaultExperienceLocalizationCreateAttributes{
-				Locale:   localeValue,
-				Subtitle: subtitleValue,
-			}
-
-			resp, err := client.CreateAppClipDefaultExperienceLocalization(requestCtx, experienceValue, attrs)
-			if err != nil {
-				return fmt.Errorf("app-clips default-experiences localizations create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "experience-id",
+		IDUsage: "Default experience ID",
+		IDType:  "appClipDefaultExperiences",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale (e.g., en-US)"),
+			shared.OptionalStringFlag(&attrs.Subtitle, "subtitle", "Subtitle"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateAppClipDefaultExperienceLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // AppClipDefaultExperienceLocalizationsUpdateCommand updates a localization.

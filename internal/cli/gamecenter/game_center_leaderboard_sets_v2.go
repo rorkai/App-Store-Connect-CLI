@@ -268,13 +268,8 @@ Examples:
 
 // GameCenterLeaderboardSetsV2UpdateCommand returns the leaderboard-sets v2 update subcommand.
 func GameCenterLeaderboardSetsV2UpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	referenceName := fs.String("reference-name", "", "Reference name for the leaderboard set")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterLeaderboardSetUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center leaderboard-sets v2 update [flags]",
 		ShortHelp:  "Update a Game Center leaderboard set (v2).",
@@ -282,43 +277,15 @@ func GameCenterLeaderboardSetsV2UpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets v2 update --id "SET_ID" --reference-name "Season 1 - Updated"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*setID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			attrs := asc.GameCenterLeaderboardSetUpdateAttributes{}
-			hasUpdate := false
-
-			if strings.TrimSpace(*referenceName) != "" {
-				name := strings.TrimSpace(*referenceName)
-				attrs.ReferenceName = &name
-				hasUpdate = true
-			}
-
-			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, referenceName)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterLeaderboardSetV2(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Game Center leaderboard set ID",
+		IDType:  "gameCenterLeaderboardSets",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.ReferenceName, "reference-name", "Reference name for the leaderboard set"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterLeaderboardSetV2(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterLeaderboardSetsV2DeleteCommand returns the leaderboard-sets v2 delete subcommand.
@@ -526,12 +493,7 @@ Examples:
 
 // GameCenterLeaderboardSetVersionsV2CreateCommand returns the leaderboard set versions v2 create subcommand.
 func GameCenterLeaderboardSetVersionsV2CreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center leaderboard-sets v2 versions create --set-id \"SET_ID\"",
 		ShortHelp:  "Create a new Game Center leaderboard set version (v2).",
@@ -539,30 +501,13 @@ func GameCenterLeaderboardSetVersionsV2CreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets v2 versions create --set-id "SET_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*setID)
-			if id == "" {
-				return shared.RequiredFlag("--set-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterLeaderboardSetVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "set-id",
+		IDUsage: "Game Center leaderboard set ID",
+		IDType:  "gameCenterLeaderboardSets",
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterLeaderboardSetVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetLocalizationsV2Command returns the leaderboard set localizations v2 command group.

@@ -92,12 +92,7 @@ Examples:
 
 // GameCenterAppVersionsCreateCommand returns the app versions create subcommand.
 func GameCenterAppVersionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	appStoreVersionID := shared.BindResourceIDFlag(fs, "app-store-version-id", "appStoreVersions", "App Store version ID to associate")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center app-versions create --app-store-version-id \"APP_STORE_VERSION_ID\"",
 		ShortHelp:  "Create a Game Center app version.",
@@ -105,30 +100,13 @@ func GameCenterAppVersionsCreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center app-versions create --app-store-version-id "APP_STORE_VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*appStoreVersionID)
-			if id == "" {
-				return shared.RequiredFlag("--app-store-version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center app-versions create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterAppVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center app-versions create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "app-store-version-id",
+		IDUsage: "App Store version ID to associate",
+		IDType:  "appStoreVersions",
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterAppVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterAppVersionsUpdateCommand returns the app versions update subcommand.

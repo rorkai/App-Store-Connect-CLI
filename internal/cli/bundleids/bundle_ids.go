@@ -332,13 +332,8 @@ Examples:
 
 // newBundleIDsUpdateCommand returns the bundle IDs update subcommand.
 func newBundleIDsUpdateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("update", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
-	name := fs.String("name", "", "Bundle ID name")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.BundleIDUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc bundle-ids update --id \"BUNDLE_ID\" --name \"New Name\"",
 		ShortHelp:  "Update a bundle ID.",
@@ -346,35 +341,16 @@ func newBundleIDsUpdateCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc bundle-ids update --id "BUNDLE_ID" --name "New Name"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return d.RequiredFlag("--id")
-			}
-			nameValue := strings.TrimSpace(*name)
-			if nameValue == "" {
-				return d.RequiredFlag("--name")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("bundle-ids update: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			attrs := asc.BundleIDUpdateAttributes{Name: nameValue}
-			resp, err := client.UpdateBundleID(requestCtx, idValue, attrs)
-			if err != nil {
-				return fmt.Errorf("bundle-ids update: failed to update: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Bundle ID",
+		IDType:  "bundleIds",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Name, "name", "Bundle ID name"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateBundleID(ctx, id, attrs)
+		},
+	})
 }
 
 // newBundleIDsDeleteCommand returns the bundle IDs delete subcommand.

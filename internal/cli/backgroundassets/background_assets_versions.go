@@ -176,12 +176,7 @@ Examples:
 }
 
 func newBackgroundAssetsVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("create", flag.ExitOnError)
-
-	assetID := shared.BindResourceIDFlag(fs, "background-asset-id", "backgroundAssets", "Background asset ID")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc background-assets versions create --background-asset-id \"ASSET_ID\"",
 		ShortHelp:  "Create a background asset version.",
@@ -189,28 +184,12 @@ func newBackgroundAssetsVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc background-assets versions create --background-asset-id "ASSET_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			assetIDValue := strings.TrimSpace(*assetID)
-			if assetIDValue == "" {
-				return d.RequiredFlag("--background-asset-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("background-assets versions create: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateBackgroundAssetVersion(requestCtx, assetIDValue)
-			if err != nil {
-				return fmt.Errorf("background-assets versions create: failed to create: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "background-asset-id",
+		IDUsage: "Background asset ID",
+		IDType:  "backgroundAssets",
+		Deps:    d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateBackgroundAssetVersion(ctx, id)
 		},
-	}
+	})
 }
