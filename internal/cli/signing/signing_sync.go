@@ -477,6 +477,7 @@ func syncPushCommand() *ffcli.Command {
 				requestCtx,
 				client,
 				signingAssetsOptions{
+					Now:                      signingFetchNowFn,
 					BundleIDResourceID:       bundleIDResp.Data.ID,
 					BundleIdentifier:         bundle,
 					ProfileType:              profType,
