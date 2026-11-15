@@ -154,12 +154,10 @@ Examples:
 
 // AppEventsGetCommand returns the app events get subcommand.
 func AppEventsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return appEventsClientFactory() }
 
-	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc app-events view --event-id \"EVENT_ID\"",
 		ShortHelp:  "View an in-app event by ID.",
@@ -167,30 +165,15 @@ func AppEventsGetCommand() *ffcli.Command {
 
 Examples:
   asc app-events view --event-id "EVENT_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*eventID)
-			if id == "" {
-				return shared.RequiredFlag("--event-id")
-			}
-
-			client, err := appEventsClientFactory()
-			if err != nil {
-				return fmt.Errorf("app-events view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppEvent(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("app-events view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "event-id",
+		IDUsage:            "App event ID",
+		IDType:             "appEvents",
+		RequiredDiagnostic: true,
+		Deps:               d,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppEvent(ctx, id)
 		},
-	}
+	})
 }
 
 // AppEventsCreateCommand returns the app events create subcommand.

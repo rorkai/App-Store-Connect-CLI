@@ -176,10 +176,30 @@ var generatedQueries = map[string]generatedQuery{
 			"filter[bundleId]": WithAppClipsBundleIDs,
 		},
 	},
+	"apps_appEvents_getToManyRelated": {
+		build: buildAppEventsQuery,
+		options: map[string]any{
+			"filter[eventState]":            WithAppEventsStates,
+			"filter[id]":                    WithAppEventsIDs,
+			"fields[appEvents]":             WithAppEventsFields,
+			"fields[appEventLocalizations]": WithAppEventsLocalizationFields,
+			"include":                       WithAppEventsInclude,
+			"limit[localizations]":          WithAppEventsLocalizationsLimit,
+		},
+	},
 	"apps_appStoreVersionExperimentsV2_getToManyRelated": {
 		build: buildAppStoreVersionExperimentsV2Query,
 		options: map[string]any{
 			"filter[state]": WithAppStoreVersionExperimentsV2State,
+		},
+	},
+	"apps_betaTesterUsages_getMetrics": {
+		build: buildBetaTesterUsagesQuery,
+		options: map[string]any{
+			"period":              WithBetaTesterUsagesPeriod,
+			"filter[apps]":        WithBetaTesterUsagesAppID,
+			"groupBy":             WithBetaTesterUsagesGroupBy,
+			"filter[betaTesters]": WithBetaTesterUsagesFilterBetaTesters,
 		},
 	},
 	"apps_customerReviewSummarizations_getToManyRelated": {
@@ -230,6 +250,13 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildBackgroundAssetUploadFilesQuery,
 		options: map[string]any{},
 	},
+	"betaAppClipInvocations_getInstance": {
+		build: buildBetaAppClipInvocationQuery,
+		options: map[string]any{
+			"include": WithBetaAppClipInvocationInclude,
+			"limit[betaAppClipInvocationLocalizations]": WithBetaAppClipInvocationLocalizationsLimit,
+		},
+	},
 	"betaAppLocalizations_getCollection": {
 		build: buildBetaAppLocalizationsQuery,
 		options: map[string]any{
@@ -266,6 +293,15 @@ var generatedQueries = map[string]generatedQuery{
 		build: buildBetaRecruitmentCriterionOptionsQuery,
 		options: map[string]any{
 			"fields[betaRecruitmentCriterionOptions]": WithBetaRecruitmentCriterionOptionsFields,
+		},
+	},
+	"betaTesters_betaTesterUsages_getMetrics": {
+		build: buildBetaTesterUsagesQuery,
+		options: map[string]any{
+			"period":              WithBetaTesterUsagesPeriod,
+			"filter[apps]":        WithBetaTesterUsagesAppID,
+			"groupBy":             WithBetaTesterUsagesGroupBy,
+			"filter[betaTesters]": WithBetaTesterUsagesFilterBetaTesters,
 		},
 	},
 	"buildBetaDetails_getCollection": {
@@ -546,6 +582,15 @@ var generatedQueries = map[string]generatedQuery{
 			"fields[marketplaceWebhooks]": WithMarketplaceWebhooksFields,
 		},
 	},
+	"passTypeIds_getInstance": {
+		build: buildPassTypeIDQuery,
+		options: map[string]any{
+			"fields[passTypeIds]":  WithPassTypeIDFields,
+			"fields[certificates]": WithPassTypeIDCertificateFields,
+			"include":              WithPassTypeIDInclude,
+			"limit[certificates]":  WithPassTypeIDCertificatesIncludeLimit,
+		},
+	},
 	"profiles_certificates_getToManyRelated": {
 		build:   buildProfileCertificatesQuery,
 		options: map[string]any{},
@@ -661,6 +706,15 @@ var generatedQueries = map[string]generatedQuery{
 	"subscriptions_subscriptionLocalizations_getToManyRelated": {
 		build:   buildSubscriptionLocalizationsQuery,
 		options: map[string]any{},
+	},
+	"subscriptions_winBackOffers_getToManyRelated": {
+		build: buildWinBackOffersQuery,
+		options: map[string]any{
+			"fields[winBackOffers]":      WithWinBackOffersFields,
+			"fields[winBackOfferPrices]": WithWinBackOffersPriceFields,
+			"include":                    WithWinBackOffersInclude,
+			"limit[prices]":              WithWinBackOffersPricesLimit,
+		},
 	},
 	"territories_getCollection": {
 		build: buildTerritoriesQuery,

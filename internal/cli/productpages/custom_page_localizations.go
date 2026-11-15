@@ -100,49 +100,38 @@ Examples:
 
 // newCustomPageLocalizationsGetCommand returns the custom page localizations get subcommand.
 func newCustomPageLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-localizations view", flag.ExitOnError)
+	var (
+		includeValues   []string
+		placementsLimit int
+	)
 
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
-	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc product-pages custom-pages localizations view --localization-id \"LOCALIZATION_ID\"",
-		ShortHelp:  "View a custom product page localization by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "custom-page-localizations view",
+		Name:        "view",
+		ShortUsage:  "asc product-pages custom-pages localizations view --localization-id \"LOCALIZATION_ID\"",
+		ShortHelp:   "View a custom product page localization by ID.",
 		LongHelp: `View a custom product page localization by ID.
 
 Examples:
   asc product-pages custom-pages localizations view --localization-id "LOCALIZATION_ID"
   asc product-pages custom-pages localizations view --localization-id "LOCALIZATION_ID" --include placements --placements-limit 50`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*localizationID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--localization-id")
-			}
-			includeValues, placementsLimit, err := include.Resolve()
-			if err != nil {
+		IDFlag:             "localization-id",
+		IDUsage:            "Custom product page localization ID",
+		IDType:             "appCustomProductPageLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "custom-pages localizations view",
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
+			return func() (err error) {
+				includeValues, placementsLimit, err = include.Resolve()
 				return err
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppCustomProductPageLocalization(requestCtx, trimmedID, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations view: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppCustomProductPageLocalization(ctx, id, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
+		},
+	})
 }
 
 // newCustomPageLocalizationsCreateCommand returns the custom page localizations create subcommand.

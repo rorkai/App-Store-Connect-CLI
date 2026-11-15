@@ -43,14 +43,6 @@ type betaBuildLocalizationsQuery struct {
 	buildIDs []string
 }
 
-type betaTesterUsagesQuery struct {
-	listQuery
-	period            string
-	appID             string
-	groupBy           string
-	filterBetaTesters string
-}
-
 type betaGroupsQuery struct {
 	listQuery
 	isInternalGroup               *bool
@@ -285,24 +277,6 @@ func buildBetaBuildLocalizationsQuery(query *betaBuildLocalizationsQuery) string
 	return values.Encode()
 }
 
-func buildBetaTesterUsagesQuery(query *betaTesterUsagesQuery) string {
-	values := url.Values{}
-	if strings.TrimSpace(query.period) != "" {
-		values.Set("period", strings.TrimSpace(query.period))
-	}
-	if strings.TrimSpace(query.appID) != "" {
-		values.Set("filter[apps]", strings.TrimSpace(query.appID))
-	}
-	if strings.TrimSpace(query.groupBy) != "" {
-		values.Set("groupBy", strings.TrimSpace(query.groupBy))
-	}
-	if strings.TrimSpace(query.filterBetaTesters) != "" {
-		values.Set("filter[betaTesters]", strings.TrimSpace(query.filterBetaTesters))
-	}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // FeedbackOption is a functional option for GetFeedback.
 type FeedbackOption func(*feedbackQuery)
 
@@ -323,9 +297,6 @@ type BetaTesterBetaGroupsOption func(*listQuery)
 
 // BetaTesterBuildsOption is a functional option for GetBetaTesterBuilds.
 type BetaTesterBuildsOption func(*listQuery)
-
-// BetaTesterUsagesOption is a functional option for beta tester usage metrics.
-type BetaTesterUsagesOption func(*betaTesterUsagesQuery)
 
 // BetaAppReviewDetailsOption is a functional option for beta app review details.
 type BetaAppReviewDetailsOption func(*betaAppReviewDetailsQuery)
@@ -686,42 +657,6 @@ func WithBetaTestersInclude(include []string) BetaTestersOption {
 func WithBetaTestersFields(fields []string) BetaTestersOption {
 	return func(q *betaTestersQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithBetaTesterUsagesPeriod sets the reporting period for beta tester usage metrics.
-func WithBetaTesterUsagesPeriod(period string) BetaTesterUsagesOption {
-	return func(q *betaTesterUsagesQuery) {
-		if strings.TrimSpace(period) != "" {
-			q.period = strings.TrimSpace(period)
-		}
-	}
-}
-
-// WithBetaTesterUsagesAppID filters beta tester usage metrics by app ID.
-func WithBetaTesterUsagesAppID(appID string) BetaTesterUsagesOption {
-	return func(q *betaTesterUsagesQuery) {
-		if strings.TrimSpace(appID) != "" {
-			q.appID = strings.TrimSpace(appID)
-		}
-	}
-}
-
-// WithBetaTesterUsagesGroupBy sets the groupBy dimension for beta tester usage metrics.
-func WithBetaTesterUsagesGroupBy(groupBy string) BetaTesterUsagesOption {
-	return func(q *betaTesterUsagesQuery) {
-		if strings.TrimSpace(groupBy) != "" {
-			q.groupBy = strings.TrimSpace(groupBy)
-		}
-	}
-}
-
-// WithBetaTesterUsagesFilterBetaTesters filters beta tester usage metrics by beta tester ID.
-func WithBetaTesterUsagesFilterBetaTesters(testerID string) BetaTesterUsagesOption {
-	return func(q *betaTesterUsagesQuery) {
-		if strings.TrimSpace(testerID) != "" {
-			q.filterBetaTesters = strings.TrimSpace(testerID)
-		}
 	}
 }
 

@@ -48,7 +48,7 @@ func Generate(spec *Spec, fam *Family) ([]byte, error) {
 	out.WriteString(header + "\n\npackage asc\n\n")
 	var imports []string
 	for _, imp := range []struct{ path, use string }{
-		{"context", "context."}, {"fmt", "fmt."}, {"net/http", "http."}, {"net/url", "url.Values"}, {"strings", "strings."},
+		{"context", "context."}, {"fmt", "fmt."}, {"net/http", "http."}, {"net/url", "url.Values"}, {"strconv", "strconv."}, {"strings", "strings."},
 	} {
 		if strings.Contains(body.String(), imp.use) {
 			imports = append(imports, strconv.Quote(imp.path))

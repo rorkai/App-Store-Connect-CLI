@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -314,5 +315,58 @@ type subscriptionLocalizationsQuery struct {
 func buildSubscriptionLocalizationsQuery(query *subscriptionLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// WinBackOffersOption sets the query of GET /v1/subscriptions/{id}/winBackOffers (subscriptions_winBackOffers_getToManyRelated).
+type WinBackOffersOption func(*winBackOffersQuery)
+
+type winBackOffersQuery struct {
+	listQuery
+	fields      []string
+	priceFields []string
+	include     []string
+	pricesLimit int
+}
+
+// WithWinBackOffersFields sets fields[winBackOffers].
+func WithWinBackOffersFields(fields []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOffersPriceFields sets fields[winBackOfferPrices].
+func WithWinBackOffersPriceFields(fields []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.priceFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOffersInclude sets include.
+func WithWinBackOffersInclude(include []string) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithWinBackOffersPricesLimit sets limit[prices].
+func WithWinBackOffersPricesLimit(limit int) WinBackOffersOption {
+	return func(q *winBackOffersQuery) {
+		if limit > 0 {
+			q.pricesLimit = limit
+		}
+	}
+}
+
+func buildWinBackOffersQuery(query *winBackOffersQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[winBackOffers]", query.fields)
+	addCSV(values, "fields[winBackOfferPrices]", query.priceFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.pricesLimit > 0 {
+		values.Set("limit[prices]", strconv.Itoa(query.pricesLimit))
+	}
 	return values.Encode()
 }

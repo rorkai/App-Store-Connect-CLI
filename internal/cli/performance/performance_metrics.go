@@ -96,61 +96,53 @@ Examples:
 }
 
 func newPerformanceMetricsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("metrics view", flag.ExitOnError)
+	var (
+		platforms   []string
+		metricTypes []string
+		deviceType  *string
+	)
 
-	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to fetch metrics for")
-	platform := fs.String("platform", "", "Platform filter (IOS)")
-	metricType := fs.String("metric-type", "", "Metric types (comma-separated: "+strings.Join(perfPowerMetricTypeList(), ", ")+")")
-	deviceType := fs.String("device-type", "", "Device types (comma-separated, e.g., iPhone15,2)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc performance metrics view --build-id \"BUILD_ID\"",
-		ShortHelp:  "View performance/power metrics for a build.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "metrics view",
+		Name:        "view",
+		ShortUsage:  "asc performance metrics view --build-id \"BUILD_ID\"",
+		ShortHelp:   "View performance/power metrics for a build.",
 		LongHelp: `View performance/power metrics for a build.
 
 Examples:
   asc performance metrics view --build-id "BUILD_ID"
   asc performance metrics view --build-id "BUILD_ID" --metric-type "MEMORY" --device-type "iPhone15,2"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedBuildID := strings.TrimSpace(*buildID)
-			if trimmedBuildID == "" {
-				return d.RequiredFlag("--build-id")
+		IDFlag:             "build-id",
+		IDUsage:            "Build ID to fetch metrics for",
+		IDType:             "builds",
+		RequiredDiagnostic: true,
+		FetchErrorPrefix:   "performance metrics view",
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			platform := fs.String("platform", "", "Platform filter (IOS)")
+			metricType := fs.String("metric-type", "", "Metric types (comma-separated: "+strings.Join(perfPowerMetricTypeList(), ", ")+")")
+			deviceType = fs.String("device-type", "", "Device types (comma-separated, e.g., iPhone15,2)")
+			return func() (err error) {
+				platforms, err = normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
+				if err != nil {
+					return d.UsageErrorf("performance metrics view: %v", err)
+				}
+				metricTypes, err = normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
+				if err != nil {
+					return d.UsageErrorf("performance metrics view: %v", err)
+				}
+				return nil
 			}
-
-			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
-			if err != nil {
-				return d.UsageErrorf("performance metrics view: %v", err)
-			}
-			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
-			if err != nil {
-				return d.UsageErrorf("performance metrics view: %v", err)
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("performance metrics view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetPerfPowerMetricsForBuild(
-				requestCtx, trimmedBuildID,
+		},
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetPerfPowerMetricsForBuild(
+				ctx, id,
 				asc.WithPerfPowerMetricsPlatforms(platforms),
 				asc.WithPerfPowerMetricsMetricTypes(metricTypes),
 				asc.WithPerfPowerMetricsDeviceTypes(shared.SplitCSV(*deviceType)),
 			)
-			if err != nil {
-				return fmt.Errorf("performance metrics view: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	})
 }
 
 var perfPowerMetricTypes = map[string]struct{}{

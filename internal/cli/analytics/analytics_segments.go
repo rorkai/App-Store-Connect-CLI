@@ -3,7 +3,6 @@ package analytics
 import (
 	"context"
 	"flag"
-	"fmt"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -37,12 +36,7 @@ Examples:
 
 // AnalyticsSegmentsGetCommand retrieves a specific analytics report segment.
 func AnalyticsSegmentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	segmentID := shared.BindResourceIDFlag(fs, "segment-id", "analyticsReportSegments", "Analytics report segment ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc analytics segments view --segment-id \"SEGMENT_ID\" [flags]",
 		ShortHelp:  "View an analytics report segment by ID.",
@@ -50,33 +44,21 @@ func AnalyticsSegmentsGetCommand() *ffcli.Command {
 
 Examples:
   asc analytics segments view --segment-id "SEGMENT_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*segmentID)
-			if id == "" {
-				return shared.RequiredFlag("--segment-id")
+		IDFlag:             "segment-id",
+		IDUsage:            "Analytics report segment ID",
+		IDType:             "analyticsReportSegments",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			segmentID := fs.Lookup("segment-id").Value
+			return func() error {
+				if _, err := asc.ValidateResourcePathSegment(strings.TrimSpace(segmentID.String())); err != nil {
+					return shared.UsageErrorf("analytics segments view: --segment-id: %v", err)
+				}
+				return nil
 			}
-			var err error
-			id, err = asc.ValidateResourcePathSegment(id)
-			if err != nil {
-				return shared.UsageErrorf("analytics segments view: --segment-id: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("analytics segments view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAnalyticsReportSegment(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("analytics segments view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAnalyticsReportSegment(ctx, id)
+		},
+	})
 }

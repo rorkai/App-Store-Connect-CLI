@@ -50,4 +50,14 @@ var generatedQueries = map[string]generatedQuery{
 			"fields[widgets]": WithZippersFields,
 		},
 	},
+	"zippers_sprockets_getToManyRelated": {
+		build: buildWidgetSprocketsQuery,
+		options: map[string]any{
+			"filter[label]":   WithWidgetSprocketsLabel,
+			"granularity":     WithWidgetSprocketsGranularity,
+			"fields[widgets]": WithWidgetSprocketsFields,
+			"exists[owner]":   WithWidgetSprocketsOwnerExists,
+			"limit[teeth]":    WithWidgetSprocketsTeethLimit,
+		},
+	},
 }
