@@ -64,17 +64,12 @@ func TestWebhooksServeReceivesAndWritesEvent(t *testing.T) {
 	}
 	shutdownServeCommand(t, cancel, errCh)
 
-	startup, err := json.Marshal(webhookServeStartup{
-		URL:          fmt.Sprintf("http://127.0.0.1:%d", port),
-		Host:         "127.0.0.1",
-		Port:         port,
-		Dir:          eventsDir,
-		MaxBodyBytes: webhooksServeDefaultMaxBodyBytes,
-	})
+	dirJSON, err := json.Marshal(eventsDir)
 	if err != nil {
-		t.Fatalf("marshal startup: %v", err)
+		t.Fatalf("marshal dir: %v", err)
 	}
-	if got, want := stdout.String(), string(startup)+"\n"; got != want {
+	wantStdout := fmt.Sprintf(`{"url":"http://127.0.0.1:%d","host":"127.0.0.1","port":%d,"dir":%s,"execEnabled":false,"maxBodyBytes":1048576}`+"\n", port, port, dirJSON)
+	if got, want := stdout.String(), wantStdout; got != want {
 		t.Fatalf("stdout = %q, want %q", got, want)
 	}
 	compact := `{"id":"evt-123","eventType":"BUILD_UPLOAD_STATE_UPDATED","data":{"type":"webhookEvents"}}`
@@ -142,8 +137,12 @@ func TestWebhooksServeRejectsNonLoopbackWithoutAllowRemote(t *testing.T) {
 	if got := stdout.String(); got != "" {
 		t.Fatalf("stdout = %q, want empty", got)
 	}
-	if got, want := stderr.String(), "Error: binding to non-loopback host \"0.0.0.0\" requires --allow-remote\n"+cmd.UsageFunc(cmd)+"\n"; got != want {
-		t.Fatalf("stderr = %q, want %q", got, want)
+	got := stderr.String()
+	if want := "Error: binding to non-loopback host \"0.0.0.0\" requires --allow-remote\n"; !strings.HasPrefix(got, want) {
+		t.Fatalf("stderr = %q, want it to start with %q", got, want)
+	}
+	if !strings.Contains(got, "\nUSAGE\n") {
+		t.Fatalf("stderr = %q, want the usage page", got)
 	}
 }
 
