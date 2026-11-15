@@ -84,8 +84,10 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 		// types reference.
 		fixed := map[string]string{}
 		var generated []*OpBind
+		tidied := false
 		for _, f := range b.Families {
 			if f.Tag == tag {
+				tidied = dropDefaultResponses(spec, f, report)
 				view.Relationships = slices.Clone(f.Relationships)
 				view.RefTypes = slices.Clone(f.RefTypes)
 				view.GoTypes = slices.Clone(f.GoTypes)
@@ -116,6 +118,9 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 				}
 				trial := p.withVersionGoTypes(spec, view, op, d)
 				bind, reason := p.deriveOp(spec, trial, op, d)
+				if reason == "" {
+					_, reason = p.resourceGoType(spec, trial, bind)
+				}
 				if reason != "" {
 					fmt.Fprintf(report, "%s\t%s\t%s\tkept: %s\n", tag, op.ID, d.name, reason)
 					continue
@@ -174,7 +179,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			}
 		}
 		adoptedQueries := qi.adopt(spec, b, tag, ops, report)
-		if len(adoptedOps)+len(adoptedTypes)+len(adoptedQueries) > 0 || len(view.GoTypes) > recordedGoTypes {
+		if len(adoptedOps)+len(adoptedTypes)+len(adoptedQueries) > 0 || len(view.GoTypes) > recordedGoTypes || tidied {
 			fam := b.Family(tag, fileName(tag))
 			fam.Operations = append(fam.Operations, adoptedOps...)
 			fam.Types = append(fam.Types, adoptedTypes...)
@@ -187,6 +192,20 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 	}
 	edits, err := p.edits()
 	return edits, adopted, err
+}
+
+// dropDefaultResponses clears each response a family binds that is the
+// type the generator decodes into anyway, and reports whether it cleared one.
+func dropDefaultResponses(spec *Spec, fam *Family, report io.Writer) bool {
+	dropped := false
+	for _, b := range fam.Operations {
+		if op, ok := spec.Operation(b.Operation); ok && b.Response != "" && b.Response == fam.goType(op.Response) {
+			fmt.Fprintf(report, "%s\t%s\t%s\tresponse %s is the default, dropped\n", fam.Tag, b.Operation, b.Name, b.Response)
+			b.Response = ""
+			dropped = true
+		}
+	}
+	return dropped
 }
 
 func loadPackage(dir string) (*pkg, error) {
@@ -544,20 +563,35 @@ func (p *pkg) carries(spec *Spec, typ string, attrs *Schema) bool {
 // attributes when a bound read or write decodes it into a response type whose
 // attributes are the type of the same resource without its version.
 func (p *pkg) recordResourceGoType(spec *Spec, fam *Family, b *OpBind) {
+	if g, _ := p.resourceGoType(spec, fam, b); g != nil {
+		fam.GoTypes = append(fam.GoTypes, g)
+	}
+}
+
+// resourceGoType is the record recordResourceGoType adds for a binding, or
+// the reason it refuses one: the response holds the attributes type of the
+// resource without its version, but the two schemas differ or the type
+// carries other attributes. A method refused here is not adopted, because it
+// would return attributes its operation does not define.
+func (p *pkg) resourceGoType(spec *Spec, fam *Family, b *OpBind) (*GoType, string) {
 	op, ok := spec.Operation(b.Operation)
 	if !ok || b.Response == "" {
-		return
+		return nil, ""
 	}
 	resource, _, ok := spec.resourceOf(op.Response)
 	name := resource + "Attributes"
 	if !ok || fam.goType(name) != goTypeName(name) || slices.Contains(fam.Types, name) {
-		return
+		return nil, ""
 	}
 	attrs := p.responseAttributes(spec, b.Response)
 	unversioned := withoutVersion(name)
-	if unversioned != name && attrs == goTypeName(unversioned) && sameShape(attributesOf(spec, name), attributesOf(spec, unversioned)) && p.carries(spec, attrs, attributesOf(spec, name)) {
-		fam.GoTypes = append(fam.GoTypes, &GoType{Schema: name, Type: attrs})
+	if unversioned == name || attrs != goTypeName(unversioned) {
+		return nil, ""
 	}
+	if !sameShape(attributesOf(spec, name), attributesOf(spec, unversioned)) || !p.carries(spec, attrs, attributesOf(spec, name)) {
+		return nil, fmt.Sprintf("result %s holds %s, which cannot stand for %s", b.Response, attrs, name)
+	}
+	return &GoType{Schema: name, Type: attrs}, ""
 }
 
 // responseAttributes names the attributes type of a Go response type: the

@@ -382,6 +382,9 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 	if (b.Attrs != "" || b.SkipEmptyAttributes) && !write {
 		return "", fmt.Errorf("attributes bindings need a create or update request")
 	}
+	if b.ParseErr != "" && op.Method != "GET" && !write {
+		return "", fmt.Errorf("parseErr needs a read, create or update that decodes its response")
+	}
 	m := &method{fam: fam, b: b, op: op}
 	if params := b.stringParams(); len(params) > 0 {
 		m.params = append(m.params, strings.Join(params, ", ")+" string")
@@ -428,7 +431,11 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 			return "", err
 		}
 		m.pre = append(m.pre, payload)
-		call = fmt.Sprintf("return sendJSON[%s](ctx, c, writeRequest{\nMethod: http.Method%s,\nPath: %s,\nPayload: payload,\n})", response, methodConst(op.Method), m.path())
+		fields := []string{"Method: http.Method" + methodConst(op.Method), "Path: " + m.path(), "Payload: payload"}
+		if b.ParseErr != "" {
+			fields = append(fields, "ParseErr: "+strconv.Quote(b.ParseErr))
+		}
+		call = fmt.Sprintf("return sendJSON[%s](ctx, c, writeRequest{\n%s,\n})", response, strings.Join(fields, ",\n"))
 	default:
 		return "", fmt.Errorf("%s with request %q is not supported", op.Method, op.Request)
 	}
