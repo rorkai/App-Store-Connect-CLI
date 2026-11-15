@@ -153,10 +153,15 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("migrate import: %w", err)
 			}
+			// An omitted --fastlane-dir stays empty so the layout is discovered.
+			fastlaneDirValue := *fastlaneDir
+			if strings.TrimSpace(fastlaneDirValue) != "" {
+				fastlaneDirValue = d.OSPath(fastlaneDirValue)
+			}
 
 			inputs, skipped, err := resolveImportInputs(importInputOptions{
 				WorkDir:                   workDir,
-				FastlaneDir:               d.OSPath(*fastlaneDir),
+				FastlaneDir:               fastlaneDirValue,
 				SkipScreenshots:           *skipScreenshots,
 				AllowExternalMetadata:     *allowExternalMetadata,
 				AllowExternalScreenshots:  *allowExternalScreenshots,
@@ -234,12 +239,14 @@ Examples:
 				}
 			}
 			var previews []PreviewLayout
-			fastlaneRoot := d.OSPath(strings.TrimSpace(*fastlaneDir))
+			fastlaneRoot := strings.TrimSpace(*fastlaneDir)
 			if fastlaneRoot == "" {
 				fastlaneRoot = workDir
 				if inputs.DeliverfilePath != "" {
 					fastlaneRoot = filepath.Dir(inputs.DeliverfilePath)
 				}
+			} else {
+				fastlaneRoot = d.OSPath(fastlaneRoot)
 			}
 			if !*skipPreviews {
 				previews, err = readPreviewLayout(fastlaneRoot)

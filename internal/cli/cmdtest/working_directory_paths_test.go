@@ -58,12 +58,13 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 	})
 
 	tests := []struct {
-		name    string
-		args    []string
-		files   map[string]string
-		want    map[string]string
-		exist   []string
-		wantErr func(dir string) string
+		name       string
+		args       []string
+		files      map[string]string
+		want       map[string]string
+		exist      []string
+		wantStdout string
+		wantErr    func(dir string) string
 	}{
 		{
 			name: "finance reports",
@@ -147,6 +148,15 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 			files: map[string]string{filepath.Join("fastlane", "metadata", "en-US", "name.txt"): "App"},
 		},
 		{
+			name: "migrate import discovers the fastlane directory",
+			args: []string{"migrate", "import", "--app", "123456789", "--version-id", "VERSION_ID", "--dry-run", "--skip-screenshots"},
+			files: map[string]string{
+				filepath.Join("fastlane", "Deliverfile"):                   "",
+				filepath.Join("fastlane", "metadata", "en-US", "name.txt"): "App",
+			},
+			wantStdout: `"appInfoLocalizations":[{"locale":"en-US","name":"App"}]`,
+		},
+		{
 			name:    "testflight testers import",
 			args:    []string{"testflight", "testers", "import", "--app", "123456789", "--input", "testers.csv", "--dry-run"},
 			files:   map[string]string{"testers.csv": ""},
@@ -178,7 +188,7 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 				}
 			}
 
-			d, _, stderr := newTestDeps(t, stubServerClient(t, server))
+			d, stdout, stderr := newTestDeps(t, stubServerClient(t, server))
 			d.Getwd = func() (string, error) { return depsDir, nil }
 			d.HTTPTransport = func() http.RoundTripper { return serverTransport }
 			root := rootcmd.RootCommandWithDeps("1.2.3", d)
@@ -199,6 +209,9 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 				if err != nil || string(data) != content {
 					t.Fatalf("%s in the deps working directory = %q, %v; want the report", name, data, err)
 				}
+			}
+			if !strings.Contains(stdout.String(), test.wantStdout) {
+				t.Fatalf("stdout = %q, want it to contain %q", stdout.String(), test.wantStdout)
 			}
 			for _, name := range test.exist {
 				if _, err := os.Stat(filepath.Join(depsDir, name)); err != nil {
