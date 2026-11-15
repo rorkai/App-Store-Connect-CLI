@@ -39,8 +39,8 @@ type crashQuery struct {
 
 type betaBuildLocalizationsQuery struct {
 	listQuery
-	locales  []string
 	buildIDs []string
+	locales  []string
 }
 
 type betaGroupsQuery struct {
