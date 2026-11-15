@@ -35,6 +35,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--group` for `asc subscriptions list`\n" +
 				"Try:\n  --group-id\n" +
 				"For help:\n  asc subscriptions list --help\n",
+			deps: true,
 		},
 		{
 			name: "builds groups list --app",
@@ -92,6 +93,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--group` for `asc subscriptions list`\n" +
 				"Try:\n  --group-id\n" +
 				"For help:\n  asc subscriptions list --help\n",
+			deps: true,
 		},
 		{
 			name: "a path-valued --output answers --path",

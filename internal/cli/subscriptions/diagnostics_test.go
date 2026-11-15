@@ -114,14 +114,17 @@ func TestSubscriptionsAlternativeSelectorsLeaveDiagnosticParameterEmpty(t *testi
 		command func() interface {
 			ParseAndRun(context.Context, []string) error
 		}
+		depsCommand func(*shared.Deps) interface {
+			ParseAndRun(context.Context, []string) error
+		}
 		wantMessage string
 	}{
 		{
 			name: "subscription list",
-			command: func() interface {
+			depsCommand: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return SubscriptionsListCommand()
+				return newSubscriptionsListCommand(d)
 			},
 			wantMessage: "Error: --group-id or --app is required (or set ASC_APP_ID)\n",
 		},
@@ -148,9 +151,16 @@ func TestSubscriptionsAlternativeSelectorsLeaveDiagnosticParameterEmpty(t *testi
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var err error
-			stderr := captureSubscriptionsDiagnosticStderr(t, func() {
-				err = test.command().ParseAndRun(context.Background(), nil)
-			})
+			var stderr string
+			if test.depsCommand != nil {
+				d, stderrBuf := newSubscriptionsTestDeps()
+				err = test.depsCommand(d).ParseAndRun(context.Background(), nil)
+				stderr = stderrBuf.String()
+			} else {
+				stderr = captureSubscriptionsDiagnosticStderr(t, func() {
+					err = test.command().ParseAndRun(context.Background(), nil)
+				})
+			}
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 			}

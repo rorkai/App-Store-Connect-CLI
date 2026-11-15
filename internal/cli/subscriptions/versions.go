@@ -342,8 +342,12 @@ func parseSubscriptionVersionStates(value string) ([]asc.SubscriptionVersionStat
 }
 
 func validateRelationshipLimit(name string, limit int) error {
+	return validateRelationshipLimitWith(shared.DefaultDeps(), name, limit)
+}
+
+func validateRelationshipLimitWith(d *shared.Deps, name string, limit int) error {
 	if limit != 0 && (limit < 1 || limit > 50) {
-		return shared.UsageErrorf("%s must be between 1 and 50", name)
+		return d.UsageErrorf("%s must be between 1 and 50", name)
 	}
 	return nil
 }

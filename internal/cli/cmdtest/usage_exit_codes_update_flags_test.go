@@ -371,6 +371,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions update",
 			args:  []string{"subscriptions", "update", "--id", "ID"},
 			flags: "--reference-name, --review-note, --subscription-period, --group-level, --family-sharable, --market-settings, --multi-seat-status",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions versions localizations update",

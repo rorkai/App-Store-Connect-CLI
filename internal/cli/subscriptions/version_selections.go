@@ -159,10 +159,10 @@ func subscriptionRelatedFieldFlagNames() []string {
 	return names
 }
 
-func subscriptionRelatedFieldValues(fs *flag.FlagSet, raw map[string]*string) (asc.SubscriptionRelatedFields, error) {
+func subscriptionRelatedFieldValues(d *shared.Deps, fs *flag.FlagSet, raw map[string]*string) (asc.SubscriptionRelatedFields, error) {
 	var selected asc.SubscriptionRelatedFields
 	for _, field := range subscriptionRelatedFieldFlags {
-		values, err := normalizeSelectionFlag(fs, *raw[field.name], "--"+field.name, field.allowed)
+		values, err := normalizeSelectionFlagWith(d, fs, *raw[field.name], "--"+field.name, field.allowed)
 		if err != nil {
 			return selected, err
 		}
