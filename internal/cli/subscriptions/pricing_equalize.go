@@ -246,6 +246,7 @@ Examples:
 				baseTarget := allTerritories[0]
 				_, err := runReconciledMutation(
 					ctx,
+					shared.DefaultDeps(),
 					func(readbackCtx context.Context) (bool, error) {
 						reconciled, _, readErr := reconcileEqualizeFailures(
 							readbackCtx,

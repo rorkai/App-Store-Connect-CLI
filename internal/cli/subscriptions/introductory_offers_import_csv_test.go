@@ -147,6 +147,7 @@ func TestSubscriptionIntroductoryOfferImportReconcilesAcrossPacificMidnight(t *t
 	mutations := 0
 	status, err := runReconciledMutation(
 		context.Background(),
+		shared.DefaultDeps(),
 		func(readbackCtx context.Context) (bool, error) {
 			index, err := fetchSubscriptionIntroductoryOfferImportState(readbackCtx, shared.DefaultDeps(), client, "sub-1")
 			if err != nil {

@@ -295,6 +295,7 @@ Examples:
 				if !stateIndex.matches(resolvedRow) {
 					status, rowErr = runReconciledMutation(
 						ctx,
+						d,
 						func(readbackCtx context.Context) (bool, error) {
 							refreshed, err := fetchSubscriptionPriceImportStateForPlans(readbackCtx, d, client, summary.SubscriptionID, statePlanFilter)
 							if err != nil {

@@ -1698,7 +1698,7 @@ Confirmation is required when --billing-mode monthly-commitment is selected.`,
 				if !*confirm {
 					return d.UsageError("--confirm is required for monthly-commitment availability changes")
 				}
-				printMonthlyCommitmentTerritoryWarning(excluded)
+				printMonthlyCommitmentTerritoryWarning(d, excluded)
 			}
 
 			client, err := d.Client()

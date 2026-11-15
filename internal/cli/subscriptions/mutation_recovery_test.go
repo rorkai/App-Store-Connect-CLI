@@ -23,6 +23,7 @@ func TestRunReconciledMutationRetriesOnlyAfterNegativeReadback(t *testing.T) {
 	readbacks := 0
 	status, err := runReconciledMutation(
 		context.Background(),
+		shared.DefaultDeps(),
 		func(context.Context) (bool, error) {
 			readbacks++
 			return false, nil
@@ -200,6 +201,7 @@ func TestRunReconciledMutationRetriesChildDeadlineAfterNegativeReadback(t *testi
 	readbacks := 0
 	status, err := runReconciledMutation(
 		context.Background(),
+		shared.DefaultDeps(),
 		func(context.Context) (bool, error) {
 			readbacks++
 			return false, nil
@@ -229,6 +231,7 @@ func TestRunReconciledMutationReadsAgainBeforeReplay(t *testing.T) {
 	readbacks := 0
 	status, err := runReconciledMutation(
 		context.Background(),
+		shared.DefaultDeps(),
 		func(context.Context) (bool, error) {
 			readbacks++
 			return readbacks == 2, nil
@@ -251,6 +254,7 @@ func TestRunReconciledMutationStopsWhenReadbackFails(t *testing.T) {
 	mutations := 0
 	_, err := runReconciledMutation(
 		context.Background(),
+		shared.DefaultDeps(),
 		func(context.Context) (bool, error) {
 			return false, errors.New("readback unavailable")
 		},
@@ -273,6 +277,7 @@ func TestRunReconciledMutationRespectsCancellationDuringBackoff(t *testing.T) {
 	readbacks := 0
 	_, err := runReconciledMutation(
 		ctx,
+		shared.DefaultDeps(),
 		func(context.Context) (bool, error) {
 			readbacks++
 			cancel()
