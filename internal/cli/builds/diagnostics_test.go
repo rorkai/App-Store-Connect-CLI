@@ -12,7 +12,7 @@ import (
 
 func TestBuildsMissingRequiredInputExposesStructuredDiagnostic(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	d, _, stderrBuf := newBuildsTestDeps(nil)
+	d, stderrBuf := newBuildsTestDeps(nil)
 	err := newBuildsUploadCommand(d).ParseAndRun(context.Background(), nil)
 	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
@@ -35,7 +35,7 @@ func TestBuildsMissingRequiredInputExposesStructuredDiagnostic(t *testing.T) {
 }
 
 func TestBuildsMissingArtifactLeavesDiagnosticParameterEmpty(t *testing.T) {
-	d, _, stderrBuf := newBuildsTestDeps(nil)
+	d, stderrBuf := newBuildsTestDeps(nil)
 	err := newBuildsUploadCommand(d).ParseAndRun(context.Background(), []string{"--app", "123456789"})
 	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
@@ -55,7 +55,7 @@ func TestBuildsMissingArtifactLeavesDiagnosticParameterEmpty(t *testing.T) {
 }
 
 func TestBuildsMissingExpireSelectorLeavesDiagnosticParameterEmpty(t *testing.T) {
-	d, _, stderrBuf := newBuildsTestDeps(nil)
+	d, stderrBuf := newBuildsTestDeps(nil)
 	err := newBuildsExpireAllCommand(d).ParseAndRun(context.Background(), []string{"--app", "123456789"})
 	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
