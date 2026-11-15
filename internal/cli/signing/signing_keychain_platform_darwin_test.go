@@ -74,6 +74,28 @@ func TestPersistentSigningProbeUsesPrivateTemporaryDirectory(t *testing.T) {
 	}
 }
 
+func TestSigningKeychainCertificateImportUsesPrivateTemporaryFile(t *testing.T) {
+	keychainPath := filepath.Join(t.TempDir(), "persistent.keychain-db")
+	var certificatePath string
+	err := importPersistentSigningCertificate(context.Background(), keychainPath, []byte("certificate-der"), createSigningRunTempDir, removeSigningRunTempDir,
+		func(_ context.Context, _ []byte, args ...string) ([]byte, []byte, error) {
+			certificatePath = args[len(args)-1]
+			if !reflect.DeepEqual(args[:3], []string{"add-certificates", "-k", keychainPath}) || filepath.Dir(filepath.Dir(certificatePath)) != filepath.Clean(os.TempDir()) {
+				t.Fatalf("security args = %v", args)
+			}
+			if data, err := os.ReadFile(certificatePath); err != nil || string(data) != "certificate-der" {
+				t.Fatalf("certificate file = %q, %v", data, err)
+			}
+			return nil, []byte("add failed"), errors.New("exit status 1")
+		})
+	if err == nil || !strings.Contains(err.Error(), "add certificate: add failed") {
+		t.Fatalf("error = %v, want add-certificates failure", err)
+	}
+	if _, statErr := os.Stat(filepath.Dir(certificatePath)); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("private certificate directory remains: %v", statErr)
+	}
+}
+
 func TestSigningKeychainInstallLiveDedicatedKeychain(t *testing.T) {
 	if os.Getenv("ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST") != "1" {
 		t.Skip("set ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST=1 to exercise a disposable persistent keychain")
