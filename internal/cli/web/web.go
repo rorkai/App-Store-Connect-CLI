@@ -56,7 +56,7 @@ Examples:
 			WebAppBundlesCommand(),
 			WebTeamsCommand(),
 			newWebBundleIDsCommand(d),
-			WebServiceIDsCommand(),
+			newWebServiceIDsCommand(d),
 			WebSignInKeysCommand(),
 			WebWebsitePushIDsCommand(),
 			WebICloudContainersCommand(),
