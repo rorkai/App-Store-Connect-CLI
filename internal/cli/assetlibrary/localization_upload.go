@@ -52,6 +52,12 @@ func UploadToLocalization(ctx context.Context, client *asc.Client, upload Locali
 	return uploadToLocalization(ctx, shared.DefaultDeps(), client, upload)
 }
 
+// UploadToLocalizationWith is UploadToLocalization with its requests, timeouts
+// and messages taken from d.
+func UploadToLocalizationWith(ctx context.Context, d *shared.Deps, client *asc.Client, upload LocalizationUpload) (*asc.AssetLibraryLocalizationUploadResult, error) {
+	return uploadToLocalization(ctx, d, client, upload)
+}
+
 func uploadToLocalization(ctx context.Context, d *shared.Deps, client *asc.Client, upload LocalizationUpload) (*asc.AssetLibraryLocalizationUploadResult, error) {
 	libraryID, err := localizationLibraryID(ctx, d, client, upload.LocalizationID)
 	if err != nil {

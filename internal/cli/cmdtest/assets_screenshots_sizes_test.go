@@ -1,13 +1,11 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"image"
 	"image/png"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,21 +16,12 @@ import (
 )
 
 func TestAssetsScreenshotsSizesRejectsAllWithDisplayType(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots", "sizes",
-			"--all",
-			"--display-type", "APP_IPHONE_65",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
+		"screenshots", "sizes",
+		"--all",
+		"--display-type", "APP_IPHONE_65",
+		"--output", "json",
+	}...)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -46,10 +35,10 @@ func TestAssetsScreenshotsSizesRejectsAllWithDisplayType(t *testing.T) {
 }
 
 func TestAssetsScreenshotsSizesRejectsInvalidDisplayTypeAsUsageError(t *testing.T) {
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
 		"screenshots", "sizes",
 		"--display-type", "not-a-device",
-	})
+	}...)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -71,23 +60,13 @@ func TestAssetsScreenshotsUploadRejectsInvalidDimensionsBeforeNetwork(t *testing
 	writePNG(t, path, 100, 100)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots", "upload",
-			"--version-localization", "LOC_ID",
-			"--path", path,
-			"--device-type", "IPHONE_35",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), []string{
+		"screenshots", "upload",
+		"--version-localization", "LOC_ID",
+		"--path", path,
+		"--device-type", "IPHONE_35",
+	}...)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -115,21 +94,13 @@ func TestAssetsScreenshotsUploadRejectsInvalidDimensionsBeforeNetwork(t *testing
 
 func TestAssetsScreenshotsUploadRejectsInvalidDeviceTypeAsUsageError(t *testing.T) {
 	dir := t.TempDir()
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots", "upload",
-			"--version-localization", "LOC_ID",
-			"--path", dir,
-			"--device-type", "not-a-device",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
+		"screenshots", "upload",
+		"--version-localization", "LOC_ID",
+		"--path", dir,
+		"--device-type", "not-a-device",
+	}...)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -151,23 +122,13 @@ func TestAssetsScreenshotsUploadSuggestsMatchingDisplayTypeBeforeNetwork(t *test
 	writePNG(t, path, 1206, 2622)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots", "upload",
-			"--version-localization", "LOC_ID",
-			"--path", path,
-			"--device-type", "IPHONE_67",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), []string{
+		"screenshots", "upload",
+		"--version-localization", "LOC_ID",
+		"--path", path,
+		"--device-type", "IPHONE_67",
+	}...)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -195,26 +156,16 @@ func TestAssetsScreenshotsUploadAcceptsIPhone69AliasAndLatestDimensions(t *testi
 	writePNG(t, path, 1320, 2868)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_ID/appScreenshotSets"), func(*http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("forced network failure after local validation")
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots", "upload",
-			"--version-localization", "LOC_ID",
-			"--path", path,
-			"--device-type", "IPHONE_69",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), []string{
+		"screenshots", "upload",
+		"--version-localization", "LOC_ID",
+		"--path", path,
+		"--device-type", "IPHONE_69",
+	}...)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)

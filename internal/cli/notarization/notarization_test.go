@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
@@ -34,7 +33,7 @@ func (fn notaryRoundTripper) RoundTrip(req *http.Request) (*http.Response, error
 }
 
 func TestNotarizationSubmitValidation(t *testing.T) {
-	cmd := submitCommand()
+	cmd := submitCommand(newNotarizationTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -155,9 +154,6 @@ func TestNotarizationSubmitUploadsOpenedArchiveAfterPathReplacement(t *testing.T
 			t.Cleanup(server.Close)
 
 			client := newNotarizationTestClient(t, server)
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-				return client, nil
-			}))
 
 			var uploadedContents []byte
 			var uploadedHash string
@@ -182,7 +178,9 @@ func TestNotarizationSubmitUploadsOpenedArchiveAfterPathReplacement(t *testing.T
 				http.DefaultClient.Transport = originalTransport
 			})
 
-			cmd := submitCommand()
+			cmd := submitCommand(newNotarizationTestDeps(func() (*asc.Client, error) {
+				return client, nil
+			}))
 			if err := cmd.FlagSet.Parse([]string{"--file", archivePath, "--output", "json"}); err != nil {
 				t.Fatalf("parse command: %v", err)
 			}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
+	"io"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -52,9 +52,9 @@ type screenshotDownloadResult struct {
 	Failures []screenshotDownloadFailure `json:"failures,omitempty"`
 }
 
-// AssetsScreenshotsDownloadCommand returns the screenshots download subcommand.
-func AssetsScreenshotsDownloadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("download", flag.ExitOnError)
+// NewAssetsScreenshotsDownloadCommand returns the screenshots download subcommand.
+func NewAssetsScreenshotsDownloadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("download", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "appScreenshots", "Screenshot ID to download")
 	localizationID := shared.BindResourceIDFlag(fs, "version-localization", "appStoreVersionLocalizations", "App Store version localization ID (download all screenshots)")
@@ -79,41 +79,41 @@ Examples:
   asc screenshots download --version-localization "VERSION_LOCALIZATION_ID" --output-dir "./screenshots"
   asc screenshots download --version-localization "VERSION_LOCALIZATION_ID" --output-dir "./screenshots" --overwrite`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
+			if err := d.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
 				return err
 			}
 			idValue := strings.TrimSpace(*id)
 			locID := strings.TrimSpace(*localizationID)
 
 			if idValue == "" && locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --version-localization is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --version-localization is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if idValue != "" && locID != "" {
-				return shared.UsageError("--id and --version-localization are mutually exclusive")
+				return d.UsageError("--id and --version-localization are mutually exclusive")
 			}
 
 			outputFile := strings.TrimSpace(*outputPath)
 			outputDirValue := strings.TrimSpace(*outputDir)
 			if idValue != "" {
 				if outputFile == "" {
-					fmt.Fprintln(os.Stderr, "Error: --output is required with --id")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --output is required with --id")
 					return shared.MissingRequiredUsageError("--output")
 				}
 				if strings.HasSuffix(outputFile, string(filepath.Separator)) {
-					return shared.UsageError("--output must be a file path")
+					return d.UsageError("--output must be a file path")
 				}
 			}
 			if locID != "" {
 				if outputDirValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --output-dir is required with --version-localization")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --output-dir is required with --version-localization")
 					return shared.MissingRequiredUsageError("--output-dir")
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("screenshots download: %w", err)
 			}
@@ -131,7 +131,7 @@ Examples:
 			items := make([]screenshotDownloadItem, 0, 8)
 
 			if idValue != "" {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				resp, err := client.GetAppScreenshot(requestCtx, idValue)
 				cancel()
 				if err != nil {
@@ -154,12 +154,12 @@ Examples:
 					result.Total = 1
 					result.Failed = 1
 
-					if err := shared.PrintOutputWithRenderers(
+					if err := d.PrintOutputWithRenderers(
 						result,
 						*format.Output,
 						*format.Pretty,
-						func() error { return renderScreenshotDownloadResult(result, false) },
-						func() error { return renderScreenshotDownloadResult(result, true) },
+						func() error { return renderScreenshotDownloadResult(d.IO.Out, result, false) },
+						func() error { return renderScreenshotDownloadResult(d.IO.Out, result, true) },
 					); err != nil {
 						return err
 					}
@@ -173,7 +173,7 @@ Examples:
 					OutputPath: outputFile,
 				})
 			} else {
-				setsResp, err := client.GetAllAppScreenshotSets(ctx, locID, asc.WithAppScreenshotSetsIncludeScreenshots(), asc.WithAppScreenshotSetsRequestContext(shared.ContextWithTimeout))
+				setsResp, err := client.GetAllAppScreenshotSets(ctx, locID, asc.WithAppScreenshotSetsIncludeScreenshots(), asc.WithAppScreenshotSetsRequestContext(d.Timeout))
 				if err != nil {
 					return fmt.Errorf("screenshots download: failed to fetch sets: %w", err)
 				}
@@ -195,12 +195,12 @@ Examples:
 
 					shots, ok := includedShots[set.ID]
 					if !ok {
-						shotsResp, err := client.GetAllAppScreenshots(ctx, set.ID, asc.WithAppScreenshotsRequestContext(shared.ContextWithTimeout))
+						shotsResp, err := client.GetAllAppScreenshots(ctx, set.ID, asc.WithAppScreenshotsRequestContext(d.Timeout))
 						if err != nil {
 							return fmt.Errorf("screenshots download: failed to fetch screenshots for set %s: %w", set.ID, err)
 						}
 
-						requestCtx, cancel := shared.ContextWithTimeout(ctx)
+						requestCtx, cancel := d.Timeout(ctx)
 						orderedIDs, err := GetOrderedAppScreenshotIDs(requestCtx, client, set.ID)
 						cancel()
 						if err != nil {
@@ -222,7 +222,7 @@ Examples:
 						destName := fmt.Sprintf("%02d_%s_%s", idx+1, strings.TrimSpace(shot.ID), base)
 						destPath := filepath.Join(destDir, destName)
 
-						requestCtx, cancel := shared.ContextWithTimeout(ctx)
+						requestCtx, cancel := d.Timeout(ctx)
 						downloadURL, err := resolveScreenshotDownloadURL(requestCtx, client, shot)
 						cancel()
 						if err != nil {
@@ -271,10 +271,10 @@ Examples:
 					defer wg.Done()
 					slots <- struct{}{}
 					defer func() { <-slots }()
-					downloadCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
+					downloadCtx, cancel := d.DownloadTimeout(ctx)
 					defer cancel()
 					outcome := &outcomes[i]
-					outcome.written, outcome.contentType, outcome.unchanged, outcome.err = downloadScreenshotURLToFile(downloadCtx, item.URL, item.OutputPath, *overwrite)
+					outcome.written, outcome.contentType, outcome.unchanged, outcome.err = downloadScreenshotURLToFile(downloadCtx, d, item.URL, item.OutputPath, *overwrite)
 				}()
 			}
 			wg.Wait()
@@ -311,12 +311,12 @@ Examples:
 			result.Total = len(items)
 			result.Failed = len(result.Failures)
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				result,
 				*format.Output,
 				*format.Pretty,
-				func() error { return renderScreenshotDownloadResult(result, false) },
-				func() error { return renderScreenshotDownloadResult(result, true) },
+				func() error { return renderScreenshotDownloadResult(d.IO.Out, result, false) },
+				func() error { return renderScreenshotDownloadResult(d.IO.Out, result, true) },
 			); err != nil {
 				return err
 			}
@@ -378,17 +378,17 @@ func orderMediaForDownload[T any](items []asc.Resource[T], orderedIDs []string, 
 	return ordered
 }
 
-func renderScreenshotDownloadResult(result *screenshotDownloadResult, markdown bool) error {
+func renderScreenshotDownloadResult(w io.Writer, result *screenshotDownloadResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
 
-	render := asc.RenderTable
+	render := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		render = asc.RenderMarkdownTo
 	}
 
-	render(
+	render(w,
 		[]string{"Version Localization", "Output Dir", "Overwrite", "Total", "Downloaded", "Unchanged", "Failed"},
 		[][]string{{
 			result.VersionLocalizationID,
@@ -413,7 +413,7 @@ func renderScreenshotDownloadResult(result *screenshotDownloadResult, markdown b
 				fmt.Sprintf("%d", item.BytesWritten),
 			})
 		}
-		render([]string{"ID", "Display Type", "File Name", "Output Path", "Unchanged", "Bytes"}, rows)
+		render(w, []string{"ID", "Display Type", "File Name", "Output Path", "Unchanged", "Bytes"}, rows)
 	}
 
 	if len(result.Failures) > 0 {
@@ -426,7 +426,7 @@ func renderScreenshotDownloadResult(result *screenshotDownloadResult, markdown b
 				f.Error,
 			})
 		}
-		render([]string{"ID", "Display Type", "Output Path", "Error"}, rows)
+		render(w, []string{"ID", "Display Type", "Output Path", "Error"}, rows)
 	}
 
 	return nil

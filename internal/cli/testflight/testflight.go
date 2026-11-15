@@ -36,7 +36,7 @@ Examples:
   asc testflight app-localizations list --app "APP_ID"
   asc testflight pre-release list --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightGroupsCommand(d),
 			newTestFlightTestersCommand(d),

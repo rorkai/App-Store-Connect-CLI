@@ -86,7 +86,7 @@ Examples:
   asc app-clips advanced-experiences list --app-clip-id "CLIP_ID"
   asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipAdvancedExperiencesListCommand(d),
 			newAppClipAdvancedExperiencesGetCommand(d),
@@ -124,7 +124,7 @@ Examples:
   asc app-clips advanced-experiences list --app-clip-id "CLIP_ID"
   asc app-clips advanced-experiences list --app-clip-id "CLIP_ID" --action OPEN`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips advanced-experiences list", 200, "action", "status", "place-status"); err != nil {
 				return err
@@ -249,7 +249,7 @@ Examples:
   asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --inline-localization '{"language":"EN","title":"Order ahead"}' --inline-localization '{"language":"FR","title":"Commander"}'
   asc app-clips advanced-experiences create --app-clip-id "CLIP_ID" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --language EN --title "Order ahead" --place @file:place.json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			linkValue := strings.TrimSpace(*link)
 			if linkValue == "" {
@@ -413,7 +413,7 @@ Examples:
   asc app-clips advanced-experiences update --experience-id "EXP_ID" --place '{"placeId":"PLACE_ID","mapAction":"RESTAURANT_ORDER_FOOD"}'
   asc app-clips advanced-experiences update --experience-id "EXP_ID" --place @file:place.json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {

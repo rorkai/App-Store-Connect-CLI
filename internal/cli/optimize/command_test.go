@@ -1,22 +1,26 @@
 package optimize
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/ads"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestSearchPlanCommandValidatesRequiredFlagsBeforeAuthentication(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	stubSearchPlanResolversToFail(t)
-	command := SearchPlanCommand()
+	command := newSearchPlanCommand(newOptimizeTestDeps(nil))
 	err := command.ParseAndRun(context.Background(), nil)
 	if err == nil || err.Error() != "--app is required (or set ASC_APP_ID)" {
 		t.Fatalf("error = %v, want exact --app usage error", err)
@@ -40,7 +44,7 @@ func TestSearchPlanCommandRejectsInvalidCountryGenreLocaleAndWindow(t *testing.T
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			stubSearchPlanResolversToFail(t)
-			command := SearchPlanCommand()
+			command := newSearchPlanCommand(newOptimizeTestDeps(nil))
 			err := command.ParseAndRun(context.Background(), test.args)
 			if err == nil || err.Error() != test.want {
 				t.Fatalf("error = %v, want %q", err, test.want)
@@ -60,18 +64,18 @@ func stubSearchPlanResolversToFail(t *testing.T) {
 		resolveSearchMetadataForPlan = previousMetadata
 		collectSearchDataForPlan = previousAds
 	})
-	resolveSearchMetadataForPlan = func(context.Context, string, string, string, string, string) (resolvedSearchMetadata, error) {
+	resolveSearchMetadataForPlan = func(context.Context, *shared.Deps, string, string, string, string, string) (resolvedSearchMetadata, error) {
 		t.Fatal("metadata resolver ran before usage validation")
 		return resolvedSearchMetadata{}, nil
 	}
-	collectSearchDataForPlan = func(context.Context, string, string, ads.SearchOptimizationRequest) (ads.SearchOptimizationData, error) {
+	collectSearchDataForPlan = func(context.Context, *shared.Deps, string, string, ads.SearchOptimizationRequest) (ads.SearchOptimizationData, error) {
 		t.Fatal("Apple Ads resolver ran before usage validation")
 		return ads.SearchOptimizationData{}, nil
 	}
 }
 
 func TestOptimizeGroupsReturnHelp(t *testing.T) {
-	if err := OptimizeCommand().Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
+	if err := NewOptimizeCommand(newOptimizeTestDeps(nil)).Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("optimize Exec error = %v, want flag.ErrHelp", err)
 	}
 }
@@ -83,7 +87,7 @@ func TestSearchPlanCommandRendersSupportedOutputsAndWritesArtifacts(t *testing.T
 		resolveSearchMetadataForPlan = previousMetadata
 		collectSearchDataForPlan = previousAds
 	})
-	resolveSearchMetadataForPlan = func(_ context.Context, appSelector, version, platform, appInfoID, locale string) (resolvedSearchMetadata, error) {
+	resolveSearchMetadataForPlan = func(_ context.Context, _ *shared.Deps, appSelector, version, platform, appInfoID, locale string) (resolvedSearchMetadata, error) {
 		if appSelector != "123456789" || version != "4.4.4" || platform != "IOS" || appInfoID != "info-live" || locale != "en-US" {
 			t.Fatalf("metadata inputs = (%q, %q, %q, %q, %q)", appSelector, version, platform, appInfoID, locale)
 		}
@@ -92,7 +96,7 @@ func TestSearchPlanCommandRendersSupportedOutputsAndWritesArtifacts(t *testing.T
 			Metadata: searchMetadataSnapshot{Name: "Focus Keeper", Subtitle: "Habit tracker", Keywords: "focus,timer"},
 		}, nil
 	}
-	collectSearchDataForPlan = func(_ context.Context, profile, account string, request ads.SearchOptimizationRequest) (ads.SearchOptimizationData, error) {
+	collectSearchDataForPlan = func(_ context.Context, _ *shared.Deps, profile, account string, request ads.SearchOptimizationRequest) (ads.SearchOptimizationData, error) {
 		if profile != "Ads" || account != "987654321" || request.AppID != "123456789" || request.Country != "US" || request.Genre != "PRODUCTIVITY_UTILITIES" {
 			t.Fatalf("Ads inputs = (%q, %q, %+v)", profile, account, request)
 		}
@@ -113,12 +117,13 @@ func TestSearchPlanCommandRendersSupportedOutputsAndWritesArtifacts(t *testing.T
 	}
 	for _, format := range []string{"json", "table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
+			d := newOptimizeTestDeps(nil)
 			args := append(append([]string(nil), baseArgs...), "--output", format)
 			if format == "json" {
 				args = append(args, "--out-dir", filepath.Join(t.TempDir(), "plan"))
 			}
-			stdout := captureSearchPlanStdout(t, func() error {
-				return SearchPlanCommand().ParseAndRun(context.Background(), args)
+			stdout := captureSearchPlanStdout(t, d, func() error {
+				return newSearchPlanCommand(d).ParseAndRun(context.Background(), args)
 			})
 			for _, want := range []string{"daily habits", "phrase_suggestions", "unavailable", "request unavailable"} {
 				if !strings.Contains(stdout, want) {
@@ -153,24 +158,26 @@ func TestSearchPlanCommandRendersSupportedOutputsAndWritesArtifacts(t *testing.T
 	}
 }
 
-func captureSearchPlanStdout(t *testing.T, run func() error) string {
+// newOptimizeTestDeps returns deps with buffered streams whose public App
+// Store requests go through transport.
+func newOptimizeTestDeps(transport http.RoundTripper) *shared.Deps {
+	return &shared.Deps{
+		IO:            &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
+		Now:           time.Now,
+		Timeout:       shared.ContextWithTimeout,
+		Getwd:         os.Getwd,
+		HTTPTransport: func() http.RoundTripper { return transport },
+	}
+}
+
+// captureSearchPlanStdout runs a command built on d and returns what it wrote
+// to d's stdout.
+func captureSearchPlanStdout(t *testing.T, d *shared.Deps, run func() error) string {
 	t.Helper()
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
+	var stdout bytes.Buffer
+	d.IO = &shared.IO{Out: &stdout, ErrOut: io.Discard}
+	if err := run(); err != nil {
+		t.Fatalf("run error = %v", err)
 	}
-	previous := os.Stdout
-	os.Stdout = writer
-	runErr := run()
-	_ = writer.Close()
-	os.Stdout = previous
-	data, readErr := io.ReadAll(reader)
-	_ = reader.Close()
-	if runErr != nil {
-		t.Fatalf("run error = %v", runErr)
-	}
-	if readErr != nil {
-		t.Fatal(readErr)
-	}
-	return string(data)
+	return stdout.String()
 }

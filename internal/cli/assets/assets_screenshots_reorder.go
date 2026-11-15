@@ -14,13 +14,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AssetsScreenshotsReorderCommand returns the screenshots reorder subcommand.
-func AssetsScreenshotsReorderCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("reorder", flag.ExitOnError)
+// NewAssetsScreenshotsReorderCommand returns the screenshots reorder subcommand.
+func NewAssetsScreenshotsReorderCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("reorder", flag.ExitOnError)
 
 	setID := shared.BindResourceIDFlag(fs, "set-id", "appScreenshotSets", "App screenshot set ID")
 	ids := fs.String("ids", "", "Every screenshot ID in the set, comma-separated, in the desired order")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "reorder",
@@ -39,26 +39,26 @@ Examples:
   asc screenshots list --set-id "SET_ID"
   asc screenshots reorder --set-id "SET_ID" --ids "THIRD_ID,FIRST_ID,SECOND_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedSetID := strings.TrimSpace(*setID)
 			if trimmedSetID == "" {
-				return shared.UsageError("screenshots reorder: --set-id is required")
+				return d.UsageError("screenshots reorder: --set-id is required")
 			}
 			if strings.TrimSpace(*ids) == "" {
-				return shared.UsageError("screenshots reorder: --ids is required")
+				return d.UsageError("screenshots reorder: --ids is required")
 			}
 			orderedIDs, err := parseScreenshotReorderIDs(*ids)
 			if err != nil {
-				return shared.UsageErrorf("screenshots reorder: --ids %v", err)
+				return d.UsageErrorf("screenshots reorder: --ids %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("screenshots reorder: %w", err)
 			}
 
-			readCtx, cancelRead := shared.ContextWithTimeout(ctx)
+			readCtx, cancelRead := d.Timeout(ctx)
 			currentIDs, err := GetOrderedAppScreenshotIDs(readCtx, client, trimmedSetID)
 			cancelRead()
 			if err != nil {
@@ -67,7 +67,7 @@ Examples:
 			if err := screenshotReorderMembershipError(trimmedSetID, currentIDs, orderedIDs); err != nil {
 				return fmt.Errorf("screenshots reorder: %w", err)
 			}
-			writeCtx, cancelWrite := shared.ContextWithTimeout(ctx)
+			writeCtx, cancelWrite := d.Timeout(ctx)
 			defer cancelWrite()
 			if err := SetOrderedAppScreenshots(writeCtx, client, trimmedSetID, orderedIDs); err != nil {
 				if isScreenshotSetMembershipConflict(err) {
@@ -76,7 +76,7 @@ Examples:
 				return fmt.Errorf("screenshots reorder: %w", err)
 			}
 
-			return shared.PrintOutput(&asc.AppScreenshotReorderResult{
+			return d.PrintOutput(&asc.AppScreenshotReorderResult{
 				SetID:         trimmedSetID,
 				Reordered:     true,
 				ScreenshotIDs: orderedIDs,

@@ -13,7 +13,7 @@ import (
 
 // newGameCenterBlockedPlayersCommand returns the blocked player management group.
 func newGameCenterBlockedPlayersCommand(d *shared.Deps) *ffcli.Command {
-	return &ffcli.Command{Name: "blocked-players", ShortUsage: "asc game-center details blocked-players <subcommand> [flags]", ShortHelp: "List blocked players and manage player blocking.", FlagSet: d.NewFlagSet("blocked-players", flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc, Subcommands: []*ffcli.Command{gameCenterBlockedPlayersListCommand(d), gameCenterBlockedPlayersUpdateCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
+	return &ffcli.Command{Name: "blocked-players", ShortUsage: "asc game-center details blocked-players <subcommand> [flags]", ShortHelp: "List blocked players and manage player blocking.", FlagSet: d.NewFlagSet("blocked-players", flag.ExitOnError), UsageFunc: d.DefaultUsageFunc, Subcommands: []*ffcli.Command{gameCenterBlockedPlayersListCommand(d), gameCenterBlockedPlayersUpdateCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
 }
 
 func gameCenterBlockedPlayersListCommand(d *shared.Deps) *ffcli.Command {
@@ -25,7 +25,7 @@ func gameCenterBlockedPlayersListCommand(d *shared.Deps) *ffcli.Command {
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
-	return &ffcli.Command{Name: "list", ShortUsage: "asc " + command + " --detail-id ID [flags]", ShortHelp: "List only blocked players for a Game Center detail.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+	return &ffcli.Command{Name: "list", ShortUsage: "asc " + command + " --detail-id ID [flags]", ShortHelp: "List only blocked players for a Game Center detail.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		provided := map[string]bool{}
 		fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
 		if provided["limit"] && (*limit < 1 || *limit > 200) {
@@ -85,7 +85,7 @@ func gameCenterBlockedPlayersUpdateCommand(d *shared.Deps) *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Optional bundleId attribute to send with the update")
 	confirm := fs.Bool("confirm", false, "Confirm player blocking change")
 	output := d.BindOutputFlags(fs)
-	return &ffcli.Command{Name: "update", ShortUsage: "asc " + command + " --id ID --blocked true|false --confirm", ShortHelp: "Block or unblock a Game Center player.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+	return &ffcli.Command{Name: "update", ShortUsage: "asc " + command + " --id ID --blocked true|false --confirm", ShortHelp: "Block or unblock a Game Center player.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		playerID := strings.TrimSpace(*id)
 		if playerID == "" {
 			return d.UsageError(command + ": --id is required")

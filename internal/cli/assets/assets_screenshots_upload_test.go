@@ -89,7 +89,7 @@ func testReplacementScreenshotValidation(t *testing.T, resize bool, wantErrors [
 		}
 	}))
 
-	_, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, false)
+	_, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, false)
 	if replacementErr != nil {
 		t.Fatalf("replace validated screenshot: %v", replacementErr)
 	}
@@ -134,7 +134,7 @@ func TestUploadScreenshotsReplaceValidatesRootBeforeDeletingExistingScreenshots(
 		}
 	}))
 
-	_, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, false)
+	_, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, false)
 	if !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("uploadScreenshots() error = %v, want rootfs.ErrSymlink", err)
 	}
@@ -162,7 +162,7 @@ func TestUploadScreenshotsDryRunValidatesSourceRootBeforePreview(t *testing.T) {
 		writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{}}`)
 	}))
 
-	_, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, false, true)
+	_, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, false, true)
 	if !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("uploadScreenshots() error = %v, want rootfs.ErrSymlink", err)
 	}
@@ -230,7 +230,7 @@ func TestUploadScreenshotsSkipExistingStartsUploadTimeoutAfterChecksumFiltering(
 	var result asc.AppScreenshotUploadResult
 	var err error
 	synctest.Test(t, func(*testing.T) {
-		result, err = uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, true, false, false)
+		result, err = uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, true, false, false)
 	})
 	if err != nil {
 		t.Fatalf("uploadScreenshots() error: %v", err)
@@ -275,7 +275,7 @@ func TestUploadScreenshotsSkipExistingSettlesMissingRemoteChecksum(t *testing.T)
 		}
 	}))
 
-	result, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, true, false, false)
+	result, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, true, false, false)
 	if err != nil {
 		t.Fatalf("uploadScreenshots() error: %v", err)
 	}
@@ -319,6 +319,7 @@ func TestExecuteAppScreenshotUploadSkipExistingSettlesMissingRemoteChecksum(t *t
 	}))
 
 	result, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -374,6 +375,7 @@ func TestExecuteAppScreenshotUploadSkipExistingDoesNotWaitForUndeliveredReservat
 			var err error
 			synctest.Test(t, func(*testing.T) {
 				result, err = executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+					Deps:           newAssetsUploadTestDeps(),
 					Client:         client,
 					LocalizationID: "LOC_123",
 					DisplayType:    "APP_IPHONE_65",
@@ -425,6 +427,7 @@ func TestUploadScreenshotsSkipExistingChecksumTimeoutIncludesAssetID(t *testing.
 	var err error
 	synctest.Test(t, func(*testing.T) {
 		_, err = uploadScreenshotsWithConfig(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+			Deps:           newAssetsUploadTestDeps(),
 			Client:         client,
 			LocalizationID: "LOC_123",
 			DisplayType:    "APP_IPHONE_65",
@@ -556,7 +559,7 @@ func TestUploadScreenshotsDryRunReportsWouldUpload(t *testing.T) {
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, false, true)
+	result, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, false, true)
 	if err != nil {
 		t.Fatalf("uploadScreenshots() error: %v", err)
 	}
@@ -593,7 +596,7 @@ func TestUploadScreenshotsDryRunDoesNotCreateSet(t *testing.T) {
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, false, true)
+	result, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, false, true)
 	if err != nil {
 		t.Fatalf("uploadScreenshots() error: %v", err)
 	}
@@ -632,7 +635,7 @@ func TestUploadScreenshotsDryRunWithReplaceReportsWouldDelete(t *testing.T) {
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, true)
+	result, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, true)
 	if err != nil {
 		t.Fatalf("uploadScreenshots() error: %v", err)
 	}
@@ -681,7 +684,7 @@ func TestUploadScreenshotsDryRunWithSkipExistingReportsSkipped(t *testing.T) {
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, true, false, true)
+	result, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, true, false, true)
 	if err != nil {
 		t.Fatalf("uploadScreenshots() error: %v", err)
 	}
@@ -762,7 +765,7 @@ func TestUploadScreenshotsSkipExistingSyncsLocalFileOrder(t *testing.T) {
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{fileA, fileB}, true, false, false)
+	result, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{fileA, fileB}, true, false, false)
 	if err != nil {
 		t.Fatalf("uploadScreenshots() error: %v", err)
 	}
@@ -822,7 +825,7 @@ func TestUploadScreenshotsSkipExistingSyncFailurePreservesResults(t *testing.T) 
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{fileA, fileB}, true, false, false)
+	result, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{fileA, fileB}, true, false, false)
 	if err == nil {
 		t.Fatal("expected uploadScreenshots() error")
 	}
@@ -897,6 +900,7 @@ func TestExecuteAppScreenshotUploadSkipExistingSyncsLocalFileOrder(t *testing.T)
 
 	client := newAssetsUploadTestClient(t)
 	result, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -970,6 +974,7 @@ func TestExecuteAppScreenshotUploadMaxScreenshotsAccountsForExistingRemoteScreen
 
 	client := newAssetsUploadTestClient(t)
 	result, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -1019,6 +1024,7 @@ func TestExecuteAppScreenshotUploadRejectsAppendAboveScreenshotLimit(t *testing.
 
 	client := newAssetsUploadTestClient(t)
 	_, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -1049,6 +1055,7 @@ func TestExecuteAppScreenshotUploadFullSetProvidesUsableRemediation(t *testing.T
 	}))
 
 	_, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -1095,6 +1102,7 @@ func TestExecuteAppScreenshotUploadSkipExistingRejectsAmbiguousRemoteChecksum(t 
 	}))
 
 	_, err = executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",

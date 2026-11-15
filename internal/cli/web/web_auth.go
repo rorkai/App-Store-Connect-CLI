@@ -1684,12 +1684,16 @@ func restoreCachedWebProvider(ctx context.Context, session, cached *webcore.Auth
 }
 
 func selectResolvedWebSessionProvider(ctx context.Context, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
+	return selectResolvedWebSessionProviderWith(ctx, shared.DefaultDeps(), session, selection)
+}
+
+func selectResolvedWebSessionProviderWith(ctx context.Context, d *shared.Deps, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
 	if selection.ProviderID == 0 && strings.TrimSpace(selection.PublicProviderID) == "" {
 		return nil
 	}
 	// Interactive 2FA may outlive the request budget used to start login.
 	// Renew only the internal timeout, preserving caller cancellation.
-	providerCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+	providerCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	if err := selectWebProviderFn(providerCtx, session, selection); err != nil {
 		err = fmt.Errorf("web provider selection failed: %w", err)
@@ -1738,8 +1742,12 @@ func hasProviderSelection(selection webcore.ProviderSelection) bool {
 }
 
 func callResolveSessionForProviderSelection(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string, selection webcore.ProviderSelection) (*webcore.AuthSession, string, error) {
+	return callResolveSessionForProviderSelectionWith(ctx, shared.DefaultDeps(), appleID, password, twoFactorCode, twoFactorCodeCommand, selection)
+}
+
+func callResolveSessionForProviderSelectionWith(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode, twoFactorCodeCommand string, selection webcore.ProviderSelection) (*webcore.AuthSession, string, error) {
 	if selection.ProviderID < 0 {
-		return nil, "", shared.WithDiagnostic(shared.UsageError("--provider-id must be non-negative"), shared.DiagnosticInvalidInput, "--provider-id")
+		return nil, "", shared.WithDiagnostic(d.UsageError("--provider-id must be non-negative"), shared.DiagnosticInvalidInput, "--provider-id")
 	}
 	if !hasProviderSelection(selection) {
 		return callResolveSessionFn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
