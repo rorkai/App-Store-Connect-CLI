@@ -35,14 +35,14 @@ func TestStoreKitServerAPICommandTree(t *testing.T) {
 
 func TestStoreKitGroupsListProduction(t *testing.T) {
 	setupStoreKitAuth(t)
-	stubStoreKitTransport(t, func(req *http.Request) string {
+	transport := stubStoreKitTransport(t, func(req *http.Request) string {
 		if req.Method != http.MethodGet || req.URL.Host != "api.storekit.apple.com" || req.URL.Path != "/groups/v1/currentGroups/2000000000000001" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
 		return `{"groups":[{"groupId":"900000000000000000","groupType":"ORGANIZATION","roles":[]}]}`
 	})
 
-	stdout, stderr := runStoreKitCommand(t,
+	stdout, stderr := runStoreKitCommand(t, transport,
 		"storekit", "groups", "list", "--transaction-id", "2000000000000001", "--environment", "production", "--output", "json")
 	if stderr != "" {
 		t.Fatalf("stderr = %q", stderr)
@@ -55,7 +55,7 @@ func TestStoreKitGroupsListProduction(t *testing.T) {
 func TestStoreKitTransactionsHistoryPaginatesProduction(t *testing.T) {
 	setupStoreKitAuth(t)
 	var queries []string
-	stubStoreKitTransport(t, func(req *http.Request) string {
+	transport := stubStoreKitTransport(t, func(req *http.Request) string {
 		if req.Method != http.MethodGet || req.URL.Host != "api.storekit.apple.com" || req.URL.Path != "/inApps/v2/history/2000000000000001" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
@@ -66,7 +66,7 @@ func TestStoreKitTransactionsHistoryPaginatesProduction(t *testing.T) {
 		return `{"bundleId":"com.example.app","environment":"Production","revision":"rev-2","hasMore":false,"signedTransactions":["d.e.f"]}`
 	})
 
-	stdout, stderr := runStoreKitCommand(t,
+	stdout, stderr := runStoreKitCommand(t, transport,
 		"storekit", "transactions", "history", "--transaction-id", "2000000000000001",
 		"--product-type", "auto_renewable", "--ownership-type", "assigned", "--sort", "descending", "--environment", "production", "--paginate", "--output", "json")
 	if stderr != "" {
@@ -95,14 +95,14 @@ func TestStoreKitTransactionsHistoryPaginatesProduction(t *testing.T) {
 func TestStoreKitTransactionsViewDecodeAddsUnverifiedPayload(t *testing.T) {
 	setupStoreKitAuth(t)
 	token := storeKitTestJWS(`{"transactionId":"2000000000000001","productId":"com.example.monthly","purchaseDate":1788220800000,"inAppOwnershipType":"ASSIGNED","revocationType":"ASSIGNMENT_REVOKE"}`)
-	stubStoreKitTransport(t, func(req *http.Request) string {
+	transport := stubStoreKitTransport(t, func(req *http.Request) string {
 		if req.Method != http.MethodGet || req.URL.Host != "api.storekit-sandbox.apple.com" || req.URL.Path != "/inApps/v1/transactions/2000000000000001" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
 		return `{"signedTransactionInfo":"` + token + `"}`
 	})
 
-	stdout, stderr := runStoreKitCommand(t,
+	stdout, stderr := runStoreKitCommand(t, transport,
 		"storekit", "transactions", "view", "--transaction-id", "2000000000000001", "--environment", "sandbox", "--decode", "--output", "json")
 	if !strings.Contains(stderr, "not signature-verified") {
 		t.Fatalf("stderr = %q, want unverified warning", stderr)
@@ -123,7 +123,7 @@ func TestStoreKitTransactionsViewDecodeAddsUnverifiedPayload(t *testing.T) {
 		t.Fatalf("response = %#v", response)
 	}
 
-	stdout, stderr = runStoreKitCommand(t,
+	stdout, stderr = runStoreKitCommand(t, transport,
 		"storekit", "transactions", "view", "--transaction-id", "2000000000000001", "--environment", "sandbox", "--output", "table")
 	if !strings.Contains(stderr, "not signature-verified") || !strings.Contains(stdout, "Product ID") || !strings.Contains(stdout, "com.example.monthly") || !strings.Contains(stdout, "2026-09-01T00:00:00Z") ||
 		!strings.Contains(stdout, "Ownership") || !strings.Contains(stdout, "ASSIGNED") || !strings.Contains(stdout, "ASSIGNMENT_REVOKE") {
@@ -134,7 +134,7 @@ func TestStoreKitTransactionsViewDecodeAddsUnverifiedPayload(t *testing.T) {
 func TestStoreKitNotificationsHistoryPostsRequestInReadOnlyMode(t *testing.T) {
 	setupStoreKitAuth(t)
 	t.Setenv("ASC_READ_ONLY", "1")
-	stubStoreKitTransport(t, func(req *http.Request) string {
+	transport := stubStoreKitTransport(t, func(req *http.Request) string {
 		if req.Method != http.MethodPost || req.URL.Path != "/inApps/v1/notifications/history" || req.URL.RawQuery != "" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
@@ -149,7 +149,7 @@ func TestStoreKitNotificationsHistoryPostsRequestInReadOnlyMode(t *testing.T) {
 		return `{"notificationHistory":[],"hasMore":true,"paginationToken":"next-1"}`
 	})
 
-	stdout, stderr := runStoreKitCommand(t,
+	stdout, stderr := runStoreKitCommand(t, transport,
 		"storekit", "notifications", "history", "--start", "2026-09-01", "--end", "2026-09-08",
 		"--type", "subscribed", "--only-failures", "--environment", "sandbox", "--output", "json")
 	if !strings.Contains(stdout, `"paginationToken":"next-1"`) {
@@ -184,11 +184,11 @@ func TestStoreKitServerAPIUsageErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stubStoreKitTransport(t, func(req *http.Request) string {
+			transport := stubStoreKitTransport(t, func(req *http.Request) string {
 				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 				return ""
 			})
-			stdout, stderr, err := runRootWithDeps(t, unexpectedStoreKitASCClient(t), tt.args...)
+			stdout, stderr, err := runRootWithHTTPTransport(t, unexpectedStoreKitASCClient(t), transport, tt.args...)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("run error = %v, want flag.ErrHelp", err)
 			}
@@ -199,11 +199,9 @@ func TestStoreKitServerAPIUsageErrors(t *testing.T) {
 	}
 }
 
-func stubStoreKitTransport(t *testing.T, respond func(*http.Request) string) {
+func stubStoreKitTransport(t *testing.T, respond func(*http.Request) string) http.RoundTripper {
 	t.Helper()
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if !strings.HasPrefix(req.Header.Get("Authorization"), "Bearer ") {
 			t.Fatalf("missing bearer token: %q", req.Header.Get("Authorization"))
 		}
@@ -215,9 +213,9 @@ func stubStoreKitTransport(t *testing.T, respond func(*http.Request) string) {
 	})
 }
 
-func runStoreKitCommand(t *testing.T, args ...string) (string, string) {
+func runStoreKitCommand(t *testing.T, transport http.RoundTripper, args ...string) (string, string) {
 	t.Helper()
-	stdout, stderr, err := runRootCommand(t, args)
+	stdout, stderr, err := runRootWithHTTPTransport(t, unexpectedStoreKitASCClient(t), transport, args...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -49,7 +48,7 @@ func TestAdsGuideExamplesDispatchRepresentativeCommands(t *testing.T) {
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "987654")
 
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Host {
 		case "appleid.apple.com":
 			return adsJSONResponse(`{"access_token":"ACCESS","token_type":"Bearer","expires_in":3600,"scope":"searchadsorg"}`), nil
@@ -62,7 +61,7 @@ func TestAdsGuideExamplesDispatchRepresentativeCommands(t *testing.T) {
 			t.Fatalf("unexpected host %s for %s %s", req.URL.Host, req.Method, req.URL.String())
 			return nil, nil
 		}
-	}))
+	})
 
 	for _, commandLine := range []string{
 		`asc ads auth login --name "Marketing" --client-id "SEARCHADS_CLIENT_ID" --team-id "SEARCHADS_TEAM_ID" --key-id "KEY_ID" --private-key ./apple-ads-private-key.pem --ad-account "987654"`,
@@ -73,7 +72,7 @@ func TestAdsGuideExamplesDispatchRepresentativeCommands(t *testing.T) {
 	} {
 		t.Run(commandLine, func(t *testing.T) {
 			args := adsGuideArgs(t, commandLine, keyPath, payloads)
-			stdout, stderr, err := runAdsGuideCommand(t, args)
+			stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, args...)
 			if err != nil {
 				t.Fatalf("run %q: %v\nstderr: %s", commandLine, err, stderr)
 			}
@@ -88,21 +87,6 @@ func TestAdsGuideExamplesDispatchRepresentativeCommands(t *testing.T) {
 			}
 		})
 	}
-}
-
-func runAdsGuideCommand(t *testing.T, args []string) (string, string, error) {
-	t.Helper()
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		root := RootCommand("dev")
-		if err := root.Parse(args); err != nil {
-			runErr = err
-			return
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
 }
 
 func isolateAdsGuideEnv(t *testing.T) {

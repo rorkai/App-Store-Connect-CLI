@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	storekitapi "github.com/rudrankriyam/App-Store-Connect-CLI/internal/storekit"
 )
 
@@ -25,7 +26,7 @@ func bindCommonFlags(fs *flag.FlagSet) commonFlags {
 	}
 }
 
-func resolveClient(ctx context.Context, flags commonFlags) (*storekitapi.Client, storekitapi.Environment, error) {
+func resolveClient(ctx context.Context, d *shared.Deps, flags commonFlags) (*storekitapi.Client, storekitapi.Environment, error) {
 	environment, err := resolveEnvironment(flags.Environment)
 	if err != nil {
 		return nil, "", err
@@ -35,7 +36,7 @@ func resolveClient(ctx context.Context, flags commonFlags) (*storekitapi.Client,
 		return nil, "", err
 	}
 	_ = ctx
-	client, err := storekitapi.NewClient(credentials, environment)
+	client, err := storekitapi.NewClient(credentials, environment, storekitapi.WithTransport(d.HTTPTransport()))
 	if err != nil {
 		return nil, "", err
 	}

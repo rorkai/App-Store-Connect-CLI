@@ -122,9 +122,7 @@ func TestStoreKitServerActionsRequestContracts(t *testing.T) {
 				_, _ = io.WriteString(w, tt.response)
 			}))
 			defer server.Close()
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			transport := roundTripFunc(func(r *http.Request) (*http.Response, error) {
 				wantHost := "api.storekit-sandbox.apple.com"
 				if tt.production {
 					wantHost = "api.storekit.apple.com"
@@ -137,7 +135,7 @@ func TestStoreKitServerActionsRequestContracts(t *testing.T) {
 				cloned.URL = &u
 				cloned.URL.Scheme = "http"
 				cloned.URL.Host = strings.TrimPrefix(server.URL, "http://")
-				return original.RoundTrip(cloned)
+				return http.DefaultTransport.RoundTrip(cloned)
 			})
 			env := "sandbox"
 			if tt.production {
@@ -145,7 +143,7 @@ func TestStoreKitServerActionsRequestContracts(t *testing.T) {
 			}
 			args := append([]string{"storekit"}, tt.args...)
 			args = append(args, "--environment", env, "--output", "json")
-			stdout, stderr, err := runRootCommand(t, args)
+			stdout, stderr, err := runRootWithHTTPTransport(t, unexpectedStoreKitASCClient(t), transport, args...)
 			if tt.wantErr == "" && err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -199,10 +197,10 @@ func TestStoreKitServerActionsUsageErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			setupStoreKitAuth(t)
-			stubStoreKitTransport(t, func(r *http.Request) string { t.Errorf("unexpected HTTP %s", r.URL); return `{}` })
+			transport := stubStoreKitTransport(t, func(r *http.Request) string { t.Errorf("unexpected HTTP %s", r.URL); return `{}` })
 			args := append([]string{"storekit"}, tt.args...)
 			args = append(args, "--environment", "sandbox")
-			stdout, stderr, err := runRootWithDeps(t, unexpectedStoreKitASCClient(t), args...)
+			stdout, stderr, err := runRootWithHTTPTransport(t, unexpectedStoreKitASCClient(t), transport, args...)
 			if !errors.Is(err, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, tt.want) {
 				t.Fatalf("stdout=%q stderr=%q err=%v want=%q", stdout, stderr, err, tt.want)
 			}
@@ -231,10 +229,10 @@ func TestStoreKitServerActionsHumanOutput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			setupStoreKitAuth(t)
-			stubStoreKitTransport(t, func(*http.Request) string { return tt.response })
+			transport := stubStoreKitTransport(t, func(*http.Request) string { return tt.response })
 			args := append([]string{"storekit"}, tt.args...)
 			args = append(args, "--environment", "sandbox", "--output", tt.format)
-			stdout, stderr := runStoreKitCommand(t, args...)
+			stdout, stderr := runStoreKitCommand(t, transport, args...)
 			for _, want := range tt.want {
 				actual := stdout
 				if tt.format == "markdown" {
@@ -272,10 +270,10 @@ func TestStoreKitServerActionsRefuseWritesAndPreserveAPIErrors(t *testing.T) {
 			setupStoreKitAuth(t)
 			t.Setenv("ASC_READ_ONLY", "1")
 			calls := 0
-			stubStoreKitTransport(t, func(*http.Request) string { calls++; return `{}` })
+			transport := stubStoreKitTransport(t, func(*http.Request) string { calls++; return `{}` })
 			command := append([]string{"storekit"}, args...)
 			command = append(command, "--environment", "sandbox", "--confirm", "--output", "json")
-			stdout, _, err := runRootCommand(t, command)
+			stdout, _, err := runRootWithHTTPTransport(t, unexpectedStoreKitASCClient(t), transport, command...)
 			if !errors.Is(err, readonly.ErrRefused) || stdout != "" || calls != 0 {
 				t.Fatalf("stdout=%q err=%v calls=%d", stdout, err, calls)
 			}
@@ -284,12 +282,10 @@ func TestStoreKitServerActionsRefuseWritesAndPreserveAPIErrors(t *testing.T) {
 	t.Run("API failure", func(t *testing.T) {
 		setupStoreKitAuth(t)
 		t.Setenv("ASC_READ_ONLY", "")
-		original := http.DefaultTransport
-		t.Cleanup(func() { http.DefaultTransport = original })
-		http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+		transport := roundTripFunc(func(*http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 429, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(`{"errorCode":4290000,"errorMessage":"Rate limit exceeded"}`))}, nil
 		})
-		stdout, _, err := runRootCommand(t, []string{"storekit", "transactions", "set-account-token", "--original-transaction-id", "123", "--app-account-token", "11111111-2222-4333-8444-555555555555", "--confirm", "--environment", "sandbox", "--output", "json"})
+		stdout, _, err := runRootWithHTTPTransport(t, unexpectedStoreKitASCClient(t), transport, []string{"storekit", "transactions", "set-account-token", "--original-transaction-id", "123", "--app-account-token", "11111111-2222-4333-8444-555555555555", "--confirm", "--environment", "sandbox", "--output", "json"}...)
 		var apiErr *storekitapi.APIError
 		if !errors.As(err, &apiErr) || apiErr.StatusCode != 429 || apiErr.Code != "4290000" || stdout != "" {
 			t.Fatalf("stdout=%q err=%v", stdout, err)

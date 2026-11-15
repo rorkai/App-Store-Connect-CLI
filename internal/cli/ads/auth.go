@@ -113,7 +113,7 @@ Examples:
 				AdAccountID:    *adAccount,
 			}
 			if *network {
-				client, err := appleads.NewClient(credentials)
+				client, err := appleads.NewClient(credentials, appleads.WithTransport(d.HTTPTransport()))
 				if err != nil {
 					return fmt.Errorf("ads auth login: %w", err)
 				}
@@ -197,7 +197,7 @@ Examples:
 					row.SourcePath = cred.SourcePath
 				}
 				if *validate {
-					client, err := appleads.NewClient(cred.Credentials)
+					client, err := appleads.NewClient(cred.Credentials, appleads.WithTransport(d.HTTPTransport()))
 					if err == nil {
 						requestCtx, cancel := d.Timeout(ctx)
 						spec, specErr := authPlatformEndpointSpec("me", "view")
@@ -444,7 +444,7 @@ Examples:
 			if err != nil {
 				return d.UsageErrorf("ads auth discover: %v", err)
 			}
-			client, err := appleads.NewClient(credentials)
+			client, err := appleads.NewClient(credentials, appleads.WithTransport(d.HTTPTransport()))
 			if err != nil {
 				return fmt.Errorf("ads auth discover: %w", err)
 			}
@@ -774,7 +774,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("ads auth token: %w", err)
 			}
-			client, err := appleads.NewClient(credentials)
+			client, err := appleads.NewClient(credentials, appleads.WithTransport(d.HTTPTransport()))
 			if err != nil {
 				return fmt.Errorf("ads auth token: %w", err)
 			}

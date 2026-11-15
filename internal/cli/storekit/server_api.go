@@ -435,7 +435,7 @@ func requireEnvironment(d *shared.Deps, common commonFlags, want storekitapi.Env
 }
 
 func serverRequest(ctx context.Context, d *shared.Deps, command string, common commonFlags, call func(context.Context, *storekitapi.Client) (json.RawMessage, error)) (json.RawMessage, error) {
-	client, _, err := resolveClient(ctx, common)
+	client, _, err := resolveClient(ctx, d, common)
 	if err != nil {
 		return nil, usageOrWrap(d, command, err)
 	}

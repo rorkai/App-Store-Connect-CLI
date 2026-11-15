@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -146,7 +145,7 @@ func TestAdsPlatformAPIRequestUsesV1HostAndAdAccountContext(t *testing.T) {
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "123")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet || req.URL.Host != "api.ads.apple.com" || req.URL.Path != "/v1/ad-accounts/123" {
 			t.Fatalf("request = %s %s", req.Method, req.URL.String())
 		}
@@ -157,17 +156,12 @@ func TestAdsPlatformAPIRequestUsesV1HostAndAdAccountContext(t *testing.T) {
 			t.Fatalf("X-AP-Context = %q", got)
 		}
 		return adsJSONResponse(`{"result":{"id":"123"}}`), nil
-	}))
-
-	root := RootCommand("dev")
-	if err := root.Parse([]string{"ads", "api", "request", "--path", "v1/ad-accounts/123", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
 	})
+
+	stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "ads", "api", "request", "--path", "v1/ad-accounts/123", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q", stderr)
 	}
@@ -189,7 +183,7 @@ func TestAdsPlatformAPIRequestOmitsContextForMe(t *testing.T) {
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "AD_ACCOUNT")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Host != "api.ads.apple.com" || req.URL.Path != "/v1/me" {
 			t.Fatalf("request URL = %s", req.URL.String())
 		}
@@ -197,17 +191,12 @@ func TestAdsPlatformAPIRequestOmitsContextForMe(t *testing.T) {
 			t.Fatalf("X-AP-Context = %q, want empty", got)
 		}
 		return adsJSONResponse(`{"result":{"userId":"1"}}`), nil
-	}))
-
-	root := RootCommand("dev")
-	if err := root.Parse([]string{"ads", "api", "request", "--path", "v1/me", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	_, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
 	})
+
+	_, stderr, err := runRootWithHTTPTransport(t, nil, transport, "ads", "api", "request", "--path", "v1/me", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q", stderr)
 	}
@@ -310,15 +299,17 @@ func TestAdsPlatformAPIRequestDefersBodyDependentConfirmationUntilAfterPayload(t
 			t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 			t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "AD_ACCOUNT")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-			installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.Method != test.wantMethod || req.URL.Path != test.wantPath {
 					t.Fatalf("request = %s %s, want %s %s", req.Method, req.URL.Path, test.wantMethod, test.wantPath)
 				}
 				return adsJSONResponse(`{"data":{"id":"1"}}`), nil
-			}))
+			})
 
-			stdout, stderr, err := runAdsEvalCommand(
+			stdout, stderr, err := runRootWithHTTPTransport(
 				t,
+				nil,
+				transport,
 				"ads", "api", "request",
 				"--method", test.method,
 				"--path", test.path,
@@ -341,15 +332,17 @@ func TestAdsPlatformAPIRequestAllowsKnownReadOnlyPostWithoutConfirmation(t *test
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "AD_ACCOUNT")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/campaigns/query" {
 			t.Fatalf("request = %s %s, want POST /v1/campaigns/query", req.Method, req.URL.Path)
 		}
 		return adsJSONResponse(`{"data":[]}`), nil
-	}))
+	})
 
-	stdout, stderr, err := runAdsEvalCommand(
+	stdout, stderr, err := runRootWithHTTPTransport(
 		t,
+		nil,
+		transport,
 		"ads", "api", "request",
 		"--method", http.MethodPost,
 		"--path", "v1/campaigns/query",
