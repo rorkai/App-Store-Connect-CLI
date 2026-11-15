@@ -12,8 +12,9 @@ import (
 // buildPlatformExportOptionsPayload uses the stable v1 typed model on hosts
 // without Xcode. This keeps automatic ExportOptions generation portable.
 func buildPlatformExportOptionsPayload(opts ExportOptionsGenerateOptions, teamID string, manual manualExportOptions) map[string]any {
-	if opts.Method == exportOptionsMethodReleaseTesting {
-		model := exportoptions.NewNonAppStoreOptions(exportoptions.MethodReleaseTesting)
+	switch opts.Method {
+	case exportOptionsMethodReleaseTesting, exportOptionsMethodDebugging, exportOptionsMethodEnterprise:
+		model := exportoptions.NewNonAppStoreOptions(exportoptions.Method(opts.Method))
 		model.TeamID = teamID
 		model.Destination = exportoptions.Destination(opts.Destination)
 		model.SigningStyle = exportoptions.SigningStyle(opts.SigningStyle)
