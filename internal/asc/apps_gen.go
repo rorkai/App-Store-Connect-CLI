@@ -515,6 +515,34 @@ func buildAccessibilityDeclarationsQuery(query *accessibilityDeclarationsQuery) 
 	return values.Encode()
 }
 
+// AndroidToIosAppMappingDetailsOption sets the query of GET /v1/apps/{id}/androidToIosAppMappingDetails (apps_androidToIosAppMappingDetails_getToManyRelated) and GET /v1/androidToIosAppMappingDetails/{id} (androidToIosAppMappingDetails_getInstance).
+type AndroidToIosAppMappingDetailsOption func(*androidToIosAppMappingDetailsQuery)
+
+type androidToIosAppMappingDetailsQuery struct {
+	listQuery
+	fields []string
+}
+
+// WithAndroidToIosAppMappingDetailsFields sets fields[androidToIosAppMappingDetails].
+func WithAndroidToIosAppMappingDetailsFields(fields []string) AndroidToIosAppMappingDetailsOption {
+	return func(q *androidToIosAppMappingDetailsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildAndroidToIosAppMappingDetailsQuery(query *androidToIosAppMappingDetailsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAndroidToIosAppMappingDetailQuery(query *androidToIosAppMappingDetailsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
+	return values.Encode()
+}
+
 // AppClipsOption sets the query of GET /v1/apps/{id}/appClips (apps_appClips_getToManyRelated).
 type AppClipsOption func(*appClipsQuery)
 
