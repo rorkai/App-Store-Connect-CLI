@@ -2,9 +2,15 @@
   "tag": "GameCenterAchievementVersions",
   "file": "game_center_achievement_versions_gen.go",
   "types": [
-    "GameCenterAchievementVersionV2Attributes"
+    "GameCenterAchievementVersionV2Attributes",
+    "GameCenterAchievementVersionV2CreateData",
+    "GameCenterAchievementVersionV2CreateRequest"
+  ],
+  "relationships": [
+    {"data":"GameCenterAchievementVersionV2CreateData","type":"*GameCenterAchievementVersionRelationships","omitempty":true}
   ],
   "operations": [
+    {"operation":"gameCenterAchievementVersionsV2_createInstance","name":"CreateGameCenterAchievementVersion","params":["achievementID"],"response":"GameCenterAchievementVersionResponse","links":["achievement"]},
     {"operation":"gameCenterAchievementVersionsV2_getInstance","name":"GetGameCenterAchievementVersion","params":["versionID"],"response":"GameCenterAchievementVersionResponse"},
     {"operation":"gameCenterAchievementVersionsV2_localizations_getToManyRelated","name":"GetGameCenterAchievementVersionLocalizations","params":["versionID"],"options":"GCAchievementLocalizationsOption","query":"buildGCAchievementLocalizationsQuery","nextContext":"game-center-achievement-version-localizations","response":"GameCenterAchievementLocalizationsResponse"}
   ],

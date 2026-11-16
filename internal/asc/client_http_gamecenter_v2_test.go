@@ -53,7 +53,7 @@ func TestCreateGameCenterAchievementVersion(t *testing.T) {
 		if req.URL.Path != "/v2/gameCenterAchievementVersions" {
 			t.Fatalf("expected path /v2/gameCenterAchievementVersions, got %s", req.URL.Path)
 		}
-		var payload GameCenterAchievementVersionCreateRequest
+		var payload GameCenterAchievementVersionV2CreateRequest
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode request: %v", err)
 		}
@@ -216,7 +216,7 @@ func TestCreateGameCenterLeaderboardVersion(t *testing.T) {
 		if req.URL.Path != "/v2/gameCenterLeaderboardVersions" {
 			t.Fatalf("expected path /v2/gameCenterLeaderboardVersions, got %s", req.URL.Path)
 		}
-		var payload GameCenterLeaderboardVersionCreateRequest
+		var payload GameCenterLeaderboardVersionV2CreateRequest
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode request: %v", err)
 		}
@@ -504,7 +504,7 @@ func TestCreateGameCenterLeaderboardSetVersion(t *testing.T) {
 		if req.URL.Path != "/v2/gameCenterLeaderboardSetVersions" {
 			t.Fatalf("expected path /v2/gameCenterLeaderboardSetVersions, got %s", req.URL.Path)
 		}
-		var payload GameCenterLeaderboardSetVersionCreateRequest
+		var payload GameCenterLeaderboardSetVersionV2CreateRequest
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode request: %v", err)
 		}

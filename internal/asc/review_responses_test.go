@@ -70,7 +70,7 @@ func TestCreateCustomerReviewResponse(t *testing.T) {
 			t.Fatalf("failed to read request body: %v", err)
 		}
 
-		var payload CustomerReviewResponseCreateRequest
+		var payload CustomerReviewResponseV1CreateRequest
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatalf("failed to unmarshal request body: %v", err)
 		}
