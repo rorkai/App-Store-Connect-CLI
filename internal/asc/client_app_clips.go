@@ -309,12 +309,11 @@ type AppClipAdvancedExperienceRemoveResult struct {
 }
 
 // CreateAppClipDefaultExperience creates a default experience for an App Clip.
-func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID string, attrs *AppClipDefaultExperienceCreateAttributes, releaseVersionID string, templateID string) (*AppClipDefaultExperienceResponse, error) {
+func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID string, attrs *AppClipDefaultExperienceCreateAttributes, releaseVersionID, templateID string) (*AppClipDefaultExperienceResponse, error) {
 	appClipID = strings.TrimSpace(appClipID)
 	if appClipID == "" {
 		return nil, fmt.Errorf("appClipID is required")
 	}
-
 	relationships := &AppClipDefaultExperienceCreateRelationships{
 		AppClip: &Relationship{
 			Data: ResourceData{
@@ -323,25 +322,22 @@ func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID s
 			},
 		},
 	}
-	releaseVersionID = strings.TrimSpace(releaseVersionID)
-	if releaseVersionID != "" {
+	if id := strings.TrimSpace(releaseVersionID); id != "" {
 		relationships.ReleaseWithAppStoreVersion = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeAppStoreVersions,
-				ID:   releaseVersionID,
+				ID:   id,
 			},
 		}
 	}
-	templateID = strings.TrimSpace(templateID)
-	if templateID != "" {
+	if id := strings.TrimSpace(templateID); id != "" {
 		relationships.AppClipDefaultExperienceTemplate = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeAppClipDefaultExperiences,
-				ID:   templateID,
+				ID:   id,
 			},
 		}
 	}
-
 	payload := AppClipDefaultExperienceCreateRequest{
 		Data: AppClipDefaultExperienceCreateData{
 			Type:          ResourceTypeAppClipDefaultExperiences,
@@ -349,8 +345,11 @@ func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID s
 			Relationships: relationships,
 		},
 	}
-
-	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipDefaultExperiences", Payload: payload})
+	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appClipDefaultExperiences",
+		Payload: payload,
+	})
 }
 
 // UpdateAppClipDefaultExperience updates a default experience.
@@ -359,20 +358,18 @@ func (c *Client) UpdateAppClipDefaultExperience(ctx context.Context, experienceI
 	if experienceID == "" {
 		return nil, fmt.Errorf("experienceID is required")
 	}
-
 	var relationships *AppClipDefaultExperienceUpdateRelationships
-	releaseVersionID = strings.TrimSpace(releaseVersionID)
-	if releaseVersionID != "" {
-		relationships = &AppClipDefaultExperienceUpdateRelationships{
-			ReleaseWithAppStoreVersion: &Relationship{
-				Data: ResourceData{
-					Type: ResourceTypeAppStoreVersions,
-					ID:   releaseVersionID,
-				},
+	if id := strings.TrimSpace(releaseVersionID); id != "" {
+		if relationships == nil {
+			relationships = &AppClipDefaultExperienceUpdateRelationships{}
+		}
+		relationships.ReleaseWithAppStoreVersion = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeAppStoreVersions,
+				ID:   id,
 			},
 		}
 	}
-
 	payload := AppClipDefaultExperienceUpdateRequest{
 		Data: AppClipDefaultExperienceUpdateData{
 			Type:          ResourceTypeAppClipDefaultExperiences,
@@ -381,8 +378,11 @@ func (c *Client) UpdateAppClipDefaultExperience(ctx context.Context, experienceI
 			Relationships: relationships,
 		},
 	}
-
-	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), Payload: payload})
+	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID),
+		Payload: payload,
+	})
 }
 
 // CreateAppClipAdvancedExperience creates an advanced experience.

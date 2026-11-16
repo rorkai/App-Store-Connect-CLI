@@ -10,7 +10,7 @@ import (
 )
 
 // CreateGameCenterMatchmakingQueue creates a new matchmaking queue.
-func (c *Client) CreateGameCenterMatchmakingQueue(ctx context.Context, attrs GameCenterMatchmakingQueueCreateAttributes, ruleSetID string, experimentRuleSetID string) (*GameCenterMatchmakingQueueResponse, error) {
+func (c *Client) CreateGameCenterMatchmakingQueue(ctx context.Context, ruleSetID string, attrs GameCenterMatchmakingQueueCreateAttributes, experimentRuleSetID string) (*GameCenterMatchmakingQueueResponse, error) {
 	relationships := &GameCenterMatchmakingQueueRelationships{
 		RuleSet: &Relationship{
 			Data: ResourceData{
@@ -19,15 +19,14 @@ func (c *Client) CreateGameCenterMatchmakingQueue(ctx context.Context, attrs Gam
 			},
 		},
 	}
-	if strings.TrimSpace(experimentRuleSetID) != "" {
+	if id := strings.TrimSpace(experimentRuleSetID); id != "" {
 		relationships.ExperimentRuleSet = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeGameCenterMatchmakingRuleSets,
-				ID:   strings.TrimSpace(experimentRuleSetID),
+				ID:   id,
 			},
 		}
 	}
-
 	payload := GameCenterMatchmakingQueueCreateRequest{
 		Data: GameCenterMatchmakingQueueCreateData{
 			Type:          ResourceTypeGameCenterMatchmakingQueues,
@@ -35,32 +34,38 @@ func (c *Client) CreateGameCenterMatchmakingQueue(ctx context.Context, attrs Gam
 			Relationships: relationships,
 		},
 	}
-	return sendJSON[GameCenterMatchmakingQueueResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterMatchmakingQueues", Payload: payload})
+	return sendJSON[GameCenterMatchmakingQueueResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterMatchmakingQueues",
+		Payload: payload,
+	})
 }
 
 // UpdateGameCenterMatchmakingQueue updates a matchmaking queue.
-func (c *Client) UpdateGameCenterMatchmakingQueue(ctx context.Context, queueID string, attrs GameCenterMatchmakingQueueUpdateAttributes, ruleSetID string, experimentRuleSetID string) (*GameCenterMatchmakingQueueResponse, error) {
+func (c *Client) UpdateGameCenterMatchmakingQueue(ctx context.Context, queueID string, attrs GameCenterMatchmakingQueueUpdateAttributes, ruleSetID, experimentRuleSetID string) (*GameCenterMatchmakingQueueResponse, error) {
 	var relationships *GameCenterMatchmakingQueueRelationships
-	if strings.TrimSpace(ruleSetID) != "" || strings.TrimSpace(experimentRuleSetID) != "" {
-		relationships = &GameCenterMatchmakingQueueRelationships{}
-		if strings.TrimSpace(ruleSetID) != "" {
-			relationships.RuleSet = &Relationship{
-				Data: ResourceData{
-					Type: ResourceTypeGameCenterMatchmakingRuleSets,
-					ID:   strings.TrimSpace(ruleSetID),
-				},
-			}
+	if id := strings.TrimSpace(ruleSetID); id != "" {
+		if relationships == nil {
+			relationships = &GameCenterMatchmakingQueueRelationships{}
 		}
-		if strings.TrimSpace(experimentRuleSetID) != "" {
-			relationships.ExperimentRuleSet = &Relationship{
-				Data: ResourceData{
-					Type: ResourceTypeGameCenterMatchmakingRuleSets,
-					ID:   strings.TrimSpace(experimentRuleSetID),
-				},
-			}
+		relationships.RuleSet = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterMatchmakingRuleSets,
+				ID:   id,
+			},
 		}
 	}
-
+	if id := strings.TrimSpace(experimentRuleSetID); id != "" {
+		if relationships == nil {
+			relationships = &GameCenterMatchmakingQueueRelationships{}
+		}
+		relationships.ExperimentRuleSet = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterMatchmakingRuleSets,
+				ID:   id,
+			},
+		}
+	}
 	payload := GameCenterMatchmakingQueueUpdateRequest{
 		Data: GameCenterMatchmakingQueueUpdateData{
 			Type:          ResourceTypeGameCenterMatchmakingQueues,
@@ -69,7 +74,11 @@ func (c *Client) UpdateGameCenterMatchmakingQueue(ctx context.Context, queueID s
 			Relationships: relationships,
 		},
 	}
-	return sendJSON[GameCenterMatchmakingQueueResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterMatchmakingQueues/%s", strings.TrimSpace(queueID)), Payload: payload})
+	return sendJSON[GameCenterMatchmakingQueueResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterMatchmakingQueues/%s", strings.TrimSpace(queueID)),
+		Payload: payload,
+	})
 }
 
 // CreateGameCenterMatchmakingRuleSetTest creates a rule set test from a JSON payload.

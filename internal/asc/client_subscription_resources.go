@@ -115,7 +115,6 @@ func (c *Client) CreateSubscriptionIntroductoryOffer(ctx context.Context, subscr
 	if subscriptionID == "" {
 		return nil, fmt.Errorf("subscription ID is required")
 	}
-
 	relationships := &SubscriptionIntroductoryOfferRelationships{
 		Subscription: &Relationship{
 			Data: ResourceData{
@@ -124,23 +123,22 @@ func (c *Client) CreateSubscriptionIntroductoryOffer(ctx context.Context, subscr
 			},
 		},
 	}
-	if strings.TrimSpace(territoryID) != "" {
+	if id := strings.TrimSpace(territoryID); id != "" {
 		relationships.Territory = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeTerritories,
-				ID:   strings.TrimSpace(territoryID),
+				ID:   id,
 			},
 		}
 	}
-	if strings.TrimSpace(pricePointID) != "" {
+	if id := strings.TrimSpace(pricePointID); id != "" {
 		relationships.SubscriptionPricePoint = &Relationship{
 			Data: ResourceData{
 				Type: ResourceTypeSubscriptionPricePoints,
-				ID:   strings.TrimSpace(pricePointID),
+				ID:   id,
 			},
 		}
 	}
-
 	payload := SubscriptionIntroductoryOfferCreateRequest{
 		Data: SubscriptionIntroductoryOfferCreateData{
 			Type:          ResourceTypeSubscriptionIntroductoryOffers,
@@ -148,7 +146,6 @@ func (c *Client) CreateSubscriptionIntroductoryOffer(ctx context.Context, subscr
 			Relationships: relationships,
 		},
 	}
-
 	return sendJSON[SubscriptionIntroductoryOfferResponse](ctx, c, writeRequest{
 		Method:  http.MethodPost,
 		Path:    "/v1/subscriptionIntroductoryOffers",

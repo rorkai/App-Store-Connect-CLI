@@ -163,7 +163,7 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateGameCenterMatchmakingQueue(requestCtx, attrs, ruleSet, strings.TrimSpace(*experimentRuleSetID))
+			resp, err := client.CreateGameCenterMatchmakingQueue(requestCtx, ruleSet, attrs, strings.TrimSpace(*experimentRuleSetID))
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking queues create: failed to create: %w", err)
 			}

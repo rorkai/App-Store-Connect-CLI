@@ -20,7 +20,7 @@ func (c *Client) CreateBackgroundAssetUploadFile(ctx context.Context, versionID,
 		return nil, fmt.Errorf("file size must be greater than 0")
 	}
 
-	request := BackgroundAssetUploadFileCreateRequest{
+	payload := BackgroundAssetUploadFileCreateRequest{
 		Data: BackgroundAssetUploadFileCreateData{
 			Type: ResourceTypeBackgroundAssetUploadFiles,
 			Attributes: BackgroundAssetUploadFileCreateAttributes{
@@ -39,5 +39,5 @@ func (c *Client) CreateBackgroundAssetUploadFile(ctx context.Context, versionID,
 		},
 	}
 
-	return sendJSON[BackgroundAssetUploadFileResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/backgroundAssetUploadFiles", Payload: request})
+	return sendJSON[BackgroundAssetUploadFileResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/backgroundAssetUploadFiles", Payload: payload})
 }
