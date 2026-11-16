@@ -754,10 +754,18 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			},
 			deps: func(d *Deps) (any, error) {
 				config := pppProgress
-				d.Client = func() (*asc.Client, error) { return buildsClient(), nil }
+				usedDepsClient := false
+				d.Client = func() (*asc.Client, error) {
+					usedDepsClient = true
+					return buildsClient(), nil
+				}
 				d.Now = time.Now
 				config.Deps = d
-				return nil, runBuilder(NewPriceSchedulePPPCommand(config), "--base-price", "1", "--confirm")
+				err := runBuilder(NewPriceSchedulePPPCommand(config), "--base-price", "1", "--confirm")
+				if !usedDepsClient {
+					return nil, errors.New("the builder did not take its client from d")
+				}
+				return nil, err
 			},
 		},
 		{
