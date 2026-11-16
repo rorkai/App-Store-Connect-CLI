@@ -464,6 +464,13 @@ func TestPublishTestflightExistingBuildNumberResolvesAndWaits(t *testing.T) {
 	if !strings.Contains(stdout, `"processingState":"VALID"`) {
 		t.Fatalf("expected processingState VALID in output, got %q", stdout)
 	}
+	assertBuildsRequestOrder(t, reg,
+		"GET /v1/apps/123/betaGroups",
+		"GET /v1/builds",
+		"GET /v1/builds/build-42",
+		"GET /v1/builds/build-42",
+		"POST /v1/builds/build-42/relationships/betaGroups",
+	)
 }
 
 func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEndpoint(t *testing.T) {
