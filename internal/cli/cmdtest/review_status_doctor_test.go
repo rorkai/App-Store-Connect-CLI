@@ -33,12 +33,12 @@ func TestReviewStatusAndDoctorValidationErrors(t *testing.T) {
 		{
 			name:    "review status whitespace-only app",
 			args:    []string{"review", "status", "--app", "   "},
-			wantErr: "--app is required",
+			wantErr: "Error: --app must not be empty",
 		},
 		{
 			name:    "review doctor whitespace-only app",
 			args:    []string{"review", "doctor", "--app", "   "},
-			wantErr: "--app is required",
+			wantErr: "Error: --app must not be empty",
 		},
 		{
 			name:    "review status mutually exclusive version flags",

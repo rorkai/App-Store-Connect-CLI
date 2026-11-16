@@ -31,7 +31,7 @@ func TestAppsRenameValidatesRequiredFlagsBeforeClient(t *testing.T) {
 		wantStderr string
 	}{
 		{name: "missing app", args: []string{"--locale", "en-US", "--name", "New Name"}, wantStderr: "Error: --app is required (or set ASC_APP_ID)\n"},
-		{name: "blank app", args: []string{"--app", "   ", "--locale", "en-US", "--name", "New Name"}, wantStderr: "Error: --app is required (or set ASC_APP_ID)\n"},
+		{name: "blank app", args: []string{"--app", "   ", "--locale", "en-US", "--name", "New Name"}, wantStderr: "Error: --app must not be empty\n"},
 		{name: "missing locale", args: []string{"--app", "app-1", "--name", "New Name"}, wantStderr: "Error: --locale is required\n"},
 		{name: "missing name", args: []string{"--app", "app-1", "--locale", "en-US"}, wantStderr: "Error: --name is required\n"},
 		{name: "invalid locale", args: []string{"--app", "app-1", "--locale", "not_a_locale", "--name", "New Name"}, wantStderr: "Error: invalid locale \"not_a_locale\": must match pattern like en or en-US\n"},

@@ -141,8 +141,8 @@ func TestSubscriptionsListRejectsOpaqueNextOwnerAndLimitBeforeClient(t *testing.
 		message string
 	}{
 		{name: "app owner", args: []string{"--app", "app-2"}, message: "--next cannot be combined with --app"},
-		{name: "explicit empty app owner", args: []string{"--app", ""}, message: "--next cannot be combined with --app"},
-		{name: "whitespace app owner", args: []string{"--app", "  "}, message: "--next cannot be combined with --app"},
+		{name: "explicit empty app owner", args: []string{"--app", ""}, message: "--app must not be empty"},
+		{name: "whitespace app owner", args: []string{"--app", "  "}, message: "--app must not be empty"},
 		{name: "limit", args: []string{"--limit", "7"}, message: "--next cannot be combined with --limit"},
 		{name: "explicit zero limit", args: []string{"--limit", "0"}, message: "--next cannot be combined with --limit"},
 	}

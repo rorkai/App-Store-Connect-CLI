@@ -293,7 +293,7 @@ func TestTestFlightGroupsListBuildMembershipRejectsExplicitBlankIDs(t *testing.T
 		diagnostic string
 	}{
 		{name: "build ID", args: []string{"--app", "app-1", "--build-id", " "}, diagnostic: "--build-id cannot be empty"},
-		{name: "app assertion", args: []string{"--build-id", "build-1", "--app", " "}, diagnostic: "--app cannot be empty"},
+		{name: "app assertion", args: []string{"--build-id", "build-1", "--app", " "}, diagnostic: "--app must not be empty"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
