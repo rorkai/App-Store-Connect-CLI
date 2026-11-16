@@ -25,25 +25,25 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-func executeSigningReconcileApply(ctx context.Context, planPath string) (signingReconcileReceipt, error) {
-	plan, err := readSigningPlanArtifact(filepath.Clean(strings.TrimSpace(planPath)))
+func executeSigningReconcileApply(ctx context.Context, d *shared.Deps, planPath string) (signingReconcileReceipt, error) {
+	plan, err := readSigningPlanArtifact(d, filepath.Clean(strings.TrimSpace(planPath)))
 	if err != nil {
 		return signingReconcileReceipt{}, err
 	}
-	return executeSigningReconcileApplyPlan(ctx, plan)
+	return executeSigningReconcileApplyPlan(ctx, d, plan)
 }
 
-func executeSigningReconcileApplyPlan(ctx context.Context, plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
-	return executeSigningReconcileApplyPlanWithUsage(ctx, plan, shared.UsageError)
+func executeSigningReconcileApplyPlan(ctx context.Context, d *shared.Deps, plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
+	return executeSigningReconcileApplyPlanWithUsage(ctx, d, plan, d.UsageError)
 }
 
 func executeSigningReconcileApplyPlanSilent(ctx context.Context, plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
-	return executeSigningReconcileApplyPlanWithUsage(ctx, plan, func(message string) error {
+	return executeSigningReconcileApplyPlanWithUsage(ctx, shared.DefaultDeps(), plan, func(message string) error {
 		return errors.New(message)
 	})
 }
 
-func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
+func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, d *shared.Deps, plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
 	if !plan.Ready || len(plan.Blockers) > 0 {
 		return signingReconcileReceipt{}, newReconcilePlanDrift(usageError("signing reconcile plan is blocked; rerun plan after resolving blockers"))
 	}
@@ -65,11 +65,11 @@ func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, plan signing
 	if err != nil {
 		return signingReconcileReceipt{}, err
 	}
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return receipt, err
 	}
-	requestCtx, cancel := signingRequestContext(ctx)
+	requestCtx, cancel := signingRequestContext(ctx, d)
 	defer cancel()
 	if err := verifyCurrentReconcileCertificate(requestCtx, client, plan); err != nil {
 		failure := usageError(fmt.Sprintf("%v; rerun asc signing reconcile plan", err))
