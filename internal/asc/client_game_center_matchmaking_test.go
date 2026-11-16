@@ -41,7 +41,7 @@ func TestCreateGameCenterMatchmakingQueue(t *testing.T) {
 	attrs := GameCenterMatchmakingQueueCreateAttributes{
 		ReferenceName: "Primary",
 	}
-	if _, err := client.CreateGameCenterMatchmakingQueue(context.Background(), attrs, "rule-set-1", "rule-set-2"); err != nil {
+	if _, err := client.CreateGameCenterMatchmakingQueue(context.Background(), "rule-set-1", attrs, "rule-set-2"); err != nil {
 		t.Fatalf("CreateGameCenterMatchmakingQueue() error: %v", err)
 	}
 }
