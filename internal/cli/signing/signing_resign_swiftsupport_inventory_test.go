@@ -12,6 +12,7 @@ import (
 
 	"howett.net/plist"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
@@ -204,12 +205,13 @@ func TestVerifyPackedSigningResignIPAProjectsSwiftSupportMismatchAsClosedVerific
 	}
 	originalExecute := executeSigningResignFn
 	t.Cleanup(func() { executeSigningResignFn = originalExecute })
-	executeSigningResignFn = func(context.Context, signingResignOptions) (signingResignResult, error) {
+	executeSigningResignFn = func(context.Context, *shared.Deps, signingResignOptions) (signingResignResult, error) {
 		return signingResignResult{
 			Output: signingResignArtifactResult{Path: filepath.Join(temporary, "success-receipt.ipa")},
 		}, err
 	}
-	command := SigningResignCommand()
+	d, _, _ := newSigningTestDeps()
+	command := newSigningResignCommand(d)
 	if parseErr := command.FlagSet.Parse([]string{
 		"--ipa", filepath.Join(temporary, "private-input.ipa"),
 		"--output", filepath.Join(temporary, "private-output.ipa"),
