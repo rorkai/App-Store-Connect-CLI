@@ -79,8 +79,6 @@ func TestLookupRemovedFlagIsExactPerCommand(t *testing.T) {
 		want    string
 		found   bool
 	}{
-		{command: "builds test-notes view", flag: "build", want: "use `--build-id` or `--build-number`", found: true},
-		{command: "builds individual-testers add", flag: "build", want: "use `--build-id` or `--build-number`", found: true},
 		{command: "web auth login", flag: "two-factor-code", want: "use `--two-factor-code-command` or `ASC_WEB_2FA_CODE_COMMAND`", found: true},
 		// `web auth logout` never bound the 2FA flags, so the historical rule
 		// must not claim the alias there.
@@ -132,19 +130,19 @@ func TestRun_RemovedFlagHintKeepsUnknownFlagTelemetry(t *testing.T) {
 	}
 
 	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{"builds", "info", "--build=PRIVATE_VALUE"}, "5.3.2"); code != ExitUsage {
+		if code := Run([]string{"signing", "sync", "push", "--password=PRIVATE_VALUE"}, "5.3.2"); code != ExitUsage {
 			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 		}
 	})
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	want := "Error: `--build` was removed in 5.0.0; use `--build-id` or `--build-number` (see migrate-to-5-0)\nFor help:\n  asc builds info --help\n"
+	want := "Error: `--password` was removed in 5.0.0; use `--password-file` or `ASC_SIGNING_SYNC_PASSWORD` (see migrate-to-5-0)\nFor help:\n  asc signing sync push --help\n"
 	if stderr != want {
 		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}
-	if gotCommand != "asc builds info" || gotExitCode != ExitUsage {
-		t.Fatalf("telemetry command/exit = %q/%d, want asc builds info/%d", gotCommand, gotExitCode, ExitUsage)
+	if gotCommand != "asc signing sync push" || gotExitCode != ExitUsage {
+		t.Fatalf("telemetry command/exit = %q/%d, want asc signing sync push/%d", gotCommand, gotExitCode, ExitUsage)
 	}
 	if gotContext.InvocationShape != telemetry.InvocationShapeLeaf ||
 		gotContext.ErrorKind != telemetry.ErrorKindUnknownFlag ||
@@ -152,7 +150,7 @@ func TestRun_RemovedFlagHintKeepsUnknownFlagTelemetry(t *testing.T) {
 		gotContext.OutcomeKind != telemetry.OutcomeUsageError {
 		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
-	if gotContext.FailureParameter != "--build=PRIVATE_VALUE" {
+	if gotContext.FailureParameter != "--password=PRIVATE_VALUE" {
 		t.Fatalf("FailureParameter = %q, want the raw token", gotContext.FailureParameter)
 	}
 }

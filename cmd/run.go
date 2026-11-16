@@ -70,7 +70,6 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	// `--profile` before anything else reads the argv. Running it first also
 	// keeps spaced boolean recovery working for the flags that follow it.
 	args = hoistRootProfileFlag(root, args)
-	args, aliasErr := resolveFlagAliases(root, args)
 	args = normalizeSpacedBooleanFlags(root, args)
 	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -81,6 +80,9 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	// text. Structural analyses keep using the original args: the rewrite is
 	// token-for-token, so structural diagnostics and telemetry keep the
 	// original tokens. Typed flag validation may quote an invalid value.
+	// Flag aliases are rewritten to their target first, so the target flag's
+	// indirection rules apply; an alias whose target depends on its value
+	// resolves an indirect value only to choose that target.
 	//
 	// An explicit help request wins unconditionally: help output depends only
 	// on which command the args select, so the indirect flag tokens are
@@ -93,9 +95,9 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	if helpRequested {
 		parseArgs = dropIndirectFlagValues(root, helpArgs)
 	} else {
-		resolvedArgs, err := args, aliasErr
+		resolvedArgs, err := resolveFlagAliases(root, args, d.ResolveFlagValueIndirection)
 		if err == nil {
-			resolvedArgs, err = resolveFlagValueIndirection(d, root, args)
+			resolvedArgs, err = resolveFlagValueIndirection(d, root, resolvedArgs)
 		}
 		if err != nil {
 			recoverCIReportFlags(root, args)

@@ -659,7 +659,7 @@ func TestSelfLinkEveryResourceIDFlagIsNormalized(t *testing.T) {
 				if f.Name != "id" && !strings.HasSuffix(f.Name, "-id") {
 					return
 				}
-				if _, alias := shared.FlagAliasTarget(f); alias {
+				if shared.IsFlagAlias(f) {
 					return
 				}
 				key := path + " --" + f.Name

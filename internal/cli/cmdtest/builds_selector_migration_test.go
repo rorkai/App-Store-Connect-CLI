@@ -31,41 +31,6 @@ func assertRemovedFlagGuidance(t *testing.T, args []string, flagName string) {
 	}
 }
 
-func TestBuildsRemovedSelectorAliasesHaveGuidance(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		flag string
-	}{
-		{
-			name: "wait build alias",
-			args: []string{"builds", "wait", "--build", "BUILD_123"},
-			flag: "--build",
-		},
-		{
-			name: "info build alias",
-			args: []string{"builds", "info", "--build", "BUILD_123"},
-			flag: "--build",
-		},
-		{
-			name: "dsyms build alias",
-			args: []string{"builds", "dsyms", "--build", "BUILD_123"},
-			flag: "--build",
-		},
-		{
-			name: "expire build alias",
-			args: []string{"builds", "expire", "--build", "BUILD_123", "--confirm"},
-			flag: "--build",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assertRemovedFlagGuidance(t, test.args, test.flag)
-		})
-	}
-}
-
 func TestBuildsSelectorHelpDoesNotMentionRemovedAliases(t *testing.T) {
 	for _, path := range [][]string{
 		{"builds", "wait"},

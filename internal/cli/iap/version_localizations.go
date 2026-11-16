@@ -186,6 +186,7 @@ func flagSet(fs *flag.FlagSet, name string) bool {
 func newIAPVersionLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("versions localizations update", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "localization-id", "inAppPurchaseLocalizations", "Localization ID")
+	shared.BindFlagAlias(fs, "id", "localization-id")
 	name := fs.String("name", "", "Localization name")
 	clearName := fs.Bool("clear-name", false, "Clear the localization name")
 	description := fs.String("description", "", "Description")

@@ -30,8 +30,17 @@ type aliasInvocationResult struct {
 }
 
 type flagAliasCase struct {
-	command, alias, canonical string
+	command, alias string
+	// canonical is the flag the alias stands for, or for --build the flag a
+	// build ID and the flag a build number resolve to, joined by "|".
+	canonical string
 }
+
+const (
+	aliasBuildID       = "8e2f6a3c-41b7-4c55-9a0d-2f1c7b6e9d40"
+	aliasOtherBuildID  = "1A2B3C4D-5E6F-4A7B-8C9D-0E1F2A3B4C5D"
+	aliasBuildResource = `{"data":{"type":"builds","id":"8e2f6a3c-41b7-4c55-9a0d-2f1c7b6e9d40","attributes":{"version":"42","processingState":"VALID"}}}`
+)
 
 // flagAliases lists every accepted alias: removing one is a visible change,
 // so the test fails until it is taken out of this table too.
@@ -54,20 +63,46 @@ var flagAliases = []flagAliasCase{
 	{"build-bundles list", "build", "build-id"},
 	{"build-localizations create", "build", "build-id"},
 	{"build-localizations list", "build", "build-id"},
+	{"builds add-groups", "build", "build-id|build-number"},
+	{"builds app view", "build", "build-id|build-number"},
 	{"builds app view", "id", "build-id"},
+	{"builds app-encryption-declaration view", "build", "build-id|build-number"},
 	{"builds app-encryption-declaration view", "id", "build-id"},
+	{"builds beta-app-review-submission view", "build", "build-id|build-number"},
 	{"builds beta-app-review-submission view", "id", "build-id"},
+	{"builds build-beta-detail view", "build", "build-id|build-number"},
 	{"builds build-beta-detail view", "id", "build-id"},
+	{"builds dsyms", "build", "build-id|build-number"},
+	{"builds expire", "build", "build-id|build-number"},
+	{"builds groups list", "build", "build-id"},
+	{"builds icons list", "build", "build-id|build-number"},
 	{"builds icons list", "id", "build-id"},
+	{"builds individual-testers add", "build", "build-id|build-number"},
+	{"builds individual-testers list", "build", "build-id|build-number"},
+	{"builds individual-testers remove", "build", "build-id|build-number"},
+	{"builds info", "build", "build-id|build-number"},
+	{"builds info", "id", "build-id"},
+	{"builds links view", "build", "build-id|build-number"},
 	{"builds list", "app-id", "app"},
+	{"builds metrics beta-usages", "build", "build-id|build-number"},
+	{"builds pre-release-version view", "build", "build-id|build-number"},
 	{"builds pre-release-version view", "id", "build-id"},
+	{"builds remove-groups", "build", "build-id|build-number"},
+	{"builds test-notes create", "build", "build-id|build-number"},
+	{"builds test-notes delete", "build", "build-id|build-number"},
 	{"builds test-notes delete", "id", "localization-id"},
+	{"builds test-notes list", "build", "build-id|build-number"},
+	{"builds test-notes update", "build", "build-id|build-number"},
 	{"builds test-notes update", "id", "localization-id"},
+	{"builds test-notes view", "build", "build-id|build-number"},
 	{"builds test-notes view", "id", "localization-id"},
+	{"builds update", "build", "build-id|build-number"},
+	{"builds wait", "build", "build-id|build-number"},
 	{"builds wait", "newest", "latest"},
 	{"bundle-ids capabilities list", "bundle-id", "bundle"},
 	{"encryption declarations assign-builds", "build", "build-id"},
 	{"encryption declarations list", "build", "build-id"},
+	{"iap versions localizations update", "id", "localization-id"},
 	{"iap view", "iap-id", "id"},
 	{"ipa-info", "ipa", "path"},
 	{"localizations list", "version-id", "version"},
@@ -78,9 +113,11 @@ var flagAliases = []flagAliasCase{
 	{"performance metrics view", "build", "build-id"},
 	{"product-pages custom-pages localizations list", "version-id", "custom-page-version-id"},
 	{"profiles download", "output-path", "output"},
+	{"publish testflight", "build", "build-id|build-number"},
 	{"release stage", "build", "build-id"},
 	{"review items list", "submission-id", "submission"},
 	{"review items-list", "submission-id", "submission"},
+	{"review submit", "build", "build-id|build-number"},
 	{"screenshots list", "localization-id", "version-localization"},
 	{"subscriptions list", "group", "group-id"},
 	{"subscriptions list", "version-limit", "versions-limit"},
@@ -108,6 +145,8 @@ var flagAliases = []flagAliasCase{
 	{"testflight testers list", "build", "build-id"},
 	{"testflight testers remove-builds", "build", "build-id"},
 	{"validate testflight", "build", "build-id"},
+	{"versions attach-build", "build", "build-id|build-number"},
+	{"versions list", "app-id", "app"},
 	{"versions update", "id", "version-id"},
 	{"versions view", "id", "version-id"},
 	{"xcode-cloud status", "id", "run-id"},
@@ -125,9 +164,14 @@ func TestFlagAliasesBehaveAsTheirCanonicalFlag(t *testing.T) {
 			return
 		}
 		command.FlagSet.VisitAll(func(item *flag.Flag) {
-			if canonical, ok := shared.FlagAliasTarget(item); ok {
-				bound = append(bound, flagAliasCase{command: strings.TrimPrefix(path, "asc "), alias: item.Name, canonical: canonical})
+			canonical, ok := shared.FlagAliasTarget(item, aliasBuildID)
+			if !ok {
+				return
 			}
+			if byNumber, _ := shared.FlagAliasTarget(item, "42"); byNumber != canonical {
+				canonical += "|" + byNumber
+			}
+			bound = append(bound, flagAliasCase{command: strings.TrimPrefix(path, "asc "), alias: item.Name, canonical: canonical})
 		})
 	})
 	byKey := func(a, b flagAliasCase) int {
@@ -139,49 +183,134 @@ func TestFlagAliasesBehaveAsTheirCanonicalFlag(t *testing.T) {
 	}
 
 	for _, test := range flagAliases {
-		alias := struct {
-			path            []string
-			name, canonical string
-		}{strings.Fields(test.command), test.alias, test.canonical}
-		t.Run(strings.Join(alias.path, " ")+" --"+alias.name, func(t *testing.T) {
-			invoke := func(args ...string) aliasInvocationResult {
-				return runAliasInvocation(t, append(slices.Clone(alias.path), args...))
+		targets := strings.Split(test.canonical, "|")
+		for _, target := range targets {
+			value1, value2 := "value-1", "value-2"
+			if len(targets) > 1 {
+				value1, value2 = "42", "43"
+				if target == "build-id" {
+					value1, value2 = aliasBuildID, aliasOtherBuildID
+				}
 			}
+			alias := struct {
+				path            []string
+				name, canonical string
+			}{strings.Fields(test.command), test.alias, target}
+			t.Run(strings.Join(alias.path, " ")+" --"+alias.name+" as --"+target, func(t *testing.T) {
+				testFlagAliasAgainstCanonical(t, alias.path, alias.name, alias.canonical, value1, value2)
+			})
+		}
+	}
+}
 
-			canonical := invoke("--"+alias.canonical, "value-1")
-			aliased := invoke("--"+alias.name, "value-1")
-			if !reflect.DeepEqual(aliased, canonical) {
-				t.Fatalf("--%s ran differently from --%s:\nalias:     %+v\ncanonical: %+v", alias.name, alias.canonical, aliased, canonical)
-			}
-			if both := invoke("--"+alias.name, "value-1", "--"+alias.canonical, "value-1"); !reflect.DeepEqual(both, canonical) {
-				t.Fatalf("--%s and --%s with one value ran differently from --%s:\nboth:      %+v\ncanonical: %+v", alias.name, alias.canonical, alias.canonical, both, canonical)
-			}
+// testFlagAliasAgainstCanonical runs one alias against the flag that value1
+// and value2 resolve it to.
+func testFlagAliasAgainstCanonical(t *testing.T, path []string, aliasName, canonicalName, value1, value2 string) {
+	t.Helper()
+	alias := struct {
+		path            []string
+		name, canonical string
+	}{path, aliasName, canonicalName}
+	invoke := func(args ...string) aliasInvocationResult {
+		return runAliasInvocation(t, append(slices.Clone(alias.path), args...))
+	}
 
-			conflict := invoke("--"+alias.name, "value-1", "--"+alias.canonical, "value-2")
-			wantStderr := fmt.Sprintf("Error: `--%s` and `--%s` are the same flag; pass one value\n", alias.name, alias.canonical)
-			if conflict.exit != ExitUsage || conflict.stderr != wantStderr || conflict.stdout != "" || len(conflict.requests) != 0 {
-				t.Fatalf("conflicting values = %+v, want exit %d and stderr %q", conflict, ExitUsage, wantStderr)
-			}
-			if conflict.telemetry.ErrorKind != telemetry.ErrorKindInvalidValue || conflict.telemetry.FailureParameter != "--"+alias.canonical {
-				t.Fatalf("conflicting values telemetry = %+v", conflict.telemetry)
-			}
+	canonical := invoke("--"+alias.canonical, value1)
+	aliased := invoke("--"+alias.name, value1)
+	if !reflect.DeepEqual(aliased, canonical) {
+		t.Fatalf("--%s ran differently from --%s:\nalias:     %+v\ncanonical: %+v", alias.name, alias.canonical, aliased, canonical)
+	}
+	if both := invoke("--"+alias.name, value1, "--"+alias.canonical, value1); !reflect.DeepEqual(both, canonical) {
+		t.Fatalf("--%s and --%s with one value ran differently from --%s:\nboth:      %+v\ncanonical: %+v", alias.name, alias.canonical, alias.canonical, both, canonical)
+	}
 
-			if spaced := invoke("--"+alias.name, "value-1", "--"+alias.canonical, " value-1"); spaced.exit != ExitUsage || len(spaced.requests) != 0 {
-				t.Fatalf("values differing only in whitespace = %+v, want a conflict (exit %d)", spaced, ExitUsage)
-			}
-			lastWins := invoke("--"+alias.canonical, "value-1", "--"+alias.canonical, "value-2", "--"+alias.name, "value-1")
-			wantStderr = fmt.Sprintf("Error: `--%s` and `--%s` are the same flag; pass one value\n", alias.canonical, alias.name)
-			if lastWins.exit != ExitUsage || lastWins.stderr != wantStderr || len(lastWins.requests) != 0 {
-				t.Fatalf("alias matching an overridden canonical value = %+v, want exit %d and stderr %q", lastWins, ExitUsage, wantStderr)
-			}
-			repeated := invoke("--"+alias.name, "value-1", "--"+alias.name, "value-2")
-			if agreeing := invoke("--"+alias.name, "value-1", "--"+alias.name, "value-2", "--"+alias.canonical, "value-2"); !reflect.DeepEqual(agreeing, repeated) {
-				t.Fatalf("canonical matching the last alias value ran differently from the alias alone:\nboth:  %+v\nalias: %+v", agreeing, repeated)
-			}
+	conflict := invoke("--"+alias.name, value1, "--"+alias.canonical, value2)
+	wantStderr := fmt.Sprintf("Error: `--%s` and `--%s` are the same flag; pass one value\n", alias.name, alias.canonical)
+	if conflict.exit != ExitUsage || conflict.stderr != wantStderr || conflict.stdout != "" || len(conflict.requests) != 0 {
+		t.Fatalf("conflicting values = %+v, want exit %d and stderr %q", conflict, ExitUsage, wantStderr)
+	}
+	if conflict.telemetry.ErrorKind != telemetry.ErrorKindInvalidValue || conflict.telemetry.FailureParameter != "--"+alias.canonical {
+		t.Fatalf("conflicting values telemetry = %+v", conflict.telemetry)
+	}
 
-			help := invoke("--help")
-			if regexp.MustCompile(`(?m)^\s+--` + regexp.QuoteMeta(alias.name) + `\s`).MatchString(help.stdout) {
-				t.Fatalf("help lists --%s:\n%s", alias.name, help.stdout)
+	if spaced := invoke("--"+alias.name, value1, "--"+alias.canonical, " "+value1); spaced.exit != ExitUsage || len(spaced.requests) != 0 {
+		t.Fatalf("values differing only in whitespace = %+v, want a conflict (exit %d)", spaced, ExitUsage)
+	}
+	lastWins := invoke("--"+alias.canonical, value1, "--"+alias.canonical, value2, "--"+alias.name, value1)
+	wantStderr = fmt.Sprintf("Error: `--%s` and `--%s` are the same flag; pass one value\n", alias.canonical, alias.name)
+	if lastWins.exit != ExitUsage || lastWins.stderr != wantStderr || len(lastWins.requests) != 0 {
+		t.Fatalf("alias matching an overridden canonical value = %+v, want exit %d and stderr %q", lastWins, ExitUsage, wantStderr)
+	}
+	repeated := invoke("--"+alias.name, value1, "--"+alias.name, value2)
+	if agreeing := invoke("--"+alias.name, value1, "--"+alias.name, value2, "--"+alias.canonical, value2); !reflect.DeepEqual(agreeing, repeated) {
+		t.Fatalf("canonical matching the last alias value ran differently from the alias alone:\nboth:  %+v\nalias: %+v", agreeing, repeated)
+	}
+
+	help := invoke("--help")
+	if regexp.MustCompile(`(?m)^\s+--` + regexp.QuoteMeta(alias.name) + `\s`).MatchString(help.stdout) {
+		t.Fatalf("help lists --%s:\n%s", alias.name, help.stdout)
+	}
+}
+
+// An alias of a flag that never resolves @env:/@file: keeps that flag's rule:
+// the token stays a literal value under either spelling.
+func TestFlagAliasKeepsCanonicalIndirectionExclusion(t *testing.T) {
+	t.Setenv("ALIAS_TEST_UNSET", "")
+	args := []string{"profiles", "download", "--id", "PROFILE_ID"}
+	aliased := runAliasInvocation(t, append(slices.Clone(args), "--output-path", "@env:ALIAS_TEST_UNSET"))
+	canonical := runAliasInvocation(t, append(slices.Clone(args), "--output", "@env:ALIAS_TEST_UNSET"))
+	if !reflect.DeepEqual(aliased, canonical) {
+		t.Fatalf("--output-path @env:… ran differently from --output @env:…:\nalias:     %+v\ncanonical: %+v", aliased, canonical)
+	}
+}
+
+// TestBuildAliasReadsItsValueByShape runs --build on a read, a write and a
+// wait command: a UUID must behave exactly as --build-id and any other value
+// exactly as --build-number, and a second flag the value conflicts with exits 2.
+func TestBuildAliasReadsItsValueByShape(t *testing.T) {
+	appSelector := []string{"--app", "123456789", "--platform", "IOS"}
+	tests := []struct {
+		command  []string
+		byID     []string
+		byNumber []string
+	}{
+		{command: []string{"builds", "info"}, byNumber: appSelector},
+		{command: []string{"builds", "expire"}, byID: []string{"--confirm"}, byNumber: append(slices.Clone(appSelector), "--confirm")},
+		{command: []string{"builds", "wait"}, byNumber: appSelector},
+	}
+	for _, test := range tests {
+		t.Run(strings.Join(test.command, " "), func(t *testing.T) {
+			invoke := func(base []string, args ...string) aliasInvocationResult {
+				return runAliasInvocation(t, append(append(slices.Clone(test.command), base...), args...))
+			}
+			same := func(name string, got, want aliasInvocationResult) {
+				t.Helper()
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("%s ran differently:\n--build: %+v\nwant:    %+v", name, got, want)
+				}
+				if len(want.requests) == 0 {
+					t.Fatalf("%s sent no request, so the comparison proves nothing: %+v", name, want)
+				}
+			}
+			same("--build <uuid>", invoke(test.byID, "--build", aliasBuildID), invoke(test.byID, "--build-id", aliasBuildID))
+			same("--build 42", invoke(test.byNumber, "--build", "42"), invoke(test.byNumber, "--build-number", "42"))
+			same("--build 1.2.3", invoke(test.byNumber, "--build", "1.2.3"), invoke(test.byNumber, "--build-number", "1.2.3"))
+			selfLink := "https://api.appstoreconnect.apple.com/v1/builds/" + aliasBuildID
+			same("--build <self-link>", invoke(test.byID, "--build", selfLink), invoke(test.byID, "--build-id", selfLink))
+			t.Setenv("ALIAS_TEST_BUILD_ID", aliasBuildID)
+			same("--build @env:<uuid>", invoke(test.byID, "--build", "@env:ALIAS_TEST_BUILD_ID"), invoke(test.byID, "--build-id", aliasBuildID))
+
+			for _, conflict := range [][]string{
+				{"--build", aliasBuildID, "--build-id", aliasOtherBuildID},
+				{"--build", "42", "--build-number", "43"},
+			} {
+				if got := invoke(test.byNumber, conflict...); got.exit != ExitUsage || len(got.requests) != 0 {
+					t.Fatalf("%v = %+v, want exit %d before any request", conflict, got, ExitUsage)
+				}
+			}
+			mixed := invoke(test.byNumber, "--build", aliasBuildID, "--build-number", "42")
+			if want := invoke(test.byNumber, "--build-id", aliasBuildID, "--build-number", "42"); !reflect.DeepEqual(mixed, want) || mixed.exit != ExitUsage {
+				t.Fatalf("--build <uuid> --build-number 42 = %+v, want what --build-id <uuid> --build-number 42 gives (exit %d): %+v", mixed, ExitUsage, want)
 			}
 		})
 	}
@@ -201,7 +330,14 @@ func runAliasInvocation(t *testing.T, args []string) aliasInvocationResult {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI()+" "+string(body))
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"data":[]}`)
+		switch version := req.URL.Query().Get("filter[version]"); {
+		case req.URL.Path == "/v1/builds/"+aliasBuildID:
+			fmt.Fprint(w, aliasBuildResource)
+		case strings.HasSuffix(req.URL.Path, "/builds") && version != "":
+			fmt.Fprintf(w, `{"data":[{"type":"builds","id":%q,"attributes":{"version":%q,"processingState":"VALID"}}],"links":{}}`, aliasBuildID, version)
+		default:
+			fmt.Fprint(w, `{"data":[]}`)
+		}
 	}))
 	defer server.Close()
 

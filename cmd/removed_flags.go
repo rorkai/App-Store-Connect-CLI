@@ -30,60 +30,6 @@ type removedFlagRule struct {
 	note string
 }
 
-// buildIDAliasCommands are the commands where `--build` was an alias for the
-// canonical `--build-id` selector (migrate-to-5-0.mdx, "`--build` where
-// `--build-id` is canonical").
-var buildIDAliasCommands = []string{
-	"builds wait",
-	"builds dsyms",
-	"builds info",
-	"builds expire",
-	"builds update",
-	"builds add-groups",
-	"builds remove-groups",
-	"builds individual-testers list",
-	"builds individual-testers add",
-	"builds individual-testers remove",
-	"builds metrics beta-usages",
-	"builds links view",
-	"builds app view",
-	"builds pre-release-version view",
-	"builds icons list",
-	"builds beta-app-review-submission view",
-	"builds build-beta-detail view",
-	"builds app-encryption-declaration view",
-	"builds test-notes list",
-	"builds test-notes view",
-	"builds test-notes create",
-	"builds test-notes update",
-	"builds test-notes delete",
-	"testflight testers list",
-	"testflight testers add-builds",
-	"testflight testers remove-builds",
-	"testflight testers export",
-	"testflight notifications send",
-	"testflight config export",
-	"testflight review submit",
-	"testflight review submissions list",
-	"testflight distribution view",
-	"testflight feedback list",
-	"testflight crashes list",
-	"validate testflight",
-	"publish testflight",
-	"release stage",
-	"review submit",
-	"versions attach-build",
-	"build-localizations list",
-	"build-localizations create",
-	"build-bundles list",
-	"performance metrics view",
-	"performance diagnostics list",
-	"performance download",
-	"encryption declarations list",
-	"encryption declarations assign-builds",
-	"apps app-encryption-declarations list",
-}
-
 // webTwoFactorCodeAliasCommands is the published 4.11 command inventory that
 // bound `--two-factor-code`. Exact paths keep commands added after 5.0.0 from
 // receiving a historical removal message for a flag they never accepted.
@@ -164,12 +110,6 @@ var webTwoFactorCodeAliasCommands = []string{
 // removedFlagRules mirrors the published command paths in the "Removed flags"
 // tables in migrate-to-5-0.mdx.
 var removedFlagRules = []removedFlagRule{
-	{
-		flag:        "build",
-		commands:    buildIDAliasCommands,
-		requireFlag: "build-number",
-		replacement: "`--build-id` or `--build-number`",
-	},
 	{
 		flag:        "external-testing",
 		commands:    []string{"testflight distribution edit"},

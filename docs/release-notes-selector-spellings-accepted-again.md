@@ -48,9 +48,26 @@ declarations list` and `assign-builds`, `performance diagnostics list`,
 `review submit`, `review submissions list`, `testers list`, `add-builds`,
 `remove-builds` and `export`, and `validate testflight`.
 
-Still removed, with the same message as before: `--build` on commands that
-also take `--build-number` (it could mean either), and the flags whose
-replacement is a command, an environment variable or nothing:
+`--build` is also accepted again on the 26 commands that take both
+`--build-id` and `--build-number`: `builds info`, `wait`, `dsyms`, `expire`,
+`update`, `add-groups`, `remove-groups`, `individual-testers list`, `add` and
+`remove`, `metrics beta-usages`, `icons list`, `links view`, `app view`,
+`pre-release-version view`, `beta-app-review-submission view`,
+`build-beta-detail view`, `app-encryption-declaration view`, `test-notes list`,
+`view`, `create`, `update` and `delete`, `publish testflight`, `review submit`
+and `versions attach-build`. There it is read by its shape: a UUID such as
+`8e2f6a3c-41b7-4c55-9a0d-2f1c7b6e9d40`, or a build's API self-link, is the
+build ID and runs as `--build-id`, and any other value, such as `42` or `1.2.3`, is the build
+number and runs as `--build-number`. Giving `--build` with the flag it
+resolves to and a different value exits with status 2; giving `--build` with
+the other selector (for example a UUID with `--build-number 42`) does what
+`--build-id` with `--build-number` does on that command. `builds groups list
+--build`, `builds info --id`, `versions list --app-id` and `iap versions
+localizations update --id` are accepted as well, as `--build-id`,
+`--build-id`, `--app` and `--localization-id`.
+
+Still removed, with the same message as before: the flags whose replacement
+is a command, an environment variable or nothing:
 `testflight distribution edit --external-testing`, `pre-orders enable
 --available-in-new-territories`, `game-center details list --limit`, `--next`
 and `--paginate`, `game-center details create` and `update

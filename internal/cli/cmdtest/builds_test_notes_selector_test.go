@@ -131,33 +131,3 @@ func TestBuildsTestNotesCreateUpdatesExistingLocale(t *testing.T) {
 		t.Fatalf("expected five requests, got %d", requestCount)
 	}
 }
-
-func TestBuildsTestNotesRemovedSelectorAliasesHaveGuidance(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		flag string
-	}{
-		{
-			name: "list build alias",
-			args: []string{"builds", "test-notes", "list", "--build", "BUILD_123"},
-			flag: "--build",
-		},
-		{
-			name: "view build alias",
-			args: []string{"builds", "test-notes", "view", "--build", "BUILD_123", "--locale", "en-US"},
-			flag: "--build",
-		},
-		{
-			name: "create build alias",
-			args: []string{"builds", "test-notes", "create", "--build", "BUILD_123", "--locale", "en-US", "--whats-new", "Notes"},
-			flag: "--build",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assertRemovedFlagGuidance(t, test.args, test.flag)
-		})
-	}
-}

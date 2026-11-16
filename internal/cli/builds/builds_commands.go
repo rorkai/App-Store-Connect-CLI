@@ -845,10 +845,12 @@ func newBuildsInfoCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("builds info", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
+	shared.BindFlagAlias(fs, "id", "build-id")
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
 	latest := fs.Bool("latest", false, "Show details for the latest build in --app context")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app selectors")
 	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion) for --app unique lookup")
+	shared.BindBuildFlagAlias(fs)
 	platform := fs.String("platform", "", "Platform filter for app-scoped selectors (required with --build-number): IOS, MAC_OS, TV_OS, VISION_OS")
 	processingState := fs.String("processing-state", "", "Optional processing state filter for --latest: VALID, PROCESSING, FAILED, INVALID, or all")
 	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds when resolving --latest")

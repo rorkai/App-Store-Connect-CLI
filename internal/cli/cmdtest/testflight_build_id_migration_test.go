@@ -7,8 +7,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
-// buildIDOnlyCommands lists the commands whose hidden `--build` alias was
-// removed in 5.0.0 and stays removed: they also take `--build-number`.
+// buildIDOnlyCommands lists the commands that select a build by --build-id or
+// --build-number.
 var buildIDOnlyCommands = [][]string{
 	{"builds", "info"},
 	{"builds", "wait"},
@@ -36,12 +36,8 @@ var buildIDOnlyCommands = [][]string{
 	{"publish", "testflight"},
 }
 
-func TestBuildIDOnlyCommandsRejectLegacyBuildAliasAsUnknownFlag(t *testing.T) {
+func TestBuildIDOnlyCommandsRejectNewest(t *testing.T) {
 	for _, path := range buildIDOnlyCommands {
-		t.Run(strings.Join(path, " "), func(t *testing.T) {
-			args := append(append([]string{}, path...), "--build", "BUILD_123")
-			assertRemovedFlagGuidance(t, args, "--build")
-		})
 		if strings.Join(path, " ") == "builds wait" {
 			continue // --newest is a hidden alias of --latest there
 		}
