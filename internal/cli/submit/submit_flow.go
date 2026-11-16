@@ -57,24 +57,19 @@ func SubmissionLocalizationPreflightWith(ctx context.Context, d *shared.Deps, cl
 // an explicit request budget when the caller needs a per-phase timeout.
 func SubmissionLocalizationPreflightWithTimeout(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	appID, versionID, platform string,
 	requestTimeout time.Duration,
 	retryCommand string,
 ) error {
-	return runSubmissionLocalizationPreflight(ctx, shared.DefaultDeps(), client, appID, versionID, platform, requestTimeout, "", retryCommand)
+	return runSubmissionLocalizationPreflight(ctx, d, client, appID, versionID, platform, requestTimeout, "", retryCommand)
 }
 
 // SubmissionSubscriptionPreflightWith runs the advisory subscription preflight
 // used by submit-style App Store review flows on d.
 func SubmissionSubscriptionPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, retryCommand string) {
 	runSubmissionSubscriptionPreflight(ctx, d, client, appID, 0, retryCommand)
-}
-
-// SubmissionAgeRatingPreflight runs the age rating declaration check from
-// `asc validate` and fails when a required answer is missing or invalid.
-func SubmissionAgeRatingPreflight(ctx context.Context, client *asc.Client, appID, versionID string, requestTimeout time.Duration, retryCommand string) error {
-	return SubmissionAgeRatingPreflightWith(ctx, shared.DefaultDeps(), client, appID, versionID, requestTimeout, retryCommand)
 }
 
 // SubmissionAgeRatingPreflightWith runs the age rating declaration check on d.
@@ -86,12 +81,13 @@ func SubmissionAgeRatingPreflightWith(ctx context.Context, d *shared.Deps, clien
 // an explicit request budget when the caller needs a per-phase timeout.
 func SubmissionSubscriptionPreflightWithTimeout(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	appID string,
 	requestTimeout time.Duration,
 	retryCommand string,
 ) {
-	runSubmissionSubscriptionPreflight(ctx, shared.DefaultDeps(), client, appID, requestTimeout, retryCommand)
+	runSubmissionSubscriptionPreflight(ctx, d, client, appID, requestTimeout, retryCommand)
 }
 
 // LookupExistingSubmissionForVersion returns the existing legacy submission ID

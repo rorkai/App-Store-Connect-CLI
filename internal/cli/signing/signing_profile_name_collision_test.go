@@ -75,6 +75,7 @@ func TestResolveSigningAssetsAvoidsProfileNamesHeldInTheAccount(t *testing.T) {
 	resolve := func(t *testing.T, client *asc.Client, resourceID, identifier string) {
 		t.Helper()
 		profile, _, created, err := resolveSigningAssets(context.Background(), client, signingAssetsOptions{
+			Now:                signingFetchNowFn,
 			BundleIDResourceID: resourceID,
 			BundleIdentifier:   identifier,
 			ProfileType:        "IOS_APP_STORE",
