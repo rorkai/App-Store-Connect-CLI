@@ -81,7 +81,7 @@ Examples:
 			if *progress {
 				uploadCtx = asc.WithAssetLibraryImageUploadProgress(uploadCtx, func(event asc.AssetLibraryImageUploadEvent) { _ = json.NewEncoder(d.IO.ErrOut).Encode(event) })
 			}
-			result, uploadErr := client.UploadAssetLibraryImageWithCategory(uploadCtx, id, filepath.Base(filePath), file, size, selectedCategory, selectedReferenceName, d.Timeout)
+			result, uploadErr := client.UploadAssetLibraryImageWithCategory(uploadCtx, d.IO.ErrOut, id, filepath.Base(filePath), file, size, selectedCategory, selectedReferenceName, d.Timeout)
 			if uploadErr == nil || result.ImageID != "" {
 				if err := d.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
 					return err

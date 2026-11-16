@@ -188,7 +188,7 @@ func prepareLibraryImage(d *shared.Deps, command, path, group string, reference 
 	return libraryFile{path: path, close: func() { file.Close() }, send: func(ctx context.Context, client *asc.Client, libraryID string) (string, error) {
 		uploadCtx, cancel := libraryImageUploadContext(ctx, d, size)
 		defer cancel()
-		result, err := client.UploadAssetLibraryImageWithCategory(uploadCtx, libraryID, filepath.Base(path), file, size, nativeMediaCategory, "", d.Timeout)
+		result, err := client.UploadAssetLibraryImageWithCategory(uploadCtx, d.IO.ErrOut, libraryID, filepath.Base(path), file, size, nativeMediaCategory, "", d.Timeout)
 		if err != nil {
 			err = libraryImageDeadlineError(uploadCtx, result, err)
 		}

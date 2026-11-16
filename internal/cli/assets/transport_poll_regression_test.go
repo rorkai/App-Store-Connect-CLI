@@ -50,7 +50,7 @@ func TestScreenshotUploadSurvivesTransientSettlementRead(t *testing.T) {
 	t.Cleanup(func() { http.DefaultTransport = previous })
 	client := newAssetsUploadTestClient(t)
 	synctest.Test(t, func(t *testing.T) {
-		result, pending, err := uploadScreenshotAsset(context.Background(), client, "set-1", root, path)
+		result, pending, err := uploadScreenshotAsset(context.Background(), nil, client, "set-1", root, path)
 		if err != nil || reads != 2 || result.AssetID != "screenshot-1" || result.State != "COMPLETE" || pending.AssetID != "" {
 			t.Fatalf("result=%+v pending=%+v reads=%d err=%v, want completed upload after two reads", result, pending, reads, err)
 		}
@@ -134,14 +134,14 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 			if tc.resume {
 				wantMethods = []string{http.MethodGet, http.MethodPatch, http.MethodGet}
 				var retry bool
-				result, pending, retry, err = reconcilePendingScreenshotAsset(ctx, client, screenshotPendingAsset{
+				result, pending, retry, err = reconcilePendingScreenshotAsset(ctx, nil, client, screenshotPendingAsset{
 					AssetID: "screenshot-1", FileName: "01-home.png", FilePath: path, Checksum: checksum, State: "UPLOADED",
 				}, root)
 				if retry {
 					t.Fatal("resume tried to reserve a new asset")
 				}
 			} else {
-				result, pending, err = uploadScreenshotAsset(ctx, client, "set-1", root, path)
+				result, pending, err = uploadScreenshotAsset(ctx, nil, client, "set-1", root, path)
 			}
 			if tc.commitStatus == http.StatusConflict {
 				wantMethods = []string{http.MethodPost, http.MethodPut, http.MethodPatch}

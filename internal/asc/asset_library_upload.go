@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -33,7 +34,9 @@ func (r assetLibraryImageUploadResponse) ready() bool {
 
 // UploadAssetLibraryImageWithCategory uploads an independently managed image.
 // An empty referenceName leaves Apple's default reference name in place.
-func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, libraryID, fileName string, file *os.File, fileSize int64, category, referenceName string, requestContext RequestContextFunc) (result AssetLibraryImageUploadResult, uploadErr error) {
+// Transient failures tolerated during the processing wait are reported on
+// stderr when no progress observer is attached; nil means the process stderr.
+func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, stderr io.Writer, libraryID, fileName string, file *os.File, fileSize int64, category, referenceName string, requestContext RequestContextFunc) (result AssetLibraryImageUploadResult, uploadErr error) {
 	result = AssetLibraryImageUploadResult{LibraryID: libraryID, FileName: fileName, FileSize: fileSize, ReferenceName: referenceName, Category: category}
 	if category != "CREATIVE_ASSETS" && category != "APP_SCREENSHOTS_AND_PREVIEWS" {
 		return result, fmt.Errorf("unsupported asset category %q", category)
@@ -191,7 +194,7 @@ func (c *Client) UploadAssetLibraryImageWithCategory(ctx context.Context, librar
 	}, PollOptions{Tolerate: IsTransientWaitError, OnToleratedFailure: func(err error, failures, max int) {
 		stage.retry(err)
 		if stage.observe == nil {
-			logToleratedPollFailure(err, failures, max)
+			logToleratedPollFailureTo(stderr, err, failures, max)
 		}
 	}})
 	if err != nil {

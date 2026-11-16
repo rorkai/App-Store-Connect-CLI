@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -29,7 +30,7 @@ func TestConcurrentScreenshotUploadPreservesOrderAndSpeedsUp(t *testing.T) {
 	t.Cleanup(func() { uploadOneScreenshot = previous })
 	var inFlight atomic.Int32
 	var maxInFlight atomic.Int32
-	uploadOneScreenshot = func(_ context.Context, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+	uploadOneScreenshot = func(_ context.Context, _ io.Writer, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 		current := inFlight.Add(1)
 		for {
 			seen := maxInFlight.Load()
@@ -46,7 +47,7 @@ func TestConcurrentScreenshotUploadPreservesOrderAndSpeedsUp(t *testing.T) {
 	var elapsed time.Duration
 	synctest.Test(t, func(*testing.T) {
 		start := time.Now()
-		progress, err = uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(context.Background(), 4), shared.ContextWithTimeout, nil, "set", nil, files, "", false, false, nil)
+		progress, err = uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(context.Background(), 4), nil, shared.ContextWithTimeout, nil, "set", nil, files, "", false, false, nil)
 		elapsed = time.Since(start)
 	})
 	if err != nil {
@@ -68,12 +69,40 @@ func TestConcurrentScreenshotUploadPreservesOrderAndSpeedsUp(t *testing.T) {
 	}
 }
 
+// Concurrent upload workers share the command's stderr, which may be a writer
+// that is not safe for concurrent use. Run under -race.
+func TestConcurrentScreenshotUploadsSerializeStderrWrites(t *testing.T) {
+	files := make([]string, 10)
+	for i := range files {
+		files[i] = fmt.Sprintf("%02d.png", i)
+	}
+	previous := uploadOneScreenshot
+	t.Cleanup(func() { uploadOneScreenshot = previous })
+	uploadOneScreenshot = func(_ context.Context, stderr io.Writer, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+		fmt.Fprintf(stderr, "notice %s\n", filePath)
+		return asc.AssetUploadResultItem{AssetID: filePath, FileName: filePath}, screenshotPendingAsset{}, nil
+	}
+	var stderr strings.Builder
+	if _, err := uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(context.Background(), len(files)), &stderr, shared.ContextWithTimeout, nil, "set", nil, files, "", false, false, nil); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(stderr.String(), "\n"), "\n")
+	slices.Sort(lines)
+	want := make([]string, len(files))
+	for i, file := range files {
+		want[i] = "notice " + file
+	}
+	if !slices.Equal(lines, want) {
+		t.Fatalf("stderr lines = %q, want %q", lines, want)
+	}
+}
+
 func TestConcurrentScreenshotUploadAggregatesCleanupFailures(t *testing.T) {
 	uploadErr := errors.New("upload failed")
 	files := []string{"01.png", "02.png", "03.png", "04.png"}
 	previous := uploadOneScreenshot
 	t.Cleanup(func() { uploadOneScreenshot = previous })
-	uploadOneScreenshot = func(_ context.Context, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+	uploadOneScreenshot = func(_ context.Context, _ io.Writer, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 		if filePath == files[0] {
 			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, uploadErr
 		}
@@ -96,6 +125,7 @@ func TestConcurrentScreenshotUploadAggregatesCleanupFailures(t *testing.T) {
 
 	progress, err := uploadScreenshotsWithOrderStateWithOpenedFiles(
 		withScreenshotUploadConcurrency(context.Background(), 4),
+		nil,
 		shared.ContextWithTimeout,
 		client, "set", nil, files, "", false, false, nil,
 	)
@@ -234,7 +264,7 @@ func TestConcurrentScreenshotUploadReservesScreenshotsInFileOrder(t *testing.T) 
 
 	uploads := map[string]func(context.Context, *asc.Client) error{
 		"upload": func(ctx context.Context, client *asc.Client) error {
-			_, err := uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(ctx, 4), shared.ContextWithTimeout, client, "set", nil, files, sourceRoot, false, false, nil)
+			_, err := uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(ctx, 4), nil, shared.ContextWithTimeout, client, "set", nil, files, sourceRoot, false, false, nil)
 			return err
 		},
 		// migrate rebuilds each upload context from a parent without the reservation turn.
