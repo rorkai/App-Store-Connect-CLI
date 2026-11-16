@@ -514,10 +514,6 @@ func reviewSubscriptionGroupAttachPreflight(d *shared.Deps, appID, groupID strin
 	)
 }
 
-func loadReviewSubscriptionsWithLabel(ctx context.Context, client *webcore.Client, appID, label string) ([]webcore.ReviewSubscription, error) {
-	return loadReviewSubscriptionsWithLabelWith(ctx, shared.DefaultDeps(), client, appID, label)
-}
-
 func loadReviewSubscriptionsWithLabelWith(ctx context.Context, d *shared.Deps, client *webcore.Client, appID, label string) ([]webcore.ReviewSubscription, error) {
 	return withWebSpinnerValueWith(d, label, func() ([]webcore.ReviewSubscription, error) {
 		return client.ListReviewSubscriptions(ctx, appID)
