@@ -12,6 +12,7 @@
   ],
   "operations": [
     {"operation":"merchantIds_certificates_getToManyRelated","name":"GetMerchantIDCertificates","params":["merchantID"],"check":"trim","options":"MerchantIDCertificatesOption","query":"buildMerchantIDCertificatesQuery","nextContext":"merchantIdCertificates"},
+    {"operation":"merchantIds_certificates_getToManyRelationship","name":"GetMerchantIDCertificatesRelationships","params":["merchantID"],"check":"require","messages":["merchant ID is required"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"merchantIdCertificatesRelationships","parseErr":"failed to parse certificates relationship response"},
     {"operation":"merchantIds_createInstance","name":"CreateMerchantID"},
     {"operation":"merchantIds_deleteInstance","name":"DeleteMerchantID","params":["id"],"check":"trim"},
     {"operation":"merchantIds_getCollection","name":"GetMerchantIDs","options":"MerchantIDsOption","query":"buildMerchantIDsQuery","nextContext":"merchantIds"},

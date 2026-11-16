@@ -9,6 +9,7 @@
     {"operation":"preReleaseVersions_app_getToOneRelated","name":"GetPreReleaseVersionApp","params":["versionID"],"check":"require","response":"AppResponse"},
     {"operation":"preReleaseVersions_app_getToOneRelationship","name":"GetPreReleaseVersionAppRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse app relationship response","response":"PreReleaseVersionAppLinkageResponse"},
     {"operation":"preReleaseVersions_builds_getToManyRelated","name":"GetPreReleaseVersionBuilds","params":["versionID"],"check":"require","options":"PreReleaseVersionBuildsOption","query":"buildListQuery","nextContext":"preReleaseVersionBuilds","response":"BuildsResponse"},
+    {"operation":"preReleaseVersions_builds_getToManyRelationship","name":"GetPreReleaseVersionBuildsRelationships","params":["versionID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"preReleaseVersionBuilds","parseErr":"failed to parse builds relationship response","response":"LinkagesResponse"},
     {"operation":"preReleaseVersions_getInstance","name":"GetPreReleaseVersion","params":["id"],"check":"trim","response":"PreReleaseVersionResponse"}
   ]
 }

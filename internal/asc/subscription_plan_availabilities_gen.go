@@ -41,6 +41,22 @@ func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritories(ctx context
 	})
 }
 
+// GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships sends GET /v1/subscriptionPlanAvailabilities/{id}/relationships/availableTerritories (subscriptionPlanAvailabilities_availableTerritories_getToManyRelationship).
+func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(ctx context.Context, planAvailabilityID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	planAvailabilityID = strings.TrimSpace(planAvailabilityID)
+	if query.nextURL == "" && planAvailabilityID == "" {
+		return nil, fmt.Errorf("planAvailabilityID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s/relationships/availableTerritories", planAvailabilityID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionPlanAvailabilityAvailableTerritoriesRelationships",
+		ParseErr:    "failed to parse availableTerritories relationship response",
+	})
+}
+
 // GetSubscriptionPlanAvailability sends GET /v1/subscriptionPlanAvailabilities/{id} (subscriptionPlanAvailabilities_getInstance).
 func (c *Client) GetSubscriptionPlanAvailability(ctx context.Context, planAvailabilityID string) (*SubscriptionPlanAvailabilityResponse, error) {
 	planAvailabilityID = strings.TrimSpace(planAvailabilityID)

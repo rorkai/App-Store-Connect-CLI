@@ -16,7 +16,8 @@
     {"operation":"subscriptionGroups_createInstance","name":"CreateSubscriptionGroup","params":["appID"],"links":["app"]},
     {"operation":"subscriptionGroups_deleteInstance","name":"DeleteSubscriptionGroup","params":["groupID"]},
     {"operation":"subscriptionGroups_subscriptions_getToManyRelated","name":"GetSubscriptions","params":["groupID"],"options":"SubscriptionsOption","query":"buildSubscriptionsQuery","nextContext":"subscriptions"},
-    {"operation":"subscriptionGroups_updateInstance","name":"UpdateSubscriptionGroup","params":["groupID"],"attrs":"value"}
+    {"operation":"subscriptionGroups_updateInstance","name":"UpdateSubscriptionGroup","params":["groupID"],"attrs":"value"},
+    {"operation":"subscriptionGroups_versions_getToManyRelationship","name":"GetSubscriptionGroupVersionsRelationships","params":["groupID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"subscriptionGroupVersionsRelationships","parseErr":"failed to parse versions relationship response","response":"LinkagesResponse"}
   ],
   "queries": [
     {"operation":"subscriptionGroups_subscriptionGroupLocalizations_getToManyRelated","name":"SubscriptionGroupLocalizations","deviations":[{"problem":"query parameters [fields[subscriptionGroupLocalizations] fields[subscriptionGroups] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}

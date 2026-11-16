@@ -47,6 +47,22 @@ func (c *Client) GetAppTagTerritories(ctx context.Context, tagID string, opts ..
 	})
 }
 
+// GetAppTagTerritoriesRelationships sends GET /v1/appTags/{id}/relationships/territories (appTags_territories_getToManyRelationship).
+func (c *Client) GetAppTagTerritoriesRelationships(ctx context.Context, tagID string, opts ...LinkagesOption) (*AppTagTerritoriesLinkagesResponse, error) {
+	query := applyOptions(opts)
+	tagID = strings.TrimSpace(tagID)
+	if query.nextURL == "" && tagID == "" {
+		return nil, fmt.Errorf("app tag ID is required")
+	}
+	return getJSON[AppTagTerritoriesLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appTags/%s/relationships/territories", tagID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appTagTerritoriesRelationships",
+		ParseErr:    "failed to parse territories relationship response",
+	})
+}
+
 // UpdateAppTag sends PATCH /v1/appTags/{id} (appTags_updateInstance).
 func (c *Client) UpdateAppTag(ctx context.Context, tagID string, attrs AppTagUpdateAttributes) (*AppTagResponse, error) {
 	tagID = strings.TrimSpace(tagID)
