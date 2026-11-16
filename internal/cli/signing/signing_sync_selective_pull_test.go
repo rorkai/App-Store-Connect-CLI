@@ -55,7 +55,8 @@ func TestSigningSyncPullSelectorFlagsFailBeforeSecretsOrRepository(t *testing.T)
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv(signingSyncPasswordEnvVar, "must-not-be-used")
-			cmd := syncPullCommand()
+			d, _, _ := newSigningTestDeps()
+			cmd := syncPullCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse(test.args); err != nil {
 				t.Fatal(err)
@@ -103,7 +104,7 @@ func TestSelectSigningPullFilesChoosesDirectDistributionTarget(t *testing.T) {
 		},
 	}
 
-	selected, targets, err := selectSigningPullFiles(files, []string{"com.example.direct"}, "MAC_APP_DIRECT")
+	selected, targets, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.direct"}, "MAC_APP_DIRECT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +128,7 @@ func TestSelectSigningPullFilesRequiresExactMacProfileProvenance(t *testing.T) {
 				certificateFile,
 				{RelativePath: "profiles/appstore/mac.mobileprovision", Plaintext: profile},
 			}
-			_, _, err := selectSigningPullFiles(files, []string{"com.example.mac"}, profileType)
+			_, _, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.mac"}, profileType)
 			if err == nil || !strings.Contains(err.Error(), "no active "+profileType+" profile") {
 				t.Fatalf("error = %v, want ambiguous legacy Mac profile refusal", err)
 			}
@@ -148,7 +149,7 @@ func TestSelectSigningPullFilesRequiresExactMacProfileProvenance(t *testing.T) {
 					},
 				},
 			}
-			selected, _, err := selectSigningPullFiles(files, []string{"com.example.mac"}, profileType)
+			selected, _, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.mac"}, profileType)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -159,7 +160,7 @@ func TestSelectSigningPullFilesRequiresExactMacProfileProvenance(t *testing.T) {
 			if profileType == otherType {
 				otherType = "MAC_CATALYST_APP_STORE"
 			}
-			if _, _, err := selectSigningPullFiles(files, []string{"com.example.mac"}, otherType); err == nil {
+			if _, _, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.mac"}, otherType); err == nil {
 				t.Fatalf("authenticated %s profile selected as %s", profileType, otherType)
 			}
 		})
@@ -189,7 +190,7 @@ func TestSelectSigningPullFilesRejectsProfileWithoutPlatform(t *testing.T) {
 		{RelativePath: "profiles/appstore/profile.mobileprovision", Plaintext: profile},
 	}
 
-	_, _, err = selectSigningPullFiles(files, []string{"com.example.missing-platform"}, "IOS_APP_STORE")
+	_, _, err = selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.missing-platform"}, "IOS_APP_STORE")
 	if err == nil || !strings.Contains(err.Error(), "com.example.missing-platform") {
 		t.Fatalf("error = %v, want exact-platform selection failure", err)
 	}
@@ -228,7 +229,8 @@ func TestSigningSyncPullOneTargetManifestUsesBatchOutputShape(t *testing.T) {
 
 func TestSigningSyncPullReadsTargetsManifestBeforePassword(t *testing.T) {
 	t.Setenv(signingSyncPasswordEnvVar, "must-not-be-used")
-	cmd := syncPullCommand()
+	d, _, _ := newSigningTestDeps()
+	cmd := syncPullCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--repo", "git@example.com:team/signing.git",
@@ -260,7 +262,7 @@ func TestSelectSigningPullFilesChoosesCertificateOnlyTarget(t *testing.T) {
 		{RelativePath: secondSelectedPath, Plaintext: selectedProfile},
 	}
 
-	selected, targets, err := selectSigningPullFiles(files, []string{"com.example.selected"}, "IOS_APP_ADHOC")
+	selected, targets, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.selected"}, "IOS_APP_ADHOC")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +307,7 @@ func TestSelectSigningPullFilesAcceptsStoredSubsetOfEmbeddedCertificates(t *test
 		{RelativePath: "profiles/adhoc/selected.mobileprovision", Plaintext: profile},
 	}
 
-	selected, _, err := selectSigningPullFiles(files, []string{"com.example.selected"}, "IOS_APP_ADHOC")
+	selected, _, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.selected"}, "IOS_APP_ADHOC")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,11 +372,11 @@ func TestSelectSigningPullFilesRequiresExactIdentityPublicCertificate(t *testing
 		t.Fatal(err)
 	}
 	paths := []string{otherCertificatePath, profilePath, artifacts.IdentityPath, artifacts.BindingPath}
-	decrypted, err := prepareDecryptedSigningFiles(store, paths, password, t.TempDir())
+	decrypted, err := prepareDecryptedSigningFiles(testSigningDeps(), store, paths, password, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, err = selectSigningPullFiles(decrypted, []string{"com.example.selected"}, "IOS_APP_ADHOC")
+	_, _, err = selectSigningPullFiles(testSigningDeps(), decrypted, []string{"com.example.selected"}, "IOS_APP_ADHOC")
 	if err == nil || !strings.Contains(err.Error(), "identity context") || !strings.Contains(err.Error(), "stored public certificate") {
 		t.Fatalf("error = %v, want exact identity certificate requirement", err)
 	}
@@ -429,7 +431,7 @@ func TestSigningIdentityGraphRejectsDirectProfileWithIOSPlatform(t *testing.T) {
 		t.Fatal(err)
 	}
 	paths := []string{profilePath, artifacts.IdentityPath, artifacts.BindingPath}
-	if _, err := prepareDecryptedSigningFiles(store, paths, password, t.TempDir()); err == nil || !strings.Contains(err.Error(), "distribution type") {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, paths, password, t.TempDir()); err == nil || !strings.Contains(err.Error(), "distribution type") {
 		t.Fatalf("error = %v, want direct-profile platform mismatch", err)
 	}
 }
@@ -444,7 +446,7 @@ func TestSelectSigningPullFilesRejectsCorruptUnselectedProfile(t *testing.T) {
 		{RelativePath: "profiles/adhoc/unselected.mobileprovision", Plaintext: []byte("not CMS")},
 	}
 
-	_, _, err := selectSigningPullFiles(files, []string{"com.example.selected"}, "IOS_APP_ADHOC")
+	_, _, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.selected"}, "IOS_APP_ADHOC")
 	if err == nil || !strings.Contains(err.Error(), "unselected.mobileprovision") {
 		t.Fatalf("error = %v, want corrupt unselected profile refusal", err)
 	}
@@ -461,7 +463,7 @@ func TestSelectSigningPullFilesRequiresStoredProfileCertificate(t *testing.T) {
 		{RelativePath: "profiles/adhoc/selected.mobileprovision", Plaintext: profile},
 	}
 
-	_, _, err := selectSigningPullFiles(files, []string{"com.example.selected"}, "IOS_APP_ADHOC")
+	_, _, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.selected"}, "IOS_APP_ADHOC")
 	if err == nil || !strings.Contains(err.Error(), "no matching stored public certificate") {
 		t.Fatalf("error = %v, want missing stored certificate refusal", err)
 	}
@@ -502,12 +504,12 @@ func TestSelectSigningPullFilesKeepsOnlyRequestedIdentityContext(t *testing.T) {
 		allPaths = append(allPaths, profilePath, artifacts.IdentityPath, artifacts.BindingPath)
 	}
 	allPaths = uniqueSortedSigningSyncStrings(allPaths)
-	decrypted, err := prepareDecryptedSigningFiles(store, allPaths, password, t.TempDir())
+	decrypted, err := prepareDecryptedSigningFiles(testSigningDeps(), store, allPaths, password, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	selected, targets, err := selectSigningPullFiles(decrypted, []string{"com.example.selected"}, "IOS_APP_ADHOC")
+	selected, targets, err := selectSigningPullFiles(testSigningDeps(), decrypted, []string{"com.example.selected"}, "IOS_APP_ADHOC")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -538,7 +540,7 @@ func TestSelectSigningPullFilesRequiresEveryRequestedTarget(t *testing.T) {
 		{RelativePath: "profiles/adhoc/present.mobileprovision", Plaintext: profile},
 	}
 
-	_, _, err := selectSigningPullFiles(files, []string{"com.example.missing", "com.example.present"}, "IOS_APP_ADHOC")
+	_, _, err := selectSigningPullFiles(testSigningDeps(), files, []string{"com.example.missing", "com.example.present"}, "IOS_APP_ADHOC")
 	if err == nil || !strings.Contains(err.Error(), "com.example.missing") {
 		t.Fatalf("error = %v, want missing target", err)
 	}

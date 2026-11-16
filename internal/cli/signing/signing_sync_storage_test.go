@@ -21,21 +21,22 @@ import (
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
 )
 
-func runSigningSyncCommandForStorage(t *testing.T, cmd *ffcli.Command, args []string) (string, string, error) {
+func runSigningSyncCommandForStorage(t *testing.T, newCommand func(*shared.Deps) *ffcli.Command, client func() (*asc.Client, error), args []string) (string, string, error) {
 	t.Helper()
+	d, stdout, stderr := newSigningTestDeps()
+	d.Client = client
+	cmd := newCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = cmd.Run(context.Background())
-	})
-	return stdout, stderr, runErr
+	if err := cmd.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := cmd.Run(context.Background())
+	return stdout.String(), stderr.String(), runErr
 }
 
 func TestSigningSyncStorageFlagsArePresent(t *testing.T) {
-	for _, command := range []*ffcli.Command{syncPushCommand(), syncPullCommand()} {
+	d, _, _ := newSigningTestDeps()
+	for _, command := range []*ffcli.Command{syncPushCommand(d), syncPullCommand(d)} {
 		for _, name := range []string{"storage", "prefix", "region", "gitlab-host", "gitlab-project", "gitlab-token-file"} {
 			found := command.FlagSet.Lookup(name)
 			if found == nil {
@@ -139,12 +140,12 @@ func TestSigningSyncStorageSelectionRejectsInvalidCombinations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(signingSyncPasswordEnvVar, "repository-password")
 			clientCalls := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				clientCalls++
 				return nil, errors.New("client must not be created")
-			}))
+			}
 
-			stdout, stderr, err := runSigningSyncCommandForStorage(t, syncPullCommand(), tt.args)
+			stdout, stderr, err := runSigningSyncCommandForStorage(t, syncPullCommand, clientFactory, tt.args)
 			if err == nil {
 				t.Fatalf("Run() error = nil, want %q", tt.want)
 			}
@@ -170,12 +171,12 @@ func TestSigningSyncStorageSelectionRejectsInvalidCombinations(t *testing.T) {
 func TestSigningSyncPushRejectsUnsupportedStorageBeforeSecrets(t *testing.T) {
 	t.Setenv(signingSyncPasswordEnvVar, "repository-password")
 	clientCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	clientFactory := func() (*asc.Client, error) {
 		clientCalls++
 		return nil, errors.New("client must not be created")
-	}))
+	}
 
-	_, stderr, err := runSigningSyncCommandForStorage(t, syncPushCommand(), []string{
+	_, stderr, err := runSigningSyncCommandForStorage(t, syncPushCommand, clientFactory, []string{
 		"--bundle-id", "com.example.app",
 		"--profile-type", "IOS_APP_STORE",
 		"--storage", "vault",
@@ -202,7 +203,7 @@ func TestSigningSyncRejectsUnprotectedGitLabTokenFile(t *testing.T) {
 		t.Fatalf("write token file: %v", err)
 	}
 
-	_, stderr, err := runSigningSyncCommandForStorage(t, syncPullCommand(), []string{
+	_, stderr, err := runSigningSyncCommandForStorage(t, syncPullCommand, nil, []string{
 		"--storage", signingSyncStorageGitLab,
 		"--gitlab-project", "42",
 		"--prefix", "asc-signing",
@@ -230,7 +231,7 @@ func TestSigningSyncRejectsEmptyGitLabTokenFile(t *testing.T) {
 		t.Fatalf("write token file: %v", err)
 	}
 
-	_, _, err := runSigningSyncCommandForStorage(t, syncPullCommand(), []string{
+	_, _, err := runSigningSyncCommandForStorage(t, syncPullCommand, nil, []string{
 		"--storage", signingSyncStorageGitLab,
 		"--gitlab-project", "42",
 		"--prefix", "asc-signing",
@@ -244,7 +245,7 @@ func TestSigningSyncRejectsEmptyGitLabTokenFile(t *testing.T) {
 func TestSigningSyncRotatePasswordRejectsUnsupportedStorage(t *testing.T) {
 	for _, storage := range []string{signingSyncStorageGitLab, signingSyncStorageAWS} {
 		t.Run(storage, func(t *testing.T) {
-			_, _, err := runSigningSyncCommandForStorage(t, syncRotatePasswordCommand(), []string{
+			_, _, err := runSigningSyncCommandForStorage(t, syncRotatePasswordCommand, nil, []string{
 				"--repo", "git@github.com:team/certs.git",
 				"--password-file", "current",
 				"--new-password-file", "next",
@@ -271,7 +272,7 @@ func TestSigningSyncStorageTransportLocatorsDescribeBackend(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "AKIAEXAMPLE")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "example-secret")
 	t.Setenv("AWS_SESSION_TOKEN", "")
-	git := signingSyncGitTransport{repoURL: "https://token:secret@example.com/team/certs.git", branch: "main"}
+	git := signingSyncGitTransport{repoURL: "https://token:secret@example.com/team/certs.git", branch: "main", stderr: io.Discard}
 	if strings.Contains(git.Locator(), "secret") {
 		t.Fatalf("git locator leaks credentials: %q", git.Locator())
 	}
@@ -284,7 +285,7 @@ func TestSigningSyncStorageTransportLocatorsDescribeBackend(t *testing.T) {
 		prefix: "asc-signing",
 		region: "us-east-1",
 	}
-	transport, err := selection.transport(context.Background())
+	transport, err := selection.transport(context.Background(), testSigningDeps())
 	if err != nil {
 		t.Fatalf("transport() error: %v", err)
 	}
@@ -379,7 +380,7 @@ func TestSigningSyncGitLabTransportRoundTripsIntoDecryptedOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewGitLabSecureFilesStore() error: %v", err)
 	}
-	transport := signingSyncRemoteTransport{kind: signingSyncStorageGitLab, label: "GitLab Secure Files", backend: backend}
+	transport := signingSyncRemoteTransport{kind: signingSyncStorageGitLab, label: "GitLab Secure Files", backend: backend, stderr: io.Discard}
 
 	password := "repository-password"
 	certificate := []byte("certificate-plaintext")
@@ -406,9 +407,9 @@ func TestSigningSyncGitLabTransportRoundTripsIntoDecryptedOutput(t *testing.T) {
 		t.Fatalf("fetched files = %v, want the published artifact", encryptedFiles)
 	}
 
-	decrypted, err := prepareDecryptedSigningFiles(destination, encryptedFiles, password, t.TempDir())
+	decrypted, err := prepareDecryptedSigningFiles(testSigningDeps(), destination, encryptedFiles, password, t.TempDir())
 	if err != nil {
-		t.Fatalf("prepareDecryptedSigningFiles() error: %v", err)
+		t.Fatalf("prepareDecryptedSigningFiles(testSigningDeps()) error: %v", err)
 	}
 	if len(decrypted) != 1 || string(decrypted[0].Plaintext) != string(certificate) {
 		t.Fatalf("decrypted files = %+v, want the original plaintext", decrypted)
@@ -416,13 +417,13 @@ func TestSigningSyncGitLabTransportRoundTripsIntoDecryptedOutput(t *testing.T) {
 }
 
 func TestNewSigningSyncStoreOmitsRepositoryForRemoteStorage(t *testing.T) {
-	remote := signingSyncRemoteTransport{kind: signingSyncStorageGitLab, label: "GitLab Secure Files"}
+	remote := signingSyncRemoteTransport{kind: signingSyncStorageGitLab, label: "GitLab Secure Files", stderr: io.Discard}
 	store := newSigningSyncStore(remote, t.TempDir(), "git@github.com:team/certs.git", "main")
 	if store.RepoURL != "" || store.Branch != "" {
 		t.Fatalf("remote store = %+v, want no git repository selectors", store)
 	}
 
-	gitStore := newSigningSyncStore(signingSyncGitTransport{}, t.TempDir(), "git@github.com:team/certs.git", "release")
+	gitStore := newSigningSyncStore(signingSyncGitTransport{stderr: io.Discard}, t.TempDir(), "git@github.com:team/certs.git", "release")
 	if gitStore.RepoURL != "git@github.com:team/certs.git" || gitStore.Branch != "release" {
 		t.Fatalf("git store = %+v, want the repository and branch preserved", gitStore)
 	}
@@ -431,7 +432,7 @@ func TestNewSigningSyncStoreOmitsRepositoryForRemoteStorage(t *testing.T) {
 func TestSigningSyncRejectsEmptyStorage(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
-		newCommand func() *ffcli.Command
+		newCommand func(*shared.Deps) *ffcli.Command
 		args       []string
 		want       string
 	}{
@@ -442,7 +443,7 @@ func TestSigningSyncRejectsEmptyStorage(t *testing.T) {
 		for _, value := range []string{"", "   "} {
 			t.Run(tc.name+"/"+strconv.Quote(value), func(t *testing.T) {
 				args := append(append([]string{}, tc.args...), "--storage="+value)
-				stdout, stderr, err := runSigningSyncCommandForStorage(t, tc.newCommand(), args)
+				stdout, stderr, err := runSigningSyncCommandForStorage(t, tc.newCommand, nil, args)
 				if err == nil || !errors.Is(err, flag.ErrHelp) || err.Error() != tc.want {
 					t.Fatalf("error = %v, want usage error %q", err, tc.want)
 				}

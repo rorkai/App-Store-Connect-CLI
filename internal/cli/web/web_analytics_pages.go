@@ -447,7 +447,7 @@ relevant analytics features or dimensions we observed while mapping the sidebar.
 }
 
 func resolveAnalyticsAppIDFlag(d *shared.Deps, appID string) (string, error) {
-	resolvedAppID := strings.TrimSpace(shared.ResolveAppID(appID))
+	resolvedAppID := strings.TrimSpace(d.ResolveAppID(appID))
 	if resolvedAppID == "" {
 		return "", d.UsageError("--app is required")
 	}
