@@ -268,6 +268,54 @@ func TestSigningCapabilitiesForEntitlements(t *testing.T) {
 	}
 }
 
+// A certificate that is still valid at the injected time but expired by the
+// host clock must be eligible: the plan reads one clock.
+func TestExecuteSigningReconcilePlanJudgesCertificateValidityOnTheDepsClock(t *testing.T) {
+	planTime := time.Date(2020, 6, 1, 0, 0, 0, 0, time.UTC)
+	expires := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	certificate := newReconcileTestCertificateValidBetween(t, planTime.AddDate(-1, 0, 0), expires)
+	certificateContent := base64.StdEncoding.EncodeToString(certificate.Raw)
+	devicesPath := filepath.Join(t.TempDir(), "devices.json")
+	if err := os.WriteFile(devicesPath, []byte(`{"schemaVersion":1,"devices":[{"name":"Phone","udid":"SECRET-UDID","platform":"IOS"}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	originalArchiveReader := readSigningArchiveRequirements
+	readSigningArchiveRequirements = func(string) (signingArchiveRequirements, error) {
+		return signingArchiveRequirements{TeamID: "TEAM1", Targets: []signingTarget{{
+			Kind: "application", RelativePath: "Products/Applications/App.app", BundleID: "com.example.app", Executable: "App",
+			Entitlements: map[string]any{"com.apple.developer.team-identifier": "TEAM1"},
+		}}}, nil
+	}
+	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
+	client := newSigningFetchTestClient(t, func(request *http.Request) *http.Response {
+		switch request.URL.Path {
+		case "/v1/devices", "/v1/bundleIds":
+			return signingFetchJSONResponse(http.StatusOK, `{"data":[]}`)
+		case "/v1/certificates":
+			return signingFetchJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-1","attributes":{"certificateType":"IOS_DISTRIBUTION","serialNumber":"123","activated":true,"expirationDate":%q,"certificateContent":%q}}]}`, expires.Format(time.RFC3339), certificateContent))
+		default:
+			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
+		}
+	})
+	d, _, _ := newSigningTestDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
+	d.Now = func() time.Time { return planTime }
+
+	plan, err := executeSigningReconcilePlan(context.Background(), d, signingReconcilePlanOptions{
+		ArchivePath: "App.xcarchive", DevicesFile: devicesPath, MinimumValidityDays: 7,
+		MaxMutations: 32, StateDir: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("executeSigningReconcilePlan() error = %v", err)
+	}
+	if !plan.Ready || plan.Certificate == nil || plan.Certificate.ID != "cert-1" {
+		t.Fatalf("plan ready=%v certificate=%+v blockers=%v, want cert-1 selected at the injected time", plan.Ready, plan.Certificate, plan.Blockers)
+	}
+	if plan.GeneratedAt != "2020-06-01T00:00:00Z" {
+		t.Fatalf("plan generatedAt = %q, want the deps clock", plan.GeneratedAt)
+	}
+}
+
 func TestSigningReconcileRequestContextUsesWorkflowTimeout(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "")
 	d, _, _ := newSigningTestDeps()
@@ -1503,6 +1551,30 @@ func TestWriteSigningStateJSONRejectsPlanLargerThanApplyCanRead(t *testing.T) {
 
 func newReconcileTestCertificate(t *testing.T, commonName string) (*x509.Certificate, crypto.PrivateKey) {
 	return newReconcileTestCertificateForTeam(t, commonName, "TEAM1")
+}
+
+func newReconcileTestCertificateValidBetween(t *testing.T, notBefore, notAfter time.Time) *x509.Certificate {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa.GenerateKey() error = %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(123),
+		Subject:      pkix.Name{CommonName: "Distribution", OrganizationalUnit: []string{"TEAM1"}},
+		NotBefore:    notBefore,
+		NotAfter:     notAfter,
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("x509.CreateCertificate() error = %v", err)
+	}
+	certificate, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("x509.ParseCertificate() error = %v", err)
+	}
+	return certificate
 }
 
 func newReconcileTestCertificateForTeam(t *testing.T, commonName, teamID string) (*x509.Certificate, crypto.PrivateKey) {
