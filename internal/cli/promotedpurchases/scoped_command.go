@@ -32,7 +32,7 @@ type ScopedPromotedPurchasesCommandConfig struct {
 	OwnerIDPlaceholder string
 	ResolveOwnerID     func(context.Context, *asc.Client, string) (string, error)
 	FetchForOwner      func(context.Context, *asc.Client, string, ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error)
-	// Deps is what cmd was built on. It defaults to shared.DefaultDeps().
+	// Deps is what cmd was built on.
 	Deps *shared.Deps
 }
 
@@ -68,7 +68,6 @@ func ConfigureScopedPromotedPurchasesCommand(cmd *ffcli.Command, cfg ScopedPromo
 	if cmd == nil {
 		return
 	}
-	cfg.Deps = configDeps(cfg.Deps)
 	if strings.TrimSpace(cfg.RootShortHelp) != "" {
 		cmd.ShortHelp = cfg.RootShortHelp
 	}

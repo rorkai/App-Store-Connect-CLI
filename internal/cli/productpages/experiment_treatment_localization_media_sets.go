@@ -359,7 +359,7 @@ func executeExperimentTreatmentLocalizationScreenshotUpload(
 	trimmedLocalizationID := strings.TrimSpace(localizationID)
 	trimmedPath := strings.TrimSpace(path)
 	trimmedDeviceType := strings.TrimSpace(deviceType)
-	return assets.ExecuteScreenshotSetUpload(ctx, assets.ScreenshotSetUploadOptions[*asc.ExperimentTreatmentLocalizationScreenshotUploadResult]{
+	return assets.ExecuteScreenshotSetUpload(ctx, d, assets.ScreenshotSetUploadOptions[*asc.ExperimentTreatmentLocalizationScreenshotUploadResult]{
 		LocalizationID:           localizationID,
 		Path:                     path,
 		DeviceType:               deviceType,

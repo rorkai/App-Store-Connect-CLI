@@ -428,7 +428,7 @@ func stageExport(ctx context.Context, d *shared.Deps, f ExportFile) (io.Reader, 
 	temp := filepath.Join(dir, "asset")
 	c, cancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
-	if _, _, err := assets.DownloadMediaURL(c, f.URL, temp, false); err != nil {
+	if _, _, err := assets.DownloadMediaURL(c, d, f.URL, temp, false); err != nil {
 		cleanup()
 		return nil, exportFingerprint{}, nil, errors.New("media download failed (URL omitted)")
 	}

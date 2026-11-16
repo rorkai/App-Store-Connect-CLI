@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestSubmitResolvedVersionRejectsMalformedReviewSubmissionCollectionBeforeMutation(t *testing.T) {
@@ -36,7 +38,7 @@ func TestSubmitResolvedVersionRejectsMalformedReviewSubmissionCollectionBeforeMu
 				return submitJSONResponse(http.StatusOK, tt.body)
 			}))
 
-			_, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+			_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 				AppID:     "app-1",
 				VersionID: "version-1",
 				Platform:  "IOS",
@@ -88,7 +90,7 @@ func TestSubmitResolvedVersionRejectsMalformedReviewSubmissionItemsCollectionBef
 				}
 			}))
 
-			_, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+			_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 				AppID:     "app-1",
 				VersionID: "version-1",
 				Platform:  "IOS",
@@ -163,7 +165,7 @@ func TestSubmitResolvedVersionRejectsMalformedSubmissionResourceBeforeMutation(t
 				}
 			}))
 
-			_, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+			_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 				AppID:     "app-1",
 				VersionID: "version-1",
 				Platform:  "IOS",
@@ -220,7 +222,7 @@ func TestSubmitResolvedVersionRejectsMalformedSubmissionItemBeforeMutation(t *te
 				}
 			}))
 
-			_, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+			_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 				AppID:     "app-1",
 				VersionID: "version-1",
 				Platform:  "IOS",
@@ -356,7 +358,7 @@ func TestSubmitResolvedVersionValidatesExistingSubmissionBeforeAddingItem(t *tes
 		}
 	}))
 
-	_, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",
@@ -428,7 +430,7 @@ func TestSubmitResolvedVersionValidatesCreateReceiptBeforeAddingItem(t *testing.
 				}
 			}))
 
-			_, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+			_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 				AppID:     "app-1",
 				VersionID: "version-1",
 				Platform:  "IOS",

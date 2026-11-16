@@ -85,14 +85,10 @@ Examples:
 	)
 }
 
-// InitReference generates ASC.md in the target repo and links agent files.
+// initReference generates ASC.md in the target repo and links agent files.
 // Every validation, including the symlink containment checks on the ASC.md
 // destination and the agent files, runs before the first write, so a failed
 // init leaves the repository untouched.
-func InitReference(opts InitOptions) (InitResult, error) {
-	return initReference(shared.DefaultDeps(), opts)
-}
-
 func initReference(d *shared.Deps, opts InitOptions) (InitResult, error) {
 	targetPath, linkRoot, err := resolveOutputPath(d, opts.Path)
 	if err != nil {

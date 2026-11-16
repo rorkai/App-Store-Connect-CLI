@@ -17,7 +17,7 @@ import (
 )
 
 func testDeps() *shared.Deps {
-	return &shared.Deps{UploadTimeout: shared.ContextWithUploadTimeout}
+	return shared.DefaultDeps()
 }
 
 func TestManagedExportRecoveryAndTargetIsolation(t *testing.T) {

@@ -190,7 +190,7 @@ func executeCustomPageScreenshotUpload(
 	trimmedLocalizationID := strings.TrimSpace(localizationID)
 	trimmedPath := strings.TrimSpace(path)
 	trimmedDeviceType := strings.TrimSpace(deviceType)
-	return assets.ExecuteScreenshotSetUpload(ctx, assets.ScreenshotSetUploadOptions[*asc.CustomProductPageScreenshotUploadResult]{
+	return assets.ExecuteScreenshotSetUpload(ctx, d, assets.ScreenshotSetUploadOptions[*asc.CustomProductPageScreenshotUploadResult]{
 		LocalizationID: localizationID,
 		Path:           path,
 		DeviceType:     deviceType,

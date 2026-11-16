@@ -158,7 +158,7 @@ func executePipeline(ctx context.Context, d *shared.Deps, opts runOptions) (runR
 	}
 	if strings.TrimSpace(opts.RoutingCoverageFile) != "" {
 		if opts.PreparedRoutingCoverageFile == nil {
-			prepared, err := routingcoveragecli.PrepareRoutingCoverageFile(opts.RoutingCoverageFile)
+			prepared, err := routingcoveragecli.PrepareRoutingCoverageFile(d, opts.RoutingCoverageFile)
 			if err != nil {
 				result.Status = "error"
 				result.Error = err.Error()

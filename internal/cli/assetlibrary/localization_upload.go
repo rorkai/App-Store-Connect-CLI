@@ -44,16 +44,11 @@ type libraryFile struct {
 	close func()
 }
 
-// UploadToLocalization validates everything it can before its first write, then
-// uploads every file before placing any, so that an upload failure leaves the
-// localization unchanged. A returned non-nil result is a receipt to print even
-// when the error is also non-nil. Nothing is deleted automatically.
-func UploadToLocalization(ctx context.Context, client *asc.Client, upload LocalizationUpload) (*asc.AssetLibraryLocalizationUploadResult, error) {
-	return uploadToLocalization(ctx, shared.DefaultDeps(), client, upload)
-}
-
-// UploadToLocalizationWith is UploadToLocalization with its requests, timeouts
-// and messages taken from d.
+// UploadToLocalizationWith validates everything it can before its first write,
+// then uploads every file before placing any, so that an upload failure leaves
+// the localization unchanged. A returned non-nil result is a receipt to print
+// even when the error is also non-nil. Nothing is deleted automatically. Its
+// requests, timeouts and messages are taken from d.
 func UploadToLocalizationWith(ctx context.Context, d *shared.Deps, client *asc.Client, upload LocalizationUpload) (*asc.AssetLibraryLocalizationUploadResult, error) {
 	return uploadToLocalization(ctx, d, client, upload)
 }

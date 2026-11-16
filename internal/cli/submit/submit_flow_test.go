@@ -103,7 +103,7 @@ func TestSubmitResolvedVersionReusesReadySubmissionWithTargetVersion(t *testing.
 		}
 	}))
 
-	got, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	got, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",
@@ -309,7 +309,7 @@ func TestSubmitResolvedVersionFailsClosedWhenReviewSubmissionPreparationFails(t 
 				return tt.handler(req)
 			}))
 
-			_, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+			_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 				AppID:     "app-1",
 				VersionID: "version-1",
 				Platform:  "IOS",
@@ -351,7 +351,7 @@ func TestSubmitResolvedVersionPreflightsBeforeBuildAttachment(t *testing.T) {
 		}
 	}))
 
-	_, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:               "app-1",
 		VersionID:           "version-1",
 		BuildID:             "build-target",
@@ -391,7 +391,7 @@ func TestSubmitResolvedVersionRejectsRepeatedPreparationPageBeforeMutation(t *te
 		}`)
 	}))
 
-	_, err := SubmitResolvedVersion(ctx, client, SubmitResolvedVersionOptions{
+	_, err := SubmitResolvedVersionWith(ctx, shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",
@@ -428,7 +428,7 @@ func TestSubmitResolvedVersionSkipsBuildAttachmentWhenAlreadySubmitted(t *testin
 		}
 	}))
 
-	got, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	got, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:                    "app-1",
 		VersionID:                "version-1",
 		BuildID:                  "build-target",
@@ -485,7 +485,7 @@ func TestEnsureBuildAttachedAlreadyAttached(t *testing.T) {
 		}
 	}))
 
-	got, err := EnsureBuildAttached(context.Background(), client, " version-1 ", " build-1 ", false)
+	got, err := EnsureBuildAttachedWith(context.Background(), shared.DefaultDeps(), client, " version-1 ", " build-1 ", false)
 	if err != nil {
 		t.Fatalf("EnsureBuildAttached() error: %v", err)
 	}
@@ -521,7 +521,7 @@ func TestEnsureBuildAttachedDryRunSkipsMutation(t *testing.T) {
 		}
 	}))
 
-	got, err := EnsureBuildAttached(context.Background(), client, "version-1", "build-new", true)
+	got, err := EnsureBuildAttachedWith(context.Background(), shared.DefaultDeps(), client, "version-1", "build-new", true)
 	if err != nil {
 		t.Fatalf("EnsureBuildAttached() error: %v", err)
 	}
@@ -554,7 +554,7 @@ func TestEnsureBuildAttachedAttachesWhenNoCurrentBuild(t *testing.T) {
 		}
 	}))
 
-	got, err := EnsureBuildAttached(context.Background(), client, "version-1", "build-new", false)
+	got, err := EnsureBuildAttachedWith(context.Background(), shared.DefaultDeps(), client, "version-1", "build-new", false)
 	if err != nil {
 		t.Fatalf("EnsureBuildAttached() error: %v", err)
 	}
@@ -591,7 +591,7 @@ func TestEnsureBuildAttachedUsesFreshDeadlineForMutation(t *testing.T) {
 	var result BuildAttachmentResult
 	var err error
 	synctest.Test(t, func(*testing.T) {
-		result, err = EnsureBuildAttached(context.Background(), client, "version-1", "build-new", false)
+		result, err = EnsureBuildAttachedWith(context.Background(), shared.DefaultDeps(), client, "version-1", "build-new", false)
 	})
 	if err != nil || !result.Attached {
 		t.Fatalf("unexpected attach result: result=%+v err=%v", result, err)
@@ -627,7 +627,7 @@ func TestEnsureBuildAttachedReconcilesAmbiguousMutation(t *testing.T) {
 	var result BuildAttachmentResult
 	var err error
 	synctest.Test(t, func(*testing.T) {
-		result, err = EnsureBuildAttached(context.Background(), client, "version-1", "build-new", false)
+		result, err = EnsureBuildAttachedWith(context.Background(), shared.DefaultDeps(), client, "version-1", "build-new", false)
 	})
 	if err != nil || !result.Attached || reads != 2 || patches != 1 {
 		t.Fatalf("unexpected reconcile result: result=%+v reads=%d patches=%d err=%v", result, reads, patches, err)
@@ -656,7 +656,7 @@ func TestEnsureBuildAttachedReplaysOnlyAfterTwoNegativeReadbacks(t *testing.T) {
 		}
 	}))
 
-	result, err := EnsureBuildAttached(context.Background(), client, "version-1", "build-new", false)
+	result, err := EnsureBuildAttachedWith(context.Background(), shared.DefaultDeps(), client, "version-1", "build-new", false)
 	if err != nil || !result.Attached || reads != 3 || patches != 2 {
 		t.Fatalf("unexpected bounded replay: result=%+v reads=%d patches=%d err=%v", result, reads, patches, err)
 	}
@@ -679,7 +679,7 @@ func TestEnsureBuildAttachedPreservesNonTransientFailure(t *testing.T) {
 		}
 	}))
 
-	result, err := EnsureBuildAttached(context.Background(), client, "version-1", "build-new", false)
+	result, err := EnsureBuildAttachedWith(context.Background(), shared.DefaultDeps(), client, "version-1", "build-new", false)
 	var apiErr *asc.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected typed non-transient error, result=%+v err=%T %v", result, err, err)
@@ -775,7 +775,7 @@ func TestSubmitResolvedVersionPreservesCreatedSubmissionMissingTargetVersion(t *
 		}
 	}))
 
-	got, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	got, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",

@@ -150,13 +150,15 @@ func TestFilterPromotedPurchaseIncludedRejectsMissingIdentifiers(t *testing.T) {
 }
 
 func scopedPromotedPurchasesCommandForTest() *ffcli.Command {
-	cmd := PromotedPurchasesCommand()
+	d := shared.DefaultDeps()
+	cmd := NewPromotedPurchasesCommand(d)
 	cmd.ShortUsage = "asc iap promoted-purchases <subcommand> [flags]"
 	ConfigureScopedPromotedPurchasesCommand(cmd, ScopedPromotedPurchasesCommandConfig{
 		PathPrefix:      "asc iap promoted-purchases",
 		ProductType:     promotedPurchaseProductTypeInAppPurchase,
 		ProductSingular: "in-app purchase",
 		ProductPlural:   "in-app purchases",
+		Deps:            d,
 	})
 	return cmd
 }

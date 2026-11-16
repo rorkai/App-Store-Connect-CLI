@@ -282,9 +282,10 @@ func runScreenshotUploadPool(ctx context.Context, requestContext func(context.Co
 // uploadContext and reads the handle from open, which it closes; a nil handle
 // uploads from the path. Results keep file order. On failure it returns the
 // results before the first failed file, that file, and the error, and deletes
-// the screenshots uploaded after it.
-func UploadScreenshotAssetsConcurrently(ctx context.Context, client *asc.Client, setID string, files []string, uploadContext func(context.Context) (context.Context, context.CancelFunc), open func(filePath string) (*os.File, error)) ([]asc.AssetUploadResultItem, string, error) {
-	slots, failed, _, cleanupErr := runScreenshotUploadPool(ctx, shared.ContextWithTimeout, client, files, defaultScreenshotUploadConcurrency, func(ctx context.Context, filePath string) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+// the screenshots uploaded after it. Cleanup requests take their deadline from
+// d.Timeout.
+func UploadScreenshotAssetsConcurrently(ctx context.Context, d *shared.Deps, client *asc.Client, setID string, files []string, uploadContext func(context.Context) (context.Context, context.CancelFunc), open func(filePath string) (*os.File, error)) ([]asc.AssetUploadResultItem, string, error) {
+	slots, failed, _, cleanupErr := runScreenshotUploadPool(ctx, d.Timeout, client, files, defaultScreenshotUploadConcurrency, func(ctx context.Context, filePath string) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 		uploadCtx, cancel := uploadContext(ctx)
 		defer cancel()
 		// uploadContext may rebuild from an earlier parent, so carry the turn over.
@@ -296,7 +297,7 @@ func UploadScreenshotAssetsConcurrently(ctx context.Context, client *asc.Client,
 			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, err
 		}
 		if file == nil {
-			sourceRootPath, err := resolveScreenshotUploadRoot(shared.DefaultDeps(), "", []string{filePath})
+			sourceRootPath, err := resolveScreenshotUploadRoot(d, "", []string{filePath})
 			if err != nil {
 				return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, err
 			}
