@@ -1256,15 +1256,15 @@ func TestHTTPVerifierEnvironmentTrustTransportRule(t *testing.T) {
 	t.Run("with AWS_CA_BUNDLE an *http.Transport with its own TLS dialer is a configuration error", func(t *testing.T) {
 		t.Setenv("AWS_CA_BUNDLE", caPath)
 		var dials int
-		dial := func(context.Context, string, string) (net.Conn, error) {
+		pipe := func() net.Conn {
 			dials++
 			client, server := net.Pipe()
 			_ = server.Close()
-			return client, nil
+			return client
 		}
 		for name, transport := range map[string]*http.Transport{
-			"DialTLSContext": {DialTLSContext: dial},
-			"DialTLS":        {DialTLS: func(network, address string) (net.Conn, error) { return dial(context.Background(), network, address) }},
+			"DialTLSContext": {DialTLSContext: func(context.Context, string, string) (net.Conn, error) { return pipe(), nil }},
+			"DialTLS":        {DialTLS: func(string, string) (net.Conn, error) { return pipe(), nil }},
 		} {
 			verifier, err := NewHTTPVerifierWithEnvironmentTrust(transport, time.Second)
 			if err == nil || verifier != nil || !strings.Contains(err.Error(), "AWS_CA_BUNDLE") || !strings.Contains(err.Error(), "TLS dialer") {
