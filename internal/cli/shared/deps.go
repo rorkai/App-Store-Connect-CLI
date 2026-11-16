@@ -49,7 +49,9 @@ type Deps struct {
 
 	// LookupEnv reads the environment variables a command takes as input,
 	// such as ASC_APP_ID, as os.LookupEnv. Credentials, the profile and the
-	// config are still read from the process environment.
+	// config are still read from the process environment. nil reads as an
+	// empty environment, so a test that does not care about the environment
+	// need not set it and never sees the process environment.
 	LookupEnv func(string) (string, bool)
 
 	HTTPTransport func() http.RoundTripper

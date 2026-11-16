@@ -86,8 +86,7 @@ Examples:
 func newAgeRatingViewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("age-rating view", flag.ExitOnError)
 
-	envAppID, _ := d.LookupEnv("ASC_APP_ID")
-	appID := fs.String("app", envAppID, "App ID (required unless --app-info-id or --version-id is provided)")
+	appID := fs.String("app", d.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	fields := fs.String("fields", "", "Sparse fields: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
@@ -151,8 +150,7 @@ func newAgeRatingEditCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("age-rating edit", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "ageRatingDeclarations", "Age rating declaration ID (optional)")
-	envAppID, _ := d.LookupEnv("ASC_APP_ID")
-	appID := fs.String("app", envAppID, "App ID (required unless --id, --app-info-id, or --version-id is provided)")
+	appID := fs.String("app", d.Getenv("ASC_APP_ID"), "App ID (required unless --id, --app-info-id, or --version-id is provided)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	allNone := fs.Bool("all-none", false, "Set all ratings to NONE/false (safe default for apps with no objectionable content)")

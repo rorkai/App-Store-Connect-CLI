@@ -1790,7 +1790,20 @@ func resolveAppID(appID string) string {
 
 // ResolveAppID is ResolveAppID with ASC_APP_ID read through d.LookupEnv.
 func (d *Deps) ResolveAppID(appID string) string {
-	return resolveAppIDWith(d.LookupEnv, appID)
+	return resolveAppIDWith(d.lookupEnv, appID)
+}
+
+// Getenv is os.Getenv through d.LookupEnv.
+func (d *Deps) Getenv(name string) string {
+	value, _ := d.lookupEnv(name)
+	return value
+}
+
+func (d *Deps) lookupEnv(name string) (string, bool) {
+	if d.LookupEnv == nil {
+		return "", false
+	}
+	return d.LookupEnv(name)
 }
 
 func resolveAppIDWith(lookupEnv func(string) (string, bool), appID string) string {

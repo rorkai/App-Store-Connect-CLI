@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"os"
 	"slices"
 	"testing"
 )
@@ -33,6 +34,24 @@ func TestDepsResolveAppIDMatchesProcessVariant(t *testing.T) {
 			}
 			if got := DefaultDeps().ResolveAppID(tt.flag); got != tt.want {
 				t.Fatalf("DefaultDeps().ResolveAppID(%q) = %q, want %q", tt.flag, got, tt.want)
+			}
+			processValue, _ := os.LookupEnv("ASC_APP_ID")
+			if got := DefaultDeps().Getenv("ASC_APP_ID"); got != processValue {
+				t.Fatalf("DefaultDeps().Getenv(ASC_APP_ID) = %q, want the process value %q", got, processValue)
+			}
+
+			// A nil LookupEnv reads as an empty environment: only the flag and
+			// the config remain.
+			wantEmptyEnvironment := tt.want
+			if tt.flag == "" {
+				wantEmptyEnvironment = tt.configApp
+			}
+			empty := &Deps{}
+			if got := empty.ResolveAppID(tt.flag); got != wantEmptyEnvironment {
+				t.Fatalf("ResolveAppID(%q) with a nil LookupEnv = %q, want %q", tt.flag, got, wantEmptyEnvironment)
+			}
+			if got := empty.Getenv("ASC_APP_ID"); got != "" {
+				t.Fatalf("Getenv(ASC_APP_ID) with a nil LookupEnv = %q, want empty", got)
 			}
 
 			// The process environment now names another app; the injected
