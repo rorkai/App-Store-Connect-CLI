@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"runtime"
 	"strings"
@@ -25,14 +24,12 @@ func stubTwoFactorDeliveryLogin(t *testing.T) (*appleauth.TwoFactorPreference, *
 	origPrepare := prepareTwoFactorChallengeFn
 	origEnsure := ensureTwoFactorCodeRequestedFn
 	origSubmit := submitTwoFactorCodeFn
-	origStatusWriter := twoFactorStatusWriter
 	origCheck := checkSecurityKeyFn
 	t.Cleanup(func() {
 		webLoginFn = origLogin
 		prepareTwoFactorChallengeFn = origPrepare
 		ensureTwoFactorCodeRequestedFn = origEnsure
 		submitTwoFactorCodeFn = origSubmit
-		twoFactorStatusWriter = origStatusWriter
 		checkSecurityKeyFn = origCheck
 	})
 
@@ -55,7 +52,6 @@ func stubTwoFactorDeliveryLogin(t *testing.T) (*appleauth.TwoFactorPreference, *
 	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
 		return nil
 	}
-	twoFactorStatusWriter = io.Discard
 	return &seen, &loggedIn
 }
 
@@ -66,6 +62,7 @@ func readStubTwoFactorCode(context.Context, string) (string, error) {
 // Regression: key errors retain their stage and diagnostic, and automatic
 // sign-in cannot consume an environment PIN even when Apple requires a key.
 func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	for _, tc := range []struct {
 		name                  string
 		explicit              bool
@@ -144,7 +141,7 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 				preference = appleauth.TwoFactorPreference{}
 			}
 			ctx = contextWithTwoFactorPreference(ctx, preference)
-			_, err := loginWithOptionalTwoFactor(ctx, "user@example.com", "secret", "", nil, nil)
+			_, err := loginWithOptionalTwoFactor(ctx, d, "user@example.com", "secret", "", nil, nil)
 			if tc.automaticDiscovery && !securitykey.Available() {
 				if !errors.Is(err, securitykey.ErrUnavailable) || strings.Contains(err.Error(), "retry with --two-factor-method") {
 					t.Fatalf("unavailable backend error = %v, want build guidance without an unusable retry", err)
@@ -189,6 +186,7 @@ func TestSecurityKeyLoginPolicyAndFailures(t *testing.T) {
 // Regression: PIN policy must survive both session resolver paths, while an
 // already valid session remains usable with a configured PIN.
 func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	for _, tc := range []struct {
 		name, cache           string
 		explicit              bool
@@ -233,10 +231,10 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 				t.Setenv(webTwoFactorMethodEnv, appleauth.TwoFactorMethodSecurityKey)
 			}
 			t.Setenv(webTwoFactorPhoneIDEnv, "")
-			oldSubmit, oldStatus := submitSecurityKeyFn, twoFactorStatusWriter
+			oldSubmit := submitSecurityKeyFn
 			oldCheck, oldAvailable, oldDelete := checkSecurityKeyFn, securityKeyAvailableFn, deleteStaleWebSessionFn
 			t.Cleanup(func() {
-				submitSecurityKeyFn, twoFactorStatusWriter = oldSubmit, oldStatus
+				submitSecurityKeyFn = oldSubmit
 				checkSecurityKeyFn, securityKeyAvailableFn, deleteStaleWebSessionFn = oldCheck, oldAvailable, oldDelete
 			})
 			securityKeyAvailableFn = func() bool { return !tc.unavailableBackend }
@@ -250,7 +248,7 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 			}
 			deleteStaleWebSessionFn = func(string, *webcore.AuthSession) (bool, error) { deleteCalls++; return true, nil }
 			var status strings.Builder
-			twoFactorStatusWriter = &status
+			d.IO.ErrOut = &status
 			cached := &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}
 			tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
 				switch tc.cache {
@@ -296,7 +294,7 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 				password = ""
 				promptPasswordFn = func(context.Context) (string, error) { promptCalls++; return "secret", nil }
 			}
-			_, source, err := resolveSession(ctx, "user@example.com", password, "")
+			_, source, err := resolveSession(ctx, d, "user@example.com", password, "")
 			if tc.wantSource != "" {
 				if err != nil || source != tc.wantSource {
 					t.Fatalf("source = %q, error = %v; want %q", source, err, tc.wantSource)
@@ -339,6 +337,7 @@ func TestResolveSessionSecurityKeyPINPolicy(t *testing.T) {
 }
 
 func TestLoginWithOptionalTwoFactorAppliesPreferenceLayeredOverTimeout(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	t.Setenv(webTwoFactorMethodEnv, "")
 	t.Setenv(webTwoFactorPhoneIDEnv, "")
 	seen, _ := stubTwoFactorDeliveryLogin(t)
@@ -350,7 +349,7 @@ func TestLoginWithOptionalTwoFactorAppliesPreferenceLayeredOverTimeout(t *testin
 	want := appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorDeliverySMS, PhoneID: 2}
 	ctx := contextWithTwoFactorPreference(timedCtx, want)
 
-	if _, err := loginWithOptionalTwoFactor(ctx, "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code"); err != nil {
+	if _, err := loginWithOptionalTwoFactor(ctx, d, "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code"); err != nil {
 		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
 	}
 	if *seen != want {
@@ -359,11 +358,12 @@ func TestLoginWithOptionalTwoFactorAppliesPreferenceLayeredOverTimeout(t *testin
 }
 
 func TestLoginWithOptionalTwoFactorFallsBackToEnvironmentPreference(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	t.Setenv(webTwoFactorMethodEnv, "SMS")
 	t.Setenv(webTwoFactorPhoneIDEnv, "7")
 	seen, _ := stubTwoFactorDeliveryLogin(t)
 
-	if _, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code"); err != nil {
+	if _, err := loginWithOptionalTwoFactor(context.Background(), d, "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code"); err != nil {
 		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
 	}
 	want := appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorDeliverySMS, PhoneID: 7}
@@ -373,11 +373,12 @@ func TestLoginWithOptionalTwoFactorFallsBackToEnvironmentPreference(t *testing.T
 }
 
 func TestLoginWithOptionalTwoFactorRejectsInvalidEnvironmentBeforeSignIn(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	t.Setenv(webTwoFactorMethodEnv, "push")
 	t.Setenv(webTwoFactorPhoneIDEnv, "")
 	_, loggedIn := stubTwoFactorDeliveryLogin(t)
 
-	_, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code")
+	_, err := loginWithOptionalTwoFactor(context.Background(), d, "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code")
 	if err == nil || !strings.Contains(err.Error(), webTwoFactorMethodEnv+" must be one of: auto, sms") {
 		t.Fatalf("expected invalid environment error, got %v", err)
 	}
@@ -387,6 +388,7 @@ func TestLoginWithOptionalTwoFactorRejectsInvalidEnvironmentBeforeSignIn(t *test
 }
 
 func TestLoginWithOptionalTwoFactorHintsPhoneIDForAmbiguousSMSPhone(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	t.Setenv(webTwoFactorMethodEnv, "")
 	t.Setenv(webTwoFactorPhoneIDEnv, "")
 	stubTwoFactorDeliveryLogin(t)
@@ -398,7 +400,7 @@ func TestLoginWithOptionalTwoFactorHintsPhoneIDForAmbiguousSMSPhone(t *testing.T
 	}
 	ctx := contextWithTwoFactorPreference(context.Background(), appleauth.TwoFactorPreference{Delivery: appleauth.TwoFactorDeliverySMS})
 
-	_, err := loginWithOptionalTwoFactor(ctx, "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code")
+	_, err := loginWithOptionalTwoFactor(ctx, d, "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code")
 	want := "2fa challenge setup failed: multiple trusted phone numbers are available; select one by ID: 1 (+1 (•••) •••-••11), 2 (+1 (•••) •••-••22); pass --two-factor-phone-id or set " + webTwoFactorPhoneIDEnv
 	if err == nil || err.Error() != want {
 		t.Fatalf("unexpected error:\n got: %v\nwant: %s", err, want)
@@ -406,6 +408,7 @@ func TestLoginWithOptionalTwoFactorHintsPhoneIDForAmbiguousSMSPhone(t *testing.T
 }
 
 func TestLoginWithOptionalTwoFactorRejectedPhoneCodeGuidanceFollowsDeliveryMode(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	tests := []struct {
 		mode     string
 		wantHint bool
@@ -426,7 +429,7 @@ func TestLoginWithOptionalTwoFactorRejectedPhoneCodeGuidanceFollowsDeliveryMode(
 				return fmt.Errorf("phone 2fa failed (status 400, codes=[-21669]): %w", webcore.ErrTwoFactorCodeRejected)
 			}
 
-			_, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code")
+			_, err := loginWithOptionalTwoFactor(context.Background(), d, "user@example.com", "secret", "", nil, readStubTwoFactorCode, "read-code")
 			if err == nil {
 				t.Fatal("expected rejected code error")
 			}
@@ -441,6 +444,7 @@ func TestLoginWithOptionalTwoFactorRejectedPhoneCodeGuidanceFollowsDeliveryMode(
 }
 
 func TestResolveTwoFactorPreference(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	type testCase struct {
 		name    string
 		method  string
@@ -468,12 +472,12 @@ func TestResolveTwoFactorPreference(t *testing.T) {
 			for key, value := range tt.env {
 				t.Setenv(key, value)
 			}
-			got, err := resolveTwoFactorPreference(tt.method, tt.phoneID, tt.phoneID != 0)
+			got, err := resolveTwoFactorPreferenceWith(d, tt.method, tt.phoneID, tt.phoneID != 0)
 			if err != nil {
-				t.Fatalf("resolveTwoFactorPreference() error = %v", err)
+				t.Fatalf("resolveTwoFactorPreferenceWith(d, ) error = %v", err)
 			}
 			if got != tt.want {
-				t.Fatalf("resolveTwoFactorPreference() = %+v, want %+v", got, tt.want)
+				t.Fatalf("resolveTwoFactorPreferenceWith(d, ) = %+v, want %+v", got, tt.want)
 			}
 		})
 	}
@@ -496,6 +500,7 @@ func TestReadTwoFactorCodeFromCommandExportsCodeRequestTime(t *testing.T) {
 }
 
 func TestLoginWithOptionalTwoFactorPassesCodeRequestTimeToCommand(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	t.Setenv(webTwoFactorMethodEnv, "")
 	t.Setenv(webTwoFactorPhoneIDEnv, "")
 	stubTwoFactorDeliveryLogin(t)
@@ -513,7 +518,7 @@ func TestLoginWithOptionalTwoFactorPassesCodeRequestTimeToCommand(t *testing.T) 
 		return "123456", nil
 	}
 
-	if _, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "", nil, readCode, "read-code"); err != nil {
+	if _, err := loginWithOptionalTwoFactor(context.Background(), d, "user@example.com", "secret", "", nil, readCode, "read-code"); err != nil {
 		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
 	}
 	if !seenOK {
