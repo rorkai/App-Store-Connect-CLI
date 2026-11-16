@@ -29,32 +29,59 @@ type aliasInvocationResult struct {
 	telemetry telemetry.EventContext
 }
 
-// TestFlagAliasesBehaveAsTheirCanonicalFlag runs every alias bound with
-// shared.BindFlagAlias against its canonical flag: the two spellings must
-// print, exit, request and record telemetry identically, the alias must stay
-// out of help, and both spellings with different values must be a usage error
-// naming both.
+type flagAliasCase struct {
+	command, alias, canonical string
+}
+
+// flagAliases lists every accepted alias: removing one is a visible change,
+// so the test fails until it is taken out of this table too.
+var flagAliases = []flagAliasCase{
+	{"analytics sales", "output-file", "output"},
+	{"analytics sales", "output-path", "output"},
+	{"iap view", "iap-id", "id"},
+	{"ipa-info", "ipa", "path"},
+	{"localizations update", "localization-id", "id"},
+	{"product-pages custom-pages localizations list", "version-id", "custom-page-version-id"},
+	{"profiles download", "output-path", "output"},
+	{"review items list", "submission-id", "submission"},
+	{"review items-list", "submission-id", "submission"},
+	{"subscriptions list", "group", "group-id"},
+	{"subscriptions offers introductory delete", "offer-id", "id"},
+	{"subscriptions versions view", "version-id", "id"},
+	{"testflight groups builds list", "group", "group-id"},
+	{"testflight groups testers list", "group", "group-id"},
+}
+
+// TestFlagAliasesBehaveAsTheirCanonicalFlag checks that flagAliases is exactly
+// the set of aliases bound with shared.BindFlagAlias, then runs each against
+// its canonical flag: the two spellings must print, exit, request and record
+// telemetry identically, the alias must stay out of help, and both spellings
+// with different values must be a usage error naming both.
 func TestFlagAliasesBehaveAsTheirCanonicalFlag(t *testing.T) {
-	type flagAlias struct {
-		path            []string
-		name, canonical string
-	}
-	var aliases []flagAlias
+	var bound []flagAliasCase
 	walkCommandTree(RootCommand("1.0.0"), func(path string, command *ffcli.Command) {
 		if command.FlagSet == nil {
 			return
 		}
 		command.FlagSet.VisitAll(func(item *flag.Flag) {
 			if canonical, ok := shared.FlagAliasTarget(item); ok {
-				aliases = append(aliases, flagAlias{path: strings.Fields(path)[1:], name: item.Name, canonical: canonical})
+				bound = append(bound, flagAliasCase{command: strings.TrimPrefix(path, "asc "), alias: item.Name, canonical: canonical})
 			}
 		})
 	})
-	if len(aliases) == 0 {
-		t.Fatal("no flag aliases are bound")
+	byKey := func(a, b flagAliasCase) int {
+		return strings.Compare(a.command+" --"+a.alias, b.command+" --"+b.alias)
+	}
+	want := slices.SortedFunc(slices.Values(flagAliases), byKey)
+	if got := slices.SortedFunc(slices.Values(bound), byKey); !slices.Equal(got, want) {
+		t.Fatalf("bound aliases differ from flagAliases:\nbound: %v\nwant:  %v", got, want)
 	}
 
-	for _, alias := range aliases {
+	for _, test := range flagAliases {
+		alias := struct {
+			path            []string
+			name, canonical string
+		}{strings.Fields(test.command), test.alias, test.canonical}
 		t.Run(strings.Join(alias.path, " ")+" --"+alias.name, func(t *testing.T) {
 			invoke := func(args ...string) aliasInvocationResult {
 				return runAliasInvocation(t, append(slices.Clone(alias.path), args...))
@@ -78,6 +105,9 @@ func TestFlagAliasesBehaveAsTheirCanonicalFlag(t *testing.T) {
 				t.Fatalf("conflicting values telemetry = %+v", conflict.telemetry)
 			}
 
+			if spaced := invoke("--"+alias.name, "value-1", "--"+alias.canonical, " value-1"); spaced.exit != ExitUsage || len(spaced.requests) != 0 {
+				t.Fatalf("values differing only in whitespace = %+v, want a conflict (exit %d)", spaced, ExitUsage)
+			}
 			lastWins := invoke("--"+alias.canonical, "value-1", "--"+alias.canonical, "value-2", "--"+alias.name, "value-1")
 			wantStderr = fmt.Sprintf("Error: `--%s` and `--%s` are the same flag; pass one value\n", alias.canonical, alias.name)
 			if lastWins.exit != ExitUsage || lastWins.stderr != wantStderr || len(lastWins.requests) != 0 {
