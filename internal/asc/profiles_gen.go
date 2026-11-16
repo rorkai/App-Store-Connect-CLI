@@ -53,6 +53,22 @@ func (c *Client) GetProfileCertificates(ctx context.Context, profileID string, o
 	})
 }
 
+// GetProfileCertificatesRelationships sends GET /v1/profiles/{id}/relationships/certificates (profiles_certificates_getToManyRelationship).
+func (c *Client) GetProfileCertificatesRelationships(ctx context.Context, profileID string, opts ...LinkagesOption) (*ProfileCertificatesLinkagesResponse, error) {
+	query := applyOptions(opts)
+	profileID = strings.TrimSpace(profileID)
+	if query.nextURL == "" && profileID == "" {
+		return nil, fmt.Errorf("profile ID is required")
+	}
+	return getJSON[ProfileCertificatesLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/profiles/%s/relationships/certificates", profileID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "profileCertificatesRelationships",
+		ParseErr:    "failed to parse certificates relationship response",
+	})
+}
+
 // DeleteProfile sends DELETE /v1/profiles/{id} (profiles_deleteInstance).
 func (c *Client) DeleteProfile(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
@@ -68,6 +84,22 @@ func (c *Client) GetProfileDevices(ctx context.Context, profileID string, opts .
 		Query:       buildProfileDevicesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "profileDevices",
+	})
+}
+
+// GetProfileDevicesRelationships sends GET /v1/profiles/{id}/relationships/devices (profiles_devices_getToManyRelationship).
+func (c *Client) GetProfileDevicesRelationships(ctx context.Context, profileID string, opts ...LinkagesOption) (*ProfileDevicesLinkagesResponse, error) {
+	query := applyOptions(opts)
+	profileID = strings.TrimSpace(profileID)
+	if query.nextURL == "" && profileID == "" {
+		return nil, fmt.Errorf("profile ID is required")
+	}
+	return getJSON[ProfileDevicesLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/profiles/%s/relationships/devices", profileID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "profileDevicesRelationships",
+		ParseErr:    "failed to parse devices relationship response",
 	})
 }
 

@@ -79,8 +79,9 @@ func TestExecuteDistributionPlanCollapsesOperationalDiagnostics(t *testing.T) {
 			test.fail(&deps)
 			installDistributionOrchestrationDependencies(t, deps)
 
-			stdout, stderr, err := captureDistributionCommandOutput(t, func() error {
-				_, planErr := executeDistributionPlan(context.Background(), distributionPlanRequest{
+			d := distributionTestDepsAt(distributionTestNow)
+			stdout, stderr, err := captureDistributionCommandOutput(t, d, func() error {
+				_, planErr := executeDistributionPlan(context.Background(), d, distributionPlanRequest{
 					ArchivePath: "/archives/Demo.xcarchive",
 					ConfigPath:  "/configuration/distribution.json",
 					PlanPath:    "/plans/plan.json",

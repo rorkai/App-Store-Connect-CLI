@@ -3,5 +3,8 @@
   "file": "analytics_reports_gen.go",
   "types": [
     "AnalyticsReportResponse"
+  ],
+  "operations": [
+    {"operation":"analyticsReports_instances_getToManyRelationship","name":"GetAnalyticsReportInstancesRelationships","params":["reportID"],"check":"require","messages":["report ID is required"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"analyticsReportInstancesRelationships","parseErr":"failed to parse instances relationship response"}
   ]
 }

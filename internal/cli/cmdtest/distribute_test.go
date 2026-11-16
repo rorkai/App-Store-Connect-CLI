@@ -69,13 +69,13 @@ func TestDistributeCommandsAreRegisteredWithAgentOrientedFlags(t *testing.T) {
 }
 
 func TestDistributeApplyRequiresExactConfirmationBeforePlanRead(t *testing.T) {
-	assertUsageExit(t, []string{"distribute", "apply", "--plan", filepath.Join(t.TempDir(), "missing.json")}, "--confirm PLAN_HASH is required")
-	assertUsageExit(t, []string{"distribute", "apply", "--plan", filepath.Join(t.TempDir(), "missing.json"), "--confirm", "yes"}, "--confirm must be a 64-character lowercase SHA-256 plan hash")
+	assertUsageExitWithDeps(t, nil, []string{"distribute", "apply", "--plan", filepath.Join(t.TempDir(), "missing.json")}, "--confirm PLAN_HASH is required")
+	assertUsageExitWithDeps(t, nil, []string{"distribute", "apply", "--plan", filepath.Join(t.TempDir(), "missing.json"), "--confirm", "yes"}, "--confirm must be a 64-character lowercase SHA-256 plan hash")
 }
 
 func TestDistributeApplyWellFormedUnequalConfirmationExitsUsage(t *testing.T) {
 	planPath := writeBlockedDistributionPlan(t)
-	assertUsageExit(t, []string{
+	assertUsageExitWithDeps(t, nil, []string{
 		"distribute", "apply",
 		"--plan", planPath,
 		"--confirm", strings.Repeat("2", 64),

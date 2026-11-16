@@ -207,18 +207,6 @@ func (c *Client) getInAppPurchaseVersions(ctx context.Context, iapID string, str
 	return &response, nil
 }
 
-func (c *Client) GetInAppPurchaseVersionsRelationships(ctx context.Context, iapID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(ctx, iapID, "versions", "iapID", "/v2/inAppPurchases/%s/relationships/%s", "inAppPurchaseVersionsRelationships", opts...)
-}
-
-func (c *Client) GetInAppPurchaseVersionImagesRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(ctx, versionID, "images", "versionID", "/v1/inAppPurchaseVersions/%s/relationships/%s", "inAppPurchaseVersionImagesRelationships", opts...)
-}
-
-func (c *Client) GetInAppPurchaseVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(ctx, versionID, "localizations", "versionID", "/v1/inAppPurchaseVersions/%s/relationships/%s", "inAppPurchaseVersionLocalizationsRelationships", opts...)
-}
-
 func (c *Client) CreateInAppPurchaseLocalizationV2(ctx context.Context, versionID string, attrs InAppPurchaseLocalizationV2CreateAttributes) (*InAppPurchaseLocalizationResponse, error) {
 	versionID = strings.TrimSpace(versionID)
 	if versionID == "" {

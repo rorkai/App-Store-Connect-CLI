@@ -68,6 +68,22 @@ func (c *Client) GetBetaTesterApps(ctx context.Context, testerID string, opts ..
 	})
 }
 
+// GetBetaTesterAppsRelationships sends GET /v1/betaTesters/{id}/relationships/apps (betaTesters_apps_getToManyRelationship).
+func (c *Client) GetBetaTesterAppsRelationships(ctx context.Context, testerID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	testerID = strings.TrimSpace(testerID)
+	if query.nextURL == "" && testerID == "" {
+		return nil, fmt.Errorf("testerID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaTesters/%s/relationships/apps", testerID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaTesterRelationships",
+		ParseErr:    "failed to parse apps relationship response",
+	})
+}
+
 // AddBetaTesterToGroups sends POST /v1/betaTesters/{id}/relationships/betaGroups (betaTesters_betaGroups_createToManyRelationship).
 func (c *Client) AddBetaTesterToGroups(ctx context.Context, testerID string, groupIDs []string) error {
 	testerID = strings.TrimSpace(testerID)
@@ -123,6 +139,22 @@ func (c *Client) GetBetaTesterBetaGroups(ctx context.Context, testerID string, o
 	})
 }
 
+// GetBetaTesterBetaGroupsRelationships sends GET /v1/betaTesters/{id}/relationships/betaGroups (betaTesters_betaGroups_getToManyRelationship).
+func (c *Client) GetBetaTesterBetaGroupsRelationships(ctx context.Context, testerID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	testerID = strings.TrimSpace(testerID)
+	if query.nextURL == "" && testerID == "" {
+		return nil, fmt.Errorf("testerID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaTesterRelationships",
+		ParseErr:    "failed to parse betaGroups relationship response",
+	})
+}
+
 // AddBuildsToBetaTester sends POST /v1/betaTesters/{id}/relationships/builds (betaTesters_builds_createToManyRelationship).
 func (c *Client) AddBuildsToBetaTester(ctx context.Context, testerID string, buildIDs []string) error {
 	testerID = strings.TrimSpace(testerID)
@@ -175,6 +207,22 @@ func (c *Client) GetBetaTesterBuilds(ctx context.Context, testerID string, opts 
 		Query:       buildListQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaTesterBuilds",
+	})
+}
+
+// GetBetaTesterBuildsRelationships sends GET /v1/betaTesters/{id}/relationships/builds (betaTesters_builds_getToManyRelationship).
+func (c *Client) GetBetaTesterBuildsRelationships(ctx context.Context, testerID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	testerID = strings.TrimSpace(testerID)
+	if query.nextURL == "" && testerID == "" {
+		return nil, fmt.Errorf("testerID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaTesterRelationships",
+		ParseErr:    "failed to parse builds relationship response",
 	})
 }
 

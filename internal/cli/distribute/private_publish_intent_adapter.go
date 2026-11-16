@@ -24,10 +24,10 @@ const privatePublishIntentStateSchemaVersion = "2"
 var errPrivatePublishIntentConflict = errors.New("private publication intent conflict")
 
 var (
-	preparePrivatePublicationIntent                                            = core.PreparePrivatePublishIntent
-	executePrivatePublicationIntent                                            = core.ExecutePrivatePublishIntent
-	newPrivatePublicationVerifier   func(time.Duration) (core.Verifier, error) = func(timeout time.Duration) (core.Verifier, error) {
-		return newPublicationVerifier(shared.DefaultDeps(), timeout)
+	preparePrivatePublicationIntent                                                          = core.PreparePrivatePublishIntent
+	executePrivatePublicationIntent                                                          = core.ExecutePrivatePublishIntent
+	newPrivatePublicationVerifier   func(*shared.Deps, time.Duration) (core.Verifier, error) = func(d *shared.Deps, timeout time.Duration) (core.Verifier, error) {
+		return newPublicationVerifier(d, timeout)
 	}
 	afterPrivatePublicationIntentPersisted = func() error { return nil }
 	afterPrivatePublicationIntentExecuted  = func() error { return nil }
@@ -93,12 +93,12 @@ type privatePublishIntentState struct {
 
 // executePrivatePublishIntent durably records every publication choice before
 // the first remote write, then converges only those recorded destinations.
-func executePrivatePublishIntent(ctx context.Context, request privatePublishIntentRequest) (publishExecutionResult, error) {
+func executePrivatePublishIntent(ctx context.Context, d *shared.Deps, request privatePublishIntentRequest) (publishExecutionResult, error) {
 	diagnostic := request.DiagnosticWriter
 	if diagnostic == nil {
 		diagnostic = io.Discard
 	}
-	if err := validatePrivatePublishIntentRequest(request); err != nil {
+	if err := validatePrivatePublishIntentRequest(d, request); err != nil {
 		return publishExecutionResult{}, err
 	}
 	bundleDir := strings.TrimSpace(request.BundleDir)
@@ -114,11 +114,11 @@ func executePrivatePublishIntent(ctx context.Context, request privatePublishInte
 	}
 	defer bundleRoot.Close()
 	if err := rejectBundleContainedArtifacts(bundleRoot, receiptPath, intentPath); err != nil {
-		return publishExecutionResult{}, shared.UsageErrorf("publish artifacts: %v", err)
+		return publishExecutionResult{}, d.UsageErrorf("publish artifacts: %v", err)
 	}
 	artifacts, err := inspectArtifactPaths(receiptPath, intentPath)
 	if err != nil {
-		return publishExecutionResult{}, shared.UsageErrorf("publish artifacts: %v", err)
+		return publishExecutionResult{}, d.UsageErrorf("publish artifacts: %v", err)
 	}
 	defer artifacts.close()
 
@@ -146,7 +146,7 @@ func executePrivatePublishIntent(ctx context.Context, request privatePublishInte
 	}
 	if !found {
 		if err := artifacts.preflightNew(); err != nil {
-			return publishExecutionResult{}, shared.UsageErrorf("publish artifacts: %v", err)
+			return publishExecutionResult{}, d.UsageErrorf("publish artifacts: %v", err)
 		}
 	}
 	if found {
@@ -161,7 +161,7 @@ func executePrivatePublishIntent(ctx context.Context, request privatePublishInte
 			if err := validatePrivatePublishIntentReceipt(receipt, state, bundle); err != nil {
 				return publishExecutionResult{}, fmt.Errorf("%w: validate saved receipt", errPrivatePublishIntentConflict)
 			}
-			verifier, err := newPrivatePublicationVerifier(request.VerifyTimeout)
+			verifier, err := newPrivatePublicationVerifier(d, request.VerifyTimeout)
 			if err != nil {
 				return publishExecutionResult{}, fmt.Errorf("configure publication verifier: %w", err)
 			}
@@ -172,7 +172,7 @@ func executePrivatePublishIntent(ctx context.Context, request privatePublishInte
 		}
 	}
 
-	setupCtx, setupCancel := shared.ContextWithUploadTimeout(ctx)
+	setupCtx, setupCancel := d.UploadTimeout(ctx)
 	store, credentialLimit, err := newObjectStore(setupCtx, core.S3StoreConfig{
 		Endpoint: request.Endpoint, DownloadEndpoint: request.DownloadEndpoint, Region: request.Region,
 		Bucket: request.Bucket, AddressingStyle: request.AddressingStyle,
@@ -186,13 +186,13 @@ func executePrivatePublishIntent(ctx context.Context, request privatePublishInte
 		credentialSource = provider.CredentialSource()
 	}
 	fmt.Fprintf(diagnostic, "Publishing recoverably to endpoint=%s download-endpoint=%s bucket=%s region=%s addressing=%s prefix=%s access=private credentials=%s\n", endpointOrigin(request.Endpoint), downloadEndpoint, request.Bucket, request.Region, request.AddressingStyle, normalizedPrefix, credentialSource)
-	verifier, err := newPrivatePublicationVerifier(request.VerifyTimeout)
+	verifier, err := newPrivatePublicationVerifier(d, request.VerifyTimeout)
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("configure publication verifier: %w", err)
 	}
 	publicationNow := time.Now().UTC()
 	options := core.PublishOptions{
-		Store: publicationStore{delegate: store}, Verifier: verifier, Bucket: request.Bucket, Prefix: normalizedPrefix, Access: core.AccessPrivate,
+		Store: publicationStore{delegate: store, uploadTimeout: d.UploadTimeout}, Verifier: verifier, Bucket: request.Bucket, Prefix: normalizedPrefix, Access: core.AccessPrivate,
 		URLTTL: request.URLTTL, DownloadGrace: request.DownloadGrace, CredentialLimit: credentialLimit,
 		Now: func() time.Time { return publicationNow },
 	}
@@ -253,12 +253,12 @@ func executePrivatePublishIntent(ctx context.Context, request privatePublishInte
 // reverifyPrivatePublishIntent is the read-only verification seam for a
 // completed agent publication. It never constructs an object store, repairs a
 // receipt, or refreshes an expired URL.
-func reverifyPrivatePublishIntent(ctx context.Context, request privatePublishVerificationRequest) (publishExecutionResult, error) {
+func reverifyPrivatePublishIntent(ctx context.Context, d *shared.Deps, request privatePublishVerificationRequest) (publishExecutionResult, error) {
 	if strings.TrimSpace(request.BundleDir) == "" || strings.TrimSpace(request.ReceiptPath) == "" || strings.TrimSpace(request.LinkPath) == "" {
-		return publishExecutionResult{}, shared.UsageError("bundle directory, receipt, and private intent paths are required")
+		return publishExecutionResult{}, d.UsageError("bundle directory, receipt, and private intent paths are required")
 	}
 	if request.VerifyTimeout <= 0 {
-		return publishExecutionResult{}, shared.UsageError("verify timeout must be positive")
+		return publishExecutionResult{}, d.UsageError("verify timeout must be positive")
 	}
 	bundleDir := strings.TrimSpace(request.BundleDir)
 	receiptPath := strings.TrimSpace(request.ReceiptPath)
@@ -269,7 +269,7 @@ func reverifyPrivatePublishIntent(ctx context.Context, request privatePublishVer
 	}
 	defer bundleRoot.Close()
 	if err := rejectBundleContainedArtifacts(bundleRoot, receiptPath, linkPath); err != nil {
-		return publishExecutionResult{}, shared.UsageErrorf("publish artifacts: %v", err)
+		return publishExecutionResult{}, d.UsageErrorf("publish artifacts: %v", err)
 	}
 	artifacts, err := openExistingArtifactPaths(receiptPath, linkPath)
 	if err != nil {
@@ -301,7 +301,7 @@ func reverifyPrivatePublishIntent(ctx context.Context, request privatePublishVer
 	if err := validatePrivatePublishIntentReceipt(receipt, state, bundle); err != nil {
 		return publishExecutionResult{}, fmt.Errorf("%w: validate private publication receipt: %w", errPrivatePublishIntentConflict, err)
 	}
-	verifier, err := newPrivatePublicationVerifier(request.VerifyTimeout)
+	verifier, err := newPrivatePublicationVerifier(d, request.VerifyTimeout)
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("configure publication verifier: %w", err)
 	}
@@ -311,7 +311,7 @@ func reverifyPrivatePublishIntent(ctx context.Context, request privatePublishVer
 	return publishExecutionResult{Receipt: receipt, Recovered: true}, nil
 }
 
-func validatePrivatePublishIntentRequest(request privatePublishIntentRequest) error {
+func validatePrivatePublishIntentRequest(d *shared.Deps, request privatePublishIntentRequest) error {
 	for _, item := range []struct{ name, value string }{
 		{"bundle-dir", request.BundleDir},
 		{"endpoint", request.Endpoint},
@@ -322,37 +322,37 @@ func validatePrivatePublishIntentRequest(request privatePublishIntentRequest) er
 		{"intent-path", request.IntentPath},
 	} {
 		if strings.TrimSpace(item.value) == "" {
-			return shared.UsageErrorf("--%s is required", item.name)
+			return d.UsageErrorf("--%s is required", item.name)
 		}
 	}
 	if _, err := core.ValidateEndpoint(request.Endpoint); err != nil {
-		return shared.UsageErrorf("--endpoint: %v", err)
+		return d.UsageErrorf("--endpoint: %v", err)
 	}
 	if strings.TrimSpace(request.DownloadEndpoint) != "" {
 		if _, err := core.ValidateEndpoint(request.DownloadEndpoint); err != nil {
-			return shared.UsageErrorf("--download-endpoint: %v", err)
+			return d.UsageErrorf("--download-endpoint: %v", err)
 		}
 	}
 	if request.AddressingStyle != "path" && request.AddressingStyle != "virtual" {
-		return shared.UsageError("--addressing-style must be path or virtual")
+		return d.UsageError("--addressing-style must be path or virtual")
 	}
 	if !validPrivatePublishLifetime(request.URLTTL, request.DownloadGrace) {
-		return shared.UsageError("private link lifetimes must be positive, non-negative, and at most 7d combined")
+		return d.UsageError("private link lifetimes must be positive, non-negative, and at most 7d combined")
 	}
 	if request.VerifyTimeout <= 0 {
-		return shared.UsageError("--verify-timeout must be positive")
+		return d.UsageError("--verify-timeout must be positive")
 	}
 	if _, err := core.NormalizePrefix(request.Prefix); err != nil {
-		return shared.UsageErrorf("--prefix: %v", err)
+		return d.UsageErrorf("--prefix: %v", err)
 	}
 	if !regionPattern.MatchString(request.Region) {
-		return shared.UsageError("invalid object-store region")
+		return d.UsageError("invalid object-store region")
 	}
 	if !validPublishBucket(request.Bucket) {
-		return shared.UsageError("invalid object-store bucket")
+		return d.UsageError("invalid object-store bucket")
 	}
 	if err := validatePrivatePublishBundleAuthorization(request.ExpectedBundle); err != nil {
-		return shared.UsageErrorf("authorized prepared bundle: %v", err)
+		return d.UsageErrorf("authorized prepared bundle: %v", err)
 	}
 	return nil
 }

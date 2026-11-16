@@ -111,6 +111,22 @@ func (c *Client) GetInAppPurchaseVersionImages(ctx context.Context, versionID st
 	})
 }
 
+// GetInAppPurchaseVersionImagesRelationships sends GET /v1/inAppPurchaseVersions/{id}/relationships/images (inAppPurchaseVersions_images_getToManyRelationship).
+func (c *Client) GetInAppPurchaseVersionImagesRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchaseVersions/%s/relationships/images", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "inAppPurchaseVersionImagesRelationships",
+		ParseErr:    "failed to parse images relationship response",
+	})
+}
+
 // GetInAppPurchaseVersionLocalizations sends GET /v1/inAppPurchaseVersions/{id}/localizations (inAppPurchaseVersions_localizations_getToManyRelated).
 func (c *Client) GetInAppPurchaseVersionLocalizations(ctx context.Context, versionID string, opts ...IAPVersionLocalizationsOption) (*InAppPurchaseLocalizationsResponse, error) {
 	query := applyOptions(opts)
@@ -123,6 +139,22 @@ func (c *Client) GetInAppPurchaseVersionLocalizations(ctx context.Context, versi
 		Query:       buildIAPVersionLocalizationsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "in-app-purchase-version-localizations",
+	})
+}
+
+// GetInAppPurchaseVersionLocalizationsRelationships sends GET /v1/inAppPurchaseVersions/{id}/relationships/localizations (inAppPurchaseVersions_localizations_getToManyRelationship).
+func (c *Client) GetInAppPurchaseVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchaseVersions/%s/relationships/localizations", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "inAppPurchaseVersionLocalizationsRelationships",
+		ParseErr:    "failed to parse localizations relationship response",
 	})
 }
 
