@@ -22,7 +22,7 @@ func TestDistributionRunLockRejectsCanceledContextBeforeCreatingFile(t *testing.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := acquireDistributionRunLock(ctx, stateDir, runID)
+	_, err := acquireDistributionRunLock(ctx, newDistributeTestDeps(), stateDir, runID)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("acquireDistributionRunLock() error = %v, want context.Canceled", err)
 	}
@@ -33,7 +33,7 @@ func TestDistributionRunLockRejectsCanceledContextBeforeCreatingFile(t *testing.
 
 func TestDistributionRunLockSameRunContendsAndHonorsCancellation(t *testing.T) {
 	stateDir, runID, _ := distributionRunLockFixture(t)
-	releaseFirst, err := acquireDistributionRunLock(context.Background(), stateDir, runID)
+	releaseFirst, err := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, runID)
 	if err != nil {
 		t.Fatalf("first acquireDistributionRunLock() error = %v", err)
 	}
@@ -42,7 +42,7 @@ func TestDistributionRunLockSameRunContendsAndHonorsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	errCh := make(chan error, 1)
 	go func() {
-		_, lockErr := acquireDistributionRunLock(ctx, stateDir, runID)
+		_, lockErr := acquireDistributionRunLock(ctx, newDistributeTestDeps(), stateDir, runID)
 		errCh <- lockErr
 	}()
 
@@ -59,7 +59,7 @@ func TestDistributionRunLockSameRunContendsAndHonorsCancellation(t *testing.T) {
 
 func TestDistributionRunLockRejectsPathReplacementWhileWaiterContends(t *testing.T) {
 	stateDir, runID, runDir := distributionRunLockFixture(t)
-	releaseFirst, err := acquireDistributionRunLock(context.Background(), stateDir, runID)
+	releaseFirst, err := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, runID)
 	if err != nil {
 		t.Fatalf("first acquireDistributionRunLock() error = %v", err)
 	}
@@ -78,7 +78,7 @@ func TestDistributionRunLockRejectsPathReplacementWhileWaiterContends(t *testing
 	}
 	errCh := make(chan error, 1)
 	go func() {
-		_, lockErr := acquireDistributionRunLock(context.Background(), stateDir, runID)
+		_, lockErr := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, runID)
 		errCh <- lockErr
 	}()
 	waiterReleased := false
@@ -151,7 +151,7 @@ func TestDistributionRunLockContendsAcrossProcesses(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
-	_, err = acquireDistributionRunLock(ctx, stateDir, runID)
+	_, err = acquireDistributionRunLock(ctx, newDistributeTestDeps(), stateDir, runID)
 	cancel()
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("cross-process acquire error = %v, want context.DeadlineExceeded", err)
@@ -174,6 +174,7 @@ func TestDistributionRunLockHelperProcess(t *testing.T) {
 	}
 	release, err := acquireDistributionRunLock(
 		context.Background(),
+		newDistributeTestDeps(),
 		os.Getenv("ASC_DISTRIBUTION_RUN_LOCK_STATE_DIR"),
 		os.Getenv("ASC_DISTRIBUTION_RUN_LOCK_RUN_ID"),
 	)
@@ -199,13 +200,13 @@ func TestDistributionRunLockDifferentRunsDoNotContend(t *testing.T) {
 		t.Fatalf("create second distribution run directory: %v", err)
 	}
 
-	releaseFirst, err := acquireDistributionRunLock(context.Background(), stateDir, firstRunID)
+	releaseFirst, err := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, firstRunID)
 	if err != nil {
 		t.Fatalf("acquire first run lock: %v", err)
 	}
 	defer func() { _ = releaseFirst() }()
 
-	releaseSecond, err := acquireDistributionRunLock(context.Background(), stateDir, secondRunID)
+	releaseSecond, err := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, secondRunID)
 	if err != nil {
 		t.Fatalf("acquire different run lock: %v", err)
 	}
@@ -216,7 +217,7 @@ func TestDistributionRunLockDifferentRunsDoNotContend(t *testing.T) {
 
 func TestDistributionRunLockReleaseAllowsReacquire(t *testing.T) {
 	stateDir, runID, runDir := distributionRunLockFixture(t)
-	release, err := acquireDistributionRunLock(context.Background(), stateDir, runID)
+	release, err := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, runID)
 	if err != nil {
 		t.Fatalf("first acquireDistributionRunLock() error = %v", err)
 	}
@@ -228,7 +229,7 @@ func TestDistributionRunLockReleaseAllowsReacquire(t *testing.T) {
 		t.Fatalf("second release error = %v", err)
 	}
 
-	releaseAgain, err := acquireDistributionRunLock(context.Background(), stateDir, runID)
+	releaseAgain, err := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, runID)
 	if err != nil {
 		t.Fatalf("reacquireDistributionRunLock() error = %v", err)
 	}
@@ -304,7 +305,7 @@ func TestDistributionRunLockRejectsUnsafeLockFile(t *testing.T) {
 			lockPath := filepath.Join(runDir, distributionRunLockFilename)
 			tt.setup(t, lockPath)
 
-			_, err := acquireDistributionRunLock(context.Background(), stateDir, runID)
+			_, err := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, runID)
 			if err == nil {
 				t.Fatal("acquireDistributionRunLock() error = nil, want unsafe lock rejection")
 			}
@@ -325,7 +326,7 @@ func TestDistributionRunLockRejectsUnsafeRunDirectory(t *testing.T) {
 	}
 	defer func() { _ = os.Chmod(runDir, 0o700) }()
 
-	_, err := acquireDistributionRunLock(context.Background(), stateDir, runID)
+	_, err := acquireDistributionRunLock(context.Background(), newDistributeTestDeps(), stateDir, runID)
 	if err == nil || !strings.Contains(err.Error(), "0700") {
 		t.Fatalf("acquireDistributionRunLock() error = %v, want 0700 rejection", err)
 	}
