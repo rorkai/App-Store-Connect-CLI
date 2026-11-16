@@ -107,7 +107,7 @@ Examples:
 
 			resolvedVendor := ""
 			if sourceName == sourceSales {
-				resolvedVendor = shared.ResolveVendorNumber(*vendor)
+				resolvedVendor = d.ResolveVendorNumber(*vendor)
 				if resolvedVendor == "" {
 					return d.UsageError("--vendor is required for --source sales (or set ASC_VENDOR_NUMBER)")
 				}
@@ -165,7 +165,7 @@ Examples:
 				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
-			resolvedVendor := shared.ResolveVendorNumber(*vendor)
+			resolvedVendor := d.ResolveVendorNumber(*vendor)
 			if resolvedVendor == "" {
 				return d.UsageError("--vendor is required (or set ASC_VENDOR_NUMBER)")
 			}

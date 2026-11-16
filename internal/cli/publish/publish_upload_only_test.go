@@ -25,7 +25,7 @@ func TestPublishTestFlightUploadOnlyIPAWaitsThenStopsBeforeDistribution(t *testi
 	uploadCalls := configurePublishUploadOnlyIPA(t, asc.BuildProcessingStateProcessing)
 	requestCalls := rejectPublishUploadOnlyHTTP(t)
 	waitCalls := 0
-	waitForPublishBuildProcessingFn = func(_ context.Context, _ *asc.Client, buildID string, _ time.Duration) (*asc.BuildResponse, error) {
+	waitForPublishBuildProcessingFn = func(_ *shared.Deps, _ context.Context, _ *asc.Client, _ string, buildID string, _ time.Duration) (*asc.BuildResponse, error) {
 		waitCalls++
 		if buildID != "build-123" {
 			t.Fatalf("expected build-123, got %q", buildID)
@@ -272,7 +272,7 @@ func TestPublishTestFlightUploadOnlyProcessingFailurePrintsPartialBuildAndDoesNo
 	uploadCalls := configurePublishUploadOnlyIPA(t, asc.BuildProcessingStateProcessing)
 	requestCalls := rejectPublishUploadOnlyHTTP(t)
 	waitCalls := 0
-	waitForPublishBuildProcessingFn = func(_ context.Context, _ *asc.Client, buildID string, _ time.Duration) (*asc.BuildResponse, error) {
+	waitForPublishBuildProcessingFn = func(_ *shared.Deps, _ context.Context, _ *asc.Client, _ string, buildID string, _ time.Duration) (*asc.BuildResponse, error) {
 		waitCalls++
 		if buildID != "build-123" {
 			t.Fatalf("expected build-123, got %q", buildID)

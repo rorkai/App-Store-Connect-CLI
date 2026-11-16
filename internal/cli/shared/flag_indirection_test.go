@@ -24,7 +24,7 @@ func TestResolveFlagValueIndirectionPassesPlainValuesThrough(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := ResolveFlagValueIndirection("channel", test.value)
+			got, err := DefaultDeps().ResolveFlagValueIndirection("channel", test.value)
 			if err != nil {
 				t.Fatalf("ResolveFlagValueIndirection() error = %v", err)
 			}
@@ -48,7 +48,7 @@ func TestResolveFlagValueIndirectionUnescapesDoubleAt(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.value, func(t *testing.T) {
-			got, err := ResolveFlagValueIndirection("whats-new", test.value)
+			got, err := DefaultDeps().ResolveFlagValueIndirection("whats-new", test.value)
 			if err != nil {
 				t.Fatalf("ResolveFlagValueIndirection() error = %v", err)
 			}
@@ -61,7 +61,7 @@ func TestResolveFlagValueIndirectionUnescapesDoubleAt(t *testing.T) {
 
 func TestResolveFlagValueIndirectionReadsEnvironment(t *testing.T) {
 	t.Setenv("ASC_TEST_INDIRECT_VALUE", "  release notes with spaces \n")
-	got, err := ResolveFlagValueIndirection("whats-new", "@env:ASC_TEST_INDIRECT_VALUE")
+	got, err := DefaultDeps().ResolveFlagValueIndirection("whats-new", "@env:ASC_TEST_INDIRECT_VALUE")
 	if err != nil {
 		t.Fatalf("ResolveFlagValueIndirection() error = %v", err)
 	}
@@ -85,7 +85,7 @@ func TestResolveFlagValueIndirectionEnvironmentErrors(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := ResolveFlagValueIndirection("secret", test.value)
+			got, err := DefaultDeps().ResolveFlagValueIndirection("secret", test.value)
 			if err == nil {
 				t.Fatalf("ResolveFlagValueIndirection() = %q, want error", got)
 			}
@@ -115,7 +115,7 @@ func TestResolveFlagValueIndirectionReadsFile(t *testing.T) {
 			if err := os.WriteFile(path, []byte(test.content), 0o600); err != nil {
 				t.Fatalf("WriteFile() error = %v", err)
 			}
-			got, err := ResolveFlagValueIndirection("whats-new", "@file:"+path)
+			got, err := DefaultDeps().ResolveFlagValueIndirection("whats-new", "@file:"+path)
 			if err != nil {
 				t.Fatalf("ResolveFlagValueIndirection() error = %v", err)
 			}
@@ -156,7 +156,7 @@ func TestResolveFlagValueIndirectionFileErrors(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := ResolveFlagValueIndirection("whats-new", test.value)
+			got, err := DefaultDeps().ResolveFlagValueIndirection("whats-new", test.value)
 			if err == nil {
 				t.Fatalf("ResolveFlagValueIndirection() = %q, want error", got)
 			}
@@ -178,7 +178,7 @@ func TestResolveFlagValueIndirectionRejectsSymlink(t *testing.T) {
 	if err := os.Symlink(target, link); err != nil {
 		t.Fatalf("Symlink() error = %v", err)
 	}
-	got, err := ResolveFlagValueIndirection("secret", "@file:"+link)
+	got, err := DefaultDeps().ResolveFlagValueIndirection("secret", "@file:"+link)
 	if err == nil {
 		t.Fatalf("ResolveFlagValueIndirection() = %q, want symlink error", got)
 	}
