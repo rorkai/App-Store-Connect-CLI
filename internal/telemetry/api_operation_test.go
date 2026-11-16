@@ -97,7 +97,7 @@ func TestAPIOperationClassifiersReturnOnlySchemaNames(t *testing.T) {
 		"//api.appstoreconnect.apple.com/v1/apps/SECRET",
 		"/v1/SECRET",
 		"SECRET",
-		"\x00\x01‮",
+		"\x00\x01\u202e",
 		"/v1/apps/" + strings.Repeat("A", 4096),
 		"limit=SECRET",
 		"filter[name]=SECRET",
