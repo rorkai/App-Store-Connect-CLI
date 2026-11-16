@@ -10,8 +10,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestSubscriptionsPricingEqualizeUsageErrors(t *testing.T) {
@@ -593,7 +591,7 @@ func TestSubscriptionsPricingEqualize_AutoSchedulesApprovedSubscriptions(t *test
 	canPricePointID := testSubscriptionPricePointID("CAN")
 	// 17:30 PDT on 2026-09-30: tomorrow is the Pacific day after, which is
 	// still the UTC date.
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+	t.Cleanup(setRootNow(func() time.Time {
 		return time.Date(2026, time.October, 1, 0, 30, 0, 0, time.UTC)
 	}))
 	wantStartDate := "2026-10-01"
@@ -684,7 +682,7 @@ func TestSubscriptionsPricingEqualize_DryRunShowsAutoScheduledApprovedSubscripti
 	basePricePointID := testSubscriptionPricePointID("USA")
 	canPricePointID := testSubscriptionPricePointID("CAN")
 	// Pacific midnight on 2026-10-01: tomorrow is 2026-10-02.
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+	t.Cleanup(setRootNow(func() time.Time {
 		return time.Date(2026, time.October, 1, 7, 0, 0, 0, time.UTC)
 	}))
 	wantStartDate := "2026-10-02"
