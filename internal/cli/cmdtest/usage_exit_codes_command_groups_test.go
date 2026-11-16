@@ -1088,6 +1088,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "web service-ids view without service-id",
 			args:    []string{"web", "service-ids", "view"},
 			wantErr: "--service-id is required",
+			deps:    true,
 		},
 		{
 			name:    "web sign-in-keys view without key-id",

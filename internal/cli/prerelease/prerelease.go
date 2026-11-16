@@ -92,6 +92,7 @@ Examples:
 			defer cancel()
 
 			opts := []asc.PreReleaseVersionsOption{
+				asc.WithPreReleaseVersionsAppID(resolvedAppID),
 				asc.Limit[asc.PreReleaseVersionsOption](*limit),
 				asc.NextURL[asc.PreReleaseVersionsOption](nextValue),
 			}
@@ -106,14 +107,14 @@ Examples:
 			if *paginate {
 				// Fetch first page with limit set for consistent pagination
 				paginateOpts := append(opts, asc.Limit[asc.PreReleaseVersionsOption](200))
-				firstPage, err := client.GetPreReleaseVersions(requestCtx, resolvedAppID, paginateOpts...)
+				firstPage, err := client.GetPreReleaseVersions(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pre-release-versions list: failed to fetch: %w", err)
 				}
 
 				// Fetch all remaining pages
 				versions, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetPreReleaseVersions(ctx, resolvedAppID, asc.NextURL[asc.PreReleaseVersionsOption](nextURL))
+					return client.GetPreReleaseVersions(ctx, asc.WithPreReleaseVersionsAppID(resolvedAppID), asc.NextURL[asc.PreReleaseVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pre-release-versions list: %w", err)
@@ -122,7 +123,7 @@ Examples:
 				return d.PrintOutput(versions, *output.Output, *output.Pretty)
 			}
 
-			versions, err := client.GetPreReleaseVersions(requestCtx, resolvedAppID, opts...)
+			versions, err := client.GetPreReleaseVersions(requestCtx, opts...)
 			if err != nil {
 				return fmt.Errorf("pre-release-versions list: failed to fetch: %w", err)
 			}

@@ -63,6 +63,7 @@ const (
 	checkTrim    = "trim"    // trim the parameter before use
 	checkRequire = "require" // trim, then reject a blank value
 	checkRaw     = "raw"     // use the parameter as given
+	checkPath    = "path"    // build the path with resourcePath, which rejects a parameter that is no single path segment
 )
 
 // Ways an optional attributes object reaches the data of a create or update
@@ -80,7 +81,9 @@ type OpBind struct {
 	// Params are the Go names of the path parameters in path order, then of
 	// the IDs a create links.
 	Params []string `json:"params,omitempty"`
-	Check  string   `json:"check,omitempty"` // checkInline, checkTrim, checkRequire or checkRaw
+	Check  string   `json:"check,omitempty"` // checkInline, checkTrim, checkRequire, checkRaw or checkPath
+	// PathErr prefixes the error of a rejected path parameter of checkPath.
+	PathErr string `json:"pathErr,omitempty"`
 	// CheckFirst runs the trim and require checks of a read before its
 	// options, so a next URL does not lift the require check of a paged read.
 	CheckFirst bool `json:"checkFirst,omitempty"`

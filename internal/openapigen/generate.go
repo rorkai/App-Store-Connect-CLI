@@ -361,9 +361,12 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 		return "", fmt.Errorf("%d params for path %s and %d links", len(b.Params), op.Path, len(b.Links))
 	}
 	switch b.Check {
-	case checkInline, checkTrim, checkRequire, checkRaw:
+	case checkInline, checkTrim, checkRequire, checkRaw, checkPath:
 	default:
 		return "", fmt.Errorf("unknown check style %q", b.Check)
+	}
+	if err := checkPathBinding(op, b); err != nil {
+		return "", err
 	}
 	if b.IDList != nil && !strings.HasSuffix(op.Request, "LinkagesRequest") {
 		return "", fmt.Errorf("idList needs a relationship change")
@@ -489,6 +492,10 @@ func (m *method) singleQuery() string {
 
 // checks adds the trim and blank checks of the path parameters.
 func (m *method) checks() {
+	if m.b.Check == checkPath {
+		m.resourcePath()
+		return
+	}
 	if m.b.Check == checkInline || m.b.Check == checkRaw {
 		return
 	}
@@ -524,6 +531,9 @@ func (m *method) arg(i int) string {
 }
 
 func (m *method) path() string {
+	if m.b.Check == checkPath {
+		return "path"
+	}
 	count := strings.Count(m.op.Path, "{")
 	if count == 0 {
 		return strconv.Quote(m.op.Path)
@@ -537,6 +547,33 @@ func (m *method) path() string {
 		args = append(args, m.arg(i))
 	}
 	return fmt.Sprintf("fmt.Sprintf(%s, %s)", strconv.Quote(format), strings.Join(args, ", "))
+}
+
+// checkPathBinding rejects a path check without its error context or the
+// other way round, and one on anything but a read or a delete without a body.
+func checkPathBinding(op *Operation, b *OpBind) error {
+	if (b.Check == checkPath) != (b.PathErr != "") {
+		return fmt.Errorf("check %q with pathErr %q", b.Check, b.PathErr)
+	}
+	if b.Check == checkPath && ((op.Method != "GET" && (op.Method != "DELETE" || op.Request != "")) || len(b.Params) == 0 || len(b.Messages) > 0 || b.Single) {
+		return fmt.Errorf("the path check needs a read or a delete with path parameters and no messages")
+	}
+	return nil
+}
+
+// resourcePath builds the path into a variable with resourcePath; a paged
+// read builds it only when no next URL takes its place.
+func (m *method) resourcePath() {
+	zero := ""
+	if m.result != "error" {
+		zero = "nil, "
+	}
+	build := fmt.Sprintf("resourcePath(%s, %s)\nif err != nil {\nreturn %sfmt.Errorf(%s, err)\n}", strconv.Quote(pathFormat(m.op.Path)), strings.Join(m.b.Params, ", "), zero, strconv.Quote(m.b.PathErr+": %w"))
+	if m.b.Options == "" {
+		m.pre = append(m.pre, "path, err := "+build)
+		return
+	}
+	m.pre = append(m.pre, "var path string\nif query.nextURL == \"\" {\nvar err error\npath, err = "+build+"\n}")
 }
 
 // payload builds the create or update body; the attributes argument is

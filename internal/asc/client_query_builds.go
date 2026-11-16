@@ -42,12 +42,6 @@ type buildBundlesQuery struct {
 	limit int
 }
 
-type preReleaseVersionsQuery struct {
-	listQuery
-	platform string
-	version  string
-}
-
 func buildBuildBundlesQuery(query *buildBundlesQuery) string {
 	values := url.Values{}
 	values.Set("include", "buildBundles")
@@ -76,21 +70,6 @@ func buildBuildUploadsQuery(query *buildUploadsQuery) string {
 	return values.Encode()
 }
 
-func buildPreReleaseVersionsQuery(appID string, query *preReleaseVersionsQuery) string {
-	values := url.Values{}
-	if strings.TrimSpace(appID) != "" {
-		values.Set("filter[app]", strings.TrimSpace(appID))
-	}
-	if strings.TrimSpace(query.platform) != "" {
-		values.Set("filter[platform]", strings.TrimSpace(query.platform))
-	}
-	if strings.TrimSpace(query.version) != "" {
-		values.Set("filter[version]", strings.TrimSpace(query.version))
-	}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // BuildsOption is a functional option for GetBuilds.
 type BuildsOption func(*buildsQuery)
 
@@ -108,9 +87,6 @@ type BuildUploadsOption func(*buildUploadsQuery)
 
 // BuildIconsOption is a functional option for GetBuildIcons.
 type BuildIconsOption func(*listQuery)
-
-// PreReleaseVersionsOption is a functional option for GetPreReleaseVersions.
-type PreReleaseVersionsOption func(*preReleaseVersionsQuery)
 
 // AppPreReleaseVersionsOption is a functional option for GetAppPreReleaseVersions.
 type AppPreReleaseVersionsOption func(*listQuery)
@@ -272,26 +248,6 @@ func WithBuildUploadsSort(sort string) BuildUploadsOption {
 	return func(q *buildUploadsQuery) {
 		if strings.TrimSpace(sort) != "" {
 			q.sort = strings.TrimSpace(sort)
-		}
-	}
-}
-
-// WithPreReleaseVersionsPlatform filters pre-release versions by platform.
-func WithPreReleaseVersionsPlatform(platform string) PreReleaseVersionsOption {
-	return func(q *preReleaseVersionsQuery) {
-		normalized := normalizeUpperCSVString(platform)
-		if normalized != "" {
-			q.platform = normalized
-		}
-	}
-}
-
-// WithPreReleaseVersionsVersion filters pre-release versions by version string.
-func WithPreReleaseVersionsVersion(version string) PreReleaseVersionsOption {
-	return func(q *preReleaseVersionsQuery) {
-		normalized := normalizeCSVString(version)
-		if normalized != "" {
-			q.version = normalized
 		}
 	}
 }

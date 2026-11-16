@@ -15,6 +15,7 @@
     {"data":"BackgroundAssetCreateData","type":"BackgroundAssetCreateRelationships"}
   ],
   "operations": [
+    {"operation":"backgroundAssets_createInstance","name":"CreateBackgroundAsset","params":["appID"],"check":"require","messages":["app ID is required","asset pack identifier is required"],"links":["app"],"args":[{"name":"assetPackIdentifier","param":true}]},
     {"operation":"backgroundAssets_getInstance","name":"GetBackgroundAsset","params":["id"],"check":"require","messages":["background asset ID is required"]},
     {"operation":"backgroundAssets_updateInstance","name":"UpdateBackgroundAsset","params":["id"],"check":"require","messages":["background asset ID is required"],"skipEmptyAttributes":true},
     {"operation":"backgroundAssets_versions_getToManyRelated","name":"GetBackgroundAssetVersions","params":["backgroundAssetID"],"options":"BackgroundAssetVersionsOption","query":"buildBackgroundAssetVersionsQuery","nextContext":"backgroundAssetVersions"}

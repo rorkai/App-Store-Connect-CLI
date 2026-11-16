@@ -10,6 +10,9 @@
     {"data":"AnalyticsReportRequestCreateData","type":"AnalyticsReportRequestCreateRelationships"}
   ],
   "operations": [
-    {"operation":"analyticsReportRequests_createInstance","name":"CreateAnalyticsReportRequest","params":["appID"],"check":"raw","links":["app"],"args":[{"name":"accessType","type":"AnalyticsAccessType"}]}
+    {"operation":"analyticsReportRequests_createInstance","name":"CreateAnalyticsReportRequest","params":["appID"],"check":"raw","links":["app"],"args":[{"name":"accessType","type":"AnalyticsAccessType"}]},
+    {"operation":"analyticsReportRequests_deleteInstance","name":"DeleteAnalyticsReportRequest","params":["requestID"],"check":"path","pathErr":"analytics report request"},
+    {"operation":"analyticsReportRequests_getInstance","name":"GetAnalyticsReportRequest","params":["requestID"],"check":"path","pathErr":"analytics report request"},
+    {"operation":"analyticsReportRequests_reports_getToManyRelated","name":"GetAnalyticsReports","params":["requestID"],"check":"path","pathErr":"analytics reports","options":"AnalyticsReportsOption","query":"buildAnalyticsReportsQuery","nextContext":"analyticsReports"}
   ]
 }

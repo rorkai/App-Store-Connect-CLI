@@ -15,10 +15,10 @@ import (
 
 const iapTaxCategoryInheritedLabel = "Inherited from parent app"
 
-// WebIAPCommand returns the In-App Purchase web-session command
+// newWebIAPCommand returns the In-App Purchase web-session command
 // group.
-func WebIAPCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web iap", flag.ExitOnError)
+func newWebIAPCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web iap", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "iap",
@@ -34,9 +34,9 @@ category value.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebIAPTaxCategoryCommand(),
+			newWebIAPTaxCategoryCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -44,10 +44,10 @@ category value.
 	}
 }
 
-// WebIAPTaxCategoryCommand returns the IAP tax-category command
+// newWebIAPTaxCategoryCommand returns the IAP tax-category command
 // group.
-func WebIAPTaxCategoryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web iap tax-category", flag.ExitOnError)
+func newWebIAPTaxCategoryCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web iap tax-category", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "tax-category",
@@ -63,12 +63,12 @@ purchase inherits its parent app's tax category.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebIAPTaxCategoryListCommand(),
-			WebIAPTaxCategoryViewCommand(),
-			WebIAPTaxCategorySetCommand(),
-			WebIAPTaxCategoryResetCommand(),
+			newWebIAPTaxCategoryListCommand(d),
+			newWebIAPTaxCategoryViewCommand(d),
+			newWebIAPTaxCategorySetCommand(d),
+			newWebIAPTaxCategoryResetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -76,11 +76,11 @@ purchase inherits its parent app's tax category.
 	}
 }
 
-// WebIAPTaxCategoryListCommand lists the ADDON tax-category catalog.
-func WebIAPTaxCategoryListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web iap tax-category list", flag.ExitOnError)
+// newWebIAPTaxCategoryListCommand lists the ADDON tax-category catalog.
+func newWebIAPTaxCategoryListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web iap tax-category list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -93,39 +93,39 @@ tax picker. The opaque IDs returned here are accepted by ` + "`set`" + `.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var catalog webcore.TaxCategoryCatalog
-			err = withWebSpinner("Fetching In-App Purchase tax category catalog", func() error {
+			err = withWebSpinnerWith(d, "Fetching In-App Purchase tax category catalog", func() error {
 				catalog, err = newWebClientFn(session).ListIAPTaxCategories(requestCtx)
 				return err
 			})
 			if err != nil {
 				return withWebAuthHint(err, "web iap tax-category list")
 			}
-			return printWebAppTaxCategoryCatalog(shared.DefaultDeps(), catalog, *output.Output, *output.Pretty)
+			return printWebAppTaxCategoryCatalog(d, catalog, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebIAPTaxCategoryViewCommand reads an IAP's explicit selection. A missing
+// newWebIAPTaxCategoryViewCommand reads an IAP's explicit selection. A missing
 // explicit selection is rendered as an inherited state for human output; the
 // JSON path preserves the raw Apple response and does not infer a category.
-func WebIAPTaxCategoryViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web iap tax-category view", flag.ExitOnError)
+func newWebIAPTaxCategoryViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web iap tax-category view", flag.ExitOnError)
 	iapID := fs.String("iap", "", "In-App Purchase ID")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -140,24 +140,24 @@ not add an inferred effective-category field.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			resolvedIAPID := strings.TrimSpace(*iapID)
 			if resolvedIAPID == "" {
-				return shared.UsageError("--iap is required")
+				return d.UsageError("--iap is required")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var current *webcore.IAPTaxCategory
-			err = withWebSpinner("Fetching In-App Purchase tax category", func() error {
+			err = withWebSpinnerWith(d, "Fetching In-App Purchase tax category", func() error {
 				current, err = newWebClientFn(session).GetIAPTaxCategory(requestCtx, resolvedIAPID)
 				return err
 			})
@@ -171,16 +171,16 @@ not add an inferred effective-category field.
 				return fmt.Errorf("web iap tax-category view failed: response did not identify In-App Purchase %q", resolvedIAPID)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				current,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable(webIAPTaxCategoryViewHeaders(), webIAPTaxCategoryViewRows(current))
+					asc.RenderTableTo(d.IO.Out, webIAPTaxCategoryViewHeaders(), webIAPTaxCategoryViewRows(current))
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown(webIAPTaxCategoryViewHeaders(), webIAPTaxCategoryViewRows(current))
+					asc.RenderMarkdownTo(d.IO.Out, webIAPTaxCategoryViewHeaders(), webIAPTaxCategoryViewRows(current))
 					return nil
 				},
 			)
@@ -188,18 +188,18 @@ not add an inferred effective-category field.
 	}
 }
 
-// WebIAPTaxCategorySetCommand converges a complete desired IAP category and
+// newWebIAPTaxCategorySetCommand converges a complete desired IAP category and
 // condition set. It performs one preflight read, writes at most once, and
 // verifies the resulting state without automatic retries.
-func WebIAPTaxCategorySetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web iap tax-category set", flag.ExitOnError)
+func newWebIAPTaxCategorySetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web iap tax-category set", flag.ExitOnError)
 	iapID := fs.String("iap", "", "In-App Purchase ID")
 	categoryID := fs.String("category", "", "ADDON tax category resource ID from `asc web iap tax-category list`")
 	var conditionIDs shared.MultiStringFlag
 	fs.Var(&conditionIDs, "condition", "Compatible tax condition resource ID (repeatable; omit to clear conditions)")
 	confirm := fs.Bool("confirm", false, "Confirm changing the In-App Purchase tax category and conditions")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -216,28 +216,28 @@ reported without an automatic retry.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			resolvedIAPID := strings.TrimSpace(*iapID)
 			if resolvedIAPID == "" {
-				return shared.UsageError("--iap is required")
+				return d.UsageError("--iap is required")
 			}
 			resolvedCategoryID := strings.TrimSpace(*categoryID)
 			if resolvedCategoryID == "" {
-				return shared.UsageError("--category is required")
+				return d.UsageError("--category is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			desiredConditions, err := normalizeWebTaxConditionIDs([]string(conditionIDs))
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -246,7 +246,7 @@ reported without an automatic retry.
 
 			var catalog webcore.TaxCategoryCatalog
 			var current *webcore.IAPTaxCategory
-			err = withWebSpinner("Reading In-App Purchase tax category", func() error {
+			err = withWebSpinnerWith(d, "Reading In-App Purchase tax category", func() error {
 				catalog, err = client.ListIAPTaxCategories(requestCtx)
 				if err != nil {
 					return err
@@ -266,18 +266,18 @@ reported without an automatic retry.
 
 			selectedCategory := findIAPTaxCategory(catalog.Categories, resolvedCategoryID)
 			if selectedCategory == nil {
-				return shared.UsageErrorf("category %q was not returned by the ADDON tax catalog", resolvedCategoryID)
+				return d.UsageErrorf("category %q was not returned by the ADDON tax catalog", resolvedCategoryID)
 			}
 			if err := validateIAPTaxCategorySelection(catalog.Categories, selectedCategory); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if err := validateIAPTaxConditions(catalog.Categories, selectedCategory, desiredConditions); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			changed := current == nil || !current.Configured || strings.TrimSpace(current.CategoryID) != resolvedCategoryID || !sameWebTaxConditionSet(current.EnabledConditionIDs, desiredConditions)
 			if changed {
-				err = withWebSpinner("Saving In-App Purchase tax category", func() error {
+				err = withWebSpinnerWith(d, "Saving In-App Purchase tax category", func() error {
 					return client.SaveIAPTaxCategory(requestCtx, resolvedIAPID, resolvedCategoryID, desiredConditions, current)
 				})
 				if err != nil {
@@ -300,7 +300,7 @@ reported without an automatic retry.
 				Changed:      changed,
 				Verified:     true,
 			}
-			if err := shared.PrintOutput(receipt, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(receipt, *output.Output, *output.Pretty); err != nil {
 				return fmt.Errorf("web iap tax-category set In-App Purchase %q category %q was %s and verified, but receipt output failed; do not retry automatically: %w", receipt.IAPID, receipt.CategoryID, iapTaxCategoryWriteSummary(receipt.Changed), err)
 			}
 			return nil
@@ -308,14 +308,14 @@ reported without an automatic retry.
 	}
 }
 
-// WebIAPTaxCategoryResetCommand removes an explicit IAP tax-category resource.
+// newWebIAPTaxCategoryResetCommand removes an explicit IAP tax-category resource.
 // It never sends DELETE for an already inherited state.
-func WebIAPTaxCategoryResetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web iap tax-category reset", flag.ExitOnError)
+func newWebIAPTaxCategoryResetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web iap tax-category reset", flag.ExitOnError)
 	iapID := fs.String("iap", "", "In-App Purchase ID")
 	confirm := fs.Bool("confirm", false, "Confirm removing the In-App Purchase tax category")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "reset",
@@ -330,20 +330,20 @@ An ambiguous delete is reported without an automatic retry.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			resolvedIAPID := strings.TrimSpace(*iapID)
 			if resolvedIAPID == "" {
-				return shared.UsageError("--iap is required")
+				return d.UsageError("--iap is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -351,7 +351,7 @@ An ambiguous delete is reported without an automatic retry.
 			client := newWebClientFn(session)
 
 			var current *webcore.IAPTaxCategory
-			err = withWebSpinner("Reading In-App Purchase tax category", func() error {
+			err = withWebSpinnerWith(d, "Reading In-App Purchase tax category", func() error {
 				current, err = client.GetIAPTaxCategory(requestCtx, resolvedIAPID)
 				return err
 			})
@@ -367,7 +367,7 @@ An ambiguous delete is reported without an automatic retry.
 
 			changed := current.Configured
 			if changed {
-				err = withWebSpinner("Resetting In-App Purchase tax category", func() error {
+				err = withWebSpinnerWith(d, "Resetting In-App Purchase tax category", func() error {
 					return client.DeleteIAPTaxCategory(requestCtx, resolvedIAPID, current)
 				})
 				if err != nil {
@@ -387,7 +387,7 @@ An ambiguous delete is reported without an automatic retry.
 				Changed:  changed,
 				Verified: true,
 			}
-			if err := shared.PrintOutput(receipt, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(receipt, *output.Output, *output.Pretty); err != nil {
 				return fmt.Errorf("web iap tax-category reset In-App Purchase %q was %s and verified, but receipt output failed; do not retry automatically: %w", receipt.IAPID, iapTaxCategoryWriteSummary(receipt.Changed), err)
 			}
 			return nil

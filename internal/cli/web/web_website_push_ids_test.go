@@ -10,7 +10,8 @@ import (
 )
 
 func TestWebWebsitePushIDsCommandHierarchy(t *testing.T) {
-	command := WebWebsitePushIDsCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebWebsitePushIDsCommand(d)
 	if command.Name != "website-push-ids" || command.UsageFunc == nil {
 		t.Fatalf("unexpected command: %+v", command)
 	}
@@ -39,11 +40,12 @@ func TestWebWebsitePushIDsListPrintsCapturedJSON(t *testing.T) {
 		}, nil
 	}
 
-	command := WebWebsitePushIDsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebWebsitePushIDsListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -77,11 +79,12 @@ func TestWebWebsitePushIDsListPrintsTableProjection(t *testing.T) {
 		}, nil
 	}
 
-	command := WebWebsitePushIDsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebWebsitePushIDsListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

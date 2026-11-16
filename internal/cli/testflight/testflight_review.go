@@ -85,11 +85,12 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaAppReviewDetailsOption{
+				asc.WithBetaAppReviewDetailsAppID(resolvedAppID),
 				asc.Limit[asc.BetaAppReviewDetailsOption](*limit),
 				asc.NextURL[asc.BetaAppReviewDetailsOption](*next),
 			}
 
-			details, err := client.GetBetaAppReviewDetails(requestCtx, resolvedAppID, opts...)
+			details, err := client.GetBetaAppReviewDetails(requestCtx, opts...)
 			if err != nil {
 				return fmt.Errorf("testflight review view: failed to fetch: %w", err)
 			}

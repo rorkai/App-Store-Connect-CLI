@@ -10,6 +10,10 @@
     {"operation":"preReleaseVersions_app_getToOneRelationship","name":"GetPreReleaseVersionAppRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse app relationship response","response":"PreReleaseVersionAppLinkageResponse"},
     {"operation":"preReleaseVersions_builds_getToManyRelated","name":"GetPreReleaseVersionBuilds","params":["versionID"],"check":"require","options":"PreReleaseVersionBuildsOption","query":"buildListQuery","nextContext":"preReleaseVersionBuilds","response":"BuildsResponse"},
     {"operation":"preReleaseVersions_builds_getToManyRelationship","name":"GetPreReleaseVersionBuildsRelationships","params":["versionID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"preReleaseVersionBuilds","parseErr":"failed to parse builds relationship response","response":"LinkagesResponse"},
+    {"operation":"preReleaseVersions_getCollection","name":"GetPreReleaseVersions","options":"PreReleaseVersionsOption","query":"buildPreReleaseVersionsQuery","nextContext":"preReleaseVersions"},
     {"operation":"preReleaseVersions_getInstance","name":"GetPreReleaseVersion","params":["id"],"check":"trim","response":"PreReleaseVersionResponse"}
+  ],
+  "queries": [
+    {"operation":"preReleaseVersions_getCollection","name":"PreReleaseVersions","params":[{"name":"filter[app]","field":"appID","type":"string"},{"name":"filter[platform]","field":"platform","normalize":"upper","type":"csv"},{"name":"filter[version]","field":"version","type":"csv"}],"deviations":[{"problem":"query parameters [fields[apps] fields[builds] fields[preReleaseVersions] filter[builds.buildAudienceType] filter[builds.expired] filter[builds.processingState] filter[builds.version] filter[builds] include limit[builds] sort] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

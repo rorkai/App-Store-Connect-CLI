@@ -30,7 +30,7 @@ func TestWebServiceIDsDomainsSetValidatesBeforeSession(t *testing.T) {
 		{[]string{"--service-id", "service-1", "--domain", "example.com", "--return-url", "http://example.com/cb", "--confirm"}, "--return-url"},
 		{[]string{"--service-id", "service-1", "--domain", "example.com", "--return-url", "https://example.com/cb", "--confirm", "--output", "table", "--pretty"}, "--pretty"},
 	} {
-		assertUsageExit(t, append([]string{"web", "service-ids", "domains", "set"}, tc.args...), tc.message)
+		assertUsageExitWithDeps(t, nil, append([]string{"web", "service-ids", "domains", "set"}, tc.args...), tc.message)
 	}
 }
 
@@ -53,8 +53,7 @@ func TestWebServiceIDsDomainsSetReportsVerifiedReceiptAndUnknownOutcome(t *testi
 		return &asc.WebServiceIDMutationResult{Operation: "domains-set", ServiceID: r.ServiceID, Changed: true, Verified: true, Status: "updated"}, nil
 	}))
 	args := []string{"web", "service-ids", "domains", "set", "--service-id", "service-1", "--domain", "login.example.com, example.com", "--return-url", "https://login.example.com/cb,https://example.com/cb", "--confirm", "--developer-team", "TEAM123456", "--output", "json"}
-	var code int
-	stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
+	stdout, stderr, code := runWithDeps(t, nil, args...)
 	if code != cmd.ExitSuccess || stderr != "" {
 		t.Fatalf("code=%d stderr=%q", code, stderr)
 	}
@@ -63,7 +62,7 @@ func TestWebServiceIDsDomainsSetReportsVerifiedReceiptAndUnknownOutcome(t *testi
 		t.Fatalf("receipt=%+v error=%v", receipt, err)
 	}
 	writeErr = &webcore.DeveloperServiceIDUnverifiedError{Err: errors.New("domain update outcome is unknown; inspect before retrying")}
-	stdout, stderr = captureOutput(t, func() { code = cmd.Run(args, "test") })
+	stdout, stderr, code = runWithDeps(t, nil, args...)
 	if code != cmd.ExitError || stdout != "" || strings.Count(stderr, "domain update outcome is unknown") != 1 || calls != 2 {
 		t.Fatalf("code=%d stdout=%q stderr=%q calls=%d", code, stdout, stderr, calls)
 	}

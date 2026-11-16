@@ -616,7 +616,7 @@ func findPreReleaseVersionIDs(ctx context.Context, stderr io.Writer, client *asc
 }
 
 func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client, appID string, versions []string, platform string, maxPages int) ([]string, map[string]struct{}, error) {
-	opts := []asc.PreReleaseVersionsOption{}
+	opts := []asc.PreReleaseVersionsOption{asc.WithPreReleaseVersionsAppID(appID)}
 	acceptedVersions := make(map[string]struct{}, len(versions))
 	for _, version := range versions {
 		if normalized := strings.TrimSpace(version); normalized != "" {
@@ -637,7 +637,7 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 	}
 
 	firstPageCtx, firstPageCancel := contextWithTimeout(ctx)
-	firstPage, err := client.GetPreReleaseVersions(firstPageCtx, appID, opts...)
+	firstPage, err := client.GetPreReleaseVersions(firstPageCtx, opts...)
 	firstPageCancel()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to lookup pre-release versions: %w", err)
@@ -681,7 +681,7 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 	fetchNext := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := contextWithTimeout(ctx)
 		defer cancel()
-		return client.GetPreReleaseVersions(requestCtx, appID, asc.NextURL[asc.PreReleaseVersionsOption](nextURL))
+		return client.GetPreReleaseVersions(requestCtx, asc.WithPreReleaseVersionsAppID(appID), asc.NextURL[asc.PreReleaseVersionsOption](nextURL))
 	}
 	consumePage := func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.PreReleaseVersionsResponse)

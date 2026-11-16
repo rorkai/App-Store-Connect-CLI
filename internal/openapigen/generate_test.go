@@ -174,6 +174,10 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"positive check on a string arg", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName", Positive: "fileName is required"}}}}}},
 		{"positive check on a param arg", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Check: checkRequire, Args: []ArgBind{{Name: "fileName", Param: true, Positive: "fileName is required"}}}}}},
 		{"decode error text on a relationship change", &Family{Operations: []*OpBind{{Operation: "widgets_gadgets_replaceToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", ParseErr: "failed to parse gadgets"}}}},
+		{"path check without an error context", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkPath}}}},
+		{"path error context without the path check", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkRequire, PathErr: "yarn"}}}},
+		{"path check on a write", &Family{Operations: []*OpBind{{Operation: "widgets_updateInstance", Name: "X", Params: []string{"id"}, Check: checkPath, PathErr: "widget"}}}},
+		{"path check with messages", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkPath, PathErr: "yarn", Messages: []string{"yarn ID is required"}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

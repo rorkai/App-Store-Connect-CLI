@@ -18,7 +18,8 @@ import (
 )
 
 func TestWebAppGroupsCommandHierarchy(t *testing.T) {
-	command := WebAppGroupsCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAppGroupsCommand(d)
 	if command.Name != "app-groups" || command.UsageFunc == nil {
 		t.Fatalf("unexpected command: %+v", command)
 	}
@@ -36,33 +37,34 @@ func TestWebAppGroupsCommandHierarchy(t *testing.T) {
 func TestWebAppGroupsValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 		wantErr string
 	}{
-		{name: "create missing name", command: WebAppGroupsCreateCommand, args: []string{"--identifier", "group.com.example", "--confirm"}, wantErr: "--name is required"},
-		{name: "create invalid identifier", command: WebAppGroupsCreateCommand, args: []string{"--name", "Example", "--identifier", "com.example", "--confirm"}, wantErr: "must start with \"group.\""},
-		{name: "create missing confirm", command: WebAppGroupsCreateCommand, args: []string{"--name", "Example", "--identifier", "group.com.example"}, wantErr: "--confirm is required"},
-		{name: "assign missing group", command: WebAppGroupsAssignCommand, args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "--group is required"},
-		{name: "assign missing bundle", command: WebAppGroupsAssignCommand, args: []string{"--group", "group-1", "--confirm"}, wantErr: "--bundle-id is required"},
-		{name: "assign missing confirm", command: WebAppGroupsAssignCommand, args: []string{"--group", "group-1", "--bundle-id", "bundle-1"}, wantErr: "--confirm is required"},
-		{name: "unassign missing group", command: WebAppGroupsUnassignCommand, args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "--group-id is required"},
-		{name: "unassign missing bundle", command: WebAppGroupsUnassignCommand, args: []string{"--group-id", "group-1", "--confirm"}, wantErr: "--bundle-id is required"},
-		{name: "unassign missing confirm", command: WebAppGroupsUnassignCommand, args: []string{"--group-id", "group-1", "--bundle-id", "bundle-1"}, wantErr: "--confirm is required"},
-		{name: "set missing group", command: WebAppGroupsSetCommand, args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "at least one --group is required"},
-		{name: "set missing bundle", command: WebAppGroupsSetCommand, args: []string{"--group", "group-1", "--confirm"}, wantErr: "--bundle-id is required"},
-		{name: "set missing confirm", command: WebAppGroupsSetCommand, args: []string{"--group", "group-1", "--bundle-id", "bundle-1"}, wantErr: "--confirm is required"},
-		{name: "delete missing group", command: WebAppGroupsDeleteCommand, args: []string{"--confirm"}, wantErr: "--group-id is required"},
-		{name: "delete missing confirm", command: WebAppGroupsDeleteCommand, args: []string{"--group-id", "group-1"}, wantErr: "--confirm is required"},
+		{name: "create missing name", command: newWebAppGroupsCreateCommand, args: []string{"--identifier", "group.com.example", "--confirm"}, wantErr: "--name is required"},
+		{name: "create invalid identifier", command: newWebAppGroupsCreateCommand, args: []string{"--name", "Example", "--identifier", "com.example", "--confirm"}, wantErr: "must start with \"group.\""},
+		{name: "create missing confirm", command: newWebAppGroupsCreateCommand, args: []string{"--name", "Example", "--identifier", "group.com.example"}, wantErr: "--confirm is required"},
+		{name: "assign missing group", command: newWebAppGroupsAssignCommand, args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "--group is required"},
+		{name: "assign missing bundle", command: newWebAppGroupsAssignCommand, args: []string{"--group", "group-1", "--confirm"}, wantErr: "--bundle-id is required"},
+		{name: "assign missing confirm", command: newWebAppGroupsAssignCommand, args: []string{"--group", "group-1", "--bundle-id", "bundle-1"}, wantErr: "--confirm is required"},
+		{name: "unassign missing group", command: newWebAppGroupsUnassignCommand, args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "--group-id is required"},
+		{name: "unassign missing bundle", command: newWebAppGroupsUnassignCommand, args: []string{"--group-id", "group-1", "--confirm"}, wantErr: "--bundle-id is required"},
+		{name: "unassign missing confirm", command: newWebAppGroupsUnassignCommand, args: []string{"--group-id", "group-1", "--bundle-id", "bundle-1"}, wantErr: "--confirm is required"},
+		{name: "set missing group", command: newWebAppGroupsSetCommand, args: []string{"--bundle-id", "bundle-1", "--confirm"}, wantErr: "at least one --group is required"},
+		{name: "set missing bundle", command: newWebAppGroupsSetCommand, args: []string{"--group", "group-1", "--confirm"}, wantErr: "--bundle-id is required"},
+		{name: "set missing confirm", command: newWebAppGroupsSetCommand, args: []string{"--group", "group-1", "--bundle-id", "bundle-1"}, wantErr: "--confirm is required"},
+		{name: "delete missing group", command: newWebAppGroupsDeleteCommand, args: []string{"--confirm"}, wantErr: "--group-id is required"},
+		{name: "delete missing confirm", command: newWebAppGroupsDeleteCommand, args: []string{"--group-id", "group-1"}, wantErr: "--confirm is required"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := test.command()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := test.command(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureWebCommandOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := command.Exec(context.Background(), command.FlagSet.Args())
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected usage error, got %v", err)
@@ -98,11 +100,12 @@ func TestWebAppGroupsCreateRejectsInvalidIdentifiersBeforeSessionResolution(t *t
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := WebAppGroupsCreateCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebAppGroupsCreateCommand(d)
 			if err := command.FlagSet.Parse([]string{"--name", "Example", "--identifier", test.identifier, "--confirm"}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureWebCommandOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := command.Exec(context.Background(), command.FlagSet.Args())
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected usage error, got %v", err)
@@ -144,20 +147,21 @@ func TestWebAppGroupsMutationsRequireConfirmBeforeSessionResolution(t *testing.T
 
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
-		{name: "delete", command: WebAppGroupsDeleteCommand, args: []string{"--group-id", "GROUP1"}},
-		{name: "unassign", command: WebAppGroupsUnassignCommand, args: []string{"--group-id", "GROUP1", "--bundle-id", "bundle-1"}},
-		{name: "set", command: WebAppGroupsSetCommand, args: []string{"--group", "GROUP1", "--bundle-id", "bundle-1"}},
+		{name: "delete", command: newWebAppGroupsDeleteCommand, args: []string{"--group-id", "GROUP1"}},
+		{name: "unassign", command: newWebAppGroupsUnassignCommand, args: []string{"--group-id", "GROUP1", "--bundle-id", "bundle-1"}},
+		{name: "set", command: newWebAppGroupsSetCommand, args: []string{"--group", "GROUP1", "--bundle-id", "bundle-1"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := test.command()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := test.command(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := command.Exec(context.Background(), command.FlagSet.Args())
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected usage error, got %v", err)
@@ -197,12 +201,13 @@ func TestWebAppGroupsDeleteFailsClosedWhenGroupIsAssigned(t *testing.T) {
 		}
 	}
 
-	command := WebAppGroupsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsDeleteCommand(d)
 	if err := command.FlagSet.Parse([]string{"--group-id", "GROUP1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = command.Exec(context.Background(), nil)
 	})
 	if runErr == nil || errors.Is(runErr, flag.ErrHelp) {
@@ -240,11 +245,12 @@ func TestWebAppGroupsDeleteOutputsReceiptAndWarns(t *testing.T) {
 		return &asc.WebAppGroupDeleteResult{GroupID: request.GroupID, Identifier: "group.com.example.shared", Name: "Shared", Deleted: true, Status: "deleted"}, nil
 	}
 
-	command := WebAppGroupsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsDeleteCommand(d)
 	if err := command.FlagSet.Parse([]string{"--group-id", "GROUP1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -266,11 +272,12 @@ func TestWebAppGroupsDeleteOutputsReceiptAndWarns(t *testing.T) {
 		t.Fatalf("session persist calls = %d, want 1", persistCalls)
 	}
 
-	tableCommand := WebAppGroupsDeleteCommand()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	tableCommand := newWebAppGroupsDeleteCommand(d)
 	if err := tableCommand.FlagSet.Parse([]string{"--group-id", "GROUP1", "--confirm", "--output", "table"}); err != nil {
 		t.Fatalf("parse table: %v", err)
 	}
-	stdout, _ = captureWebCommandOutput(t, func() {
+	stdout, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := tableCommand.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("table Exec() error: %v", err)
 		}
@@ -293,11 +300,12 @@ func TestWebAppGroupsSetReportsDiffAndNoOp(t *testing.T) {
 		return &asc.WebAppGroupSetResult{BundleID: request.BundleID, GroupIDs: request.GroupIDs, Added: []string{"GROUP3"}, Removed: []string{"GROUP1"}, Changed: true, Status: "updated"}, nil
 	}
 
-	command := WebAppGroupsSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsSetCommand(d)
 	if err := command.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--group", "GROUP2", "--group", "GROUP3", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -319,11 +327,12 @@ func TestWebAppGroupsSetReportsDiffAndNoOp(t *testing.T) {
 	setDeveloperAppGroupsFn = func(_ context.Context, _ *webcore.Client, request webcore.DeveloperAppGroupSetRequest) (*asc.WebAppGroupSetResult, error) {
 		return &asc.WebAppGroupSetResult{BundleID: request.BundleID, GroupIDs: request.GroupIDs, Added: []string{}, Removed: []string{}, Changed: false, Status: "unchanged"}, nil
 	}
-	noop := WebAppGroupsSetCommand()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	noop := newWebAppGroupsSetCommand(d)
 	if err := noop.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--group", "GROUP2", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr = captureWebCommandOutput(t, func() {
+	stdout, stderr = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := noop.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -335,11 +344,12 @@ func TestWebAppGroupsSetReportsDiffAndNoOp(t *testing.T) {
 		t.Fatalf("no-op set must not warn about a change: %q", stderr)
 	}
 
-	tableCommand := WebAppGroupsSetCommand()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	tableCommand := newWebAppGroupsSetCommand(d)
 	if err := tableCommand.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--group", "GROUP2", "--confirm", "--output", "table"}); err != nil {
 		t.Fatalf("parse table: %v", err)
 	}
-	stdout, _ = captureWebCommandOutput(t, func() {
+	stdout, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := tableCommand.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("table Exec() error: %v", err)
 		}
@@ -361,11 +371,12 @@ func TestWebAppGroupsUnassignCallsClient(t *testing.T) {
 		unassignRequest = request
 		return &asc.WebAppGroupUnassignResult{BundleID: request.BundleID, GroupID: request.GroupID, RemainingGroupIDs: []string{"GROUP2"}, Changed: true, Status: "unassigned"}, nil
 	}
-	command := WebAppGroupsUnassignCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsUnassignCommand(d)
 	if err := command.FlagSet.Parse([]string{"--group-id", "GROUP1", "--bundle-id", "bundle-1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -402,11 +413,12 @@ func TestWebAppGroupsAssignWarnsOnlyWhenChanged(t *testing.T) {
 			assignDeveloperAppGroupFn = func(_ context.Context, _ *webcore.Client, request webcore.DeveloperAppGroupAssignRequest) (*webcore.DeveloperAppGroupAssignResult, error) {
 				return &webcore.DeveloperAppGroupAssignResult{BundleID: request.BundleID, GroupID: request.GroupID, Changed: test.changed, Status: test.status}, nil
 			}
-			command := WebAppGroupsAssignCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebAppGroupsAssignCommand(d)
 			if err := command.FlagSet.Parse([]string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm", "--output", "json"}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureWebCommandOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("Exec() error: %v", err)
 				}
@@ -422,12 +434,12 @@ func TestWebAppGroupsMutationsWarnWhenAcceptedWriteCannotBeVerified(t *testing.T
 	unverified := &webcore.DeveloperAppGroupUnverifiedError{Err: errors.New("verification read timed out")}
 	tests := []struct {
 		name  string
-		build func() *ffcli.Command
+		build func(*shared.Deps) *ffcli.Command
 		args  []string
 		stub  func()
 	}{
 		{
-			name: "assign", build: WebAppGroupsAssignCommand,
+			name: "assign", build: newWebAppGroupsAssignCommand,
 			args: []string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm"},
 			stub: func() {
 				assignDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupAssignRequest) (*webcore.DeveloperAppGroupAssignResult, error) {
@@ -436,7 +448,7 @@ func TestWebAppGroupsMutationsWarnWhenAcceptedWriteCannotBeVerified(t *testing.T
 			},
 		},
 		{
-			name: "unassign", build: WebAppGroupsUnassignCommand,
+			name: "unassign", build: newWebAppGroupsUnassignCommand,
 			args: []string{"--group-id", "GROUP1", "--bundle-id", "bundle-1", "--confirm"},
 			stub: func() {
 				unassignDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupUnassignRequest) (*asc.WebAppGroupUnassignResult, error) {
@@ -445,7 +457,7 @@ func TestWebAppGroupsMutationsWarnWhenAcceptedWriteCannotBeVerified(t *testing.T
 			},
 		},
 		{
-			name: "set", build: WebAppGroupsSetCommand,
+			name: "set", build: newWebAppGroupsSetCommand,
 			args: []string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm"},
 			stub: func() {
 				setDeveloperAppGroupsFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupSetRequest) (*asc.WebAppGroupSetResult, error) {
@@ -454,7 +466,7 @@ func TestWebAppGroupsMutationsWarnWhenAcceptedWriteCannotBeVerified(t *testing.T
 			},
 		},
 		{
-			name: "delete", build: WebAppGroupsDeleteCommand,
+			name: "delete", build: newWebAppGroupsDeleteCommand,
 			args: []string{"--group-id", "GROUP1", "--confirm"},
 			stub: func() {
 				deleteDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupDeleteRequest) (*asc.WebAppGroupDeleteResult, error) {
@@ -474,12 +486,13 @@ func TestWebAppGroupsMutationsWarnWhenAcceptedWriteCannotBeVerified(t *testing.T
 				persistCalls++
 				return nil
 			}
-			command := test.build()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := test.build(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				runErr = command.Exec(context.Background(), nil)
 			})
 			if runErr == nil || !strings.Contains(runErr.Error(), "verification read timed out") {
@@ -510,12 +523,13 @@ func TestWebAppGroupsMutationsDoNotPersistOnRejectedWrites(t *testing.T) {
 		persistCalls++
 		return nil
 	}
-	command := WebAppGroupsAssignCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsAssignCommand(d)
 	if err := command.FlagSet.Parse([]string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	_, _ = captureWebCommandOutput(t, func() {
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = command.Exec(context.Background(), nil)
 	})
 	if runErr == nil || !strings.Contains(runErr.Error(), "portal rejected assign") {
@@ -534,11 +548,12 @@ func TestWebAppGroupsListOutputsJSON(t *testing.T) {
 	}
 	defer restore()
 
-	command := WebAppGroupsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -554,11 +569,12 @@ func TestWebAppGroupsListOutputsJSON(t *testing.T) {
 		t.Fatalf("unexpected output: %+v", result)
 	}
 
-	tableCommand := WebAppGroupsListCommand()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	tableCommand := newWebAppGroupsListCommand(d)
 	if err := tableCommand.FlagSet.Parse([]string{"--output", "table"}); err != nil {
 		t.Fatalf("parse table: %v", err)
 	}
-	stdout, _ = captureWebCommandOutput(t, func() {
+	stdout, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := tableCommand.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("table Exec() error: %v", err)
 		}
@@ -580,11 +596,12 @@ func TestWebAppGroupsListPropagatesPagination(t *testing.T) {
 		received = options
 		return &webcore.DeveloperAppGroupsListResult{Data: []webcore.DeveloperAppGroup{}}, nil
 	}
-	command := WebAppGroupsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--paginate", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	_, _ = captureWebCommandOutput(t, func() {
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -603,11 +620,12 @@ func TestWebAppGroupsWarnsWhenRefreshedSessionCannotBePersisted(t *testing.T) {
 		return &webcore.DeveloperAppGroupsListResult{Data: []webcore.DeveloperAppGroup{{ID: "GROUP1", Name: "Shared", Identifier: "group.com.example.shared"}}}, nil
 	}
 	persistWebSessionFn = func(*webcore.AuthSession) error { return errors.New("disk full") }
-	command := WebAppGroupsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -632,12 +650,13 @@ func TestWebAppGroupsCreatePersistsTeamWhenPortalResponseIsAmbiguous(t *testing.
 		persistCalls++
 		return nil
 	}
-	command := WebAppGroupsCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--name", "Example Preview", "--identifier", "group.com.example.preview", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	_, _ = captureWebCommandOutput(t, func() {
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = command.Exec(context.Background(), nil)
 	})
 	if runErr == nil || !strings.Contains(runErr.Error(), "parse Developer Portal App Group create response") {
@@ -658,11 +677,12 @@ func TestWebAppGroupsCreateAndAssignCallClient(t *testing.T) {
 		createRequest = request
 		return &webcore.DeveloperAppGroup{ID: "GROUP1", Name: request.Name, Identifier: request.Identifier}, nil
 	}
-	create := WebAppGroupsCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	create := newWebAppGroupsCreateCommand(d)
 	if err := create.FlagSet.Parse([]string{"--name", "Example Preview", "--identifier", "group.com.example.preview", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse create: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := create.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("create Exec() error: %v", err)
 		}
@@ -676,11 +696,12 @@ func TestWebAppGroupsCreateAndAssignCallClient(t *testing.T) {
 		assignRequest = request
 		return &webcore.DeveloperAppGroupAssignResult{BundleID: request.BundleID, GroupID: request.GroupID, Changed: true, Status: "assigned"}, nil
 	}
-	assign := WebAppGroupsAssignCommand()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	assign := newWebAppGroupsAssignCommand(d)
 	if err := assign.FlagSet.Parse([]string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse assign: %v", err)
 	}
-	stdout, _ = captureWebCommandOutput(t, func() {
+	stdout, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := assign.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("assign Exec() error: %v", err)
 		}
@@ -727,12 +748,13 @@ func TestWebAppGroupsAssignConvertsAppGroupIdentifierToUsageError(t *testing.T) 
 	assignDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupAssignRequest) (*webcore.DeveloperAppGroupAssignResult, error) {
 		return nil, &webcore.DeveloperAppGroupIdentifierError{Given: "group.com.example.shared", GroupID: "GROUP12345", Identifier: "group.com.example.shared"}
 	}
-	command := WebAppGroupsAssignCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsAssignCommand(d)
 	if err := command.FlagSet.Parse([]string{"--group", "group.com.example.shared", "--bundle-id", "bundle-1", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = command.Exec(context.Background(), nil)
 	})
 	if runErr == nil {
@@ -782,12 +804,13 @@ func TestWebAppGroupsAssignClassifiesEveryFailurePath(t *testing.T) {
 			assignDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupAssignRequest) (*webcore.DeveloperAppGroupAssignResult, error) {
 				return test.result, test.err
 			}
-			command := WebAppGroupsAssignCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebAppGroupsAssignCommand(d)
 			if err := command.FlagSet.Parse([]string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm"}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 			var runErr error
-			_, _ = captureWebCommandOutput(t, func() {
+			_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 				runErr = command.Exec(context.Background(), nil)
 			})
 			if runErr == nil {
@@ -849,12 +872,13 @@ func TestWebAppGroupsClassifiesOperatorFailures(t *testing.T) {
 			deleteDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupDeleteRequest) (*asc.WebAppGroupDeleteResult, error) {
 				return nil, test.err
 			}
-			command := WebAppGroupsDeleteCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebAppGroupsDeleteCommand(d)
 			if err := command.FlagSet.Parse([]string{"--group-id", "GROUP1", "--confirm"}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 			var runErr error
-			_, _ = captureWebCommandOutput(t, func() {
+			_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 				runErr = command.Exec(context.Background(), nil)
 			})
 			if runErr == nil {
@@ -880,12 +904,13 @@ func TestWebAppGroupsPreservesUsageErrorClassification(t *testing.T) {
 	assignDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupAssignRequest) (*webcore.DeveloperAppGroupAssignResult, error) {
 		return nil, shared.NewReportedUsageError(shared.UsageErrorInvalidValue, "ASC_WEB_SESSION is unset or empty")
 	}
-	command := WebAppGroupsAssignCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsAssignCommand(d)
 	if err := command.FlagSet.Parse([]string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	_, _ = captureWebCommandOutput(t, func() {
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = command.Exec(context.Background(), nil)
 	})
 	if runErr == nil {

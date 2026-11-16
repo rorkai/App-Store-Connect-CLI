@@ -381,7 +381,8 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 	}
 
 	var messages, links []string
-	var trimmed, next, attrsByValue bool
+	var trimmed, next, attrsByValue, builtPath bool
+	pathErr := ""
 	var trimAt, optionsAt token.Pos
 	positive := map[string]string{}
 	list := &IDList{}
@@ -448,11 +449,20 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 				messages = append(messages, stringLit(n.Args[0]))
 				b.Check = checkRequire
 			}
+			if exprString(n.Fun) == "resourcePath" {
+				builtPath = true
+			}
+			if exprString(n.Fun) == "fmt.Errorf" && len(n.Args) == 2 && exprString(n.Args[1]) == "err" {
+				pathErr, _ = strings.CutSuffix(stringLit(n.Args[0]), ": %w")
+			}
 		}
 		return true
 	})
 	if !trimmed && len(b.stringParams()) > 0 {
 		b.Check = checkRaw
+	}
+	if builtPath {
+		b.Check, b.PathErr = checkPath, pathErr
 	}
 	if *list != (IDList{}) {
 		b.IDList = list

@@ -1662,7 +1662,7 @@ func preflightDistributionPublication(ctx context.Context, d *shared.Deps, confi
 	}
 	credentialCtx, cancel := d.Timeout(ctx)
 	defer cancel()
-	_, credentialLimit, err := newObjectStore(credentialCtx, core.S3StoreConfig{Endpoint: config.Endpoint, DownloadEndpoint: config.DownloadEndpoint, Region: config.Region, Bucket: config.Bucket, AddressingStyle: config.AddressingStyle})
+	_, credentialLimit, err := newObjectStore(credentialCtx, core.S3StoreConfig{Endpoint: config.Endpoint, DownloadEndpoint: config.DownloadEndpoint, Region: config.Region, Bucket: config.Bucket, AddressingStyle: config.AddressingStyle, HTTPClient: objectStoreHTTPClient(d)})
 	if err != nil {
 		return err
 	}

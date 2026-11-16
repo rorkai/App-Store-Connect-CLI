@@ -4,6 +4,10 @@
   "types": [
     "AnalyticsReportInstanceResponse"
   ],
+  "operations": [
+    {"operation":"analyticsReportInstances_getInstance","name":"GetAnalyticsReportInstance","params":["instanceID"],"check":"path","pathErr":"analytics report instance"},
+    {"operation":"analyticsReportInstances_segments_getToManyRelated","name":"GetAnalyticsReportSegments","params":["instanceID"],"check":"path","pathErr":"analytics report segments","options":"AnalyticsReportSegmentsOption","query":"buildAnalyticsReportSegmentsQuery","nextContext":"analyticsReportSegments"}
+  ],
   "queries": [
     {"operation":"analyticsReportInstances_segments_getToManyRelated","name":"AnalyticsReportSegments","deviations":[{"problem":"query parameters [fields[analyticsReportSegments]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]

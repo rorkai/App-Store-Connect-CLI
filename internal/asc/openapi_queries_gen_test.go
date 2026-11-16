@@ -303,6 +303,12 @@ var generatedQueries = map[string]generatedQuery{
 			"filter[app]":    WithBetaAppLocalizationAppIDs,
 		},
 	},
+	"betaAppReviewDetails_getCollection": {
+		build: buildBetaAppReviewDetailsQuery,
+		options: map[string]any{
+			"filter[app]": WithBetaAppReviewDetailsAppID,
+		},
+	},
 	"betaBuildLocalizations_getCollection": {
 		build: buildBetaBuildLocalizationsQuery,
 		options: map[string]any{
@@ -774,6 +780,14 @@ var generatedQueries = map[string]generatedQuery{
 			"fields[certificates]": WithPassTypeIDCertificateFields,
 			"include":              WithPassTypeIDInclude,
 			"limit[certificates]":  WithPassTypeIDCertificatesIncludeLimit,
+		},
+	},
+	"preReleaseVersions_getCollection": {
+		build: buildPreReleaseVersionsQuery,
+		options: map[string]any{
+			"filter[app]":      WithPreReleaseVersionsAppID,
+			"filter[platform]": WithPreReleaseVersionsPlatform,
+			"filter[version]":  WithPreReleaseVersionsVersion,
 		},
 	},
 	"profiles_certificates_getToManyRelated": {
