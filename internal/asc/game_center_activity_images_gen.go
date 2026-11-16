@@ -47,6 +47,42 @@ type GameCenterActivityImageUpdateRequest struct {
 	Data GameCenterActivityImageUpdateData `json:"data"`
 }
 
+// CreateGameCenterActivityImage sends POST /v1/gameCenterActivityImages (gameCenterActivityImages_createInstance).
+func (c *Client) CreateGameCenterActivityImage(ctx context.Context, fileName string, fileSize int64, localizationID, versionID string) (*GameCenterActivityImageResponse, error) {
+	relationships := &GameCenterActivityImageRelationships{}
+	if id := strings.TrimSpace(localizationID); id != "" {
+		relationships.Localization = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterActivityLocalizations,
+				ID:   id,
+			},
+		}
+	}
+	if id := strings.TrimSpace(versionID); id != "" {
+		relationships.Version = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterActivityVersions,
+				ID:   id,
+			},
+		}
+	}
+	payload := GameCenterActivityImageCreateRequest{
+		Data: GameCenterActivityImageCreateData{
+			Type: ResourceTypeGameCenterActivityImages,
+			Attributes: GameCenterActivityImageCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[GameCenterActivityImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterActivityImages",
+		Payload: payload,
+	})
+}
+
 // DeleteGameCenterActivityImage sends DELETE /v1/gameCenterActivityImages/{id} (gameCenterActivityImages_deleteInstance).
 func (c *Client) DeleteGameCenterActivityImage(ctx context.Context, imageID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterActivityImages/%s", strings.TrimSpace(imageID)), nil)

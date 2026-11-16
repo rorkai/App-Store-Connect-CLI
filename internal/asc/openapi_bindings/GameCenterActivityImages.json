@@ -14,6 +14,7 @@
     {"data":"GameCenterActivityImageCreateData","type":"*GameCenterActivityImageRelationships"}
   ],
   "operations": [
+    {"operation":"gameCenterActivityImages_createInstance","name":"CreateGameCenterActivityImage","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}],"optional":[{"param":"localizationID","link":"localization"},{"param":"versionID","link":"version"}]},
     {"operation":"gameCenterActivityImages_deleteInstance","name":"DeleteGameCenterActivityImage","params":["imageID"]},
     {"operation":"gameCenterActivityImages_getInstance","name":"GetGameCenterActivityImage","params":["imageID"]},
     {"operation":"gameCenterActivityImages_updateInstance","name":"UpdateGameCenterActivityImage","params":["imageID"],"args":[{"name":"uploaded"}]}

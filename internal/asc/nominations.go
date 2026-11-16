@@ -86,14 +86,6 @@ type NominationRelationships struct {
 	SupportedTerritories *RelationshipList `json:"supportedTerritories,omitempty"`
 }
 
-// NominationUpdateData is the data portion of a nomination update request.
-type NominationUpdateData struct {
-	Type          ResourceType                `json:"type"`
-	ID            string                      `json:"id"`
-	Attributes    *NominationUpdateAttributes `json:"attributes,omitempty"`
-	Relationships *NominationRelationships    `json:"relationships,omitempty"`
-}
-
 // CreateNomination creates a nomination.
 func (c *Client) CreateNomination(ctx context.Context, attrs NominationCreateAttributes, relationships NominationRelationships) (*NominationResponse, error) {
 	payload := NominationCreateRequest{
