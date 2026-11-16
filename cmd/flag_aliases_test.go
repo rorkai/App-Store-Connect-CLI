@@ -78,6 +78,16 @@ func TestFlagAliasesBehaveAsTheirCanonicalFlag(t *testing.T) {
 				t.Fatalf("conflicting values telemetry = %+v", conflict.telemetry)
 			}
 
+			lastWins := invoke("--"+alias.canonical, "value-1", "--"+alias.canonical, "value-2", "--"+alias.name, "value-1")
+			wantStderr = fmt.Sprintf("Error: `--%s` and `--%s` are the same flag; pass one value\n", alias.canonical, alias.name)
+			if lastWins.exit != ExitUsage || lastWins.stderr != wantStderr || len(lastWins.requests) != 0 {
+				t.Fatalf("alias matching an overridden canonical value = %+v, want exit %d and stderr %q", lastWins, ExitUsage, wantStderr)
+			}
+			repeated := invoke("--"+alias.name, "value-1", "--"+alias.name, "value-2")
+			if agreeing := invoke("--"+alias.name, "value-1", "--"+alias.name, "value-2", "--"+alias.canonical, "value-2"); !reflect.DeepEqual(agreeing, repeated) {
+				t.Fatalf("canonical matching the last alias value ran differently from the alias alone:\nboth:  %+v\nalias: %+v", agreeing, repeated)
+			}
+
 			help := invoke("--help")
 			if regexp.MustCompile(`(?m)^\s+--` + regexp.QuoteMeta(alias.name) + `\s`).MatchString(help.stdout) {
 				t.Fatalf("help lists --%s:\n%s", alias.name, help.stdout)

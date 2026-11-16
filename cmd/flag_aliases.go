@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -9,26 +11,22 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-type givenFlagValue struct {
-	spelling string
-	value    string
-}
-
 // resolveFlagAliases rewrites each flag alias bound with shared.BindFlagAlias
 // to the canonical flag it stands for, so parsing, validation, diagnostics and
 // telemetry only ever see the canonical spelling. It walks the arguments the
 // way the standard flag package parses them and stops where parsing would
 // stop: at `--`, at the first positional argument, and at an unknown flag.
 //
-// A flag given under two spellings with the same value is kept once. With
-// different values the invocation is ambiguous, so it is a usage error.
+// A flag given under two spellings with the same value is kept once. When a
+// spelling's value differs from the latest value given under another
+// spelling, the invocation is ambiguous, so it is a usage error.
 func resolveFlagAliases(root *ffcli.Command, args []string) ([]string, error) {
 	command := root
 	commandPath := make([]string, 0, 4)
 	if root != nil && root.Name != "" {
 		commandPath = append(commandPath, root.Name)
 	}
-	given := map[string]givenFlagValue{}
+	given := map[string]map[string]string{}
 	resolved := make([]string, 0, len(args))
 	for index := 0; index < len(args); index++ {
 		token := args[index]
@@ -40,7 +38,7 @@ func resolveFlagAliases(root *ffcli.Command, args []string) ([]string, error) {
 			if subcommand := findDirectSubcommand(command, token); token != "" && subcommand != nil {
 				command = subcommand
 				commandPath = append(commandPath, subcommand.Name)
-				given = map[string]givenFlagValue{}
+				given = map[string]map[string]string{}
 				resolved = append(resolved, token)
 				continue
 			}
@@ -86,24 +84,30 @@ func resolveFlagAliases(root *ffcli.Command, args []string) ([]string, error) {
 			}
 		}
 
-		previous, seen := given[canonical]
-		if !seen {
-			given[canonical] = givenFlagValue{spelling: name, value: value}
+		spellings := given[canonical]
+		if spellings == nil {
+			spellings = map[string]string{}
+			given[canonical] = spellings
+		}
+		drop := false
+		for _, other := range slices.Sorted(maps.Keys(spellings)) {
+			otherValue := spellings[other]
+			if other == name {
+				continue
+			}
+			if strings.TrimSpace(otherValue) != strings.TrimSpace(value) {
+				return args, shared.WithDiagnostic(
+					fmt.Errorf("`--%s` and `--%s` are the same flag; pass one value", other, name),
+					shared.DiagnosticConflictingInput,
+					"--"+canonical,
+				)
+			}
+			drop = true
+		}
+		spellings[name] = value
+		if !drop {
 			resolved = append(resolved, tokens...)
-			continue
 		}
-		if previous.spelling == name {
-			resolved = append(resolved, tokens...)
-			continue
-		}
-		if strings.TrimSpace(previous.value) == strings.TrimSpace(value) {
-			continue
-		}
-		return args, shared.WithDiagnostic(
-			fmt.Errorf("`--%s` and `--%s` are the same flag; pass one value", previous.spelling, name),
-			shared.DiagnosticConflictingInput,
-			"--"+canonical,
-		)
 	}
 	return resolved, nil
 }
