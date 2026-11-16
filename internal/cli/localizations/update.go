@@ -322,7 +322,7 @@ func patchAppInfoLocalization(ctx context.Context, client *asc.Client, localizat
 		return client.UpdateAppInfoLocalizationNullableFields(ctx, localizationID, fields)
 	}
 
-	return client.UpdateAppInfoLocalization(ctx, localizationID, asc.AppInfoLocalizationAttributes{
+	return client.UpdateAppInfoLocalization(ctx, localizationID, asc.AppInfoLocalizationUpdateAttributes{
 		Name:              p.name,
 		Subtitle:          p.subtitle,
 		PrivacyPolicyURL:  p.privacyPolicyURL,
@@ -453,7 +453,7 @@ func patchVersionLocalization(
 		return client.UpdateAppStoreVersionLocalizationNullableFields(ctx, localizationID, fields)
 	}
 
-	return client.UpdateAppStoreVersionLocalization(ctx, localizationID, attrs)
+	return client.UpdateAppStoreVersionLocalization(ctx, localizationID, attrs.UpdateAttributes())
 }
 
 func hasAnyVersionField(p updateVersionParams) bool {

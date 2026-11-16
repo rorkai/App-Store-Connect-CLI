@@ -3,17 +3,16 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
 // CreateBetaAppLocalization creates a beta app localization for an app.
-func (c *Client) CreateBetaAppLocalization(ctx context.Context, appID string, attrs BetaAppLocalizationAttributes) (*BetaAppLocalizationResponse, error) {
-	attrs.api = apiAttributes{}
+func (c *Client) CreateBetaAppLocalization(ctx context.Context, appID string, attrs BetaAppLocalizationCreateAttributes) (*BetaAppLocalizationResponse, error) {
 	appID = strings.TrimSpace(appID)
 	if appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
-
 	payload := BetaAppLocalizationCreateRequest{
 		Data: BetaAppLocalizationCreateData{
 			Type:       ResourceTypeBetaAppLocalizations,
@@ -28,6 +27,9 @@ func (c *Client) CreateBetaAppLocalization(ctx context.Context, appID string, at
 			},
 		},
 	}
-
-	return sendJSON[BetaAppLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaAppLocalizations", Payload: payload})
+	return sendJSON[BetaAppLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/betaAppLocalizations",
+		Payload: payload,
+	})
 }

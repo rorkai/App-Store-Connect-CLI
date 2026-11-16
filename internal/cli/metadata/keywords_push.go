@@ -141,7 +141,7 @@ Examples:
 					result.Action = "update"
 
 					updateCtx, updateCancel := d.Timeout(ctx)
-					resp, updateErr := client.UpdateAppStoreVersionLocalization(updateCtx, existingItem.ID, asc.AppStoreVersionLocalizationAttributes{
+					resp, updateErr := client.UpdateAppStoreVersionLocalization(updateCtx, existingItem.ID, asc.AppStoreVersionLocalizationUpdateAttributes{
 						Keywords: entry.Keywords,
 					})
 					updateCancel()
@@ -168,7 +168,7 @@ Examples:
 				result.Action = "create"
 
 				createCtx, createCancel := d.Timeout(ctx)
-				resp, createErr := client.CreateAppStoreVersionLocalization(createCtx, vid, asc.AppStoreVersionLocalizationAttributes{
+				resp, createErr := client.CreateAppStoreVersionLocalization(createCtx, vid, asc.AppStoreVersionLocalizationCreateAttributes{
 					Locale:   entry.Locale,
 					Keywords: entry.Keywords,
 				})

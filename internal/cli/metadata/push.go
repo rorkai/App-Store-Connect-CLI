@@ -1181,7 +1181,7 @@ func applyAppInfoChanges(
 			id, action, err := runMetadataMutation(
 				ctx, d, "create",
 				func(requestCtx context.Context) (string, error) {
-					resp, mutationErr := client.CreateAppInfoLocalization(requestCtx, appInfoID, appInfoAttributes(locale, localPatch.localization, true))
+					resp, mutationErr := client.CreateAppInfoLocalization(requestCtx, appInfoID, appInfoAttributes(locale, localPatch.localization, true).CreateAttributes())
 					if mutationErr != nil {
 						return "", mutationErr
 					}
@@ -1333,7 +1333,7 @@ func applyVersionChanges(
 			id, action, err := runMetadataMutation(
 				ctx, d, "create",
 				func(requestCtx context.Context) (string, error) {
-					resp, mutationErr := client.CreateAppStoreVersionLocalization(requestCtx, versionID, versionAttributes(locale, createLoc, true))
+					resp, mutationErr := client.CreateAppStoreVersionLocalization(requestCtx, versionID, versionAttributes(locale, createLoc, true).CreateAttributes())
 					if mutationErr != nil {
 						return "", mutationErr
 					}

@@ -114,6 +114,81 @@ type AppStoreVersionLocalizationAttributes struct {
 	api apiAttributes
 }
 
+// AppStoreVersionLocalizationCreateAttributes is the data.attributes object of
+// the AppStoreVersionLocalizationCreateRequest schema, in the field order and
+// with the omitempty tags the create has always sent.
+type AppStoreVersionLocalizationCreateAttributes struct {
+	Locale          string `json:"locale,omitempty"`
+	Description     string `json:"description,omitempty"`
+	Keywords        string `json:"keywords,omitempty"`
+	MarketingURL    string `json:"marketingUrl,omitempty"`
+	PromotionalText string `json:"promotionalText,omitempty"`
+	SupportURL      string `json:"supportUrl,omitempty"`
+	WhatsNew        string `json:"whatsNew,omitempty"`
+}
+
+// AppStoreVersionLocalizationUpdateAttributes is the data.attributes object of
+// the AppStoreVersionLocalizationUpdateRequest schema, with the omitempty tags
+// the update has always sent.
+type AppStoreVersionLocalizationUpdateAttributes struct {
+	Description     string `json:"description,omitempty"`
+	Keywords        string `json:"keywords,omitempty"`
+	MarketingURL    string `json:"marketingUrl,omitempty"`
+	PromotionalText string `json:"promotionalText,omitempty"`
+	SupportURL      string `json:"supportUrl,omitempty"`
+	WhatsNew        string `json:"whatsNew,omitempty"`
+}
+
+// CreateAttributes returns the fields a version localization create sends.
+func (a AppStoreVersionLocalizationAttributes) CreateAttributes() AppStoreVersionLocalizationCreateAttributes {
+	return AppStoreVersionLocalizationCreateAttributes{
+		Locale:          a.Locale,
+		Description:     a.Description,
+		Keywords:        a.Keywords,
+		MarketingURL:    a.MarketingURL,
+		PromotionalText: a.PromotionalText,
+		SupportURL:      a.SupportURL,
+		WhatsNew:        a.WhatsNew,
+	}
+}
+
+// UpdateAttributes returns the fields a version localization update sends;
+// the locale cannot change.
+func (a AppStoreVersionLocalizationAttributes) UpdateAttributes() AppStoreVersionLocalizationUpdateAttributes {
+	return AppStoreVersionLocalizationUpdateAttributes{
+		Description:     a.Description,
+		Keywords:        a.Keywords,
+		MarketingURL:    a.MarketingURL,
+		PromotionalText: a.PromotionalText,
+		SupportURL:      a.SupportURL,
+		WhatsNew:        a.WhatsNew,
+	}
+}
+
+// BetaAppLocalizationCreateAttributes is the data.attributes object of the
+// BetaAppLocalizationCreateRequest schema, with the omitempty tags the create
+// has always sent.
+type BetaAppLocalizationCreateAttributes struct {
+	FeedbackEmail     string `json:"feedbackEmail,omitempty"`
+	MarketingURL      string `json:"marketingUrl,omitempty"`
+	PrivacyPolicyURL  string `json:"privacyPolicyUrl,omitempty"`
+	TvOSPrivacyPolicy string `json:"tvOsPrivacyPolicy,omitempty"`
+	Description       string `json:"description,omitempty"`
+	Locale            string `json:"locale,omitempty"`
+}
+
+// CreateAttributes returns the fields a beta app localization create sends.
+func (a BetaAppLocalizationAttributes) CreateAttributes() BetaAppLocalizationCreateAttributes {
+	return BetaAppLocalizationCreateAttributes{
+		FeedbackEmail:     a.FeedbackEmail,
+		MarketingURL:      a.MarketingURL,
+		PrivacyPolicyURL:  a.PrivacyPolicyURL,
+		TvOSPrivacyPolicy: a.TvOSPrivacyPolicy,
+		Description:       a.Description,
+		Locale:            a.Locale,
+	}
+}
+
 // BetaAppLocalizationAttributes describes TestFlight app localization metadata.
 type BetaAppLocalizationAttributes struct {
 	FeedbackEmail     string `json:"feedbackEmail,omitempty"`
@@ -132,6 +207,53 @@ type BetaBuildLocalizationAttributes struct {
 	WhatsNew string `json:"whatsNew,omitempty"`
 
 	api apiAttributes
+}
+
+// AppInfoLocalizationCreateAttributes is the data.attributes object of the
+// AppInfoLocalizationCreateRequest schema, with the omitempty tags the create
+// has always sent.
+type AppInfoLocalizationCreateAttributes struct {
+	Locale            string `json:"locale,omitempty"`
+	Name              string `json:"name,omitempty"`
+	Subtitle          string `json:"subtitle,omitempty"`
+	PrivacyPolicyURL  string `json:"privacyPolicyUrl,omitempty"`
+	PrivacyChoicesURL string `json:"privacyChoicesUrl,omitempty"`
+	PrivacyPolicyText string `json:"privacyPolicyText,omitempty"`
+}
+
+// AppInfoLocalizationUpdateAttributes is the data.attributes object of the
+// AppInfoLocalizationUpdateRequest schema, with the omitempty tags the update
+// has always sent.
+type AppInfoLocalizationUpdateAttributes struct {
+	Name              string `json:"name,omitempty"`
+	Subtitle          string `json:"subtitle,omitempty"`
+	PrivacyPolicyURL  string `json:"privacyPolicyUrl,omitempty"`
+	PrivacyChoicesURL string `json:"privacyChoicesUrl,omitempty"`
+	PrivacyPolicyText string `json:"privacyPolicyText,omitempty"`
+}
+
+// CreateAttributes returns the fields an app info localization create sends.
+func (a AppInfoLocalizationAttributes) CreateAttributes() AppInfoLocalizationCreateAttributes {
+	return AppInfoLocalizationCreateAttributes{
+		Locale:            a.Locale,
+		Name:              a.Name,
+		Subtitle:          a.Subtitle,
+		PrivacyPolicyURL:  a.PrivacyPolicyURL,
+		PrivacyChoicesURL: a.PrivacyChoicesURL,
+		PrivacyPolicyText: a.PrivacyPolicyText,
+	}
+}
+
+// UpdateAttributes returns the fields an app info localization update sends;
+// the locale cannot change.
+func (a AppInfoLocalizationAttributes) UpdateAttributes() AppInfoLocalizationUpdateAttributes {
+	return AppInfoLocalizationUpdateAttributes{
+		Name:              a.Name,
+		Subtitle:          a.Subtitle,
+		PrivacyPolicyURL:  a.PrivacyPolicyURL,
+		PrivacyChoicesURL: a.PrivacyChoicesURL,
+		PrivacyPolicyText: a.PrivacyPolicyText,
+	}
 }
 
 // AppInfoLocalizationAttributes describes app info localization metadata.
@@ -446,16 +568,16 @@ const (
 
 // AppStoreVersionLocalizationCreateData is the data portion of a version localization create request.
 type AppStoreVersionLocalizationCreateData struct {
-	Type          ResourceType                              `json:"type"`
-	Attributes    AppStoreVersionLocalizationAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionLocalizationRelationships `json:"relationships"`
+	Type          ResourceType                                `json:"type"`
+	Attributes    AppStoreVersionLocalizationCreateAttributes `json:"attributes"`
+	Relationships *AppStoreVersionLocalizationRelationships   `json:"relationships"`
 }
 
 // AppStoreVersionLocalizationUpdateData is the data portion of a version localization update request.
 type AppStoreVersionLocalizationUpdateData struct {
-	Type       ResourceType                          `json:"type"`
-	ID         string                                `json:"id"`
-	Attributes AppStoreVersionLocalizationAttributes `json:"attributes"`
+	Type       ResourceType                                `json:"type"`
+	ID         string                                      `json:"id"`
+	Attributes AppStoreVersionLocalizationUpdateAttributes `json:"attributes"`
 }
 
 // AppStoreVersionLocalizationRelationships describes relationships for version localizations.
@@ -465,9 +587,9 @@ type AppStoreVersionLocalizationRelationships struct {
 
 // BetaAppLocalizationCreateData is the data portion of a beta app localization create request.
 type BetaAppLocalizationCreateData struct {
-	Type          ResourceType                      `json:"type"`
-	Attributes    BetaAppLocalizationAttributes     `json:"attributes"`
-	Relationships *BetaAppLocalizationRelationships `json:"relationships"`
+	Type          ResourceType                        `json:"type"`
+	Attributes    BetaAppLocalizationCreateAttributes `json:"attributes"`
+	Relationships *BetaAppLocalizationRelationships   `json:"relationships"`
 }
 
 // BetaBuildLocalizationCreateData is the data portion of a beta build localization create request.
@@ -486,16 +608,16 @@ type BetaBuildLocalizationUpdateData struct {
 
 // AppInfoLocalizationCreateData is the data portion of an app info localization create request.
 type AppInfoLocalizationCreateData struct {
-	Type          ResourceType                      `json:"type"`
-	Attributes    AppInfoLocalizationAttributes     `json:"attributes"`
-	Relationships *AppInfoLocalizationRelationships `json:"relationships"`
+	Type          ResourceType                        `json:"type"`
+	Attributes    AppInfoLocalizationCreateAttributes `json:"attributes"`
+	Relationships *AppInfoLocalizationRelationships   `json:"relationships"`
 }
 
 // AppInfoLocalizationUpdateData is the data portion of an app info localization update request.
 type AppInfoLocalizationUpdateData struct {
-	Type       ResourceType                  `json:"type"`
-	ID         string                        `json:"id"`
-	Attributes AppInfoLocalizationAttributes `json:"attributes"`
+	Type       ResourceType                        `json:"type"`
+	ID         string                              `json:"id"`
+	Attributes AppInfoLocalizationUpdateAttributes `json:"attributes"`
 }
 
 // BetaGroupUpdateAttributes describes attributes for updating a beta group.
@@ -591,12 +713,11 @@ func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastNam
 }
 
 // CreateAppStoreVersionLocalization creates a localization for an app store version.
-func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionID string, attributes AppStoreVersionLocalizationAttributes) (*AppStoreVersionLocalizationResponse, error) {
-	attributes.api = apiAttributes{}
+func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionID string, attrs AppStoreVersionLocalizationCreateAttributes) (*AppStoreVersionLocalizationResponse, error) {
 	payload := AppStoreVersionLocalizationCreateRequest{
 		Data: AppStoreVersionLocalizationCreateData{
 			Type:       ResourceTypeAppStoreVersionLocalizations,
-			Attributes: attributes,
+			Attributes: attrs,
 			Relationships: &AppStoreVersionLocalizationRelationships{
 				AppStoreVersion: &Relationship{
 					Data: ResourceData{
@@ -607,22 +728,27 @@ func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionI
 			},
 		},
 	}
-	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionLocalizations", Payload: payload})
+	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appStoreVersionLocalizations",
+		Payload: payload,
+	})
 }
 
 // UpdateAppStoreVersionLocalization updates a localization for an app store version.
-func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localizationID string, attributes AppStoreVersionLocalizationAttributes) (*AppStoreVersionLocalizationResponse, error) {
-	attributes.api = apiAttributes{}
-	// ASC rejects locale in PATCH updates; it's immutable and should only be set on create.
-	attributes.Locale = ""
+func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localizationID string, attrs AppStoreVersionLocalizationUpdateAttributes) (*AppStoreVersionLocalizationResponse, error) {
 	payload := AppStoreVersionLocalizationUpdateRequest{
 		Data: AppStoreVersionLocalizationUpdateData{
 			Type:       ResourceTypeAppStoreVersionLocalizations,
 			ID:         localizationID,
-			Attributes: attributes,
+			Attributes: attrs,
 		},
 	}
-	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID), Payload: payload})
+	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID),
+		Payload: payload,
+	})
 }
 
 // UpdateAppStoreVersionLocalizationFields updates exactly the supplied fields,
@@ -677,12 +803,11 @@ func (c *Client) UpdateBetaBuildLocalization(ctx context.Context, localizationID
 }
 
 // CreateAppInfoLocalization creates a localization for an app info resource.
-func (c *Client) CreateAppInfoLocalization(ctx context.Context, appInfoID string, attributes AppInfoLocalizationAttributes) (*AppInfoLocalizationResponse, error) {
-	attributes.api = apiAttributes{}
+func (c *Client) CreateAppInfoLocalization(ctx context.Context, appInfoID string, attrs AppInfoLocalizationCreateAttributes) (*AppInfoLocalizationResponse, error) {
 	payload := AppInfoLocalizationCreateRequest{
 		Data: AppInfoLocalizationCreateData{
 			Type:       ResourceTypeAppInfoLocalizations,
-			Attributes: attributes,
+			Attributes: attrs,
 			Relationships: &AppInfoLocalizationRelationships{
 				AppInfo: &Relationship{
 					Data: ResourceData{
@@ -693,22 +818,27 @@ func (c *Client) CreateAppInfoLocalization(ctx context.Context, appInfoID string
 			},
 		},
 	}
-	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appInfoLocalizations", Payload: payload})
+	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appInfoLocalizations",
+		Payload: payload,
+	})
 }
 
 // UpdateAppInfoLocalization updates a localization for an app info resource.
-func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID string, attributes AppInfoLocalizationAttributes) (*AppInfoLocalizationResponse, error) {
-	attributes.api = apiAttributes{}
-	// ASC rejects locale in PATCH updates; it's immutable and should only be set on create.
-	attributes.Locale = ""
+func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID string, attrs AppInfoLocalizationUpdateAttributes) (*AppInfoLocalizationResponse, error) {
 	payload := AppInfoLocalizationUpdateRequest{
 		Data: AppInfoLocalizationUpdateData{
 			Type:       ResourceTypeAppInfoLocalizations,
 			ID:         localizationID,
-			Attributes: attributes,
+			Attributes: attrs,
 		},
 	}
-	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), Payload: payload})
+	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID),
+		Payload: payload,
+	})
 }
 
 // UpdateAppInfoLocalizationFields updates exactly the supplied fields,

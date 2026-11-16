@@ -141,13 +141,13 @@ func TestWriteRequestsDoNotEchoAppleResponseAttributes(t *testing.T) {
 		{"create version localization", `{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"en-US","whatsNew":"Fixes"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`, func(t *testing.T, c *Client) error {
 			var attrs AppStoreVersionLocalizationAttributes
 			decode(t, &attrs)
-			_, err := c.CreateAppStoreVersionLocalization(context.Background(), "version-1", attrs)
+			_, err := c.CreateAppStoreVersionLocalization(context.Background(), "version-1", attrs.CreateAttributes())
 			return err
 		}},
 		{"update version localization", `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"whatsNew":"Fixes"}}}`, func(t *testing.T, c *Client) error {
 			var attrs AppStoreVersionLocalizationAttributes
 			decode(t, &attrs)
-			_, err := c.UpdateAppStoreVersionLocalization(context.Background(), "loc-1", attrs)
+			_, err := c.UpdateAppStoreVersionLocalization(context.Background(), "loc-1", attrs.UpdateAttributes())
 			return err
 		}},
 		{"create test notes", `{"data":{"type":"betaBuildLocalizations","attributes":{"locale":"en-US","whatsNew":"Fixes"},"relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`, func(t *testing.T, c *Client) error {
@@ -165,19 +165,19 @@ func TestWriteRequestsDoNotEchoAppleResponseAttributes(t *testing.T) {
 		{"create app info localization", `{"data":{"type":"appInfoLocalizations","attributes":{"locale":"en-US"},"relationships":{"appInfo":{"data":{"type":"appInfos","id":"info-1"}}}}}`, func(t *testing.T, c *Client) error {
 			var attrs AppInfoLocalizationAttributes
 			decode(t, &attrs)
-			_, err := c.CreateAppInfoLocalization(context.Background(), "info-1", attrs)
+			_, err := c.CreateAppInfoLocalization(context.Background(), "info-1", attrs.CreateAttributes())
 			return err
 		}},
 		{"update app info localization", `{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{}}}`, func(t *testing.T, c *Client) error {
 			var attrs AppInfoLocalizationAttributes
 			decode(t, &attrs)
-			_, err := c.UpdateAppInfoLocalization(context.Background(), "loc-1", attrs)
+			_, err := c.UpdateAppInfoLocalization(context.Background(), "loc-1", attrs.UpdateAttributes())
 			return err
 		}},
 		{"create beta app localization", `{"data":{"type":"betaAppLocalizations","attributes":{"locale":"en-US"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`, func(t *testing.T, c *Client) error {
 			var attrs BetaAppLocalizationAttributes
 			decode(t, &attrs)
-			_, err := c.CreateBetaAppLocalization(context.Background(), "app-1", attrs)
+			_, err := c.CreateBetaAppLocalization(context.Background(), "app-1", attrs.CreateAttributes())
 			return err
 		}},
 		{"update age rating", `{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{}}}`, func(t *testing.T, c *Client) error {
