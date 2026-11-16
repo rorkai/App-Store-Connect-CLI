@@ -185,7 +185,7 @@ Examples:
 			if strings.TrimSpace(outPath) == "" {
 				return d.UsageError("--out is required")
 			}
-			destination, err := newAgreementDownloadDestination(outPath)
+			destination, err := newAgreementDownloadDestination(d, outPath)
 			if err != nil {
 				return d.UsageErrorf("--out must be a file path: %v", err)
 			}
@@ -245,7 +245,7 @@ type agreementDownloadDestination struct {
 	name string
 }
 
-func newAgreementDownloadDestination(outPath string) (agreementDownloadDestination, error) {
+func newAgreementDownloadDestination(d *shared.Deps, outPath string) (agreementDownloadDestination, error) {
 	if os.IsPathSeparator(outPath[len(outPath)-1]) {
 		return agreementDownloadDestination{}, fmt.Errorf("%q ends with a path separator", outPath)
 	}
@@ -256,7 +256,7 @@ func newAgreementDownloadDestination(outPath string) (agreementDownloadDestinati
 	if err := rootfs.ValidateRelative(base); err != nil {
 		return agreementDownloadDestination{}, err
 	}
-	root, prefix, err := newDownloadRoot(filepath.Dir(outPath))
+	root, prefix, err := newDownloadRootWith(d, filepath.Dir(outPath))
 	if err != nil {
 		return agreementDownloadDestination{}, err
 	}
