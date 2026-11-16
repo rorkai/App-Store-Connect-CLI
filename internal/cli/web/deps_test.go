@@ -22,6 +22,7 @@ func newWebTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
 		Getwd:          os.Getwd,
+		LookupEnv:      os.LookupEnv,
 		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
 	}, &stdout, &stderr
 }

@@ -113,7 +113,7 @@ func validateResolveBuildOptions(d *shared.Deps, opts ResolveBuildOptions) error
 		return nil
 	}
 
-	if shared.ResolveAppID(appInput) == "" {
+	if d.ResolveAppID(appInput) == "" {
 		return d.UsageError("--build-id or --app is required (or set ASC_APP_ID)")
 	}
 	if len(opts.ProcessingStateValues) > 0 && !opts.Latest {
@@ -147,7 +147,7 @@ func resolveBuildByNumberSelection(
 		return nil, fmt.Errorf("build client is required")
 	}
 
-	appID := shared.ResolveAppID(strings.TrimSpace(opts.AppID))
+	appID := d.ResolveAppID(strings.TrimSpace(opts.AppID))
 	if appID == "" {
 		return nil, d.UsageError("--app is required (or set ASC_APP_ID)")
 	}

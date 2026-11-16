@@ -5,13 +5,14 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func newTestDeps() *shared.Deps {
-	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}}
+	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}, LookupEnv: os.LookupEnv}
 }
 
 func TestAlternativeDistributionDomainsGetCommand_MissingID(t *testing.T) {

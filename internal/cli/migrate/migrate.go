@@ -316,7 +316,7 @@ Examples:
 				fmt.Fprintln(d.IO.ErrOut, "Error: --version-id is required (or set Deliverfile app_version and platform)")
 				return shared.MissingRequiredUsageError("--version-id")
 			}
-			if strings.TrimSpace(*appID) == "" && strings.TrimSpace(inputs.DeliverfileConfig.AppIdentifier) == "" && shared.ResolveAppID("") == "" {
+			if strings.TrimSpace(*appID) == "" && strings.TrimSpace(inputs.DeliverfileConfig.AppIdentifier) == "" && d.ResolveAppID("") == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID or Deliverfile app_identifier)")
 				return shared.MissingRequiredUsageError("--app")
 			}
@@ -357,7 +357,7 @@ Examples:
 				requestCtx = resolveCtx
 			}
 
-			resolvedAppID, err := resolveAppID(requestCtx, client, *appID, inputs.DeliverfileConfig)
+			resolvedAppID, err := resolveAppID(requestCtx, d, client, *appID, inputs.DeliverfileConfig)
 			if err != nil {
 				return fmt.Errorf("migrate import: %w", err)
 			}
@@ -617,7 +617,7 @@ Examples:
 				return d.RequiredFlag("--output-dir")
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")

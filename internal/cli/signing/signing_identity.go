@@ -284,12 +284,12 @@ func validateIdentityCertificate(identity *signingIdentity, certificateDER []byt
 	return nil
 }
 
-func identityCertificateFilter(identity *signingIdentity) func(asc.Resource[asc.CertificateAttributes]) bool {
+func identityCertificateFilter(identity *signingIdentity, now func() time.Time) func(asc.Resource[asc.CertificateAttributes]) bool {
 	if identity == nil {
 		return nil
 	}
 	return func(certificate asc.Resource[asc.CertificateAttributes]) bool {
-		if !usableIdentityCertificateResource(certificate, time.Now()) {
+		if !usableIdentityCertificateResource(certificate, now()) {
 			return false
 		}
 		der, err := base64.StdEncoding.DecodeString(strings.TrimSpace(certificate.Attributes.CertificateContent))

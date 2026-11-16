@@ -117,7 +117,7 @@ func normalizeKeywordCountry(d *shared.Deps, country string) (string, error) {
 
 // normalizeKeywordAppID resolves and validates the public App Store app ID.
 func normalizeKeywordAppID(d *shared.Deps, appID string) (string, error) {
-	resolved := strings.TrimSpace(shared.ResolveAppID(appID))
+	resolved := strings.TrimSpace(d.ResolveAppID(appID))
 	if resolved == "" {
 		return "", d.UsageError("--app is required (or set ASC_APP_ID)")
 	}

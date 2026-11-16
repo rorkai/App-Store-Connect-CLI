@@ -88,7 +88,7 @@ func runListCommand(ctx context.Context, d *shared.Deps, config shared.ListComma
 		return err
 	}
 
-	resolvedAppID := shared.ResolveAppID(*flags.appID)
+	resolvedAppID := d.ResolveAppID(*flags.appID)
 	if resolvedAppID == "" && strings.TrimSpace(*flags.next) == "" {
 		fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 		return shared.MissingRequiredUsageError("--app")
