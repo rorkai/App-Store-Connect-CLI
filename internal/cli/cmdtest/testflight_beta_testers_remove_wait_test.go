@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
@@ -101,11 +102,15 @@ func TestBetaTestersRemoveWaitTimesOutButPrintsReceipt(t *testing.T) {
 		return http.StatusOK, `{"data":{"type":"betaTesters","id":"tester-1","attributes":{"state":"INSTALLED"}}}`
 	})
 
-	stdout, _, runErr := runRootWithDeps(t, stubClient(t, transport),
-		"testflight", "testers", "remove",
-		"--app", "app-1", "--email", "tester@example.com", "--confirm",
-		"--wait", "--poll-interval", "20ms", "--timeout", "150ms",
-	)
+	var stdout string
+	var runErr error
+	synctest.Test(t, func(t *testing.T) {
+		stdout, _, runErr = runRootWithDeps(t, stubClient(t, transport),
+			"testflight", "testers", "remove",
+			"--app", "app-1", "--email", "tester@example.com", "--confirm",
+			"--wait", "--poll-interval", "20ms", "--timeout", "150ms",
+		)
+	})
 
 	if runErr == nil || !strings.Contains(runErr.Error(), "not yet visible") {
 		t.Fatalf("expected visibility timeout error, got %v", runErr)

@@ -231,7 +231,8 @@ func runBuildsWaitPending(t *testing.T, rt http.RoundTripper, args []string) (st
 	t.Helper()
 
 	d, stdout, stderr := newBuildsWaitPendingDeps(t, rt)
-	code := cmd.RunWithDeps(args, "1.0.0", d)
+	var code int
+	synctest.Test(t, func(*testing.T) { code = cmd.RunWithDeps(args, "1.0.0", d) })
 	return stdout.String(), stderr.String(), code
 }
 
