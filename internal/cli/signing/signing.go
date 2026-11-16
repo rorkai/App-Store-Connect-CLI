@@ -31,9 +31,9 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			newSigningFetchCommand(d),
 			newSigningKeychainCommand(d),
-			SigningReconcileCommand(),
+			newSigningReconcileCommand(d),
 			SigningResignCommand(),
-			SigningRunCommand(),
+			newSigningRunCommand(d),
 			SigningSyncCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
