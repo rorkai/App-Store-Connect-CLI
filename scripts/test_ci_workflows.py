@@ -31,6 +31,10 @@ def assert_nix_cache_contract() -> None:
         for key in keys:
             inputs = re.search(r"hashFiles\((.*?)\)", key)
             assert inputs and "'go.mod'" in inputs.group(1), f"{name}: Go upgrades must invalidate the Nix cache"
+    autofix = (ROOT / ".github/workflows/autofix.yml").read_text()
+    assert "if: github.event.pull_request.user.login != 'dependabot[bot]'\n        uses: autofix-ci/action@" in autofix, (
+        "autofix.yml: a commit on a Dependabot branch stops Dependabot from rebasing it"
+    )
     build = job_block(workflow, "nix")
     assert "actions: write" not in build, "PR-controlled Nix builds must not receive Actions write permission"
     purge = job_block(workflow, "purge-cache")
