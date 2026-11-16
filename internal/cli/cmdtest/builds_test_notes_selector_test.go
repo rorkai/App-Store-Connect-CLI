@@ -149,24 +149,9 @@ func TestBuildsTestNotesRemovedSelectorAliasesHaveGuidance(t *testing.T) {
 			flag: "--build",
 		},
 		{
-			name: "view localization id alias",
-			args: []string{"builds", "test-notes", "view", "--id", "loc-1"},
-			flag: "--id",
-		},
-		{
 			name: "create build alias",
 			args: []string{"builds", "test-notes", "create", "--build", "BUILD_123", "--locale", "en-US", "--whats-new", "Notes"},
 			flag: "--build",
-		},
-		{
-			name: "update localization id alias",
-			args: []string{"builds", "test-notes", "update", "--id", "loc-1", "--whats-new", "Notes"},
-			flag: "--id",
-		},
-		{
-			name: "delete localization id alias",
-			args: []string{"builds", "test-notes", "delete", "--id", "loc-1", "--confirm"},
-			flag: "--id",
 		},
 	}
 

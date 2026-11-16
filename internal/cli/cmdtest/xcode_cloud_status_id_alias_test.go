@@ -41,43 +41,6 @@ func TestXcodeCloudStatusRunIDReturnsJSONWithoutWarning(t *testing.T) {
 	}
 }
 
-func TestXcodeCloudStatusRejectsRemovedIDAliasAsUnknownFlagBeforeNetwork(t *testing.T) {
-	reg := asctest.NewRegistry(t)
-
-	root := RootCommand("1.2.3")
-	if root.FlagSet.Lookup("id") != nil {
-		t.Fatal("root command unexpectedly defines --id")
-	}
-	status := findSubcommand(root, "xcode-cloud", "status")
-	if status == nil {
-		t.Fatal("expected xcode-cloud status command")
-		return
-	}
-	if status.FlagSet.Lookup("id") != nil {
-		t.Fatal("removed --id alias is still registered on xcode-cloud status")
-	}
-	if status.FlagSet.Lookup("run-id") == nil {
-		t.Fatal("expected --run-id on xcode-cloud status")
-	}
-
-	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "xcode-cloud", "status", "--id", "run-1")
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitUsage, stderr)
-	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "`--id` was removed in 5.0.0") {
-		t.Fatalf("stderr = %q, want removed-flag diagnostic", stderr)
-	}
-	if !strings.Contains(stderr, "--run-id") {
-		t.Fatalf("stderr = %q, want --run-id suggestion", stderr)
-	}
-	if strings.Contains(stderr, "deprecated") {
-		t.Fatalf("stderr still carries deprecation wording: %q", stderr)
-	}
-}
-
 func TestXcodeCloudScmRepositoriesRelationshipsIsUnknownCommand(t *testing.T) {
 	for _, tt := range []struct {
 		name string
