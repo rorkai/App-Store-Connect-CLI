@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// VideoPreviewsCommand returns the top-level video previews command.
-func VideoPreviewsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-previews", flag.ExitOnError)
+// NewVideoPreviewsCommand returns the top-level video previews command.
+func NewVideoPreviewsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("video-previews", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "video-previews",
@@ -27,13 +27,13 @@ Examples:
   asc video-previews delete --id "PREVIEW_ID" --confirm
   asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05:00"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			assets.AssetsPreviewsListCommand(),
-			assets.AssetsPreviewsUploadCommand(),
-			assets.AssetsPreviewsDownloadCommand(),
-			assets.AssetsPreviewsDeleteCommand(),
-			assets.AssetsPreviewsSetPosterFrameCommand(),
+			assets.NewAssetsPreviewsListCommand(d),
+			assets.NewAssetsPreviewsUploadCommand(d),
+			assets.NewAssetsPreviewsDownloadCommand(d),
+			assets.NewAssetsPreviewsDeleteCommand(d),
+			assets.NewAssetsPreviewsSetPosterFrameCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

@@ -422,7 +422,7 @@ func TestExecuteStage_PersistsDiscardedCompletionsBeforeMutating(t *testing.T) {
 			return resp, nil
 		}
 		if req.Method != http.MethodGet && checkpointAtFirstMutation == nil {
-			persisted, loadErr := loadCheckpoint(checkpointPath)
+			persisted, loadErr := loadCheckpoint(releaseTestDeps(), checkpointPath)
 			if loadErr != nil {
 				return nil, fmt.Errorf("load checkpoint during mutation: %w", loadErr)
 			}

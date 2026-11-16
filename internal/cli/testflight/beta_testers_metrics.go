@@ -44,7 +44,7 @@ Examples:
   asc testflight beta-testers metrics --tester-id "TESTER_ID" --app "APP_ID"
   asc testflight beta-testers metrics --tester-id "TESTER_ID" --app "APP_ID" --period "P30D"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight testers metrics", 200, "period"); err != nil {
 				return err

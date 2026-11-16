@@ -254,7 +254,7 @@ func newTestFlightGroupsCommand(d *shared.Deps) *ffcli.Command {
 			{old: "update ", new: "edit "},
 		},
 	)
-	setUsageFuncRecursively(cmd, shared.DefaultUsageFunc)
+	setUsageFuncRecursively(cmd, d.DefaultUsageFunc)
 	if compatibilityCmd := findSubcommand(cmd, "compatibility"); compatibilityCmd != nil {
 		compatibilityCmd.ShortHelp = "Check recruitment compatibility for a group."
 		compatibilityCmd.LongHelp = `Check recruitment compatibility for a group.
@@ -299,7 +299,7 @@ func newTestFlightTestersCommand(d *shared.Deps) *ffcli.Command {
 			{old: "get ", new: "view "},
 		},
 	)
-	setUsageFuncRecursively(cmd, shared.DefaultUsageFunc)
+	setUsageFuncRecursively(cmd, d.DefaultUsageFunc)
 	return cmd
 }
 
@@ -327,7 +327,7 @@ func newTestFlightAgreementsCommand(d *shared.Deps) *ffcli.Command {
 			{old: "update ", new: "edit "},
 		},
 	)
-	cmd.UsageFunc = shared.DefaultUsageFunc
+	cmd.UsageFunc = d.DefaultUsageFunc
 	if listCmd := findSubcommand(cmd, "list"); listCmd != nil {
 		listCmd.ShortHelp = "List agreements."
 	}
@@ -367,7 +367,7 @@ func newTestFlightNotificationsCommand(d *shared.Deps) *ffcli.Command {
 			{old: "create ", new: "send "},
 		},
 	)
-	cmd.UsageFunc = shared.DefaultUsageFunc
+	cmd.UsageFunc = d.DefaultUsageFunc
 	return cmd
 }
 
@@ -389,7 +389,7 @@ func newTestFlightConfigCommand(d *shared.Deps) *ffcli.Command {
 			{old: "testflight sync", new: "testflight config"},
 		},
 	)
-	cmd.UsageFunc = shared.DefaultUsageFunc
+	cmd.UsageFunc = d.DefaultUsageFunc
 	return cmd
 }
 
@@ -433,7 +433,7 @@ Examples:
   asc testflight review app view --id "DETAIL_ID"
   asc testflight review submissions list --build-id "BUILD_ID"
   asc testflight review submissions view --id "SUBMISSION_ID"`
-	setUsageFuncRecursively(cmd, shared.DefaultUsageFunc)
+	setUsageFuncRecursively(cmd, d.DefaultUsageFunc)
 	return cmd
 }
 
@@ -469,7 +469,7 @@ Examples:
   asc testflight distribution view --build-id "BUILD_ID"
   asc testflight distribution edit --id "DETAIL_ID" --auto-notify
   asc testflight distribution build view --id "DETAIL_ID"`
-	setUsageFuncRecursively(cmd, shared.DefaultUsageFunc)
+	setUsageFuncRecursively(cmd, d.DefaultUsageFunc)
 	return cmd
 }
 
@@ -481,7 +481,7 @@ Examples:
   asc testflight metrics public-link --group "GROUP_ID"
   asc testflight metrics group-testers --group "GROUP_ID"
   asc testflight metrics app-testers --app "APP_ID"`
-	cmd.UsageFunc = shared.DefaultUsageFunc
+	cmd.UsageFunc = d.DefaultUsageFunc
 	cmd.Subcommands = []*ffcli.Command{
 		newTestFlightMetricsPublicLinkCommand(d),
 		newTestFlightMetricsGroupTestersCommand(d),
@@ -522,7 +522,7 @@ Examples:
   asc testflight app-localizations view --id "LOCALIZATION_ID"
   asc testflight app-localizations app view --id "LOCALIZATION_ID"
   asc testflight app-localizations create --app "APP_ID" --locale "en-US" --description "Welcome testers"`
-	setUsageFuncRecursively(cmd, shared.DefaultUsageFunc)
+	setUsageFuncRecursively(cmd, d.DefaultUsageFunc)
 	return cmd
 }
 
@@ -558,6 +558,6 @@ Examples:
   asc testflight pre-release app view --id "PR_ID"
   asc testflight pre-release builds list --id "PR_ID"
   asc testflight pre-release links view --id "PR_ID" --type "app"`
-	setUsageFuncRecursively(cmd, shared.DefaultUsageFunc)
+	setUsageFuncRecursively(cmd, d.DefaultUsageFunc)
 	return cmd
 }

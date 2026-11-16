@@ -38,7 +38,7 @@ Examples:
   asc game-center leaderboards releases create --app "APP_ID" --leaderboard-id "LEADERBOARD_ID"
   asc game-center leaderboards releases delete --id "RELEASE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardsListCommand(d),
 			newGameCenterLeaderboardsGetCommand(d),
@@ -74,7 +74,7 @@ Examples:
   asc game-center leaderboards images upload --localization-id "LOC_ID" --file path/to/image.png
   asc game-center leaderboards images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardImagesUploadCommand(d),
 			newGameCenterLeaderboardImagesDeleteCommand(d),
@@ -104,7 +104,7 @@ This command performs the full upload flow: reserves the upload, uploads the fil
 Examples:
   asc game-center leaderboards images upload --localization-id "LOC_ID" --file leaderboard.png`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -179,7 +179,7 @@ Examples:
   asc game-center leaderboards list --app "APP_ID" --limit 50
   asc game-center leaderboards list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "game-center leaderboards list", 200); err != nil {
 				return err
@@ -324,7 +324,7 @@ Examples:
   asc game-center leaderboards create --group-id "GROUP_ID" --reference-name "Group Score" --vendor-id "grp.com.example.groupscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2
   asc game-center leaderboards create --reference-name "Weekly Score" --vendor-id "com.example.weeklyscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE --v2 --set-ids "id1,id2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group != "" && strings.TrimSpace(*appID) != "" {
@@ -499,7 +499,7 @@ Examples:
   asc game-center leaderboards update --id "LEADERBOARD_ID" --score-range-start 0 --score-range-end 5000 --v2
   asc game-center leaderboards update --id "LEADERBOARD_ID" --recurrence-duration "PT168H" --v2`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
@@ -654,7 +654,7 @@ Examples:
   asc game-center leaderboards delete --id "LEADERBOARD_ID" --confirm
   asc game-center leaderboards delete --id "LEADERBOARD_ID" --confirm --v2`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
@@ -718,7 +718,7 @@ Examples:
   asc game-center leaderboards submit --vendor-id "com.example.leaderboard" --score "100" --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --pre-released true
   asc game-center leaderboards submit --vendor-id "com.example.leaderboard" --score "100" --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --submitted-date "2025-01-10T12:34:56Z"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vendorValue := strings.TrimSpace(*vendorID)
 			if vendorValue == "" {
@@ -793,7 +793,7 @@ func newGameCenterLeaderboardGroupLeaderboardCommand(d *shared.Deps) *ffcli.Comm
 Examples:
   asc game-center leaderboards group-leaderboard view --id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardGroupLeaderboardGetCommand(d),
 		},
@@ -838,7 +838,7 @@ Examples:
   asc game-center leaderboards releases create --app "APP_ID" --leaderboard-id "LEADERBOARD_ID"
   asc game-center leaderboards releases delete --id "RELEASE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardReleasesListCommand(d),
 			newGameCenterLeaderboardReleasesCreateCommand(d),
@@ -894,7 +894,7 @@ A release associates a leaderboard with a Game Center detail, making it live.
 Examples:
   asc game-center leaderboards releases create --app "APP_ID" --leaderboard-id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

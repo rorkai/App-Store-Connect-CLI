@@ -3,7 +3,6 @@ package cmdtest
 import (
 	"bytes"
 	"compress/zlib"
-	"context"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -22,7 +21,6 @@ import (
 
 	cmdpkg "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestMediaDownload_ByID_WritesFile(t *testing.T) {
@@ -68,7 +66,7 @@ func TestMediaDownload_ByID_WritesFile(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.Method != http.MethodGet {
 					t.Fatalf("expected GET, got %s", req.Method)
 				}
@@ -96,11 +94,9 @@ func TestMediaDownload_ByID_WritesFile(t *testing.T) {
 					t.Fatalf("unexpected host: %s", req.URL.Host)
 					return nil, nil
 				}
-			}))
+			})
 
 			outPath := filepath.Join(t.TempDir(), test.fileName)
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 
 			type item struct {
 				ID           string `json:"id"`
@@ -115,14 +111,10 @@ func TestMediaDownload_ByID_WritesFile(t *testing.T) {
 				Items      []item `json:"items"`
 			}
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{test.command, "download", "--id", test.id, "--output", outPath}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, rt), rt, test.command, "download", "--id", test.id, "--output", outPath)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -161,14 +153,9 @@ func TestMediaDownload_ByID_WritesFile(t *testing.T) {
 func TestScreenshotsDownload_ByID_PreservesEquivalentPNGOnOverwrite(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	existingPNG := screenshotTestPNG(t, "asset-id-existing", "same-pixels")
 	downloadedPNG := screenshotTestPNG(t, "asset-id-downloaded", "same-pixels")
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Host {
 		case "api.appstoreconnect.apple.com":
 			body := `{"data":{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":7,"imageAsset":{"templateUrl":"https://example.com/assets/{w}x{h}bb.{f}","width":1242,"height":2688}}}}`
@@ -198,9 +185,6 @@ func TestScreenshotsDownload_ByID_PreservesEquivalentPNGOnOverwrite(t *testing.T
 		t.Fatalf("set existing screenshot timestamps: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	var got struct {
 		Total      int `json:"total"`
 		Downloaded int `json:"downloaded"`
@@ -211,13 +195,7 @@ func TestScreenshotsDownload_ByID_PreservesEquivalentPNGOnOverwrite(t *testing.T
 			BytesWritten int64 `json:"bytesWritten"`
 		} `json:"items"`
 	}
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"screenshots", "download", "--id", "shot-1", "--output", outPath, "--overwrite"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithHTTPTransport(t, stubClient(t, rt), rt, "screenshots", "download", "--id", "shot-1", "--output", outPath, "--overwrite")
 	if runErr != nil {
 		t.Fatalf("run error: %v (stdout=%q, stderr=%q)", runErr, stdout, stderr)
 	}
@@ -253,11 +231,6 @@ func TestScreenshotsDownload_ByID_PreservesEquivalentPNGOnOverwrite(t *testing.T
 func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	var assetRequests sync.WaitGroup
 	assetRequests.Add(2)
 	bothAssetsRequested := make(chan struct{})
@@ -266,7 +239,7 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 		close(bothAssetsRequested)
 	}()
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Host {
 		case "api.appstoreconnect.apple.com":
 			if req.Method != http.MethodGet {
@@ -324,9 +297,6 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 
 	outDir := filepath.Join(t.TempDir(), "shots")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	type result struct {
 		Total      int `json:"total"`
 		Downloaded int `json:"downloaded"`
@@ -337,14 +307,10 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 		} `json:"items"`
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"screenshots", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, rt), rt, "screenshots", "download", "--version-localization", "loc-1", "--output-dir", outDir)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -392,13 +358,8 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 func TestScreenshotsDownload_ByLocalization_RetriesTransientForbidden(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	assetAttempts := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Host {
 		case "api.appstoreconnect.apple.com":
 			if req.Method != http.MethodGet {
@@ -458,23 +419,16 @@ func TestScreenshotsDownload_ByLocalization_RetriesTransientForbidden(t *testing
 
 	outDir := filepath.Join(t.TempDir(), "shots")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	type result struct {
 		Total      int `json:"total"`
 		Downloaded int `json:"downloaded"`
 		Failed     int `json:"failed"`
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"screenshots", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, rt), rt, "screenshots", "download", "--version-localization", "loc-1", "--output-dir", outDir)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -504,12 +458,7 @@ func TestScreenshotsDownload_ByLocalization_RetriesTransientForbidden(t *testing
 func TestVideoPreviewsDownload_ByLocalization_WritesFiles(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Host {
 		case "api.appstoreconnect.apple.com":
 			if req.Method != http.MethodGet {
@@ -561,17 +510,10 @@ func TestVideoPreviewsDownload_ByLocalization_WritesFiles(t *testing.T) {
 
 	outDir := filepath.Join(t.TempDir(), "previews")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, rt), rt, "video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -601,12 +543,7 @@ func TestVideoPreviewsDownload_ByLocalization_WritesFiles(t *testing.T) {
 func TestVideoPreviewsDownload_ByLocalization_ReadsEveryPreviewSetPage(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		body := "MOVDATA"
 		switch {
 		case req.URL.Host == "example.com" && (req.URL.Path == "/one.mov" || req.URL.Path == "/two.mov"):
@@ -625,17 +562,10 @@ func TestVideoPreviewsDownload_ByLocalization_ReadsEveryPreviewSetPage(t *testin
 	})
 
 	outDir := filepath.Join(t.TempDir(), "previews")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, rt), rt, "video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -736,21 +666,8 @@ func TestVideoPreviewsDownload_ByLocalization_PreservesFallbackDetailErrors(t *t
 	if err != nil {
 		t.Fatalf("create video preview detail test client: %v", err)
 	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	}))
-
 	outDir := filepath.Join(t.TempDir(), "previews")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "video-previews", "download", "--version-localization", "loc-1", "--output-dir", outDir)
 
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty because the JSON result already reports failures", stderr)
@@ -886,8 +803,7 @@ func TestVideoPreviewsDownload_HLSPlaylist(t *testing.T) {
 
 	preview := `{"type":"appPreviews","id":"prev-1","attributes":{"fileName":"preview.mp4","mimeType":"video/mp4","videoUrl":"` + media.URL + `/stream"}}`
 	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Host != "api.appstoreconnect.apple.com" {
 			return originalTransport.RoundTrip(req)
 		}
@@ -909,16 +825,11 @@ func TestVideoPreviewsDownload_HLSPlaylist(t *testing.T) {
 
 	run := func(args ...string) (string, string) {
 		t.Helper()
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-		return captureOutput(t, func() {
-			if err := root.Parse(append([]string{"video-previews", "download"}, args...)); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
-			}
-		})
+		stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, rt), rt, append([]string{"video-previews", "download"}, args...)...)
+		if err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+		return stdout, stderr
 	}
 	assertSaved := func(stdout, wantPath string) {
 		t.Helper()

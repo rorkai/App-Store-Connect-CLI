@@ -36,7 +36,7 @@ Examples:
   asc game-center groups activities list --group-id "GROUP_ID"
   asc game-center groups challenges list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterGroupsListCommand(d),
 			newGameCenterGroupsGetCommand(d),
@@ -192,7 +192,7 @@ Examples:
   asc game-center groups achievements list --group-id "GROUP_ID"
   asc game-center groups achievements set --group-id "GROUP_ID" --ids "ACH_1,ACH_2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterGroupAchievementsListCommand(d),
 			newGameCenterGroupAchievementsSetCommand(d),
@@ -260,7 +260,7 @@ Examples:
   asc game-center groups achievements set --group-id "GROUP_ID" --ids "ACH_1,ACH_2" --confirm
   asc game-center groups achievements set --group-id "GROUP_ID" --ids "ACH_1,ACH_2" --v2 --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
@@ -312,7 +312,7 @@ Examples:
   asc game-center groups leaderboards list --group-id "GROUP_ID"
   asc game-center groups leaderboards set --group-id "GROUP_ID" --ids "LB_1,LB_2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterGroupLeaderboardsListCommand(d),
 			newGameCenterGroupLeaderboardsSetCommand(d),
@@ -380,7 +380,7 @@ Examples:
   asc game-center groups leaderboards set --group-id "GROUP_ID" --ids "LB_1,LB_2" --confirm
   asc game-center groups leaderboards set --group-id "GROUP_ID" --ids "LB_1,LB_2" --v2 --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
@@ -431,7 +431,7 @@ func newGameCenterGroupLeaderboardSetsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center groups leaderboard-sets list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterGroupLeaderboardSetsListCommand(d),
 		},
@@ -489,7 +489,7 @@ func newGameCenterGroupActivitiesCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center groups activities list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterGroupActivitiesListCommand(d),
 		},
@@ -541,7 +541,7 @@ a challenge to a group, create it with:
 Examples:
   asc game-center groups challenges list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterGroupChallengesListCommand(d),
 		},
@@ -589,7 +589,7 @@ func newGameCenterGroupDetailsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc game-center groups details list --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterGroupDetailsListCommand(d),
 		},

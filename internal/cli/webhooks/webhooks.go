@@ -36,7 +36,7 @@ Examples:
   asc webhooks deliveries redeliver --delivery-id "DELIVERY_ID"
   asc webhooks ping --webhook-id "WEBHOOK_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newWebhooksListCommand(d),
 			newWebhooksGetCommand(d),
@@ -123,7 +123,7 @@ func newWebhooksCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc webhooks create --app "APP_ID" --name "Build Updates" --url "https://example.com/webhook" --secret "secret123" --events "BUILD_UPLOAD_STATE_UPDATED" --enabled true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -200,7 +200,7 @@ Examples:
   asc webhooks update --webhook-id "WEBHOOK_ID" --url "https://new-url.com/webhook"
   asc webhooks update --webhook-id "WEBHOOK_ID" --enabled false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
@@ -310,7 +310,7 @@ Examples:
   asc webhooks deliveries --webhook-id "WEBHOOK_ID" --limit 10
   asc webhooks deliveries --webhook-id "WEBHOOK_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newWebhookDeliveriesRelationshipsCommand(d),
 			newWebhookDeliveriesRedeliverCommand(d),
@@ -402,7 +402,7 @@ Examples:
   asc webhooks deliveries links --webhook-id "WEBHOOK_ID"
   asc webhooks deliveries links --webhook-id "WEBHOOK_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "webhooks deliveries links", webhooksMaxLimit); err != nil {
 				return err
@@ -477,7 +477,7 @@ func newWebhookDeliveriesRedeliverCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc webhooks deliveries redeliver --delivery-id "DELIVERY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*deliveryID)
 			if trimmedID == "" {
@@ -518,7 +518,7 @@ func newWebhookPingCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc webhooks ping --webhook-id "WEBHOOK_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {

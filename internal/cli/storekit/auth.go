@@ -38,7 +38,7 @@ Examples:
 			authDoctorCommand(d),
 			authLogoutCommand(d),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec:      func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
@@ -65,7 +65,7 @@ Examples:
   asc storekit auth login --name Production --key-id KEY_ID --issuer-id ISSUER_ID --private-key ./SubscriptionKey.p8 --bundle-id com.example.app
   asc storekit auth login --network --environment sandbox --name Sandbox --key-id KEY_ID --issuer-id ISSUER_ID --private-key ./SubscriptionKey.p8 --bundle-id com.example.app`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			cleanName := strings.TrimSpace(*name)
 			cleanKeyID := strings.TrimSpace(*keyID)
@@ -177,7 +177,7 @@ Examples:
   asc storekit auth status
   asc storekit auth status --validate --environment sandbox --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if flagWasSet(fs, "environment") && !*validate {
 				return d.UsageError("--environment requires --validate")
@@ -251,7 +251,7 @@ func authSwitchCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc storekit auth switch --name NAME",
 		ShortHelp:  "Set the default StoreKit credential.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			cleanName := strings.TrimSpace(*name)
 			if cleanName == "" {
@@ -280,7 +280,7 @@ Examples:
   asc storekit auth doctor --environment sandbox
   asc storekit auth doctor --environment sandbox --network`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			client, environment, err := resolveClient(ctx, d, common)
 			if err != nil {
@@ -312,7 +312,7 @@ func authLogoutCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc storekit auth logout (--name NAME | --all) --confirm",
 		ShortHelp:  "Remove StoreKit credentials.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			cleanName := strings.TrimSpace(*name)
 			if *all == (cleanName != "") {

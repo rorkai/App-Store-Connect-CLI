@@ -51,13 +51,8 @@ func TestBuildsDsymsBuildSelectorIgnoresDefaultAppID(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "default-app")
 
 	outputDir := filepath.Join(t.TempDir(), "dsyms")
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requestCount++
 
 		switch {
@@ -87,17 +82,10 @@ func TestBuildsDsymsBuildSelectorIgnoresDefaultAppID(t *testing.T) {
 		}
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "dsyms", "--build-id", "build-1", "--output-dir", outputDir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, transport), transport, "builds", "dsyms", "--build-id", "build-1", "--output-dir", outputDir)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if strings.Contains(stderr, "--build-id cannot be combined") {
 		t.Fatalf("expected default ASC_APP_ID to be ignored for --build-id, got %q", stderr)

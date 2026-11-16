@@ -17,7 +17,8 @@ import (
 )
 
 func TestXcodeSigningApplyRequiresConfirm(t *testing.T) {
-	command := xcodeSigningApplyCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningApplyCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--plan", "plan.json"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
@@ -49,7 +50,8 @@ func TestXcodeSigningPlanRejectsUninventoriableConditionalInputBeforeOverwrite(t
 		return nil
 	}
 
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{
 		"--project", "App.xcodeproj", "--settings-file", "settings.json",
@@ -113,7 +115,8 @@ func TestXcodeSigningPlanRejectsHiddenConditionalExternalXCConfigBeforePublicati
 		return nil
 	}
 
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{
 		"--project", project, "--settings-file", settingsPath,
@@ -181,7 +184,8 @@ func TestXcodeSigningPlanRejectsPlainUnauthorizedExternalXCConfig(t *testing.T) 
 		return nil
 	}
 
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{
 		"--project", project, "--settings-file", settingsPath,
@@ -293,7 +297,8 @@ func TestXcodeSigningPlanValidatesOutputBeforeBuildOrWrite(t *testing.T) {
 		calledWrite = true
 		return nil
 	}
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{
 		"--project", "App.xcodeproj", "--settings-file", "settings.json", "--output", "table", "--pretty",
@@ -317,7 +322,8 @@ func TestXcodeSigningApplyValidatesOutputBeforeApply(t *testing.T) {
 		calledApply = true
 		return &localxcode.SigningApplyResult{PlanPath: "plan.json"}, nil
 	}
-	command := xcodeSigningApplyCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningApplyCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--plan", "plan.json", "--confirm", "--output", "invalid"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
@@ -359,7 +365,8 @@ func TestXcodeSigningPlanMapsManifestValidationToReportedUsage(t *testing.T) {
 				calledWrite = true
 				return nil
 			}
-			command := xcodeSigningPlanCommand()
+			d := newXcodeTestDeps(nil)
+			command := xcodeSigningPlanCommand(d)
 			command.FlagSet.SetOutput(io.Discard)
 			if err := command.FlagSet.Parse([]string{
 				"--project", "App.xcodeproj", "--settings-file", "settings.json", "--output", "json",
@@ -391,7 +398,8 @@ func TestXcodeSigningPlanLeavesParseAndFilesystemFailuresUnclassified(t *testing
 		t.Fatal("filesystem failure reached plan write")
 		return nil
 	}
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{
 		"--project", "App.xcodeproj", "--settings-file", "settings.json", "--output", "json",
@@ -423,7 +431,8 @@ func TestXcodeSigningPlanRejectsEmptyStateDir(t *testing.T) {
 	writeSigningPlanArtifact = func(*localxcode.SigningPlan, bool) error { return nil }
 
 	for _, stateDir := range []string{"", "   "} {
-		command := xcodeSigningPlanCommand()
+		d := newXcodeTestDeps(nil)
+		command := xcodeSigningPlanCommand(d)
 		command.FlagSet.SetOutput(io.Discard)
 		if err := command.FlagSet.Parse([]string{
 			"--project", "App.xcodeproj",
@@ -443,7 +452,8 @@ func TestXcodeSigningPlanRejectsEmptyStateDir(t *testing.T) {
 }
 
 func TestXcodeSigningPlanRejectsUnknownExportMethod(t *testing.T) {
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj", "--profile", "App.mobileprovision", "--export-method", "side-load", "--output", "json"}); err != nil {
 		t.Fatal(err)
@@ -487,14 +497,15 @@ func TestXcodeSigningPlanRejectsInferenceFlagsWithoutProfile(t *testing.T) {
 		{"--skip-target", "Widget"},
 	} {
 		calledBuild, calledWrite := stubXcodeSigningPlanSideEffects(t)
-		command := xcodeSigningPlanCommand()
+		d := newXcodeTestDeps(nil)
+		command := xcodeSigningPlanCommand(d)
 		command.FlagSet.SetOutput(io.Discard)
 		args := append([]string{"--project", "App.xcodeproj", "--settings-file", "settings.json"}, extra...)
 		if err := command.FlagSet.Parse(args); err != nil {
 			t.Fatalf("Parse() error = %v", err)
 		}
 		var err error
-		_, stderr := captureCommandOutput(t, func() error { err = command.Exec(context.Background(), nil); return err })
+		_, stderr := captureCommandOutput(t, d, func() error { err = command.Exec(context.Background(), nil); return err })
 		if !isUsageError(err) {
 			t.Fatalf("%v: expected usage error, got %v", extra, err)
 		}
@@ -508,13 +519,14 @@ func TestXcodeSigningPlanRejectsInferenceFlagsWithoutProfile(t *testing.T) {
 }
 
 func TestXcodeSigningPlanMissingInputNamesProfile(t *testing.T) {
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj"}); err != nil {
 		t.Fatal(err)
 	}
 	var err error
-	_, stderr := captureCommandOutput(t, func() error { err = command.Exec(context.Background(), nil); return err })
+	_, stderr := captureCommandOutput(t, d, func() error { err = command.Exec(context.Background(), nil); return err })
 	if !isUsageError(err) || !strings.Contains(err.Error(), "--settings-file") {
 		t.Fatalf("expected --settings-file usage error, got %v", err)
 	}
@@ -529,7 +541,8 @@ func TestXcodeSigningPlanRejectsExistingExportOptionsBeforeWritingPlan(t *testin
 	if err := os.WriteFile(existing, []byte("keep"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj", "--profile", "App.mobileprovision", "--export-options-out", existing, "--output", "json"}); err != nil {
 		t.Fatal(err)
@@ -553,13 +566,14 @@ func TestXcodeSigningPlanOverwriteReplacesExportOptions(t *testing.T) {
 	if err := os.WriteFile(existing, []byte("stale"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj", "--profile", "App.mobileprovision", "--export-options-out", existing, "--overwrite", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var execErr error
-	captureCommandOutput(t, func() error { execErr = command.Exec(context.Background(), nil); return execErr })
+	captureCommandOutput(t, d, func() error { execErr = command.Exec(context.Background(), nil); return execErr })
 	if execErr != nil {
 		t.Fatalf("Exec() error = %v", execErr)
 	}
@@ -580,13 +594,14 @@ func TestXcodeSigningPlanWritesBlockedPlanWithoutExportOptions(t *testing.T) {
 		}, nil
 	}
 	destination := filepath.Join(t.TempDir(), "ExportOptions.plist")
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj", "--profile", "App.mobileprovision", "--export-options-out", destination, "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var execErr error
-	_, stderr := captureCommandOutput(t, func() error { execErr = command.Exec(context.Background(), nil); return execErr })
+	_, stderr := captureCommandOutput(t, d, func() error { execErr = command.Exec(context.Background(), nil); return execErr })
 	if execErr != nil {
 		t.Fatalf("Exec() error = %v", execErr)
 	}
@@ -618,7 +633,8 @@ func TestXcodeSigningPlanRejectsExportOptionsAliasingPlanInputs(t *testing.T) {
 				ExportOptions: &localxcode.SigningPlanExportOptions{Method: "app-store", SigningStyle: "manual"},
 			}, nil
 		}
-		command := xcodeSigningPlanCommand()
+		d := newXcodeTestDeps(nil)
+		command := xcodeSigningPlanCommand(d)
 		command.FlagSet.SetOutput(io.Discard)
 		if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj", "--profile", "App.mobileprovision", "--export-options-out", destination, "--overwrite", "--output", "json"}); err != nil {
 			t.Fatal(err)
@@ -642,13 +658,14 @@ func TestXcodeSigningPlanSanitizesWarningsWithoutChangingJSON(t *testing.T) {
 	runBuildSigningPlan = func(localxcode.SigningPlanOptions) (*localxcode.SigningPlan, error) {
 		return &localxcode.SigningPlan{Ready: true, PlanPath: "plan.json", Warnings: []string{warning}}, nil
 	}
-	command := xcodeSigningPlanCommand()
+	d := newXcodeTestDeps(nil)
+	command := xcodeSigningPlanCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj", "--profile", "App.mobileprovision", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var execErr error
-	stdout, stderr := captureCommandOutput(t, func() error { execErr = command.Exec(context.Background(), nil); return execErr })
+	stdout, stderr := captureCommandOutput(t, d, func() error { execErr = command.Exec(context.Background(), nil); return execErr })
 	if execErr != nil {
 		t.Fatal(execErr)
 	}

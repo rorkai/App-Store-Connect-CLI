@@ -25,7 +25,7 @@ Examples:
   asc analytics reports links --report-id "REPORT_ID"
   asc analytics reports links --report-id "REPORT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAnalyticsReportsGetCommand(d),
 			newAnalyticsReportsRelationshipsCommand(d),

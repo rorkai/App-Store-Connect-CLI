@@ -1,6 +1,7 @@
 package snitch
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -29,14 +30,14 @@ func assertNoInterpretedSequences(t *testing.T, label string, output string) {
 }
 
 func TestPrintPotentialDuplicatesRemovesTerminalControls(t *testing.T) {
-	_, stderr := captureOutput(t, func() {
-		printPotentialDuplicates([]GitHubIssue{{
-			Number:  42,
-			Title:   hostileTitle,
-			HTMLURL: "https://github.com/rorkai/App-Store-Connect-CLI/issues/42\x1b[2K",
-			State:   "open",
-		}})
-	})
+	var stderrBuffer bytes.Buffer
+	printPotentialDuplicates(&stderrBuffer, []GitHubIssue{{
+		Number:  42,
+		Title:   hostileTitle,
+		HTMLURL: "https://github.com/rorkai/App-Store-Connect-CLI/issues/42\x1b[2K",
+		State:   "open",
+	}})
+	stderr := stderrBuffer.String()
 
 	assertNoInterpretedSequences(t, "stderr", stderr)
 	if !strings.Contains(stderr, "#42") {
@@ -174,7 +175,7 @@ func TestSnitchFlushKeepsLogEntriesIntactOnDisk(t *testing.T) {
 		t.Fatalf("run snitch flush: %v", err)
 	}
 
-	entries, err := readLocalLog(logPath)
+	entries, err := readLocalLog(newSnitchTestDeps(), logPath)
 	if err != nil {
 		t.Fatalf("readLocalLog() error: %v", err)
 	}

@@ -21,7 +21,8 @@ func TestXcodeExportOptionsGenerateWritesRequestedAutomaticOptionsAndJSON(t *tes
 	archivePath := writeXcodeExportOptionsTestArchive(t)
 	outputPath := filepath.Join(t.TempDir(), "generated", "ExportOptions.plist")
 
-	cmd := XcodeExportOptionsCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportOptionsCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", archivePath,
@@ -35,7 +36,7 @@ func TestXcodeExportOptionsGenerateWritesRequestedAutomaticOptionsAndJSON(t *tes
 	}
 
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -86,7 +87,8 @@ func TestXcodeExportOptionsGenerateWritesNonAppStoreOptionsAndJSON(t *testing.T)
 			archivePath := writeXcodeExportOptionsTestArchive(t)
 			outputPath := filepath.Join(t.TempDir(), "generated", "ExportOptions.plist")
 
-			cmd := XcodeExportOptionsCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeExportOptionsCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse([]string{
 				"--archive-path", archivePath,
@@ -98,7 +100,7 @@ func TestXcodeExportOptionsGenerateWritesNonAppStoreOptionsAndJSON(t *testing.T)
 			}
 
 			var runErr error
-			stdout, stderr := captureCommandOutput(t, func() error {
+			stdout, stderr := captureCommandOutput(t, d, func() error {
 				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})
@@ -136,7 +138,8 @@ func TestXcodeExportOptionsGenerateUsesReleaseTestingDefaultPath(t *testing.T) {
 	t.Chdir(t.TempDir())
 	archivePath := writeXcodeExportOptionsTestArchive(t)
 
-	cmd := XcodeExportOptionsCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportOptionsCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", archivePath,
@@ -146,7 +149,7 @@ func TestXcodeExportOptionsGenerateUsesReleaseTestingDefaultPath(t *testing.T) {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		return cmd.Exec(context.Background(), nil)
 	})
 	if strings.TrimSpace(stderr) != "" {
@@ -221,14 +224,15 @@ func TestXcodeExportOptionsGenerateRejectsInvalidValues(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := XcodeExportOptionsCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeExportOptionsCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
 			}
 
 			var runErr error
-			_, stderr := captureCommandOutput(t, func() error {
+			_, stderr := captureCommandOutput(t, d, func() error {
 				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})
@@ -258,7 +262,8 @@ func TestXcodeExportGeneratesOptionsWhenPathIsOmitted(t *testing.T) {
 		return &localxcode.ExportResult{ArchivePath: opts.ArchivePath, IPAPath: opts.IPAPath}, nil
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", archivePath,
@@ -269,7 +274,7 @@ func TestXcodeExportGeneratesOptionsWhenPathIsOmitted(t *testing.T) {
 	}
 
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -323,7 +328,8 @@ func TestXcodeExportThreadsManualSigningOptionsToImplicitGeneration(t *testing.T
 		return nil, wantErr
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", archivePath,
@@ -361,7 +367,8 @@ func TestXcodeExportThreadsReleaseTestingToImplicitGeneration(t *testing.T) {
 		return nil, wantErr
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", archivePath,
@@ -393,7 +400,8 @@ func TestXcodeExportRejectsReleaseTestingWithWaitBeforeSideEffects(t *testing.T)
 		return nil, nil
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", "Demo.xcarchive",
@@ -435,7 +443,8 @@ func TestXcodeExportRejectsInvalidMethodBeforeSideEffects(t *testing.T) {
 				return nil, nil
 			}
 
-			cmd := XcodeExportCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeExportCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(append([]string{
 				"--archive-path", "Demo.xcarchive",
@@ -484,7 +493,8 @@ func TestXcodeExportRejectsGenerationFlagsWithExplicitOptions(t *testing.T) {
 				"--export-options", "ExportOptions.plist",
 			}
 			args = append(args, tc.args...)
-			cmd := XcodeExportCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeExportCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(args); err != nil {
 				t.Fatalf("failed to parse flags: %v", err)
@@ -513,7 +523,8 @@ func TestXcodeExportRejectsInvalidSigningStyleBeforeSideEffects(t *testing.T) {
 				return nil, nil
 			}
 
-			cmd := XcodeExportCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeExportCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse([]string{
 				"--archive-path", "Demo.xcarchive",
@@ -548,7 +559,8 @@ func TestXcodeExportRejectsManagedXcodebuildFlagsBeforeSideEffects(t *testing.T)
 		return nil, nil
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", "Demo.xcarchive",
@@ -559,7 +571,7 @@ func TestXcodeExportRejectsManagedXcodebuildFlagsBeforeSideEffects(t *testing.T)
 	}
 
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -593,7 +605,8 @@ func TestXcodeExportAcceptsActionNamedAuthenticationValues(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", "Demo.xcarchive",
@@ -629,7 +642,8 @@ func TestXcodeExportRejectsExplicitlyEmptyTeamIDBeforeSideEffects(t *testing.T) 
 		return nil, nil
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", "Demo.xcarchive",
@@ -657,7 +671,8 @@ func TestXcodeExportPreflightsBeforeImplicitOptionGeneration(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", filepath.Join(t.TempDir(), "Demo.xcarchive"),
@@ -705,7 +720,8 @@ func TestXcodeExportValidatesIPADestinationBeforeImplicitOptionGeneration(t *tes
 				t.Fatal("export options must not be generated for an unusable IPA destination")
 				return nil, nil
 			}
-			cmd := XcodeExportCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeExportCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse([]string{
 				"--archive-path", filepath.Join(t.TempDir(), "Demo.xcarchive") + string(filepath.Separator),
@@ -724,7 +740,6 @@ func TestXcodeExportValidatesIPADestinationBeforeImplicitOptionGeneration(t *tes
 func TestXcodeExportWaitIgnoresUnusedIPAParent(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()
-	getASCClientFn = func() (*asc.Client, error) { return &asc.Client{}, nil }
 
 	parent := filepath.Join(t.TempDir(), "not-a-directory")
 	if err := os.WriteFile(parent, []byte("file"), 0o600); err != nil {
@@ -739,7 +754,8 @@ func TestXcodeExportWaitIgnoresUnusedIPAParent(t *testing.T) {
 		return nil, wantErr
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(func() (*asc.Client, error) { return &asc.Client{}, nil })
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", filepath.Join(t.TempDir(), "Demo.xcarchive"),
@@ -758,7 +774,6 @@ func TestXcodeExportWaitIgnoresUnusedIPAParent(t *testing.T) {
 func TestXcodeExportWaitGeneratesUploadOptionsWhenPathIsOmitted(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()
-	getASCClientFn = func() (*asc.Client, error) { return &asc.Client{}, nil }
 
 	archivePath := writeXcodeExportOptionsTestArchive(t)
 	wantErr := errors.New("stop after generation")
@@ -774,7 +789,8 @@ func TestXcodeExportWaitGeneratesUploadOptionsWhenPathIsOmitted(t *testing.T) {
 		return nil, wantErr
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(func() (*asc.Client, error) { return &asc.Client{}, nil })
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", archivePath,
@@ -817,7 +833,8 @@ func TestXcodeExportRejectsEmptyGeneratedOptionsResult(t *testing.T) {
 				return nil, nil
 			}
 
-			cmd := XcodeExportCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeExportCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse([]string{
 				"--archive-path", archivePath,
@@ -850,7 +867,8 @@ func TestXcodeExportPreservesExplicitExportOptionsPath(t *testing.T) {
 		return &localxcode.ExportResult{ArchivePath: opts.ArchivePath, IPAPath: opts.IPAPath}, nil
 	}
 
-	cmd := XcodeExportCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeExportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", archivePath,
@@ -861,7 +879,7 @@ func TestXcodeExportPreservesExplicitExportOptionsPath(t *testing.T) {
 	}
 
 	var runErr error
-	_, stderr := captureCommandOutput(t, func() error {
+	_, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
