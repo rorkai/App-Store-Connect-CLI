@@ -204,10 +204,7 @@ func TestWebCommandsOmitRemovedTwoFactorCodeAlias(t *testing.T) {
 }
 
 func TestWebAuthLoginRejectsRemovedTwoFactorCodeFlagAsUnknown(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"web", "auth", "login", "--apple-id", "user@example.com", "--two-factor-code", "123456"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "web", "auth", "login", "--apple-id", "user@example.com", "--two-factor-code", "123456")
 	if code != rootcmd.ExitUsage {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitUsage, stderr)
 	}
