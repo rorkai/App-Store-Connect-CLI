@@ -415,7 +415,7 @@ func TestResolveWebSessionEmptyCachePromptsWithoutPrintingUsageError(t *testing.
 		source  string
 		err     error
 	)
-	_, stderr := captureOutput(t, func() {
+	stderr := captureOutput(t, func() {
 		session, source, err = resolveWebSession(context.Background(), "", "", "", webSessionResolveOptions{
 			promptAppleID: func(appleID *string) error {
 				prompted = true
@@ -447,7 +447,7 @@ func TestResolveWebSessionEmptyCacheNonInteractiveReportsMissingWebSessionWithou
 	t.Cleanup(func() { appCreateCanPromptInteractivelyFn = originalCanPrompt })
 
 	var err error
-	_, stderr := captureOutput(t, func() {
+	stderr := captureOutput(t, func() {
 		_, _, err = resolveWebSession(context.Background(), "", "", "", webSessionResolveOptions{
 			promptAppleID:   promptAppsCreateSessionAppleID,
 			resolvePassword: resolveSessionPassword,
