@@ -26,15 +26,6 @@ var pricingLocation = sync.OnceValue(func() *time.Location {
 	return location
 })
 
-// pricingNow is the clock pricing commands use to decide "today".
-var pricingNow = time.Now
-
-// PricingNow returns the current time from the clock pricing commands share.
-// Tests replace it with SetPricingNowForTesting.
-func PricingNow() time.Time {
-	return pricingNow()
-}
-
 // PricingDate returns the App Store Connect pricing date that contains now:
 // its US Pacific calendar day. The date is returned as midnight UTC so it
 // compares directly with schedule dates parsed from YYYY-MM-DD.

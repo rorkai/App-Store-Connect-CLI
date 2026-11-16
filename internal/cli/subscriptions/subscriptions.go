@@ -984,7 +984,7 @@ Examples:
 			}
 
 			if *resolved {
-				resp, err := fetchResolvedSubscriptionPrices(ctx, d, client, id, *limit, *next, subscriptionPricingToday(), planTypeFilter, territoryFilter)
+				resp, err := fetchResolvedSubscriptionPrices(ctx, d, client, id, *limit, *next, subscriptionPricingToday(d), planTypeFilter, territoryFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices list: failed to resolve: %w", err)
 				}

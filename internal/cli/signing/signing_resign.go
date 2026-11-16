@@ -26,9 +26,8 @@ type signingResignOptions struct {
 	BundleID             string
 }
 
-// SigningResignCommand returns the local IPA re-signing command.
-func SigningResignCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("resign", flag.ExitOnError)
+func newSigningResignCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("resign", flag.ExitOnError)
 	ipaPath := fs.String("ipa", "", "Path to the existing IPA input (required)")
 	outputPath := fs.String("output", "", "Path for the newly re-signed IPA (required)")
 	identityPath := fs.String("identity", "", "Path to a PKCS#12 signing identity (required)")
@@ -36,7 +35,7 @@ func SigningResignCommand() *ffcli.Command {
 	profilesManifestPath := fs.String("profiles-manifest", "", "Path to the strict bundle-to-profile manifest (required)")
 	rebaseTeamClaims := fs.Bool("rebase-team-claims", false, "Rebase allowlisted team-prefix claims; changing KVS selects a different data namespace")
 	bundleID := fs.String("bundle-id", "", "New main app bundle identifier; nested identifiers move from OLD. to NEW.")
-	format := shared.BindOutputFlagsWith(fs, "format", shared.DefaultOutputFormat(), "Output format: json, table, markdown")
+	format := shared.BindOutputFlagsWith(fs, "format", d.DefaultOutputFormat(), "Output format: json, table, markdown")
 
 	return &ffcli.Command{
 		Name:       "resign",
@@ -68,16 +67,16 @@ values that contain the old identifier, such as URL schemes, are unchanged.
 Example:
   asc signing resign --ipa ./App.ipa --output ./artifacts/App-resigned.ipa --identity ./signing/distribution.p12 --identity-password-file ./secrets/p12-password --profiles-manifest ./signing/profiles.json --format json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
+			if err := d.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
 				return err
 			}
 			if err := ctx.Err(); err != nil {
 				return err
 			}
 			if runtime.GOOS != "darwin" {
-				return shared.UsageError("signing resign is supported only on macOS")
+				return d.UsageError("signing resign is supported only on macOS")
 			}
 			required := []struct {
 				name  string
@@ -90,18 +89,18 @@ Example:
 			}
 			for _, item := range required {
 				if strings.TrimSpace(item.value) == "" {
-					return shared.UsageError(item.name + " is required")
+					return d.UsageError(item.name + " is required")
 				}
 			}
 			bundleIDSet := false
 			fs.Visit(func(item *flag.Flag) { bundleIDSet = bundleIDSet || item.Name == "bundle-id" })
 			if bundleIDSet && strings.TrimSpace(*bundleID) == "" {
-				return shared.UsageError("--bundle-id must not be empty")
+				return d.UsageError("--bundle-id must not be empty")
 			}
 			if _, err := shared.ValidateOutputFormat(*format.Output, *format.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			result, err := executeSigningResignFn(ctx, signingResignOptions{
+			result, err := executeSigningResignFn(ctx, d, signingResignOptions{
 				IPAPath:              *ipaPath,
 				OutputPath:           *outputPath,
 				IdentityPath:         *identityPath,
@@ -112,7 +111,7 @@ Example:
 			})
 			if err != nil {
 				if isSigningResignUsageError(err) {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				// The implementation normally classifies path-bearing failures
 				// before returning. Keep the public command boundary defensive for
@@ -126,7 +125,7 @@ Example:
 				)
 				return fmt.Errorf("signing resign: %w", err)
 			}
-			if err := printSigningResignResultFn(result, *format.Output, *format.Pretty); err != nil {
+			if err := printSigningResignResultFn(d, result, *format.Output, *format.Pretty); err != nil {
 				if result.Output.Path == "" {
 					return err
 				}
@@ -182,8 +181,8 @@ type (
 	signingResignOutputEntitlementRewrite = asc.SigningResignEntitlementRewrite
 )
 
-func printSigningResignResult(result signingResignResult, format string, pretty bool) error {
-	return shared.PrintOutput(&result, format, pretty)
+func printSigningResignResult(d *shared.Deps, result signingResignResult, format string, pretty bool) error {
+	return d.PrintOutput(&result, format, pretty)
 }
 
 var (

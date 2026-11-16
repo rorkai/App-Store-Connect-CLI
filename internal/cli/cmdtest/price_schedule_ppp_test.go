@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type scheduleSurfaceFixture struct {
@@ -373,7 +371,7 @@ func TestPriceSchedulePPPIgnoresUnresolvedSupersededPrices(t *testing.T) {
 			t.Run(surface.priceType+"/"+test.name, func(t *testing.T) {
 				setupAuth(t)
 				t.Setenv("ASC_APP_ID", "")
-				t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+				t.Cleanup(setRootNow(func() time.Time {
 					return time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
 				}))
 				var posts []string

@@ -461,7 +461,7 @@ func fetchSubscriptionIntroductoryOfferImportState(ctx context.Context, d *share
 	if err != nil {
 		return nil, err
 	}
-	index.now = shared.PricingNow()
+	index.now = d.Now()
 	return index, nil
 }
 

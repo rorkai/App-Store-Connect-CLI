@@ -61,5 +61,5 @@ func readAppPPPSchedule(ctx context.Context, d *shared.Deps, client *asc.Client,
 			return snapshot, err
 		}
 	}
-	return snapshot, shared.ValidatePPPScheduleSnapshot(snapshot)
+	return snapshot, shared.ValidatePPPScheduleSnapshot(snapshot, d.Now)
 }

@@ -183,7 +183,7 @@ Examples:
 			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
-			effectiveAt := PricingNow()
+			effectiveAt := d.Now()
 			start := strings.TrimSpace(*startDate)
 			if start != "" {
 				start, err = NormalizeDate(start, "--start-date")
@@ -204,7 +204,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			client, err := GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
@@ -222,6 +222,7 @@ Examples:
 				effectiveAt:   effectiveAt,
 				dryRun:        *dryRun,
 				workers:       *workers,
+				now:           d.Now,
 			})
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
@@ -247,6 +248,7 @@ type priceSchedulePPPRun struct {
 	effectiveAt   time.Time
 	dryRun        bool
 	workers       int
+	now           func() time.Time
 }
 
 type priceSchedulePPPOutcome struct {
@@ -268,10 +270,10 @@ func runPriceSchedulePPP(ctx context.Context, stderr io.Writer, surface PriceSch
 	if len(run.selected) > 0 {
 		snapshot, err = surface.ReadSchedule(ctx)
 		if err == nil {
-			current, err = SelectPPPCurrentPrices(snapshot.Prices, run.selected, PricingNow())
+			current, err = SelectPPPCurrentPrices(snapshot.Prices, run.selected, run.now())
 		}
 	} else {
-		current, err = surface.CurrentPrices(ctx, PricingNow())
+		current, err = surface.CurrentPrices(ctx, run.now())
 	}
 	if err != nil {
 		return priceSchedulePPPOutcome{}, fmt.Errorf("fetch current prices: %w", err)
@@ -400,7 +402,7 @@ func runPriceSchedulePPP(ctx context.Context, stderr io.Writer, surface PriceSch
 		if err != nil {
 			return priceSchedulePPPOutcome{}, fmt.Errorf("pre-write schedule read: %w", err)
 		}
-		if !samePPPSnapshot(snapshot, fresh, key) {
+		if !samePPPSnapshot(snapshot, fresh, key, run.now) {
 			return priceSchedulePPPOutcome{}, fmt.Errorf("price schedule changed during planning; no changes were applied")
 		}
 	}
@@ -426,7 +428,7 @@ func runPriceSchedulePPP(ctx context.Context, stderr io.Writer, surface PriceSch
 	fmt.Fprintln(stderr, "Verifying prices...")
 	verifyErr := verifyPriceSchedulePPP(ctx, surface, key, run.effectiveAt, result)
 	if len(run.selected) > 0 {
-		if err := verifyScopedPPPSchedule(ctx, surface, snapshot, rows, prices, ladders, run.startDate, key); err != nil {
+		if err := verifyScopedPPPSchedule(ctx, surface, snapshot, rows, prices, ladders, run.startDate, key, run.now); err != nil {
 			result.Verification.Status = "failed"
 			verifyErr = err
 		}

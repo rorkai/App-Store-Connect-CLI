@@ -32,7 +32,7 @@ Examples:
 			newSigningFetchCommand(d),
 			newSigningKeychainCommand(d),
 			newSigningReconcileCommand(d),
-			SigningResignCommand(),
+			newSigningResignCommand(d),
 			newSigningRunCommand(d),
 			newSigningSyncCommand(d),
 		},

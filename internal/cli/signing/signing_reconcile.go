@@ -674,4 +674,4 @@ func reconcilePaths(options signingReconcilePlanOptions) signingReconcilePaths {
 	}
 }
 
-func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
+func nowRFC3339(clock func() time.Time) string { return clock().UTC().Format(time.RFC3339) }

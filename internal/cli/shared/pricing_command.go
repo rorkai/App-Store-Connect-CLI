@@ -119,7 +119,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			if normalizedEndDate != "" {
 				firstDay := normalizedStartDate
 				if startDateDefaulted {
-					firstDay = pricingDefaultStartDate(pricingNow())
+					firstDay = pricingDefaultStartDate(d.Now())
 				}
 				if err := validatePricingEndDate(d, firstDay, normalizedEndDate); err != nil {
 					return err
@@ -170,7 +170,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			// that crosses US Pacific midnight still sends today's date, never
 			// a past one Apple would reject.
 			if startDateDefaulted {
-				normalizedStartDate = pricingDefaultStartDate(pricingNow())
+				normalizedStartDate = pricingDefaultStartDate(d.Now())
 				fmt.Fprintf(
 					d.IO.ErrOut,
 					"Note: --start-date not set; using %s (today in US Pacific time, which App Store Connect uses). Apple requires today or later.\n",
@@ -187,7 +187,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				if err := validatePricingEndDate(d, normalizedStartDate, normalizedEndDate); err != nil {
 					return err
 				}
-				attrs.Prices = temporaryPriceTimeline(pricePointValue, returnPricePointValue, normalizedStartDate, normalizedEndDate, pricingDefaultStartDate(pricingNow()))
+				attrs.Prices = temporaryPriceTimeline(pricePointValue, returnPricePointValue, normalizedStartDate, normalizedEndDate, pricingDefaultStartDate(d.Now()))
 				if len(attrs.Prices) == 3 {
 					fmt.Fprintf(
 						d.IO.ErrOut,

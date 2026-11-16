@@ -214,8 +214,6 @@ func TestWebAnalyticsSubcommandsResolveSessionBeforeTimeoutContext(t *testing.T)
 }
 
 func TestWebAnalyticsOverviewCommandOutputsJSON(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	origGetOverview := getAnalyticsOverviewFn
 	t.Cleanup(func() {
@@ -269,8 +267,6 @@ func TestWebAnalyticsOverviewCommandOutputsJSON(t *testing.T) {
 }
 
 func TestWebAnalyticsSubscriptionsCommandTableIncludesSummaryLabels(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	origGetSubscriptions := getAnalyticsSubscriptionsSummaryFn
 	t.Cleanup(func() {
@@ -337,8 +333,6 @@ func TestAnalyticsPercentChangeStringUsesRatioValues(t *testing.T) {
 }
 
 func TestWebAnalyticsOverviewCommandTableUsesSectionedLayout(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	origGetOverview := getAnalyticsOverviewFn
 	t.Cleanup(func() {
@@ -414,8 +408,6 @@ func TestWebAnalyticsMetricsCommandRequiresMeasures(t *testing.T) {
 }
 
 func TestWebAnalyticsMetricsCommandOutputsJSON(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	origGetMeasures := getAnalyticsMeasuresFn
 	t.Cleanup(func() {
