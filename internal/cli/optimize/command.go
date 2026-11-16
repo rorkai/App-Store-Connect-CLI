@@ -91,7 +91,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppSelector := shared.ResolveAppID(*appID)
+			resolvedAppSelector := d.ResolveAppID(*appID)
 			if resolvedAppSelector == "" {
 				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}

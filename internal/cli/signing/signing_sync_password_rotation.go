@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"strings"
@@ -17,8 +18,8 @@ import (
 	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
-func syncRotatePasswordCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rotate-password", flag.ExitOnError)
+func syncRotatePasswordCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rotate-password", flag.ExitOnError)
 
 	repoURL := fs.String("repo", "", "Git repo URL (required with --storage git)")
 	passwordFile := fs.String("password-file", "", "Protected file containing the current repository encryption password (required)")
@@ -27,7 +28,7 @@ func syncRotatePasswordCommand() *ffcli.Command {
 	storage := fs.String("storage", signingSyncStorageGit, "Encrypted artifact storage ("+signingSyncStorageGit+" or "+signingSyncStorageObject+")")
 	objectFlags := bindSigningSyncObjectFlags(fs)
 	confirm := fs.Bool("confirm", false, "Confirm that the previous password will no longer decrypt the stored artifacts")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "rotate-password",
@@ -73,10 +74,10 @@ Examples:
     --password-file ~/.config/asc/signing-sync-password \
     --new-password-file ~/.config/asc/signing-sync-password-next --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			selectedStorage := strings.ToLower(strings.TrimSpace(*storage))
@@ -86,53 +87,53 @@ Examples:
 			var objectOptions signingpkg.ObjectStorageOptions
 			switch selectedStorage {
 			case signingSyncStorageGit:
-				if err := rejectSigningSyncObjectFlags(provided); err != nil {
+				if err := rejectSigningSyncObjectFlags(d, provided); err != nil {
 					return err
 				}
 				if repo == "" {
-					return shared.UsageError("--repo is required")
+					return d.UsageError("--repo is required")
 				}
 			case signingSyncStorageObject:
-				if err := rejectGitOnlySigningSyncFlags(provided, selectedStorage); err != nil {
+				if err := rejectGitOnlySigningSyncFlags(d, provided, selectedStorage); err != nil {
 					return err
 				}
 				var err error
-				objectOptions, err = parseSigningSyncObjectStorage(objectFlags)
+				objectOptions, err = parseSigningSyncObjectStorage(d, objectFlags)
 				if err != nil {
 					return err
 				}
 			default:
-				return shared.UsageErrorf("signing sync rotate-password supports only --storage %s or --storage %s", signingSyncStorageGit, signingSyncStorageObject)
+				return d.UsageErrorf("signing sync rotate-password supports only --storage %s or --storage %s", signingSyncStorageGit, signingSyncStorageObject)
 			}
 			currentPath := strings.TrimSpace(*passwordFile)
 			if currentPath == "" {
-				return shared.UsageError("--password-file is required")
+				return d.UsageError("--password-file is required")
 			}
 			newPath := strings.TrimSpace(*newPasswordFile)
 			if newPath == "" {
-				return shared.UsageError("--new-password-file is required")
+				return d.UsageError("--new-password-file is required")
 			}
 			if selectedStorage == signingSyncStorageGit && selectedBranch == "" {
-				return shared.UsageError("--branch must not be empty")
+				return d.UsageError("--branch must not be empty")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			currentPassword, nextPassword, err := readSigningSyncRotationPasswords(currentPath, newPath)
+			currentPassword, nextPassword, err := readSigningSyncRotationPasswords(d, currentPath, newPath)
 			if err != nil {
 				return err
 			}
 
 			var target signingSyncRotationTarget
 			if selectedStorage == signingSyncStorageObject {
-				backend, err := newSigningSyncObjectStore(ctx, objectOptions)
+				backend, err := newSigningSyncObjectStore(ctx, d, objectOptions)
 				if err != nil {
 					return fmt.Errorf("signing sync rotate-password: %w", err)
 				}
-				target = &signingSyncObjectRotationTarget{backend: backend}
+				target = &signingSyncObjectRotationTarget{backend: backend, stderr: d.IO.ErrOut}
 			} else {
-				target = signingSyncGitRotationTarget{repoURL: repo, branch: selectedBranch}
+				target = signingSyncGitRotationTarget{repoURL: repo, branch: selectedBranch, stderr: d.IO.ErrOut}
 			}
 
 			tmpDir, err := os.MkdirTemp("", "asc-signing-sync-rotate-*")
@@ -155,8 +156,8 @@ Examples:
 			}
 			slices.Sort(encryptedFiles)
 			if len(encryptedFiles) == 0 {
-				fmt.Fprintln(os.Stderr, "No encrypted signing files found in repo")
-				return shared.PrintOutput(&SyncResult{
+				fmt.Fprintln(d.IO.ErrOut, "No encrypted signing files found in repo")
+				return d.PrintOutput(&SyncResult{
 					Operation: "rotate-password",
 					RepoURL:   target.Locator(),
 					Storage:   target.Storage(),
@@ -164,19 +165,19 @@ Examples:
 				}, *output.Output, *output.Pretty)
 			}
 
-			decrypted, _, err := loadAndValidateSigningFiles(store, encryptedFiles, currentPassword)
+			decrypted, _, err := loadAndValidateSigningFiles(d, store, encryptedFiles, currentPassword)
 			if err != nil {
 				return fmt.Errorf("signing sync rotate-password: %w", err)
 			}
 			if err := rewriteSigningFilesWithPassword(store, decrypted, currentPassword, nextPassword); err != nil {
 				return fmt.Errorf("signing sync rotate-password: %w", err)
 			}
-			rewritten, _, err := loadAndValidateSigningFiles(store, encryptedFiles, nextPassword)
+			rewritten, _, err := loadAndValidateSigningFiles(d, store, encryptedFiles, nextPassword)
 			if err != nil {
 				return fmt.Errorf("signing sync rotate-password: validate rewritten repository: %w", err)
 			}
 
-			fmt.Fprintln(os.Stderr, "Publishing rotated signing assets...")
+			fmt.Fprintln(d.IO.ErrOut, "Publishing rotated signing assets...")
 			if err := target.Publish(ctx, store); err != nil {
 				return fmt.Errorf("signing sync rotate-password: %w", err)
 			}
@@ -189,8 +190,8 @@ Examples:
 				}
 				identityPresent = identityPresent || file.Identity
 			}
-			fmt.Fprintf(os.Stderr, "Done — %d encrypted signing files rotated\n", len(encryptedFiles))
-			return shared.PrintOutput(&SyncResult{
+			fmt.Fprintf(d.IO.ErrOut, "Done — %d encrypted signing files rotated\n", len(encryptedFiles))
+			return d.PrintOutput(&SyncResult{
 				Operation:       "rotate-password",
 				RepoURL:         target.Locator(),
 				Storage:         target.Storage(),
@@ -214,10 +215,11 @@ type signingSyncRotationTarget interface {
 type signingSyncGitRotationTarget struct {
 	repoURL string
 	branch  string
+	stderr  io.Writer
 }
 
 func (t signingSyncGitRotationTarget) Fetch(ctx context.Context, store *signingpkg.GitStore) error {
-	fmt.Fprintln(os.Stderr, "Cloning signing repo...")
+	fmt.Fprintln(t.stderr, "Cloning signing repo...")
 	return store.Clone(ctx, false)
 }
 
@@ -236,10 +238,11 @@ func (t signingSyncGitRotationTarget) Storage() *asc.SigningSyncStorage {
 type signingSyncObjectRotationTarget struct {
 	backend  *signingpkg.ObjectStorageStore
 	previous map[string][]byte
+	stderr   io.Writer
 }
 
 func (t *signingSyncObjectRotationTarget) Fetch(ctx context.Context, store *signingpkg.GitStore) error {
-	fmt.Fprintln(os.Stderr, "Fetching encrypted signing artifacts from object storage...")
+	fmt.Fprintln(t.stderr, "Fetching encrypted signing artifacts from object storage...")
 	if err := t.backend.Fetch(ctx, store); err != nil {
 		return err
 	}
@@ -264,7 +267,7 @@ func (t *signingSyncObjectRotationTarget) Publish(ctx context.Context, store *si
 		return err
 	}
 	for _, key := range report.LeftoverStagedKeys {
-		fmt.Fprintf(os.Stderr, "Warning: could not delete staged rotation object %s; it is ignored by pulls and safe to delete\n", key)
+		fmt.Fprintf(t.stderr, "Warning: could not delete staged rotation object %s; it is ignored by pulls and safe to delete\n", key)
 	}
 	return nil
 }
@@ -275,11 +278,11 @@ func (t *signingSyncObjectRotationTarget) Storage() *asc.SigningSyncStorage {
 	return &asc.SigningSyncStorage{Kind: signingSyncStorageObject, Location: t.backend.Locator()}
 }
 
-func readSigningSyncRotationPasswords(currentPath, newPath string) (string, string, error) {
+func readSigningSyncRotationPasswords(d *shared.Deps, currentPath, newPath string) (string, string, error) {
 	currentInfo, err := os.Stat(currentPath)
 	if err == nil {
 		if nextInfo, nextErr := os.Stat(newPath); nextErr == nil && os.SameFile(currentInfo, nextInfo) {
-			return "", "", shared.UsageError("--password-file and --new-password-file must identify different files")
+			return "", "", d.UsageError("--password-file and --new-password-file must identify different files")
 		}
 	}
 	currentData, err := readProtectedSecretFile(currentPath, "current signing sync password")
@@ -292,14 +295,14 @@ func readSigningSyncRotationPasswords(currentPath, newPath string) (string, stri
 	}
 	currentPassword := trimPasswordFileNewline(string(currentData))
 	if currentPassword == "" {
-		return "", "", shared.UsageError("current signing sync password file is empty")
+		return "", "", d.UsageError("current signing sync password file is empty")
 	}
 	nextPassword := trimPasswordFileNewline(string(nextData))
 	if nextPassword == "" {
-		return "", "", shared.UsageError("new signing sync password file is empty")
+		return "", "", d.UsageError("new signing sync password file is empty")
 	}
 	if subtle.ConstantTimeCompare([]byte(currentPassword), []byte(nextPassword)) == 1 {
-		return "", "", shared.UsageError("current and new signing sync passwords must differ")
+		return "", "", d.UsageError("current and new signing sync passwords must differ")
 	}
 	return currentPassword, nextPassword, nil
 }

@@ -25,6 +25,7 @@ func newAssetsTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes
 		After:          time.After,
 		Getwd:          os.Getwd,
 		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
+		LookupEnv:      os.LookupEnv,
 	}, &stdout, &stderr
 }
 

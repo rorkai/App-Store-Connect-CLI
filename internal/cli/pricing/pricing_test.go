@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"strings"
 	"testing"
 
@@ -368,7 +369,8 @@ func TestPricingCommands_DefaultOutputJSON(t *testing.T) {
 func newTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
-		Client: client,
-		IO:     &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Client:    client,
+		IO:        &shared.IO{Out: &stdout, ErrOut: &stderr},
+		LookupEnv: os.LookupEnv,
 	}, &stdout, &stderr
 }

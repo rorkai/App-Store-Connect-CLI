@@ -24,8 +24,8 @@ import (
 // SyncNukeResult is the receipt printed by signing sync nuke.
 type SyncNukeResult = asc.SigningSyncNukeResult
 
-func syncNukeCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("nuke", flag.ExitOnError)
+func syncNukeCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("nuke", flag.ExitOnError)
 
 	profileType := fs.String("profile-type", "", "Profile type whose profiles are deleted, such as IOS_APP_DEVELOPMENT (required)")
 	certType := fs.String("certificate-type", "", "Certificate type(s) to revoke, comma-separated (default: inferred from --profile-type)")
@@ -34,7 +34,7 @@ func syncNukeCommand() *ffcli.Command {
 	passwordFile := fs.String("password-file", "", "Protected file containing the repository encryption password (or set ASC_SIGNING_SYNC_PASSWORD)")
 	confirm := fs.Bool("confirm", false, "Confirm deleting the profiles, revoking the certificates, and removing their encrypted artifacts")
 	dryRun := fs.Bool("dry-run", false, "Print the plan without deleting, revoking, removing, or publishing anything")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "nuke",
@@ -69,43 +69,43 @@ Examples:
   asc signing sync nuke --profile-type IOS_APP_DEVELOPMENT \
     --repo git@github.com:team/certs.git --password-file ~/.config/asc/signing-sync-password --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			rawType := strings.TrimSpace(*profileType)
 			if rawType == "" {
-				return shared.UsageError("--profile-type is required")
+				return d.UsageError("--profile-type is required")
 			}
 			profType, err := normalizeSigningPullProfileType(rawType)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			repo := strings.TrimSpace(*repoURL)
 			if repo == "" {
-				return shared.UsageError("--repo is required")
+				return d.UsageError("--repo is required")
 			}
 			selectedBranch := strings.TrimSpace(*branch)
 			if selectedBranch == "" {
-				return shared.UsageError("--branch must not be empty")
+				return d.UsageError("--branch must not be empty")
 			}
 			if *confirm && *dryRun {
-				return shared.UsageError("--confirm and --dry-run are mutually exclusive")
+				return d.UsageError("--confirm and --dry-run are mutually exclusive")
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 			certificateTypes, err := resolveSigningCertificateTypes(profType, *certType)
 			if err != nil {
-				return shared.UsageErrorf("--certificate-type: %v", err)
+				return d.UsageErrorf("--certificate-type: %v", err)
 			}
-			password, err := resolveSyncPassword(*passwordFile)
+			password, err := resolveSyncPassword(d, *passwordFile)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("signing sync nuke: %w", err)
 			}
@@ -122,12 +122,12 @@ Examples:
 				RepositoryFiles:  asc.SigningSyncNukeFiles{Planned: []string{}, Removed: []string{}},
 			}
 
-			fmt.Fprintln(os.Stderr, "Listing signing assets in App Store Connect...")
-			profiles, err := listSigningNukeProfiles(ctx, client, profType)
+			fmt.Fprintln(d.IO.ErrOut, "Listing signing assets in App Store Connect...")
+			profiles, err := listSigningNukeProfiles(ctx, d, client, profType)
 			if err != nil {
 				return fmt.Errorf("signing sync nuke: list profiles: %w", err)
 			}
-			certificates, err := listSigningNukeCertificates(ctx, client, certificateTypes)
+			certificates, err := listSigningNukeCertificates(ctx, d, client, certificateTypes)
 			if err != nil {
 				return fmt.Errorf("signing sync nuke: list certificates: %w", err)
 			}
@@ -138,7 +138,7 @@ Examples:
 			}
 			store := &signingpkg.GitStore{RepoURL: repo, LocalDir: tmpDir, Branch: selectedBranch}
 			defer func() { _ = store.Cleanup() }()
-			fmt.Fprintln(os.Stderr, "Cloning signing repo...")
+			fmt.Fprintln(d.IO.ErrOut, "Cloning signing repo...")
 			if err := store.Clone(ctx, false); err != nil {
 				return fmt.Errorf("signing sync nuke: %w", err)
 			}
@@ -154,39 +154,39 @@ Examples:
 
 			if *dryRun {
 				result.PublicationState = asc.SigningSyncNukePublicationSkipped
-				fmt.Fprintf(os.Stderr, "Dry run: would delete %d profile(s), revoke %d certificate(s), and remove %d encrypted file(s); nothing was changed\n",
+				fmt.Fprintf(d.IO.ErrOut, "Dry run: would delete %d profile(s), revoke %d certificate(s), and remove %d encrypted file(s); nothing was changed\n",
 					len(result.Profiles.Planned), len(result.Certificates.Planned), len(result.RepositoryFiles.Planned))
-				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+				return d.PrintOutput(&result, *output.Output, *output.Pretty)
 			}
 
 			deleted := make(map[string]struct{}, len(profiles))
 			for _, profile := range profiles {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				err := client.DeleteProfile(requestCtx, profile.ID)
 				cancel()
 				resource := signingNukeProfileResource(profile)
 				if err != nil {
 					result.Profiles.Failed = append(result.Profiles.Failed, asc.SigningSyncNukeFailure{ID: profile.ID, Name: profile.Attributes.Name, Error: err.Error()})
-					fmt.Fprintf(os.Stderr, "  Failed to delete profile %s: %v\n", profile.ID, err)
+					fmt.Fprintf(d.IO.ErrOut, "  Failed to delete profile %s: %v\n", profile.ID, err)
 					continue
 				}
 				deleted[profile.ID] = struct{}{}
 				result.Profiles.Deleted = append(result.Profiles.Deleted, resource)
-				fmt.Fprintf(os.Stderr, "  Deleted profile %s\n", profile.ID)
+				fmt.Fprintf(d.IO.ErrOut, "  Deleted profile %s\n", profile.ID)
 			}
 			revoked := make([]asc.Resource[asc.CertificateAttributes], 0, len(certificates))
 			for _, certificate := range certificates {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				err := client.RevokeCertificate(requestCtx, certificate.ID)
 				cancel()
 				if err != nil {
 					result.Certificates.Failed = append(result.Certificates.Failed, asc.SigningSyncNukeFailure{ID: certificate.ID, Name: certificate.Attributes.Name, Error: err.Error()})
-					fmt.Fprintf(os.Stderr, "  Failed to revoke certificate %s: %v\n", certificate.ID, err)
+					fmt.Fprintf(d.IO.ErrOut, "  Failed to revoke certificate %s: %v\n", certificate.ID, err)
 					continue
 				}
 				revoked = append(revoked, certificate)
 				result.Certificates.Revoked = append(result.Certificates.Revoked, signingNukeCertificateResource(certificate))
-				fmt.Fprintf(os.Stderr, "  Revoked certificate %s\n", certificate.ID)
+				fmt.Fprintf(d.IO.ErrOut, "  Revoked certificate %s\n", certificate.ID)
 			}
 
 			completed := signingNukePlan{
@@ -207,7 +207,7 @@ Examples:
 				result.PublicationState = asc.SigningSyncNukePublicationFailed
 				publishErr = fmt.Errorf("remove encrypted artifacts: %w", err)
 			} else {
-				fmt.Fprintln(os.Stderr, "Pushing to git...")
+				fmt.Fprintln(d.IO.ErrOut, "Pushing to git...")
 				if err := store.CommitAndPush(ctx, fmt.Sprintf("Remove %s signing assets", profType)); err != nil {
 					result.PublicationState = asc.SigningSyncNukePublicationFailed
 					publishErr = err
@@ -221,7 +221,7 @@ Examples:
 				result.RepositoryFiles.Kept = append([]string(nil), result.RepositoryFiles.Planned...)
 			}
 
-			if err := shared.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			switch {
@@ -232,7 +232,7 @@ Examples:
 			case failures > 0:
 				return fmt.Errorf("signing sync nuke: failed to delete %d profile(s) and revoke %d certificate(s); their repository artifacts were kept", len(result.Profiles.Failed), len(result.Certificates.Failed))
 			}
-			fmt.Fprintln(os.Stderr, "Done")
+			fmt.Fprintln(d.IO.ErrOut, "Done")
 			return nil
 		},
 	}
@@ -240,13 +240,13 @@ Examples:
 
 // listSigningNukeProfiles lists every profile of one type, sorted by ID. The
 // type is checked again client side so nuke can never delete another type.
-func listSigningNukeProfiles(ctx context.Context, client *asc.Client, profileType string) ([]asc.Resource[asc.ProfileAttributes], error) {
+func listSigningNukeProfiles(ctx context.Context, d *shared.Deps, client *asc.Client, profileType string) ([]asc.Resource[asc.ProfileAttributes], error) {
 	var profiles []asc.Resource[asc.ProfileAttributes]
 	next := ""
 	page := 1
 	seenNext := make(map[string]struct{})
 	for {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		options := []asc.ProfilesOption{asc.NextURL[asc.ProfilesOption](next)}
 		if next == "" {
 			options = append(options, asc.WithProfilesFilterType(profileType), asc.Limit[asc.ProfilesOption](200))
@@ -277,7 +277,7 @@ func listSigningNukeProfiles(ctx context.Context, client *asc.Client, profileTyp
 
 // listSigningNukeCertificates lists every certificate of the selected types,
 // sorted by ID, and checks each type again client side.
-func listSigningNukeCertificates(ctx context.Context, client *asc.Client, certificateTypes string) ([]asc.Resource[asc.CertificateAttributes], error) {
+func listSigningNukeCertificates(ctx context.Context, d *shared.Deps, client *asc.Client, certificateTypes string) ([]asc.Resource[asc.CertificateAttributes], error) {
 	allowed := make(map[string]struct{})
 	for _, certificateType := range shared.SplitCSVUpper(certificateTypes) {
 		allowed[certificateType] = struct{}{}
@@ -287,7 +287,7 @@ func listSigningNukeCertificates(ctx context.Context, client *asc.Client, certif
 	page := 1
 	seenNext := make(map[string]struct{})
 	for {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		options := []asc.CertificatesOption{asc.NextURL[asc.CertificatesOption](next)}
 		if next == "" {
 			options = append(options, asc.WithCertificatesFilterType(certificateTypes), asc.Limit[asc.CertificatesOption](200))

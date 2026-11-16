@@ -136,9 +136,9 @@ Examples:
 			// so every other value keeps its version-ID meaning.
 			versionIsString := normalizedType == shared.LocalizationTypeVersion &&
 				versionValue != "" &&
-				shared.ResolveAppID(*appID) != "" &&
+				d.ResolveAppID(*appID) != "" &&
 				shared.IsAppStoreVersionString(versionValue)
-			if strings.TrimSpace(*next) == "" && shared.ResolveAppID(*appID) == "" {
+			if strings.TrimSpace(*next) == "" && d.ResolveAppID(*appID) == "" {
 				switch {
 				case normalizedType == shared.LocalizationTypeVersion && versionValue == "":
 					fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations (or pass --app to use the app's editable or live version)")
@@ -203,7 +203,7 @@ Examples:
 			switch normalizedType {
 			case shared.LocalizationTypeVersion:
 				resolvedVersionID := strings.TrimSpace(*versionID)
-				resolvedAppID := shared.ResolveAppID(*appID)
+				resolvedAppID := d.ResolveAppID(*appID)
 
 				client, err := d.Client()
 				if err != nil {
@@ -282,7 +282,7 @@ Examples:
 				}
 				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := shared.ResolveAppID(*appID)
+				resolvedAppID := d.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 					return shared.MissingRequiredUsageError("--app")
@@ -497,7 +497,7 @@ Examples:
 
 				return d.PrintOutput(&result, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := shared.ResolveAppID(*appID)
+				resolvedAppID := d.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 					return shared.MissingRequiredUsageError("--app")
@@ -661,7 +661,7 @@ Examples:
 				}
 				return nil
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := shared.ResolveAppID(*appID)
+				resolvedAppID := d.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 					return shared.MissingRequiredUsageError("--app")
@@ -751,7 +751,7 @@ func normalizeLocalizationVersionSelector(d *shared.Deps, version, appID, platfo
 	if !isVersionString && strings.TrimSpace(appID) != "" {
 		return false, "", d.UsageError("--app only applies when --version is a version string")
 	}
-	if isVersionString && strings.TrimSpace(shared.ResolveAppID(appID)) == "" {
+	if isVersionString && strings.TrimSpace(d.ResolveAppID(appID)) == "" {
 		return false, "", d.UsageError("--app is required (or set ASC_APP_ID) when --version is a version string; otherwise pass an App Store version ID from asc versions list --app APP_ID")
 	}
 	if strings.TrimSpace(platform) != "" {

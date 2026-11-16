@@ -127,7 +127,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppInput := shared.ResolveAppID(*appID)
+			resolvedAppInput := d.ResolveAppID(*appID)
 			if resolvedAppInput == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
@@ -583,7 +583,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 
-			resolvedAppInput := shared.ResolveAppID(*appID)
+			resolvedAppInput := d.ResolveAppID(*appID)
 			if resolvedAppInput == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
