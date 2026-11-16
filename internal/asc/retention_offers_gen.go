@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -30,6 +31,16 @@ type RetentionOfferUpdateAttributes struct {
 	CustomerEligibilityWaitBetweenOffersInMonths        *int `json:"customerEligibilityWaitBetweenOffersInMonths,omitempty"`
 }
 
+// RetentionOfferUpdateRequest is the RetentionOfferUpdateRequest schema.
+type RetentionOfferUpdateRequest struct {
+	Data RetentionOfferUpdateData `json:"data"`
+}
+
+// DeleteRetentionOffer sends DELETE /v1/retentionOffers/{id} (retentionOffers_deleteInstance).
+func (c *Client) DeleteRetentionOffer(ctx context.Context, offerID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/retentionOffers/%s", strings.TrimSpace(offerID)), nil)
+}
+
 // GetRetentionOfferPricesRelationships sends GET /v1/retentionOffers/{id}/relationships/prices (retentionOffers_prices_getToManyRelationship).
 func (c *Client) GetRetentionOfferPricesRelationships(ctx context.Context, offerID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)
@@ -43,5 +54,22 @@ func (c *Client) GetRetentionOfferPricesRelationships(ctx context.Context, offer
 		Next:        query.nextURL,
 		NextContext: "retentionOfferPrices relationships",
 		ParseErr:    "failed to parse prices relationship response",
+	})
+}
+
+// UpdateRetentionOffer sends PATCH /v1/retentionOffers/{id} (retentionOffers_updateInstance).
+func (c *Client) UpdateRetentionOffer(ctx context.Context, offerID string, attrs RetentionOfferUpdateAttributes) (*RetentionOfferResponse, error) {
+	offerID = strings.TrimSpace(offerID)
+	payload := RetentionOfferUpdateRequest{
+		Data: RetentionOfferUpdateData{
+			Type:       ResourceTypeRetentionOffers,
+			ID:         offerID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[RetentionOfferResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/retentionOffers/%s", offerID),
+		Payload: payload,
 	})
 }

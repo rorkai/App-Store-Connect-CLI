@@ -2,9 +2,101 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+)
+
 // RetentionMessageLocalizationCreateAttributes is the data.attributes object of the RetentionMessageLocalizationCreateRequest schema.
 type RetentionMessageLocalizationCreateAttributes struct {
 	Locale string  `json:"locale"`
 	Header *string `json:"header,omitempty"`
 	Body   *string `json:"body,omitempty"`
+}
+
+// RetentionMessageLocalizationCreateData is the data object of the RetentionMessageLocalizationCreateRequest schema.
+type RetentionMessageLocalizationCreateData struct {
+	Type          ResourceType                                     `json:"type"`
+	Attributes    RetentionMessageLocalizationCreateAttributes     `json:"attributes"`
+	Relationships *RetentionMessageLocalizationCreateRelationships `json:"relationships"`
+}
+
+// RetentionMessageLocalizationCreateRelationships is the data.relationships object of the RetentionMessageLocalizationCreateRequest schema.
+type RetentionMessageLocalizationCreateRelationships struct {
+	RetentionMessageVersion *Relationship `json:"retentionMessageVersion"`
+}
+
+// RetentionMessageLocalizationCreateRequest is the RetentionMessageLocalizationCreateRequest schema.
+type RetentionMessageLocalizationCreateRequest struct {
+	Data RetentionMessageLocalizationCreateData `json:"data"`
+}
+
+// RetentionMessageLocalizationUpdateData is the data object of the RetentionMessageLocalizationUpdateRequest schema.
+type RetentionMessageLocalizationUpdateData struct {
+	Type       ResourceType                                  `json:"type"`
+	ID         string                                        `json:"id"`
+	Attributes *RetentionMessageLocalizationUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// RetentionMessageLocalizationUpdateRequest is the RetentionMessageLocalizationUpdateRequest schema.
+type RetentionMessageLocalizationUpdateRequest struct {
+	Data RetentionMessageLocalizationUpdateData `json:"data"`
+}
+
+// CreateRetentionMessageLocalization sends POST /v1/retentionMessageLocalizations (retentionMessageLocalizations_createInstance).
+func (c *Client) CreateRetentionMessageLocalization(ctx context.Context, versionID string, attrs RetentionMessageLocalizationCreateAttributes) (*RetentionMessageLocalizationResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	payload := RetentionMessageLocalizationCreateRequest{
+		Data: RetentionMessageLocalizationCreateData{
+			Type:       ResourceTypeRetentionMessageLocalizations,
+			Attributes: attrs,
+			Relationships: &RetentionMessageLocalizationCreateRelationships{
+				RetentionMessageVersion: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeRetentionMessageVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[RetentionMessageLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/retentionMessageLocalizations",
+		Payload: payload,
+	})
+}
+
+// DeleteRetentionMessageLocalization sends DELETE /v1/retentionMessageLocalizations/{id} (retentionMessageLocalizations_deleteInstance).
+func (c *Client) DeleteRetentionMessageLocalization(ctx context.Context, localizationID string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/retentionMessageLocalizations/%s", localizationID), nil)
+}
+
+// UpdateRetentionMessageLocalization sends PATCH /v1/retentionMessageLocalizations/{id} (retentionMessageLocalizations_updateInstance).
+func (c *Client) UpdateRetentionMessageLocalization(ctx context.Context, localizationID string, attrs RetentionMessageLocalizationUpdateAttributes) (*RetentionMessageLocalizationResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	payload := RetentionMessageLocalizationUpdateRequest{
+		Data: RetentionMessageLocalizationUpdateData{
+			Type:       ResourceTypeRetentionMessageLocalizations,
+			ID:         localizationID,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[RetentionMessageLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/retentionMessageLocalizations/%s", localizationID),
+		Payload: payload,
+	})
 }
