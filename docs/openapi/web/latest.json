@@ -10005,7 +10005,8 @@
                   },
                   "developerAgeRatingInfoUrl": {
                     "type": "string",
-                    "format": "uri"
+                    "format": "uri",
+                    "nullable": true
                   }
                 },
                 "additionalProperties": false,

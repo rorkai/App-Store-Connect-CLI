@@ -23,6 +23,7 @@ func TestWebAppsAgeRatingsEdit(t *testing.T) {
 	t.Cleanup(func() { resolveSessionFn = originalResolve })
 
 	const input = `{"advertising":false,"contests":"NONE","kidsAgeBand":null,"developerAgeRatingInfoUrl":"https://example.com/age-suitability"}`
+	const clearURL = `{"developerAgeRatingInfoUrl":null}`
 	const response = `{"data":{"type":"ageRatingDeclarations","id":"declaration-1","attributes":{"advertising":false}}}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		const pathPrefix = "/iris/v1/ageRatingDeclarations/"
@@ -37,7 +38,11 @@ func TestWebAppsAgeRatingsEdit(t *testing.T) {
 		if err := json.NewDecoder(req.Body).Decode(&got); err != nil {
 			t.Error(err)
 		}
-		if err := json.Unmarshal([]byte(`{"data":{"type":"ageRatingDeclarations","id":"`+id+`","attributes":`+input+`}}`), &want); err != nil {
+		attrs := input
+		if id == "no-content" {
+			attrs = clearURL
+		}
+		if err := json.Unmarshal([]byte(`{"data":{"type":"ageRatingDeclarations","id":"`+id+`","attributes":`+attrs+`}}`), &want); err != nil {
 			t.Error(err)
 		}
 		if !reflect.DeepEqual(got, want) {
@@ -76,7 +81,7 @@ func TestWebAppsAgeRatingsEdit(t *testing.T) {
 		extra                     []string
 	}{
 		{name: "sparse PATCH", input: input, response: response, extra: []string{"--confirm"}},
-		{name: "empty success", id: "no-content", input: input, response: `{"declarationId":"no-content"}`, extra: []string{"--confirm"}},
+		{name: "clear URL with empty success", id: "no-content", input: clearURL, response: `{"declarationId":"no-content"}`, extra: []string{"--confirm"}},
 		{name: "invalid successful response", id: "invalid-response", input: input, requestError: "check the declaration before retrying", extra: []string{"--confirm"}},
 		{name: "unexpected arguments", input: input, diagnostic: "unexpected positional arguments", extra: []string{"--confirm", "stray"}},
 		{name: "redirect stops request", id: "redirect", input: input, requestError: "unexpected redirect during age rating update", extra: []string{"--confirm"}},

@@ -33,7 +33,8 @@ func newWebAgeRatingsEditCommand(d *shared.Deps) *ffcli.Command {
 
   {"advertising":false,"contests":"NONE","kidsAgeBand":null}
 
-The PATCH includes only the supplied fields.`,
+The PATCH includes only the supplied fields. Set developerAgeRatingInfoUrl
+to null to clear the Age Suitability URL.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

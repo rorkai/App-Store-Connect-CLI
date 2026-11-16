@@ -83,6 +83,9 @@ func validateAgeRatingEditField(field string, value json.RawMessage) error {
 		}
 		allowed = []string{"FIVE_AND_UNDER", "SIX_TO_EIGHT", "NINE_TO_ELEVEN"}
 	case "developerAgeRatingInfoUrl":
+		if string(value) == "null" {
+			return nil
+		}
 		var text string
 		if err := json.Unmarshal(value, &text); err == nil {
 			parsed, err := url.ParseRequestURI(text)
@@ -90,7 +93,7 @@ func validateAgeRatingEditField(field string, value json.RawMessage) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("--input field %q must be an absolute HTTP(S) URL without credentials", field)
+		return fmt.Errorf("--input field %q must be null or an absolute HTTP(S) URL without credentials", field)
 	default:
 		return fmt.Errorf("unsupported --input field %q", field)
 	}
