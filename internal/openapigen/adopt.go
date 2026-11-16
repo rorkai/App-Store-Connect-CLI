@@ -203,9 +203,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			adopted = append(adopted, fam)
 		}
 	}
-	if err := p.removeUnusedHelpers(dir, report); err != nil {
-		return nil, nil, err
-	}
+	p.removeUnusedHelpers(report)
 	edits, err := p.edits()
 	return edits, adopted, err
 }

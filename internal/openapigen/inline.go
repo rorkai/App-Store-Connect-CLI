@@ -6,9 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"os"
-	"path/filepath"
-	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -20,21 +17,21 @@ const maxInline = 4
 
 // funcKey names a hand-written function or Client method in pkg.funcs.
 func funcKey(fn *ast.FuncDecl) string {
-	if fn.Recv == nil {
+	switch {
+	case fn.Recv == nil:
 		return "func " + fn.Name.Name
-	}
-	if len(fn.Recv.List) == 1 && exprString(fn.Recv.List[0].Type) == "*Client" {
+	case len(fn.Recv.List) == 1 && exprString(fn.Recv.List[0].Type) == "*Client":
 		return "method " + fn.Name.Name
 	}
 	return ""
 }
 
 // inline returns a Client method whose body only returns the result of an
-// unexported helper of the package with the helper's body in place of the
-// call, parameters bound to the arguments, repeated while the result again
-// only returns a helper's result, and string literal arguments of fmt.Sprintf
-// and fmt.Errorf folded into the format. It returns nil when the method
-// delegates to no helper or a call cannot be inlined as written.
+// unexported helper with the helper's body in place of the call, repeated
+// while that body again only returns a helper's result, and with string
+// literal arguments of fmt.Sprintf and fmt.Errorf folded into the format. It
+// returns nil when the method delegates to no helper or a call cannot be
+// inlined as written.
 func (p *pkg) inline(d *decl) (*ast.FuncDecl, []byte, []*decl) {
 	fn, fset, src := d.node.(*ast.FuncDecl), p.fset, d.src
 	var via []*decl
@@ -47,21 +44,18 @@ func (p *pkg) inline(d *decl) (*ast.FuncDecl, []byte, []*decl) {
 		if !ok {
 			return nil, nil, nil
 		}
-		off := func(pos token.Pos) int { return fset.Position(pos).Offset - fset.Position(fn.Pos()).Offset }
-		next := append(append(slices.Clip(src[:off(fn.Body.Lbrace)]), '{'), append(body, '}')...)
-		parsed, nfset := parseFunc(next)
-		if parsed == nil {
+		lbrace := fset.Position(fn.Body.Lbrace).Offset - fset.Position(fn.Pos()).Offset
+		src = slices.Concat(src[:lbrace], []byte("{"), body, []byte("}"))
+		if fn, fset = parseFunc(src); fn == nil {
 			return nil, nil, nil
 		}
-		fn, fset, src = parsed, nfset, next
 		via = append(via, callee)
 	}
 	if len(via) == 0 {
 		return nil, nil, nil
 	}
 	src = foldFormats(fn, fset, src)
-	fn, _ = parseFunc(src)
-	if fn == nil {
+	if fn, _ = parseFunc(src); fn == nil {
 		return nil, nil, nil
 	}
 	return fn, src, via
@@ -74,17 +68,14 @@ func parseFunc(src []byte) (*ast.FuncDecl, *token.FileSet) {
 	if err != nil || len(f.Decls) != 1 {
 		return nil, nil
 	}
-	fn, ok := f.Decls[0].(*ast.FuncDecl)
-	if !ok {
-		return nil, nil
-	}
+	fn, _ := f.Decls[0].(*ast.FuncDecl)
 	return fn, fset
 }
 
-// delegate returns the unexported helper whose result is all a function
+// delegate returns the unexported helper whose result is all a method
 // returns, and the call.
 func (p *pkg) delegate(fn *ast.FuncDecl) (*decl, *ast.CallExpr) {
-	if fn.Body == nil || len(fn.Body.List) != 1 {
+	if len(fn.Body.List) != 1 {
 		return nil, nil
 	}
 	ret, ok := fn.Body.List[0].(*ast.ReturnStmt)
@@ -98,19 +89,15 @@ func (p *pkg) delegate(fn *ast.FuncDecl) (*decl, *ast.CallExpr) {
 	key := ""
 	switch f := call.Fun.(type) {
 	case *ast.SelectorExpr:
-		if recv, ok := f.X.(*ast.Ident); ok && fn.Recv != nil && len(fn.Recv.List[0].Names) == 1 && recv.Name == fn.Recv.List[0].Names[0].Name {
+		if recv := fn.Recv.List[0].Names; len(recv) == 1 && exprString(f.X) == recv[0].Name {
 			key = "method " + f.Sel.Name
 		}
 	case *ast.Ident:
 		key = "func " + f.Name
 	case *ast.IndexExpr:
-		if id, ok := f.X.(*ast.Ident); ok {
-			key = "func " + id.Name
-		}
+		key = "func " + exprString(f.X)
 	case *ast.IndexListExpr:
-		if id, ok := f.X.(*ast.Ident); ok {
-			key = "func " + id.Name
-		}
+		key = "func " + exprString(f.X)
 	}
 	callee := p.funcs[key]
 	if callee == nil || ast.IsExported(callee.name) || callee.node.(*ast.FuncDecl).Body == nil {
@@ -119,52 +106,42 @@ func (p *pkg) delegate(fn *ast.FuncDecl) (*decl, *ast.CallExpr) {
 	return callee, call
 }
 
-// bind returns the body of the callee, without its braces, with each of its
-// parameters replaced by the argument the call passes. An argument must be an
-// identifier or a string literal, a parameter the callee assigns must get a
-// parameter of the caller, and the callee must declare no name a parameter or
-// the caller uses.
+// bind returns the body of the callee, without its braces, with each
+// parameter and type parameter replaced by what the call passes. An argument
+// must be an identifier or a string literal, a parameter the callee assigns
+// must get a parameter of the caller, the callee must declare no name of a
+// parameter, of the caller's parameters or of what the call passes, and no
+// literal key may share a parameter's name.
 func (p *pkg) bind(caller *ast.FuncDecl, call *ast.CallExpr, callee *decl) ([]byte, bool) {
 	cfn := callee.node.(*ast.FuncDecl)
-	args := map[string]string{}
-	var params []*ast.Field
+	fields := cfn.Type.Params.List
+	exprs := call.Args
 	if cfn.Recv != nil {
-		params = append(params, cfn.Recv.List...)
+		fields = append(slices.Clone(cfn.Recv.List), fields...)
+		exprs = append([]ast.Expr{call.Fun.(*ast.SelectorExpr).X}, exprs...)
 	}
-	params = append(params, cfn.Type.Params.List...)
-	var exprs []ast.Expr
-	if cfn.Recv != nil {
-		exprs = append(exprs, call.Fun.(*ast.SelectorExpr).X)
-	}
-	exprs = append(exprs, call.Args...)
 	var names []string
-	for _, field := range params {
-		for _, n := range field.Names {
-			names = append(names, n.Name)
-		}
+	for _, field := range fields {
 		if len(field.Names) == 0 {
 			return nil, false
 		}
-	}
-	variadic := len(cfn.Type.Params.List) > 0
-	if variadic {
-		_, variadic = cfn.Type.Params.List[len(cfn.Type.Params.List)-1].Type.(*ast.Ellipsis)
-	}
-	if len(names) != len(exprs) || variadic != call.Ellipsis.IsValid() {
-		return nil, false
-	}
-	callerParams := map[string]bool{}
-	for _, field := range caller.Type.Params.List {
 		for _, n := range field.Names {
-			callerParams[n.Name] = true
+			names = append(names, n.Name)
 		}
 	}
-	bound := map[string]int{}
+	params := cfn.Type.Params.List
+	if len(params) == 0 || len(names) != len(exprs) {
+		return nil, false
+	}
+	if _, variadic := params[len(params)-1].Type.(*ast.Ellipsis); variadic != call.Ellipsis.IsValid() {
+		return nil, false
+	}
+	args, passed := map[string]string{}, map[string]int{}
 	for i, name := range names {
 		switch e := exprs[i].(type) {
 		case *ast.Ident:
 			args[name] = e.Name
-			bound[e.Name]++
+			passed[e.Name]++
 		case *ast.BasicLit:
 			if e.Kind != token.STRING {
 				return nil, false
@@ -174,26 +151,31 @@ func (p *pkg) bind(caller *ast.FuncDecl, call *ast.CallExpr, callee *decl) ([]by
 			return nil, false
 		}
 	}
-	if tp := cfn.Type.TypeParams; tp != nil {
-		var types []ast.Expr
-		switch f := call.Fun.(type) {
-		case *ast.IndexExpr:
-			types = []ast.Expr{f.Index}
-		case *ast.IndexListExpr:
-			types = f.Indices
-		}
-		i := 0
-		for _, field := range tp.List {
+	var typeArgs []ast.Expr
+	switch f := call.Fun.(type) {
+	case *ast.IndexExpr:
+		typeArgs = []ast.Expr{f.Index}
+	case *ast.IndexListExpr:
+		typeArgs = f.Indices
+	}
+	var typeParams []string
+	if cfn.Type.TypeParams != nil {
+		for _, field := range cfn.Type.TypeParams.List {
 			for _, n := range field.Names {
-				if i >= len(types) {
-					return nil, false
-				}
-				args[n.Name] = exprString(types[i])
-				i++
+				typeParams = append(typeParams, n.Name)
 			}
 		}
-		if i != len(types) {
-			return nil, false
+	}
+	if len(typeParams) != len(typeArgs) {
+		return nil, false
+	}
+	for i, name := range typeParams {
+		args[name] = exprString(typeArgs[i])
+	}
+	callerParams := map[string]bool{}
+	for _, field := range caller.Type.Params.List {
+		for _, n := range field.Names {
+			callerParams[n.Name] = true
 		}
 	}
 
@@ -203,27 +185,23 @@ func (p *pkg) bind(caller *ast.FuncDecl, call *ast.CallExpr, callee *decl) ([]by
 		switch n := x.(type) {
 		case *ast.SelectorExpr:
 			skip[n.Sel] = true
-		case *ast.CompositeLit:
-			for _, elt := range n.Elts {
-				if kv, isKV := elt.(*ast.KeyValueExpr); isKV {
-					if key, isIdent := kv.Key.(*ast.Ident); isIdent {
-						skip[key] = true
-					}
-				}
+		case *ast.KeyValueExpr:
+			if key, isIdent := n.Key.(*ast.Ident); isIdent {
+				_, isParam := args[key.Name]
+				ok = ok && !isParam
 			}
 		case *ast.AssignStmt:
 			for _, lhs := range n.Lhs {
 				id, isIdent := lhs.(*ast.Ident)
+				if !isIdent {
+					continue
+				}
+				_, isParam := args[id.Name]
 				switch {
-				case !isIdent:
 				case n.Tok == token.DEFINE:
-					if _, isParam := args[id.Name]; isParam || callerParams[id.Name] || bound[id.Name] > 0 {
-						ok = false
-					}
-				case args[id.Name] != "":
-					if !callerParams[args[id.Name]] || bound[args[id.Name]] != 1 {
-						ok = false
-					}
+					ok = ok && !isParam && !callerParams[id.Name] && passed[id.Name] == 0
+				case isParam:
+					ok = ok && callerParams[args[id.Name]] && passed[args[id.Name]] == 1
 				}
 			}
 		case *ast.IncDecStmt, *ast.FuncLit, *ast.RangeStmt, *ast.DeclStmt, *ast.TypeSwitchStmt, *ast.LabeledStmt:
@@ -234,84 +212,28 @@ func (p *pkg) bind(caller *ast.FuncDecl, call *ast.CallExpr, callee *decl) ([]by
 	if !ok {
 		return nil, false
 	}
-	type edit struct {
-		from, to int
-		text     string
-	}
-	src := callee.file.src
-	var edits []edit
+	var edits []spanEdit
 	ast.Inspect(cfn.Body, func(x ast.Node) bool {
 		if id, isIdent := x.(*ast.Ident); isIdent && !skip[id] {
 			if text, isParam := args[id.Name]; isParam {
-				edits = append(edits, edit{p.fset.Position(id.Pos()).Offset, p.fset.Position(id.End()).Offset, text})
+				edits = append(edits, spanEdit{p.fset.Position(id.Pos()).Offset, p.fset.Position(id.End()).Offset, text})
 			}
 		}
 		return true
 	})
-	start, end := p.fset.Position(cfn.Body.Lbrace).Offset+1, p.fset.Position(cfn.Body.Rbrace).Offset
-	var out []byte
-	at := start
-	for _, e := range edits {
-		out = append(append(out, src[at:e.from]...), e.text...)
-		at = e.to
-	}
-	return append(out, src[at:end]...), true
+	start := p.fset.Position(cfn.Body.Lbrace).Offset + 1
+	body := callee.file.src[:p.fset.Position(cfn.Body.Rbrace).Offset]
+	return applyEdits(body, edits)[start:], true
 }
 
-// foldFormats puts each string literal argument of an fmt.Sprintf or
-// fmt.Errorf call whose format has only %s verbs into the format, so that
-// fmt.Sprintf("/v1/x/%s/%s", id, "y") reads fmt.Sprintf("/v1/x/%s/y", id),
-// and a Sprintf left with no arguments becomes its format. A literal holding
-// a % is left alone.
-func foldFormats(fn *ast.FuncDecl, fset *token.FileSet, src []byte) []byte {
-	type edit struct {
-		from, to int
-		text     string
-	}
-	off := func(pos token.Pos) int { return fset.Position(pos).Offset - fset.Position(fn.Pos()).Offset }
-	var edits []edit
-	ast.Inspect(fn.Body, func(x ast.Node) bool {
-		call, ok := x.(*ast.CallExpr)
-		if !ok || call.Ellipsis.IsValid() || len(call.Args) < 2 {
-			return true
-		}
-		name := exprString(call.Fun)
-		if name != "fmt.Sprintf" && name != "fmt.Errorf" {
-			return true
-		}
-		lit, ok := call.Args[0].(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
-			return true
-		}
-		format, err := strconv.Unquote(lit.Value)
-		if err != nil || strings.Count(format, "%") != strings.Count(format, "%s") || strings.Count(format, "%s") != len(call.Args)-1 {
-			return true
-		}
-		parts := strings.Split(format, "%s")
-		var b strings.Builder
-		var rest []string
-		folded := false
-		for i, arg := range call.Args[1:] {
-			b.WriteString(parts[i])
-			if v := stringLit(arg); v != "" && !strings.Contains(v, "%") {
-				b.WriteString(v)
-				folded = true
-				continue
-			}
-			b.WriteString("%s")
-			rest = append(rest, string(src[off(arg.Pos()):off(arg.End())]))
-		}
-		b.WriteString(parts[len(parts)-1])
-		if !folded {
-			return true
-		}
-		text := strconv.Quote(b.String())
-		if len(rest) > 0 || name == "fmt.Errorf" {
-			text = name + "(" + strings.Join(append([]string{text}, rest...), ", ") + ")"
-		}
-		edits = append(edits, edit{off(call.Pos()), off(call.End()), text})
-		return false
-	})
+// spanEdit replaces the bytes from:to of a source.
+type spanEdit struct {
+	from, to int
+	text     string
+}
+
+// applyEdits applies edits in ascending, non-overlapping order.
+func applyEdits(src []byte, edits []spanEdit) []byte {
 	var out []byte
 	at := 0
 	for _, e := range edits {
@@ -321,10 +243,56 @@ func foldFormats(fn *ast.FuncDecl, fset *token.FileSet, src []byte) []byte {
 	return append(out, src[at:]...)
 }
 
-// removeUnusedHelpers removes each helper that adopted methods were inlined
-// through and that no remaining declaration of the package names any more,
-// repeating until none is left to remove.
-func (p *pkg) removeUnusedHelpers(dir string, report io.Writer) error {
+// foldFormats puts each string literal argument of an fmt.Sprintf or
+// fmt.Errorf call whose format has only %s verbs into the format, so that
+// fmt.Sprintf("/v1/x/%s/%s", id, "y") reads fmt.Sprintf("/v1/x/%s/y", id),
+// and a Sprintf left with no arguments becomes its format. A literal holding
+// a % is left alone.
+func foldFormats(fn *ast.FuncDecl, fset *token.FileSet, src []byte) []byte {
+	off := func(pos token.Pos) int { return fset.Position(pos).Offset - fset.Position(fn.Pos()).Offset }
+	var edits []spanEdit
+	ast.Inspect(fn.Body, func(x ast.Node) bool {
+		call, ok := x.(*ast.CallExpr)
+		name := ""
+		if ok {
+			name = exprString(call.Fun)
+		}
+		if (name != "fmt.Sprintf" && name != "fmt.Errorf") || call.Ellipsis.IsValid() || len(call.Args) < 2 {
+			return true
+		}
+		format, err := strconv.Unquote(exprString(call.Args[0]))
+		verbs := strings.Count(format, "%s")
+		if err != nil || strings.Count(format, "%") != verbs || verbs != len(call.Args)-1 {
+			return true
+		}
+		parts := strings.Split(format, "%s")
+		folded := parts[0]
+		var rest []string
+		for i, arg := range call.Args[1:] {
+			if v := stringLit(arg); v != "" && !strings.Contains(v, "%") {
+				folded += v + parts[i+1]
+				continue
+			}
+			folded += "%s" + parts[i+1]
+			rest = append(rest, string(src[off(arg.Pos()):off(arg.End())]))
+		}
+		if len(rest) == verbs {
+			return true
+		}
+		text := strconv.Quote(folded)
+		if len(rest) > 0 || name == "fmt.Errorf" {
+			text = name + "(" + strings.Join(append([]string{text}, rest...), ", ") + ")"
+		}
+		edits = append(edits, spanEdit{off(call.Pos()), off(call.End()), text})
+		return false
+	})
+	return applyEdits(src, edits)
+}
+
+// removeUnusedHelpers removes each helper an adopted method was inlined
+// through once no remaining declaration names it, repeating while that frees
+// another.
+func (p *pkg) removeUnusedHelpers(report io.Writer) {
 	var helpers []*decl
 	for _, ds := range p.methods {
 		for _, d := range ds {
@@ -338,34 +306,20 @@ func (p *pkg) removeUnusedHelpers(dir string, report io.Writer) error {
 		}
 	}
 	sort.Slice(helpers, func(i, j int) bool { return helpers[i].name < helpers[j].name })
-	generated, err := filepath.Glob(filepath.Join(dir, "*_gen.go"))
-	if err != nil {
-		return err
-	}
-	var gen []byte
-	for _, path := range generated {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		gen = append(gen, data...)
-	}
 	for removed := true; removed; {
 		removed = false
 		for _, h := range helpers {
-			if h.adopted || p.names(h) || regexp.MustCompile(`\b`+h.name+`\b`).Match(gen) {
-				continue
+			if !h.adopted && !p.names(h) {
+				h.adopt()
+				removed = true
+				fmt.Fprintf(report, "helper %s\tremoved, no caller left\n", h.name)
 			}
-			h.adopt()
-			removed = true
-			fmt.Fprintf(report, "helper %s\tremoved, no caller left\n", h.name)
 		}
 	}
-	return nil
 }
 
 // names reports whether a declaration of the package other than the helper
-// itself and the removed ones mentions the helper's name.
+// and the removed ones mentions the helper's name.
 func (p *pkg) names(h *decl) bool {
 	for _, pf := range p.files {
 		for _, node := range pf.ast.Decls {
@@ -374,9 +328,8 @@ func (p *pkg) names(h *decl) bool {
 			}
 			found := false
 			ast.Inspect(node, func(x ast.Node) bool {
-				if id, ok := x.(*ast.Ident); ok && id.Name == h.name {
-					found = true
-				}
+				id, ok := x.(*ast.Ident)
+				found = found || (ok && id.Name == h.name)
 				return !found
 			})
 			if found {
