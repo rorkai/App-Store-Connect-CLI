@@ -13,6 +13,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	routingcoveragecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const validReleaseRoutingCoverageGeoJSON = `{"type":"MultiPolygon","coordinates":[[[[77.5,12.9],[77.7,12.9],[77.7,13.1],[77.5,12.9]]]]}`
@@ -20,7 +21,7 @@ const validReleaseRoutingCoverageGeoJSON = `{"type":"MultiPolygon","coordinates"
 func prepareReleaseRoutingCoverage(t *testing.T, path string) routingcoveragecli.PreparedRoutingCoverageFile {
 	t.Helper()
 	t.Chdir(filepath.Dir(path))
-	prepared, err := routingcoveragecli.PrepareRoutingCoverageFile(path)
+	prepared, err := routingcoveragecli.PrepareRoutingCoverageFile(shared.DefaultDeps(), path)
 	if err != nil {
 		t.Fatalf("PrepareRoutingCoverageFile() error: %v", err)
 	}
@@ -435,7 +436,7 @@ func TestReplaceRoutingCoverageRejectsEmptyVersionBeforeDeletingExistingCoverage
 	})
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	_, err := routingcoveragecli.ReplaceRoutingCoverageWithPreparedFile(context.Background(), newReleaseTestClient(t), " \t ", "COVERAGE_OLD", prepared)
+	_, err := routingcoveragecli.ReplaceRoutingCoverageWithPreparedFileWith(context.Background(), shared.DefaultDeps(), newReleaseTestClient(t), " \t ", "COVERAGE_OLD", prepared)
 	if err == nil || !strings.Contains(err.Error(), "version ID is required") {
 		t.Fatalf("ReplaceRoutingCoverageWithPreparedFile() error = %v, want version ID diagnostic", err)
 	}
@@ -525,7 +526,7 @@ func TestUploadPreparedRoutingCoverageFileDoesNotDeleteAfterAmbiguousCommitRespo
 	})
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	_, err := routingcoveragecli.UploadPreparedRoutingCoverageFile(context.Background(), newReleaseTestClient(t), "VERSION_123", prepared)
+	_, err := routingcoveragecli.UploadPreparedRoutingCoverageFileWith(context.Background(), shared.DefaultDeps(), newReleaseTestClient(t), "VERSION_123", prepared)
 	if err == nil || !strings.Contains(err.Error(), "committed routing coverage response is missing an ID") {
 		t.Fatalf("UploadPreparedRoutingCoverageFile() error = %v, want missing-ID diagnostic", err)
 	}

@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -271,8 +270,8 @@ Examples:
 				StateDir:     stateDir,
 				ResumeRunID:  strings.TrimSpace(*resume),
 				// Keep stdout machine-parseable JSON; stream step output to stderr.
-				Stdout: stepOutput(d),
-				Stderr: stepOutput(d),
+				Stdout: d.IO.ChildStderr(),
+				Stderr: d.IO.ChildStderr(),
 			})
 			if err != nil {
 				if result != nil {
@@ -285,17 +284,6 @@ Examples:
 			return printJSON(d.IO.Out, result, *pretty)
 		},
 	}
-}
-
-// stepOutput returns the stream workflow steps and hooks write to. Steps are
-// child processes: when d writes to the process stderr they get that file, so
-// a terminal stays a terminal for the commands they run; an injected stderr
-// receives their output through a pipe.
-func stepOutput(d *shared.Deps) io.Writer {
-	if reflect.TypeOf(d.IO.ErrOut) == reflect.TypeOf(shared.DefaultDeps().IO.ErrOut) {
-		return os.Stderr
-	}
-	return d.IO.ErrOut
 }
 
 func workflowValidateCommand(d *shared.Deps) *ffcli.Command {

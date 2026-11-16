@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type routingCoverageRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -76,7 +77,7 @@ func TestUploadPreparedRoutingCoverageFileUploadsSnapshotWhileSourceChanges(t *t
 	}
 	t.Chdir(filepath.Dir(coveragePath))
 
-	prepared, err := PrepareRoutingCoverageFile(coveragePath)
+	prepared, err := PrepareRoutingCoverageFile(shared.DefaultDeps(), coveragePath)
 	if err != nil {
 		t.Fatalf("PrepareRoutingCoverageFile() error: %v", err)
 	}
@@ -126,7 +127,7 @@ func TestUploadPreparedRoutingCoverageFileUploadsSnapshotWhileSourceChanges(t *t
 	uploadURL = serverURL + "/upload"
 	mu.Unlock()
 
-	committed, err := UploadPreparedRoutingCoverageFile(context.Background(), client, "VERSION_1", prepared)
+	committed, err := UploadPreparedRoutingCoverageFileWith(context.Background(), shared.DefaultDeps(), client, "VERSION_1", prepared)
 	if err != nil {
 		t.Fatalf("UploadPreparedRoutingCoverageFile() error: %v", err)
 	}

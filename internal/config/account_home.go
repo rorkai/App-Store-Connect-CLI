@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
 
 // accountHomeDir returns the home directory recorded for the current OS
@@ -34,7 +36,12 @@ var (
 // working directory is inside the account home, so the process silently uses
 // the account's global config as a "local" one. The file is still used for
 // compatibility; the warning names the explicit ASC_CONFIG_PATH alternative.
+// A test binary does not warn about a file the test guard hides: it is never
+// read there.
 func warnIfAccountHomeLocalConfig(localPath string) {
+	if testguard.Hides(localPath) {
+		return
+	}
 	ownerDir := filepath.Dir(filepath.Dir(localPath))
 	home, err := os.UserHomeDir()
 	if err != nil || sameDirectory(ownerDir, home) {

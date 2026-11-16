@@ -34,9 +34,10 @@ type routingCoverageGeoJSON struct {
 
 var errRoutingCoverageSourceChanged = errors.New("routing coverage source changed while reading")
 
-// PrepareRoutingCoverageFile validates and fingerprints a routing coverage file.
-func PrepareRoutingCoverageFile(path string) (PreparedRoutingCoverageFile, error) {
-	return prepareRoutingCoverageFile(shared.DefaultDeps(), path, asc.ComputeChecksumFromReader)
+// PrepareRoutingCoverageFile validates and fingerprints a routing coverage
+// file, resolving a relative path against d's working directory.
+func PrepareRoutingCoverageFile(d *shared.Deps, path string) (PreparedRoutingCoverageFile, error) {
+	return prepareRoutingCoverageFile(d, path, asc.ComputeChecksumFromReader)
 }
 
 func prepareRoutingCoverageFile(d *shared.Deps, path string, checksumFunc func(io.Reader, asc.ChecksumAlgorithm) (*asc.Checksum, error)) (PreparedRoutingCoverageFile, error) {
@@ -252,12 +253,12 @@ func equalCoordinates(left, right []*float64) bool {
 	return true
 }
 
-func (file PreparedRoutingCoverageFile) openSource() (*os.File, error) {
+func (file PreparedRoutingCoverageFile) openSource(d *shared.Deps) (*os.File, error) {
 	rootPath := file.rootPath
 	relativePath := file.relativePath
 	if rootPath == "" || relativePath == "" {
 		var err error
-		rootPath, relativePath, _, err = resolveRoutingCoverageSource(shared.DefaultDeps(), file.Path)
+		rootPath, relativePath, _, err = resolveRoutingCoverageSource(d, file.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -358,8 +359,8 @@ func verifyPreparedRoutingCoverageSourceWithChecksum(
 
 // RevalidatePreparedRoutingCoverageFile verifies that the prepared source has
 // not changed since it was initially validated.
-func RevalidatePreparedRoutingCoverageFile(file PreparedRoutingCoverageFile) error {
-	source, err := file.openSource()
+func RevalidatePreparedRoutingCoverageFile(d *shared.Deps, file PreparedRoutingCoverageFile) error {
+	source, err := file.openSource(d)
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
@@ -367,8 +368,8 @@ func RevalidatePreparedRoutingCoverageFile(file PreparedRoutingCoverageFile) err
 	return verifyPreparedRoutingCoverageSource(source, file)
 }
 
-func snapshotPreparedRoutingCoverageFile(file PreparedRoutingCoverageFile) (*os.File, error) {
-	source, err := file.openSource()
+func snapshotPreparedRoutingCoverageFile(d *shared.Deps, file PreparedRoutingCoverageFile) (*os.File, error) {
+	source, err := file.openSource(d)
 	if err != nil {
 		return nil, fmt.Errorf("open file: %w", err)
 	}
@@ -388,29 +389,19 @@ func snapshotPreparedRoutingCoverageFile(file PreparedRoutingCoverageFile) (*os.
 	return snapshot, nil
 }
 
-// UploadPreparedRoutingCoverageFile creates, uploads, and commits routing coverage.
-// A post-create error returns the reservation response alongside the error when
-// cleanup cannot remove it, so callers can report the retained reservation ID.
-func UploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, versionID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
-	return uploadPreparedRoutingCoverageFile(ctx, shared.DefaultDeps(), client, versionID, "", file)
-}
-
-// UploadPreparedRoutingCoverageFileWith is UploadPreparedRoutingCoverageFile on
-// the given dependencies.
+// UploadPreparedRoutingCoverageFileWith creates, uploads, and commits routing
+// coverage on d. A post-create error returns the reservation response alongside
+// the error when cleanup cannot remove it, so callers can report the retained
+// reservation ID.
 func UploadPreparedRoutingCoverageFileWith(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
 	return uploadPreparedRoutingCoverageFile(ctx, d, client, versionID, "", file)
 }
 
-// ReplaceRoutingCoverageWithPreparedFile revalidates the upload source before
-// deleting the current routing coverage, then creates, uploads, and commits its
-// replacement from the same open source handle. A post-create error returns the
-// replacement response alongside the error when cleanup cannot remove it.
-func ReplaceRoutingCoverageWithPreparedFile(ctx context.Context, client *asc.Client, versionID, currentCoverageID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
-	return ReplaceRoutingCoverageWithPreparedFileWith(ctx, shared.DefaultDeps(), client, versionID, currentCoverageID, file)
-}
-
-// ReplaceRoutingCoverageWithPreparedFileWith is
-// ReplaceRoutingCoverageWithPreparedFile on the given dependencies.
+// ReplaceRoutingCoverageWithPreparedFileWith revalidates the upload source
+// before deleting the current routing coverage, then creates, uploads, and
+// commits its replacement from the same open source handle, on d. A post-create
+// error returns the replacement response alongside the error when cleanup
+// cannot remove it.
 func ReplaceRoutingCoverageWithPreparedFileWith(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, currentCoverageID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
 	currentCoverageID = strings.TrimSpace(currentCoverageID)
 	if currentCoverageID == "" {
@@ -431,7 +422,7 @@ func uploadPreparedRoutingCoverageFile(ctx context.Context, d *shared.Deps, clie
 		ctx = context.Background()
 	}
 
-	source, err := snapshotPreparedRoutingCoverageFile(file)
+	source, err := snapshotPreparedRoutingCoverageFile(d, file)
 	if err != nil {
 		return nil, err
 	}

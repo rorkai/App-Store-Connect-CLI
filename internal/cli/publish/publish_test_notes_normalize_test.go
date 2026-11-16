@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // TestPublishTestFlightNormalizesTestNotesAndRecoveryPayload proves the request
@@ -24,7 +25,7 @@ func TestPublishTestFlightNormalizesTestNotesAndRecoveryPayload(t *testing.T) {
 	)
 
 	stubPublishIPAUpload(asc.BuildProcessingStateProcessing)
-	waitForPublishBuildProcessingFn = func(context.Context, *asc.Client, string, time.Duration) (*asc.BuildResponse, error) {
+	waitForPublishBuildProcessingFn = func(*shared.Deps, context.Context, *asc.Client, string, string, time.Duration) (*asc.BuildResponse, error) {
 		return publishUploadOnlyResult("1.2.3", "42", asc.BuildProcessingStateValid).Build, nil
 	}
 

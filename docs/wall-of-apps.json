@@ -415,6 +415,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/eb/b9/c4/ebb9c4be-fd15-228d-dd9a-05bfc5fa37ad/AppIcon-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Coach.AI",
+    "link": "https://apps.apple.com/us/app/coach-ai/id6504732473?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/da/37/2f/da372f37-80be-7c89-1d2c-ffd4fd4f441a/AppIcon-0-0-1x_U007ephone-0-1-0-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "CodexMonitor",
     "link": "https://github.com/Dimillian/CodexMonitor"
   },
@@ -1270,6 +1275,11 @@
     "app": "Kosaku - Beautify the content",
     "link": "https://apps.apple.com/us/app/kosaku-beautify-the-content/id1611559010?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/63/32/f46332d0-c51c-6a40-2022-a2e92f745e2e/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "LaunchBuddy: App Planner",
+    "link": "https://apps.apple.com/us/app/launchbuddy-app-planner/id1615169630?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a5/37/c9/a537c9ef-5897-c826-129a-da35becedb85/LB_Icon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Layered: AI Outfit Maker",

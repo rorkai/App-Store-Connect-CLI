@@ -239,7 +239,7 @@ func TestConcurrentScreenshotUploadReservesScreenshotsInFileOrder(t *testing.T) 
 		},
 		// migrate rebuilds each upload context from a parent without the reservation turn.
 		"migrate": func(ctx context.Context, client *asc.Client) error {
-			_, _, err := UploadScreenshotAssetsConcurrently(ctx, client, "set", files, func(context.Context) (context.Context, context.CancelFunc) {
+			_, _, err := UploadScreenshotAssetsConcurrently(ctx, shared.DefaultDeps(), client, "set", files, func(context.Context) (context.Context, context.CancelFunc) {
 				return context.WithCancel(context.Background())
 			}, func(string) (*os.File, error) { return nil, nil })
 			return err
