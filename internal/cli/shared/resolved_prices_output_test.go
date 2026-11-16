@@ -23,7 +23,7 @@ func TestPrintResolvedPrices_TableAndMarkdown(t *testing.T) {
 	}
 
 	tableOut, _ := captureOutput(t, func() {
-		if err := PrintResolvedPrices(result, "table", false); err != nil {
+		if err := DefaultDeps().PrintResolvedPrices(result, "table", false); err != nil {
 			t.Fatalf("PrintResolvedPrices(table) error = %v", err)
 		}
 	})
@@ -35,7 +35,7 @@ func TestPrintResolvedPrices_TableAndMarkdown(t *testing.T) {
 	}
 
 	markdownOut, _ := captureOutput(t, func() {
-		if err := PrintResolvedPrices(result, "markdown", false); err != nil {
+		if err := DefaultDeps().PrintResolvedPrices(result, "markdown", false); err != nil {
 			t.Fatalf("PrintResolvedPrices(markdown) error = %v", err)
 		}
 	})

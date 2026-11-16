@@ -85,26 +85,15 @@ func RewriteUsageMessage(ctx context.Context, message string) string {
 }
 
 // UsageErrorCtx is UsageError with ctx's command-path rewrites applied to the
-// message. Commands under a re-parented tree should prefer it so the printed
-// diagnostic names the command path the operator invoked.
-func UsageErrorCtx(ctx context.Context, message string) error {
-	return UsageError(RewriteUsageMessage(ctx, message))
-}
-
-// UsageErrorfCtx formats and returns a usage-class validation error with ctx's
-// command-path rewrites applied.
-func UsageErrorfCtx(ctx context.Context, format string, args ...any) error {
-	return UsageErrorCtx(ctx, fmt.Sprintf(format, args...))
-}
-
-// UsageErrorCtx is UsageErrorCtx with the "Error:" line written to d's
-// stderr.
+// message, with its "Error:" line written to d's stderr. Commands under a
+// re-parented tree should prefer it so the printed diagnostic names the command
+// path the operator invoked.
 func (d *Deps) UsageErrorCtx(ctx context.Context, message string) error {
 	return d.UsageError(RewriteUsageMessage(ctx, message))
 }
 
-// UsageErrorfCtx is UsageErrorfCtx with the "Error:" line written to d's
-// stderr.
+// UsageErrorfCtx formats and returns a usage-class validation error with ctx's
+// command-path rewrites applied, writing its "Error:" line to d's stderr.
 func (d *Deps) UsageErrorfCtx(ctx context.Context, format string, args ...any) error {
 	return d.UsageErrorCtx(ctx, fmt.Sprintf(format, args...))
 }

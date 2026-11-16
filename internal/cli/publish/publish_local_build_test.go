@@ -1141,7 +1141,7 @@ func TestPublishAppStoreMetadataInputFailureUsesUsageExit(t *testing.T) {
 		return publishCommandJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
 	}))
 	inputClient := newPublishCommandTestClient(t)
-	_, _, inputErr := shared.UploadVersionLocalizationsWithWarnings(
+	_, _, inputErr := shared.DefaultDeps().UploadVersionLocalizationsWithWarnings(
 		context.Background(),
 		inputClient,
 		"version-1",

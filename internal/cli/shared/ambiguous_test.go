@@ -171,7 +171,7 @@ func TestAmbiguousUsageErrorPrintsEveryLineAndKeepsUsageExit(t *testing.T) {
 		},
 	}
 	stderr := captureStderr(t, func() {
-		err := AmbiguousUsageError(original)
+		err := DefaultDeps().AmbiguousUsageError(original)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected usage-class error, got %T %v", err, err)
 		}
@@ -198,7 +198,7 @@ func TestAmbiguousUsageErrorPrintsEveryLineAndKeepsUsageExit(t *testing.T) {
 func TestAmbiguousUsageErrorWithKindPreservesRequestedClassification(t *testing.T) {
 	original := AmbiguousError("app store version", "--platform", "1.2.3", []AmbiguousCandidate{{ID: "version-ios"}})
 	stderr := captureStderr(t, func() {
-		err := AmbiguousUsageErrorWithKind(original, UsageErrorMissingRequired)
+		err := DefaultDeps().AmbiguousUsageErrorWithKind(original, UsageErrorMissingRequired)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected usage-class error, got %T %v", err, err)
 		}

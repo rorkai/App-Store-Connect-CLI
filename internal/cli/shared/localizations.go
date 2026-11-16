@@ -429,25 +429,18 @@ func ReadLocalizationStrings(inputPath string, locales []string) (map[string]map
 	return values, nil
 }
 
-func UploadVersionLocalizations(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
-	results, _, err := UploadVersionLocalizationsWithWarnings(ctx, client, versionID, valuesByLocale, dryRun, SubmitReadinessOptions{})
-	return results, err
-}
-
-// UploadVersionLocalizations is UploadVersionLocalizations with the whatsNew
-// retry warning written to d's stderr.
+// UploadVersionLocalizations is UploadVersionLocalizationsWithWarnings without
+// the submit-readiness warnings, with the whatsNew retry warning written to d's
+// stderr.
 func (d *Deps) UploadVersionLocalizations(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
 	results, _, err := d.UploadVersionLocalizationsWithWarnings(ctx, client, versionID, valuesByLocale, dryRun, SubmitReadinessOptions{})
 	return results, err
 }
 
-func UploadVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
-	return uploadVersionLocalizationsWithWarningsTo(ctx, os.Stderr, client, versionID, valuesByLocale, dryRun, submitOpts)
-}
-
-// UploadVersionLocalizationsWithWarnings is
-// UploadVersionLocalizationsWithWarnings with the whatsNew retry warning
-// written to d's stderr.
+// UploadVersionLocalizationsWithWarnings validates valuesByLocale and uploads
+// the version localizations, returning the per-locale results and the
+// submit-readiness create warnings. The whatsNew retry warning goes to d's
+// stderr.
 func (d *Deps) UploadVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
 	return uploadVersionLocalizationsWithWarningsTo(ctx, d.IO.ErrOut, client, versionID, valuesByLocale, dryRun, submitOpts)
 }
@@ -937,12 +930,6 @@ func finalizeLocalizationUploadResult(result *asc.LocalizationUploadResult, comm
 		return
 	}
 	result.FailureArtifactPath = path
-}
-
-// RenderLocalizationUploadResult renders both the batch summary and per-locale
-// details so interactive output includes retry artifact information.
-func RenderLocalizationUploadResult(result *asc.LocalizationUploadResult, markdown bool) error {
-	return renderLocalizationUploadResultTo(os.Stdout, result, markdown)
 }
 
 func renderLocalizationUploadResultTo(w io.Writer, result *asc.LocalizationUploadResult, markdown bool) error {

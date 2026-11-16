@@ -4,15 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 )
-
-// RejectNextFlagConflicts rejects explicitly provided query flags when --next
-// supplies the complete continuation request, including its query string.
-func RejectNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
-	return rejectNextFlagConflicts(os.Stderr, fs, next, command, names...)
-}
 
 func rejectNextFlagConflicts(stderr io.Writer, fs *flag.FlagSet, next, command string, names ...string) error {
 	if strings.TrimSpace(next) == "" {

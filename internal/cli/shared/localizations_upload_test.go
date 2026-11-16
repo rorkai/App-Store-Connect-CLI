@@ -157,7 +157,7 @@ func TestUploadVersionLocalizations_SkipsExactExistingValues(t *testing.T) {
 		}},
 	}
 
-	results, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+	results, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 		"en-US": {
 			"description": "Existing description",
 			"keywords":    "one,two",
@@ -204,7 +204,7 @@ func TestUploadVersionLocalizations_SkipsExactExistingValuesOnSecondPage(t *test
 	var results []asc.LocalizationUploadLocaleResult
 	var err error
 	synctest.Test(t, func(*testing.T) {
-		results, err = UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+		results, err = DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 			"en-US": {"description": "Existing description"},
 		}, false)
 	})
@@ -249,7 +249,7 @@ func TestUploadVersionLocalizations_StopsPaginationWhenParentCanceled(t *testing
 		}
 	}
 
-	_, err := UploadVersionLocalizations(ctx, client, "version-id", map[string]map[string]string{
+	_, err := DefaultDeps().UploadVersionLocalizations(ctx, client, "version-id", map[string]map[string]string{
 		"en-US": {"description": "English"},
 	}, false)
 	if !errors.Is(err, context.Canceled) {
@@ -298,7 +298,7 @@ func TestUploadVersionLocalizations_RejectsNilPaginationPage(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			client := &stubVersionLocalizationClient{getResps: test.responses}
-			_, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+			_, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 				"en-US": {"description": "English"},
 			}, false)
 			if err == nil || !strings.Contains(err.Error(), "empty version localization response") {
@@ -359,7 +359,7 @@ func TestUploadVersionLocalizations_ReconcilesAmbiguousCreateOnSecondReadbackPag
 		},
 		createErrs: []error{&asc.RetryableError{Err: errors.New("ambiguous create")}},
 	}
-	results, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+	results, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 		"fr-FR": {"description": "French"},
 	}, false)
 	if err != nil || len(results) != 1 || results[0].Action != "reconcile" || len(client.createCalls) != 1 || client.getCalls != 3 {
@@ -420,7 +420,7 @@ func TestUploadVersionLocalizations_ReconcilesAmbiguousUpdateWithoutReplay(t *te
 		updateErrs: []error{&asc.RetryableError{Err: errors.New("ambiguous timeout")}},
 	}
 
-	results, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+	results, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 		"en-US": {"description": "New description"},
 	}, false)
 	if err != nil {
@@ -445,7 +445,7 @@ func TestUploadVersionLocalizations_UsesFreshContextForReadbackAfterRequestTimeo
 	synctest.Test(t, func(*testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		results, err = UploadVersionLocalizations(ctx, client, "version-id", map[string]map[string]string{
+		results, err = DefaultDeps().UploadVersionLocalizations(ctx, client, "version-id", map[string]map[string]string{
 			"en-US": {"description": "New description"},
 		}, false)
 	})
@@ -479,7 +479,7 @@ func TestUploadVersionLocalizations_RetriesAfterNegativeReadback(t *testing.T) {
 		updateErrs: []error{&asc.RetryableError{Err: errors.New("temporary failure")}},
 	}
 
-	results, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+	results, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 		"en-US": {"description": "New description"},
 	}, false)
 	if err != nil {
@@ -502,7 +502,7 @@ func TestUploadVersionLocalizations_ContinuesAfterLocaleFailure(t *testing.T) {
 		updateErrs: []error{errors.New("english update rejected")},
 	}
 
-	results, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+	results, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 		"en-US": {"description": "New English"},
 		"fr-FR": {"description": "New French"},
 	}, false)
@@ -522,7 +522,7 @@ func TestUploadVersionLocalizations_ContinuesAfterLocaleFailure(t *testing.T) {
 
 func TestUploadVersionLocalizations_PreflightsAllLocalesBeforeFetch(t *testing.T) {
 	client := &stubVersionLocalizationClient{}
-	_, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+	_, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 		"en-US": {"description": "Valid"},
 		"fr-FR": {},
 	}, false)
@@ -536,7 +536,7 @@ func TestUploadVersionLocalizations_PreflightsAllLocalesBeforeFetch(t *testing.T
 
 func TestUploadVersionLocalizations_PreflightsEmptyCreateAfterSnapshot(t *testing.T) {
 	client := &stubVersionLocalizationClient{getResp: &asc.AppStoreVersionLocalizationsResponse{Data: []asc.Resource[asc.AppStoreVersionLocalizationAttributes]{}}}
-	_, err := UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
+	_, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", map[string]map[string]string{
 		"fr-FR": {"promotionalText": ""},
 	}, false)
 	if err == nil || !strings.Contains(err.Error(), `cannot create version localization "fr-FR"`) {
@@ -580,7 +580,7 @@ func TestUploadVersionLocalizations_PreservesExplicitEmptyUpdateField(t *testing
 	values := map[string]map[string]string{
 		"en-US": {"promotionalText": ""},
 	}
-	results, err := UploadVersionLocalizations(context.Background(), client, "version-id", values, false)
+	results, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", values, false)
 	if err != nil {
 		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
@@ -596,7 +596,7 @@ func TestUploadVersionLocalizations_PreservesExplicitEmptyUpdateField(t *testing
 			{ID: "loc-id", Attributes: asc.AppStoreVersionLocalizationAttributes{Locale: "en-US", Description: "Old", PromotionalText: ""}},
 		}},
 	}
-	results, err = UploadVersionLocalizations(context.Background(), client, "version-id", values, false)
+	results, err = DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", values, false)
 	if err != nil || len(results) != 1 || results[0].Action != "skip" || len(client.updateFieldsCalls) != 0 {
 		t.Fatalf("expected identical rerun skip, results=%+v fields=%+v err=%v", results, client.updateFieldsCalls, err)
 	}
@@ -741,7 +741,7 @@ func TestUploadVersionLocalizationsWithWarnings_DoesNotWarnForFailedCreate(t *te
 		getResp:    &asc.AppStoreVersionLocalizationsResponse{Data: []asc.Resource[asc.AppStoreVersionLocalizationAttributes]{}},
 		createErrs: []error{errors.New("create rejected")},
 	}
-	results, warnings, err := UploadVersionLocalizationsWithWarnings(
+	results, warnings, err := DefaultDeps().UploadVersionLocalizationsWithWarnings(
 		context.Background(),
 		client,
 		"version-id",
@@ -813,7 +813,7 @@ func TestUploadVersionLocalizations_RetriesWithoutWhatsNewOnInitialReleaseError(
 		err     error
 	)
 	stderr := captureStderr(t, func() {
-		results, err = UploadVersionLocalizations(context.Background(), client, "version-id", valuesByLocale, false)
+		results, err = DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", valuesByLocale, false)
 	})
 	if err != nil {
 		t.Fatalf("UploadVersionLocalizations() error: %v", err)
@@ -857,7 +857,7 @@ func TestUploadVersionLocalizations_DoesNotRetryWhenErrorIsUnrelated(t *testing.
 		},
 	}
 
-	_, err := UploadVersionLocalizations(context.Background(), client, "version-id", valuesByLocale, false)
+	_, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", valuesByLocale, false)
 	if err == nil {
 		t.Fatal("expected upload error")
 	}
@@ -889,7 +889,7 @@ func TestUploadVersionLocalizations_DoesNotRetryWhenWhatsNewIsEmpty(t *testing.T
 		},
 	}
 
-	_, err := UploadVersionLocalizations(context.Background(), client, "version-id", valuesByLocale, false)
+	_, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", valuesByLocale, false)
 	if err == nil {
 		t.Fatal("expected upload error")
 	}
@@ -908,7 +908,7 @@ func TestUploadVersionLocalizationsWithWarnings_RejectsOverLimitKeywordCharacter
 		},
 	}
 
-	_, _, err := UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, true, SubmitReadinessOptions{})
+	_, _, err := DefaultDeps().UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, true, SubmitReadinessOptions{})
 	if err == nil {
 		t.Fatal("expected upload validation error")
 	}
@@ -951,7 +951,7 @@ func TestUploadVersionLocalizationsWithWarnings_DryRunWarnsOnlyForCreates(t *tes
 		},
 	}
 
-	results, warnings, err := UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, true, SubmitReadinessOptions{})
+	results, warnings, err := DefaultDeps().UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, true, SubmitReadinessOptions{})
 	if err != nil {
 		t.Fatalf("UploadVersionLocalizationsWithWarnings() error: %v", err)
 	}
@@ -993,7 +993,7 @@ func TestUploadVersionLocalizationsWithWarnings_AppliedCompleteCreateDoesNotWarn
 		},
 	}
 
-	results, warnings, err := UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, false, SubmitReadinessOptions{})
+	results, warnings, err := DefaultDeps().UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, false, SubmitReadinessOptions{})
 	if err != nil {
 		t.Fatalf("UploadVersionLocalizationsWithWarnings() error: %v", err)
 	}
@@ -1036,7 +1036,7 @@ func TestUploadVersionLocalizationsWithWarnings_RequiresWhatsNewWhenConfigured(t
 		},
 	}
 
-	results, warnings, err := UploadVersionLocalizationsWithWarnings(
+	results, warnings, err := DefaultDeps().UploadVersionLocalizationsWithWarnings(
 		context.Background(),
 		client,
 		"version-id",

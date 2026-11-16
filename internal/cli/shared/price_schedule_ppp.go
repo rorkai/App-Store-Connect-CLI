@@ -583,20 +583,11 @@ func priceLadderHasID(ladder []PriceLadderCandidate, id string) bool {
 	return false
 }
 
-// CollectPricePointsByTerritory reads every page of a price-point collection
-// requested with include=territory and groups the points by territory. When
-// territories is set, a point from any other territory fails the read.
-func CollectPricePointsByTerritory[A any](
-	ctx context.Context,
-	territories []string,
-	fetch func(ctx context.Context, next string) (*asc.Response[A], error),
-	customerPrice func(A) string,
-) (map[string][]PriceLadderCandidate, error) {
-	return collectPricePointsByTerritory(ctx, ContextWithTimeout, time.After, territories, fetch, customerPrice)
-}
-
-// CollectPricePointsByTerritoryWith is CollectPricePointsByTerritory with each
-// page read's deadline from d.Timeout and the waits between attempts on d.After.
+// CollectPricePointsByTerritoryWith reads every page of a price-point
+// collection requested with include=territory and groups the points by
+// territory. When territories is set, a point from any other territory fails
+// the read. Each page read's deadline comes from d.Timeout and the waits
+// between attempts run on d.After.
 func CollectPricePointsByTerritoryWith[A any](
 	ctx context.Context,
 	d *Deps,

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 )
@@ -174,7 +173,7 @@ func TestResetTierCacheForTestUsesIsolatedTempDir(t *testing.T) {
 		t.Fatalf("write sentinel: %v", err)
 	}
 
-	ResetTierCacheForTest()
+	ResetTierCacheForTest(filepath.Join(t.TempDir(), "tier-cache"))
 
 	if _, err := os.Stat(sentinelPath); err != nil {
 		t.Fatalf("expected real cache sentinel to remain, got %v", err)
@@ -205,29 +204,4 @@ func TestResetTierCacheForTestUsesIsolatedTempDir(t *testing.T) {
 	if len(loaded) != 1 || loaded[0].PricePointID != "pp-1" {
 		t.Fatalf("unexpected loaded tiers: %+v", loaded)
 	}
-}
-
-func TestResetTierCacheForTestPanicsWhenTempDirCreationFails(t *testing.T) {
-	resetTierCacheDirOverrideForTest()
-	t.Cleanup(resetTierCacheDirOverrideForTest)
-
-	previousMkdirTemp := mkdirTempForTest
-	mkdirTempForTest = func(string, string) (string, error) {
-		return "", errors.New("boom")
-	}
-	t.Cleanup(func() {
-		mkdirTempForTest = previousMkdirTemp
-	})
-
-	defer func() {
-		recovered := recover()
-		if recovered == nil {
-			t.Fatal("expected panic when isolated tier cache dir creation fails")
-		}
-		if got := recovered.(error).Error(); !strings.Contains(got, "create isolated tier cache dir") {
-			t.Fatalf("expected panic to mention isolated tier cache dir creation, got %q", got)
-		}
-	}()
-
-	ResetTierCacheForTest()
 }

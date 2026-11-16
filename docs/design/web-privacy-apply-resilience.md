@@ -128,7 +128,7 @@ recheck as a confirmed no-op. `--allow-deletes` and `--confirm` gating is
 unchanged, and no prompt is introduced.
 
 The privacy receipts stay CLI-local structs rendered through
-`shared.PrintOutputWithRenderers`, matching every other command in
+`d.PrintOutputWithRenderers`, matching every other command in
 `internal/cli/web`. Migrating that whole family to `internal/asc/output_*.go`
 is a separate, package-wide change; doing it for one subcommand inside a bug
 fix would leave the group inconsistent.

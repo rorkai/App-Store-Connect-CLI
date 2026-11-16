@@ -196,12 +196,8 @@ func RootFlagsForReinvocation() (args []string, ok bool) {
 }
 
 // ProgressEnabled reports whether it's safe/appropriate to emit progress messages.
-// Progress must be stderr-only and must not appear when stderr is non-interactive.
-func ProgressEnabled() bool {
-	return progressEnabledFor(isTerminal(int(os.Stderr.Fd())))
-}
-
-// ProgressEnabled is ProgressEnabled decided from d's stderr.
+// Progress must be stderr-only and must not appear when d's stderr is
+// non-interactive.
 func (d *Deps) ProgressEnabled() bool {
 	return progressEnabledFor(d.IO.StderrTTY)
 }
@@ -223,18 +219,11 @@ func SetSelectedProfile(value string) {
 	selectedProfile = value
 }
 
-// ResetDefaultOutputFormat clears the cached default output format so that
-// DefaultOutputFormat() re-reads ASC_DEFAULT_OUTPUT on its next call. Tests only.
+// ResetDefaultOutputFormat clears the cached ASC_DEFAULT_OUTPUT value so that
+// the next DefaultOutputFormat call re-reads it. Tests only.
 func ResetDefaultOutputFormat() {
-	defaultOutputOnce = sync.Once{}
-	defaultOutputValue = ""
 	defaultOutputEnvOnce = sync.Once{}
 	defaultOutputEnvValue = ""
-}
-
-// Bold returns the string wrapped in ANSI bold codes
-func Bold(s string) string {
-	return boldFor(isTerminal(int(os.Stderr.Fd())), s)
 }
 
 func boldFor(stderrTTY bool, s string) string {
@@ -251,11 +240,6 @@ func OrNA(value string) string {
 		return "n/a"
 	}
 	return trimmed
-}
-
-// RenderSection renders a titled section as markdown or table output.
-func RenderSection(title string, headers []string, rows [][]string, markdown bool) {
-	renderSectionTo(os.Stdout, isTerminal(int(os.Stderr.Fd())), title, headers, rows, markdown)
 }
 
 // renderSectionTo writes the section to w; the table title is bold when
@@ -1331,10 +1315,6 @@ func resetInvalidStrictAuthWarnings() {
 	strictAuthWarned = map[string]struct{}{}
 }
 
-func printOutput(data any, format string, pretty bool) error {
-	return printOutputTo(os.Stdout, os.Stderr, data, format, pretty)
-}
-
 func printOutputTo(out, errOut io.Writer, data any, format string, pretty bool) error {
 	format, err := validateOutputFormat(format, pretty)
 	if err != nil {
@@ -1447,15 +1427,10 @@ func NormalizeOutputFormat(format string) string {
 	}
 }
 
-// RejectOutputFormatAsPath reports a usage error when a command whose --output
-// flag takes a path is given an output format name there. formatFlag is the
-// command's flag that chooses json, table or markdown, or "" when it has none.
-func RejectOutputFormatAsPath(path, formatFlag string) error {
-	return rejectOutputFormatAsPathTo(os.Stderr, path, formatFlag)
-}
-
-// RejectOutputFormatAsPath is RejectOutputFormatAsPath with the "Error:" line
-// written to d's stderr.
+// RejectOutputFormatAsPath reports a usage error, with its "Error:" line on d's
+// stderr, when a command whose --output flag takes a path is given an output
+// format name there. formatFlag is the command's flag that chooses json, table
+// or markdown, or "" when it has none.
 func (d *Deps) RejectOutputFormatAsPath(path, formatFlag string) error {
 	return rejectOutputFormatAsPathTo(d.IO.ErrOut, path, formatFlag)
 }
@@ -1585,22 +1560,9 @@ func isAppAvailabilityMissing(err error) bool {
 }
 
 var (
-	defaultOutputOnce     sync.Once
-	defaultOutputValue    string
 	defaultOutputEnvOnce  sync.Once
 	defaultOutputEnvValue string
 )
-
-// DefaultOutputFormat returns the default output format for CLI commands.
-// It checks ASC_DEFAULT_OUTPUT first. When unset, local interactive terminals
-// default to table output while CI and non-interactive contexts default to JSON.
-// Valid ASC_DEFAULT_OUTPUT values are "json", "table", "markdown", and "md".
-func DefaultOutputFormat() string {
-	defaultOutputOnce.Do(func() {
-		defaultOutputValue = defaultOutputFormatFor(isTerminal(int(os.Stdout.Fd())), os.Stderr)
-	})
-	return defaultOutputValue
-}
 
 func defaultOutputFormatFor(stdoutTTY bool, errOut io.Writer) string {
 	if format := defaultOutputFromEnv(errOut); format != "" {
@@ -1699,11 +1661,6 @@ func BindPrettyJSONFlag(fs *flag.FlagSet) *bool {
 func bindPrettyJSONFlagWithValue(fs *flag.FlagSet, value *bool) *bool {
 	fs.BoolVar(value, "pretty", false, "Pretty-print JSON output")
 	return value
-}
-
-// BindOutputFlags registers --output and --pretty flags on the provided flagset.
-func BindOutputFlags(fs *flag.FlagSet) OutputFlags {
-	return BindOutputFlagsWith(fs, "output", DefaultOutputFormat(), "Output format: json, table, markdown")
 }
 
 // BindMetadataOutputFlags registers --output-format and --pretty flags on the provided flagset.
@@ -2147,19 +2104,6 @@ func ResolveProfileName() string {
 	return resolveProfileName()
 }
 
-func PrintOutput(data any, format string, pretty bool) error {
-	return printOutput(data, format, pretty)
-}
-
-func PrintOutputWithRenderers(data any, format string, pretty bool, tableRenderer, markdownRenderer func() error) error {
-	return printOutputWithRenderersTo(os.Stdout, os.Stderr, data, format, pretty, tableRenderer, markdownRenderer)
-}
-
-// PrintOutputRows prints data as JSON, or as one table of headers and rows.
-func PrintOutputRows(data any, format string, pretty bool, headers []string, rows [][]string) error {
-	return printOutputRowsTo(os.Stdout, os.Stderr, data, format, pretty, headers, rows)
-}
-
 func ValidateOutputFormat(format string, pretty bool) (string, error) {
 	return validateOutputFormat(format, pretty)
 }
@@ -2185,13 +2129,6 @@ func ContextWithTimeout(ctx context.Context) (context.Context, context.CancelFun
 }
 
 func ContextWithUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	return contextWithUploadTimeout(ctx)
-}
-
-// ContextWithDownloadTimeout bounds a streamed download, including the body
-// copy. Client and request timeouts also cover that copy, so the short request
-// budget aborts a large report mid-transfer. Downloads use the upload budget.
-func ContextWithDownloadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	return contextWithUploadTimeout(ctx)
 }
 
@@ -2225,11 +2162,4 @@ func ValidateNextURL(next string) error {
 
 func ValidateSort(value string, allowed ...string) error {
 	return validateSort(value, allowed...)
-}
-
-// PrintStreamPage writes a single page of data as a JSON line to stdout.
-// Used with --stream --paginate to emit results page-by-page as NDJSON
-// instead of buffering all pages in memory.
-func PrintStreamPage(data any) error {
-	return asc.PrintJSONTo(os.Stdout, data)
 }

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -37,17 +36,12 @@ func BindIfExistsFlag(fs *flag.FlagSet, supported ...IfExistsMode) *string {
 
 // ParseIfExistsMode validates the raw --if-exists value against the modes the
 // command supports. It returns a usage-class error (exit code 2) before any
-// HTTP request so an unsupported value is never silently ignored.
+// HTTP request so an unsupported value is never silently ignored, and writes
+// its "Error:" line to d's stderr.
 //
 // BindIfExistsFlag defaults the flag to fail, so an empty or all-whitespace raw
 // value can only come from an explicitly supplied --if-exists "" and is
 // rejected rather than silently read as fail.
-func ParseIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
-	return parseIfExistsModeTo(os.Stderr, raw, supported...)
-}
-
-// ParseIfExistsMode is ParseIfExistsMode with the "Error:" line written to
-// d's stderr.
 func (d *Deps) ParseIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
 	return parseIfExistsModeTo(d.IO.ErrOut, raw, supported...)
 }
@@ -72,12 +66,6 @@ func parseIfExistsModeTo(stderr io.Writer, raw string, supported ...IfExistsMode
 // Do not use this for a bound --if-exists flag value. BindIfExistsFlag defaults
 // the flag to fail, so an empty value there was supplied explicitly and
 // ParseIfExistsMode rejects it.
-func ParseOptionalIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
-	return parseOptionalIfExistsModeTo(os.Stderr, raw, supported...)
-}
-
-// ParseOptionalIfExistsMode is ParseOptionalIfExistsMode with the "Error:"
-// line written to d's stderr.
 func (d *Deps) ParseOptionalIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
 	return parseOptionalIfExistsModeTo(d.IO.ErrOut, raw, supported...)
 }

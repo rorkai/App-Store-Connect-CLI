@@ -42,21 +42,12 @@ func RunReconciledMutationWith[T any](
 	return runReconciledMutation(ctx, d.Timeout, d.After, mutate, readback, true)
 }
 
-// RunReconciledMutationNoReplay executes an ambiguous mutation once and uses
-// immediate and one delayed readback to determine whether that attempt
+// RunReconciledMutationNoReplayWith executes an ambiguous mutation once and
+// uses immediate and one delayed readback to determine whether that attempt
 // applied. It never replays a mutation after a negative readback.
 // Deterministic failures are returned directly so strict API errors keep their
-// existing classification.
-func RunReconciledMutationNoReplay[T any](
-	ctx context.Context,
-	mutate func(context.Context) (T, error),
-	readback func(context.Context) (T, bool, error),
-) (T, ReconciledMutationStatus, error) {
-	return runReconciledMutation(ctx, ContextWithTimeout, time.After, mutate, readback, false)
-}
-
-// RunReconciledMutationNoReplayWith is RunReconciledMutationNoReplay with the
-// mutation's deadline from d.Timeout and the backoff on d.After.
+// existing classification. The mutation's deadline comes from d.Timeout and the
+// backoff runs on d.After.
 func RunReconciledMutationNoReplayWith[T any](
 	ctx context.Context,
 	d *Deps,

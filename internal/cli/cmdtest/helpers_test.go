@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"errors"
 	"flag"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -26,7 +27,7 @@ func resetCmdtestState() {
 	asc.ResetConfigCacheForTest()
 	auth.ResetInvalidBypassKeychainWarningsForTest()
 	shared.ResetDefaultOutputFormat()
-	shared.ResetTierCacheForTest()
+	shared.ResetTierCacheForTest(filepath.Join(testTempDir, "tier-cache"))
 }
 
 func setCmdtestHome(t *testing.T) string {

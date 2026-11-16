@@ -87,7 +87,7 @@ func TestDepsPrintOutputMatchesPrintOutputOnDepsStreams(t *testing.T) {
 	} {
 		t.Run(tt.format, func(t *testing.T) {
 			wantStdout, wantStderr := captureOutput(t, func() {
-				if err := PrintOutput(&page, tt.format, tt.pretty); err != nil {
+				if err := DefaultDeps().PrintOutput(&page, tt.format, tt.pretty); err != nil {
 					t.Errorf("PrintOutput() error = %v", err)
 				}
 			})
@@ -281,15 +281,17 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "RejectNextFlagConflicts",
 			process: func() (any, error) {
-				return nil, RejectNextFlagConflicts(nextWithLimit(), next, "actors list", "limit")
+				return nil, DefaultDeps().RejectNextFlagConflicts(nextWithLimit(), next, "actors list", "limit")
 			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.RejectNextFlagConflicts(nextWithLimit(), next, "actors list", "limit")
 			},
 		},
 		{
-			name:    "UsageErrorCtx",
-			process: func() (any, error) { return nil, UsageErrorCtx(rewriteCtx, "testflight list: --app is required") },
+			name: "UsageErrorCtx",
+			process: func() (any, error) {
+				return nil, DefaultDeps().UsageErrorCtx(rewriteCtx, "testflight list: --app is required")
+			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.UsageErrorCtx(rewriteCtx, "testflight list: --app is required")
 			},
@@ -297,7 +299,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "UsageErrorfCtx",
 			process: func() (any, error) {
-				return nil, UsageErrorfCtx(rewriteCtx, "%s: --app is required", "testflight list")
+				return nil, DefaultDeps().UsageErrorfCtx(rewriteCtx, "%s: --app is required", "testflight list")
 			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.UsageErrorfCtx(rewriteCtx, "%s: --app is required", "testflight list")
@@ -305,47 +307,51 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		},
 		{
 			name:    "AmbiguousUsageError",
-			process: func() (any, error) { return nil, AmbiguousUsageError(ambiguous) },
+			process: func() (any, error) { return nil, DefaultDeps().AmbiguousUsageError(ambiguous) },
 			deps:    func(d *Deps) (any, error) { return nil, d.AmbiguousUsageError(ambiguous) },
 		},
 		{
-			name:    "AmbiguousUsageErrorWithKind",
-			process: func() (any, error) { return nil, AmbiguousUsageErrorWithKind(ambiguous, UsageErrorInvalidValue) },
+			name: "AmbiguousUsageErrorWithKind",
+			process: func() (any, error) {
+				return nil, DefaultDeps().AmbiguousUsageErrorWithKind(ambiguous, UsageErrorInvalidValue)
+			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.AmbiguousUsageErrorWithKind(ambiguous, UsageErrorInvalidValue)
 			},
 		},
 		{
-			name:    "AppIDFlagValue",
-			process: func() (any, error) { return AppIDFlagValue("https://api.appstoreconnect.apple.com/v1/builds/123") },
+			name: "AppIDFlagValue",
+			process: func() (any, error) {
+				return DefaultDeps().AppIDFlagValue("https://api.appstoreconnect.apple.com/v1/builds/123")
+			},
 			deps: func(d *Deps) (any, error) {
 				return d.AppIDFlagValue("https://api.appstoreconnect.apple.com/v1/builds/123")
 			},
 		},
 		{
 			name:    "RequireConfirmUnlessDryRun",
-			process: func() (any, error) { return nil, RequireConfirmUnlessDryRun(false, false) },
+			process: func() (any, error) { return nil, DefaultDeps().RequireConfirmUnlessDryRun(false, false) },
 			deps:    func(d *Deps) (any, error) { return nil, d.RequireConfirmUnlessDryRun(false, false) },
 		},
 		{
 			name:    "ParseIfExistsMode",
-			process: func() (any, error) { return ParseIfExistsMode("replace", IfExistsSkip) },
+			process: func() (any, error) { return DefaultDeps().ParseIfExistsMode("replace", IfExistsSkip) },
 			deps:    func(d *Deps) (any, error) { return d.ParseIfExistsMode("replace", IfExistsSkip) },
 		},
 		{
 			name:    "ParseOptionalIfExistsMode",
-			process: func() (any, error) { return ParseOptionalIfExistsMode("replace", IfExistsUpdate) },
+			process: func() (any, error) { return DefaultDeps().ParseOptionalIfExistsMode("replace", IfExistsUpdate) },
 			deps:    func(d *Deps) (any, error) { return d.ParseOptionalIfExistsMode("replace", IfExistsUpdate) },
 		},
 		{
 			name:    "MissingRelationshipTypeUsageError",
-			process: func() (any, error) { return nil, MissingRelationshipTypeUsageError(relationshipTypes) },
+			process: func() (any, error) { return nil, DefaultDeps().MissingRelationshipTypeUsageError(relationshipTypes) },
 			deps:    func(d *Deps) (any, error) { return nil, d.MissingRelationshipTypeUsageError(relationshipTypes) },
 		},
 		{
 			name: "PrintInvalidRelationshipTypeError",
 			process: func() (any, error) {
-				PrintInvalidRelationshipTypeError("apps", relationshipTypes)
+				DefaultDeps().PrintInvalidRelationshipTypeError("apps", relationshipTypes)
 				return nil, nil
 			},
 			deps: func(d *Deps) (any, error) {
@@ -355,17 +361,19 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		},
 		{
 			name:    "ValidateCertificateCreateType",
-			process: func() (any, error) { return ValidateCertificateCreateType("--certificate-type", "BOGUS") },
+			process: func() (any, error) { return DefaultDeps().ValidateCertificateCreateType("--certificate-type", "BOGUS") },
 			deps:    func(d *Deps) (any, error) { return d.ValidateCertificateCreateType("--certificate-type", "BOGUS") },
 		},
 		{
 			name:    "ValidateCertificateCreateMerchantID",
-			process: func() (any, error) { return nil, ValidateCertificateCreateMerchantID("APPLE_PAY", "") },
+			process: func() (any, error) { return nil, DefaultDeps().ValidateCertificateCreateMerchantID("APPLE_PAY", "") },
 			deps:    func(d *Deps) (any, error) { return nil, d.ValidateCertificateCreateMerchantID("APPLE_PAY", "") },
 		},
 		{
-			name:    "ReviewScreenshotUsageError",
-			process: func() (any, error) { return nil, ReviewScreenshotUsageError("--file", "review screenshot is empty") },
+			name: "ReviewScreenshotUsageError",
+			process: func() (any, error) {
+				return nil, DefaultDeps().ReviewScreenshotUsageError("--file", "review screenshot is empty")
+			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.ReviewScreenshotUsageError("--file", "review screenshot is empty")
 			},
@@ -373,7 +381,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "PreflightReviewScreenshot",
 			process: func() (any, error) {
-				return nil, PreflightReviewScreenshot("review.png", screenshotFile, screenshotFile.Size())
+				return nil, DefaultDeps().PreflightReviewScreenshot("review.png", screenshotFile, screenshotFile.Size())
 			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.PreflightReviewScreenshot("review.png", screenshotFile, screenshotFile.Size())
@@ -383,7 +391,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			name: "BindTargetSubscriptionPlanTypeFlag",
 			process: func() (any, error) {
 				var resolve func() (asc.SubscriptionPlanType, error)
-				parsed(func(fs *flag.FlagSet) { resolve = BindTargetSubscriptionPlanTypeFlag(fs) }, "--target-subscription-plan-type", "WEEKLY")
+				parsed(func(fs *flag.FlagSet) { resolve = DefaultDeps().BindTargetSubscriptionPlanTypeFlag(fs) }, "--target-subscription-plan-type", "WEEKLY")
 				return resolve()
 			},
 			deps: func(d *Deps) (any, error) {
@@ -395,7 +403,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "NormalizeBuildProcessingStateFilter",
 			process: func() (any, error) {
-				return NormalizeBuildProcessingStateFilter("VALID,ALL", BuildProcessingStateFilterOptions{})
+				return DefaultDeps().NormalizeBuildProcessingStateFilter("VALID,ALL", BuildProcessingStateFilterOptions{})
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.NormalizeBuildProcessingStateFilter("VALID,ALL", BuildProcessingStateFilterOptions{})
@@ -404,7 +412,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "NormalizeLatestBuildSelectionOptions",
 			process: func() (any, error) {
-				return NormalizeLatestBuildSelectionOptions("app-1", "1.0", "", "BOGUS", false)
+				return DefaultDeps().NormalizeLatestBuildSelectionOptions("app-1", "1.0", "", "BOGUS", false)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.NormalizeLatestBuildSelectionOptions("app-1", "1.0", "", "BOGUS", false)
@@ -415,7 +423,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			process: func() (any, error) {
 				var value *OnceCSVValue
 				parsed(func(fs *flag.FlagSet) { value = BindOnceCSVFlag(fs, "territory", "") }, "--territory", ",")
-				return PPPTerritorySelection(value)
+				return DefaultDeps().PPPTerritorySelection(value)
 			},
 			deps: func(d *Deps) (any, error) {
 				var value *OnceCSVValue
@@ -425,21 +433,23 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		},
 		{
 			name:    "ParsePriceRounding",
-			process: func() (any, error) { return ParsePriceRounding("sideways") },
+			process: func() (any, error) { return DefaultDeps().ParsePriceRounding("sideways") },
 			deps:    func(d *Deps) (any, error) { return d.ParsePriceRounding("sideways") },
 		},
 		{
 			name: "RecoverBoolFlagTailArgs",
 			process: func() (any, error) {
-				return nil, RecoverBoolFlagTailArgs(flag.NewFlagSet("create", flag.ContinueOnError), []string{"stray"}, nil)
+				return nil, DefaultDeps().RecoverBoolFlagTailArgs(flag.NewFlagSet("create", flag.ContinueOnError), []string{"stray"}, nil)
 			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.RecoverBoolFlagTailArgs(flag.NewFlagSet("create", flag.ContinueOnError), []string{"stray"}, nil)
 			},
 		},
 		{
-			name:    "RequireAppForStableSelector",
-			process: func() (any, error) { return nil, RequireAppForStableSelector("", "Monthly Pro", "--subscription") },
+			name: "RequireAppForStableSelector",
+			process: func() (any, error) {
+				return nil, DefaultDeps().RequireAppForStableSelector("", "Monthly Pro", "--subscription")
+			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.RequireAppForStableSelector("", "Monthly Pro", "--subscription")
 			},
@@ -496,7 +506,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveAndAnnounceDefaultAppStoreVersion",
 			process: func() (any, error) {
-				return ResolveAndAnnounceDefaultAppStoreVersion(context.Background(), versionsClient, "app-1", "", "--version")
+				return DefaultDeps().ResolveAndAnnounceDefaultAppStoreVersion(context.Background(), versionsClient, "app-1", "", "--version")
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveAndAnnounceDefaultAppStoreVersion(context.Background(), versionsClient, "app-1", "", "--version")
@@ -505,7 +515,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "PreflightBuildBetaGroupAssignment",
 			process: func() (any, error) {
-				return nil, PreflightBuildBetaGroupAssignment(context.Background(), emptyBuildPreflightClient{}, "build-1", betaGroupPlan, BuildBetaGroupPreflightOptions{OperationName: "builds add-groups"})
+				return nil, DefaultDeps().PreflightBuildBetaGroupAssignment(context.Background(), emptyBuildPreflightClient{}, "build-1", betaGroupPlan, BuildBetaGroupPreflightOptions{OperationName: "builds add-groups"})
 			},
 			deps: func(d *Deps) (any, error) {
 				return nil, d.PreflightBuildBetaGroupAssignment(context.Background(), emptyBuildPreflightClient{}, "build-1", betaGroupPlan, BuildBetaGroupPreflightOptions{OperationName: "builds add-groups"})
@@ -514,7 +524,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveAppInfoID",
 			process: func() (any, error) {
-				return ResolveAppInfoID(context.Background(), appInfosClient, "app-1", "")
+				return DefaultDeps().ResolveAppInfoID(context.Background(), appInfosClient, "app-1", "")
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveAppInfoID(context.Background(), appInfosClient, "app-1", "")
@@ -523,7 +533,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveAppInfoIDWithFlag",
 			process: func() (any, error) {
-				return ResolveAppInfoIDWithFlag(context.Background(), appInfosClient, "app-1", "", "--app-info-id")
+				return DefaultDeps().ResolveAppInfoIDWithFlag(context.Background(), appInfosClient, "app-1", "", "--app-info-id")
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveAppInfoIDWithFlag(context.Background(), appInfosClient, "app-1", "", "--app-info-id")
@@ -532,7 +542,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveOwnedAppInfoID",
 			process: func() (any, error) {
-				return ResolveOwnedAppInfoID(context.Background(), appInfosClient, "app-1", "")
+				return DefaultDeps().ResolveOwnedAppInfoID(context.Background(), appInfosClient, "app-1", "")
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveOwnedAppInfoID(context.Background(), appInfosClient, "app-1", "")
@@ -541,7 +551,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "PlanAppInfoLocalizationUpsert",
 			process: func() (any, error) {
-				return PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"name": "Outslept"})
+				return DefaultDeps().PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"name": "Outslept"})
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"name": "Outslept"})
@@ -550,7 +560,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "PlanAppInfoLocalizationUpsert without a name to create",
 			process: func() (any, error) {
-				return PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"subtitle": "Sleep better"})
+				return DefaultDeps().PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"subtitle": "Sleep better"})
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"subtitle": "Sleep better"})
@@ -558,18 +568,18 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		},
 		{
 			name:    "RejectOutputFormatAsPath",
-			process: func() (any, error) { return nil, RejectOutputFormatAsPath("json", "--output-format") },
+			process: func() (any, error) { return nil, DefaultDeps().RejectOutputFormatAsPath("json", "--output-format") },
 			deps:    func(d *Deps) (any, error) { return nil, d.RejectOutputFormatAsPath("json", "--output-format") },
 		},
 		{
 			name:    "RejectOutputFormatAsPath without a format flag",
-			process: func() (any, error) { return nil, RejectOutputFormatAsPath("table", "") },
+			process: func() (any, error) { return nil, DefaultDeps().RejectOutputFormatAsPath("table", "") },
 			deps:    func(d *Deps) (any, error) { return nil, d.RejectOutputFormatAsPath("table", "") },
 		},
 		{
 			name: "FindPreReleaseVersionIDs",
 			process: func() (any, error) {
-				return FindPreReleaseVersionIDs(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS")
+				return DefaultDeps().FindPreReleaseVersionIDs(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS")
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.FindPreReleaseVersionIDs(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS")
@@ -578,7 +588,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "FindPreReleaseVersionIDsWithMaxPages",
 			process: func() (any, error) {
-				return FindPreReleaseVersionIDsWithMaxPages(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS", 1)
+				return DefaultDeps().FindPreReleaseVersionIDsWithMaxPages(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS", 1)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.FindPreReleaseVersionIDsWithMaxPages(context.Background(), buildsClient(), "app-1", "1.2.0", "IOS", 1)
@@ -587,7 +597,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveLatestBuild",
 			process: func() (any, error) {
-				return ResolveLatestBuild(context.Background(), buildsClient(), latestBuild, true)
+				return DefaultDeps().ResolveLatestBuild(context.Background(), buildsClient(), latestBuild, true)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveLatestBuild(context.Background(), buildsClient(), latestBuild, true)
@@ -596,7 +606,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveNextBuildNumber",
 			process: func() (any, error) {
-				return ResolveNextBuildNumber(context.Background(), buildsClient(), nextBuild)
+				return DefaultDeps().ResolveNextBuildNumber(context.Background(), buildsClient(), nextBuild)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveNextBuildNumber(context.Background(), buildsClient(), nextBuild)
@@ -605,7 +615,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveLatestBuild without an app",
 			process: func() (any, error) {
-				return ResolveLatestBuild(context.Background(), buildsClient(), LatestBuildSelectionOptions{}, true)
+				return DefaultDeps().ResolveLatestBuild(context.Background(), buildsClient(), LatestBuildSelectionOptions{}, true)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveLatestBuild(context.Background(), buildsClient(), LatestBuildSelectionOptions{}, true)
@@ -614,7 +624,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveNextBuildNumber with an invalid initial number",
 			process: func() (any, error) {
-				return ResolveNextBuildNumber(context.Background(), buildsClient(), NextBuildNumberOptions{LatestBuildSelectionOptions: latestBuild})
+				return DefaultDeps().ResolveNextBuildNumber(context.Background(), buildsClient(), NextBuildNumberOptions{LatestBuildSelectionOptions: latestBuild})
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveNextBuildNumber(context.Background(), buildsClient(), NextBuildNumberOptions{LatestBuildSelectionOptions: latestBuild})
@@ -623,7 +633,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "WaitForBuildByNumberOrUploadFailure",
 			process: func() (any, error) {
-				return WaitForBuildByNumberOrUploadFailure(context.Background(), buildsClient(), "app-1", "", "1.2.0", "abc", "IOS", time.Millisecond)
+				return DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), buildsClient(), "app-1", "", "1.2.0", "abc", "IOS", time.Millisecond)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.WaitForBuildByNumberOrUploadFailure(context.Background(), buildsClient(), "app-1", "", "1.2.0", "abc", "IOS", time.Millisecond)
@@ -632,7 +642,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveTiers",
 			process: func() (any, error) {
-				return ResolveTiers(context.Background(), tiersClient(), "app-1", "USA", true)
+				return DefaultDeps().ResolveTiers(context.Background(), tiersClient(), "app-1", "USA", true)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveTiers(context.Background(), tiersClient(), "app-1", "USA", true)
@@ -641,7 +651,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveSubscriptionTiers",
 			process: func() (any, error) {
-				return ResolveSubscriptionTiers(context.Background(), tiersClient(), "sub-1", "USA", true)
+				return DefaultDeps().ResolveSubscriptionTiers(context.Background(), tiersClient(), "sub-1", "USA", true)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveSubscriptionTiers(context.Background(), tiersClient(), "sub-1", "USA", true)
@@ -650,7 +660,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveIAPTiers",
 			process: func() (any, error) {
-				return ResolveIAPTiers(context.Background(), tiersClient(), "iap-1", "USA", true)
+				return DefaultDeps().ResolveIAPTiers(context.Background(), tiersClient(), "iap-1", "USA", true)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.ResolveIAPTiers(context.Background(), tiersClient(), "iap-1", "USA", true)
@@ -659,7 +669,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "UploadVersionLocalizations",
 			process: func() (any, error) {
-				return UploadVersionLocalizations(context.Background(), whatsNewClient(), "version-1", whatsNew, false)
+				return DefaultDeps().UploadVersionLocalizations(context.Background(), whatsNewClient(), "version-1", whatsNew, false)
 			},
 			deps: func(d *Deps) (any, error) {
 				return d.UploadVersionLocalizations(context.Background(), whatsNewClient(), "version-1", whatsNew, false)
@@ -668,7 +678,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "UploadVersionLocalizationsWithWarnings",
 			process: func() (any, error) {
-				results, warnings, err := UploadVersionLocalizationsWithWarnings(context.Background(), whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
+				results, warnings, err := DefaultDeps().UploadVersionLocalizationsWithWarnings(context.Background(), whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
 				return []any{results, warnings}, err
 			},
 			deps: func(d *Deps) (any, error) {
@@ -690,7 +700,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ApplyTerritoryAvailabilityUpdate",
 			process: func() (any, error) {
-				resp, changed, err := ApplyTerritoryAvailabilityUpdate(context.Background(), buildsClient(), availabilityUpdate)
+				resp, changed, err := DefaultDeps().ApplyTerritoryAvailabilityUpdate(context.Background(), buildsClient(), availabilityUpdate)
 				return []any{resp, changed}, err
 			},
 			deps: func(d *Deps) (any, error) {
@@ -701,7 +711,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ApplyTerritoryAvailabilityUpdate with a territory to update",
 			process: func() (any, error) {
-				resp, changed, err := ApplyTerritoryAvailabilityUpdate(context.Background(), availabilityClient(), availabilityUpdate)
+				resp, changed, err := DefaultDeps().ApplyTerritoryAvailabilityUpdate(context.Background(), availabilityClient(), availabilityUpdate)
 				return []any{resp, changed}, err
 			},
 			deps: func(d *Deps) (any, error) {
@@ -772,7 +782,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "WarnDeprecatedAppInfoFields",
 			process: func() (any, error) {
-				WarnDeprecatedAppInfoFields([]string{"kidsAgeBand"}, "")
+				DefaultDeps().WarnDeprecatedAppInfoFields([]string{"kidsAgeBand"}, "")
 				return nil, nil
 			},
 			deps: func(d *Deps) (any, error) {
@@ -874,7 +884,7 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 			name:    "PrintOutputWithRenderers",
 			formats: all,
 			process: func(format string, pretty bool) error {
-				return PrintOutputWithRenderers(&page, format, pretty,
+				return DefaultDeps().PrintOutputWithRenderers(&page, format, pretty,
 					func() error { return asc.WriteTable(headers, rows) },
 					func() error { return asc.WriteMarkdown(headers, rows) })
 			},
@@ -888,7 +898,7 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 			name:    "PrintOutputWithRenderers with RenderTable and RenderMarkdown",
 			formats: human,
 			process: func(format string, pretty bool) error {
-				return PrintOutputWithRenderers(&page, format, pretty,
+				return DefaultDeps().PrintOutputWithRenderers(&page, format, pretty,
 					func() error { asc.RenderTable(headers, rows); return nil },
 					func() error { asc.RenderMarkdown(headers, rows); return nil })
 			},
@@ -902,7 +912,7 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 			name:    "PrintOutputWithRenderers with the plan availability renderers",
 			formats: human,
 			process: func(format string, pretty bool) error {
-				return PrintOutputWithRenderers(&planAvailabilities, format, pretty,
+				return DefaultDeps().PrintOutputWithRenderers(&planAvailabilities, format, pretty,
 					func() error { return asc.PrintSubscriptionPlanAvailabilityShowTable(&planAvailabilities) },
 					func() error { return asc.PrintSubscriptionPlanAvailabilityShowMarkdown(&planAvailabilities) })
 			},
@@ -917,7 +927,9 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 		{
 			name:    "PrintOutputRows",
 			formats: all,
-			process: func(format string, pretty bool) error { return PrintOutputRows(&page, format, pretty, headers, rows) },
+			process: func(format string, pretty bool) error {
+				return DefaultDeps().PrintOutputRows(&page, format, pretty, headers, rows)
+			},
 			deps: func(d *Deps, format string, pretty bool) error {
 				return d.PrintOutputRows(&page, format, pretty, headers, rows)
 			},
@@ -926,7 +938,7 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 			name:    "RenderSection",
 			formats: human,
 			process: func(format string, _ bool) error {
-				RenderSection("Summary", headers, rows, format == "markdown")
+				DefaultDeps().RenderSection("Summary", headers, rows, format == "markdown")
 				return nil
 			},
 			deps: func(d *Deps, format string, _ bool) error {
@@ -939,7 +951,7 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 			formats:   human,
 			stderrTTY: true,
 			process: func(format string, _ bool) error {
-				RenderSection("Summary", headers, rows, format == "markdown")
+				DefaultDeps().RenderSection("Summary", headers, rows, format == "markdown")
 				return nil
 			},
 			deps: func(d *Deps, format string, _ bool) error {
@@ -951,19 +963,23 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 		{
 			name:    "PrintStreamPage",
 			formats: jsonOnly,
-			process: func(string, bool) error { return PrintStreamPage(&page) },
+			process: func(string, bool) error { return DefaultDeps().PrintStreamPage(&page) },
 			deps:    func(d *Deps, _ string, _ bool) error { return d.PrintStreamPage(&page) },
 		},
 		{
 			name:    "PrintResolvedPrices",
 			formats: all,
-			process: func(format string, pretty bool) error { return PrintResolvedPrices(prices, format, pretty) },
-			deps:    func(d *Deps, format string, pretty bool) error { return d.PrintResolvedPrices(prices, format, pretty) },
+			process: func(format string, pretty bool) error {
+				return DefaultDeps().PrintResolvedPrices(prices, format, pretty)
+			},
+			deps: func(d *Deps, format string, pretty bool) error { return d.PrintResolvedPrices(prices, format, pretty) },
 		},
 		{
 			name:    "RenderLocalizationUploadResult",
 			formats: human,
-			process: func(format string, _ bool) error { return RenderLocalizationUploadResult(upload, format == "markdown") },
+			process: func(format string, _ bool) error {
+				return DefaultDeps().RenderLocalizationUploadResult(upload, format == "markdown")
+			},
 			deps: func(d *Deps, format string, _ bool) error {
 				return d.RenderLocalizationUploadResult(upload, format == "markdown")
 			},
@@ -971,7 +987,7 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 		{
 			name:    "PrintOutput of the published apps report",
 			formats: all,
-			process: func(format string, pretty bool) error { return PrintOutput(published, format, pretty) },
+			process: func(format string, pretty bool) error { return DefaultDeps().PrintOutput(published, format, pretty) },
 			deps:    func(d *Deps, format string, pretty bool) error { return d.PrintOutput(published, format, pretty) },
 		},
 	}
@@ -1087,24 +1103,24 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		{
 			name:    "ReadJSONFilePayload from stdin",
 			stdin:   text(`{"data":{"type":"apps"}}`),
-			process: func() (any, error) { return ReadJSONFilePayload("-") },
+			process: func() (any, error) { return DefaultDeps().ReadJSONFilePayload("-") },
 			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayload("-") },
 		},
 		{
 			name:    "ReadJSONFilePayloadKind from stdin with the wrong shape",
 			stdin:   text(`{"data":{"type":"apps"}}`),
-			process: func() (any, error) { return ReadJSONFilePayloadKind("-", JSONPayloadArray) },
+			process: func() (any, error) { return DefaultDeps().ReadJSONFilePayloadKind("-", JSONPayloadArray) },
 			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayloadKind("-", JSONPayloadArray) },
 		},
 		{
 			name:    "ReadJSONFilePayloadKind from a file",
 			stdin:   text(""),
-			process: func() (any, error) { return ReadJSONFilePayloadKind(payloadPath, JSONPayloadAny) },
+			process: func() (any, error) { return DefaultDeps().ReadJSONFilePayloadKind(payloadPath, JSONPayloadAny) },
 			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayloadKind(payloadPath, JSONPayloadAny) },
 		},
 		{
 			name:    "ProgressEnabled",
-			process: func() (any, error) { return ProgressEnabled(), nil },
+			process: func() (any, error) { return DefaultDeps().ProgressEnabled(), nil },
 			deps:    func(d *Deps) (any, error) { return d.ProgressEnabled(), nil },
 		},
 		{
@@ -1115,7 +1131,7 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		{
 			name:    "WithSpinner",
 			spinner: true,
-			process: func() (any, error) { return nil, WithSpinner("Working", work) },
+			process: func() (any, error) { return nil, DefaultDeps().WithSpinner("Working", work) },
 			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinner("Working", work) },
 		},
 		{
@@ -1132,7 +1148,7 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		{
 			name:    "PaginateWithSpinner",
 			spinner: true,
-			process: func() (any, error) { return PaginateWithSpinner(context.Background(), fetch, next) },
+			process: func() (any, error) { return DefaultDeps().PaginateWithSpinner(context.Background(), fetch, next) },
 			deps:    func(d *Deps) (any, error) { return d.PaginateWithSpinner(context.Background(), fetch, next) },
 		},
 		{
@@ -1241,7 +1257,7 @@ func TestDefaultDepsStdinMatchesProcessStdin(t *testing.T) {
 	for _, tty := range []struct{ built, read bool }{{false, false}, {true, true}, {true, false}, {false, true}} {
 		t.Run(fmt.Sprintf("built_tty=%t/read_tty=%t", tty.built, tty.read), func(t *testing.T) {
 			useStdin(t, tty.read)
-			want, wantErr := ReadJSONFilePayloadKind("-", JSONPayloadAny)
+			want, wantErr := DefaultDeps().ReadJSONFilePayloadKind("-", JSONPayloadAny)
 
 			useStdin(t, tty.built)
 			d := DefaultDeps()
@@ -1322,7 +1338,7 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 			}{
 				{"Timeout", ContextWithTimeout, d.Timeout, test.wantRequest},
 				{"UploadTimeout", ContextWithUploadTimeout, d.UploadTimeout, test.wantUpload},
-				{"DownloadTimeout", ContextWithDownloadTimeout, d.DownloadTimeout, test.wantUpload},
+				{"DownloadTimeout", ContextWithUploadTimeout, d.DownloadTimeout, test.wantUpload},
 				{
 					"ResolvedTimeout",
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -1336,7 +1352,7 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 				{
 					"ResolvedUploadTimeout",
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
-						return ContextWithResolvedUploadTimeout(ctx, commandDefault)
+						return withTimeoutContext(ctx, ResolveTimeoutSetting(UploadTimeoutSetting, commandDefault))
 					},
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
 						return d.ResolvedUploadTimeout(ctx, commandDefault)
@@ -1346,7 +1362,7 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 				{
 					"MediaUploadTimeout",
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
-						return ContextWithMediaUploadTimeout(ctx, mediaBytes)
+						return withTimeoutContext(ctx, ResolveTimeoutSetting(UploadTimeoutSetting, MediaUploadTimeoutForWork(1, mediaBytes)))
 					},
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
 						return d.MediaUploadTimeout(ctx, mediaBytes)
@@ -1599,7 +1615,7 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 			}
 			customerPrice := func(attributes asc.AppPricePointV3Attributes) string { return attributes.CustomerPrice }
 			if d == nil {
-				_, err = CollectPricePointsByTerritory(context.Background(), nil, fetch, customerPrice)
+				_, err = CollectPricePointsByTerritoryWith(context.Background(), DefaultDeps(), nil, fetch, customerPrice)
 			} else {
 				_, err = CollectPricePointsByTerritoryWith(context.Background(), d, nil, fetch, customerPrice)
 			}
@@ -1633,7 +1649,7 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 			}
 			readback := func(context.Context) (int, bool, error) { return 0, false, nil }
 			if d == nil {
-				_, _, err = RunReconciledMutationNoReplay(context.Background(), mutate, readback)
+				_, _, err = RunReconciledMutationNoReplayWith(context.Background(), DefaultDeps(), mutate, readback)
 			} else {
 				_, _, err = RunReconciledMutationNoReplayWith(context.Background(), d, mutate, readback)
 			}
@@ -1645,7 +1661,7 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 		{name: "ExplainReviewSubmissionNotCancellable", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
 			reads = nil
 			if d == nil {
-				err = ExplainReviewSubmissionNotCancellable(context.Background(), client, "sub-1", notCancellableAPIError())
+				err = DefaultDeps().ExplainReviewSubmissionNotCancellable(context.Background(), client, "sub-1", notCancellableAPIError())
 			} else {
 				err = d.ExplainReviewSubmissionNotCancellable(context.Background(), client, "sub-1", notCancellableAPIError())
 			}
@@ -1658,7 +1674,7 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 			reads = nil
 			var id string
 			if d == nil {
-				id, _, err = CreateLibraryPlacement(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "image", "image-1", "APP_SCREENSHOT", "group-1")
+				id, _, err = DefaultDeps().CreateLibraryPlacement(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "image", "image-1", "APP_SCREENSHOT", "group-1")
 			} else {
 				id, _, err = d.CreateLibraryPlacement(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "image", "image-1", "APP_SCREENSHOT", "group-1")
 			}

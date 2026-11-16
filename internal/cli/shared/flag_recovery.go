@@ -3,7 +3,6 @@ package shared
 import (
 	"flag"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -12,13 +11,7 @@ import (
 // stops after a space-separated boolean value for a bool flag. This preserves
 // support for `--flag`, `--flag=true`, and `--flag=false` while also
 // recovering `--flag true` / `--flag false` for commands that don't accept
-// positional args.
-func RecoverBoolFlagTailArgs(original *flag.FlagSet, args []string, currentValue *bool) error {
-	return recoverBoolFlagTailArgsTo(os.Stderr, original, args, currentValue)
-}
-
-// RecoverBoolFlagTailArgs is RecoverBoolFlagTailArgs with the "Error:" line
-// written to d's stderr.
+// positional args. The "Error:" line goes to d's stderr.
 func (d *Deps) RecoverBoolFlagTailArgs(original *flag.FlagSet, args []string, currentValue *bool) error {
 	return recoverBoolFlagTailArgsTo(d.IO.ErrOut, original, args, currentValue)
 }

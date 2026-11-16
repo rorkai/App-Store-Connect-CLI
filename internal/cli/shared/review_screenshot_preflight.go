@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -14,13 +13,8 @@ import (
 // subscription App Review screenshot that are about to be uploaded. A format
 // problem App Store Connect would reject at delivery is returned as an error
 // before any request. Documented but unconfirmed constraints (size and alpha)
-// and a payload that does not fully decode are printed to stderr as warnings.
-func PreflightReviewScreenshot(path string, file io.ReaderAt, size int64) error {
-	return preflightReviewScreenshotTo(os.Stderr, path, file, size)
-}
-
-// PreflightReviewScreenshot is PreflightReviewScreenshot with the warnings
-// written to d's stderr.
+// and a payload that does not fully decode are printed to d's stderr as
+// warnings.
 func (d *Deps) PreflightReviewScreenshot(path string, file io.ReaderAt, size int64) error {
 	return preflightReviewScreenshotTo(d.IO.ErrOut, path, file, size)
 }
@@ -40,17 +34,11 @@ func preflightReviewScreenshotTo(stderr io.Writer, path string, file io.ReaderAt
 }
 
 // ReviewScreenshotUsageError reports a review screenshot rejected before any
-// request. It prints message as one "Error:" line and returns a usage error
-// (exit 2) that does not wrap flag.ErrHelp, so the command's full usage page
-// does not follow and bury the one actionable line. parameter names the flag
-// that supplied the screenshot for diagnostics. Commands under a re-parented
-// tree pass message through RewriteUsageMessage first.
-func ReviewScreenshotUsageError(parameter, message string) error {
-	return reviewScreenshotUsageErrorTo(os.Stderr, parameter, message)
-}
-
-// ReviewScreenshotUsageError is ReviewScreenshotUsageError with the "Error:"
-// line written to d's stderr.
+// request. It prints message as one "Error:" line on d's stderr and returns a
+// usage error (exit 2) that does not wrap flag.ErrHelp, so the command's full
+// usage page does not follow and bury the one actionable line. parameter names
+// the flag that supplied the screenshot for diagnostics. Commands under a
+// re-parented tree pass message through RewriteUsageMessage first.
 func (d *Deps) ReviewScreenshotUsageError(parameter, message string) error {
 	return reviewScreenshotUsageErrorTo(d.IO.ErrOut, parameter, message)
 }

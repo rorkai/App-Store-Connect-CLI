@@ -3,7 +3,6 @@ package shared
 import (
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 
@@ -50,11 +49,6 @@ func SortResolvedPrices(rows []ResolvedPriceRow) {
 		}
 		return left.PricePointID < right.PricePointID
 	})
-}
-
-// PrintResolvedPrices renders resolved price rows without registering global raw renderers.
-func PrintResolvedPrices(result *ResolvedPricesResult, format string, pretty bool) error {
-	return printResolvedPricesTo(os.Stdout, os.Stderr, result, format, pretty)
 }
 
 func printResolvedPricesTo(out, errOut io.Writer, result *ResolvedPricesResult, format string, pretty bool) error {
