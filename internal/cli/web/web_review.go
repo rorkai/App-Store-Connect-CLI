@@ -614,16 +614,12 @@ func normalizeAttachmentFilename(attachment webcore.ReviewAttachment) string {
 	return id + ".bin"
 }
 
-// newDownloadRoot anchors attachment downloads for outDir. A directory inside
-// the working directory (including the default .asc/web-review location, whose
-// components are repository-controlled) is anchored at the working directory so
-// every component below it is validated; an operator-selected directory outside
-// the working directory is its own trusted root. The returned prefix is the
-// root-relative output directory.
-func newDownloadRoot(outDir string) (rootfs.Root, string, error) {
-	return newDownloadRootWith(shared.DefaultDeps(), outDir)
-}
-
+// newDownloadRootWith anchors attachment downloads for outDir. A directory
+// inside d's working directory (including the default .asc/web-review location,
+// whose components are repository-controlled) is anchored at the working
+// directory so every component below it is validated; an operator-selected
+// directory outside the working directory is its own trusted root. The returned
+// prefix is the root-relative output directory.
 func newDownloadRootWith(d *shared.Deps, outDir string) (rootfs.Root, string, error) {
 	if outDir == "" {
 		return rootfs.Root{}, "", fmt.Errorf("output directory is required")
