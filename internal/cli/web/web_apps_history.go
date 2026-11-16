@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -18,14 +17,14 @@ var getWebAppStatusHistoryFn = func(ctx context.Context, client *webcore.Client,
 	return client.GetAppStatusHistory(ctx, appID, versionID)
 }
 
-// WebAppsHistoryCommand returns the app status history command.
-func WebAppsHistoryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps history", flag.ExitOnError)
+// newWebAppsHistoryCommand returns the app status history command.
+func newWebAppsHistoryCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps history", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	versionID := fs.String("version-id", "", "Read status history for a single app store version ID")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "history",
@@ -59,22 +58,22 @@ Examples:
   asc web apps history --app 6759231657 --version-id 123456789
   asc web apps history --app 6759231657 --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var result *webcore.AppStatusHistory
-			err = withWebSpinner("Fetching app status history", func() error {
+			err = withWebSpinnerWith(d, "Fetching app status history", func() error {
 				var err error
 				result, err = getWebAppStatusHistoryFn(requestCtx, newWebClientFn(session), resolvedAppID, strings.TrimSpace(*versionID))
 				return err
@@ -83,24 +82,24 @@ Examples:
 				return withWebAuthHint(err, "web apps history")
 			}
 
-			return printWebAppStatusHistory(result, *output.Output, *output.Pretty)
+			return printWebAppStatusHistory(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 var webAppStatusHistoryHeaders = []string{"version", "platform", "status", "date", "initiator"}
 
-func printWebAppStatusHistory(result *webcore.AppStatusHistory, output string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printWebAppStatusHistory(d *shared.Deps, result *webcore.AppStatusHistory, output string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		output,
 		pretty,
 		func() error {
-			asc.RenderTable(webAppStatusHistoryHeaders, webAppStatusHistoryRows(result))
+			asc.RenderTableTo(d.IO.Out, webAppStatusHistoryHeaders, webAppStatusHistoryRows(result))
 			return nil
 		},
 		func() error {
-			asc.RenderMarkdown(webAppStatusHistoryHeaders, webAppStatusHistoryRows(result))
+			asc.RenderMarkdownTo(d.IO.Out, webAppStatusHistoryHeaders, webAppStatusHistoryRows(result))
 			return nil
 		},
 	)

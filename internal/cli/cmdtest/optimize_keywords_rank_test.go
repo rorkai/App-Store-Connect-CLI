@@ -55,9 +55,7 @@ func TestOptimizeKeywordsRankUsageErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 			t.Setenv("ASC_APP_ID", "")
-			asctest.NewRegistry(t).Install()
-
-			stdout, stderr, runErr := runCommand(t, test.args)
+			stdout, stderr, runErr := runRootWithHTTPTransport(t, nil, asctest.NewRegistry(t), test.args...)
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", runErr)
 			}
@@ -74,9 +72,7 @@ func TestOptimizeKeywordsRankUsageErrors(t *testing.T) {
 func TestOptimizeKeywordsRankJSONComposesPublicSearchWindow(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Host != "itunes.apple.com" || req.URL.Path != "/search" {
 			t.Errorf("request URL = %s, want the public iTunes search endpoint", req.URL.String())
 			return nil, errors.New("unexpected request URL")
@@ -98,14 +94,14 @@ func TestOptimizeKeywordsRankJSONComposesPublicSearchWindow(t *testing.T) {
 		}
 	})
 
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runRootWithHTTPTransport(t, nil, transport, []string{
 		"optimize", "keywords", "rank",
 		"--app", "1234567890",
 		"--keywords", " Focus Timer , habit tracker ,broken keyword,focus timer",
 		"--country", "DE",
 		"--workers", "3",
 		"--output", "json",
-	})
+	}...)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -141,18 +137,16 @@ func TestOptimizeKeywordsRankJSONComposesPublicSearchWindow(t *testing.T) {
 func TestOptimizeKeywordsRankFailsWhenEveryKeywordLookupFails(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(*http.Request) (*http.Response, error) {
 		return jsonResponse(http.StatusInternalServerError, `{}`)
 	})
 
-	stdout, _, runErr := runCommand(t, []string{
+	stdout, _, runErr := runRootWithHTTPTransport(t, nil, transport, []string{
 		"optimize", "keywords", "rank",
 		"--app", "1234567890",
 		"--keywords", "focus timer,habit tracker",
 		"--output", "json",
-	})
+	}...)
 	if runErr == nil {
 		t.Fatal("expected an error when every keyword lookup fails")
 	}

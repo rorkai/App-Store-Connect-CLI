@@ -113,7 +113,7 @@ tax picker. The opaque IDs returned here are accepted by ` + "`set`" + `.
 			if err != nil {
 				return withWebAuthHint(err, "web iap tax-category list")
 			}
-			return printWebAppTaxCategoryCatalog(catalog, *output.Output, *output.Pretty)
+			return printWebAppTaxCategoryCatalog(shared.DefaultDeps(), catalog, *output.Output, *output.Pretty)
 		},
 	}
 }

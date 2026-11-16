@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -15,10 +14,10 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-// WebAppsDistributionUsersCommand returns the app-scoped custom-distribution
+// newWebAppsDistributionUsersCommand returns the app-scoped custom-distribution
 // Apple Account recipient command group.
-func WebAppsDistributionUsersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps distribution users", flag.ExitOnError)
+func newWebAppsDistributionUsersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps distribution users", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "users",
@@ -36,11 +35,11 @@ change the app's distribution method and never retry an ambiguous write.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppsDistributionUsersListCommand(),
-			WebAppsDistributionUsersCreateCommand(),
-			WebAppsDistributionUsersDeleteCommand(),
+			newWebAppsDistributionUsersListCommand(d),
+			newWebAppsDistributionUsersCreateCommand(d),
+			newWebAppsDistributionUsersDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -48,14 +47,14 @@ change the app's distribution method and never retry an ambiguous write.
 	}
 }
 
-// WebAppsDistributionUsersListCommand lists the selected app's complete
+// newWebAppsDistributionUsersListCommand lists the selected app's complete
 // customAppUsers collection when --paginate is requested.
-func WebAppsDistributionUsersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps distribution users list", flag.ExitOnError)
+func newWebAppsDistributionUsersListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps distribution users list", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -73,17 +72,17 @@ Examples:
   asc web apps distribution users list --app 6759231657
   asc web apps distribution users list --app 6759231657 --paginate --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, err := resolveWebDistributionUsersAppID(*appID)
+			resolvedAppID, err := resolveWebDistributionUsersAppID(d, *appID)
 			if err != nil {
 				return err
 			}
-			if err := validateWebDistributionUsersOutput(output); err != nil {
+			if err := validateWebDistributionUsersOutput(d, output); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web apps distribution users list")
@@ -91,7 +90,7 @@ Examples:
 			client := newWebClientFn(session)
 
 			var result *webcore.CustomAppUsersListResult
-			err = withWebSpinner("Loading app distribution recipients", func() error {
+			err = withWebSpinnerWith(d, "Loading app distribution recipients", func() error {
 				result, err = client.ListCustomAppUsersWithPagination(requestCtx, resolvedAppID, *paginate)
 				return err
 			})
@@ -101,20 +100,20 @@ Examples:
 			if result == nil {
 				return fmt.Errorf("web apps distribution users list failed: response did not include a collection")
 			}
-			return printWebCustomAppUsers(result, *output.Output, *output.Pretty)
+			return printWebCustomAppUsers(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAppsDistributionUsersCreateCommand creates one app-scoped Apple Account
+// newWebAppsDistributionUsersCreateCommand creates one app-scoped Apple Account
 // recipient after a complete ownership preflight and verifies the read-back.
-func WebAppsDistributionUsersCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps distribution users create", flag.ExitOnError)
+func newWebAppsDistributionUsersCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps distribution users create", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	recipientAppleID := fs.String("recipient-apple-id", "", "Apple Account to add as a recipient")
 	confirm := fs.Bool("confirm", false, "Confirm adding the Apple Account recipient")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -133,24 +132,24 @@ are never retried automatically.
 Example:
   asc web apps distribution users create --app 6759231657 --recipient-apple-id account@example.com --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, err := resolveWebDistributionUsersAppID(*appID)
+			resolvedAppID, err := resolveWebDistributionUsersAppID(d, *appID)
 			if err != nil {
 				return err
 			}
 			appleID := strings.TrimSpace(*recipientAppleID)
 			if appleID == "" {
-				return shared.RequiredFlag("--recipient-apple-id")
+				return d.RequiredFlag("--recipient-apple-id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err := validateWebDistributionUsersOutput(output); err != nil {
+			if err := validateWebDistributionUsersOutput(d, output); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web apps distribution users create")
@@ -158,7 +157,7 @@ Example:
 			client := newWebClientFn(session)
 
 			var receipt *asc.WebAppDistributionUserMutationResult
-			err = withWebSpinner("Creating app distribution recipient", func() error {
+			err = withWebSpinnerWith(d, "Creating app distribution recipient", func() error {
 				if err := requireCustomWebAppDistribution(requestCtx, client, resolvedAppID); err != nil {
 					return err
 				}
@@ -204,20 +203,20 @@ Example:
 				return nil
 			})
 
-			return finishWebDistributionUserMutation(receipt, err, "web apps distribution users create", *output.Output, *output.Pretty)
+			return finishWebDistributionUserMutation(d, receipt, err, "web apps distribution users create", *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAppsDistributionUsersDeleteCommand deletes one selected app recipient
+// newWebAppsDistributionUsersDeleteCommand deletes one selected app recipient
 // after a complete ownership preflight and verifies its absence.
-func WebAppsDistributionUsersDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps distribution users delete", flag.ExitOnError)
+func newWebAppsDistributionUsersDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps distribution users delete", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	recipientID := fs.String("id", "", "Opaque custom app recipient resource ID")
 	confirm := fs.Bool("confirm", false, "Confirm removing the Apple Account recipient")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -233,24 +232,24 @@ and are never retried automatically.
 Example:
   asc web apps distribution users delete --app 6759231657 --id RECIPIENT_ID --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, err := resolveWebDistributionUsersAppID(*appID)
+			resolvedAppID, err := resolveWebDistributionUsersAppID(d, *appID)
 			if err != nil {
 				return err
 			}
 			requestedID := strings.TrimSpace(*recipientID)
 			if requestedID == "" {
-				return shared.UsageError("--id is required")
+				return d.UsageError("--id is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err := validateWebDistributionUsersOutput(output); err != nil {
+			if err := validateWebDistributionUsersOutput(d, output); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web apps distribution users delete")
@@ -258,7 +257,7 @@ Example:
 			client := newWebClientFn(session)
 
 			var receipt *asc.WebAppDistributionUserMutationResult
-			err = withWebSpinner("Deleting app distribution recipient", func() error {
+			err = withWebSpinnerWith(d, "Deleting app distribution recipient", func() error {
 				if err := requireCustomWebAppDistribution(requestCtx, client, resolvedAppID); err != nil {
 					return err
 				}
@@ -291,23 +290,23 @@ Example:
 				return nil
 			})
 
-			return finishWebDistributionUserMutation(receipt, err, "web apps distribution users delete", *output.Output, *output.Pretty)
+			return finishWebDistributionUserMutation(d, receipt, err, "web apps distribution users delete", *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func resolveWebDistributionUsersAppID(value string) (string, error) {
+func resolveWebDistributionUsersAppID(d *shared.Deps, value string) (string, error) {
 	resolved := strings.TrimSpace(shared.ResolveAppID(value))
 	if resolved == "" {
-		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+		fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 		return "", shared.MissingRequiredUsageError("--app")
 	}
 	return resolved, nil
 }
 
-func validateWebDistributionUsersOutput(output shared.OutputFlags) error {
+func validateWebDistributionUsersOutput(d *shared.Deps, output shared.OutputFlags) error {
 	if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	return nil
 }
@@ -406,9 +405,9 @@ func webAppDistributionUserUncertainReceipt(appID, recipientID, appleID string) 
 	}
 }
 
-func finishWebDistributionUserMutation(receipt *asc.WebAppDistributionUserMutationResult, operationErr error, operation, output string, pretty bool) error {
+func finishWebDistributionUserMutation(d *shared.Deps, receipt *asc.WebAppDistributionUserMutationResult, operationErr error, operation, output string, pretty bool) error {
 	if receipt != nil {
-		printErr := shared.PrintOutput(receipt, output, pretty)
+		printErr := d.PrintOutput(receipt, output, pretty)
 		if printErr != nil {
 			if operationErr != nil {
 				return errors.Join(withWebAuthHint(operationErr, operation), printErr)
@@ -425,17 +424,17 @@ func finishWebDistributionUserMutation(receipt *asc.WebAppDistributionUserMutati
 	return nil
 }
 
-func printWebCustomAppUsers(result *webcore.CustomAppUsersListResult, output string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printWebCustomAppUsers(d *shared.Deps, result *webcore.CustomAppUsersListResult, output string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		output,
 		pretty,
 		func() error {
-			asc.RenderTable(webCustomAppUsersHeaders(), webCustomAppUsersRows(result))
+			asc.RenderTableTo(d.IO.Out, webCustomAppUsersHeaders(), webCustomAppUsersRows(result))
 			return nil
 		},
 		func() error {
-			asc.RenderMarkdown(webCustomAppUsersHeaders(), webCustomAppUsersRows(result))
+			asc.RenderMarkdownTo(d.IO.Out, webCustomAppUsersHeaders(), webCustomAppUsersRows(result))
 			return nil
 		},
 	)

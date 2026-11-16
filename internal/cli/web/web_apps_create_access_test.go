@@ -46,9 +46,10 @@ func TestRunAppsCreateAccessLimitedWithoutUserMakesNoHTTP(t *testing.T) {
 		return nil, "", nil
 	}
 
+	d, depsStdout, depsStderr := newWebTestDeps()
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -71,12 +72,10 @@ func TestRunAppsCreateAccessLimitedWithoutUserMakesNoHTTP(t *testing.T) {
 func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 	origCreate := createWebAppFn
 	origResolve := resolveAppCreateSessionFn
-	origCanPrompt := appCreateCanPromptForFieldsFn
 	origAskOne := appCreateAskOneFn
 	t.Cleanup(func() {
 		createWebAppFn = origCreate
 		resolveAppCreateSessionFn = origResolve
-		appCreateCanPromptForFieldsFn = origCanPrompt
 		appCreateAskOneFn = origAskOne
 	})
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
@@ -87,15 +86,19 @@ func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 		t.Fatal("did not expect web session lookup")
 		return nil, "", nil
 	}
-	appCreateCanPromptForFieldsFn = func() bool { return true }
 	appCreateAskOneFn = func(_ survey.Prompt, _ interface{}, _ ...survey.AskOpt) error {
 		t.Fatal("did not expect app-details wizard")
 		return nil
 	}
 
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.IO.StdinTTY, d.IO.StdoutTTY = true, true
+	origIsTerminal := termIsTerminalFn
+	t.Cleanup(func() { termIsTerminalFn = origIsTerminal })
+	termIsTerminalFn = func(int) bool { return true }
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Access: "limited",
 			Output: "json",
 		})
@@ -112,16 +115,9 @@ func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 func TestRunAppsCreateAccessWithMissingNameMakesNoHTTP(t *testing.T) {
 	origCreate := createWebAppFn
 	origResolve := resolveAppCreateSessionFn
-	origCanPrompt := appCreateCanPromptForFieldsFn
-	origClientFactory := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		t.Fatal("did not expect ASC client lookup")
-		return nil, nil
-	})
 	t.Cleanup(func() {
 		createWebAppFn = origCreate
 		resolveAppCreateSessionFn = origResolve
-		appCreateCanPromptForFieldsFn = origCanPrompt
-		origClientFactory()
 	})
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
 		t.Fatal("did not expect create")
@@ -131,11 +127,15 @@ func TestRunAppsCreateAccessWithMissingNameMakesNoHTTP(t *testing.T) {
 		t.Fatal("did not expect web session lookup")
 		return nil, "", nil
 	}
-	appCreateCanPromptForFieldsFn = func() bool { return false }
 
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = func() (*asc.Client, error) {
+		t.Fatal("did not expect ASC client lookup")
+		return nil, nil
+	}
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Access: "full",
 			Output: "json",
 		})
@@ -166,9 +166,10 @@ func TestRunAppsCreateBlankUserMakesNoHTTP(t *testing.T) {
 		return nil, "", nil
 	}
 
+	d, depsStdout, depsStderr := newWebTestDeps()
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -217,12 +218,14 @@ func TestRunAppsCreateUnknownUserMakesNoCreate(t *testing.T) {
 		fixture.Respond(w, "unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
 	defer server.Close()
-	setAppCreateASCClient(t, server)
+	client := appCreateASCClient(t, server)
 	stubBundleIDPreflight(t)
 
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = client
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -269,12 +272,14 @@ func TestRunAppsCreateAllAppsVisibleUserMakesNoCreate(t *testing.T) {
 		fixture.Respond(w, "unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
 	defer server.Close()
-	setAppCreateASCClient(t, server)
+	client := appCreateASCClient(t, server)
 	stubBundleIDPreflight(t)
 
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = client
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -323,12 +328,14 @@ func TestRunAppsCreateFullAccessUnauthorizedMakesNoCreate(t *testing.T) {
 		fixture.Respond(w, "unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
 	defer server.Close()
-	setAppCreateASCClient(t, server)
+	client := appCreateASCClient(t, server)
 	stubBundleIDPreflight(t)
 
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = client
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -376,7 +383,8 @@ func TestRunAppsCreateOmittingAccessFlagsKeepsCreateBody(t *testing.T) {
 	}
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
-	if err := RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	d, _, _ := newWebTestDeps()
+	if err := RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 		Name:     "My App",
 		BundleID: "com.example.app",
 		SKU:      "SKU123",
@@ -439,13 +447,15 @@ func TestRunAppsCreateLimitedAccessReceiptUsesRereadNotRequest(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	setAppCreateASCClient(t, server)
+	client := appCreateASCClient(t, server)
 	stubBundleIDPreflight(t)
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = client
 	var err error
-	stdout, _ := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -532,13 +542,15 @@ func TestRunAppsCreateLimitedAccessRollsBackGrantedUsersWhenLaterGrantFails(t *t
 		}
 	}))
 	defer server.Close()
-	setAppCreateASCClient(t, server)
+	client := appCreateASCClient(t, server)
 	stubBundleIDPreflight(t)
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = client
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -610,13 +622,15 @@ func TestRunAppsCreateLimitedAccessJoinsRollbackErrorWhenCompensationFails(t *te
 		}
 	}))
 	defer server.Close()
-	setAppCreateASCClient(t, server)
+	client := appCreateASCClient(t, server)
 	stubBundleIDPreflight(t)
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = client
 	var err error
-	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -666,13 +680,15 @@ func TestRunAppsCreateFullAccessDoesNotPostVisibleApps(t *testing.T) {
 		fixture.Respond(w, "unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
 	defer server.Close()
-	setAppCreateASCClient(t, server)
+	client := appCreateASCClient(t, server)
 	stubBundleIDPreflight(t)
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = client
 	var err error
-	stdout, _ := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -716,7 +732,8 @@ func TestRollbackAppCreateVisibleAppsUsesFreshTimeoutWhenParentCanceled(t *testi
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := rollbackAppCreateVisibleApps(ctx, client, "app-123", []string{"user-1"}); err != nil {
+	d, _, _ := newWebTestDeps()
+	if err := rollbackAppCreateVisibleApps(ctx, d, client, "app-123", []string{"user-1"}); err != nil {
 		t.Fatalf("rollback error: %v", err)
 	}
 	if !deleted {
@@ -724,12 +741,12 @@ func TestRollbackAppCreateVisibleAppsUsesFreshTimeoutWhenParentCanceled(t *testi
 	}
 }
 
-func setAppCreateASCClient(t *testing.T, server *httptest.Server) {
+func appCreateASCClient(t *testing.T, server *httptest.Server) func() (*asc.Client, error) {
 	t.Helper()
 	client := newAppCreateTestClient(t, server)
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	return func() (*asc.Client, error) {
 		return client, nil
-	}))
+	}
 }
 
 func guardAppCreatePreflightHTTP(t *testing.T) {
@@ -766,7 +783,7 @@ func stubBundleIDPreflight(t *testing.T) {
 	t.Helper()
 	orig := ensureBundleIDFn
 	t.Cleanup(func() { ensureBundleIDFn = orig })
-	ensureBundleIDFn = func(context.Context, string, string, string) (bool, error) {
+	ensureBundleIDFn = func(context.Context, *shared.Deps, string, string, string) (bool, error) {
 		return false, nil
 	}
 }

@@ -15,12 +15,12 @@ const (
 	appCreateAccessLimited = "limited"
 )
 
-func normalizeAppCreateAccess(access string, userIDs []string) (string, []string, error) {
+func normalizeAppCreateAccess(d *shared.Deps, access string, userIDs []string) (string, []string, error) {
 	access = strings.ToLower(strings.TrimSpace(access))
 	for _, userID := range userIDs {
 		if strings.TrimSpace(userID) == "" {
 			return "", nil, shared.WithDiagnostic(
-				shared.UsageError("--user must not be empty"),
+				d.UsageError("--user must not be empty"),
 				shared.DiagnosticInvalidInput,
 				"--user",
 			)
@@ -32,7 +32,7 @@ func normalizeAppCreateAccess(access string, userIDs []string) (string, []string
 	case "":
 		if len(userIDs) > 0 {
 			return "", nil, shared.WithDiagnostic(
-				shared.UsageError("--user requires --access limited"),
+				d.UsageError("--user requires --access limited"),
 				shared.DiagnosticConflictingInput,
 				"--user",
 			)
@@ -41,7 +41,7 @@ func normalizeAppCreateAccess(access string, userIDs []string) (string, []string
 	case appCreateAccessFull:
 		if len(userIDs) > 0 {
 			return "", nil, shared.WithDiagnostic(
-				shared.UsageError("--user requires --access limited"),
+				d.UsageError("--user requires --access limited"),
 				shared.DiagnosticConflictingInput,
 				"--user",
 			)
@@ -50,7 +50,7 @@ func normalizeAppCreateAccess(access string, userIDs []string) (string, []string
 	case appCreateAccessLimited:
 		if len(userIDs) == 0 {
 			return "", nil, shared.WithDiagnostic(
-				shared.UsageError("--access limited requires at least one --user"),
+				d.UsageError("--access limited requires at least one --user"),
 				shared.DiagnosticRequiredInputMissing,
 				"--user",
 			)
@@ -58,7 +58,7 @@ func normalizeAppCreateAccess(access string, userIDs []string) (string, []string
 		return appCreateAccessLimited, userIDs, nil
 	default:
 		return "", nil, shared.WithDiagnostic(
-			shared.UsageError("--access must be full or limited"),
+			d.UsageError("--access must be full or limited"),
 			shared.DiagnosticInvalidInput,
 			"--access",
 		)
@@ -85,13 +85,13 @@ func uniqueAppCreateUserIDs(userIDs []string) []string {
 	return out
 }
 
-func ensureAppCreateUsersExist(ctx context.Context, client *asc.Client, userIDs []string) error {
+func ensureAppCreateUsersExist(ctx context.Context, d *shared.Deps, client *asc.Client, userIDs []string) error {
 	for _, userID := range userIDs {
 		user, err := client.GetUser(ctx, userID)
 		if err != nil {
 			if asc.IsNotFound(err) {
 				return shared.WithDiagnostic(
-					shared.UsageError(fmt.Sprintf("unknown user ID %q", userID)),
+					d.UsageError(fmt.Sprintf("unknown user ID %q", userID)),
 					shared.DiagnosticInvalidInput,
 					"--user",
 				)
@@ -100,7 +100,7 @@ func ensureAppCreateUsersExist(ctx context.Context, client *asc.Client, userIDs 
 		}
 		if user.Data.Attributes.AllAppsVisible {
 			return shared.WithDiagnostic(
-				shared.UsageError(fmt.Sprintf("user ID %q has access to all apps; --access limited requires users with limited app visibility", userID)),
+				d.UsageError(fmt.Sprintf("user ID %q has access to all apps; --access limited requires users with limited app visibility", userID)),
 				shared.DiagnosticInvalidInput,
 				"--user",
 			)
@@ -114,7 +114,7 @@ func ensureAppCreateAPIAccess(ctx context.Context, client *asc.Client) error {
 	return err
 }
 
-func applyAndReadAppCreateAccess(ctx context.Context, client *asc.Client, appID, requestedAccess string, userIDs []string) (*asc.WebAppCreateResult, error) {
+func applyAndReadAppCreateAccess(ctx context.Context, d *shared.Deps, client *asc.Client, appID, requestedAccess string, userIDs []string) (*asc.WebAppCreateResult, error) {
 	appID = strings.TrimSpace(appID)
 	if appID == "" {
 		return nil, fmt.Errorf("web apps create failed: created app id is missing")
@@ -125,7 +125,7 @@ func applyAndReadAppCreateAccess(ctx context.Context, client *asc.Client, appID,
 			if err := client.AddUserVisibleApps(ctx, userID, []string{appID}); err != nil {
 				grantErr := fmt.Errorf("web apps create failed: grant app access to user %q: %w", userID, err)
 				rollbackUsers := append(append([]string{}, granted...), userID)
-				if rollbackErr := rollbackAppCreateVisibleApps(ctx, client, appID, rollbackUsers); rollbackErr != nil {
+				if rollbackErr := rollbackAppCreateVisibleApps(ctx, d, client, appID, rollbackUsers); rollbackErr != nil {
 					return nil, errors.Join(grantErr, rollbackErr)
 				}
 				return nil, grantErr
@@ -145,11 +145,11 @@ func applyAndReadAppCreateAccess(ctx context.Context, client *asc.Client, appID,
 	}, nil
 }
 
-func rollbackAppCreateVisibleApps(ctx context.Context, client *asc.Client, appID string, userIDs []string) error {
+func rollbackAppCreateVisibleApps(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, userIDs []string) error {
 	if len(userIDs) == 0 {
 		return nil
 	}
-	rollbackCtx, cancel := shared.ContextWithTimeout(context.WithoutCancel(shared.ContextWithoutTimeout(ctx)))
+	rollbackCtx, cancel := d.Timeout(context.WithoutCancel(shared.ContextWithoutTimeout(ctx)))
 	defer cancel()
 	var rollbackErrs []error
 	for _, userID := range userIDs {

@@ -157,15 +157,7 @@ func TestReadOnlyEnvRefusesWebMutationAfterPreflightReads(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "web", "apps", "delete", "--app", "1234567890", "--confirm", "--output", "json")
 	if code != cmd.ExitReadOnly {
 		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitReadOnly, stdout, stderr)
 	}

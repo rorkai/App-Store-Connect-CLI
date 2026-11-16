@@ -36,9 +36,9 @@ optional uncollected rows do not.
 
 `
 
-// WebAppsDeclarationsCommand returns the app declarations command group.
-func WebAppsDeclarationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps declarations", flag.ExitOnError)
+// newWebAppsDeclarationsCommand returns the app declarations command group.
+func newWebAppsDeclarationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps declarations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "declarations",
@@ -46,9 +46,9 @@ func WebAppsDeclarationsCommand() *ffcli.Command {
 		ShortHelp:  "Read App Store Regulations & Permits declarations via web sessions.",
 		LongHelp:   declarationsLongHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppsDeclarationsListCommand(),
+			newWebAppsDeclarationsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -56,13 +56,13 @@ func WebAppsDeclarationsCommand() *ffcli.Command {
 	}
 }
 
-// WebAppsDeclarationsListCommand lists the compliance declarations for an app.
-func WebAppsDeclarationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps declarations list", flag.ExitOnError)
+// newWebAppsDeclarationsListCommand lists the compliance declarations for an app.
+func newWebAppsDeclarationsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps declarations list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -74,21 +74,21 @@ func WebAppsDeclarationsListCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
-			accountID, client, requestCtx, cancel, err := resolveWebComplianceClient(ctx, authFlags, "web apps declarations list")
+			accountID, client, requestCtx, cancel, err := resolveWebComplianceClient(ctx, d, authFlags, "web apps declarations list")
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			declarations := []webcore.AppDeclaration{}
-			err = withWebSpinner("Fetching app declarations", func() error {
+			err = withWebSpinnerWith(d, "Fetching app declarations", func() error {
 				result, err := listWebAppDeclarationsFn(requestCtx, client, accountID, resolvedAppID)
 				if err != nil {
 					return err
@@ -101,18 +101,18 @@ func WebAppsDeclarationsListCommand() *ffcli.Command {
 			}
 
 			outputList := webAppDeclarationListOutput(declarations)
-			return shared.PrintOutput(&outputList, *output.Output, *output.Pretty)
+			return d.PrintOutput(&outputList, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAppsMedicalDeviceViewCommand reads the regulated medical device declaration.
-func WebAppsMedicalDeviceViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps medical-device view", flag.ExitOnError)
+// newWebAppsMedicalDeviceViewCommand reads the regulated medical device declaration.
+func newWebAppsMedicalDeviceViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps medical-device view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -130,21 +130,21 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
-			accountID, client, requestCtx, cancel, err := resolveWebComplianceClient(ctx, authFlags, "web apps medical-device view")
+			accountID, client, requestCtx, cancel, err := resolveWebComplianceClient(ctx, d, authFlags, "web apps medical-device view")
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var state *webcore.MedicalDeviceDeclarationState
-			err = withWebSpinner("Fetching regulated medical device declaration", func() error {
+			err = withWebSpinnerWith(d, "Fetching regulated medical device declaration", func() error {
 				var err error
 				state, err = viewWebMedicalDeviceDeclarationFn(requestCtx, client, accountID, resolvedAppID)
 				return err
@@ -156,7 +156,7 @@ Examples:
 				return fmt.Errorf("web apps medical-device view failed: missing declaration state")
 			}
 
-			return shared.PrintOutput(webMedicalDeviceDeclarationStateOutput(state), *output.Output, *output.Pretty)
+			return d.PrintOutput(webMedicalDeviceDeclarationStateOutput(state), *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -197,8 +197,8 @@ func webMedicalDeviceDeclarationStateOutput(state *webcore.MedicalDeviceDeclarat
 // resolveWebComplianceClient resolves the web session and account id shared by
 // the compliance-form commands. Authentication uses the parent context; the
 // returned request context starts only after login finishes.
-func resolveWebComplianceClient(ctx context.Context, authFlags webSessionFlags, command string) (string, *webcore.Client, context.Context, context.CancelFunc, error) {
-	session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+func resolveWebComplianceClient(ctx context.Context, d *shared.Deps, authFlags webSessionFlags, command string) (string, *webcore.Client, context.Context, context.CancelFunc, error) {
+	session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 	if err != nil {
 		return "", nil, requestCtx, cancel, err
 	}

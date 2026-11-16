@@ -28,10 +28,10 @@ var (
 	}
 )
 
-// WebAppsTaxCategoryCommand returns the App Information tax-category command
+// newWebAppsTaxCategoryCommand returns the App Information tax-category command
 // group. The underlying endpoints are Apple's internal web-session API.
-func WebAppsTaxCategoryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps tax-category", flag.ExitOnError)
+func newWebAppsTaxCategoryCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps tax-category", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "tax-category",
@@ -51,11 +51,11 @@ send an explicit empty condition relationship and clear stale conditions.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppsTaxCategoryListCommand(),
-			WebAppsTaxCategoryViewCommand(),
-			WebAppsTaxCategorySetCommand(),
+			newWebAppsTaxCategoryListCommand(d),
+			newWebAppsTaxCategoryViewCommand(d),
+			newWebAppsTaxCategorySetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -63,11 +63,11 @@ send an explicit empty condition relationship and clear stale conditions.
 	}
 }
 
-// WebAppsTaxCategoryListCommand lists the captured application tax catalog.
-func WebAppsTaxCategoryListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps tax-category list", flag.ExitOnError)
+// newWebAppsTaxCategoryListCommand lists the captured application tax catalog.
+func newWebAppsTaxCategoryListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps tax-category list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -81,37 +81,37 @@ accepted by ` + "`set`" + `.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var catalog webcore.TaxCategoryCatalog
-			err = withWebSpinner("Fetching application tax category catalog", func() error {
+			err = withWebSpinnerWith(d, "Fetching application tax category catalog", func() error {
 				catalog, err = listWebAppTaxCategoriesFn(requestCtx, newWebClientFn(session))
 				return err
 			})
 			if err != nil {
 				return withWebAuthHint(err, "web apps tax-category list")
 			}
-			return printWebAppTaxCategoryCatalog(catalog, *output.Output, *output.Pretty)
+			return printWebAppTaxCategoryCatalog(d, catalog, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAppsTaxCategoryViewCommand reads the app's current tax selection and its
+// newWebAppsTaxCategoryViewCommand reads the app's current tax selection and its
 // effective UI default when no explicit resource exists.
-func WebAppsTaxCategoryViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps tax-category view", flag.ExitOnError)
+func newWebAppsTaxCategoryViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps tax-category view", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -126,17 +126,17 @@ default observed in App Store Connect.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -145,7 +145,7 @@ default observed in App Store Connect.
 
 			var current *webcore.AppTaxCategory
 			var catalog webcore.TaxCategoryCatalog
-			err = withWebSpinner("Fetching application tax category", func() error {
+			err = withWebSpinnerWith(d, "Fetching application tax category", func() error {
 				current, err = getWebAppTaxCategoryFn(requestCtx, client, resolvedAppID)
 				if err != nil {
 					return err
@@ -177,22 +177,22 @@ default observed in App Store Connect.
 				result.EffectiveCategoryName = defaultAppTaxCategoryName
 				result.EffectiveCategoryID = taxCategoryIDByName(catalog.Categories, defaultAppTaxCategoryName)
 			}
-			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+			return d.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAppsTaxCategorySetCommand writes a complete desired tax category and
+// newWebAppsTaxCategorySetCommand writes a complete desired tax category and
 // condition set. It never retries an ambiguous write.
-func WebAppsTaxCategorySetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps tax-category set", flag.ExitOnError)
+func newWebAppsTaxCategorySetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps tax-category set", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	categoryID := fs.String("category", "", "Tax category resource ID from `asc web apps tax-category list`")
 	var conditionIDs shared.MultiStringFlag
 	fs.Var(&conditionIDs, "condition", "Compatible tax condition resource ID (repeatable; omit to clear conditions)")
 	confirm := fs.Bool("confirm", false, "Confirm changing the app's tax category and conditions")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -213,24 +213,24 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 			resolvedCategoryID := strings.TrimSpace(*categoryID)
 			if resolvedCategoryID == "" {
-				return shared.UsageError("--category is required")
+				return d.UsageError("--category is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -239,7 +239,7 @@ Examples:
 
 			var catalog webcore.TaxCategoryCatalog
 			var current *webcore.AppTaxCategory
-			err = withWebSpinner("Reading application tax category", func() error {
+			err = withWebSpinnerWith(d, "Reading application tax category", func() error {
 				catalog, err = listWebAppTaxCategoriesFn(requestCtx, client)
 				if err != nil {
 					return err
@@ -259,7 +259,7 @@ Examples:
 			}
 			desiredConditions, err := normalizeWebTaxConditionIDs([]string(conditionIDs))
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if err := validateWebTaxConditions(catalog.Categories, selectedCategory, desiredConditions); err != nil {
 				return err
@@ -267,7 +267,7 @@ Examples:
 
 			changed := current == nil || !current.Configured || strings.TrimSpace(current.CategoryID) != resolvedCategoryID || !sameWebTaxConditionSet(current.EnabledConditionIDs, desiredConditions)
 			if changed {
-				err = withWebSpinner("Saving application tax category", func() error {
+				err = withWebSpinnerWith(d, "Saving application tax category", func() error {
 					return saveWebAppTaxCategoryFn(requestCtx, client, resolvedAppID, resolvedCategoryID, desiredConditions, current != nil && current.Configured)
 				})
 				if err != nil {
@@ -290,7 +290,7 @@ Examples:
 				Changed:      changed,
 				Verified:     true,
 			}
-			if err := shared.PrintOutput(receipt, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(receipt, *output.Output, *output.Pretty); err != nil {
 				conditionSummary := strings.Join(receipt.ConditionIDs, ",")
 				if receipt.Changed {
 					return fmt.Errorf("web apps tax-category set app %q category %q condition set %q was written and verified, but receipt output failed; do not retry automatically: %w", receipt.AppID, receipt.CategoryID, conditionSummary, err)
@@ -443,8 +443,8 @@ func sameWebTaxConditionSet(left, right []string) bool {
 	return true
 }
 
-func printWebAppTaxCategoryCatalog(result webcore.TaxCategoryCatalog, output string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printWebAppTaxCategoryCatalog(d *shared.Deps, result webcore.TaxCategoryCatalog, output string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		output,
 		pretty,
@@ -457,7 +457,7 @@ func printWebAppTaxCategoryCatalog(result webcore.TaxCategoryCatalog, output str
 			for _, condition := range result.Conditions {
 				rows = append(rows, []string{"condition", condition.ID, condition.Name, "", "", ""})
 			}
-			asc.RenderTable([]string{"kind", "id", "name", "product_type", "subcategory_required", "compatible_conditions"}, rows)
+			asc.RenderTableTo(d.IO.Out, []string{"kind", "id", "name", "product_type", "subcategory_required", "compatible_conditions"}, rows)
 			return nil
 		},
 		func() error {
@@ -469,7 +469,7 @@ func printWebAppTaxCategoryCatalog(result webcore.TaxCategoryCatalog, output str
 			for _, condition := range result.Conditions {
 				rows = append(rows, []string{"condition", condition.ID, condition.Name, "", "", ""})
 			}
-			asc.RenderMarkdown([]string{"kind", "id", "name", "product_type", "subcategory_required", "compatible_conditions"}, rows)
+			asc.RenderMarkdownTo(d.IO.Out, []string{"kind", "id", "name", "product_type", "subcategory_required", "compatible_conditions"}, rows)
 			return nil
 		},
 	)

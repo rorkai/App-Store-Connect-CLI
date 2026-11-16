@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,11 +33,17 @@ const (
 	keywordStatusUnavailable = "unavailable"
 )
 
-var newKeywordsItunesClient = itunes.NewClient
+// newKeywordsItunesClient returns the public App Store client the keyword
+// commands use, sending through d's transport.
+func newKeywordsItunesClient(d *shared.Deps) *itunes.Client {
+	client := itunes.NewClient()
+	client.HTTPClient = &http.Client{Transport: d.HTTPTransport()}
+	return client
+}
 
-// KeywordsCommand returns the keyword evaluation group.
-func KeywordsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("keywords", flag.ExitOnError)
+// newKeywordsCommand returns the keyword evaluation group.
+func newKeywordsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("keywords", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "keywords",
 		ShortUsage: "asc optimize keywords <subcommand> [flags]",
@@ -52,8 +59,8 @@ reported instead of replaced.
 Typical loop: discover official candidates, score them to decide which are
 worth pursuing, then rank the ones that were adopted.`,
 		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{KeywordsRankCommand(), KeywordsScoreCommand(), KeywordsDiscoverCommand()},
+		UsageFunc:   d.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{newKeywordsRankCommand(d), newKeywordsScoreCommand(d), newKeywordsDiscoverCommand(d)},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
 		},
@@ -63,7 +70,7 @@ worth pursuing, then rank the ones that were adopted.`,
 // normalizeKeywordList splits a comma-separated keyword flag into canonical
 // keywords: trimmed, lowercased, internally whitespace-collapsed, and
 // deduplicated while preserving the caller's order.
-func normalizeKeywordList(raw string) ([]string, error) {
+func normalizeKeywordList(d *shared.Deps, raw string) ([]string, error) {
 	keywords := make([]string, 0, strings.Count(raw, ",")+1)
 	seen := make(map[string]struct{})
 	for _, entry := range strings.Split(raw, ",") {
@@ -72,13 +79,13 @@ func normalizeKeywordList(raw string) ([]string, error) {
 			continue
 		}
 		if length := len([]rune(keyword)); length < keywordMinLength || length > keywordMaxLength {
-			return nil, shared.UsageErrorf(
+			return nil, d.UsageErrorf(
 				"--keywords entry %q must be between %d and %d characters",
 				keyword, keywordMinLength, keywordMaxLength,
 			)
 		}
 		if words := strings.Count(keyword, " ") + 1; words > keywordMaxWords {
-			return nil, shared.UsageErrorf(
+			return nil, d.UsageErrorf(
 				"--keywords entry %q must contain at most %d space-separated words",
 				keyword, keywordMaxWords,
 			)
@@ -90,38 +97,38 @@ func normalizeKeywordList(raw string) ([]string, error) {
 		keywords = append(keywords, keyword)
 	}
 	if len(keywords) == 0 {
-		return nil, shared.UsageError("--keywords must contain at least one keyword")
+		return nil, d.UsageError("--keywords must contain at least one keyword")
 	}
 	if len(keywords) > keywordMaxCount {
-		return nil, shared.UsageErrorf("--keywords accepts at most %d keywords per invocation", keywordMaxCount)
+		return nil, d.UsageErrorf("--keywords accepts at most %d keywords per invocation", keywordMaxCount)
 	}
 	return keywords, nil
 }
 
 // normalizeKeywordCountry validates an ISO alpha-2 storefront and returns the
 // lowercase form the public iTunes endpoints expect.
-func normalizeKeywordCountry(country string) (string, error) {
+func normalizeKeywordCountry(d *shared.Deps, country string) (string, error) {
 	normalized, err := itunes.NormalizeCountryCode(country)
 	if err != nil || normalized == "" {
-		return "", shared.UsageErrorf("--country %q is not a supported App Store storefront", strings.TrimSpace(country))
+		return "", d.UsageErrorf("--country %q is not a supported App Store storefront", strings.TrimSpace(country))
 	}
 	return normalized, nil
 }
 
 // normalizeKeywordAppID resolves and validates the public App Store app ID.
-func normalizeKeywordAppID(appID string) (string, error) {
+func normalizeKeywordAppID(d *shared.Deps, appID string) (string, error) {
 	resolved := strings.TrimSpace(shared.ResolveAppID(appID))
 	if resolved == "" {
-		return "", shared.UsageError("--app is required (or set ASC_APP_ID)")
+		return "", d.UsageError("--app is required (or set ASC_APP_ID)")
 	}
 	for _, digit := range resolved {
 		if digit < '0' || digit > '9' {
-			return "", shared.UsageError("--app must be a numeric App Store app ID")
+			return "", d.UsageError("--app must be a numeric App Store app ID")
 		}
 	}
 	parsed, err := strconv.ParseInt(resolved, 10, 64)
 	if err != nil || parsed <= 0 {
-		return "", shared.UsageError("--app must be a positive App Store app ID representable as a 64-bit integer")
+		return "", d.UsageError("--app must be a positive App Store app ID representable as a 64-bit integer")
 	}
 	return resolved, nil
 }

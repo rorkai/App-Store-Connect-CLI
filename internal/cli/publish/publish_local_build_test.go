@@ -39,7 +39,7 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 		}
 		return "app-123", nil
 	}
-	resolvePublishNextBuildNumberFn = func(_ context.Context, _ *asc.Client, opts shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
+	resolvePublishNextBuildNumberFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, opts shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
 		if opts.LatestBuildSelectionOptions.AppID != "app-123" {
 			t.Fatalf("expected resolved app ID for next build number, got %q", opts.LatestBuildSelectionOptions.AppID)
 		}
@@ -49,7 +49,7 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 		return &asc.BuildsNextBuildNumberResult{NextBuildNumber: "42"}, nil
 	}
 	stages := stubPublishArchiveAndExport()
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, appID, ipaPath string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, appID, ipaPath string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		if appID != "app-123" {
 			t.Fatalf("expected resolved app ID for upload, got %q", appID)
 		}
@@ -72,7 +72,7 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 		publishRequest{http.MethodPost, "/v1/builds/build-123/relationships/betaGroups", http.StatusNoContent, ""},
 	)
 
-	stdout, stderr, runErr := runPublishCommand(t, PublishTestFlightCommand, []string{
+	stdout, stderr, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "friendly-app",
 		"--workspace", "Demo.xcworkspace",
 		"--scheme", "Demo",
@@ -175,12 +175,12 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 func TestPublishLocalBuildRejectsManagedExportFlagsBeforeSideEffects(t *testing.T) {
 	for _, test := range []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
 		{
 			name:    "testflight",
-			command: PublishTestFlightCommand,
+			command: newPublishTestFlightCommand,
 			args: []string{
 				"--app", "app-1",
 				"--workspace", "Demo.xcworkspace",
@@ -191,7 +191,7 @@ func TestPublishLocalBuildRejectsManagedExportFlagsBeforeSideEffects(t *testing.
 		},
 		{
 			name:    "appstore",
-			command: PublishAppStoreCommand,
+			command: newPublishAppStoreCommand,
 			args: []string{
 				"--app", "app-1",
 				"--workspace", "Demo.xcworkspace",
@@ -204,7 +204,7 @@ func TestPublishLocalBuildRejectsManagedExportFlagsBeforeSideEffects(t *testing.
 			restore := overridePublishCommandTestHooks(t)
 			defer restore()
 
-			getPublishASCClientFn = func(time.Duration) (*asc.Client, error) {
+			publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) {
 				t.Fatal("client creation ran before export flag validation")
 				return nil, nil
 			}
@@ -247,12 +247,12 @@ func TestPublishLocalBuildRejectsManagedExportFlagsBeforeSideEffects(t *testing.
 func TestPublishLocalBuildAcceptsActionNamedAuthenticationValues(t *testing.T) {
 	for _, test := range []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
 		{
 			name:    "testflight",
-			command: PublishTestFlightCommand,
+			command: newPublishTestFlightCommand,
 			args: []string{
 				"--app", "app-1",
 				"--workspace", "Demo.xcworkspace",
@@ -263,7 +263,7 @@ func TestPublishLocalBuildAcceptsActionNamedAuthenticationValues(t *testing.T) {
 		},
 		{
 			name:    "appstore",
-			command: PublishAppStoreCommand,
+			command: newPublishAppStoreCommand,
 			args: []string{
 				"--app", "app-1",
 				"--workspace", "Demo.xcworkspace",
@@ -277,13 +277,14 @@ func TestPublishLocalBuildAcceptsActionNamedAuthenticationValues(t *testing.T) {
 			defer restore()
 
 			wantErr := errors.New("reached client creation")
-			getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return nil, wantErr }
+			publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return nil, wantErr }
 			preflightPublishXcodeFn = func(context.Context) error {
 				t.Fatal("Xcode preflight ran after failed client creation")
 				return nil
 			}
 
-			cmd := test.command()
+			d := newPublishTestDeps()
+			cmd := test.command(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			args := append(
 				append([]string(nil), test.args...),
@@ -319,7 +320,7 @@ func TestPublishTestFlightLocalBuildRetriesPostUploadBuildPropagationWithoutRepe
 		publishRequest{http.MethodPost, "/v1/builds/build-123/relationships/betaGroups", http.StatusNoContent, ""},
 	)
 
-	stdout, stderr, runErr := runPublishCommand(t, PublishTestFlightCommand, publishTestFlightLocalBuildArgs)
+	stdout, stderr, runErr := runPublishCommand(t, newPublishTestFlightCommand, publishTestFlightLocalBuildArgs)
 	if runErr != nil {
 		t.Fatalf("Exec() error: %v", runErr)
 	}
@@ -351,7 +352,7 @@ func TestPublishTestFlightLocalBuildReportsStructuredRecoveryResultAfterNotifica
 		publishRequest{http.MethodGet, "/v1/builds/build-123/buildBetaDetail", http.StatusNotFound, publishBuildNotFoundBody},
 	)
 
-	stdout, stderr, runErr := runPublishCommand(t, PublishTestFlightCommand, append(slices.Clone(publishTestFlightLocalBuildArgs), "--notify"))
+	stdout, stderr, runErr := runPublishCommand(t, newPublishTestFlightCommand, append(slices.Clone(publishTestFlightLocalBuildArgs), "--notify"))
 	if runErr == nil || !strings.Contains(runErr.Error(), `beta groups were added to build "build-123", but checking notification state failed`) {
 		t.Fatalf("expected notification partial error, got %v", runErr)
 	}
@@ -396,7 +397,7 @@ func TestPublishTestFlightUploadReportsStructuredRecoveryResultAfterBetaReviewFa
 		publishRequest{http.MethodPost, "/v1/betaAppReviewSubmissions", http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"STATE_ERROR","title":"Submission rejected","detail":"review state is not ready"}]}`},
 	)
 
-	stdout, _, runErr := runPublishCommand(t, PublishTestFlightCommand, []string{
+	stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "app-123",
 		"--ipa", "Demo.ipa",
 		"--version", "1.2.3",
@@ -447,7 +448,7 @@ func TestPublishTestFlightUploadTestNotesFailurePreservesStructuredRecoveryConte
 		publishRequest{http.MethodPost, "/v1/betaBuildLocalizations", http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"The provided entity has an invalid attribute","detail":"What to Test was rejected by the server"}]}`},
 	)
 
-	stdout, _, runErr := runPublishCommand(t, PublishTestFlightCommand, []string{
+	stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "app-123",
 		"--ipa", "Demo.ipa",
 		"--version", "1.2.3",
@@ -524,7 +525,7 @@ func TestPublishTestFlightUploadReportsTerminalProcessingStateAfterWaitFailure(t
 	}
 	scriptPublishRequests(t, publishListExternalBetaGroups)
 
-	stdout, _, runErr := runPublishCommand(t, PublishTestFlightCommand, []string{
+	stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "app-123",
 		"--ipa", "Demo.ipa",
 		"--version", "1.2.3",
@@ -564,7 +565,7 @@ func TestPublishTestFlightLocalBuildStopsPropagationRetryForTerminalProcessingSt
 				publishRequest{http.MethodGet, "/v1/builds/build-123", http.StatusOK, fmt.Sprintf(`{"data":{"type":"builds","id":"build-123","attributes":{"version":"42","processingState":%q}}}`, state)},
 			)
 
-			stdout, stderr, runErr := runPublishCommand(t, PublishTestFlightCommand, publishTestFlightLocalBuildArgs)
+			stdout, stderr, runErr := runPublishCommand(t, newPublishTestFlightCommand, publishTestFlightLocalBuildArgs)
 			if runErr == nil || !strings.Contains(runErr.Error(), "build processing failed: "+state) {
 				t.Fatalf("expected terminal processing failure, got %v", runErr)
 			}
@@ -620,13 +621,13 @@ func TestPublishTestFlightLocalBuildStagesRunOnceWhenDistributionRetriesFail(t *
 			stages := stubPublishArchiveAndExportVersionOnly()
 			uploadCalls := stubPublishIPAUpload(asc.BuildProcessingStateValid)
 			addCalls := 0
-			addUploadedBuildBetaGroupsFn = func(context.Context, postUploadBuildDistributionClient, string, []shared.ResolvedBetaGroup, shared.AddBuildBetaGroupsOptions) (*shared.AddBuildBetaGroupsResult, error) {
+			addUploadedBuildBetaGroupsFn = func(context.Context, *shared.Deps, postUploadBuildDistributionClient, string, []shared.ResolvedBetaGroup, shared.AddBuildBetaGroupsOptions) (*shared.AddBuildBetaGroupsResult, error) {
 				addCalls++
 				return nil, tt.err
 			}
 			scriptPublishRequests(t, publishListExternalBetaGroups)
 
-			stdout, _, runErr := runPublishCommand(t, PublishTestFlightCommand, publishTestFlightLocalBuildArgs)
+			stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, publishTestFlightLocalBuildArgs)
 			if !errors.Is(runErr, tt.want) {
 				t.Fatalf("expected %v, got %v", tt.want, runErr)
 			}
@@ -648,13 +649,13 @@ func TestPublishTestFlightLocalBuildStagesRunOnceWhenDistributionRetriesFail(t *
 func TestPublishLocalBuildRejectsDirectUploadExportOptions(t *testing.T) {
 	for _, test := range []struct {
 		name     string
-		command  func() *ffcli.Command
+		command  func(*shared.Deps) *ffcli.Command
 		args     []string
 		requests []publishRequest
 	}{
 		{
 			name:    "testflight",
-			command: PublishTestFlightCommand,
+			command: newPublishTestFlightCommand,
 			args:    []string{"--build-number", "44", "--group", "group-1"},
 			requests: []publishRequest{
 				publishListGroup1BetaGroups,
@@ -663,7 +664,7 @@ func TestPublishLocalBuildRejectsDirectUploadExportOptions(t *testing.T) {
 		},
 		{
 			name:    "appstore",
-			command: PublishAppStoreCommand,
+			command: newPublishAppStoreCommand,
 			args:    []string{"--build-number", "42"},
 		},
 	} {
@@ -729,7 +730,7 @@ func TestPublishTestFlightLocalBuildTableIncludesArchiveAndExportSections(t *tes
 		}
 	}))
 
-	stdout, _, runErr := runPublishCommand(t, PublishTestFlightCommand, []string{
+	stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "friendly-app",
 		"--workspace", "Demo.xcworkspace",
 		"--scheme", "Demo",
@@ -779,7 +780,7 @@ func TestPublishTestFlightLocalBuildUsesDefaultExportOptionsPath(t *testing.T) {
 		publishRequest{http.MethodPost, "/v1/builds/build-123/relationships/betaGroups", http.StatusNoContent, ""},
 	)
 
-	_, _, runErr := runPublishCommand(t, PublishTestFlightCommand, []string{
+	_, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
 		"--app", "friendly-app",
 		"--workspace", "Demo.xcworkspace",
 		"--scheme", "Demo",
@@ -799,14 +800,14 @@ func TestPublishTestFlightLocalBuildUsesDefaultExportOptionsPath(t *testing.T) {
 func TestPublishLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.T) {
 	for _, test := range []struct {
 		name        string
-		command     func() *ffcli.Command
+		command     func(*shared.Deps) *ffcli.Command
 		args        []string
 		requests    []publishRequest
 		wantPayload map[string]any
 	}{
 		{
 			name:    "testflight",
-			command: PublishTestFlightCommand,
+			command: newPublishTestFlightCommand,
 			args:    []string{"--group", "group-1"},
 			requests: []publishRequest{
 				publishListGroup1BetaGroups,
@@ -816,7 +817,7 @@ func TestPublishLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.T) {
 		},
 		{
 			name:     "appstore",
-			command:  PublishAppStoreCommand,
+			command:  newPublishAppStoreCommand,
 			requests: publishAttachToPreparedVersion,
 			wantPayload: map[string]any{
 				"buildVersion": "1.2.3", "buildNumber": "42", "buildId": "build-123", "versionId": "version-1",
@@ -825,7 +826,7 @@ func TestPublishLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			stubPublishCommandSeams(t)
-			resolvePublishNextBuildNumberFn = func(_ context.Context, _ *asc.Client, _ shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
+			resolvePublishNextBuildNumberFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, _ shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
 				return &asc.BuildsNextBuildNumberResult{NextBuildNumber: "42"}, nil
 			}
 			stubPublishArchiveAndExport()
@@ -834,7 +835,7 @@ func TestPublishLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.T) {
 				time.Sleep(150 * time.Millisecond)
 				return archive(ctx, opts)
 			}
-			uploadBuildAndWaitForIDFn = func(ctx context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, timeout time.Duration, timeoutOverride bool) (*publishUploadResult, error) {
+			uploadBuildAndWaitForIDFn = func(ctx context.Context, _ *shared.Deps, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, timeout time.Duration, timeoutOverride bool) (*publishUploadResult, error) {
 				if !timeoutOverride {
 					t.Fatal("expected timeout override for local-build upload")
 				}
@@ -886,13 +887,14 @@ func TestRunPublishLocalBuildRejectsMissingExportedIPAWithoutUploading(t *testin
 		t.Fatal("did not expect IPA validation when export produced no IPA")
 		return nil, nil
 	}
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, _ string, _ string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, _ string, _ string, _ os.FileInfo, _ string, _ string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		t.Fatal("did not expect upload when export produced no IPA")
 		return nil, nil
 	}
 
 	result, err := runPublishLocalBuild(
 		context.Background(),
+		newPublishTestDeps(),
 		nil,
 		"app-123",
 		"IOS",
@@ -924,14 +926,14 @@ func TestRunPublishLocalBuildRejectsMissingExportedIPAWithoutUploading(t *testin
 func TestPublishIPAUploadResolvesAppIDBeforeUpload(t *testing.T) {
 	for _, test := range []struct {
 		name        string
-		command     func() *ffcli.Command
+		command     func(*shared.Deps) *ffcli.Command
 		args        []string
 		requests    []publishRequest
 		wantPayload map[string]any
 	}{
 		{
 			name:    "testflight",
-			command: PublishTestFlightCommand,
+			command: newPublishTestFlightCommand,
 			args:    []string{"--group", "group-1"},
 			requests: []publishRequest{
 				publishListGroup1BetaGroups,
@@ -941,7 +943,7 @@ func TestPublishIPAUploadResolvesAppIDBeforeUpload(t *testing.T) {
 		},
 		{
 			name:     "appstore",
-			command:  PublishAppStoreCommand,
+			command:  newPublishAppStoreCommand,
 			requests: publishAttachToPreparedVersion,
 			wantPayload: map[string]any{
 				"mode": string(asc.PublishModeIPAUpload), "uploaded": true, "buildId": "build-123",
@@ -959,7 +961,7 @@ func TestPublishIPAUploadResolvesAppIDBeforeUpload(t *testing.T) {
 				}
 				return "app-123", nil
 			}
-			uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, appID, _ string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval, _ time.Duration, _ bool) (*publishUploadResult, error) {
+			uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, appID, _ string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval, _ time.Duration, _ bool) (*publishUploadResult, error) {
 				if appID != "app-123" {
 					t.Fatalf("expected resolved app ID for upload, got %q", appID)
 				}
@@ -1005,7 +1007,7 @@ func TestPublishAppStoreLocalBuildDefersMissingExportOptionsUntilAfterArchive(t 
 		return nil, errors.New("archive sentinel")
 	}
 
-	_, stderr, runErr := runPublishCommand(t, PublishAppStoreCommand, []string{
+	_, stderr, runErr := runPublishCommand(t, newPublishAppStoreCommand, []string{
 		"--app", "friendly-app",
 		"--workspace", "Demo.xcworkspace",
 		"--scheme", "Demo",
@@ -1034,7 +1036,7 @@ func TestPublishAppStoreMetadataDirAppliesAfterEnsureVersionBeforeAttach(t *test
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
 		return appID, nil
 	}
-	uploadBuildAndWaitForIDFn = func(stageCtx context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(stageCtx context.Context, _ *shared.Deps, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		_, ok := stageCtx.Deadline()
 		if !ok {
 			t.Fatal("expected upload stage deadline")
@@ -1051,7 +1053,7 @@ func TestPublishAppStoreMetadataDirAppliesAfterEnsureVersionBeforeAttach(t *test
 			BuildNumber: buildNumber,
 		}, nil
 	}
-	applyPublishVersionMetadataFn = func(metadataCtx context.Context, _ *asc.Client, opts publishVersionMetadataOptions) ([]asc.LocalizationUploadLocaleResult, error) {
+	applyPublishVersionMetadataFn = func(metadataCtx context.Context, _ *shared.Deps, _ *asc.Client, opts publishVersionMetadataOptions) ([]asc.LocalizationUploadLocaleResult, error) {
 		sequence = append(sequence, "apply_metadata")
 		if _, ok := metadataCtx.Deadline(); ok {
 			t.Fatal("metadata batch should receive the healthy command parent without a batch-wide request deadline")
@@ -1105,7 +1107,7 @@ func TestPublishAppStoreMetadataDirAppliesAfterEnsureVersionBeforeAttach(t *test
 		}
 	}))
 
-	stdout, _, runErr := runPublishCommandOnFakeClock(t, PublishAppStoreCommand, []string{
+	stdout, _, runErr := runPublishCommandOnFakeClock(t, newPublishAppStoreCommand, []string{
 		"--app", "app-1",
 		"--ipa", "app.ipa",
 		"--version", "1.2.3",
@@ -1154,7 +1156,7 @@ func TestPublishAppStoreMetadataInputFailureUsesUsageExit(t *testing.T) {
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
 		return appID, nil
 	}
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		return &publishUploadResult{
 			Build: &asc.BuildResponse{Data: asc.Resource[asc.BuildAttributes]{
 				ID:         "build-42",
@@ -1164,7 +1166,7 @@ func TestPublishAppStoreMetadataInputFailureUsesUsageExit(t *testing.T) {
 			BuildNumber: buildNumber,
 		}, nil
 	}
-	applyPublishVersionMetadataFn = func(context.Context, *asc.Client, publishVersionMetadataOptions) ([]asc.LocalizationUploadLocaleResult, error) {
+	applyPublishVersionMetadataFn = func(context.Context, *shared.Deps, *asc.Client, publishVersionMetadataOptions) ([]asc.LocalizationUploadLocaleResult, error) {
 		return nil, inputErr
 	}
 
@@ -1176,7 +1178,7 @@ func TestPublishAppStoreMetadataInputFailureUsesUsageExit(t *testing.T) {
 		return nil, nil
 	}))
 
-	stdout, stderr, runErr := runPublishCommand(t, PublishAppStoreCommand, []string{
+	stdout, stderr, runErr := runPublishCommand(t, newPublishAppStoreCommand, []string{
 		"--app", "app-1",
 		"--ipa", "app.ipa",
 		"--version", "1.2.3",
@@ -1201,7 +1203,7 @@ func TestPublishAppStoreRefreshesVersionContextAfterProcessingWait(t *testing.T)
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
 		return appID, nil
 	}
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		return &publishUploadResult{
 			Build: &asc.BuildResponse{Data: asc.Resource[asc.BuildAttributes]{
 				ID:         "build-42",
@@ -1238,7 +1240,7 @@ func TestPublishAppStoreRefreshesVersionContextAfterProcessingWait(t *testing.T)
 		}
 	}))
 
-	stdout, stderr, _ := runPublishCommandOnFakeClock(t, PublishAppStoreCommand, []string{
+	stdout, stderr, _ := runPublishCommandOnFakeClock(t, newPublishAppStoreCommand, []string{
 		"--app", "app-1",
 		"--ipa", "app.ipa",
 		"--version", "1.2.3",
@@ -1263,7 +1265,7 @@ func TestPublishAppStoreDryRunPlanIncludesMetadataStepWhenMetadataDirProvided(t 
 	metadataDir := t.TempDir()
 	writePublishVersionMetadataFixture(t, metadataDir, "1.2.3")
 
-	stdout, _, runErr := runPublishCommand(t, PublishAppStoreCommand, []string{
+	stdout, _, runErr := runPublishCommand(t, newPublishAppStoreCommand, []string{
 		"--app", "123456789",
 		"--ipa", ipaPath,
 		"--version", "1.2.3",
@@ -1347,7 +1349,7 @@ func stubPublishCommandSeams(t *testing.T) {
 	t.Helper()
 
 	t.Cleanup(overridePublishCommandTestHooks(t))
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -1411,7 +1413,7 @@ func stubPublishArchiveAndExportVersionOnly() *publishBuildStages {
 
 func stubPublishIPAUpload(processingState string) *int {
 	calls := 0
-	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, _ string, _ string, _ os.FileInfo, version, buildNumber string, _ asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		calls++
 		return publishUploadOnlyResult(version, buildNumber, processingState), nil
 	}
@@ -1447,16 +1449,17 @@ func scriptPublishRequests(t *testing.T, requests ...publishRequest) *int {
 	return &count
 }
 
-func runPublishCommand(t *testing.T, newCommand func() *ffcli.Command, args []string) (string, string, error) {
+func runPublishCommand(t *testing.T, newCommand func(*shared.Deps) *ffcli.Command, args []string) (string, string, error) {
 	t.Helper()
 
-	cmd := newCommand()
+	d := newPublishTestDeps()
+	cmd := newCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
 	var runErr error
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -1465,16 +1468,17 @@ func runPublishCommand(t *testing.T, newCommand func() *ffcli.Command, args []st
 
 // runPublishCommandOnFakeClock runs the command like runPublishCommand but in
 // a synctest bubble, so stage durations and request timeouts use its fake clock.
-func runPublishCommandOnFakeClock(t *testing.T, newCommand func() *ffcli.Command, args []string) (string, string, error) {
+func runPublishCommandOnFakeClock(t *testing.T, newCommand func(*shared.Deps) *ffcli.Command, args []string) (string, string, error) {
 	t.Helper()
 
-	cmd := newCommand()
+	d := newPublishTestDeps()
+	cmd := newCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
 	var runErr error
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		synctest.Test(t, func(*testing.T) { runErr = cmd.Exec(context.Background(), nil) })
 		return runErr
 	})
@@ -1502,7 +1506,7 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 	originalExport := runPublishExportFn
 	originalPreflightXcode := preflightPublishXcodeFn
 	originalGenerateExportOptions := generatePublishExportOptionsFn
-	originalGetClient := getPublishASCClientFn
+	originalGetClient := publishTestClientWithTimeout
 	originalResolveNextBuildNumber := resolvePublishNextBuildNumberFn
 	originalValidateIPAPath := validatePublishIPAPathFn
 	originalValidatePKGPath := validatePublishPKGPathFn
@@ -1519,7 +1523,7 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 		runPublishExportFn = originalExport
 		preflightPublishXcodeFn = originalPreflightXcode
 		generatePublishExportOptionsFn = originalGenerateExportOptions
-		getPublishASCClientFn = originalGetClient
+		publishTestClientWithTimeout = originalGetClient
 		resolvePublishNextBuildNumberFn = originalResolveNextBuildNumber
 		validatePublishIPAPathFn = originalValidateIPAPath
 		validatePublishPKGPathFn = originalValidatePKGPath
@@ -1553,6 +1557,18 @@ func newPublishCommandTestClient(t *testing.T) *asc.Client {
 		t.Fatalf("new client: %v", err)
 	}
 	return client
+}
+
+// capturePublishDepsOutput runs fn and returns what it wrote to d's stdout and
+// stderr. It fails the test if fn wrote to the process stdout or stderr.
+func capturePublishDepsOutput(t *testing.T, d *shared.Deps, fn func() error) (string, string) {
+	t.Helper()
+
+	processStdout, processStderr := capturePublishCommandOutput(t, fn)
+	if processStdout != "" || processStderr != "" {
+		t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
+	}
+	return d.IO.Out.(*bytes.Buffer).String(), d.IO.ErrOut.(*bytes.Buffer).String()
 }
 
 func capturePublishCommandOutput(t *testing.T, fn func() error) (string, string) {

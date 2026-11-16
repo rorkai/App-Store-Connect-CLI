@@ -52,8 +52,11 @@ const (
 	usageAlertNotifyOnAlways   usageAlertNotifyOn = "always"
 )
 
-var usageAlertHTTPClientFn = func() *http.Client {
-	return &http.Client{Timeout: asc.ResolveTimeout()}
+func usageAlertHTTPClient(d *shared.Deps) *http.Client {
+	return &http.Client{
+		Timeout:   d.ResolveTimeout(shared.RequestTimeoutSetting, asc.DefaultTimeout),
+		Transport: d.HTTPTransport(),
+	}
 }
 
 var (
@@ -134,10 +137,10 @@ func (f *usageAlertHeaderFlags) Set(value string) error {
 	return nil
 }
 
-func webXcodeCloudUsageAlertCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud usage alert", flag.ExitOnError)
+func webXcodeCloudUsageAlertCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud usage alert", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	warnAt := fs.Int("warn-at", 80, "Warning threshold percent (1-99)")
 	criticalAt := fs.Int("critical-at", 95, "Critical threshold percent (1-100)")
@@ -172,45 +175,45 @@ Examples:
   asc web xcode-cloud usage alert --slack-webhook "https://hooks.slack.com/services/..." --notify-on critical
   asc web xcode-cloud usage alert --webhook "https://example.com/alerts" --webhook-header "Authorization: Bearer TOKEN"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := validateUsageAlertThresholds(*warnAt, *criticalAt); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 			failOnLevel, err := parseUsageAlertFailOn(*failOn)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 			notifyOnLevel, err := parseUsageAlertNotifyOn(*notifyOn)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 			if *trendMonths < 0 || *trendMonths > 24 {
-				fmt.Fprintln(os.Stderr, "Error: --trend-months must be between 0 and 24")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --trend-months must be between 0 and 24")
 				return flag.ErrHelp
 			}
 			normalizedSlackWebhook, err := resolveUsageAlertWebhookURL(
 				resolveUsageAlertSlackWebhook(*slackWebhook),
 			)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: --slack-webhook %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: --slack-webhook %s\n", err)
 				return flag.ErrHelp
 			}
 			normalizedWebhookURL, err := resolveUsageAlertWebhookURL(*webhook)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: --webhook %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: --webhook %s\n", err)
 				return flag.ErrHelp
 			}
 			parsedHeaders, err := parseUsageAlertHeaders(webhookHeaders)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -222,13 +225,14 @@ Examples:
 
 			client := newCIClientFn(session)
 			alertResult := &CIUsageAlertResult{}
-			err = withWebSpinner("Loading Xcode Cloud usage alert data", func() error {
+			err = withWebSpinnerWith(d, "Loading Xcode Cloud usage alert data", func() error {
 				summary, err := client.GetCIUsageSummary(requestCtx, teamID)
 				if err != nil {
 					return err
 				}
 
 				alertResult = buildCIUsageAlertResult(
+					d,
 					teamID,
 					summary,
 					*warnAt,
@@ -237,7 +241,7 @@ Examples:
 					notifyOnLevel,
 				)
 				if *trendMonths > 0 {
-					alertResult.Trend = loadUsageAlertTrend(requestCtx, client, teamID, *trendMonths)
+					alertResult.Trend = loadUsageAlertTrend(requestCtx, d, client, teamID, *trendMonths)
 				}
 				return nil
 			})
@@ -247,9 +251,10 @@ Examples:
 
 			notifyErr := error(nil)
 			if strings.TrimSpace(normalizedSlackWebhook) != "" || strings.TrimSpace(normalizedWebhookURL) != "" {
-				notifyErr = withWebSpinner("Sending usage alert notifications", func() error {
+				notifyErr = withWebSpinnerWith(d, "Sending usage alert notifications", func() error {
 					return deliverUsageAlertNotifications(
 						requestCtx,
+						d,
 						alertResult,
 						normalizedSlackWebhook,
 						normalizedWebhookURL,
@@ -259,12 +264,12 @@ Examples:
 				})
 			}
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				alertResult,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderCIUsageAlertTable(alertResult) },
-				func() error { return renderCIUsageAlertMarkdown(alertResult) },
+				func() error { return renderCIUsageAlertTable(d, alertResult) },
+				func() error { return renderCIUsageAlertMarkdown(d, alertResult) },
 			); err != nil {
 				return err
 			}
@@ -366,6 +371,7 @@ func parseUsageAlertHeaders(values []string) (http.Header, error) {
 }
 
 func buildCIUsageAlertResult(
+	d *shared.Deps,
 	teamID string,
 	summary *webcore.CIUsageSummary,
 	warnAt, criticalAt int,
@@ -382,7 +388,7 @@ func buildCIUsageAlertResult(
 
 	result := &CIUsageAlertResult{
 		TeamID:      teamID,
-		EvaluatedAt: webNowFn().UTC().Format(time.RFC3339),
+		EvaluatedAt: d.Now().UTC().Format(time.RFC3339),
 		Severity:    severity,
 		FailOn:      failOn,
 		NotifyOn:    notifyOn,
@@ -485,7 +491,7 @@ func shouldNotifyUsageAlert(severity usageAlertSeverity, notifyOn usageAlertNoti
 	}
 }
 
-func loadUsageAlertTrend(ctx context.Context, client *webcore.Client, teamID string, months int) *CIUsageAlertTrend {
+func loadUsageAlertTrend(ctx context.Context, d *shared.Deps, client *webcore.Client, teamID string, months int) *CIUsageAlertTrend {
 	trend := &CIUsageAlertTrend{RequestedMonths: months}
 	if months <= 0 || client == nil {
 		trend.Available = false
@@ -493,7 +499,7 @@ func loadUsageAlertTrend(ctx context.Context, client *webcore.Client, teamID str
 		return trend
 	}
 
-	now := webNowFn().UTC()
+	now := d.Now().UTC()
 	startMonth, startYear, endMonth, endYear := usageAlertMonthWindow(now, months)
 	response, err := client.GetCIUsageMonths(
 		ctx,
@@ -558,6 +564,7 @@ func usageAlertMonthWindow(now time.Time, months int) (startMonth, startYear, en
 
 func deliverUsageAlertNotifications(
 	ctx context.Context,
+	d *shared.Deps,
 	result *CIUsageAlertResult,
 	slackWebhook, webhookURL string,
 	webhookHeaders http.Header,
@@ -572,7 +579,7 @@ func deliverUsageAlertNotifications(
 			Triggered: shouldNotify,
 		}
 		if shouldNotify {
-			statusCode, err := sendUsageAlertSlackFn(ctx, slackWebhook, result)
+			statusCode, err := sendUsageAlertSlackFn(ctx, d, slackWebhook, result)
 			delivery.StatusCode = statusCode
 			delivery.Delivered = err == nil
 			if err != nil {
@@ -589,7 +596,7 @@ func deliverUsageAlertNotifications(
 			Triggered: shouldNotify,
 		}
 		if shouldNotify {
-			statusCode, err := sendUsageAlertWebhookFn(ctx, webhookURL, webhookHeaders, result)
+			statusCode, err := sendUsageAlertWebhookFn(ctx, d, webhookURL, webhookHeaders, result)
 			delivery.StatusCode = statusCode
 			delivery.Delivered = err == nil
 			if err != nil {
@@ -603,7 +610,7 @@ func deliverUsageAlertNotifications(
 	return notifyErr
 }
 
-func sendUsageAlertToSlack(ctx context.Context, webhookURL string, result *CIUsageAlertResult) (int, error) {
+func sendUsageAlertToSlack(ctx context.Context, d *shared.Deps, webhookURL string, result *CIUsageAlertResult) (int, error) {
 	payload := map[string]any{
 		"text": fmt.Sprintf(
 			"Xcode Cloud usage alert: %s (team=%s, used=%d/%dm, threshold warn=%d%% critical=%d%%)",
@@ -615,11 +622,12 @@ func sendUsageAlertToSlack(ctx context.Context, webhookURL string, result *CIUsa
 			result.Thresholds.CriticalAt,
 		),
 	}
-	return postUsageAlertJSON(ctx, webhookURL, nil, payload)
+	return postUsageAlertJSON(ctx, d, webhookURL, nil, payload)
 }
 
 func sendUsageAlertToWebhook(
 	ctx context.Context,
+	d *shared.Deps,
 	webhookURL string,
 	headers http.Header,
 	result *CIUsageAlertResult,
@@ -629,11 +637,12 @@ func sendUsageAlertToWebhook(
 		"message": result.Message,
 		"result":  result,
 	}
-	return postUsageAlertJSON(ctx, webhookURL, headers, payload)
+	return postUsageAlertJSON(ctx, d, webhookURL, headers, payload)
 }
 
 func postUsageAlertJSON(
 	ctx context.Context,
+	d *shared.Deps,
 	endpoint string,
 	headers http.Header,
 	payload any,
@@ -658,7 +667,7 @@ func postUsageAlertJSON(
 		}
 	}
 
-	client := usageAlertHTTPClientFn()
+	client := usageAlertHTTPClient(d)
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("notification request failed: %w", err)
@@ -673,32 +682,35 @@ func postUsageAlertJSON(
 	return resp.StatusCode, nil
 }
 
-func renderCIUsageAlertTable(result *CIUsageAlertResult) error {
+func renderCIUsageAlertTable(d *shared.Deps, result *CIUsageAlertResult) error {
 	if result == nil {
 		result = &CIUsageAlertResult{}
 	}
 
-	asc.RenderTable(
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Field", "Value"},
 		buildCIUsageAlertOverviewRows(result, false),
 	)
 
 	if result.Trend != nil {
-		fmt.Println()
+		fmt.Fprintln(d.IO.Out)
 		if result.Trend.Available {
-			fmt.Printf("Trend window: %d months (avg=%dm, peak=%dm)\n\n", result.Trend.RequestedMonths, result.Trend.AverageMinutes, result.Trend.PeakMinutes)
-			asc.RenderTable(
+			fmt.Fprintf(d.IO.Out, "Trend window: %d months (avg=%dm, peak=%dm)\n\n", result.Trend.RequestedMonths, result.Trend.AverageMinutes, result.Trend.PeakMinutes)
+			asc.RenderTableTo(
+				d.IO.Out,
 				[]string{"Year", "Month", "Minutes", "Builds", "Usage Bar (Plan)"},
 				buildCIUsageAlertTrendRows(result.Trend, result.Plan.Total),
 			)
 		} else {
-			fmt.Printf("Trend unavailable: %s\n", valueOrNA(result.Trend.UnavailableReason))
+			fmt.Fprintf(d.IO.Out, "Trend unavailable: %s\n", valueOrNA(result.Trend.UnavailableReason))
 		}
 	}
 
 	if len(result.Notifications) > 0 {
-		fmt.Println()
-		asc.RenderTable(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(
+			d.IO.Out,
 			[]string{"Channel", "Triggered", "Delivered", "Status", "Error"},
 			buildCIUsageAlertNotificationRows(result.Notifications),
 		)
@@ -707,32 +719,35 @@ func renderCIUsageAlertTable(result *CIUsageAlertResult) error {
 	return nil
 }
 
-func renderCIUsageAlertMarkdown(result *CIUsageAlertResult) error {
+func renderCIUsageAlertMarkdown(d *shared.Deps, result *CIUsageAlertResult) error {
 	if result == nil {
 		result = &CIUsageAlertResult{}
 	}
 
-	asc.RenderMarkdown(
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Field", "Value"},
 		buildCIUsageAlertOverviewRows(result, true),
 	)
 
 	if result.Trend != nil {
-		fmt.Println()
+		fmt.Fprintln(d.IO.Out)
 		if result.Trend.Available {
-			fmt.Printf("**Trend window:** %d months (avg=%dm, peak=%dm)\n\n", result.Trend.RequestedMonths, result.Trend.AverageMinutes, result.Trend.PeakMinutes)
-			asc.RenderMarkdown(
+			fmt.Fprintf(d.IO.Out, "**Trend window:** %d months (avg=%dm, peak=%dm)\n\n", result.Trend.RequestedMonths, result.Trend.AverageMinutes, result.Trend.PeakMinutes)
+			asc.RenderMarkdownTo(
+				d.IO.Out,
 				[]string{"Year", "Month", "Minutes", "Builds", "Usage Bar (Plan)"},
 				buildCIUsageAlertTrendRows(result.Trend, result.Plan.Total),
 			)
 		} else {
-			fmt.Printf("**Trend unavailable:** %s\n", valueOrNA(result.Trend.UnavailableReason))
+			fmt.Fprintf(d.IO.Out, "**Trend unavailable:** %s\n", valueOrNA(result.Trend.UnavailableReason))
 		}
 	}
 
 	if len(result.Notifications) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(
+			d.IO.Out,
 			[]string{"Channel", "Triggered", "Delivered", "Status", "Error"},
 			buildCIUsageAlertNotificationRows(result.Notifications),
 		)

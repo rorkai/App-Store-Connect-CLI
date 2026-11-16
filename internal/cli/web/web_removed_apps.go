@@ -27,9 +27,9 @@ var setRemovedWebAppPermissionFn = func(ctx context.Context, client *webcore.Cli
 	return client.SetUserAppPermission(ctx, appID, access)
 }
 
-// WebRemovedAppsCommand returns the removed apps command group.
-func WebRemovedAppsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web removed-apps", flag.ExitOnError)
+// newWebRemovedAppsCommand returns the removed apps command group.
+func newWebRemovedAppsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web removed-apps", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "removed-apps",
@@ -44,10 +44,10 @@ Examples:
   asc web removed-apps list --paginate --output table
   asc web removed-apps list --apple-id "user@example.com" --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebRemovedAppsListCommand(),
-			WebRemovedAppsRestoreCommand(),
+			newWebRemovedAppsListCommand(d),
+			newWebRemovedAppsRestoreCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -55,15 +55,15 @@ Examples:
 	}
 }
 
-// WebRemovedAppsListCommand lists removed apps using the internal web API.
-func WebRemovedAppsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web removed-apps list", flag.ExitOnError)
+// newWebRemovedAppsListCommand lists removed apps using the internal web API.
+func newWebRemovedAppsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web removed-apps list", flag.ExitOnError)
 
 	authFlags := bindWebSessionFlagsWithSessionFromEnv(fs)
 	limit := fs.Int("limit", webcore.DefaultRemovedAppsLimit, shared.LimitFlagUsage(webcore.MaxRemovedAppsLimit))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -83,23 +83,23 @@ Examples:
   asc web removed-apps list --paginate --output json
   asc web removed-apps list --next "<links.next>"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit < 1 || *limit > webcore.MaxRemovedAppsLimit {
-				return shared.UsageError(fmt.Sprintf("web removed-apps list: --limit must be between 1 and %d", webcore.MaxRemovedAppsLimit))
+				return d.UsageError(fmt.Sprintf("web removed-apps list: --limit must be between 1 and %d", webcore.MaxRemovedAppsLimit))
 			}
 			nextValue := strings.TrimSpace(*next)
 			if nextValue != "" && *paginate {
-				return shared.UsageError("web removed-apps list: --next cannot be combined with --paginate")
+				return d.UsageError("web removed-apps list: --next cannot be combined with --paginate")
 			}
 			if err := validateRemovedAppsNextURL(nextValue); err != nil {
-				return shared.UsageError("web removed-apps list: " + err.Error())
+				return d.UsageError("web removed-apps list: " + err.Error())
 			}
-			if err := shared.RejectNextFlagConflicts(fs, nextValue, "web removed-apps list", "limit"); err != nil {
+			if err := d.RejectNextFlagConflicts(fs, nextValue, "web removed-apps list", "limit"); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web removed-apps list")
@@ -114,42 +114,42 @@ Examples:
 				return withWebAuthHint(err, "web removed-apps list")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderRemovedAppsTable(result) },
-				func() error { return renderRemovedAppsMarkdown(result) },
+				func() error { return renderRemovedAppsTable(d, result) },
+				func() error { return renderRemovedAppsMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebRemovedAppsRestoreCommand restores a removed app and configures access.
-func WebRemovedAppsRestoreCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web removed-apps restore", flag.ExitOnError)
+// newWebRemovedAppsRestoreCommand restores a removed app and configures access.
+func newWebRemovedAppsRestoreCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web removed-apps restore", flag.ExitOnError)
 	app := fs.String("app", "", "App Store Connect app ID")
 	access := fs.String("access", "", "Access mode: limited or full")
 	confirm := fs.Bool("confirm", false, "Confirm restoring this app (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "restore", ShortUsage: "asc web removed-apps restore --app APP_ID --access limited|full --confirm [flags]", ShortHelp: "Restore a removed app via Apple web API.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "restore", ShortUsage: "asc web removed-apps restore --app APP_ID --access limited|full --confirm [flags]", ShortHelp: "Restore a removed app via Apple web API.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id, mode := strings.TrimSpace(*app), strings.ToLower(strings.TrimSpace(*access))
 			if id == "" {
-				return shared.UsageError("--app is required")
+				return d.UsageError("--app is required")
 			}
 			if mode != "limited" && mode != "full" {
-				return shared.UsageError("--access must be limited or full")
+				return d.UsageError("--access must be limited or full")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web removed-apps restore")
@@ -168,7 +168,7 @@ func WebRemovedAppsRestoreCommand() *ffcli.Command {
 			if err = setRemovedWebAppPermissionFn(requestCtx, client, id, mode); err != nil {
 				return withWebAuthHint(fmt.Errorf("web removed-apps restore failed: app was restored but access update failed: %w", err), "web removed-apps restore")
 			}
-			return shared.PrintOutput(&asc.WebRemovedAppRestoreResult{AppID: id, Access: mode, Removed: false, PermissionWritten: true}, *output.Output, *output.Pretty)
+			return d.PrintOutput(&asc.WebRemovedAppRestoreResult{AppID: id, Access: mode, Removed: false, PermissionWritten: true}, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -220,12 +220,12 @@ func removedAppsRows(result *webcore.RemovedAppsListResponse) [][]string {
 	return rows
 }
 
-func renderRemovedAppsTable(result *webcore.RemovedAppsListResponse) error {
-	asc.RenderTable(removedAppsHeaders(), removedAppsRows(result))
+func renderRemovedAppsTable(d *shared.Deps, result *webcore.RemovedAppsListResponse) error {
+	asc.RenderTableTo(d.IO.Out, removedAppsHeaders(), removedAppsRows(result))
 	return nil
 }
 
-func renderRemovedAppsMarkdown(result *webcore.RemovedAppsListResponse) error {
-	asc.RenderMarkdown(removedAppsHeaders(), removedAppsRows(result))
+func renderRemovedAppsMarkdown(d *shared.Deps, result *webcore.RemovedAppsListResponse) error {
+	asc.RenderMarkdownTo(d.IO.Out, removedAppsHeaders(), removedAppsRows(result))
 	return nil
 }
