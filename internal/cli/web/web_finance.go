@@ -126,7 +126,7 @@ Example:
 			if strings.TrimSpace(outPath) == "" {
 				return d.UsageError("--output-path is required")
 			}
-			destination, err := newTransactionTaxDownloadDestination(outPath)
+			destination, err := newTransactionTaxDownloadDestination(d, outPath)
 			if err != nil {
 				return d.UsageErrorf("--output-path must be a file path: %v", err)
 			}
@@ -200,7 +200,7 @@ type transactionTaxDownloadDestination struct {
 	name string
 }
 
-func newTransactionTaxDownloadDestination(outPath string) (transactionTaxDownloadDestination, error) {
+func newTransactionTaxDownloadDestination(d *shared.Deps, outPath string) (transactionTaxDownloadDestination, error) {
 	if outPath == "" {
 		return transactionTaxDownloadDestination{}, errors.New("path is empty")
 	}
@@ -214,7 +214,7 @@ func newTransactionTaxDownloadDestination(outPath string) (transactionTaxDownloa
 	if err := rootfs.ValidateRelative(base); err != nil {
 		return transactionTaxDownloadDestination{}, err
 	}
-	root, prefix, err := newDownloadRoot(filepath.Dir(outPath))
+	root, prefix, err := newDownloadRootWith(d, filepath.Dir(outPath))
 	if err != nil {
 		return transactionTaxDownloadDestination{}, err
 	}
