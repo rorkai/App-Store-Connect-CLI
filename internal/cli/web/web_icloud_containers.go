@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -23,10 +22,10 @@ var createDeveloperICloudContainerFn = func(ctx context.Context, client *webcore
 	return client.CreateDeveloperICloudContainer(ctx, request)
 }
 
-// WebICloudContainersCommand returns the Developer Portal iCloud container
+// newWebICloudContainersCommand returns the Developer Portal iCloud container
 // command group.
-func WebICloudContainersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web icloud-containers", flag.ExitOnError)
+func newWebICloudContainersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web icloud-containers", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "icloud-containers",
 		ShortUsage: "asc web icloud-containers <subcommand> [flags]",
@@ -38,10 +37,10 @@ registers a new container. iCloud containers can never be deleted, so create
 requires --confirm and cannot be undone.
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebICloudContainersListCommand(),
-			WebICloudContainersCreateCommand(),
+			newWebICloudContainersListCommand(d),
+			newWebICloudContainersCreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -49,14 +48,14 @@ requires --confirm and cannot be undone.
 	}
 }
 
-// WebICloudContainersListCommand lists iCloud containers for the selected
+// newWebICloudContainersListCommand lists iCloud containers for the selected
 // Developer Portal team.
-func WebICloudContainersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web icloud-containers list", flag.ExitOnError)
+func newWebICloudContainersListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web icloud-containers list", flag.ExitOnError)
 	hidden := fs.Bool("hidden", false, "List hidden iCloud containers instead of visible containers")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -74,23 +73,23 @@ Examples:
   asc web icloud-containers list --hidden --output json
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web icloud-containers list")
 			}
 
 			var result *webcore.DeveloperICloudContainersListResult
-			err = withWebSpinner("Loading Developer Portal iCloud containers", func() error {
+			err = withWebSpinnerWith(d, "Loading Developer Portal iCloud containers", func() error {
 				var listErr error
 				result, listErr = listDeveloperICloudContainersFn(requestCtx, newDeveloperPortalClient(session, portalFlags), *hidden)
 				return listErr
@@ -101,15 +100,15 @@ Examples:
 			if result == nil {
 				return fmt.Errorf("web icloud-containers list failed: missing list result")
 			}
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 
-			warnICloudContainerPagingTotal(result)
-			return shared.PrintOutputWithRenderers(
+			warnICloudContainerPagingTotal(d, result)
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperICloudContainersTable(result) },
-				func() error { return renderDeveloperICloudContainersMarkdown(result) },
+				func() error { return renderDeveloperICloudContainersTable(d, result) },
+				func() error { return renderDeveloperICloudContainersMarkdown(d, result) },
 			)
 		},
 	}
@@ -137,33 +136,33 @@ func developerICloudContainersRows(containers []webcore.DeveloperICloudContainer
 	return rows
 }
 
-func renderDeveloperICloudContainersTable(result *webcore.DeveloperICloudContainersListResult) error {
+func renderDeveloperICloudContainersTable(d *shared.Deps, result *webcore.DeveloperICloudContainersListResult) error {
 	if result == nil {
-		asc.RenderTable(developerICloudContainersHeaders(), nil)
+		asc.RenderTableTo(d.IO.Out, developerICloudContainersHeaders(), nil)
 		return nil
 	}
-	asc.RenderTable(developerICloudContainersHeaders(), developerICloudContainersRows(result.Data))
+	asc.RenderTableTo(d.IO.Out, developerICloudContainersHeaders(), developerICloudContainersRows(result.Data))
 	return nil
 }
 
-func renderDeveloperICloudContainersMarkdown(result *webcore.DeveloperICloudContainersListResult) error {
+func renderDeveloperICloudContainersMarkdown(d *shared.Deps, result *webcore.DeveloperICloudContainersListResult) error {
 	if result == nil {
-		asc.RenderMarkdown(developerICloudContainersHeaders(), nil)
+		asc.RenderMarkdownTo(d.IO.Out, developerICloudContainersHeaders(), nil)
 		return nil
 	}
-	asc.RenderMarkdown(developerICloudContainersHeaders(), developerICloudContainersRows(result.Data))
+	asc.RenderMarkdownTo(d.IO.Out, developerICloudContainersHeaders(), developerICloudContainersRows(result.Data))
 	return nil
 }
 
-// WebICloudContainersCreateCommand registers one permanent iCloud container.
-func WebICloudContainersCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web icloud-containers create", flag.ExitOnError)
+// newWebICloudContainersCreateCommand registers one permanent iCloud container.
+func newWebICloudContainersCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web icloud-containers create", flag.ExitOnError)
 	identifier := fs.String("identifier", "", "iCloud container identifier; must start with iCloud. (for example iCloud.com.example.app)")
 	name := fs.String("name", "", "Container display name")
 	confirm := fs.Bool("confirm", false, "Confirm creating a permanent iCloud container")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -189,37 +188,37 @@ Examples:
   asc web icloud-containers create --identifier "iCloud.com.example.app" --name "Example" --confirm --output json
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedIdentifier := strings.TrimSpace(*identifier)
 			resolvedName := strings.TrimSpace(*name)
 			if resolvedIdentifier == "" {
-				return shared.UsageError("--identifier is required")
+				return d.UsageError("--identifier is required")
 			}
 			if err := webcore.ValidateDeveloperICloudContainerIdentifier(resolvedIdentifier); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if resolvedName == "" {
-				return shared.UsageError("--name is required")
+				return d.UsageError("--name is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web icloud-containers create")
 			}
 
 			var result *asc.WebICloudContainerCreateResult
-			err = withWebSpinner("Creating Developer Portal iCloud container", func() error {
+			err = withWebSpinnerWith(d, "Creating Developer Portal iCloud container", func() error {
 				var createErr error
 				result, createErr = createDeveloperICloudContainerFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperICloudContainerCreateRequest{
 					Identifier: resolvedIdentifier,
@@ -227,7 +226,7 @@ Examples:
 				})
 				return createErr
 			})
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
 				return withWebAuthHint(err, "web icloud-containers create")
 			}
@@ -235,19 +234,19 @@ Examples:
 				return fmt.Errorf("web icloud-containers create failed: missing create result")
 			}
 			if result.RequestedName != "" {
-				fmt.Fprintf(os.Stderr, "Warning: Apple stored the container name as %q instead of the requested %q\n", result.Name, result.RequestedName)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: Apple stored the container name as %q instead of the requested %q\n", result.Name, result.RequestedName)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 // Shared output warns for links.next; this covers totals without a next link.
-func warnICloudContainerPagingTotal(result *webcore.DeveloperICloudContainersListResult) {
+func warnICloudContainerPagingTotal(d *shared.Deps, result *webcore.DeveloperICloudContainersListResult) {
 	if result.GetLinks().Next != "" {
 		return
 	}
 	if total, ok := asc.ParsePagingTotalOK(result.GetMeta()); ok && total > len(result.Data) {
-		fmt.Fprintf(os.Stderr, "Warning: showing %d of %d results; this command reads only the first page\n", len(result.Data), total)
+		fmt.Fprintf(d.IO.ErrOut, "Warning: showing %d of %d results; this command reads only the first page\n", len(result.Data), total)
 	}
 }

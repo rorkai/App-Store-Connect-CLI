@@ -493,7 +493,7 @@ func TestResolveWebSessionForCommandSessionFromEnvSkipsCachedDefault(t *testing.
 	if err := fs.Parse([]string{"--session-from-env"}); err != nil {
 		t.Fatal(err)
 	}
-	_, _, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
+	_, _, cancel, err := resolveWebSessionForCommandWith(context.Background(), d, flags)
 	defer cancel()
 	if err == nil || !strings.Contains(err.Error(), webSessionBundleEnvName+" is unset or empty") {
 		t.Fatalf("error = %v, want unset ASC_WEB_SESSION usage error", err)

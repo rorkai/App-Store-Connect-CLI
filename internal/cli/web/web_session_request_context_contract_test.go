@@ -15,11 +15,9 @@ import (
 )
 
 var webSessionResolveNames = map[string]struct{}{
-	"resolveWebSessionForCommand":                {},
 	"resolveWebSessionForCommandWith":            {},
-	"callResolveSessionForProviderSelection":     {},
 	"callResolveSessionForProviderSelectionWith": {},
-	"resolveWebSession":                          {},
+	"resolveWebSessionWith":                      {},
 	"callResolveAppCreateSessionFn":              {},
 	"resolveWebComplianceClient":                 {},
 }
@@ -55,8 +53,8 @@ func TestWebCommandsDoNotStartRequestTimeoutBeforeAuthentication(t *testing.T) {
 		if relErr != nil {
 			relative = path
 		}
-		if strings.Contains(string(src), "resolveWebSessionForCommand(requestCtx") {
-			violations = append(violations, fmt.Sprintf("%s: resolveWebSessionForCommand(requestCtx reuses the pre-auth timeout", relative))
+		if strings.Contains(string(src), "resolveWebSessionForCommandWith(requestCtx") {
+			violations = append(violations, fmt.Sprintf("%s: resolveWebSessionForCommandWith(requestCtx reuses the pre-auth timeout", relative))
 		}
 
 		file, err := parser.ParseFile(fset, path, src, 0)
@@ -114,9 +112,9 @@ func requestTimeoutBeforeAuthViolations(fset *token.FileSet, relative, funcName 
 					position := fset.Position(stmt.Pos())
 					violations = append(violations, fmt.Sprintf("%s:%d: %s passes a ContextWithTimeout result to %s", relative, position.Line, funcName, name))
 				}
-				if (name == "resolveWebSessionForCommand" || name == "resolveWebSessionForCommandWith") && arg.Name == "requestCtx" {
+				if name == "resolveWebSessionForCommandWith" && arg.Name == "requestCtx" {
 					position := fset.Position(stmt.Pos())
-					violations = append(violations, fmt.Sprintf("%s:%d: %s calls resolveWebSessionForCommand(requestCtx", relative, position.Line, funcName))
+					violations = append(violations, fmt.Sprintf("%s:%d: %s calls resolveWebSessionForCommandWith(requestCtx", relative, position.Line, funcName))
 				}
 			case *ast.CallExpr:
 				if isRequestTimeoutStartCall(arg.Fun) {

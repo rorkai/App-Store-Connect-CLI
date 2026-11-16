@@ -232,6 +232,7 @@ func TestWebAppsCreateRemovedPasswordFlagFailsBeforeSession(t *testing.T) {
 }
 
 func TestResolveAppCreateSessionUsesCacheEvenWhenPasswordProvided(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origWebLogin := webLoginFn
@@ -257,7 +258,7 @@ func TestResolveAppCreateSessionUsesCacheEvenWhenPasswordProvided(t *testing.T) 
 		return nil, nil
 	}
 
-	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "fixture-password", "")
+	session, source, err := resolveAppCreateSession(context.Background(), d, "user@example.com", "fixture-password", "")
 	if err != nil {
 		t.Fatalf("resolveAppCreateSession returned error: %v", err)
 	}
@@ -270,6 +271,7 @@ func TestResolveAppCreateSessionUsesCacheEvenWhenPasswordProvided(t *testing.T) 
 }
 
 func TestResolveAppCreateSessionFallsBackToFreshLoginWhenCacheLookupFails(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origWebLogin := webLoginFn
@@ -300,7 +302,7 @@ func TestResolveAppCreateSessionFallsBackToFreshLoginWhenCacheLookupFails(t *tes
 		return &webcore.AuthSession{UserEmail: creds.Username}, nil
 	}
 
-	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "fixture-password", "")
+	session, source, err := resolveAppCreateSession(context.Background(), d, "user@example.com", "fixture-password", "")
 	if err != nil {
 		t.Fatalf("resolveAppCreateSession returned error: %v", err)
 	}
@@ -313,6 +315,7 @@ func TestResolveAppCreateSessionFallsBackToFreshLoginWhenCacheLookupFails(t *tes
 }
 
 func TestResolveAppCreateSessionUsesPasswordEnvWithoutTrimming(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origWebLogin := webLoginFn
@@ -337,7 +340,7 @@ func TestResolveAppCreateSessionUsesPasswordEnvWithoutTrimming(t *testing.T) {
 
 	t.Setenv(webPasswordEnv, "  env-password  ")
 
-	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "", "")
+	session, source, err := resolveAppCreateSession(context.Background(), d, "user@example.com", "", "")
 	if err != nil {
 		t.Fatalf("resolveAppCreateSession returned error: %v", err)
 	}
@@ -353,6 +356,7 @@ func TestResolveAppCreateSessionUsesPasswordEnvWithoutTrimming(t *testing.T) {
 }
 
 func TestResolveAppCreateSessionPromptedAppleIDReusesCachedSession(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origWebLogin := webLoginFn
@@ -397,7 +401,7 @@ func TestResolveAppCreateSessionPromptedAppleIDReusesCachedSession(t *testing.T)
 		return nil, nil
 	}
 
-	session, source, err := resolveAppCreateSession(context.Background(), "", "", "")
+	session, source, err := resolveAppCreateSession(context.Background(), d, "", "", "")
 	if err != nil {
 		t.Fatalf("resolveAppCreateSession returned error: %v", err)
 	}
@@ -410,6 +414,7 @@ func TestResolveAppCreateSessionPromptedAppleIDReusesCachedSession(t *testing.T)
 }
 
 func TestResolveAppCreateSessionWhitespaceOnlyPasswordFallsBackToEnv(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origWebLogin := webLoginFn
@@ -434,7 +439,7 @@ func TestResolveAppCreateSessionWhitespaceOnlyPasswordFallsBackToEnv(t *testing.
 
 	t.Setenv(webPasswordEnv, "env-password")
 
-	if _, _, err := resolveAppCreateSession(context.Background(), "user@example.com", "   ", ""); err != nil {
+	if _, _, err := resolveAppCreateSession(context.Background(), d, "user@example.com", "   ", ""); err != nil {
 		t.Fatalf("resolveAppCreateSession returned error: %v", err)
 	}
 	if received.Password != "env-password" {
@@ -474,6 +479,7 @@ func TestPromptAppsCreatePasswordPreservesWhitespace(t *testing.T) {
 }
 
 func TestResolveAppCreateSessionPromptedWhitespacePasswordReturnsUsageError(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origWebLogin := webLoginFn
@@ -514,7 +520,7 @@ func TestResolveAppCreateSessionPromptedWhitespacePasswordReturnsUsageError(t *t
 		return nil, nil
 	}
 
-	_, _, err := resolveAppCreateSession(context.Background(), "user@example.com", "", "")
+	_, _, err := resolveAppCreateSession(context.Background(), d, "user@example.com", "", "")
 	if err == nil {
 		t.Fatal("expected usage error for whitespace-only prompted password")
 	}
@@ -524,6 +530,7 @@ func TestResolveAppCreateSessionPromptedWhitespacePasswordReturnsUsageError(t *t
 }
 
 func TestResolveAppCreateSessionKeepsFreshSessionWhenCachePersistFails(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origWebLogin := webLoginFn
@@ -563,7 +570,7 @@ func TestResolveAppCreateSessionKeepsFreshSessionWhenCachePersistFails(t *testin
 		return expected, nil
 	}
 
-	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "secret", "")
+	session, source, err := resolveAppCreateSession(context.Background(), d, "user@example.com", "secret", "")
 	if err != nil {
 		t.Fatalf("resolveAppCreateSession returned error: %v", err)
 	}

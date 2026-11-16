@@ -15,7 +15,8 @@ import (
 )
 
 func TestWebFinanceTransactionTaxCommandRegistrationAndHelp(t *testing.T) {
-	finance := WebFinanceCommand()
+	d, _, _ := newWebTestDeps()
+	finance := newWebFinanceCommand(d)
 	if finance.Name != "finance" || len(finance.Subcommands) != 1 {
 		t.Fatalf("finance command = %#v, want one transaction-tax subcommand", finance)
 	}
@@ -48,7 +49,8 @@ func TestWebFinanceTransactionTaxValidatesFlagsBeforeSession(t *testing.T) {
 		"invalid output": {"--date", "2026-07", "--output-path", filepath.Join(t.TempDir(), "tax.zip"), "--output", "yaml"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			cmd := WebTransactionTaxDownloadCommand()
+			d, _, _ := newWebTestDeps()
+			cmd := newWebTransactionTaxDownloadCommand(d)
 			if err := cmd.FlagSet.Parse(args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
@@ -85,7 +87,8 @@ func TestWebFinanceTransactionTaxExistingOutputPathMakesNoNetworkRequest(t *test
 		downloadTransactionTaxReportFn = previousDownload
 	})
 
-	cmd := WebTransactionTaxDownloadCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebTransactionTaxDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--date", "2026-07", "--output-path", path}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -129,11 +132,12 @@ func TestWebFinanceTransactionTaxHappyPathWritesSecretSafeReceipt(t *testing.T) 
 		downloadTransactionTaxReportFn = previousDownload
 	})
 
-	cmd := WebTransactionTaxDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebTransactionTaxDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--date", "2026-07", "--output-path", path, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -192,11 +196,12 @@ func TestWebFinanceTransactionTaxTableOutputUsesRegisteredRenderer(t *testing.T)
 		downloadTransactionTaxReportFn = previousDownload
 	})
 
-	cmd := WebTransactionTaxDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebTransactionTaxDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--date", "2026-07", "--output-path", path, "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -230,7 +235,8 @@ func TestWebFinanceTransactionTaxPartialDownloadLeavesNoDestination(t *testing.T
 		downloadTransactionTaxReportFn = previousDownload
 	})
 
-	cmd := WebTransactionTaxDownloadCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebTransactionTaxDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--date", "2026-07", "--output-path", path}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}

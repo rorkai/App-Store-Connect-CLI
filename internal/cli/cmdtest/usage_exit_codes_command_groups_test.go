@@ -1094,6 +1094,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "web sign-in-keys view without key-id",
 			args:    []string{"web", "sign-in-keys", "view"},
 			wantErr: "--key-id is required",
+			deps:    true,
 		},
 		{
 			name:    "web subscriptions pricing adjusted-equalizations view without price-point-id",

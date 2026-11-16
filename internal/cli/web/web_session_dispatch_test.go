@@ -10,6 +10,7 @@ import (
 )
 
 func TestCallResolveAppCreateSessionFnPassesTwoFactorCommand(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origResolveAppCreateSession := resolveAppCreateSessionFn
 	t.Cleanup(func() { resolveAppCreateSessionFn = origResolveAppCreateSession })
 
@@ -22,7 +23,7 @@ func TestCallResolveAppCreateSessionFnPassesTwoFactorCommand(t *testing.T) {
 			gotCommand = twoFactorCodeCommand
 			return &webcore.AuthSession{}, "fresh", nil
 		}},
-		// The shape of resolveAppCreateSession, the hook's default.
+		// The variadic shape the session hooks also accept.
 		{name: "variadic command", hook: func(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
 			gotCommand = strings.Join(twoFactorCodeCommand, ",")
 			return &webcore.AuthSession{}, "fresh", nil
@@ -32,7 +33,7 @@ func TestCallResolveAppCreateSessionFnPassesTwoFactorCommand(t *testing.T) {
 			gotCommand = ""
 			resolveAppCreateSessionFn = tc.hook
 
-			_, _, err := callResolveAppCreateSessionFn(context.Background(), "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
+			_, _, err := callResolveAppCreateSessionFn(context.Background(), d, "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
 			if err != nil {
 				t.Fatalf("callResolveAppCreateSessionFn returned error: %v", err)
 			}
@@ -63,6 +64,7 @@ func TestCallResolveSessionFnRejectsDroppedTwoFactorCommand(t *testing.T) {
 }
 
 func TestPersistFreshAppCreateSessionIgnoresCacheFailures(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origPersistWebSession := persistWebSessionFn
 	t.Cleanup(func() { persistWebSessionFn = origPersistWebSession })
 
@@ -72,7 +74,7 @@ func TestPersistFreshAppCreateSessionIgnoresCacheFailures(t *testing.T) {
 		return errors.New("cache unavailable")
 	}
 
-	if err := persistFreshAppCreateSession(&webcore.AuthSession{}); err != nil {
+	if err := persistFreshAppCreateSession(d, &webcore.AuthSession{}); err != nil {
 		t.Fatalf("persistFreshAppCreateSession returned error: %v", err)
 	}
 	if !called {

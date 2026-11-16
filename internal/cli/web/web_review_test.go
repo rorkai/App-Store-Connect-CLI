@@ -48,9 +48,10 @@ func TestNormalizeAttachmentFilenameSanitizesFallbackAttachmentID(t *testing.T) 
 }
 
 func TestResolveDownloadPathRejectsEscapingOutDir(t *testing.T) {
-	root, prefix, err := newDownloadRoot(t.TempDir())
+	d, _, _ := newWebTestDeps()
+	root, prefix, err := newDownloadRootWith(d, t.TempDir())
 	if err != nil {
-		t.Fatalf("newDownloadRoot() error: %v", err)
+		t.Fatalf("newDownloadRootWith() error: %v", err)
 	}
 	_, err = resolveDownloadPath(root, prefix, "../outside.txt", true)
 	if err == nil {

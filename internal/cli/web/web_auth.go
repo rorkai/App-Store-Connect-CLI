@@ -631,13 +631,9 @@ func missingWebSessionErrorWithHint(appleID, hint, alternative string) error {
 	return err
 }
 
-// passwordRequiredUsageError is the usage error for a sign-in that reached the
+// passwordRequiredUsageErrorWith is the usage error for a sign-in that reached the
 // password step without one: `asc web auth login` without a password source,
 // or an interactive `web apps create` prompt answered with an empty password.
-func passwordRequiredUsageError() error {
-	return passwordRequiredUsageErrorWith(shared.DefaultDeps())
-}
-
 func passwordRequiredUsageErrorWith(d *shared.Deps) error {
 	return d.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
 }
@@ -1083,10 +1079,6 @@ func resolveKnownWebSessionFromSource(ctx context.Context, appleID string, sourc
 		return nil, false, true, nil
 	}
 	return nil, false, false, fmt.Errorf("checking cached web session failed: %w", err)
-}
-
-func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
-	return resolveWebSessionWith(ctx, shared.DefaultDeps(), appleID, password, twoFactorCode, opts)
 }
 
 func resolveWebSessionWith(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
@@ -1664,10 +1656,6 @@ func persistFreshResolvedSession(session *webcore.AuthSession) error {
 
 func persistAutoReauthResolvedSession(d *shared.Deps, session *webcore.AuthSession) {
 	printSessionCacheWriteWarningWith(d, persistWebSessionFn(session))
-}
-
-func printSessionCacheWriteWarning(err error) {
-	printSessionCacheWriteWarningWith(shared.DefaultDeps(), err)
 }
 
 func printSessionCacheWriteWarningWith(d *shared.Deps, err error) {

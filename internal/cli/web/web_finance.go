@@ -29,10 +29,10 @@ var downloadTransactionTaxReportFn = func(ctx context.Context, client *webcore.C
 // one normal request timeout, while still preserving caller cancellation.
 const transactionTaxWorkflowTimeout = 11 * time.Minute
 
-// WebFinanceCommand returns private finance workflows that require an
+// newWebFinanceCommand returns private finance workflows that require an
 // authenticated App Store Connect web session.
-func WebFinanceCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web finance", flag.ExitOnError)
+func newWebFinanceCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web finance", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "finance",
@@ -48,9 +48,9 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebTransactionTaxCommand(),
+			newWebTransactionTaxCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -58,9 +58,9 @@ Examples:
 	}
 }
 
-// WebTransactionTaxCommand returns the Transaction Tax Report workflow.
-func WebTransactionTaxCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web finance transaction-tax", flag.ExitOnError)
+// newWebTransactionTaxCommand returns the Transaction Tax Report workflow.
+func newWebTransactionTaxCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web finance transaction-tax", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "transaction-tax",
@@ -73,9 +73,9 @@ period.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebTransactionTaxDownloadCommand(),
+			newWebTransactionTaxDownloadCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -83,14 +83,14 @@ period.
 	}
 }
 
-// WebTransactionTaxDownloadCommand generates and saves one Transaction Tax
+// newWebTransactionTaxDownloadCommand generates and saves one Transaction Tax
 // Report archive without exposing the generated job ID or signed download URL.
-func WebTransactionTaxDownloadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web finance transaction-tax download", flag.ExitOnError)
+func newWebTransactionTaxDownloadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web finance transaction-tax download", flag.ExitOnError)
 	date := fs.String("date", "", "Finance period in YYYY-MM format")
 	outputPath := fs.String("output-path", "", "Destination path for the downloaded ZIP archive")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "download",
@@ -113,41 +113,41 @@ Example:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			resolvedDate := strings.TrimSpace(*date)
 			if _, _, err := normalizeTransactionTaxDateForCLI(resolvedDate); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			outPath := *outputPath
 			if strings.TrimSpace(outPath) == "" {
-				return shared.UsageError("--output-path is required")
+				return d.UsageError("--output-path is required")
 			}
-			destination, err := newTransactionTaxDownloadDestination(outPath)
+			destination, err := newTransactionTaxDownloadDestination(d, outPath)
 			if err != nil {
-				return shared.UsageErrorf("--output-path must be a file path: %v", err)
+				return d.UsageErrorf("--output-path must be a file path: %v", err)
 			}
 			defer destination.close()
 			if err := destination.check(); err != nil {
 				return fmt.Errorf("web finance transaction-tax download failed: %w", err)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web finance transaction-tax download")
 			}
-			requestCtx, workflowCancel := shared.ContextWithResolvedTimeout(shared.ContextWithoutTimeout(requestCtx), transactionTaxWorkflowTimeout)
+			requestCtx, workflowCancel := d.ResolvedTimeout(shared.ContextWithoutTimeout(requestCtx), transactionTaxWorkflowTimeout)
 			defer workflowCancel()
 			if session == nil || session.ProviderID <= 0 {
 				return errors.New("web finance transaction-tax download failed: web session has no selected provider")
 			}
 			client := newWebClientFn(session)
 			var download *webcore.TransactionTaxReportDownload
-			err = withWebSpinner("Generating and downloading Transaction Tax Report", func() error {
+			err = withWebSpinnerWith(d, "Generating and downloading Transaction Tax Report", func() error {
 				var downloadErr error
 				download, downloadErr = downloadTransactionTaxReportFn(requestCtx, client, webcore.TransactionTaxReportRequest{
 					ProviderID: session.ProviderID,
@@ -175,7 +175,7 @@ Example:
 				PollStatus:   download.PollStatus,
 				Verified:     true,
 			}
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return fmt.Errorf("web finance transaction-tax download saved report to %q but could not render receipt: %w", outPath, err)
 			}
 			return nil
@@ -200,7 +200,7 @@ type transactionTaxDownloadDestination struct {
 	name string
 }
 
-func newTransactionTaxDownloadDestination(outPath string) (transactionTaxDownloadDestination, error) {
+func newTransactionTaxDownloadDestination(d *shared.Deps, outPath string) (transactionTaxDownloadDestination, error) {
 	if outPath == "" {
 		return transactionTaxDownloadDestination{}, errors.New("path is empty")
 	}
@@ -214,7 +214,7 @@ func newTransactionTaxDownloadDestination(outPath string) (transactionTaxDownloa
 	if err := rootfs.ValidateRelative(base); err != nil {
 		return transactionTaxDownloadDestination{}, err
 	}
-	root, prefix, err := newDownloadRoot(filepath.Dir(outPath))
+	root, prefix, err := newDownloadRootWith(d, filepath.Dir(outPath))
 	if err != nil {
 		return transactionTaxDownloadDestination{}, err
 	}
