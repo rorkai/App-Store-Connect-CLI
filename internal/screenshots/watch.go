@@ -3,6 +3,7 @@ package screenshots
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,12 +21,18 @@ type WatchOptions struct {
 	ReviewOutputDir string
 	// ReviewRawDir is the raw screenshots directory for review generation.
 	ReviewRawDir string
+	// Stderr receives the watch progress messages; nil writes to os.Stderr.
+	Stderr io.Writer
 }
 
 // WatchAndRegenerate watches a Koubou YAML config file (and the raw asset
 // directories it references) for changes, then re-runs kou generate on each
 // change.  It blocks until ctx is cancelled.
 func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Duration, onCycle func(results []WatchCycleResult, err error), opts *WatchOptions) error {
+	stderr := io.Writer(os.Stderr)
+	if opts != nil && opts.Stderr != nil {
+		stderr = opts.Stderr
+	}
 	absConfig, err := filepath.Abs(configPath)
 	if err != nil {
 		return fmt.Errorf("watch: resolve config path: %w", err)
@@ -51,7 +58,7 @@ func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Du
 	assetDirs := collectAssetDirs(absConfig)
 	for _, dir := range assetDirs {
 		if err := watcher.Add(dir); err != nil {
-			fmt.Fprintf(os.Stderr, "watch: could not add asset dir %q: %v\n", dir, err)
+			fmt.Fprintf(stderr, "watch: could not add asset dir %q: %v\n", dir, err)
 		}
 	}
 
@@ -59,8 +66,8 @@ func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Du
 		debounce = 500 * time.Millisecond
 	}
 
-	fmt.Fprintf(os.Stderr, "Watching %s for changes (debounce %s)…\n", absConfig, debounce)
-	fmt.Fprintf(os.Stderr, "Press Ctrl-C to stop.\n")
+	fmt.Fprintf(stderr, "Watching %s for changes (debounce %s)…\n", absConfig, debounce)
+	fmt.Fprintf(stderr, "Press Ctrl-C to stop.\n")
 
 	// Resolve review options once up front.
 	var reviewReq *ReviewRequest
@@ -78,13 +85,13 @@ func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Du
 			RawDir:    rawDir,
 			OutputDir: opts.ReviewOutputDir,
 		}
-		fmt.Fprintf(os.Stderr, "Review HTML will auto-regenerate in %s\n", opts.ReviewOutputDir)
+		fmt.Fprintf(stderr, "Review HTML will auto-regenerate in %s\n", opts.ReviewOutputDir)
 	}
 
 	// Run one initial generation so the user sees output immediately.
-	runGeneration(ctx, absConfig, reviewReq, onCycle)
+	runGeneration(ctx, stderr, absConfig, reviewReq, onCycle)
 	coalescer := newGenerationCoalescer(func() {
-		runGeneration(ctx, absConfig, reviewReq, onCycle)
+		runGeneration(ctx, stderr, absConfig, reviewReq, onCycle)
 	})
 
 	var timer *time.Timer
@@ -105,14 +112,14 @@ func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Du
 				timer.Stop()
 			}
 			timer = time.AfterFunc(debounce, func() {
-				fmt.Fprintf(os.Stderr, "\n--- change detected: %s ---\n", event.Name)
+				fmt.Fprintf(stderr, "\n--- change detected: %s ---\n", event.Name)
 				coalescer.Trigger()
 			})
 		case watchErr, ok := <-watcher.Errors:
 			if !ok {
 				return nil
 			}
-			fmt.Fprintf(os.Stderr, "watch error: %v\n", watchErr)
+			fmt.Fprintf(stderr, "watch error: %v\n", watchErr)
 		}
 	}
 }
@@ -160,10 +167,10 @@ type WatchCycleResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
-func runGeneration(ctx context.Context, configPath string, reviewReq *ReviewRequest, onCycle func([]WatchCycleResult, error)) {
+func runGeneration(ctx context.Context, stderr io.Writer, configPath string, reviewReq *ReviewRequest, onCycle func([]WatchCycleResult, error)) {
 	results, err := runKoubouGenerate(ctx, configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "generation error: %v\n", err)
+		fmt.Fprintf(stderr, "generation error: %v\n", err)
 		if onCycle != nil {
 			onCycle(nil, err)
 		}
@@ -177,9 +184,9 @@ func runGeneration(ctx context.Context, configPath string, reviewReq *ReviewRequ
 		cycleResults = append(cycleResults, cr)
 		if r.Success {
 			anySuccess = true
-			fmt.Fprintf(os.Stderr, "  ✓ %s → %s\n", r.Name, r.Path)
+			fmt.Fprintf(stderr, "  ✓ %s → %s\n", r.Name, r.Path)
 		} else {
-			fmt.Fprintf(os.Stderr, "  ✗ %s: %s\n", r.Name, r.Error)
+			fmt.Fprintf(stderr, "  ✗ %s: %s\n", r.Name, r.Error)
 		}
 	}
 
@@ -187,9 +194,9 @@ func runGeneration(ctx context.Context, configPath string, reviewReq *ReviewRequ
 	if anySuccess && reviewReq != nil {
 		reviewResult, reviewErr := GenerateReview(ctx, *reviewReq)
 		if reviewErr != nil {
-			fmt.Fprintf(os.Stderr, "  review error: %v\n", reviewErr)
+			fmt.Fprintf(stderr, "  review error: %v\n", reviewErr)
 		} else {
-			fmt.Fprintf(os.Stderr, "  ✓ review → %s (%d ready)\n", reviewResult.HTMLPath, reviewResult.Ready)
+			fmt.Fprintf(stderr, "  ✓ review → %s (%d ready)\n", reviewResult.HTMLPath, reviewResult.Ready)
 		}
 	}
 

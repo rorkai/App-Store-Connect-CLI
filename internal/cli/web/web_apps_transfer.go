@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -12,26 +11,26 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// WebAppsTransferCommand exposes read-only app-transfer information.
-func WebAppsTransferCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps transfer", flag.ExitOnError)
+// newWebAppsTransferCommand exposes read-only app-transfer information.
+func newWebAppsTransferCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps transfer", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "transfer", ShortUsage: "asc web apps transfer <subcommand> [flags]",
 		ShortHelp: "Read app-transfer status via a web session.",
 		LongHelp: `Read the transfer request attached to an app in App Store Connect.
 Initiate, accept, cancel, and decline remain manual Apple workflows.`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebAppsTransferStatusCommand()},
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{newWebAppsTransferStatusCommand(d)},
 		Exec:        func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-// WebAppsTransferStatusCommand reads Apple's appTransferRequest relationship.
-func WebAppsTransferStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps transfer status", flag.ExitOnError)
+// newWebAppsTransferStatusCommand reads Apple's appTransferRequest relationship.
+func newWebAppsTransferStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps transfer status", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "status", ShortUsage: "asc web apps transfer status --app APP_ID [flags]",
 		ShortHelp: "Read the app-attached transfer request and state.",
@@ -47,14 +46,14 @@ page. It does not initiate, accept, cancel, or decline a transfer.
 Examples:
   asc web apps transfer status --app 6759231657
   asc web apps transfer status --app 6759231657 --output json`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolved := strings.TrimSpace(shared.ResolveAppID(*appID))
+			resolved := strings.TrimSpace(d.ResolveAppID(*appID))
 			if resolved == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web apps transfer status")
@@ -69,10 +68,10 @@ Examples:
 			}
 			headers := []string{"App ID", "Request", "Transfer ID", "State"}
 			rows := [][]string{{result.AppID, result.Presence, shared.OrNA(result.RequestID), state}}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result, *output.Output, *output.Pretty,
-				func() error { asc.RenderTable(headers, rows); return nil },
-				func() error { asc.RenderMarkdown(headers, rows); return nil },
+				func() error { asc.RenderTableTo(d.IO.Out, headers, rows); return nil },
+				func() error { asc.RenderMarkdownTo(d.IO.Out, headers, rows); return nil },
 			)
 		},
 	}

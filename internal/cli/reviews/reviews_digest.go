@@ -95,7 +95,7 @@ Each attempt starts from the committed cursor, or the explicit initial date:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
@@ -138,7 +138,7 @@ Each attempt starts from the committed cursor, or the explicit initial date:
 				return err
 			}
 			if *writeState {
-				if err := writeReviewDigestState(path, result.Cursor); err != nil {
+				if err := writeReviewDigestState(d, path, result.Cursor); err != nil {
 					return fmt.Errorf("reviews digest: write --state-file: %w", err)
 				}
 			}
@@ -160,7 +160,7 @@ func parseReviewDigestSince(value string) (time.Time, error) {
 
 func resolveReviewDigestCursor(d *shared.Deps, path string, since time.Time) (time.Time, string, error) {
 	if path != "" {
-		data, exists, err := readReviewDigestState(path)
+		data, exists, err := readReviewDigestState(d, path)
 		if err != nil {
 			return time.Time{}, "", fmt.Errorf("reviews digest: read --state-file: %w", err)
 		}
@@ -185,8 +185,8 @@ func resolveReviewDigestCursor(d *shared.Deps, path string, since time.Time) (ti
 	return since, "since", nil
 }
 
-func reviewDigestStateRoot(path string) (rootfs.Root, string, error) {
-	absolute, err := filepath.Abs(path)
+func reviewDigestStateRoot(d *shared.Deps, path string) (rootfs.Root, string, error) {
+	absolute, err := d.Abs(path)
 	if err != nil {
 		return rootfs.Root{}, "", err
 	}
@@ -197,8 +197,8 @@ func reviewDigestStateRoot(path string) (rootfs.Root, string, error) {
 	return root, filepath.Base(absolute), nil
 }
 
-func readReviewDigestState(path string) ([]byte, bool, error) {
-	root, name, err := reviewDigestStateRoot(path)
+func readReviewDigestState(d *shared.Deps, path string) ([]byte, bool, error) {
+	root, name, err := reviewDigestStateRoot(d, path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, false, nil
@@ -216,12 +216,12 @@ func readReviewDigestState(path string) ([]byte, bool, error) {
 	return data, true, nil
 }
 
-func writeReviewDigestState(path, cursor string) error {
+func writeReviewDigestState(d *shared.Deps, path, cursor string) error {
 	data, err := json.Marshal(reviewDigestState{Cursor: cursor})
 	if err != nil {
 		return err
 	}
-	root, name, err := reviewDigestStateRoot(path)
+	root, name, err := reviewDigestStateRoot(d, path)
 	if err != nil {
 		return err
 	}

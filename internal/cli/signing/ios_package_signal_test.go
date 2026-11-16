@@ -18,7 +18,7 @@ import (
 
 func TestIOSPackageSIGTERMStopsSignerAndCleansStage(t *testing.T) {
 	if os.Getenv("ASC_IOS_SIGNAL_HELPER") == "1" {
-		_, err := PackageIOSApp(context.Background(), IOSPackageOptions{
+		_, err := PackageIOSApp(context.Background(), testSigningDeps(), IOSPackageOptions{
 			AppPath: os.Getenv("ASC_IOS_SIGNAL_APP"), IPAPath: os.Getenv("ASC_IOS_SIGNAL_IPA"), AdHoc: true, LogWriter: io.Discard,
 		})
 		if !errors.Is(err, context.Canceled) {

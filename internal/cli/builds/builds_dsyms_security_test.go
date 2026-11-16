@@ -28,7 +28,7 @@ func TestDownloadDSYMRefusesRedirectWithoutForwardingReferer(t *testing.T) {
 
 	_, err := downloadDSYM(
 		context.Background(),
-		source.Client().Transport,
+		dsymDownloadTestDeps(source.Client().Transport),
 		source.URL+"/symbols?Signature=signed-secret",
 		filepath.Join(t.TempDir(), "symbols.zip"),
 	)
@@ -51,7 +51,7 @@ func TestDownloadDSYMSanitizesTransportErrorAndPreservesCause(t *testing.T) {
 
 	_, err := downloadDSYM(
 		context.Background(),
-		transport,
+		dsymDownloadTestDeps(transport),
 		"https://download.example/file?Signature=signed-secret",
 		filepath.Join(t.TempDir(), "symbols.zip"),
 	)
@@ -77,7 +77,7 @@ func TestDownloadDSYMDoesNotWriteRedirectOrErrorBody(t *testing.T) {
 	})
 
 	dest := filepath.Join(t.TempDir(), "symbols.zip")
-	if _, err := downloadDSYM(context.Background(), transport, "https://download.example/file", dest); err == nil {
+	if _, err := downloadDSYM(context.Background(), dsymDownloadTestDeps(transport), "https://download.example/file", dest); err == nil {
 		t.Fatal("expected HTTP error")
 	}
 }

@@ -32,13 +32,8 @@ func bindTwoFactorDeliveryFlags(fs *flag.FlagSet) twoFactorDeliveryFlags {
 	}
 }
 
-// resolve merges the flags with their environment fallbacks and validates the
-// result before any sign-in side effect.
-func (f twoFactorDeliveryFlags) resolve() (appleauth.TwoFactorPreference, error) {
-	return f.resolveWith(shared.DefaultDeps())
-}
-
-// resolveWith is resolve with its usage errors written to d's stderr.
+// resolveWith merges the flags with their environment fallbacks and validates
+// the result before any sign-in side effect, writing usage errors to d's stderr.
 func (f twoFactorDeliveryFlags) resolveWith(d *shared.Deps) (appleauth.TwoFactorPreference, error) {
 	method := ""
 	if f.method != nil {
@@ -59,10 +54,6 @@ func (f twoFactorDeliveryFlags) resolveWith(d *shared.Deps) (appleauth.TwoFactor
 		})
 	}
 	return resolveTwoFactorPreferenceWith(d, method, phoneID, phoneIDSet)
-}
-
-func resolveTwoFactorPreference(methodFlag string, phoneIDFlag int, phoneIDFlagSet bool) (appleauth.TwoFactorPreference, error) {
-	return resolveTwoFactorPreferenceWith(shared.DefaultDeps(), methodFlag, phoneIDFlag, phoneIDFlagSet)
 }
 
 func resolveTwoFactorPreferenceWith(d *shared.Deps, methodFlag string, phoneIDFlag int, phoneIDFlagSet bool) (appleauth.TwoFactorPreference, error) {
@@ -116,9 +107,9 @@ func contextWithTwoFactorPreference(ctx context.Context, preference appleauth.Tw
 
 // twoFactorPreferenceForSignIn returns the flag-resolved preference, falling
 // back to the environment for callers without delivery flags.
-func twoFactorPreferenceForSignIn(ctx context.Context) (appleauth.TwoFactorPreference, error) {
+func twoFactorPreferenceForSignIn(ctx context.Context, d *shared.Deps) (appleauth.TwoFactorPreference, error) {
 	if preference, ok := ctx.Value(twoFactorPreferenceContextKey{}).(appleauth.TwoFactorPreference); ok {
 		return preference, nil
 	}
-	return resolveTwoFactorPreference("", 0, false)
+	return resolveTwoFactorPreferenceWith(d, "", 0, false)
 }

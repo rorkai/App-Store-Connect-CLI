@@ -3,7 +3,6 @@ package shared
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -75,21 +74,6 @@ func resetTierCacheDirOverrideForTest() {
 		return
 	}
 	_ = os.RemoveAll(override)
-}
-
-// SetPricingNowForTesting replaces the clock pricing commands use to decide
-// today's pricing date, such as the default --start-date and the current
-// price. It returns a restore function to reset the clock.
-func SetPricingNowForTesting(fn func() time.Time) func() {
-	previous := pricingNow
-	if fn == nil {
-		pricingNow = time.Now
-	} else {
-		pricingNow = fn
-	}
-	return func() {
-		pricingNow = previous
-	}
 }
 
 // ResetEquivalentVersionNotesForTest forgets which equivalent-version notes

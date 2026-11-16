@@ -21,12 +21,10 @@ func TestWebAppsLastCompatibleVersionIsRetired(t *testing.T) {
 		return nil, errors.New("unexpected request")
 	}))
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"web", "apps", "last-compatible-version", "view", "--app", "6759231657"}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "web", "apps", "last-compatible-version", "view", "--app", "6759231657")
+	if code != cmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+	}
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}

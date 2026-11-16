@@ -461,7 +461,7 @@ func fetchSubscriptionIntroductoryOfferImportState(ctx context.Context, d *share
 	if err != nil {
 		return nil, err
 	}
-	index.now = shared.PricingNow()
+	index.now = d.Now()
 	return index, nil
 }
 
@@ -550,7 +550,7 @@ func writeSubscriptionIntroductoryOfferImportFailureArtifact(d *shared.Deps, sum
 		return "", err
 	}
 	path := filepath.Join(".asc", "reports", "subscription-introductory-offers-import", fmt.Sprintf("failures-%d.json", d.Now().UTC().UnixNano()))
-	if _, err := shared.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
+	if _, err := d.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
 		return "", err
 	}
 	return path, nil

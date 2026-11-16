@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -91,9 +92,10 @@ func runBetaTestersAddGroups(t *testing.T, server *httptest.Server, args ...stri
 	client := newBetaTesterCSVConflictClient(t, server)
 	var stdout, stderr bytes.Buffer
 	cmd := newBetaTestersAddGroupsCommand(&shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		IO:      &shared.IO{Out: &stdout, ErrOut: &stderr},
-		Timeout: shared.ContextWithTimeout,
+		Client:    func() (*asc.Client, error) { return client, nil },
+		IO:        &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Timeout:   shared.ContextWithTimeout,
+		LookupEnv: os.LookupEnv,
 	})
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse flags: %v", err)

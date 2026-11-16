@@ -15,11 +15,13 @@ import (
 )
 
 var webSessionResolveNames = map[string]struct{}{
-	"resolveWebSessionForCommand":            {},
-	"callResolveSessionForProviderSelection": {},
-	"resolveWebSession":                      {},
-	"callResolveAppCreateSessionFn":          {},
-	"resolveWebComplianceClient":             {},
+	"resolveWebSessionForCommand":                {},
+	"resolveWebSessionForCommandWith":            {},
+	"callResolveSessionForProviderSelection":     {},
+	"callResolveSessionForProviderSelectionWith": {},
+	"resolveWebSession":                          {},
+	"callResolveAppCreateSessionFn":              {},
+	"resolveWebComplianceClient":                 {},
 }
 
 // TestWebCommandsDoNotStartRequestTimeoutBeforeAuthentication is the drift
@@ -112,7 +114,7 @@ func requestTimeoutBeforeAuthViolations(fset *token.FileSet, relative, funcName 
 					position := fset.Position(stmt.Pos())
 					violations = append(violations, fmt.Sprintf("%s:%d: %s passes a ContextWithTimeout result to %s", relative, position.Line, funcName, name))
 				}
-				if name == "resolveWebSessionForCommand" && arg.Name == "requestCtx" {
+				if (name == "resolveWebSessionForCommand" || name == "resolveWebSessionForCommandWith") && arg.Name == "requestCtx" {
 					position := fset.Position(stmt.Pos())
 					violations = append(violations, fmt.Sprintf("%s:%d: %s calls resolveWebSessionForCommand(requestCtx", relative, position.Line, funcName))
 				}
@@ -145,7 +147,7 @@ func isRequestTimeoutStartCallExpr(expr ast.Expr) bool {
 }
 
 func isRequestTimeoutStartCall(fun ast.Expr) bool {
-	if identName(fun) == "newWebRequestContext" {
+	if name := identName(fun); name == "newWebRequestContext" || name == "newWebRequestContextWith" {
 		return true
 	}
 	selector, ok := fun.(*ast.SelectorExpr)
@@ -153,10 +155,16 @@ func isRequestTimeoutStartCall(fun ast.Expr) bool {
 		return false
 	}
 	pkg, ok := selector.X.(*ast.Ident)
-	if !ok || pkg.Name != "shared" {
+	if !ok {
 		return false
 	}
-	return selector.Sel.Name == "ContextWithTimeout" || selector.Sel.Name == "ContextWithUploadTimeout"
+	switch pkg.Name {
+	case "shared":
+		return selector.Sel.Name == "ContextWithTimeout" || selector.Sel.Name == "ContextWithUploadTimeout"
+	case "d":
+		return selector.Sel.Name == "Timeout" || selector.Sel.Name == "UploadTimeout"
+	}
+	return false
 }
 
 func identName(fun ast.Expr) string {

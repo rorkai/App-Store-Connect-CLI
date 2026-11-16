@@ -733,6 +733,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			process: func() (any, error) { return nil, runBuilder(NewPricingSetCommand(pricingSet), "--app", "app-1") },
 			deps: func(d *Deps) (any, error) {
 				config := pricingSet
+				d.Now = time.Now
 				config.Deps = d
 				return nil, runBuilder(NewPricingSetCommand(config), "--app", "app-1")
 			},
@@ -753,8 +754,18 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			},
 			deps: func(d *Deps) (any, error) {
 				config := pppProgress
+				usedDepsClient := false
+				d.Client = func() (*asc.Client, error) {
+					usedDepsClient = true
+					return buildsClient(), nil
+				}
+				d.Now = time.Now
 				config.Deps = d
-				return nil, runBuilder(NewPriceSchedulePPPCommand(config), "--base-price", "1", "--confirm")
+				err := runBuilder(NewPriceSchedulePPPCommand(config), "--base-price", "1", "--confirm")
+				if !usedDepsClient {
+					return nil, errors.New("the builder did not take its client from d")
+				}
+				return nil, err
 			},
 		},
 		{
@@ -777,7 +788,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			_, wantStderr := captureOutput(t, func() { wantValue, wantErr = test.process() })
 
 			var stdout, stderr bytes.Buffer
-			d := &Deps{IO: &IO{Out: &stdout, ErrOut: &stderr}}
+			d := &Deps{IO: &IO{Out: &stdout, ErrOut: &stderr}, LookupEnv: os.LookupEnv}
 			var gotValue any
 			var gotErr error
 			processStdout, processStderr := captureOutput(t, func() { gotValue, gotErr = test.deps(d) })
@@ -1458,6 +1469,50 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("ClientWithTimeout bounds each request with the given timeout", func(t *testing.T) {
+		const given = 7 * time.Minute
+		keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+		writeECDSAPEM(t, keyPath)
+		for name, value := range map[string]string{
+			"ASC_BYPASS_KEYCHAIN": "1", "ASC_KEY_ID": "KEY_ID", "ASC_ISSUER_ID": "ISSUER_ID", "ASC_PRIVATE_KEY_PATH": keyPath,
+			"ASC_PRIVATE_KEY": "", "ASC_PRIVATE_KEY_B64": "", "ASC_BEARER_TOKEN": "", "ASC_BEARER_TOKEN_COMMAND": "", "ASC_PROFILE": "",
+			"ASC_TIMEOUT": "", "ASC_TIMEOUT_SECONDS": "", "ASC_MAX_RETRIES": "0",
+			"ASC_CONFIG_PATH": filepath.Join(t.TempDir(), "missing.json"),
+		} {
+			t.Setenv(name, value)
+		}
+		asc.ResetConfigCacheForTest()
+		t.Cleanup(asc.ResetConfigCacheForTest)
+		original := http.DefaultTransport
+		t.Cleanup(func() { http.DefaultTransport = original })
+		http.DefaultTransport = unansweredTransport{}
+		d := DefaultDeps()
+
+		for _, test := range []struct {
+			name   string
+			client func() (*asc.Client, error)
+			want   time.Duration
+		}{
+			{name: "process", client: func() (*asc.Client, error) { return GetASCClientWithTimeout(given) }, want: given},
+			{name: "DefaultDeps", client: func() (*asc.Client, error) { return d.ClientWithTimeout(given) }, want: given},
+			{name: "request-timeout client", client: d.Client, want: asc.DefaultTimeout},
+		} {
+			synctest.Test(t, func(t *testing.T) {
+				client, err := test.client()
+				if err != nil {
+					t.Fatalf("%s client: %v", test.name, err)
+				}
+				start := time.Now()
+				if _, err := client.GetApps(context.Background()); err == nil {
+					t.Fatalf("%s client: request to an unanswered transport succeeded", test.name)
+				}
+				if elapsed := time.Since(start); elapsed != test.want {
+					t.Fatalf("%s client gave up after %v, want %v", test.name, elapsed, test.want)
+				}
+			})
+		}
+	})
 }
 
 func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
@@ -1665,4 +1720,13 @@ func (emptyBuildPreflightClient) GetBuild(context.Context, string, ...asc.BuildO
 
 func (emptyBuildPreflightClient) GetBuildBuildBetaDetail(context.Context, string) (*asc.BuildBetaDetailResponse, error) {
 	return nil, nil
+}
+
+// unansweredTransport never answers: a request ends only when its context
+// does, as with a server that accepts and stays silent.
+type unansweredTransport struct{}
+
+func (unansweredTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	<-req.Context().Done()
+	return nil, req.Context().Err()
 }

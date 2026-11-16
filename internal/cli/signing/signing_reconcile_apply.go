@@ -25,25 +25,25 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-func executeSigningReconcileApply(ctx context.Context, planPath string) (signingReconcileReceipt, error) {
-	plan, err := readSigningPlanArtifact(filepath.Clean(strings.TrimSpace(planPath)))
+func executeSigningReconcileApply(ctx context.Context, d *shared.Deps, planPath string) (signingReconcileReceipt, error) {
+	plan, err := readSigningPlanArtifact(d, filepath.Clean(strings.TrimSpace(planPath)))
 	if err != nil {
 		return signingReconcileReceipt{}, err
 	}
-	return executeSigningReconcileApplyPlan(ctx, plan)
+	return executeSigningReconcileApplyPlan(ctx, d, plan)
 }
 
-func executeSigningReconcileApplyPlan(ctx context.Context, plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
-	return executeSigningReconcileApplyPlanWithUsage(ctx, plan, shared.UsageError)
+func executeSigningReconcileApplyPlan(ctx context.Context, d *shared.Deps, plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
+	return executeSigningReconcileApplyPlanWithUsage(ctx, d, plan, d.UsageError)
 }
 
 func executeSigningReconcileApplyPlanSilent(ctx context.Context, plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
-	return executeSigningReconcileApplyPlanWithUsage(ctx, plan, func(message string) error {
+	return executeSigningReconcileApplyPlanWithUsage(ctx, shared.DefaultDeps(), plan, func(message string) error {
 		return errors.New(message)
 	})
 }
 
-func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
+func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, d *shared.Deps, plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
 	if !plan.Ready || len(plan.Blockers) > 0 {
 		return signingReconcileReceipt{}, newReconcilePlanDrift(usageError("signing reconcile plan is blocked; rerun plan after resolving blockers"))
 	}
@@ -61,24 +61,24 @@ func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, plan signing
 		return signingReconcileReceipt{}, usageError(fmt.Sprintf("invalid profile output directory: %v", err))
 	}
 
-	receipt, err := loadOrStartSigningReceiptWithUsage(plan, usageError)
+	receipt, err := loadOrStartSigningReceiptWithUsage(d.Now, plan, usageError)
 	if err != nil {
 		return signingReconcileReceipt{}, err
 	}
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return receipt, err
 	}
-	requestCtx, cancel := signingRequestContext(ctx)
+	requestCtx, cancel := signingRequestContext(ctx, d)
 	defer cancel()
-	if err := verifyCurrentReconcileCertificate(requestCtx, client, plan); err != nil {
+	if err := verifyCurrentReconcileCertificate(requestCtx, d.Now, client, plan); err != nil {
 		failure := usageError(fmt.Sprintf("%v; rerun asc signing reconcile plan", err))
 		if !isRetryableReconcileFailure(err) {
 			failure = newReconcilePlanDrift(failure)
 		}
 		return receipt, failure
 	}
-	if err := preflightSigningApplySanitized(requestCtx, client, plan, devicesFile); err != nil {
+	if err := preflightSigningApplySanitized(requestCtx, d.Now, client, plan, devicesFile); err != nil {
 		failure := usageError(fmt.Sprintf("remote signing state changed: %v; rerun asc signing reconcile plan", err))
 		if !isRetryableReconcileFailure(err) {
 			failure = newReconcilePlanDrift(failure)
@@ -91,11 +91,11 @@ func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, plan signing
 		item := signingActionReceipt{ID: action.ID, Kind: action.Kind, Status: "running"}
 		receipt.Actions = append(receipt.Actions, item)
 		index := len(receipt.Actions) - 1
-		if err := persistSigningReceipt(&receipt); err != nil {
+		if err := persistSigningReceipt(d.Now, &receipt); err != nil {
 			return receipt, err
 		}
 
-		resourceID, outputPath, actionErr := applySigningAction(requestCtx, client, plan, devicesFile, action, createdProfiles)
+		resourceID, outputPath, actionErr := applySigningAction(requestCtx, d.Now, client, plan, devicesFile, action, createdProfiles)
 		receipt.Actions[index].ResourceID = resourceID
 		receipt.Actions[index].OutputPath = outputPath
 		if actionErr != nil {
@@ -103,7 +103,7 @@ func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, plan signing
 			actionErr = sanitizeReconcileError(actionErr, devicesFile)
 			receipt.Actions[index].Status = "failed"
 			receipt.Actions[index].Error = actionErr.Error()
-			_ = persistSigningReceipt(&receipt)
+			_ = persistSigningReceipt(d.Now, &receipt)
 			failure := fmt.Errorf("action %s: %w", action.ID, actionErr)
 			if !retryable {
 				failure = newReconcilePlanDrift(failure)
@@ -114,30 +114,30 @@ func executeSigningReconcileApplyPlanWithUsage(ctx context.Context, plan signing
 		if action.Kind == actionCreateProfile {
 			createdProfiles[action.BundleID] = resourceID
 		}
-		if err := persistSigningReceipt(&receipt); err != nil {
+		if err := persistSigningReceipt(d.Now, &receipt); err != nil {
 			return receipt, err
 		}
 	}
 	receipt.Complete = true
-	if err := persistSigningReceipt(&receipt); err != nil {
+	if err := persistSigningReceipt(d.Now, &receipt); err != nil {
 		return receipt, err
 	}
 	return receipt, nil
 }
 
-func verifyCurrentReconcileCertificate(ctx context.Context, client *asc.Client, plan signingReconcilePlanArtifact) error {
+func verifyCurrentReconcileCertificate(ctx context.Context, clock func() time.Time, client *asc.Client, plan signingReconcilePlanArtifact) error {
 	certificates, err := getAllReconcileCertificates(ctx, client)
 	if err != nil {
 		return fmt.Errorf("reread certificates: %w", err)
 	}
-	selectedCertificate, blockers := selectReconcileCertificateWithFingerprint(certificates, plan.Certificate.ID, plan.Certificate.SHA256, time.Now(), plan.MinimumValidityDays)
+	selectedCertificate, blockers := selectReconcileCertificateWithFingerprint(certificates, plan.Certificate.ID, plan.Certificate.SHA256, clock(), plan.MinimumValidityDays)
 	if len(blockers) > 0 || selectedCertificate == nil || !reflect.DeepEqual(*selectedCertificate, *plan.Certificate) {
 		return fmt.Errorf("selected certificate changed or is no longer eligible")
 	}
 	return nil
 }
 
-func preflightSigningApply(ctx context.Context, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile) error {
+func preflightSigningApply(ctx context.Context, clock func() time.Time, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile) error {
 	remoteDevices, err := getAllReconcileDevices(ctx, client)
 	if err != nil {
 		return fmt.Errorf("list devices: %w", err)
@@ -159,7 +159,7 @@ func preflightSigningApply(ctx context.Context, client *asc.Client, plan signing
 		}
 	}
 	for _, target := range plan.Targets {
-		_, actions, targetBlockers, err := planSigningTarget(ctx, client, target, resolved, plan.Certificate, plan.MinimumValidityDays)
+		_, actions, targetBlockers, err := planSigningTarget(ctx, clock, client, target, resolved, plan.Certificate, plan.MinimumValidityDays)
 		if err != nil {
 			return fmt.Errorf("bundle %s: %w", target.BundleID, err)
 		}
@@ -183,15 +183,15 @@ func preflightSigningApply(ctx context.Context, client *asc.Client, plan signing
 		if !ok {
 			return fmt.Errorf("download target %s is missing", action.BundleID)
 		}
-		if _, _, err := verifyReconcileProfile(ctx, client, action.ProfileID, plan, devicesFile, target); err != nil {
+		if _, _, err := verifyReconcileProfile(ctx, clock, client, action.ProfileID, plan, devicesFile, target); err != nil {
 			return fmt.Errorf("planned profile %s changed: %w", action.ProfileID, err)
 		}
 	}
 	return nil
 }
 
-func preflightSigningApplySanitized(ctx context.Context, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile) error {
-	return sanitizeReconcileError(preflightSigningApply(ctx, client, plan, devicesFile), devicesFile)
+func preflightSigningApplySanitized(ctx context.Context, clock func() time.Time, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile) error {
+	return sanitizeReconcileError(preflightSigningApply(ctx, clock, client, plan, devicesFile), devicesFile)
 }
 
 func validateSigningApplyPlan(plan signingReconcilePlanArtifact) error {
@@ -414,7 +414,7 @@ func exactSigningFloat(value float64) (*big.Rat, bool) {
 	return number, number != nil
 }
 
-func loadOrStartSigningReceiptWithUsage(plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
+func loadOrStartSigningReceiptWithUsage(clock func() time.Time, plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
 	receiptPath := filepath.Join(plan.Paths.StateDir, "receipt.json")
 	data, err := readProtectedFile(receiptPath)
 	if err == nil {
@@ -444,7 +444,7 @@ func loadOrStartSigningReceiptWithUsage(plan signingReconcilePlanArtifact, usage
 	if !errors.Is(err, os.ErrNotExist) {
 		return signingReconcileReceipt{}, newReconcilePlanDrift(usageError("existing signing receipt could not be read safely"))
 	}
-	now := nowRFC3339()
+	now := nowRFC3339(clock)
 	return signingReconcileReceipt{
 		SchemaVersion: signingReconcileSchemaV1, PlanHash: plan.PlanHash,
 		StartedAt: now, UpdatedAt: now, StateDir: plan.Paths.StateDir,
@@ -509,7 +509,7 @@ func decodeCompleteSigningReceipt(plan signingReconcilePlanArtifact, data []byte
 	return receipt, nil
 }
 
-func verifyReconcileRemoteCompletion(ctx context.Context, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, receipt signingReconcileReceipt, view ReconcileReceiptView) error {
+func verifyReconcileRemoteCompletion(ctx context.Context, clock func() time.Time, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, receipt signingReconcileReceipt, view ReconcileReceiptView) error {
 	remoteDevices, err := getAllReconcileDevices(ctx, client)
 	if err != nil {
 		return fmt.Errorf("list devices: %w", err)
@@ -546,7 +546,7 @@ func verifyReconcileRemoteCompletion(ctx context.Context, client *asc.Client, pl
 		profilesByResourceID[profile.ResourceID] = profile
 	}
 	for _, target := range plan.Targets {
-		observed, currentActions, blockers, err := planSigningTarget(ctx, client, target, resolved, plan.Certificate, plan.MinimumValidityDays)
+		observed, currentActions, blockers, err := planSigningTarget(ctx, clock, client, target, resolved, plan.Certificate, plan.MinimumValidityDays)
 		if err != nil {
 			return fmt.Errorf("bundle %s: %w", target.BundleID, err)
 		}
@@ -577,7 +577,7 @@ func verifyReconcileRemoteCompletion(ctx context.Context, client *asc.Client, pl
 					return fmt.Errorf("bundle %s resource differs from completed receipt", target.BundleID)
 				}
 			case actionCreateProfile, actionDownloadProfile:
-				profile, content, err := verifyReconcileProfile(ctx, client, item.ResourceID, plan, devicesFile, target)
+				profile, content, err := verifyReconcileProfile(ctx, clock, client, item.ResourceID, plan, devicesFile, target)
 				if err != nil {
 					return fmt.Errorf("profile %s: %w", item.ResourceID, err)
 				}
@@ -599,8 +599,8 @@ func verifyReconcileRemoteCompletion(ctx context.Context, client *asc.Client, pl
 	return nil
 }
 
-func persistSigningReceipt(receipt *signingReconcileReceipt) error {
-	receipt.UpdatedAt = nowRFC3339()
+func persistSigningReceipt(clock func() time.Time, receipt *signingReconcileReceipt) error {
+	receipt.UpdatedAt = nowRFC3339(clock)
 	return writeSigningStateJSON(receipt.StateDir, "receipt.json", *receipt, true)
 }
 
@@ -663,7 +663,7 @@ func persistReconcileVerifiedProfile(stateDir string, content []byte) (string, e
 	return "", reconcileLocalPersistenceError{err: err}
 }
 
-func applySigningAction(ctx context.Context, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, action signingAction, createdProfiles map[string]string) (string, string, error) {
+func applySigningAction(ctx context.Context, clock func() time.Time, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, action signingAction, createdProfiles map[string]string) (string, string, error) {
 	switch action.Kind {
 	case actionRegisterDevice:
 		input, ok := desiredDeviceInput(devicesFile, action.DeviceFingerprint)
@@ -693,7 +693,7 @@ func applySigningAction(ctx context.Context, client *asc.Client, plan signingRec
 		if !ok {
 			return "", "", fmt.Errorf("target is missing from plan")
 		}
-		profile, content, err := ensureReconcileProfile(ctx, client, plan, devicesFile, action, target)
+		profile, content, err := ensureReconcileProfile(ctx, clock, client, plan, devicesFile, action, target)
 		if err != nil {
 			return "", "", err
 		}
@@ -711,7 +711,7 @@ func applySigningAction(ctx context.Context, client *asc.Client, plan signingRec
 		if !ok {
 			return "", "", fmt.Errorf("target is missing from plan")
 		}
-		profile, content, err := verifyReconcileProfile(ctx, client, profileID, plan, devicesFile, target)
+		profile, content, err := verifyReconcileProfile(ctx, clock, client, profileID, plan, devicesFile, target)
 		if err != nil {
 			return "", "", err
 		}
@@ -790,7 +790,7 @@ func ensureReconcileBundleID(ctx context.Context, client *asc.Client, identifier
 	return nil, err
 }
 
-func ensureReconcileProfile(ctx context.Context, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, action signingAction, target signingTarget) (*asc.Resource[asc.ProfileAttributes], []byte, error) {
+func ensureReconcileProfile(ctx context.Context, clock func() time.Time, client *asc.Client, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, action signingAction, target signingTarget) (*asc.Resource[asc.ProfileAttributes], []byte, error) {
 	bundle, err := findExactReconcileBundleID(ctx, client, action.BundleID)
 	if err != nil || bundle == nil {
 		if err == nil {
@@ -812,13 +812,13 @@ func ensureReconcileProfile(ctx context.Context, client *asc.Client, plan signin
 		return nil, nil, err
 	}
 	// Accept monotonic drift when an exact suitable profile already exists.
-	candidates, err := getProfileCandidates(ctx, client, *bundle, target, resolvedDesired, *plan.Certificate, plan.MinimumValidityDays)
+	candidates, err := getProfileCandidates(ctx, clock, client, *bundle, target, resolvedDesired, *plan.Certificate, plan.MinimumValidityDays)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, candidate := range candidates {
 		if candidate.Suitable {
-			return fetchVerifiedProfileContent(ctx, client, candidate.Profile.ID, plan, devicesFile, target)
+			return fetchVerifiedProfileContent(ctx, clock, client, candidate.Profile.ID, plan, devicesFile, target)
 		}
 	}
 	created, err := client.CreateProfile(ctx, asc.ProfileCreateAttributes{Name: action.ProfileName, ProfileType: reconcileProfileType}, bundle.ID, []string{plan.Certificate.ID}, deviceIDs)
@@ -829,7 +829,7 @@ func ensureReconcileProfile(ctx context.Context, client *asc.Client, plan signin
 		if readErr == nil {
 			for _, profile := range profiles {
 				if profile.Attributes.Name == action.ProfileName {
-					if verified, content, verifyErr := fetchVerifiedProfileContent(ctx, client, profile.ID, plan, devicesFile, target); verifyErr == nil {
+					if verified, content, verifyErr := fetchVerifiedProfileContent(ctx, clock, client, profile.ID, plan, devicesFile, target); verifyErr == nil {
 						return verified, content, nil
 					}
 				}
@@ -837,7 +837,7 @@ func ensureReconcileProfile(ctx context.Context, client *asc.Client, plan signin
 		}
 		return nil, nil, err
 	}
-	return fetchVerifiedProfileContent(ctx, client, created.Data.ID, plan, devicesFile, target)
+	return fetchVerifiedProfileContent(ctx, clock, client, created.Data.ID, plan, devicesFile, target)
 }
 
 func verifyReconcileBundleCapabilities(ctx context.Context, client *asc.Client, bundleResourceID string, entitlements map[string]any) error {
@@ -864,14 +864,14 @@ func verifyReconcileBundleCapabilities(ctx context.Context, client *asc.Client, 
 	return nil
 }
 
-func verifyReconcileProfile(ctx context.Context, client *asc.Client, profileID string, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, target signingTarget) (*asc.Resource[asc.ProfileAttributes], []byte, error) {
+func verifyReconcileProfile(ctx context.Context, clock func() time.Time, client *asc.Client, profileID string, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, target signingTarget) (*asc.Resource[asc.ProfileAttributes], []byte, error) {
 	if strings.TrimSpace(profileID) == "" {
 		return nil, nil, fmt.Errorf("planned profile ID is empty")
 	}
-	return fetchVerifiedProfileContent(ctx, client, profileID, plan, devicesFile, target)
+	return fetchVerifiedProfileContent(ctx, clock, client, profileID, plan, devicesFile, target)
 }
 
-func fetchVerifiedProfileContent(ctx context.Context, client *asc.Client, profileID string, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, target signingTarget) (*asc.Resource[asc.ProfileAttributes], []byte, error) {
+func fetchVerifiedProfileContent(ctx context.Context, clock func() time.Time, client *asc.Client, profileID string, plan signingReconcilePlanArtifact, devicesFile signingDevicesFile, target signingTarget) (*asc.Resource[asc.ProfileAttributes], []byte, error) {
 	profile, err := client.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, nil, err
@@ -883,7 +883,7 @@ func fetchVerifiedProfileContent(ctx context.Context, client *asc.Client, profil
 		return nil, nil, fmt.Errorf("profile is not active IOS_APP_ADHOC")
 	}
 	expires, err := time.Parse(time.RFC3339, profile.Data.Attributes.ExpirationDate)
-	if err != nil || !expires.After(time.Now().Add(time.Duration(plan.MinimumValidityDays)*24*time.Hour)) {
+	if err != nil || !expires.After(clock().Add(time.Duration(plan.MinimumValidityDays)*24*time.Hour)) {
 		return nil, nil, fmt.Errorf("profile does not satisfy minimum validity")
 	}
 	certs, err := getAllProfileCertificateIDs(ctx, client, profileID)
@@ -922,7 +922,7 @@ func fetchVerifiedProfileContent(ctx context.Context, client *asc.Client, profil
 	if !safeProfileUUID(parsed.UUID) {
 		return nil, nil, fmt.Errorf("profile content has unsafe or missing UUID")
 	}
-	if !parsed.ExpirationDate.After(time.Now().Add(time.Duration(plan.MinimumValidityDays) * 24 * time.Hour)) {
+	if !parsed.ExpirationDate.After(clock().Add(time.Duration(plan.MinimumValidityDays) * 24 * time.Hour)) {
 		return nil, nil, fmt.Errorf("profile content does not satisfy minimum validity")
 	}
 	if !entitlementsContain(parsed.Entitlements, target.Entitlements) {

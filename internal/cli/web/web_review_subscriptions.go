@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -87,7 +86,7 @@ func reviewSubscriptionUnknownAttachmentError(operation, appID, subscriptionID s
 	)
 }
 
-func reviewSubscriptionAttachPreflight(appID string, subscription webcore.ReviewSubscription) error {
+func reviewSubscriptionAttachPreflight(d *shared.Deps, appID string, subscription webcore.ReviewSubscription) error {
 	if !subscription.SubmitWithNextAppStoreVersionKnown {
 		return reviewSubscriptionUnknownAttachmentError("attach", appID, subscription.ID)
 	}
@@ -101,32 +100,32 @@ func reviewSubscriptionAttachPreflight(appID string, subscription webcore.Review
 		subscriptionID = "SUB_ID"
 	}
 
-	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(d.IO.ErrOut, "")
 	fmt.Fprintf(
-		os.Stderr,
+		d.IO.ErrOut,
 		"Attach preflight: subscription %q (%s) is %s, so Apple will not attach it to the next app version review yet.\n",
 		reviewSubscriptionName(subscription),
 		valueOrNA(subscriptionID),
 		state,
 	)
 	fmt.Fprintf(
-		os.Stderr,
+		d.IO.ErrOut,
 		"Hint: run `asc validate subscriptions --app \"%s\"` to inspect readiness.\n",
 		valueOrNA(appID),
 	)
-	fmt.Fprintln(os.Stderr, "Hint: Apple only allows this attach flow after the subscription reaches READY_TO_SUBMIT.")
+	fmt.Fprintln(d.IO.ErrOut, "Hint: Apple only allows this attach flow after the subscription reaches READY_TO_SUBMIT.")
 	switch state {
 	case "MISSING_METADATA":
-		fmt.Fprintln(os.Stderr, "Hint: Check localizations, pricing coverage, and the App Store review screenshot.")
+		fmt.Fprintln(d.IO.ErrOut, "Hint: Check localizations, pricing coverage, and the App Store review screenshot.")
 		fmt.Fprintf(
-			os.Stderr,
+			d.IO.ErrOut,
 			"Hint: In live testing, a subscription promotional image also mattered even though App Store Connect surfaces it as a recommendation. Resolve the version with `asc subscriptions versions list --subscription-id \"%[1]s\"` (or create one with `asc subscriptions versions create --subscription-id \"%[1]s\"` if none exists), then upload one with `asc subscriptions versions images upload --version-id \"VERSION_ID\" --file \"./image.png\"` if it is missing.\n",
 			valueOrNA(subscriptionID),
 		)
 	case "":
-		fmt.Fprintln(os.Stderr, "Hint: Refresh App Store Connect or rerun `asc web review subscriptions list` to confirm the current readiness state before retrying.")
+		fmt.Fprintln(d.IO.ErrOut, "Hint: Refresh App Store Connect or rerun `asc web review subscriptions list` to confirm the current readiness state before retrying.")
 	default:
-		fmt.Fprintln(os.Stderr, "Hint: Complete the outstanding App Store Connect action for this subscription, then retry once it reaches READY_TO_SUBMIT.")
+		fmt.Fprintln(d.IO.ErrOut, "Hint: Complete the outstanding App Store Connect action for this subscription, then retry once it reaches READY_TO_SUBMIT.")
 	}
 
 	return shared.NewStderrReportedError(
@@ -185,15 +184,15 @@ func buildReviewSubscriptionGroupMutationRows(payload reviewSubscriptionGroupMut
 	return rows
 }
 
-func renderReviewSubscriptionGroupMutationTable(payload reviewSubscriptionGroupMutationOutput) error {
+func renderReviewSubscriptionGroupMutationTable(d *shared.Deps, payload reviewSubscriptionGroupMutationOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderTable(headers, buildReviewSubscriptionGroupMutationRows(payload))
+	asc.RenderTableTo(d.IO.Out, headers, buildReviewSubscriptionGroupMutationRows(payload))
 	return nil
 }
 
-func renderReviewSubscriptionGroupMutationMarkdown(payload reviewSubscriptionGroupMutationOutput) error {
+func renderReviewSubscriptionGroupMutationMarkdown(d *shared.Deps, payload reviewSubscriptionGroupMutationOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderMarkdown(headers, buildReviewSubscriptionGroupMutationRows(payload))
+	asc.RenderMarkdownTo(d.IO.Out, headers, buildReviewSubscriptionGroupMutationRows(payload))
 	return nil
 }
 
@@ -214,15 +213,15 @@ func buildReviewSubscriptionsListTableRows(subscriptions []webcore.ReviewSubscri
 	return rows
 }
 
-func renderReviewSubscriptionsListTable(payload reviewSubscriptionsListOutput) error {
+func renderReviewSubscriptionsListTable(d *shared.Deps, payload reviewSubscriptionsListOutput) error {
 	headers := []string{"Group ID", "Group", "Subscription ID", "Product ID", "Name", "State", "Next Version", "Review In Progress"}
-	asc.RenderTable(headers, buildReviewSubscriptionsListTableRows(payload.Subscriptions))
+	asc.RenderTableTo(d.IO.Out, headers, buildReviewSubscriptionsListTableRows(payload.Subscriptions))
 	return nil
 }
 
-func renderReviewSubscriptionsListMarkdown(payload reviewSubscriptionsListOutput) error {
+func renderReviewSubscriptionsListMarkdown(d *shared.Deps, payload reviewSubscriptionsListOutput) error {
 	headers := []string{"Group ID", "Group", "Subscription ID", "Product ID", "Name", "State", "Next Version", "Review In Progress"}
-	asc.RenderMarkdown(headers, buildReviewSubscriptionsListTableRows(payload.Subscriptions))
+	asc.RenderMarkdownTo(d.IO.Out, headers, buildReviewSubscriptionsListTableRows(payload.Subscriptions))
 	return nil
 }
 
@@ -242,15 +241,15 @@ func buildReviewSubscriptionMutationRows(payload reviewSubscriptionMutationOutpu
 	}
 }
 
-func renderReviewSubscriptionMutationTable(payload reviewSubscriptionMutationOutput) error {
+func renderReviewSubscriptionMutationTable(d *shared.Deps, payload reviewSubscriptionMutationOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderTable(headers, buildReviewSubscriptionMutationRows(payload))
+	asc.RenderTableTo(d.IO.Out, headers, buildReviewSubscriptionMutationRows(payload))
 	return nil
 }
 
-func renderReviewSubscriptionMutationMarkdown(payload reviewSubscriptionMutationOutput) error {
+func renderReviewSubscriptionMutationMarkdown(d *shared.Deps, payload reviewSubscriptionMutationOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderMarkdown(headers, buildReviewSubscriptionMutationRows(payload))
+	asc.RenderMarkdownTo(d.IO.Out, headers, buildReviewSubscriptionMutationRows(payload))
 	return nil
 }
 
@@ -477,7 +476,7 @@ func collectReviewSubscriptionGroupChanges(
 	return changed, skipped
 }
 
-func reviewSubscriptionGroupAttachPreflight(appID, groupID string, subscriptions []webcore.ReviewSubscription) error {
+func reviewSubscriptionGroupAttachPreflight(d *shared.Deps, appID, groupID string, subscriptions []webcore.ReviewSubscription) error {
 	readyCount := 0
 	attachedCount := 0
 	for _, subscription := range subscriptions {
@@ -492,20 +491,20 @@ func reviewSubscriptionGroupAttachPreflight(appID, groupID string, subscriptions
 		return nil
 	}
 
-	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(d.IO.ErrOut, "")
 	fmt.Fprintf(
-		os.Stderr,
+		d.IO.ErrOut,
 		"Attach preflight: subscription group %q (%s) has no READY_TO_SUBMIT subscriptions for first-submission attachment yet.\n",
 		reviewSubscriptionGroupLabel(subscriptions, groupID),
 		valueOrNA(groupID),
 	)
 	fmt.Fprintf(
-		os.Stderr,
+		d.IO.ErrOut,
 		"Hint: run `asc validate subscriptions --app \"%s\"` to inspect readiness.\n",
 		valueOrNA(appID),
 	)
-	fmt.Fprintln(os.Stderr, "Hint: Apple only allows attach after the relevant subscriptions reach READY_TO_SUBMIT.")
-	fmt.Fprintln(os.Stderr, "Hint: In live testing, a subscription promotional image also mattered in addition to localization, pricing coverage, and the App Store review screenshot.")
+	fmt.Fprintln(d.IO.ErrOut, "Hint: Apple only allows attach after the relevant subscriptions reach READY_TO_SUBMIT.")
+	fmt.Fprintln(d.IO.ErrOut, "Hint: In live testing, a subscription promotional image also mattered in addition to localization, pricing coverage, and the App Store review screenshot.")
 
 	return shared.NewStderrReportedError(
 		fmt.Errorf(
@@ -515,15 +514,15 @@ func reviewSubscriptionGroupAttachPreflight(appID, groupID string, subscriptions
 	)
 }
 
-func loadReviewSubscriptionsWithLabel(ctx context.Context, client *webcore.Client, appID, label string) ([]webcore.ReviewSubscription, error) {
-	return withWebSpinnerValue(label, func() ([]webcore.ReviewSubscription, error) {
+func loadReviewSubscriptionsWithLabelWith(ctx context.Context, d *shared.Deps, client *webcore.Client, appID, label string) ([]webcore.ReviewSubscription, error) {
+	return withWebSpinnerValueWith(d, label, func() ([]webcore.ReviewSubscription, error) {
 		return client.ListReviewSubscriptions(ctx, appID)
 	})
 }
 
-// WebReviewSubscriptionsCommand returns the app-version subscription attach helpers.
-func WebReviewSubscriptionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review subscriptions", flag.ExitOnError)
+// newWebReviewSubscriptionsCommand returns the app-version subscription attach helpers.
+func newWebReviewSubscriptionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review subscriptions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "subscriptions",
@@ -542,13 +541,13 @@ Subcommands:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebReviewSubscriptionsListCommand(),
-			WebReviewSubscriptionsAttachCommand(),
-			WebReviewSubscriptionsAttachGroupCommand(),
-			WebReviewSubscriptionsRemoveCommand(),
-			WebReviewSubscriptionsRemoveGroupCommand(),
+			newWebReviewSubscriptionsListCommand(d),
+			newWebReviewSubscriptionsAttachCommand(d),
+			newWebReviewSubscriptionsAttachGroupCommand(d),
+			newWebReviewSubscriptionsRemoveCommand(d),
+			newWebReviewSubscriptionsRemoveGroupCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -556,38 +555,38 @@ Subcommands:
 	}
 }
 
-// WebReviewSubscriptionsListCommand lists review-scoped subscriptions for an app.
-func WebReviewSubscriptionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review subscriptions list", flag.ExitOnError)
+// newWebReviewSubscriptionsListCommand lists review-scoped subscriptions for an app.
+func newWebReviewSubscriptionsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review subscriptions list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web review subscriptions list [--app APP_ID] [flags]",
 		ShortHelp:  "List subscriptions and next-version attach state.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if trimmedAppID == "" {
 				return shared.WithDiagnostic(
-					shared.UsageError("--app is required (or set ASC_APP_ID)"),
+					d.UsageError("--app is required (or set ASC_APP_ID)"),
 					shared.DiagnosticRequiredInputMissing,
 					"--app",
 				)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newWebClientFn(session)
 
-			subscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Loading review subscriptions")
+			subscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Loading review subscriptions")
 			if err != nil {
 				return withWebAuthHint(err, "web review subscriptions list")
 			}
@@ -597,53 +596,53 @@ func WebReviewSubscriptionsListCommand() *ffcli.Command {
 				AttachedCount: countAttachedReviewSubscriptions(subscriptions),
 				Subscriptions: subscriptions,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewSubscriptionsListTable(payload) },
-				func() error { return renderReviewSubscriptionsListMarkdown(payload) },
+				func() error { return renderReviewSubscriptionsListTable(d, payload) },
+				func() error { return renderReviewSubscriptionsListMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebReviewSubscriptionsAttachCommand attaches a subscription to the next app version review.
-func WebReviewSubscriptionsAttachCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review subscriptions attach", flag.ExitOnError)
+// newWebReviewSubscriptionsAttachCommand attaches a subscription to the next app version review.
+func newWebReviewSubscriptionsAttachCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review subscriptions attach", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
 	confirm := fs.Bool("confirm", false, "Confirm the attach operation")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attach",
 		ShortUsage: "asc web review subscriptions attach --app APP_ID --subscription-id SUB_ID --confirm [flags]",
 		ShortHelp:  "Attach a subscription to the next app version review.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedSubscriptionID := strings.TrimSpace(*subscriptionID)
 			switch {
 			case trimmedAppID == "":
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			case trimmedSubscriptionID == "":
-				return shared.UsageError("--subscription-id is required")
+				return d.UsageError("--subscription-id is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newWebClientFn(session)
 
-			subscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Loading review subscriptions")
+			subscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Loading review subscriptions")
 			if err != nil {
 				return withWebAuthHint(err, "web review subscriptions attach")
 			}
@@ -660,21 +659,21 @@ func WebReviewSubscriptionsAttachCommand() *ffcli.Command {
 				Subscription: *selected,
 			}
 			if !selected.SubmitWithNextAppStoreVersionKnown {
-				return reviewSubscriptionAttachPreflight(trimmedAppID, *selected)
+				return reviewSubscriptionAttachPreflight(d, trimmedAppID, *selected)
 			}
 			if !selected.SubmitWithNextAppStoreVersion {
-				if err := reviewSubscriptionAttachPreflight(trimmedAppID, *selected); err != nil {
+				if err := reviewSubscriptionAttachPreflight(d, trimmedAppID, *selected); err != nil {
 					return err
 				}
 
-				submission, err := withWebSpinnerValue("Attaching subscription to next app version", func() (webcore.ReviewSubscriptionSubmission, error) {
+				submission, err := withWebSpinnerValueWith(d, "Attaching subscription to next app version", func() (webcore.ReviewSubscriptionSubmission, error) {
 					return client.CreateSubscriptionSubmission(requestCtx, trimmedSubscriptionID)
 				})
 				if err != nil {
 					return withWebAuthHint(err, "web review subscriptions attach")
 				}
 
-				refreshedSubscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Refreshing review subscriptions")
+				refreshedSubscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Refreshing review subscriptions")
 				if err != nil {
 					return withWebAuthHint(err, "web review subscriptions attach")
 				}
@@ -687,53 +686,53 @@ func WebReviewSubscriptionsAttachCommand() *ffcli.Command {
 				payload.Subscription = *refreshed
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewSubscriptionMutationTable(payload) },
-				func() error { return renderReviewSubscriptionMutationMarkdown(payload) },
+				func() error { return renderReviewSubscriptionMutationTable(d, payload) },
+				func() error { return renderReviewSubscriptionMutationMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebReviewSubscriptionsAttachGroupCommand attaches every READY_TO_SUBMIT subscription in one group.
-func WebReviewSubscriptionsAttachGroupCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review subscriptions attach-group", flag.ExitOnError)
+// newWebReviewSubscriptionsAttachGroupCommand attaches every READY_TO_SUBMIT subscription in one group.
+func newWebReviewSubscriptionsAttachGroupCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review subscriptions attach-group", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	groupID := fs.String("group-id", "", "Subscription group ID or exact current name")
 	confirm := fs.Bool("confirm", false, "Confirm the attach-group operation")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attach-group",
 		ShortUsage: "asc web review subscriptions attach-group --app APP_ID --group-id GROUP_ID_OR_NAME --confirm [flags]",
 		ShortHelp:  "Attach all READY_TO_SUBMIT subscriptions in one group.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			switch {
 			case trimmedAppID == "":
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			case trimmedGroupID == "":
-				return shared.UsageError("--group-id is required")
+				return d.UsageError("--group-id is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newWebClientFn(session)
 
-			subscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Loading review subscriptions")
+			subscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Loading review subscriptions")
 			if err != nil {
 				return withWebAuthHint(err, "web review subscriptions attach-group")
 			}
@@ -746,7 +745,7 @@ func WebReviewSubscriptionsAttachGroupCommand() *ffcli.Command {
 			if len(groupSubscriptions) == 0 {
 				return fmt.Errorf("subscription group %q was not found for app %q", trimmedGroupID, trimmedAppID)
 			}
-			if err := reviewSubscriptionGroupAttachPreflight(trimmedAppID, trimmedGroupID, groupSubscriptions); err != nil {
+			if err := reviewSubscriptionGroupAttachPreflight(d, trimmedAppID, trimmedGroupID, groupSubscriptions); err != nil {
 				return err
 			}
 
@@ -766,7 +765,7 @@ func WebReviewSubscriptionsAttachGroupCommand() *ffcli.Command {
 			}
 
 			if len(attachIDs) > 0 {
-				err = withWebSpinner("Attaching subscription group to next app version", func() error {
+				err = withWebSpinnerWith(d, "Attaching subscription group to next app version", func() error {
 					for _, subscriptionID := range attachIDs {
 						if _, err := client.CreateSubscriptionSubmission(requestCtx, subscriptionID); err != nil {
 							return err
@@ -779,7 +778,7 @@ func WebReviewSubscriptionsAttachGroupCommand() *ffcli.Command {
 				}
 			}
 
-			refreshedSubscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Refreshing review subscriptions")
+			refreshedSubscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Refreshing review subscriptions")
 			if err != nil {
 				return withWebAuthHint(err, "web review subscriptions attach-group")
 			}
@@ -804,53 +803,53 @@ func WebReviewSubscriptionsAttachGroupCommand() *ffcli.Command {
 				Skipped:            skipped,
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewSubscriptionGroupMutationTable(payload) },
-				func() error { return renderReviewSubscriptionGroupMutationMarkdown(payload) },
+				func() error { return renderReviewSubscriptionGroupMutationTable(d, payload) },
+				func() error { return renderReviewSubscriptionGroupMutationMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebReviewSubscriptionsRemoveCommand removes a subscription from the next app version review.
-func WebReviewSubscriptionsRemoveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review subscriptions remove", flag.ExitOnError)
+// newWebReviewSubscriptionsRemoveCommand removes a subscription from the next app version review.
+func newWebReviewSubscriptionsRemoveCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review subscriptions remove", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
 	confirm := fs.Bool("confirm", false, "Confirm the remove operation")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove",
 		ShortUsage: "asc web review subscriptions remove --app APP_ID --subscription-id SUB_ID --confirm [flags]",
 		ShortHelp:  "Remove a subscription from the next app version review.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedSubscriptionID := strings.TrimSpace(*subscriptionID)
 			switch {
 			case trimmedAppID == "":
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			case trimmedSubscriptionID == "":
-				return shared.UsageError("--subscription-id is required")
+				return d.UsageError("--subscription-id is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newWebClientFn(session)
 
-			subscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Loading review subscriptions")
+			subscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Loading review subscriptions")
 			if err != nil {
 				return withWebAuthHint(err, "web review subscriptions remove")
 			}
@@ -870,14 +869,14 @@ func WebReviewSubscriptionsRemoveCommand() *ffcli.Command {
 				return reviewSubscriptionUnknownAttachmentError("remove", trimmedAppID, trimmedSubscriptionID)
 			}
 			if selected.SubmitWithNextAppStoreVersion {
-				err = withWebSpinner("Removing subscription from next app version", func() error {
+				err = withWebSpinnerWith(d, "Removing subscription from next app version", func() error {
 					return client.DeleteSubscriptionSubmission(requestCtx, trimmedSubscriptionID)
 				})
 				if err != nil {
 					return withWebAuthHint(err, "web review subscriptions remove")
 				}
 
-				refreshedSubscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Refreshing review subscriptions")
+				refreshedSubscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Refreshing review subscriptions")
 				if err != nil {
 					return withWebAuthHint(err, "web review subscriptions remove")
 				}
@@ -889,53 +888,53 @@ func WebReviewSubscriptionsRemoveCommand() *ffcli.Command {
 				payload.Subscription = *refreshed
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewSubscriptionMutationTable(payload) },
-				func() error { return renderReviewSubscriptionMutationMarkdown(payload) },
+				func() error { return renderReviewSubscriptionMutationTable(d, payload) },
+				func() error { return renderReviewSubscriptionMutationMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebReviewSubscriptionsRemoveGroupCommand removes all attached subscriptions in one group.
-func WebReviewSubscriptionsRemoveGroupCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review subscriptions remove-group", flag.ExitOnError)
+// newWebReviewSubscriptionsRemoveGroupCommand removes all attached subscriptions in one group.
+func newWebReviewSubscriptionsRemoveGroupCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review subscriptions remove-group", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	groupID := fs.String("group-id", "", "Subscription group ID or exact current name")
 	confirm := fs.Bool("confirm", false, "Confirm the remove-group operation")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-group",
 		ShortUsage: "asc web review subscriptions remove-group --app APP_ID --group-id GROUP_ID_OR_NAME --confirm [flags]",
 		ShortHelp:  "Remove all attached subscriptions in one group.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			switch {
 			case trimmedAppID == "":
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			case trimmedGroupID == "":
-				return shared.UsageError("--group-id is required")
+				return d.UsageError("--group-id is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newWebClientFn(session)
 
-			subscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Loading review subscriptions")
+			subscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Loading review subscriptions")
 			if err != nil {
 				return withWebAuthHint(err, "web review subscriptions remove-group")
 			}
@@ -964,7 +963,7 @@ func WebReviewSubscriptionsRemoveGroupCommand() *ffcli.Command {
 			}
 
 			if len(removeIDs) > 0 {
-				err = withWebSpinner("Removing subscription group from next app version", func() error {
+				err = withWebSpinnerWith(d, "Removing subscription group from next app version", func() error {
 					for _, subscriptionID := range removeIDs {
 						if err := client.DeleteSubscriptionSubmission(requestCtx, subscriptionID); err != nil {
 							return err
@@ -977,7 +976,7 @@ func WebReviewSubscriptionsRemoveGroupCommand() *ffcli.Command {
 				}
 			}
 
-			refreshedSubscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Refreshing review subscriptions")
+			refreshedSubscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Refreshing review subscriptions")
 			if err != nil {
 				return withWebAuthHint(err, "web review subscriptions remove-group")
 			}
@@ -1002,12 +1001,12 @@ func WebReviewSubscriptionsRemoveGroupCommand() *ffcli.Command {
 				Skipped:            skipped,
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewSubscriptionGroupMutationTable(payload) },
-				func() error { return renderReviewSubscriptionGroupMutationMarkdown(payload) },
+				func() error { return renderReviewSubscriptionGroupMutationTable(d, payload) },
+				func() error { return renderReviewSubscriptionGroupMutationMarkdown(d, payload) },
 			)
 		},
 	}

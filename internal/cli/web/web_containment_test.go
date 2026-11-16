@@ -140,6 +140,7 @@ func TestWriteDownloadedAttachmentWritesOrdinaryFile(t *testing.T) {
 }
 
 func TestWritePrivacyDeclarationFilePreservesExistingMode(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX permission bits are not reported faithfully on Windows")
 	}
@@ -148,7 +149,7 @@ func TestWritePrivacyDeclarationFilePreservesExistingMode(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	if err := writePrivacyDeclarationFile(outPath, privacyDeclarationFile{}); err != nil {
+	if err := writePrivacyDeclarationFile(d, outPath, privacyDeclarationFile{}); err != nil {
 		t.Fatalf("writePrivacyDeclarationFile() error = %v", err)
 	}
 
@@ -162,6 +163,7 @@ func TestWritePrivacyDeclarationFilePreservesExistingMode(t *testing.T) {
 }
 
 func TestWritePrivacyDeclarationFileRefusesSymlinkedOutput(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	outDir := t.TempDir()
 	sentinelPath := filepath.Join(t.TempDir(), "sentinel.json")
 	writeWebContainmentFile(t, sentinelPath, "{}")
@@ -171,7 +173,7 @@ func TestWritePrivacyDeclarationFileRefusesSymlinkedOutput(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	err := writePrivacyDeclarationFile(outPath, privacyDeclarationFile{})
+	err := writePrivacyDeclarationFile(d, outPath, privacyDeclarationFile{})
 	if err == nil {
 		t.Fatal("writePrivacyDeclarationFile() error = nil, want symlink rejection")
 	}
@@ -184,9 +186,10 @@ func TestWritePrivacyDeclarationFileRefusesSymlinkedOutput(t *testing.T) {
 }
 
 func TestWritePrivacyDeclarationFileWritesOrdinaryOutput(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	outPath := filepath.Join(t.TempDir(), "nested", "privacy.json")
 
-	if err := writePrivacyDeclarationFile(outPath, privacyDeclarationFile{}); err != nil {
+	if err := writePrivacyDeclarationFile(d, outPath, privacyDeclarationFile{}); err != nil {
 		t.Fatalf("writePrivacyDeclarationFile() error = %v", err)
 	}
 	info, err := os.Lstat(outPath)
@@ -202,11 +205,12 @@ func TestWritePrivacyDeclarationFileWritesOrdinaryOutput(t *testing.T) {
 }
 
 func TestWritePrivacyDeclarationFilePreservesWhitespacePathBytes(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
 	outPath := filepath.Join(dir, " privacy.json ")
 	trimmedPath := filepath.Join(dir, "privacy.json")
 
-	if err := writePrivacyDeclarationFile(outPath, privacyDeclarationFile{}); err != nil {
+	if err := writePrivacyDeclarationFile(d, outPath, privacyDeclarationFile{}); err != nil {
 		t.Fatalf("writePrivacyDeclarationFile() error = %v", err)
 	}
 	if _, err := os.Lstat(outPath); err != nil {
@@ -218,6 +222,7 @@ func TestWritePrivacyDeclarationFilePreservesWhitespacePathBytes(t *testing.T) {
 }
 
 func TestParsePrivacyDeclarationFilePreservesWhitespacePathBytes(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	path := filepath.Join(t.TempDir(), " privacy.json ")
 	writeWebContainmentFile(t, path, `{
 		"schemaVersion": 1,
@@ -226,7 +231,7 @@ func TestParsePrivacyDeclarationFilePreservesWhitespacePathBytes(t *testing.T) {
 		]
 	}`)
 
-	declaration, err := parsePrivacyDeclarationFile(path)
+	declaration, err := parsePrivacyDeclarationFile(d, path)
 	if err != nil {
 		t.Fatalf("parsePrivacyDeclarationFile() error = %v", err)
 	}
@@ -236,6 +241,7 @@ func TestParsePrivacyDeclarationFilePreservesWhitespacePathBytes(t *testing.T) {
 }
 
 func TestParsePrivacyDeclarationFileRefusesSymlinkedInput(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
 	externalPath := filepath.Join(t.TempDir(), "external.json")
 	writeWebContainmentFile(t, externalPath, `{"usages":[]}`)
@@ -245,7 +251,7 @@ func TestParsePrivacyDeclarationFileRefusesSymlinkedInput(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	if _, err := parsePrivacyDeclarationFile(linkPath); err == nil {
+	if _, err := parsePrivacyDeclarationFile(d, linkPath); err == nil {
 		t.Fatal("parsePrivacyDeclarationFile() error = nil, want symlink rejection")
 	} else if !strings.Contains(err.Error(), "symlink") {
 		t.Fatalf("parsePrivacyDeclarationFile() error = %v, want symlink rejection", err)

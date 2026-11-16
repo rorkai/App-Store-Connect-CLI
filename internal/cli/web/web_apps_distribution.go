@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,9 +22,9 @@ var setWebAppDistributionFn = func(ctx context.Context, client *webcore.Client, 
 	return client.SetAppDistribution(ctx, request)
 }
 
-// WebAppsDistributionCommand returns the web app distribution method command group.
-func WebAppsDistributionCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps distribution", flag.ExitOnError)
+// newWebAppsDistributionCommand returns the web app distribution method command group.
+func newWebAppsDistributionCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps distribution", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "distribution",
@@ -44,11 +43,11 @@ separate Apple flow and is not inferred or changed by this command.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppsDistributionViewCommand(),
-			WebAppsDistributionSetCommand(),
-			WebAppsDistributionUsersCommand(),
+			newWebAppsDistributionViewCommand(d),
+			newWebAppsDistributionSetCommand(d),
+			newWebAppsDistributionUsersCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -56,16 +55,16 @@ separate Apple flow and is not inferred or changed by this command.
 	}
 }
 
-// WebAppsDistributionSetCommand updates the app-level distribution method.
-func WebAppsDistributionSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps distribution set", flag.ExitOnError)
+// newWebAppsDistributionSetCommand updates the app-level distribution method.
+func newWebAppsDistributionSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps distribution set", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	method := fs.String("method", "", "Distribution method: public or private")
 	educationDiscount := fs.String("education-discount", "", "Education discount for public distribution: discounted or not-discounted")
 	confirm := fs.Bool("confirm", false, "Confirm changing the app distribution method")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -88,37 +87,37 @@ Examples:
   asc web apps distribution set --app 6759231657 --method public --education-discount not-discounted --confirm
   asc web apps distribution set --app 6759231657 --method private --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			resolvedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			distributionType, err := webAppDistributionTypeFromMethod(*method)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			educationDiscountType, err := webAppEducationDiscountType(*educationDiscount, distributionType)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web apps distribution set")
 			}
 
 			var result *asc.WebAppDistributionSetResult
-			err = withWebSpinner("Updating app distribution method", func() error {
+			err = withWebSpinnerWith(d, "Updating app distribution method", func() error {
 				result, err = setWebAppDistributionFn(requestCtx, newWebClientFn(session), webcore.AppDistributionSetRequest{
 					AppID:                 resolvedAppID,
 					DistributionType:      distributionType,
@@ -128,7 +127,7 @@ Examples:
 			})
 
 			if result != nil {
-				printErr := printWebAppDistributionSet(result, *output.Output, *output.Pretty)
+				printErr := printWebAppDistributionSet(d, result, *output.Output, *output.Pretty)
 				if printErr != nil {
 					if err != nil {
 						return errors.Join(withWebAuthHint(err, "web apps distribution set"), printErr)
@@ -178,13 +177,13 @@ func webAppEducationDiscountType(value, distributionType string) (string, error)
 	}
 }
 
-// WebAppsDistributionViewCommand returns the distribution method view command.
-func WebAppsDistributionViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps distribution view", flag.ExitOnError)
+// newWebAppsDistributionViewCommand returns the distribution method view command.
+func newWebAppsDistributionViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps distribution view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -202,22 +201,22 @@ Examples:
   asc web apps distribution view --app 6759231657
   asc web apps distribution view --app 6759231657 --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			resolvedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var result *webcore.AppDistribution
-			err = withWebSpinner("Fetching app distribution method", func() error {
+			err = withWebSpinnerWith(d, "Fetching app distribution method", func() error {
 				var err error
 				result, err = getWebAppDistributionFn(requestCtx, newWebClientFn(session), resolvedAppID)
 				return err
@@ -226,29 +225,29 @@ Examples:
 				return withWebAuthHint(err, "web apps distribution view")
 			}
 
-			return printWebAppDistribution(result, *output.Output, *output.Pretty)
+			return printWebAppDistribution(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func printWebAppDistribution(result *webcore.AppDistribution, output string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printWebAppDistribution(d *shared.Deps, result *webcore.AppDistribution, output string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		output,
 		pretty,
 		func() error {
-			asc.RenderTable([]string{"field", "value"}, webAppDistributionRows(result))
+			asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, webAppDistributionRows(result))
 			return nil
 		},
 		func() error {
-			asc.RenderMarkdown([]string{"field", "value"}, webAppDistributionRows(result))
+			asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, webAppDistributionRows(result))
 			return nil
 		},
 	)
 }
 
-func printWebAppDistributionSet(result *asc.WebAppDistributionSetResult, output string, pretty bool) error {
-	return shared.PrintOutput(result, output, pretty)
+func printWebAppDistributionSet(d *shared.Deps, result *asc.WebAppDistributionSetResult, output string, pretty bool) error {
+	return d.PrintOutput(result, output, pretty)
 }
 
 func webAppDistributionRows(result *webcore.AppDistribution) [][]string {

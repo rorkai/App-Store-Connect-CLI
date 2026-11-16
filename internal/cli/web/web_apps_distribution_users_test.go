@@ -181,11 +181,12 @@ func (f *customAppUsersCLIHTTPFixture) writeUsersList(w http.ResponseWriter) {
 func TestWebAppsDistributionUsersCreateLifecycleUsesOneWriteAndReadback(t *testing.T) {
 	fixture := &customAppUsersCLIHTTPFixture{}
 	setupCustomAppUsersCLIHTTP(t, fixture)
-	command := WebAppsDistributionUsersCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppsDistributionUsersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--recipient-apple-id", "new@example.com", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("execute command: %v", err)
 		}
@@ -208,11 +209,12 @@ func TestWebAppsDistributionUsersCreateLifecycleUsesOneWriteAndReadback(t *testi
 func TestWebAppsDistributionUsersCreateSkipsExactExistingAccount(t *testing.T) {
 	fixture := &customAppUsersCLIHTTPFixture{users: map[string]string{"recipient-1": "existing@example.com"}}
 	setupCustomAppUsersCLIHTTP(t, fixture)
-	command := WebAppsDistributionUsersCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppsDistributionUsersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--recipient-apple-id", "existing@example.com", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("execute command: %v", err)
 		}
@@ -235,11 +237,12 @@ func TestWebAppsDistributionUsersCreateSkipsExactExistingAccount(t *testing.T) {
 func TestWebAppsDistributionUsersDeleteLifecycleUsesOneWriteAndReadback(t *testing.T) {
 	fixture := &customAppUsersCLIHTTPFixture{users: map[string]string{"recipient-1": "existing@example.com"}}
 	setupCustomAppUsersCLIHTTP(t, fixture)
-	command := WebAppsDistributionUsersDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppsDistributionUsersDeleteCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--id", "recipient-1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("execute command: %v", err)
 		}
@@ -262,11 +265,12 @@ func TestWebAppsDistributionUsersDeleteLifecycleUsesOneWriteAndReadback(t *testi
 func TestWebAppsDistributionUsersDeleteAbsentIsVerifiedNoOp(t *testing.T) {
 	fixture := &customAppUsersCLIHTTPFixture{}
 	setupCustomAppUsersCLIHTTP(t, fixture)
-	command := WebAppsDistributionUsersDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppsDistributionUsersDeleteCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--id", "missing", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("execute command: %v", err)
 		}
@@ -289,12 +293,13 @@ func TestWebAppsDistributionUsersDeleteAbsentIsVerifiedNoOp(t *testing.T) {
 func TestWebAppsDistributionUsersCreateMalformedAcceptedResponseIsUncertainWithoutRetry(t *testing.T) {
 	fixture := &customAppUsersCLIHTTPFixture{malformedCreate: true}
 	setupCustomAppUsersCLIHTTP(t, fixture)
-	command := WebAppsDistributionUsersCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppsDistributionUsersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--recipient-apple-id", "new@example.com", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
 	var runErr error
-	stdout, _ := captureWebCommandOutput(t, func() { runErr = command.Exec(context.Background(), nil) })
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() { runErr = command.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("expected uncertain create error")
 	}
@@ -318,12 +323,13 @@ func TestWebAppsDistributionUsersCreateMalformedAcceptedResponseIsUncertainWitho
 func TestWebAppsDistributionUsersPostReadMismatchIsUncertain(t *testing.T) {
 	fixture := &customAppUsersCLIHTTPFixture{postReadMismatch: true}
 	setupCustomAppUsersCLIHTTP(t, fixture)
-	command := WebAppsDistributionUsersCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppsDistributionUsersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--recipient-apple-id", "new@example.com", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
 	var runErr error
-	stdout, _ := captureWebCommandOutput(t, func() { runErr = command.Exec(context.Background(), nil) })
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() { runErr = command.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("expected post-read verification error")
 	}
@@ -342,12 +348,13 @@ func TestWebAppsDistributionUsersPostReadMismatchIsUncertain(t *testing.T) {
 func TestWebAppsDistributionUsersRejectsNonCustomAppBeforeMutation(t *testing.T) {
 	fixture := &customAppUsersCLIHTTPFixture{appDistribution: webcore.AppDistributionTypeAppStore}
 	setupCustomAppUsersCLIHTTP(t, fixture)
-	command := WebAppsDistributionUsersCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppsDistributionUsersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--recipient-apple-id", "new@example.com", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
 	var runErr error
-	_, _ = captureWebCommandOutput(t, func() { runErr = command.Exec(context.Background(), nil) })
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() { runErr = command.Exec(context.Background(), nil) })
 	if runErr == nil || !strings.Contains(runErr.Error(), "must use CUSTOM") {
 		t.Fatalf("error = %v, want CUSTOM precondition", runErr)
 	}
@@ -361,11 +368,12 @@ func TestWebAppsDistributionUsersListPreservesJSONAndProjectsHumanFormats(t *tes
 		t.Run(format, func(t *testing.T) {
 			fixture := &customAppUsersCLIHTTPFixture{users: map[string]string{"recipient-1": "account@example.com"}}
 			setupCustomAppUsersCLIHTTP(t, fixture)
-			command := WebAppsDistributionUsersListCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebAppsDistributionUsersListCommand(d)
 			if err := command.FlagSet.Parse([]string{"--app", "app-1", "--output", format}); err != nil {
 				t.Fatalf("parse command: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("execute command: %v", err)
 				}
@@ -397,7 +405,8 @@ func TestWebAppsDistributionUsersValidatesBeforeSession(t *testing.T) {
 		return &webcore.AuthSession{}, "cache", nil
 	}
 	newWebClientFn = func(*webcore.AuthSession) *webcore.Client { return &webcore.Client{} }
-	command := WebAppsDistributionUsersCreateCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAppsDistributionUsersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--recipient-apple-id", "account@example.com", "--confirm", "--output", "yaml"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
@@ -424,7 +433,8 @@ func TestCustomAppUserUncertainErrorPreservesAPIError(t *testing.T) {
 func TestWebAppsDistributionUsersCreateRejectsAmbiguousExistingAccount(t *testing.T) {
 	fixture := &customAppUsersCLIHTTPFixture{users: map[string]string{"one": "same@example.com", "two": "same@example.com"}}
 	setupCustomAppUsersCLIHTTP(t, fixture)
-	command := WebAppsDistributionUsersCreateCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebAppsDistributionUsersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--app", "app-1", "--recipient-apple-id", "same@example.com", "--confirm"}); err != nil {
 		t.Fatal(err)
 	}

@@ -49,7 +49,7 @@ type publicationVerifier struct {
 }
 
 func newPublicationVerifier(d *shared.Deps, documentTimeout time.Duration) (*publicationVerifier, error) {
-	delegate, err := core.NewHTTPVerifierWithEnvironmentTrust(d.HTTPTransport(), 0)
+	delegate, err := core.NewHTTPVerifierWithEnvironmentTrust(0)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("configure publication verifier: %w", err)
 				}
-				if err := reverifyPublication(ctx, verifier, recoveredState.Receipt, recoveredState.Links, d.Now().UTC()); err != nil {
+				if err := reverifyPublication(ctx, verifier, recoveredState.Receipt, recoveredState.Links, time.Now().UTC()); err != nil {
 					return fmt.Errorf("reverify recovered publication: %w", err)
 				}
 				if artifacts.receiptExists {

@@ -156,7 +156,7 @@ func installSkills(ctx context.Context, d *shared.Deps) (resultErr error) {
 	if strings.TrimSpace(homeDir) == "" {
 		return errors.New("resolve the user home directory: path is empty")
 	}
-	homeDir, err = filepath.Abs(homeDir)
+	homeDir, err = d.Abs(homeDir)
 	if err != nil {
 		return fmt.Errorf("resolve the absolute user home directory: %w", err)
 	}
@@ -248,7 +248,7 @@ func installSkills(ctx context.Context, d *shared.Deps) (resultErr error) {
 	}
 	defer skillsRoot.Close()
 
-	lockState, err := preparePinnedSkillLock(homeDir)
+	lockState, err := preparePinnedSkillLock(d, homeDir)
 	if err != nil {
 		return err
 	}
@@ -317,10 +317,10 @@ type pinnedSkillLock struct {
 	bound        bool
 }
 
-func preparePinnedSkillLock(homeDir string) (*pinnedSkillLock, error) {
+func preparePinnedSkillLock(d *shared.Deps, homeDir string) (*pinnedSkillLock, error) {
 	lockDir := filepath.Join(homeDir, ".agents")
 	if stateHome := strings.TrimSpace(os.Getenv("XDG_STATE_HOME")); stateHome != "" {
-		absoluteStateHome, err := filepath.Abs(stateHome)
+		absoluteStateHome, err := d.Abs(stateHome)
 		if err != nil {
 			return nil, fmt.Errorf("resolve XDG_STATE_HOME: %w", err)
 		}

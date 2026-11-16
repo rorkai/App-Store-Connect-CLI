@@ -21,43 +21,43 @@ var (
 	collectSearchDataForPlan     = ads.CollectSearchOptimizationData
 )
 
-// OptimizeCommand returns the cross-API optimization group.
-func OptimizeCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("optimize", flag.ExitOnError)
+// NewOptimizeCommand returns the cross-API optimization group.
+func NewOptimizeCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("optimize", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:        "optimize",
 		ShortUsage:  "asc optimize <subcommand> [flags]",
 		ShortHelp:   "Build cross-API optimization plans.",
 		LongHelp:    "Build read-only cross-API optimization plans from official Apple APIs.",
 		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{SearchCommand(), KeywordsCommand()},
+		UsageFunc:   d.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{newSearchCommand(d), newKeywordsCommand(d)},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
 		},
 	}
 }
 
-// SearchCommand returns the search optimization group.
-func SearchCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("search", flag.ExitOnError)
+// newSearchCommand returns the search optimization group.
+func newSearchCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("search", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:        "search",
 		ShortUsage:  "asc optimize search <subcommand> [flags]",
 		ShortHelp:   "Build App Store search optimization plans.",
 		LongHelp:    "Build App Store search optimization plans from official Apple APIs.",
 		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{SearchPlanCommand()},
+		UsageFunc:   d.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{newSearchPlanCommand(d)},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
 		},
 	}
 }
 
-// SearchPlanCommand returns the official-only search optimization workflow.
-func SearchPlanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("plan", flag.ExitOnError)
+// newSearchPlanCommand returns the official-only search optimization workflow.
+func newSearchPlanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("plan", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID env)")
 	version := fs.String("version", "", "App Store version string (required)")
 	platform := fs.String("platform", "IOS", "App Store platform: IOS, MAC_OS, TV_OS, VISION_OS")
@@ -69,7 +69,7 @@ func SearchPlanCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "App Store metadata locale, for example en-US (required)")
 	windowValue := fs.String("window", "30d", "Paid performance window: 2d through 30d")
 	outDir := fs.String("out-dir", "", "Write reviewable plan artifacts to this directory")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "plan",
@@ -89,41 +89,41 @@ Examples:
   asc optimize search plan --app "123456789" --version "1.2.0" --ad-account "987654321" --country US --genre PRODUCTIVITY_UTILITIES --locale en-US
   asc optimize search plan --app "123456789" --version "1.2.0" --ad-account "987654321" --country US --genre PRODUCTIVITY_UTILITIES --locale en-US --out-dir .asc/optimization/1.2.0 --output markdown`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppSelector := shared.ResolveAppID(*appID)
+			resolvedAppSelector := d.ResolveAppID(*appID)
 			if resolvedAppSelector == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 			if strings.TrimSpace(*version) == "" {
-				return shared.UsageError("--version is required")
+				return d.UsageError("--version is required")
 			}
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			normalizedCountry := strings.ToUpper(strings.TrimSpace(*country))
 			if len(normalizedCountry) != 2 || normalizedCountry[0] < 'A' || normalizedCountry[0] > 'Z' || normalizedCountry[1] < 'A' || normalizedCountry[1] > 'Z' {
-				return shared.UsageError("--country must be an ISO alpha-2 code")
+				return d.UsageError("--country must be an ISO alpha-2 code")
 			}
 			normalizedGenre := strings.ToUpper(strings.TrimSpace(*genre))
 			if normalizedGenre == "" || !searchPlanGenrePattern.MatchString(normalizedGenre) {
-				return shared.UsageError("--genre must be an Apple Ads genre identifier such as PRODUCTIVITY_UTILITIES")
+				return d.UsageError("--genre must be an Apple Ads genre identifier such as PRODUCTIVITY_UTILITIES")
 			}
 			normalizedLocale, err := shared.NormalizeAppStoreLocalizationLocale(*locale)
 			if err != nil {
-				return shared.UsageError("--locale " + err.Error())
+				return d.UsageError("--locale " + err.Error())
 			}
-			window, err := resolveSearchPlanWindow(*windowValue, time.Now())
+			window, err := resolveSearchPlanWindow(*windowValue, d.Now())
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			metadata, err := resolveSearchMetadataForPlan(ctx, resolvedAppSelector, strings.TrimSpace(*version), normalizedPlatform, strings.TrimSpace(*appInfoID), normalizedLocale)
+			metadata, err := resolveSearchMetadataForPlan(ctx, d, resolvedAppSelector, strings.TrimSpace(*version), normalizedPlatform, strings.TrimSpace(*appInfoID), normalizedLocale)
 			if err != nil {
 				return fmt.Errorf("optimize search plan: App Store Connect metadata: %w", err)
 			}
-			adsData, err := collectSearchDataForPlan(ctx, *adsProfile, *adAccount, ads.SearchOptimizationRequest{
+			adsData, err := collectSearchDataForPlan(ctx, d, *adsProfile, *adAccount, ads.SearchOptimizationRequest{
 				AppID:           metadata.AppID,
 				Country:         normalizedCountry,
 				Genre:           normalizedGenre,
@@ -137,7 +137,7 @@ Examples:
 			}
 
 			report := buildSearchPlan(searchPlanBuildInput{
-				GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+				GeneratedAt: d.Now().UTC().Format(time.RFC3339),
 				AppID:       metadata.AppID,
 				Version:     strings.TrimSpace(*version),
 				VersionID:   metadata.VersionID,
@@ -151,18 +151,18 @@ Examples:
 				Ads:         adsData,
 			})
 			if strings.TrimSpace(*outDir) != "" {
-				artifacts, artifactErr := writeSearchPlanArtifacts(strings.TrimSpace(*outDir), report)
+				artifacts, artifactErr := writeSearchPlanArtifacts(d.OSPath(strings.TrimSpace(*outDir)), report)
 				if artifactErr != nil {
 					return fmt.Errorf("optimize search plan: %w", artifactErr)
 				}
 				report.Artifacts = artifacts
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				report,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderSearchPlanTable(report) },
-				func() error { return renderSearchPlanMarkdown(report) },
+				func() error { return renderSearchPlanTable(d, report) },
+				func() error { return renderSearchPlanMarkdown(d, report) },
 			)
 		},
 	}

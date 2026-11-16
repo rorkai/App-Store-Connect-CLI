@@ -78,7 +78,7 @@ Examples:
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// Validate required flags
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
@@ -385,7 +385,7 @@ Examples:
 
 					if *wait {
 						fmt.Fprintf(d.IO.ErrOut, "Build %s discovered; waiting for processing...\n", buildResp.Data.ID)
-						if _, err := shared.WaitForBuildProcessingWithDetails(waitCtx, client, resolvedAppID, buildResp.Data.ID, *pollInterval); err != nil {
+						if _, err := d.WaitForBuildProcessingWithDetails(waitCtx, client, resolvedAppID, buildResp.Data.ID, *pollInterval); err != nil {
 							return fmt.Errorf("builds upload: %w", err)
 						}
 					}
@@ -644,7 +644,7 @@ Examples:
 			}
 			nextValue := strings.TrimSpace(*next)
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextValue == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")

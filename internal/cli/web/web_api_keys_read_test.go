@@ -18,13 +18,14 @@ func TestWebAPIKeysListPrintsMetadataWithoutKeyMaterial(t *testing.T) {
 	restore := installWebAPIKeyReadFakes(t)
 	t.Cleanup(restore)
 
-	cmd := WebAPIKeysListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr != nil {
@@ -61,13 +62,14 @@ func TestWebAPIKeysListRejectsInvalidOutputBeforeSession(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	cmd := WebAPIKeysListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "xml"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(execErr, flag.ErrHelp) {
@@ -89,13 +91,14 @@ func TestWebAPIKeysViewRequiresKeyIDBeforeSession(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	cmd := WebAPIKeysViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(execErr, flag.ErrHelp) {
@@ -117,13 +120,14 @@ func TestWebAPIKeysViewRejectsBlankKeyIDBeforeSession(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	cmd := WebAPIKeysViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "   "}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(execErr, flag.ErrHelp) {
@@ -141,13 +145,14 @@ func TestWebAPIKeysViewPrintsMetadataWithoutKeyMaterial(t *testing.T) {
 	restore := installWebAPIKeyReadFakes(t)
 	t.Cleanup(restore)
 
-	cmd := WebAPIKeysViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "ABC123XYZ", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr != nil {
@@ -194,13 +199,14 @@ func TestWebAPIKeysListHTTPFixtureNeverPrintsPrivateKey(t *testing.T) {
 		}))
 	}
 
-	cmd := WebAPIKeysListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr != nil {
@@ -230,13 +236,14 @@ func TestWebAPIKeysViewHTTPFixtureNeverPrintsPrivateKey(t *testing.T) {
 		}))
 	}
 
-	cmd := WebAPIKeysViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "ABC123XYZ", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr != nil {

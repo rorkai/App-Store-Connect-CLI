@@ -33,9 +33,9 @@ import (
 )
 
 func TestSigningReconcilePlanValidatesBeforeAuth(t *testing.T) {
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	clientFactory := func() (*asc.Client, error) {
 		return nil, errors.New("client must not be created")
-	}))
+	}
 
 	tests := []struct {
 		name      string
@@ -53,18 +53,19 @@ func TestSigningReconcilePlanValidatesBeforeAuth(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := SigningReconcilePlanCommand()
+			d, depsStdout, depsStderr := newSigningTestDeps()
+			d.Client = clientFactory
+			cmd := newSigningReconcilePlanCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse(test.args); err != nil {
 				t.Fatalf("Parse() error = %v", err)
 			}
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				runErr = cmd.Run(context.Background())
-				if !errors.Is(runErr, flag.ErrHelp) {
-					t.Fatalf("Run() error = %v, want usage error", runErr)
-				}
-			})
+			runErr := cmd.Run(context.Background())
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("Run() error = %v, want usage error", runErr)
+			}
+			stdout := depsStdout.String()
+			stderr := depsStderr.String()
 			diagnostic, ok := shared.DiagnosticFromError(runErr)
 			if !ok || diagnostic.Code != test.wantCode || diagnostic.Parameter != test.wantParam {
 				t.Fatalf("DiagnosticFromError() = %+v, %t; want code %q parameter %q", diagnostic, ok, test.wantCode, test.wantParam)
@@ -110,16 +111,20 @@ func TestExecuteSigningReconcilePlanIsReadOnlyAndPlansAdditiveActions(t *testing
 			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
 		}
 	})
-	originalFactory := sharedASCClient
-	sharedASCClient = func() (*asc.Client, error) { return client, nil }
-	t.Cleanup(func() { sharedASCClient = originalFactory })
+	d, _, _ := newSigningTestDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
+	planTime := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+	d.Now = func() time.Time { return planTime }
 
-	plan, err := executeSigningReconcilePlan(context.Background(), signingReconcilePlanOptions{
+	plan, err := executeSigningReconcilePlan(context.Background(), d, signingReconcilePlanOptions{
 		ArchivePath: "App.xcarchive", DevicesFile: devicesPath, MinimumValidityDays: 7,
 		MaxMutations: 32, StateDir: stateDir,
 	})
 	if err != nil {
 		t.Fatalf("executeSigningReconcilePlan() error = %v", err)
+	}
+	if plan.GeneratedAt != "2030-01-02T03:04:05Z" {
+		t.Fatalf("plan generatedAt = %q, want the deps clock", plan.GeneratedAt)
 	}
 	if !plan.Ready || plan.MutationCount != 3 {
 		t.Fatalf("plan ready=%v mutations=%d blockers=%v", plan.Ready, plan.MutationCount, plan.Blockers)
@@ -174,10 +179,9 @@ func TestExecuteSigningReconcilePlanBlocksCertificateFromAnotherTeam(t *testing.
 			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
 		}
 	})
-	originalFactory := sharedASCClient
-	sharedASCClient = func() (*asc.Client, error) { return client, nil }
-	t.Cleanup(func() { sharedASCClient = originalFactory })
-	plan, err := executeSigningReconcilePlan(context.Background(), signingReconcilePlanOptions{
+	d, _, _ := newSigningTestDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
+	plan, err := executeSigningReconcilePlan(context.Background(), d, signingReconcilePlanOptions{
 		ArchivePath: "App.xcarchive", DevicesFile: devicesPath, MinimumValidityDays: 7,
 		MaxMutations: 32, StateDir: t.TempDir(),
 	})
@@ -264,9 +268,58 @@ func TestSigningCapabilitiesForEntitlements(t *testing.T) {
 	}
 }
 
+// A certificate that is still valid at the injected time but expired by the
+// host clock must be eligible: the plan reads one clock.
+func TestExecuteSigningReconcilePlanJudgesCertificateValidityOnTheDepsClock(t *testing.T) {
+	planTime := time.Date(2020, 6, 1, 0, 0, 0, 0, time.UTC)
+	expires := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	certificate := newReconcileTestCertificateValidBetween(t, planTime.AddDate(-1, 0, 0), expires)
+	certificateContent := base64.StdEncoding.EncodeToString(certificate.Raw)
+	devicesPath := filepath.Join(t.TempDir(), "devices.json")
+	if err := os.WriteFile(devicesPath, []byte(`{"schemaVersion":1,"devices":[{"name":"Phone","udid":"SECRET-UDID","platform":"IOS"}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	originalArchiveReader := readSigningArchiveRequirements
+	readSigningArchiveRequirements = func(string) (signingArchiveRequirements, error) {
+		return signingArchiveRequirements{TeamID: "TEAM1", Targets: []signingTarget{{
+			Kind: "application", RelativePath: "Products/Applications/App.app", BundleID: "com.example.app", Executable: "App",
+			Entitlements: map[string]any{"com.apple.developer.team-identifier": "TEAM1"},
+		}}}, nil
+	}
+	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
+	client := newSigningFetchTestClient(t, func(request *http.Request) *http.Response {
+		switch request.URL.Path {
+		case "/v1/devices", "/v1/bundleIds":
+			return signingFetchJSONResponse(http.StatusOK, `{"data":[]}`)
+		case "/v1/certificates":
+			return signingFetchJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-1","attributes":{"certificateType":"IOS_DISTRIBUTION","serialNumber":"123","activated":true,"expirationDate":%q,"certificateContent":%q}}]}`, expires.Format(time.RFC3339), certificateContent))
+		default:
+			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
+		}
+	})
+	d, _, _ := newSigningTestDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
+	d.Now = func() time.Time { return planTime }
+
+	plan, err := executeSigningReconcilePlan(context.Background(), d, signingReconcilePlanOptions{
+		ArchivePath: "App.xcarchive", DevicesFile: devicesPath, MinimumValidityDays: 7,
+		MaxMutations: 32, StateDir: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("executeSigningReconcilePlan() error = %v", err)
+	}
+	if !plan.Ready || plan.Certificate == nil || plan.Certificate.ID != "cert-1" {
+		t.Fatalf("plan ready=%v certificate=%+v blockers=%v, want cert-1 selected at the injected time", plan.Ready, plan.Certificate, plan.Blockers)
+	}
+	if plan.GeneratedAt != "2020-06-01T00:00:00Z" {
+		t.Fatalf("plan generatedAt = %q, want the deps clock", plan.GeneratedAt)
+	}
+}
+
 func TestSigningReconcileRequestContextUsesWorkflowTimeout(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "")
-	ctx, cancel := signingRequestContext(context.Background())
+	d, _, _ := newSigningTestDeps()
+	ctx, cancel := signingRequestContext(context.Background(), d)
 	defer cancel()
 	deadline, ok := ctx.Deadline()
 	if !ok {
@@ -289,7 +342,7 @@ func TestPlanSigningTargetBlocksMismatchedAppIDSeedBeforeProfileCreation(t *test
 		}
 	})
 	_, actions, blockers, err := planSigningTarget(
-		context.Background(),
+		context.Background(), time.Now,
 		client,
 		signingTarget{
 			BundleID:    "com.example.app",
@@ -303,7 +356,7 @@ func TestPlanSigningTargetBlocksMismatchedAppIDSeedBeforeProfileCreation(t *test
 		7,
 	)
 	if err != nil {
-		t.Fatalf("planSigningTarget() error=%v", err)
+		t.Fatalf("planSigningTarget(time.Now) error=%v", err)
 	}
 	if !strings.Contains(strings.Join(blockers, "\n"), "seed ID OTHERTEAM") {
 		t.Fatalf("blockers=%#v, want seed-prefix mismatch", blockers)
@@ -330,7 +383,7 @@ func TestEnsureReconcileProfileRechecksAppIDSeedBeforeMutation(t *testing.T) {
 	})
 
 	_, _, err := ensureReconcileProfile(
-		context.Background(),
+		context.Background(), time.Now,
 		client,
 		signingReconcilePlanArtifact{},
 		signingDevicesFile{},
@@ -338,10 +391,10 @@ func TestEnsureReconcileProfileRechecksAppIDSeedBeforeMutation(t *testing.T) {
 		signingTarget{BundleID: "com.example.app", AppIDPrefix: "TEAM1"},
 	)
 	if err == nil || !strings.Contains(err.Error(), "seed ID OTHERTEAM") {
-		t.Fatalf("ensureReconcileProfile() error=%v, want seed-prefix mismatch", err)
+		t.Fatalf("ensureReconcileProfile(time.Now) error=%v, want seed-prefix mismatch", err)
 	}
 	if mutations != 0 {
-		t.Fatalf("ensureReconcileProfile() made %d mutations despite seed-prefix mismatch", mutations)
+		t.Fatalf("ensureReconcileProfile(time.Now) made %d mutations despite seed-prefix mismatch", mutations)
 	}
 }
 
@@ -360,7 +413,7 @@ func TestPlanSigningTargetBlocksUnverifiableCapabilityValues(t *testing.T) {
 	})
 
 	_, _, blockers, err := planSigningTarget(
-		context.Background(),
+		context.Background(), time.Now,
 		client,
 		signingTarget{
 			BundleID:    "com.example.app",
@@ -377,7 +430,7 @@ func TestPlanSigningTargetBlocksUnverifiableCapabilityValues(t *testing.T) {
 		7,
 	)
 	if err != nil {
-		t.Fatalf("planSigningTarget() error = %v", err)
+		t.Fatalf("planSigningTarget(time.Now) error = %v", err)
 	}
 	got := strings.Join(blockers, "\n")
 	if !strings.Contains(got, "com.apple.security.application-groups") || !strings.Contains(got, "cannot be verified safely") {
@@ -504,8 +557,9 @@ func TestExecuteSigningReconcileApplyCreatesAndVerifiesWithoutPatchOrDelete(t *t
 			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
-	receipt, err := executeSigningReconcileApply(context.Background(), filepath.Join(stateDir, "plan.json"))
+	d, _, _ := newSigningTestDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
+	receipt, err := executeSigningReconcileApply(context.Background(), d, filepath.Join(stateDir, "plan.json"))
 	if err != nil {
 		t.Fatalf("executeSigningReconcileApply() error=%v", err)
 	}
@@ -526,7 +580,7 @@ func TestExecuteSigningReconcileApplyCreatesAndVerifiesWithoutPatchOrDelete(t *t
 			posts++
 		}
 	}
-	second, err := executeSigningReconcileApply(context.Background(), filepath.Join(stateDir, "plan.json"))
+	second, err := executeSigningReconcileApply(context.Background(), d, filepath.Join(stateDir, "plan.json"))
 	if err != nil || !second.Complete {
 		t.Fatalf("resume receipt=%#v error=%v", second, err)
 	}
@@ -579,14 +633,14 @@ func TestGetProfileCandidatesPaginatesAndRejectsExtraDevices(t *testing.T) {
 		}
 	})
 	candidates, err := getProfileCandidates(
-		context.Background(), client,
+		context.Background(), time.Now, client,
 		asc.Resource[asc.BundleIDAttributes]{ID: "bundle-1", Attributes: asc.BundleIDAttributes{Identifier: "com.example.app", Platform: asc.BundleIDPlatformIOS}},
 		signingTarget{BundleID: "com.example.app", Entitlements: map[string]any{"com.apple.developer.team-identifier": "TEAM1"}},
 		[]signingDesiredDevice{{Fingerprint: fingerprintDevice(normalizeReconcileUDID("SECRET-UDID")), ResourceID: "device-1", Status: "ENABLED"}},
 		signingCertificateRef{ID: "cert-1", SHA256: reconcileTestCertificateFingerprint(distributionCertificate)}, 7,
 	)
 	if err != nil {
-		t.Fatalf("getProfileCandidates() error=%v", err)
+		t.Fatalf("getProfileCandidates(time.Now) error=%v", err)
 	}
 	if len(candidates) != 2 || !candidates[0].Suitable || candidates[0].Profile.ID != "p-exact" || candidates[0].ExtraDevices != 0 {
 		t.Fatalf("candidates=%#v", candidates)
@@ -684,9 +738,9 @@ func TestPreflightSigningApplyFindsLaterTargetBlockerBeforeMutation(t *testing.T
 			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
 		}
 	})
-	err = preflightSigningApply(context.Background(), client, plan, devices)
+	err = preflightSigningApply(context.Background(), time.Now, client, plan, devices)
 	if err == nil || !strings.Contains(err.Error(), "incompatible platform") {
-		t.Fatalf("preflightSigningApply() error = %v", err)
+		t.Fatalf("preflightSigningApply(time.Now) error = %v", err)
 	}
 	for _, method := range methods {
 		if method != http.MethodGet {
@@ -772,7 +826,7 @@ func TestApplyRejectsConcurrentBundleSeedMismatchBeforeProfilePOST(t *testing.T)
 	}
 
 	_, _, err := applySigningAction(
-		context.Background(),
+		context.Background(), time.Now,
 		client,
 		plan,
 		signingDevicesFile{},
@@ -830,9 +884,9 @@ func TestEnsureReconcileProfileConvergesAfterAmbiguousPOSTOnlyWhenExact(t *testi
 			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
 		}
 	})
-	profile, gotContent, err := ensureReconcileProfile(context.Background(), client, plan, devices, action, target)
+	profile, gotContent, err := ensureReconcileProfile(context.Background(), time.Now, client, plan, devices, action, target)
 	if err != nil || profile.ID != "profile-1" || string(gotContent) != string(profileBytes) {
-		t.Fatalf("ensureReconcileProfile() profile=%#v content=%d error=%v", profile, len(gotContent), err)
+		t.Fatalf("ensureReconcileProfile(time.Now) profile=%#v content=%d error=%v", profile, len(gotContent), err)
 	}
 }
 
@@ -968,17 +1022,18 @@ func TestPrepareReconcileProfileOutputRejectsUnusablePath(t *testing.T) {
 }
 
 func TestSigningReconcileApplyRequiresConfirmBeforeReadingPlan(t *testing.T) {
-	cmd := SigningReconcileApplyCommand()
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	cmd := newSigningReconcileApplyCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{"--plan", filepath.Join(t.TempDir(), "missing.json")}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		err := cmd.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("Run() error = %v, want usage error", err)
-		}
-	})
+	err := cmd.Run(context.Background())
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("Run() error = %v, want usage error", err)
+	}
+	stdout := depsStdout.String()
+	stderr := depsStderr.String()
 	if stdout != "" || !strings.Contains(stderr, "Error: --confirm is required") {
 		t.Fatalf("stdout=%q stderr=%q", stdout, stderr)
 	}
@@ -1006,7 +1061,8 @@ func TestReadSigningPlanArtifactClassifiesMalformedJSONAsUsage(t *testing.T) {
 			if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			_, err := readSigningPlanArtifact(path)
+			d, _, _ := newSigningTestDeps()
+			_, err := readSigningPlanArtifact(d, path)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("readSigningPlanArtifact() error = %v, want usage classification", err)
 			}
@@ -1026,14 +1082,14 @@ func TestSigningReconcilePlanClassifiesInvalidDevicesFileAsUsageErrorBeforeSideE
 		return signingArchiveRequirements{}, nil
 	}
 	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
-	originalFactory := sharedASCClient
-	sharedASCClient = func() (*asc.Client, error) {
+	clientFactory := func() (*asc.Client, error) {
 		t.Fatal("ASC client must not be created for an invalid devices file")
 		return nil, nil
 	}
-	t.Cleanup(func() { sharedASCClient = originalFactory })
 
-	cmd := SigningReconcilePlanCommand()
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := newSigningReconcilePlanCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--archive-path", "App.xcarchive",
@@ -1042,12 +1098,12 @@ func TestSigningReconcilePlanClassifiesInvalidDevicesFileAsUsageErrorBeforeSideE
 	}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		err := cmd.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("Run() error = %v, want usage error", err)
-		}
-	})
+	err := cmd.Run(context.Background())
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("Run() error = %v, want usage error", err)
+	}
+	stdout := depsStdout.String()
+	stderr := depsStderr.String()
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
@@ -1073,7 +1129,8 @@ func TestSigningReconcilePlanRejectsDevicesPlanPathCollisionBeforeSideEffects(t 
 	}
 	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
 
-	_, err := executeSigningReconcilePlan(context.Background(), signingReconcilePlanOptions{
+	d, _, _ := newSigningTestDeps()
+	_, err := executeSigningReconcilePlan(context.Background(), d, signingReconcilePlanOptions{
 		ArchivePath: "App.xcarchive",
 		DevicesFile: devicesPath,
 		StateDir:    stateDir,
@@ -1141,7 +1198,8 @@ func TestSigningReconcilePlanClassifiesInvalidDevicesAsUsageErrors(t *testing.T)
 			if err := os.WriteFile(devicesPath, []byte(test.body), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			cmd := SigningReconcilePlanCommand()
+			d, _, _ := newSigningTestDeps()
+			cmd := newSigningReconcilePlanCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse([]string{
 				"--archive-path", filepath.Join(t.TempDir(), "App.xcarchive"),
@@ -1150,12 +1208,10 @@ func TestSigningReconcilePlanClassifiesInvalidDevicesAsUsageErrors(t *testing.T)
 			}); err != nil {
 				t.Fatalf("Parse() error=%v", err)
 			}
-			_, _ = captureOutput(t, func() {
-				err := cmd.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("Run() error=%v, want usage classification", err)
-				}
-			})
+			err := cmd.Run(context.Background())
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("Run() error=%v, want usage classification", err)
+			}
 		})
 	}
 }
@@ -1203,7 +1259,8 @@ func TestProtectedDevicesAndPlanInputsRejectSymlinkedParents(t *testing.T) {
 	if _, err := readProtectedFile(filepath.Join(dir, "linked", "devices.json")); !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("readProtectedFile() error = %v, want rootfs.ErrSymlink", err)
 	}
-	if _, err := readSigningPlanArtifact(filepath.Join(dir, "linked", "plan.json")); !errors.Is(err, rootfs.ErrSymlink) {
+	d, _, _ := newSigningTestDeps()
+	if _, err := readSigningPlanArtifact(d, filepath.Join(dir, "linked", "plan.json")); !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("readSigningPlanArtifact() error = %v, want rootfs.ErrSymlink", err)
 	}
 }
@@ -1234,9 +1291,9 @@ func TestPreflightSigningApplySanitizesRemoteDeviceErrors(t *testing.T) {
 		return signingFetchJSONResponse(http.StatusBadRequest, `{"errors":[{"detail":"Rudrank Phone Rudrank+Phone Rudrank%20Phone SECRET-UDID SECRETUDID"}]}`)
 	})
 
-	err = preflightSigningApplySanitized(context.Background(), client, signingReconcilePlanArtifact{}, devices)
+	err = preflightSigningApplySanitized(context.Background(), time.Now, client, signingReconcilePlanArtifact{}, devices)
 	if err == nil {
-		t.Fatal("preflightSigningApplySanitized() error = nil")
+		t.Fatal("preflightSigningApplySanitized(time.Now) error = nil")
 	}
 	for _, secret := range []string{"Rudrank Phone", "Rudrank+Phone", "Rudrank%20Phone", "SECRET-UDID", "SECRETUDID"} {
 		if strings.Contains(err.Error(), secret) {
@@ -1250,7 +1307,7 @@ func TestSigningDevicesUsageErrorsDoNotLeakUntrustedPathsOrFields(t *testing.T) 
 	tests := []struct {
 		name string
 		err  error
-		call func(error) error
+		call func(*shared.Deps, error) error
 	}{
 		{
 			name: "protected read",
@@ -1265,12 +1322,12 @@ func TestSigningDevicesUsageErrorsDoNotLeakUntrustedPathsOrFields(t *testing.T) 
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, stderr := captureOutput(t, func() {
-				err := test.call(test.err)
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want usage classification", err)
-				}
-			})
+			d, _, depsStderr := newSigningTestDeps()
+			err := test.call(d, test.err)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("error = %v, want usage classification", err)
+			}
+			stderr := depsStderr.String()
 			if strings.Contains(stderr, secret) {
 				t.Fatalf("stderr leaked %q: %s", secret, stderr)
 			}
@@ -1344,7 +1401,8 @@ func TestReadSigningPlanPreservesLargeEntitlementInteger(t *testing.T) {
 	if err := writeSigningStateJSON(stateDir, "plan.json", plan, false); err != nil {
 		t.Fatal(err)
 	}
-	decoded, err := readSigningPlanArtifact(filepath.Join(stateDir, "plan.json"))
+	d, _, _ := newSigningTestDeps()
+	decoded, err := readSigningPlanArtifact(d, filepath.Join(stateDir, "plan.json"))
 	if err != nil {
 		t.Fatalf("readSigningPlanArtifact() error = %v", err)
 	}
@@ -1383,7 +1441,7 @@ func TestLoadSigningReceiptRejectsPathsOutsidePlan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := loadOrStartSigningReceiptWithUsage(plan, shared.UsageError); err == nil {
+	if _, err := loadOrStartSigningReceiptWithUsage(time.Now, plan, shared.UsageError); err == nil {
 		t.Fatal("loadOrStartSigningReceipt() error = nil, want path-binding rejection")
 	}
 	outside, err := os.ReadFile(outsideReceipt)
@@ -1493,6 +1551,30 @@ func TestWriteSigningStateJSONRejectsPlanLargerThanApplyCanRead(t *testing.T) {
 
 func newReconcileTestCertificate(t *testing.T, commonName string) (*x509.Certificate, crypto.PrivateKey) {
 	return newReconcileTestCertificateForTeam(t, commonName, "TEAM1")
+}
+
+func newReconcileTestCertificateValidBetween(t *testing.T, notBefore, notAfter time.Time) *x509.Certificate {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("rsa.GenerateKey() error = %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(123),
+		Subject:      pkix.Name{CommonName: "Distribution", OrganizationalUnit: []string{"TEAM1"}},
+		NotBefore:    notBefore,
+		NotAfter:     notAfter,
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("x509.CreateCertificate() error = %v", err)
+	}
+	certificate, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("x509.ParseCertificate() error = %v", err)
+	}
+	return certificate
 }
 
 func newReconcileTestCertificateForTeam(t *testing.T, commonName, teamID string) (*x509.Certificate, crypto.PrivateKey) {

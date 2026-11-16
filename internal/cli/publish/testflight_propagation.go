@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -52,15 +51,18 @@ func (e *postUploadBuildProcessingFailure) Diagnostic() shared.Diagnostic {
 
 func addUploadedBuildBetaGroups(
 	ctx context.Context,
+	d *shared.Deps,
 	client postUploadBuildDistributionClient,
 	buildID string,
 	groups []shared.ResolvedBetaGroup,
 	opts shared.AddBuildBetaGroupsOptions,
 ) (*shared.AddBuildBetaGroupsResult, error) {
 	return addUploadedBuildBetaGroupsWithPolicy(ctx, client, buildID, groups, opts, postUploadBuildPropagationRetryPolicy{
-		Backoffs:         postUploadBuildPropagationBackoffs,
-		Wait:             waitForPostUploadBuildPropagation,
-		DiagnosticWriter: os.Stderr,
+		Backoffs: postUploadBuildPropagationBackoffs,
+		Wait: func(ctx context.Context, delay time.Duration) error {
+			return waitForPostUploadBuildPropagation(ctx, d.After, delay)
+		},
+		DiagnosticWriter: d.IO.ErrOut,
 	})
 }
 
@@ -72,10 +74,6 @@ func addUploadedBuildBetaGroupsWithPolicy(
 	opts shared.AddBuildBetaGroupsOptions,
 	policy postUploadBuildPropagationRetryPolicy,
 ) (*shared.AddBuildBetaGroupsResult, error) {
-	if policy.Wait == nil {
-		policy.Wait = waitForPostUploadBuildPropagation
-	}
-
 	for retryIndex := 0; ; retryIndex++ {
 		result, err := shared.AddBuildBetaGroups(ctx, client, buildID, groups, opts)
 		if err == nil {
@@ -149,7 +147,7 @@ func containsExactBuildIDToken(detail, buildID string) bool {
 	return regexp.MustCompile(pattern).MatchString(detail)
 }
 
-func waitForPostUploadBuildPropagation(ctx context.Context, delay time.Duration) error {
+func waitForPostUploadBuildPropagation(ctx context.Context, after func(time.Duration) <-chan time.Time, delay time.Duration) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -157,12 +155,10 @@ func waitForPostUploadBuildPropagation(ctx context.Context, delay time.Duration)
 		return nil
 	}
 
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-timer.C:
+	case <-after(delay):
 		return nil
 	}
 }

@@ -245,7 +245,7 @@ func updateAppInfoLocalization(ctx context.Context, d *shared.Deps, p updateAppI
 	localizationID := strings.TrimSpace(p.localizationID)
 	resolvedAppID := ""
 	if localizationID == "" {
-		resolvedAppID = shared.ResolveAppID(p.appID)
+		resolvedAppID = d.ResolveAppID(p.appID)
 		if resolvedAppID == "" {
 			fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations (or set ASC_APP_ID)")
 			return shared.MissingRequiredUsageError("--app")
@@ -391,7 +391,7 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 
 	if localizationID == "" {
 		if versionIsString {
-			vid, err = resolveLocalizationsVersionString(requestCtx, d, client, shared.ResolveAppID(p.appID), vid, normalizedPlatform)
+			vid, err = resolveLocalizationsVersionString(requestCtx, d, client, d.ResolveAppID(p.appID), vid, normalizedPlatform)
 			if err != nil {
 				return fmt.Errorf("localizations update: %w", err)
 			}

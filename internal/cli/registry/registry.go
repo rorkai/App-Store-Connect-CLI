@@ -126,8 +126,8 @@ func NewCatalog(version string) *Catalog {
 func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 	catalog := &Catalog{}
 	catalog.factories = []factory{
-		commandFactory("auth", "Manage authentication for the App Store Connect API.", auth.AuthCommand),
-		commandFactory("doctor", "Diagnose authentication configuration issues.", auth.AuthDoctorCommand),
+		commandFactory("auth", "Manage authentication for the App Store Connect API.", func() *ffcli.Command { return auth.NewAuthCommand(d) }),
+		commandFactory("doctor", "Diagnose authentication configuration issues.", func() *ffcli.Command { return auth.NewAuthDoctorCommand(d) }),
 		commandFactory("web", "Apple web-session workflows, including finance report downloads.", func() *ffcli.Command {
 			return web.NewWebCommand(d)
 		}),
@@ -168,7 +168,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("ads", "Manage Apple Ads API resources.", func() *ffcli.Command {
 			return ads.NewAdsCommand(d)
 		}),
-		commandFactory("optimize", "Build cross-API optimization plans.", optimize.OptimizeCommand),
+		commandFactory("optimize", "Build cross-API optimization plans.", func() *ffcli.Command { return optimize.NewOptimizeCommand(d) }),
 		commandFactory("performance", "Access performance metrics and diagnostic logs.", func() *ffcli.Command {
 			return performance.NewPerformanceCommand(d)
 		}),
@@ -231,11 +231,13 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("build-bundles", "Manage build bundles and App Clip data.", func() *ffcli.Command {
 			return buildbundles.NewBuildBundlesCommand(d)
 		}),
-		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", publish.PublishCommand),
+		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", func() *ffcli.Command {
+			return publish.NewPublishCommand(d)
+		}),
 		commandFactory("release", "Run high-level App Store release workflows.", func() *ffcli.Command {
 			return release.NewReleaseCommand(d)
 		}),
-		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
+		commandFactory("workflow", "Run multi-step automation workflows.", func() *ffcli.Command { return workflow.NewWorkflowCommand(d) }),
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", func() *ffcli.Command {
 			return xcode.NewXcodeCommand(d)
 		}),
@@ -293,7 +295,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", func() *ffcli.Command {
 			return sandbox.NewSandboxCommand(d)
 		}),
-		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
+		commandFactory("signing", "Manage signing certificates and profiles.", func() *ffcli.Command { return signing.NewSigningCommand(d) }),
 		commandFactory("notarization", "Manage macOS notarization submissions.", func() *ffcli.Command {
 			return notarization.NewNotarizationCommand(d)
 		}),
@@ -351,7 +353,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return searchcmd.NewSearchCommand(d, catalog.All)
 		}),
 		commandFactory("snitch", "Report CLI friction as a GitHub issue.", func() *ffcli.Command {
-			return snitch.SnitchCommand(version)
+			return snitch.NewSnitchCommand(d, version)
 		}),
 		commandFactory("version", "Print version information and exit.", func() *ffcli.Command {
 			return VersionCommand(version)

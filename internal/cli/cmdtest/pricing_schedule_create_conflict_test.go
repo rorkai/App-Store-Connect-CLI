@@ -261,7 +261,7 @@ func TestPricingScheduleCreateExplainsDefaultStartDateAheadOfAppStoreConnect(t *
 	// future while the US Pacific date (2026-09-26) was accepted. The default
 	// is now the US Pacific date, so the same rejection of a defaulted date
 	// points at the local clock or an undocumented App Store Connect time zone.
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+	t.Cleanup(setRootNow(func() time.Time {
 		return time.Date(2026, time.September, 27, 0, 3, 0, 0, time.UTC)
 	}))
 	server, _ := newAppPriceScheduleCreateServer(t, http.StatusConflict, readPricingScheduleConflictFixture(t, "start_date_utc_today_future.json"))

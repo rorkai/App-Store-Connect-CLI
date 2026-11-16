@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -70,7 +69,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if strings.TrimSpace(resolvedAppID) == "" {
 				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
@@ -139,7 +138,7 @@ Examples:
 			if checkpointPath == "" {
 				checkpointPath = defaultStageCheckpointPath(resolvedAppID, trimmedVersion, trimmedBuildID, normalizedPlatform)
 			}
-			absCheckpointPath, err := filepath.Abs(checkpointPath)
+			absCheckpointPath, err := d.Abs(checkpointPath)
 			if err != nil {
 				return fmt.Errorf("release stage: resolve checkpoint path: %w", err)
 			}

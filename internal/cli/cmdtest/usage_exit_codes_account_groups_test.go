@@ -657,11 +657,13 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "signing fetch create-missing-certificate without create-missing",
 			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--create-missing-certificate"},
 			wantErr: "--create-missing-certificate requires --create-missing",
+			deps:    true,
 		},
 		{
 			name:    "signing fetch match-extensions with create-missing-certificate",
 			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--match-extensions", "--create-missing-certificate"},
 			wantErr: "--match-extensions cannot be combined with --create-missing-certificate; create the certificate with a single-bundle fetch first",
+			deps:    true,
 		},
 		{
 			name:    "testflight crashes list limit",
@@ -865,11 +867,13 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "signing fetch output given a format",
 			args:    []string{"signing", "fetch", "--output", "json"},
 			wantErr: "--output takes a path in this command, not an output format; use --format json to choose the format, or --output ./json to write to a path named json",
+			deps:    true,
 		},
 		{
 			name:    "signing resign output given a format",
 			args:    []string{"signing", "resign", "--output", "markdown"},
 			wantErr: "--output takes a path in this command, not an output format; use --format markdown to choose the format, or --output ./markdown to write to a path named markdown",
+			deps:    true,
 		},
 	}
 

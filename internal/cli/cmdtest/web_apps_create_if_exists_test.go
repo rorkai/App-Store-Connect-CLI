@@ -13,11 +13,11 @@ func TestWebAppsCreateIfExistsRejectsUnsupportedModesBeforeHTTP(t *testing.T) {
 		http.Error(w, "no HTTP expected", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	setWebAppsCreateASCClient(t, server)
+	client := webAppsCreateASCClient(t, server)
 
 	for _, value := range []string{"update", "overwrite", ""} {
 		t.Run("value="+value, func(t *testing.T) {
-			assertUsageExit(t, webAppsCreateAccessArgs("--if-exists", value), `--if-exists must be one of fail, skip (got "`+value+`")`)
+			assertUsageExitWithDeps(t, client, webAppsCreateAccessArgs("--if-exists", value), `--if-exists must be one of fail, skip (got "`+value+`")`)
 		})
 	}
 	if requests != 0 {
@@ -32,9 +32,9 @@ func TestWebAppsCreateIfExistsSkipRejectsAccessBeforeHTTP(t *testing.T) {
 		http.Error(w, "no HTTP expected", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	setWebAppsCreateASCClient(t, server)
+	client := webAppsCreateASCClient(t, server)
 
-	assertUsageExit(t, webAppsCreateAccessArgs("--if-exists", "skip", "--access", "full"), "--if-exists skip cannot be combined with --access")
+	assertUsageExitWithDeps(t, client, webAppsCreateAccessArgs("--if-exists", "skip", "--access", "full"), "--if-exists skip cannot be combined with --access")
 	if requests != 0 {
 		t.Fatalf("expected no HTTP, got %d requests", requests)
 	}

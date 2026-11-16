@@ -8,9 +8,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SigningCommand returns the signing command with subcommands.
-func SigningCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("signing", flag.ExitOnError)
+// NewSigningCommand returns the signing command with subcommands.
+func NewSigningCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("signing", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "signing",
@@ -27,14 +27,14 @@ Examples:
   asc signing sync push --bundle-id com.example.app --profile-type IOS_APP_STORE --repo git@github.com:team/certs.git
   asc signing sync pull --repo git@github.com:team/certs.git --output-dir ./signing`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SigningFetchCommand(),
-			SigningKeychainCommand(),
-			SigningReconcileCommand(),
-			SigningResignCommand(),
-			SigningRunCommand(),
-			SigningSyncCommand(),
+			newSigningFetchCommand(d),
+			newSigningKeychainCommand(d),
+			newSigningReconcileCommand(d),
+			newSigningResignCommand(d),
+			newSigningRunCommand(d),
+			newSigningSyncCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

@@ -109,7 +109,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if err := d.RequireAppForStableSelector(resolvedAppID, sourceID, "--source-subscription-id"); err != nil {
 				return err
 			}
@@ -149,7 +149,7 @@ Examples:
 
 			fmt.Fprintln(d.IO.ErrOut, "Fetching current source and target subscription prices...")
 			sourcePrices, err := fetchResolvedSubscriptionPrices(
-				ctx, d, client, sourceID, 200, "", subscriptionPricingToday(), asc.SubscriptionPlanTypeUpfront, territoryID,
+				ctx, d, client, sourceID, 200, "", subscriptionPricingToday(d), asc.SubscriptionPlanTypeUpfront, territoryID,
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing derive: fetch source prices: %w", err)
@@ -257,7 +257,7 @@ func resolveSubscriptionPriceDeriveLookupID(
 	lookupCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
-	appID := shared.ResolveAppID(appValue)
+	appID := d.ResolveAppID(appValue)
 	if err := d.RequireAppForStableSelector(appID, selector, flagName); err != nil {
 		return "", err
 	}

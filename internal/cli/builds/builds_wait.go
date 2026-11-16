@@ -74,7 +74,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			started := d.Now()
 			buildValue := strings.TrimSpace(*buildID)
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			versionValue := strings.TrimSpace(*version)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			sinceValue := strings.TrimSpace(*since)
@@ -274,7 +274,7 @@ func waitForBuildDiscovery(
 			d.Now().Sub(started).Round(time.Second),
 		)
 		return nil, false, nil
-	}, asc.PollOptions{Tolerate: asc.IsTransientWaitError})
+	}, asc.PollOptions{Tolerate: asc.IsTransientWaitError, Stderr: d.IO.ErrOut})
 }
 
 func resolveBuildForAppWait(
@@ -398,7 +398,7 @@ func waitForBuildProcessingState(
 			return buildResp, true, nil
 		}
 		return nil, false, nil
-	}, asc.PollOptions{Tolerate: asc.IsTransientWaitError})
+	}, asc.PollOptions{Tolerate: asc.IsTransientWaitError, Stderr: d.IO.ErrOut})
 
 	// Processing details are fetched after polling stops: the poller reports an
 	// expired context in place of any callback error, so a slow details lookup

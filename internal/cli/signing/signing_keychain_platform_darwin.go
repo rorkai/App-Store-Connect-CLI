@@ -10,19 +10,22 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/artifacts"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 type persistentSigningUtilityRunner func(context.Context, []byte, ...string) ([]byte, []byte, error)
 
-func platformSigningKeychainInstallDeps(lockOnSleep bool) signingKeychainInstallDeps {
-	runDeps := platformSigningRunDeps()
+func platformSigningKeychainInstallDeps(d *shared.Deps, lockOnSleep bool) signingKeychainInstallDeps {
+	runDeps := platformSigningRunDeps(d)
 	createKeychain := func(ctx context.Context, keychainPath string, password []byte) (bool, error) {
 		return createPersistentSigningKeychain(ctx, keychainPath, password, lockOnSleep)
 	}
 	return signingKeychainInstallDeps{
 		GOOS:                      "darwin",
 		SecurityAvailable:         signingRunSecurityAvailable(),
+		Now:                       d.Now,
+		Stderr:                    d.IO.ErrOut,
 		AcquireLock:               runDeps.AcquireLock,
 		CreateKeychain:            createKeychain,
 		ImportIdentity:            importPersistentSigningIdentity,

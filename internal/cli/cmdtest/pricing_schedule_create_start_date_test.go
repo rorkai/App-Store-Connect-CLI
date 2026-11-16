@@ -13,7 +13,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // scheduleCreateStartDateCapture records the manual price start date sent to
@@ -93,7 +92,7 @@ func stubAppPriceScheduleCreate(t *testing.T) *scheduleCreateStartDateCapture {
 // fixPricingClock pins the clock pricing commands use to default --start-date.
 func fixPricingClock(t *testing.T, now time.Time) {
 	t.Helper()
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time { return now }))
+	t.Cleanup(setRootNow(func() time.Time { return now }))
 }
 
 func mustParseRFC3339(t *testing.T, value string) time.Time {

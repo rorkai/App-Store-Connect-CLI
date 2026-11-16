@@ -155,7 +155,7 @@ func runMetadataKeywordsPlanLikeCommand(
 }
 
 func validateMetadataKeywordsRemoteInputs(d *shared.Deps, appID string, version string, dir string, platform string) (string, string, string, string, error) {
-	resolvedAppID := shared.ResolveAppID(appID)
+	resolvedAppID := d.ResolveAppID(appID)
 	if resolvedAppID == "" {
 		return "", "", "", "", d.UsageError("--app is required (or set ASC_APP_ID)")
 	}

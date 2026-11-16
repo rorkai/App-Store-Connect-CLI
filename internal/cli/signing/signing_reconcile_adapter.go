@@ -229,7 +229,7 @@ func ExecuteReconcilePlan(ctx context.Context, options ReconcilePlanOptions) (Re
 	if fingerprint == "" {
 		return ReconcilePlanView{}, redactedReconcileExecutionError(ReconcileExecutionErrorPlanInvalid)
 	}
-	plan, err := executeSigningReconcilePlan(ctx, signingReconcilePlanOptions{
+	plan, err := executeSigningReconcilePlan(ctx, shared.DefaultDeps(), signingReconcilePlanOptions{
 		ArchivePath: options.ArchivePath, DevicesFile: options.DevicesFile,
 		CertificateID: options.CertificateID, CertificateSHA256: fingerprint,
 		MinimumValidityDays: options.MinimumValidityDays, MaxMutations: options.MaxMutations,
@@ -317,7 +317,7 @@ func verifyReconcileCompletion(ctx context.Context, options ReconcileApplyOption
 	}
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
-	if err := verifyCurrentReconcileCertificate(requestCtx, client, plan); err != nil {
+	if err := verifyCurrentReconcileCertificate(requestCtx, time.Now, client, plan); err != nil {
 		kind := ReconcileExecutionErrorPlanDrift
 		if isRetryableReconcileFailure(err) {
 			kind = ReconcileExecutionErrorRetryable
@@ -332,7 +332,7 @@ func verifyReconcileCompletion(ctx context.Context, options ReconcileApplyOption
 	if err != nil {
 		return ReconcileReceiptView{}, ReconcileExecutionErrorPlanDrift, err
 	}
-	if err := verifyReconcileRemoteCompletion(requestCtx, client, plan, devicesFile, receipt, view); err != nil {
+	if err := verifyReconcileRemoteCompletion(requestCtx, time.Now, client, plan, devicesFile, receipt, view); err != nil {
 		kind := ReconcileExecutionErrorPlanDrift
 		if isRetryableReconcileFailure(err) {
 			kind = ReconcileExecutionErrorRetryable

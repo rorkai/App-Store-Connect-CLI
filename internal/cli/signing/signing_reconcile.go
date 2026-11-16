@@ -188,9 +188,8 @@ type signingReconcilePlanOptions struct {
 	Overwrite           bool
 }
 
-// SigningReconcileCommand returns the artifact-backed signing reconciliation group.
-func SigningReconcileCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("signing reconcile", flag.ExitOnError)
+func newSigningReconcileCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("signing reconcile", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "reconcile",
 		ShortUsage: "asc signing reconcile <subcommand> [flags]",
@@ -206,18 +205,17 @@ Examples:
   asc signing reconcile plan --archive-path .asc/artifacts/App.xcarchive --devices-file .asc/distribution/devices.json
   asc signing reconcile apply --plan .asc/distribution/signing/plan.json --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SigningReconcilePlanCommand(),
-			SigningReconcileApplyCommand(),
+			newSigningReconcilePlanCommand(d),
+			newSigningReconcileApplyCommand(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-// SigningReconcilePlanCommand returns the read-only reconcile planner.
-func SigningReconcilePlanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("signing reconcile plan", flag.ExitOnError)
+func newSigningReconcilePlanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("signing reconcile plan", flag.ExitOnError)
 	archivePath := fs.String("archive-path", "", "Xcode .xcarchive path (required)")
 	devicesFile := fs.String("devices-file", "", "Strict JSON v1 desired devices file (required)")
 	certificateID := fs.String("certificate", "", "Explicit iOS distribution certificate resource ID")
@@ -225,7 +223,7 @@ func SigningReconcilePlanCommand() *ffcli.Command {
 	maxMutations := fs.Int("max-mutations", 32, "Maximum additive remote mutations in the plan")
 	stateDir := fs.String("state-dir", defaultSigningReconcileDir, "Signing reconciliation state directory")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing plan artifact")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "plan",
@@ -239,13 +237,13 @@ and resolve it before apply.
 Example:
   asc signing reconcile plan --archive-path .asc/artifacts/App.xcarchive --devices-file .asc/distribution/devices.json --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := validateSigningReconcilePlanFlags(*archivePath, *devicesFile, *minimumValidityDays, *maxMutations, *stateDir); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %v\n", err)
 				return signingReconcilePlanUsageError(err)
 			}
-			plan, err := executeSigningReconcilePlan(ctx, signingReconcilePlanOptions{
+			plan, err := executeSigningReconcilePlan(ctx, d, signingReconcilePlanOptions{
 				ArchivePath:         *archivePath,
 				DevicesFile:         *devicesFile,
 				CertificateID:       *certificateID,
@@ -257,17 +255,16 @@ Example:
 			if err != nil {
 				return fmt.Errorf("signing reconcile plan: %w", err)
 			}
-			return printSigningReconcilePlan(plan, *output.Output, *output.Pretty)
+			return printSigningReconcilePlan(d, plan, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SigningReconcileApplyCommand returns the confirmed reconcile executor.
-func SigningReconcileApplyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("signing reconcile apply", flag.ExitOnError)
+func newSigningReconcileApplyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("signing reconcile apply", flag.ExitOnError)
 	planPath := fs.String("plan", defaultSigningReconcilePlan, "Reconciliation plan artifact")
 	confirm := fs.Bool("confirm", false, "Confirm the additive App Store Connect mutations")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "apply",
@@ -281,19 +278,19 @@ actions are reverified idempotently on retry. No delete or patch request is ever
 Example:
   asc signing reconcile apply --plan .asc/distribution/signing/plan.json --confirm --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if strings.TrimSpace(*planPath) == "" {
-				return shared.RequiredFlag("--plan")
+				return d.RequiredFlag("--plan")
 			}
-			receipt, err := executeSigningReconcileApply(ctx, *planPath)
+			receipt, err := executeSigningReconcileApply(ctx, d, *planPath)
 			if err != nil {
 				return fmt.Errorf("signing reconcile apply: %w", err)
 			}
-			return printSigningReconcileReceipt(receipt, *output.Output, *output.Pretty)
+			return printSigningReconcileReceipt(d, receipt, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -377,8 +374,8 @@ func readProtectedFileBounded(path string, limit int64) ([]byte, error) {
 	return data, nil
 }
 
-func protectedDevicesFileUsageError(err error) error {
-	rendered := shared.UsageError("invalid devices file: " + protectedInputDiagnostic(err))
+func protectedDevicesFileUsageError(d *shared.Deps, err error) error {
+	rendered := d.UsageError("invalid devices file: " + protectedInputDiagnostic(err))
 	return shared.NewErrorWithCause(rendered, err)
 }
 
@@ -399,8 +396,8 @@ func protectedInputDiagnostic(err error) string {
 	}
 }
 
-func invalidDevicesFileUsageError(err error) error {
-	rendered := shared.UsageError("invalid devices file: " + invalidDevicesFileDiagnostic(err))
+func invalidDevicesFileUsageError(d *shared.Deps, err error) error {
+	rendered := d.UsageError("invalid devices file: " + invalidDevicesFileDiagnostic(err))
 	return shared.NewErrorWithCause(rendered, err)
 }
 
@@ -584,8 +581,8 @@ func writeSigningStateJSON(stateDir, relativePath string, value any, overwrite b
 	return root.CreateNewFileAtomic(relativePath, data, 0o600)
 }
 
-func readSigningPlanArtifact(path string) (signingReconcilePlanArtifact, error) {
-	return readSigningPlanArtifactWithUsage(path, shared.UsageError)
+func readSigningPlanArtifact(d *shared.Deps, path string) (signingReconcilePlanArtifact, error) {
+	return readSigningPlanArtifactWithUsage(path, d.UsageError)
 }
 
 func readSigningPlanArtifactSilent(path string) (signingReconcilePlanArtifact, error) {
@@ -627,41 +624,41 @@ func readSigningPlanArtifactWithUsage(path string, usageError func(string) error
 	return plan, nil
 }
 
-func printSigningReconcilePlan(plan signingReconcilePlanArtifact, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printSigningReconcilePlan(d *shared.Deps, plan signingReconcilePlanArtifact, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		plan, format, pretty,
-		func() error { return renderSigningPlan(plan, false) },
-		func() error { return renderSigningPlan(plan, true) },
+		func() error { return renderSigningPlan(d.IO.Out, plan, false) },
+		func() error { return renderSigningPlan(d.IO.Out, plan, true) },
 	)
 }
 
-func printSigningReconcileReceipt(receipt signingReconcileReceipt, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printSigningReconcileReceipt(d *shared.Deps, receipt signingReconcileReceipt, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		receipt, format, pretty,
-		func() error { return renderSigningReceipt(receipt, false) },
-		func() error { return renderSigningReceipt(receipt, true) },
+		func() error { return renderSigningReceipt(d.IO.Out, receipt, false) },
+		func() error { return renderSigningReceipt(d.IO.Out, receipt, true) },
 	)
 }
 
-func renderSigningPlan(plan signingReconcilePlanArtifact, markdown bool) error {
+func renderSigningPlan(w io.Writer, plan signingReconcilePlanArtifact, markdown bool) error {
 	headers := []string{"Ready", "Plan Hash", "Targets", "Devices", "Mutations", "Blockers", "Plan Path"}
 	rows := [][]string{{fmt.Sprint(plan.Ready), plan.PlanHash, fmt.Sprint(len(plan.Targets)), fmt.Sprint(len(plan.Devices)), fmt.Sprintf("%d/%d", plan.MutationCount, plan.MaxMutations), fmt.Sprint(len(plan.Blockers)), plan.Paths.PlanPath}}
 	if markdown {
-		asc.RenderMarkdown(headers, rows)
+		asc.RenderMarkdownTo(w, headers, rows)
 		return nil
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(w, headers, rows)
 	return nil
 }
 
-func renderSigningReceipt(receipt signingReconcileReceipt, markdown bool) error {
+func renderSigningReceipt(w io.Writer, receipt signingReconcileReceipt, markdown bool) error {
 	headers := []string{"Complete", "Plan Hash", "Actions", "Receipt Path"}
 	rows := [][]string{{fmt.Sprint(receipt.Complete), receipt.PlanHash, fmt.Sprint(len(receipt.Actions)), receipt.ReceiptPath}}
 	if markdown {
-		asc.RenderMarkdown(headers, rows)
+		asc.RenderMarkdownTo(w, headers, rows)
 		return nil
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(w, headers, rows)
 	return nil
 }
 
@@ -677,4 +674,4 @@ func reconcilePaths(options signingReconcilePlanOptions) signingReconcilePaths {
 	}
 }
 
-func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
+func nowRFC3339(clock func() time.Time) string { return clock().UTC().Format(time.RFC3339) }

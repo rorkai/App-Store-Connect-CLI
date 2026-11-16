@@ -14,9 +14,9 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-// WebAppsCommand returns the detached web apps command group.
-func WebAppsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps", flag.ExitOnError)
+// newWebAppsCommand returns the detached web apps command group.
+func newWebAppsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "apps",
@@ -29,18 +29,18 @@ Use ` + "`asc web apps create`" + ` as the canonical app-creation command.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppsCreateCommand(),
-			WebAppsDeleteCommand(),
-			WebAppsAvailabilityCommand(),
-			WebAppsCompatibilityCommand(),
-			WebAppsDistributionCommand(),
-			WebAppsHistoryCommand(),
-			WebAppsTransferCommand(),
-			WebAppsDeclarationsCommand(),
-			WebAppsMedicalDeviceCommand(),
-			WebAppsTaxCategoryCommand(),
+			newWebAppsCreateCommand(d),
+			newWebAppsDeleteCommand(d),
+			newWebAppsAvailabilityCommand(d),
+			newWebAppsCompatibilityCommand(d),
+			newWebAppsDistributionCommand(d),
+			newWebAppsHistoryCommand(d),
+			newWebAppsTransferCommand(d),
+			newWebAppsDeclarationsCommand(d),
+			newWebAppsMedicalDeviceCommand(d),
+			newWebAppsTaxCategoryCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -111,8 +111,8 @@ func bundleIDPlatformForWebApp(platform string) (asc.BundleIDPlatform, error) {
 	}
 }
 
-func ensureBundleIDExists(ctx context.Context, bundleID, appName, platform string) (bool, error) {
-	client, err := shared.GetASCClient()
+func ensureBundleIDExists(ctx context.Context, d *shared.Deps, bundleID, appName, platform string) (bool, error) {
+	client, err := d.Client()
 	if err != nil {
 		return false, errors.Join(errBundleIDPreflightAuthUnavailable, err)
 	}
@@ -143,13 +143,13 @@ func ensureBundleIDExists(ctx context.Context, bundleID, appName, platform strin
 	return true, nil
 }
 
-func deleteBundleIDByIdentifier(ctx context.Context, bundleID string) error {
+func deleteBundleIDByIdentifier(ctx context.Context, d *shared.Deps, bundleID string) error {
 	bundleID = strings.TrimSpace(bundleID)
 	if bundleID == "" {
 		return nil
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return err
 	}
@@ -236,9 +236,9 @@ func formatAppNameWithSuffix(baseName, suffix string) string {
 	return baseName + sep + suffix
 }
 
-// WebAppsCreateCommand creates apps using the internal web API.
-func WebAppsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps create", flag.ExitOnError)
+// newWebAppsCreateCommand creates apps using the internal web API.
+func newWebAppsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps create", flag.ExitOnError)
 
 	name := fs.String("name", "", "App display name")
 	bundleID := fs.String("bundle-id", "", "Bundle ID (for example: com.example.app)")
@@ -258,7 +258,7 @@ func WebAppsCreateCommand() *ffcli.Command {
 	access := fs.String("access", "", "App access after create: full or limited")
 	var users shared.MultiStringFlag
 	fs.Var(&users, "user", "User ID granted Limited Access (repeatable; requires --access limited)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -315,23 +315,23 @@ Examples:
 			webTwoFactorCodeCommandEnv,
 		),
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if flagProvided(fs, "password") {
-				return shared.WithDiagnostic(shared.UsageErrorf(
+				return shared.WithDiagnostic(d.UsageErrorf(
 					"`--password` was removed in 6.0.0; run `asc web auth login --apple-id EMAIL` once and rerun without it to reuse the cached web session, or set `%s` for unattended sign-in",
 					webPasswordEnv,
 				), shared.DiagnosticInvalidInput, "--password")
 			}
-			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, webAppCreateIfExistsModes...)
+			ifExistsMode, err := d.ParseIfExistsMode(*ifExists, webAppCreateIfExistsModes...)
 			if err != nil {
 				return err
 			}
-			preference, err := twoFactorDelivery.resolve()
+			preference, err := twoFactorDelivery.resolveWith(d)
 			if err != nil {
 				return err
 			}
-			return RunAppsCreate(contextWithTwoFactorPreference(ctx, preference), AppsCreateRunOptions{
+			return RunAppsCreate(contextWithTwoFactorPreference(ctx, preference), d, AppsCreateRunOptions{
 				Name:                 *name,
 				BundleID:             *bundleID,
 				SKU:                  *sku,

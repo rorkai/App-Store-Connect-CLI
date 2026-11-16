@@ -62,7 +62,7 @@ Examples:
 				)
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			nextValue := strings.TrimSpace(*next)
 			if nextValue == "" && testerValue == "" {
 				return d.RequiredFlag("--tester-id")

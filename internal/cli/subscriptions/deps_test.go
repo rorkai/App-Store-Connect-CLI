@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"strings"
 	"testing"
 
@@ -16,7 +17,7 @@ import (
 // stderr buffer.
 func newSubscriptionsTestDeps() (*shared.Deps, *bytes.Buffer) {
 	var stderr bytes.Buffer
-	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &stderr}}, &stderr
+	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &stderr}, LookupEnv: os.LookupEnv}, &stderr
 }
 
 func TestSubscriptionsUsageErrorsWriteToDepsStderr(t *testing.T) {

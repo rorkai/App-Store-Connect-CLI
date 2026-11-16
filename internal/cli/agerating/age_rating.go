@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 
@@ -87,7 +86,7 @@ Examples:
 func newAgeRatingViewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("age-rating view", flag.ExitOnError)
 
-	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
+	appID := fs.String("app", d.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	fields := fs.String("fields", "", "Sparse fields: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
@@ -109,7 +108,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			appInfoValue := strings.TrimSpace(*appInfoID)
 			versionValue := strings.TrimSpace(*versionID)
-			appValue := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
+			appValue := strings.TrimSpace(d.ResolveAppID(strings.TrimSpace(*appID)))
 
 			if appInfoValue != "" && versionValue != "" {
 				return shared.WithDiagnostic(d.UsageError("only one of --app-info-id or --version-id is allowed"), shared.DiagnosticConflictingInput, "--version-id")
@@ -151,7 +150,7 @@ func newAgeRatingEditCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("age-rating edit", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "ageRatingDeclarations", "Age rating declaration ID (optional)")
-	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --id, --app-info-id, or --version-id is provided)")
+	appID := fs.String("app", d.Getenv("ASC_APP_ID"), "App ID (required unless --id, --app-info-id, or --version-id is provided)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	allNone := fs.Bool("all-none", false, "Set all ratings to NONE/false (safe default for apps with no objectionable content)")
@@ -225,7 +224,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			appInfoValue := strings.TrimSpace(*appInfoID)
 			versionValue := strings.TrimSpace(*versionID)
-			appValue := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
+			appValue := strings.TrimSpace(d.ResolveAppID(strings.TrimSpace(*appID)))
 
 			if idValue == "" {
 				if appInfoValue != "" && versionValue != "" {

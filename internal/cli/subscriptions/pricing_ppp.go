@@ -109,7 +109,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			if err := d.RequireAppForStableSelector(shared.ResolveAppID(*appID), subID, "--subscription-id"); err != nil {
+			if err := d.RequireAppForStableSelector(d.ResolveAppID(*appID), subID, "--subscription-id"); err != nil {
 				return err
 			}
 

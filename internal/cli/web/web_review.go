@@ -71,7 +71,7 @@ type reviewThreadEntry struct {
 	DraftMessage *webcore.ResolutionCenterDraftMessage `json:"draftMessage,omitempty"`
 }
 
-func parseSubmissionStates(stateCSV string) ([]string, error) {
+func parseSubmissionStates(d *shared.Deps, stateCSV string) ([]string, error) {
 	states := shared.SplitCSVUpper(stateCSV)
 	if len(states) == 0 {
 		return nil, nil
@@ -91,7 +91,7 @@ func parseSubmissionStates(stateCSV string) ([]string, error) {
 		filtered = append(filtered, state)
 	}
 	if len(invalid) > 0 {
-		return nil, shared.UsageErrorf("--state contains unsupported value(s): %s", strings.Join(invalid, ", "))
+		return nil, d.UsageErrorf("--state contains unsupported value(s): %s", strings.Join(invalid, ", "))
 	}
 	return filtered, nil
 }
@@ -160,15 +160,15 @@ func buildReviewListTableRows(submissions []webcore.ReviewSubmission) [][]string
 	return rows
 }
 
-func renderReviewListTable(submissions []webcore.ReviewSubmission) error {
+func renderReviewListTable(d *shared.Deps, submissions []webcore.ReviewSubmission) error {
 	headers := []string{"Submission ID", "State", "Submitted Date", "Version", "Platform"}
-	asc.RenderTable(headers, buildReviewListTableRows(submissions))
+	asc.RenderTableTo(d.IO.Out, headers, buildReviewListTableRows(submissions))
 	return nil
 }
 
-func renderReviewListMarkdown(submissions []webcore.ReviewSubmission) error {
+func renderReviewListMarkdown(d *shared.Deps, submissions []webcore.ReviewSubmission) error {
 	headers := []string{"Submission ID", "State", "Submitted Date", "Version", "Platform"}
-	asc.RenderMarkdown(headers, buildReviewListTableRows(submissions))
+	asc.RenderMarkdownTo(d.IO.Out, headers, buildReviewListTableRows(submissions))
 	return nil
 }
 
@@ -220,13 +220,13 @@ func reviewThreadsTableHeaders(drafts bool) []string {
 	return headers
 }
 
-func renderReviewThreadsTable(entries []reviewThreadEntry, drafts bool) error {
-	asc.RenderTable(reviewThreadsTableHeaders(drafts), buildReviewThreadsTableRows(entries, drafts))
+func renderReviewThreadsTable(d *shared.Deps, entries []reviewThreadEntry, drafts bool) error {
+	asc.RenderTableTo(d.IO.Out, reviewThreadsTableHeaders(drafts), buildReviewThreadsTableRows(entries, drafts))
 	return nil
 }
 
-func renderReviewThreadsMarkdown(entries []reviewThreadEntry, drafts bool) error {
-	asc.RenderMarkdown(reviewThreadsTableHeaders(drafts), buildReviewThreadsTableRows(entries, drafts))
+func renderReviewThreadsMarkdown(d *shared.Deps, entries []reviewThreadEntry, drafts bool) error {
+	asc.RenderMarkdownTo(d.IO.Out, reviewThreadsTableHeaders(drafts), buildReviewThreadsTableRows(entries, drafts))
 	return nil
 }
 
@@ -476,15 +476,15 @@ func buildReviewShowTableRows(payload reviewShowOutput) [][]string {
 	return rows
 }
 
-func renderReviewShowTable(payload reviewShowOutput) error {
+func renderReviewShowTable(d *shared.Deps, payload reviewShowOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderTable(headers, buildReviewShowTableRows(payload))
+	asc.RenderTableTo(d.IO.Out, headers, buildReviewShowTableRows(payload))
 	return nil
 }
 
-func renderReviewShowMarkdown(payload reviewShowOutput) error {
+func renderReviewShowMarkdown(d *shared.Deps, payload reviewShowOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderMarkdown(headers, buildReviewShowTableRows(payload))
+	asc.RenderMarkdownTo(d.IO.Out, headers, buildReviewShowTableRows(payload))
 	return nil
 }
 
@@ -621,14 +621,18 @@ func normalizeAttachmentFilename(attachment webcore.ReviewAttachment) string {
 // the working directory is its own trusted root. The returned prefix is the
 // root-relative output directory.
 func newDownloadRoot(outDir string) (rootfs.Root, string, error) {
+	return newDownloadRootWith(shared.DefaultDeps(), outDir)
+}
+
+func newDownloadRootWith(d *shared.Deps, outDir string) (rootfs.Root, string, error) {
 	if outDir == "" {
 		return rootfs.Root{}, "", fmt.Errorf("output directory is required")
 	}
-	absolute, err := filepath.Abs(outDir)
+	absolute, err := d.Abs(outDir)
 	if err != nil {
 		return rootfs.Root{}, "", fmt.Errorf("failed to resolve output directory %q: %w", outDir, err)
 	}
-	if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+	if cwd, cwdErr := d.Getwd(); cwdErr == nil {
 		if root, rootErr := rootfs.New(cwd); rootErr == nil {
 			if relative, relErr := filepath.Rel(root.Path(), absolute); relErr == nil {
 				if relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
@@ -754,23 +758,23 @@ const webReviewDraftMessagesTimeout = 10 * time.Minute
 
 // reviewDraftMessagesContext returns the operation-sized context used for the
 // per-thread draft reads.
-func reviewDraftMessagesContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithResolvedTimeout(shared.ContextWithoutTimeout(ctx), webReviewDraftMessagesTimeout)
+func reviewDraftMessagesContext(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return d.ResolvedTimeout(shared.ContextWithoutTimeout(ctx), webReviewDraftMessagesTimeout)
 }
 
 // reviewAppThreadsContext returns an independently bounded context for the
 // best-effort app-scoped thread lookup, so time spent there cannot expire the
 // budget the essential review requests rely on.
-func reviewAppThreadsContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+func reviewAppThreadsContext(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return d.Timeout(shared.ContextWithoutTimeout(ctx))
 }
 
 // loadAppThreads reads every resolution center thread on an app. The app-scoped
 // relationship is an undocumented web-session surface, so a failure downgrades
 // to a warning instead of failing the whole command: the submission-scoped
 // review context stays useful without it.
-func loadAppThreads(ctx context.Context, client *webcore.Client, appID string) ([]webcore.ResolutionCenterThread, string, error) {
-	threads, err := withWebSpinnerValue("Loading app resolution center threads", func() ([]webcore.ResolutionCenterThread, error) {
+func loadAppThreads(ctx context.Context, d *shared.Deps, client *webcore.Client, appID string) ([]webcore.ResolutionCenterThread, string, error) {
+	threads, err := withWebSpinnerValueWith(d, "Loading app resolution center threads", func() ([]webcore.ResolutionCenterThread, error) {
 		return client.ListResolutionCenterThreadsByApp(ctx, appID)
 	})
 	if err != nil {
@@ -778,7 +782,7 @@ func loadAppThreads(ctx context.Context, client *webcore.Client, appID string) (
 			return nil, "", err
 		}
 		warning := fmt.Sprintf("app-scoped resolution center threads unavailable: %v", err)
-		fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+		fmt.Fprintf(d.IO.ErrOut, "Warning: %s\n", warning)
 		return nil, warning, nil
 	}
 	return threads, "", nil
@@ -836,6 +840,7 @@ func buildThreadDetails(ctx context.Context, client *webcore.Client, threads []w
 
 func downloadAttachmentsForShow(
 	ctx context.Context,
+	d *shared.Deps,
 	client *webcore.Client,
 	attachments []webcore.ReviewAttachment,
 	submissionID string,
@@ -852,7 +857,7 @@ func downloadAttachmentsForShow(
 		if strings.TrimSpace(pattern) != "" {
 			matched, err := filepath.Match(pattern, attachment.FileName)
 			if err != nil {
-				return nil, nil, shared.UsageErrorf("--pattern is invalid: %v", err)
+				return nil, nil, d.UsageErrorf("--pattern is invalid: %v", err)
 			}
 			if !matched {
 				continue
@@ -863,7 +868,7 @@ func downloadAttachmentsForShow(
 	if len(selected) == 0 {
 		return []reviewAttachmentDownloadResult{}, nil, nil
 	}
-	root, prefix, err := newDownloadRoot(outDir)
+	root, prefix, err := newDownloadRootWith(d, outDir)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -917,9 +922,9 @@ func downloadAttachmentsForShow(
 	return results, failures, nil
 }
 
-// WebReviewCommand returns the detached web review command group.
-func WebReviewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review", flag.ExitOnError)
+// newWebReviewCommand returns the detached web review command group.
+func newWebReviewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "review",
@@ -943,16 +948,16 @@ Subcommands:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebReviewListCommand(),
-			WebReviewShowCommand(),
-			WebReviewThreadsCommand(),
-			WebReviewReplyCommand(),
-			WebReviewDraftsCommand(),
-			WebReviewSubscriptionsCommand(),
-			WebReviewIAPsCommand(),
-			WebReviewSandboxEntitlementsCommand(),
+			newWebReviewListCommand(d),
+			newWebReviewShowCommand(d),
+			newWebReviewThreadsCommand(d),
+			newWebReviewReplyCommand(d),
+			newWebReviewDraftsCommand(d),
+			newWebReviewSubscriptionsCommand(d),
+			newWebReviewIAPsCommand(d),
+			newWebReviewSandboxEntitlementsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -960,17 +965,17 @@ Subcommands:
 	}
 }
 
-// WebReviewReplyCommand sends a Resolution Center reply through the
+// newWebReviewReplyCommand sends a Resolution Center reply through the
 // Apple web-session API. It creates and sends one draft, then
 // verifies the resulting message with the existing read path.
-func WebReviewReplyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review reply", flag.ExitOnError)
+func newWebReviewReplyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review reply", flag.ExitOnError)
 
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	message := fs.String("message", "", "Reply message body")
 	confirm := fs.Bool("confirm", false, "Confirm sending the reply")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "reply",
@@ -991,24 +996,24 @@ Examples:
   asc web review reply --thread-id "THREAD_ID" --message "We updated the demo account." --confirm
   asc web review reply --thread-id "THREAD_ID" --message "Please retry." --confirm --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			trimmedThreadID := strings.TrimSpace(*threadID)
 			if trimmedThreadID == "" {
-				return shared.UsageError("--thread-id is required")
+				return d.UsageError("--thread-id is required")
 			}
 			messageBody := *message
 			if strings.TrimSpace(messageBody) == "" {
-				return shared.UsageError("--message must not be empty")
+				return d.UsageError("--message must not be empty")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -1016,7 +1021,7 @@ Examples:
 			client := newWebClientFn(session)
 
 			var draft *webcore.ResolutionCenterDraftMessage
-			err = withWebSpinner("Creating Resolution Center reply draft", func() error {
+			err = withWebSpinnerWith(d, "Creating Resolution Center reply draft", func() error {
 				var err error
 				draft, err = client.CreateResolutionCenterDraftMessage(requestCtx, trimmedThreadID, messageBody)
 				return err
@@ -1029,7 +1034,7 @@ Examples:
 			}
 
 			var sent *webcore.ResolutionCenterMessage
-			err = withWebSpinner("Sending Resolution Center reply", func() error {
+			err = withWebSpinnerWith(d, "Sending Resolution Center reply", func() error {
 				var err error
 				sent, err = client.SendResolutionCenterDraftMessage(requestCtx, draft.ID)
 				return err
@@ -1062,7 +1067,7 @@ Examples:
 				MessageID: strings.TrimSpace(sent.ID),
 				Verified:  true,
 			}
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return fmt.Errorf("web review reply message %s was sent and verified, but receipt output failed; do not retry automatically: %w", result.MessageID, err)
 			}
 			return nil
@@ -1092,32 +1097,32 @@ func reviewStatusPublicAPIAlternative(appID string) string {
 	return fmt.Sprintf(`Without a web session, 'asc review status --app "%s"' reports App Review state through the App Store Connect API; Resolution Center messages need a web session.`, reviewPublicAPIAppArg(appID))
 }
 
-// WebReviewListCommand lists review submissions for an app.
-func WebReviewListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review list", flag.ExitOnError)
+// newWebReviewListCommand lists review submissions for an app.
+func newWebReviewListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	stateCSV := fs.String("state", "", "Optional comma-separated state filter")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web review list --app APP_ID [--state CSV] [flags]",
 		ShortHelp:  "List app review submissions.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if trimmedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
-			states, err := parseSubmissionStates(*stateCSV)
+			states, err := parseSubmissionStates(d, *stateCSV)
 			if err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(contextWithPublicAPIAlternative(ctx, reviewSubmissionsPublicAPIAlternative(trimmedAppID)), authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(contextWithPublicAPIAlternative(ctx, reviewSubmissionsPublicAPIAlternative(trimmedAppID)), d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -1125,7 +1130,7 @@ func WebReviewListCommand() *ffcli.Command {
 			client := webcore.NewClient(session)
 
 			var submissions []webcore.ReviewSubmission
-			err = withWebSpinner("Loading review submissions", func() error {
+			err = withWebSpinnerWith(d, "Loading review submissions", func() error {
 				var err error
 				submissions, err = client.ListReviewSubmissions(requestCtx, trimmedAppID)
 				return err
@@ -1134,26 +1139,26 @@ func WebReviewListCommand() *ffcli.Command {
 				return withWebAuthHint(err, "web review list")
 			}
 			filtered := filterSubmissionsByState(submissions, states)
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				filtered,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewListTable(filtered) },
-				func() error { return renderReviewListMarkdown(filtered) },
+				func() error { return renderReviewListTable(d, filtered) },
+				func() error { return renderReviewListMarkdown(d, filtered) },
 			)
 		},
 	}
 }
 
-// WebReviewThreadsCommand lists app-scoped resolution center threads.
-func WebReviewThreadsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review threads", flag.ExitOnError)
+// newWebReviewThreadsCommand lists app-scoped resolution center threads.
+func newWebReviewThreadsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review threads", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	drafts := fs.Bool("drafts", false, "Also read each thread's unsent draft message (one extra request per thread)")
 	plainText := fs.Bool("plain-text", false, "Project draft messageBody HTML into plain text (requires --drafts)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "threads",
@@ -1172,25 +1177,25 @@ are never returned because this surface is read-only.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if trimmedAppID == "" {
 				return shared.WithDiagnostic(
-					shared.UsageError("--app is required (or set ASC_APP_ID)"),
+					d.UsageError("--app is required (or set ASC_APP_ID)"),
 					shared.DiagnosticRequiredInputMissing,
 					"--app",
 				)
 			}
 			if *plainText && !*drafts {
 				return shared.WithDiagnostic(
-					shared.UsageError("--plain-text requires --drafts"),
+					d.UsageError("--plain-text requires --drafts"),
 					shared.DiagnosticInvalidInput,
 					"--plain-text",
 				)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(contextWithPublicAPIAlternative(ctx, reviewStatusPublicAPIAlternative(trimmedAppID)), authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(contextWithPublicAPIAlternative(ctx, reviewStatusPublicAPIAlternative(trimmedAppID)), d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -1198,7 +1203,7 @@ are never returned because this surface is read-only.
 			client := webcore.NewClient(session)
 
 			var threads []webcore.ResolutionCenterThread
-			err = withWebSpinner("Loading app resolution center threads", func() error {
+			err = withWebSpinnerWith(d, "Loading app resolution center threads", func() error {
 				var err error
 				threads, err = client.ListResolutionCenterThreadsByApp(requestCtx, trimmedAppID)
 				return err
@@ -1212,8 +1217,8 @@ are never returned because this surface is read-only.
 				entries = append(entries, reviewThreadEntry{Thread: thread})
 			}
 			if *drafts {
-				draftCtx, cancelDrafts := reviewDraftMessagesContext(ctx)
-				err = withWebSpinner("Loading resolution center draft messages", func() error {
+				draftCtx, cancelDrafts := reviewDraftMessagesContext(ctx, d)
+				err = withWebSpinnerWith(d, "Loading resolution center draft messages", func() error {
 					for index := range entries {
 						draft, err := client.GetResolutionCenterDraftMessage(draftCtx, entries[index].Thread.ID, *plainText)
 						if err != nil {
@@ -1229,20 +1234,20 @@ are never returned because this surface is read-only.
 				}
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				entries,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewThreadsTable(entries, *drafts) },
-				func() error { return renderReviewThreadsMarkdown(entries, *drafts) },
+				func() error { return renderReviewThreadsTable(d, entries, *drafts) },
+				func() error { return renderReviewThreadsMarkdown(d, entries, *drafts) },
 			)
 		},
 	}
 }
 
-// WebReviewShowCommand shows a submission with full review context and downloads screenshots.
-func WebReviewShowCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review show", flag.ExitOnError)
+// newWebReviewShowCommand shows a submission with full review context and downloads screenshots.
+func newWebReviewShowCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review show", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	submissionID := fs.String("submission", "", "Review submission ID (default: latest unresolved, else latest)")
@@ -1251,7 +1256,7 @@ func WebReviewShowCommand() *ffcli.Command {
 	overwrite := fs.Bool("overwrite", false, "Overwrite existing files instead of suffixing")
 	plainText := fs.Bool("plain-text", false, "Project messageBody HTML into plain text")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "show",
@@ -1268,12 +1273,12 @@ Selection:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if trimmedAppID == "" {
 				return shared.WithDiagnostic(
-					shared.UsageError("--app is required (or set ASC_APP_ID)"),
+					d.UsageError("--app is required (or set ASC_APP_ID)"),
 					shared.DiagnosticRequiredInputMissing,
 					"--app",
 				)
@@ -1282,14 +1287,14 @@ Selection:
 			if trimmedPattern != "" {
 				if _, err := filepath.Match(trimmedPattern, "sample.png"); err != nil {
 					return shared.WithDiagnostic(
-						shared.UsageErrorf("--pattern is invalid: %v", err),
+						d.UsageErrorf("--pattern is invalid: %v", err),
 						shared.DiagnosticInvalidInput,
 						"--pattern",
 					)
 				}
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(contextWithPublicAPIAlternative(ctx, reviewStatusPublicAPIAlternative(trimmedAppID)), authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(contextWithPublicAPIAlternative(ctx, reviewStatusPublicAPIAlternative(trimmedAppID)), d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -1297,7 +1302,7 @@ Selection:
 			client := webcore.NewClient(session)
 
 			var submissions []webcore.ReviewSubmission
-			err = withWebSpinner("Loading review submissions", func() error {
+			err = withWebSpinnerWith(d, "Loading review submissions", func() error {
 				var err error
 				submissions, err = client.ListReviewSubmissions(requestCtx, trimmedAppID)
 				return err
@@ -1310,8 +1315,8 @@ Selection:
 				return err
 			}
 			if selectedSubmission == nil {
-				appThreadsCtx, cancelAppThreads := reviewAppThreadsContext(ctx)
-				appThreads, appThreadsWarning, err := loadAppThreads(appThreadsCtx, client, trimmedAppID)
+				appThreadsCtx, cancelAppThreads := reviewAppThreadsContext(ctx, d)
+				appThreads, appThreadsWarning, err := loadAppThreads(appThreadsCtx, d, client, trimmedAppID)
 				cancelAppThreads()
 				if err != nil {
 					return withWebAuthHint(err, "web review show")
@@ -1322,12 +1327,12 @@ Selection:
 					AppThreads:        appThreads,
 					AppThreadsWarning: appThreadsWarning,
 				}
-				return shared.PrintOutputWithRenderers(
+				return d.PrintOutputWithRenderers(
 					payload,
 					*output.Output,
 					*output.Pretty,
-					func() error { return renderReviewShowTable(payload) },
-					func() error { return renderReviewShowMarkdown(payload) },
+					func() error { return renderReviewShowTable(d, payload) },
+					func() error { return renderReviewShowMarkdown(d, payload) },
 				)
 			}
 
@@ -1336,7 +1341,7 @@ Selection:
 				threadDetails      []reviewThreadDetails
 				attachmentsWithURL []webcore.ReviewAttachment
 			)
-			err = withWebSpinner("Loading review details and attachments", func() error {
+			err = withWebSpinnerWith(d, "Loading review details and attachments", func() error {
 				var err error
 				items, err = client.ListReviewSubmissionItems(requestCtx, selectedSubmission.ID)
 				if err != nil {
@@ -1358,10 +1363,11 @@ Selection:
 				downloads        []reviewAttachmentDownloadResult
 				downloadFailures []string
 			)
-			err = withWebSpinner("Downloading review attachments", func() error {
+			err = withWebSpinnerWith(d, "Downloading review attachments", func() error {
 				var err error
 				downloads, downloadFailures, err = downloadAttachmentsForShow(
 					requestCtx,
+					d,
 					client,
 					attachmentsWithURL,
 					selectedSubmission.ID,
@@ -1375,8 +1381,8 @@ Selection:
 				return err
 			}
 
-			appThreadsCtx, cancelAppThreads := reviewAppThreadsContext(ctx)
-			appThreads, appThreadsWarning, err := loadAppThreads(appThreadsCtx, client, trimmedAppID)
+			appThreadsCtx, cancelAppThreads := reviewAppThreadsContext(ctx, d)
+			appThreads, appThreadsWarning, err := loadAppThreads(appThreadsCtx, d, client, trimmedAppID)
 			cancelAppThreads()
 			if err != nil {
 				return withWebAuthHint(err, "web review show")
@@ -1399,12 +1405,12 @@ Selection:
 				payload.OutputDirectory = ""
 			}
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewShowTable(payload) },
-				func() error { return renderReviewShowMarkdown(payload) },
+				func() error { return renderReviewShowTable(d, payload) },
+				func() error { return renderReviewShowMarkdown(d, payload) },
 			); err != nil {
 				return err
 			}

@@ -184,9 +184,7 @@ func TestExecuteReconcilePlanCollapsesOperationalCanaryWithoutOutput(t *testing.
 		return signingArchiveRequirements{TeamID: "TEAM1", Targets: []signingTarget{{Kind: "application", BundleID: "com.example.app"}}}, nil
 	}
 	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
-	originalFactory := sharedASCClient
-	sharedASCClient = func() (*asc.Client, error) { return nil, errors.New(providerDetail) }
-	t.Cleanup(func() { sharedASCClient = originalFactory })
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, errors.New(providerDetail) }))
 
 	stdout, stderr := captureOutput(t, func() {
 		_, err := ExecuteReconcilePlan(context.Background(), ReconcilePlanOptions{
@@ -219,12 +217,10 @@ func TestExecuteReconcilePlanClassifiesTerminalArchiveFailureAsPlanInvalid(t *te
 	}
 	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
 	authCalls := 0
-	originalFactory := sharedASCClient
-	sharedASCClient = func() (*asc.Client, error) {
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
 		authCalls++
 		return nil, errors.New("auth must not be reached")
-	}
-	t.Cleanup(func() { sharedASCClient = originalFactory })
+	}))
 
 	_, err := ExecuteReconcilePlan(context.Background(), ReconcilePlanOptions{
 		ArchivePath: "App.xcarchive", DevicesFile: devicesPath, CertificateSHA256: strings.Repeat("a", 64),
@@ -422,11 +418,11 @@ func TestExecuteReconcileApplySilentlyClassifiesExistingReceiptConflictAsDrift(t
 func TestSigningReconcileCLIKeepsDetailedUsageDiagnostic(t *testing.T) {
 	canary := "PUBLIC-CLI-PLAN-CANARY"
 	path := filepath.Join(t.TempDir(), canary+".json")
-	stdout, stderr := captureOutput(t, func() {
-		if _, err := executeSigningReconcileApply(context.Background(), path); err == nil {
-			t.Fatal("public executor unexpectedly succeeded")
-		}
-	})
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	if _, err := executeSigningReconcileApply(context.Background(), d, path); err == nil {
+		t.Fatal("public executor unexpectedly succeeded")
+	}
+	stdout, stderr := depsStdout.String(), depsStderr.String()
 	if stdout != "" || !strings.Contains(stderr, canary) {
 		t.Fatalf("public CLI diagnostic changed: stdout=%q stderr=%q", stdout, stderr)
 	}
@@ -541,12 +537,10 @@ func TestReconcilePlanViewExposesCertificateWithoutProtectedInputs(t *testing.T)
 
 func TestExecuteReconcilePlanRequiresCertificateSHA256BeforeAuth(t *testing.T) {
 	authCalls := 0
-	originalFactory := sharedASCClient
-	sharedASCClient = func() (*asc.Client, error) {
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
 		authCalls++
 		return nil, errors.New("auth must not be reached")
-	}
-	t.Cleanup(func() { sharedASCClient = originalFactory })
+	}))
 
 	_, err := ExecuteReconcilePlan(context.Background(), ReconcilePlanOptions{
 		ArchivePath: "App.xcarchive", DevicesFile: "devices.json",
@@ -648,7 +642,7 @@ func TestFetchVerifiedProfileContentRejectsResponseResourceIDDifferentFromReques
 		Certificate:         &signingCertificateRef{ID: "cert-1", SHA256: strings.Repeat("a", 64)},
 	}
 	_, _, err := fetchVerifiedProfileContent(
-		context.Background(), client, "profile-planned", plan, signingDevicesFile{}, signingTarget{BundleID: "com.example.app"},
+		context.Background(), time.Now, client, "profile-planned", plan, signingDevicesFile{}, signingTarget{BundleID: "com.example.app"},
 	)
 	if err == nil || !strings.Contains(err.Error(), "returned resource ID") {
 		t.Fatalf("mismatched profile response error=%v", err)

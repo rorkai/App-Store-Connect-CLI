@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
 )
 
@@ -31,7 +30,7 @@ func TestWebAppsCreateAccessValidationFailsBeforeHTTP(t *testing.T) {
 		http.Error(w, "no HTTP expected", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	setWebAppsCreateASCClient(t, server)
+	client := webAppsCreateASCClient(t, server)
 
 	tests := []struct {
 		name    string
@@ -47,7 +46,7 @@ func TestWebAppsCreateAccessValidationFailsBeforeHTTP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assertUsageExit(t, tt.args, tt.wantErr)
+			assertUsageExitWithDeps(t, client, tt.args, tt.wantErr)
 		})
 	}
 	if requests != 0 {
@@ -74,9 +73,9 @@ func TestWebAppsCreateUnknownUserFailsBeforeCreate(t *testing.T) {
 		fixture.Respond(w, "unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
 	defer server.Close()
-	setWebAppsCreateASCClient(t, server)
+	client := webAppsCreateASCClient(t, server)
 
-	assertUsageExit(t, webAppsCreateAccessArgs(
+	assertUsageExitWithDeps(t, client, webAppsCreateAccessArgs(
 		"--access", "limited",
 		"--user", "missing-user",
 	), `unknown user ID "missing-user"`)
@@ -107,9 +106,9 @@ func TestWebAppsCreateAllAppsVisibleUserFailsBeforeCreate(t *testing.T) {
 		fixture.Respond(w, "unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
 	defer server.Close()
-	setWebAppsCreateASCClient(t, server)
+	client := webAppsCreateASCClient(t, server)
 
-	assertUsageExit(t, webAppsCreateAccessArgs(
+	assertUsageExitWithDeps(t, client, webAppsCreateAccessArgs(
 		"--access", "limited",
 		"--user", "full-user",
 	), `user ID "full-user" has access to all apps`)
@@ -122,7 +121,7 @@ func TestWebAppsCreateAllAppsVisibleUserFailsBeforeCreate(t *testing.T) {
 	}
 }
 
-func setWebAppsCreateASCClient(t *testing.T, server *httptest.Server) {
+func webAppsCreateASCClient(t *testing.T, server *httptest.Server) func() (*asc.Client, error) {
 	t.Helper()
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
@@ -148,7 +147,7 @@ func setWebAppsCreateASCClient(t *testing.T, server *httptest.Server) {
 	if err != nil {
 		t.Fatalf("create test client: %v", err)
 	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	return func() (*asc.Client, error) {
 		return client, nil
-	}))
+	}
 }

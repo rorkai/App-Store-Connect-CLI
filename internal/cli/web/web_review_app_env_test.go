@@ -11,6 +11,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -20,20 +21,20 @@ import (
 // list` and the other app-scoped commands.
 var webReviewAppScopedCommands = []struct {
 	name string
-	cmd  func() *ffcli.Command
+	cmd  func(*shared.Deps) *ffcli.Command
 	args []string
 }{
-	{name: "list", cmd: WebReviewListCommand},
-	{name: "threads", cmd: WebReviewThreadsCommand},
-	{name: "show", cmd: WebReviewShowCommand},
-	{name: "drafts create", cmd: WebReviewDraftCreateCommand, args: []string{"--thread-id", "thread-1", "--message", "Updated the demo account.", "--confirm"}},
-	{name: "drafts update", cmd: WebReviewDraftUpdateCommand, args: []string{"--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "Updated the demo account.", "--confirm"}},
-	{name: "drafts delete", cmd: WebReviewDraftDeleteCommand, args: []string{"--thread-id", "thread-1", "--draft-id", "draft-1", "--confirm"}},
-	{name: "subscriptions attach", cmd: WebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1", "--confirm"}},
-	{name: "subscriptions attach-group", cmd: WebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1", "--confirm"}},
-	{name: "subscriptions remove", cmd: WebReviewSubscriptionsRemoveCommand, args: []string{"--subscription-id", "sub-1", "--confirm"}},
-	{name: "subscriptions remove-group", cmd: WebReviewSubscriptionsRemoveGroupCommand, args: []string{"--group-id", "group-1", "--confirm"}},
-	{name: "iaps attach", cmd: WebReviewIAPsAttachCommand, args: []string{"--iap-id", "iap-1", "--confirm"}},
+	{name: "list", cmd: newWebReviewListCommand},
+	{name: "threads", cmd: newWebReviewThreadsCommand},
+	{name: "show", cmd: newWebReviewShowCommand},
+	{name: "drafts create", cmd: newWebReviewDraftCreateCommand, args: []string{"--thread-id", "thread-1", "--message", "Updated the demo account.", "--confirm"}},
+	{name: "drafts update", cmd: newWebReviewDraftUpdateCommand, args: []string{"--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "Updated the demo account.", "--confirm"}},
+	{name: "drafts delete", cmd: newWebReviewDraftDeleteCommand, args: []string{"--thread-id", "thread-1", "--draft-id", "draft-1", "--confirm"}},
+	{name: "subscriptions attach", cmd: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1", "--confirm"}},
+	{name: "subscriptions attach-group", cmd: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1", "--confirm"}},
+	{name: "subscriptions remove", cmd: newWebReviewSubscriptionsRemoveCommand, args: []string{"--subscription-id", "sub-1", "--confirm"}},
+	{name: "subscriptions remove-group", cmd: newWebReviewSubscriptionsRemoveGroupCommand, args: []string{"--group-id", "group-1", "--confirm"}},
+	{name: "iaps attach", cmd: newWebReviewIAPsAttachCommand, args: []string{"--iap-id", "iap-1", "--confirm"}},
 }
 
 // stubWebReviewAppScopedSession records the path of every web request and
@@ -41,7 +42,6 @@ var webReviewAppScopedCommands = []struct {
 // without any network access.
 func stubWebReviewAppScopedSession(t *testing.T) *[]string {
 	t.Helper()
-	_ = stubWebProgressLabels(t)
 
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = origResolveSession })
@@ -71,12 +71,14 @@ func TestWebReviewAppScopedCommandsResolveAppFromEnv(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "123456789")
 			paths := stubWebReviewAppScopedSession(t)
 
-			cmd := test.cmd()
+			d, depsStdout, depsStderr := newWebTestDeps()
+
+			cmd := test.cmd(d)
 			if err := cmd.FlagSet.Parse(append([]string{"--output", "json"}, test.args...)); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 			var runErr error
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				runErr = cmd.Exec(context.Background(), nil)
 			})
 
@@ -96,11 +98,13 @@ func TestWebReviewAppScopedCommandsExplicitAppWinsOverEnv(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "999999999")
 			paths := stubWebReviewAppScopedSession(t)
 
-			cmd := test.cmd()
+			d, depsStdout, depsStderr := newWebTestDeps()
+
+			cmd := test.cmd(d)
 			if err := cmd.FlagSet.Parse(append([]string{"--app", "123456789", "--output", "json"}, test.args...)); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, _ = captureOutput(t, func() {
+			_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 				_ = cmd.Exec(context.Background(), nil)
 			})
 
@@ -117,12 +121,14 @@ func TestWebReviewAppScopedCommandsMissingAppNamesEnvFallback(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 			paths := stubWebReviewAppScopedSession(t)
 
-			cmd := test.cmd()
+			d, depsStdout, depsStderr := newWebTestDeps()
+
+			cmd := test.cmd(d)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				runErr = cmd.Exec(context.Background(), nil)
 			})
 
@@ -142,7 +148,8 @@ func TestWebReviewAppScopedCommandsMissingAppNamesEnvFallback(t *testing.T) {
 func TestWebReviewAppScopedCommandsHelpNamesEnvFallback(t *testing.T) {
 	for _, test := range webReviewAppScopedCommands {
 		t.Run(test.name, func(t *testing.T) {
-			appFlag := test.cmd().FlagSet.Lookup("app")
+			d, _, _ := newWebTestDeps()
+			appFlag := test.cmd(d).FlagSet.Lookup("app")
 			if appFlag == nil {
 				t.Fatal("expected an --app flag")
 			}

@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestSubscriptionsPricingPPPValidationErrors(t *testing.T) {
@@ -235,7 +233,7 @@ func TestSubscriptionsPricingPPPTerritorySelection(t *testing.T) {
 	} {
 		t.Run(test.selection+"/"+test.start, func(t *testing.T) {
 			setupAuth(t)
-			restore := shared.SetPricingNowForTesting(func() time.Time { return time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC) })
+			restore := setRootNow(func() time.Time { return time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC) })
 			defer restore()
 			priceReads := 0
 			posts := []string{}

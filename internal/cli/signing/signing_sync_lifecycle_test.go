@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // lifecycleAPI is an in-memory App Store Connect fake for profile lifecycle
@@ -139,6 +138,7 @@ func TestResolveSigningAssetsForceForNewDevicesIsNoOpWhenDeviceSetUnchanged(t *t
 	beforeCreateCalls := 0
 
 	profile, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -183,6 +183,7 @@ func TestResolveSigningAssetsForceForNewDevicesRecreatesProfileWithSameName(t *t
 	progress := &signingAssetsProgress{}
 	var events []string
 	options := signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -242,6 +243,7 @@ func TestResolveSigningAssetsForceForNewDevicesUsesExplicitDevices(t *testing.T)
 
 	progress := &signingAssetsProgress{}
 	_, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -273,6 +275,7 @@ func TestResolveSigningAssetsIncludeMacAddsOnlyAppleSiliconMacs(t *testing.T) {
 	)
 	progress := &signingAssetsProgress{}
 	_, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -296,6 +299,7 @@ func TestResolveSigningAssetsForceForNewDevicesFailsBeforeMutationWithoutEnabled
 	api.bundleProfiles = activeDevelopmentProfile
 	api.devices = lifecycleDevicesJSON([4]string{"device-tv", "UDIDTV", "APPLE_TV", "ENABLED"})
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -318,6 +322,7 @@ func TestResolveSigningAssetsForceForNewDevicesDeleteFailureStopsBeforeCreate(t 
 	api.deleteStatus = http.StatusInternalServerError
 	progress := &signingAssetsProgress{}
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -338,15 +343,8 @@ func TestResolveSigningAssetsForceForNewDevicesDeleteFailureStopsBeforeCreate(t 
 	}
 }
 
-func withSigningFetchNow(t *testing.T, now time.Time) {
-	t.Helper()
-	previous := signingFetchNowFn
-	signingFetchNowFn = func() time.Time { return now }
-	t.Cleanup(func() { signingFetchNowFn = previous })
-}
-
 func TestResolveSigningAssetsRenewExpiredRecreatesLatestExpiredProfile(t *testing.T) {
-	withSigningFetchNow(t, time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC))
+	clock := func() time.Time { return time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC) }
 	api := newLifecycleAPI(t)
 	api.certificates = `{"data":[{"type":"certificates","id":"cert-dist","attributes":{"serialNumber":"serial-dist","certificateType":"IOS_DISTRIBUTION","activated":true,"expirationDate":"2100-01-01T00:00:00Z"}}]}`
 	api.bundleProfiles = `{"data":[
@@ -358,6 +356,7 @@ func TestResolveSigningAssetsRenewExpiredRecreatesLatestExpiredProfile(t *testin
 	progress := &signingAssetsProgress{}
 
 	profile, certificates, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                clock,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_STORE",
@@ -397,7 +396,7 @@ func TestResolveSigningAssetsRenewExpiredRecreatesLatestExpiredProfile(t *testin
 }
 
 func TestResolveSigningAssetsRenewExpiredIsNoOpWhenActiveProfileExists(t *testing.T) {
-	withSigningFetchNow(t, time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC))
+	clock := func() time.Time { return time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC) }
 	api := newLifecycleAPI(t)
 	api.profileCerts = `{"data":[{"type":"certificates","id":"cert-dist","attributes":{"certificateType":"IOS_DISTRIBUTION","expirationDate":"2100-01-01T00:00:00Z"}}]}`
 	api.bundleProfiles = `{"data":[
@@ -406,6 +405,7 @@ func TestResolveSigningAssetsRenewExpiredIsNoOpWhenActiveProfileExists(t *testin
 	]}`
 	progress := &signingAssetsProgress{}
 	profile, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                clock,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_STORE",
@@ -427,6 +427,7 @@ func TestResolveSigningAssetsRenewExpiredWithoutProfilesKeepsMissingProfileError
 	api := newLifecycleAPI(t)
 	api.bundleProfiles = `{"data":[]}`
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_STORE",
@@ -442,7 +443,7 @@ func TestResolveSigningAssetsRenewExpiredWithoutProfilesKeepsMissingProfileError
 }
 
 func TestResolveSigningAssetsRenewExpiredDevelopmentReusesEnabledDevices(t *testing.T) {
-	withSigningFetchNow(t, time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC))
+	clock := func() time.Time { return time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC) }
 	api := newLifecycleAPI(t)
 	api.bundleProfiles = `{"data":[{"type":"profiles","id":"profile-expired","attributes":{"name":"Dev","profileType":"IOS_APP_DEVELOPMENT","profileState":"ACTIVE","expirationDate":"2026-09-01T00:00:00Z"}}]}`
 	api.profileDevices["profile-expired"] = lifecycleDevicesJSON(
@@ -452,6 +453,7 @@ func TestResolveSigningAssetsRenewExpiredDevelopmentReusesEnabledDevices(t *test
 	)
 	progress := &signingAssetsProgress{}
 	_, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                clock,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -505,11 +507,13 @@ func TestSigningSyncPushLifecycleFlagValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(signingSyncPasswordEnvVar, "repository-password")
 			clientCalls := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				clientCalls++
 				return nil, errors.New("client must not be created")
-			}))
-			cmd := syncPushCommand()
+			}
+			d, depsStdout, depsStderr := newSigningTestDeps()
+			d.Client = clientFactory
+			cmd := syncPushCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			args := []string{"--bundle-id", "com.example.app"}
 			if !strings.Contains(strings.Join(tt.args, " "), "--storage") {
@@ -517,12 +521,12 @@ func TestSigningSyncPushLifecycleFlagValidation(t *testing.T) {
 			}
 			args = append(args, tt.args...)
 			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := cmd.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = cmd.Run(context.Background())
-			})
+			if err := cmd.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr = cmd.Run(context.Background())
+			stdout := depsStdout.String()
+			stderr := depsStderr.String()
 			if runErr == nil || !errors.Is(runErr, flag.ErrHelp) || runErr.Error() != tt.want {
 				t.Fatalf("error = %v, want usage error %q", runErr, tt.want)
 			}
@@ -539,25 +543,25 @@ func TestSigningSyncPushLifecycleFlagValidation(t *testing.T) {
 func TestSigningSyncPushAcceptsDeviceWithForceForNewDevices(t *testing.T) {
 	t.Setenv(signingSyncPasswordEnvVar, "repository-password")
 	clientCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	clientFactory := func() (*asc.Client, error) {
 		clientCalls++
 		return nil, errors.New("client reached")
-	}))
-	cmd := syncPushCommand()
+	}
+	d, _, _ := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := syncPushCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	var runErr error
-	_, _ = captureOutput(t, func() {
-		if err := cmd.Parse([]string{
-			"--bundle-id", "com.example.app",
-			"--profile-type", "IOS_APP_DEVELOPMENT",
-			"--repo", "git@github.com:team/certs.git",
-			"--force-for-new-devices",
-			"--device", "DEVICE1",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = cmd.Run(context.Background())
-	})
+	if err := cmd.Parse([]string{
+		"--bundle-id", "com.example.app",
+		"--profile-type", "IOS_APP_DEVELOPMENT",
+		"--repo", "git@github.com:team/certs.git",
+		"--force-for-new-devices",
+		"--device", "DEVICE1",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr = cmd.Run(context.Background())
 	if runErr == nil || errors.Is(runErr, flag.ErrHelp) || !strings.Contains(runErr.Error(), "client reached") {
 		t.Fatalf("error = %v, want validation to pass through to the client", runErr)
 	}
@@ -567,7 +571,7 @@ func TestSigningSyncPushAcceptsDeviceWithForceForNewDevices(t *testing.T) {
 }
 
 func TestResolveSigningAssetsRenewExpiredKeepsCertificateMismatchErrorWhenActiveProfileExists(t *testing.T) {
-	withSigningFetchNow(t, time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC))
+	clock := func() time.Time { return time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC) }
 	api := newLifecycleAPI(t)
 	api.profileCerts = `{"data":[{"type":"certificates","id":"cert-other","attributes":{"certificateType":"IOS_DISTRIBUTION","expirationDate":"2100-01-01T00:00:00Z"}}]}`
 	api.bundleProfiles = `{"data":[
@@ -575,6 +579,7 @@ func TestResolveSigningAssetsRenewExpiredKeepsCertificateMismatchErrorWhenActive
 		{"type":"profiles","id":"profile-current","attributes":{"name":"Store","profileType":"IOS_APP_STORE","profileState":"ACTIVE","expirationDate":"2027-01-01T00:00:00Z"}}
 	]}`
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                clock,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_STORE",
@@ -600,6 +605,7 @@ func TestResolveSigningAssetsReplacementCreateFailureNamesRecovery(t *testing.T)
 	api.createStatus = http.StatusConflict
 	progress := &signingAssetsProgress{}
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -621,6 +627,7 @@ func TestResolveSigningAssetsReplacementUsesSeparateRequestContexts(t *testing.T
 	api.profileDevices["profile-old"] = lifecycleDevicesJSON([4]string{"device-1", "UDID1", "IPHONE", "ENABLED"})
 	contexts := 0
 	_, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",

@@ -41,14 +41,10 @@ func bindWebSessionFlagsWithSessionFromEnv(fs *flag.FlagSet) webSessionFlags {
 	return flags
 }
 
-// newWebRequestContext returns the bounded context for work that runs after web
-// authentication finished. It is derived from the untimed parent context, so the
-// timeout budget covers the request instead of the human in front of the prompt,
-// while parent cancellation (Ctrl-C) still propagates.
-func newWebRequestContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return newWebRequestContextWith(ctx, shared.DefaultDeps())
-}
-
+// newWebRequestContextWith returns the bounded context for work that runs after
+// web authentication finished. It is derived from the untimed parent context, so
+// the timeout budget covers the request instead of the human in front of the
+// prompt, while parent cancellation (Ctrl-C) still propagates.
 func newWebRequestContextWith(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
 	return d.Timeout(shared.ContextWithoutTimeout(ctx))
 }
@@ -66,8 +62,7 @@ func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*w
 }
 
 // resolveWebSessionForCommandWith is resolveWebSessionForCommand on d. The
-// session itself is still resolved on the process streams: the cache lookup,
-// sign-in, password and two-factor prompts belong to the web auth commands.
+// password and two-factor prompts still read and write the terminal itself.
 func resolveWebSessionForCommandWith(ctx context.Context, d *shared.Deps, flags webSessionFlags) (*webcore.AuthSession, context.Context, context.CancelFunc, error) {
 	if flags.sessionFromEnv != nil && *flags.sessionFromEnv {
 		session, err := resolveSessionFromEnv(ctx, d, flags)

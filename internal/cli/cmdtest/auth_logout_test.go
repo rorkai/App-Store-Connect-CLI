@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -63,17 +61,10 @@ func TestAuthLogoutUsageErrorsRemoveNothing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			calls := stubAuthLogoutRemovers(t)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(tt.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("run error = %v, want flag.ErrHelp", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, tt.args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("run error = %v, want flag.ErrHelp", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)

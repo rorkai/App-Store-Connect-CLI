@@ -40,28 +40,28 @@ func buildReviewIAPMutationRows(payload reviewIAPMutationOutput) [][]string {
 	}
 }
 
-func renderReviewIAPMutationTable(payload reviewIAPMutationOutput) error {
+func renderReviewIAPMutationTable(d *shared.Deps, payload reviewIAPMutationOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderTable(headers, buildReviewIAPMutationRows(payload))
+	asc.RenderTableTo(d.IO.Out, headers, buildReviewIAPMutationRows(payload))
 	return nil
 }
 
-func renderReviewIAPMutationMarkdown(payload reviewIAPMutationOutput) error {
+func renderReviewIAPMutationMarkdown(d *shared.Deps, payload reviewIAPMutationOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderMarkdown(headers, buildReviewIAPMutationRows(payload))
+	asc.RenderMarkdownTo(d.IO.Out, headers, buildReviewIAPMutationRows(payload))
 	return nil
 }
 
-func validateReviewIAPAttachInputs(appID, iapID string, confirm bool) error {
+func validateReviewIAPAttachInputs(d *shared.Deps, appID, iapID string, confirm bool) error {
 	switch {
 	case strings.TrimSpace(appID) == "":
-		return shared.UsageError("--app is required (or set ASC_APP_ID)")
+		return d.UsageError("--app is required (or set ASC_APP_ID)")
 	case shared.SelectorNeedsLookup(appID):
-		return shared.UsageError("--app must be a numeric App Store Connect app ID")
+		return d.UsageError("--app must be a numeric App Store Connect app ID")
 	case strings.TrimSpace(iapID) == "":
-		return shared.UsageError("--iap-id is required")
+		return d.UsageError("--iap-id is required")
 	case !confirm:
-		return shared.RequireConfirm(confirm)
+		return d.RequireConfirm(confirm)
 	default:
 		return nil
 	}
@@ -90,7 +90,7 @@ func reviewIAPAmbiguousSelectionError(err error) *shared.AmbiguousSelectionError
 	}
 }
 
-func selectReviewIAPSubmission(submissions []webcore.ReviewSubmission, selectedID string) (webcore.ReviewSubmission, error) {
+func selectReviewIAPSubmission(d *shared.Deps, submissions []webcore.ReviewSubmission, selectedID string) (webcore.ReviewSubmission, error) {
 	var candidates []webcore.ReviewSubmission
 	for _, submission := range submissions {
 		if selectedID != "" && submission.ID != selectedID {
@@ -104,7 +104,7 @@ func selectReviewIAPSubmission(submissions []webcore.ReviewSubmission, selectedI
 		return candidates[0], nil
 	}
 	if selectedID != "" {
-		return webcore.ReviewSubmission{}, shared.UsageError("--submission must identify a READY_FOR_REVIEW draft under --app")
+		return webcore.ReviewSubmission{}, d.UsageError("--submission must identify a READY_FOR_REVIEW draft under --app")
 	}
 	if len(candidates) == 0 {
 		return webcore.ReviewSubmission{}, fmt.Errorf("no READY_FOR_REVIEW draft under this app; create a review submission before attaching the IAP")
@@ -113,7 +113,7 @@ func selectReviewIAPSubmission(submissions []webcore.ReviewSubmission, selectedI
 	for _, candidate := range candidates {
 		ids = append(ids, candidate.ID)
 	}
-	return webcore.ReviewSubmission{}, shared.UsageErrorf("multiple READY_FOR_REVIEW drafts; select one with --submission: %s", strings.Join(ids, ", "))
+	return webcore.ReviewSubmission{}, d.UsageErrorf("multiple READY_FOR_REVIEW drafts; select one with --submission: %s", strings.Join(ids, ", "))
 }
 
 func findReviewIAPItem(ctx context.Context, client *webcore.Client, submissionID, versionID string) (string, error) {
@@ -158,9 +158,9 @@ func verifyReviewIAPBelongsToApp(ctx context.Context, client reviewIAPFinder, ap
 	return iap, nil
 }
 
-// WebReviewIAPsCommand groups web operations for staging non-renewing IAPs for review.
-func WebReviewIAPsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review iaps", flag.ExitOnError)
+// newWebReviewIAPsCommand groups web operations for staging non-renewing IAPs for review.
+func newWebReviewIAPsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review iaps", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "iaps",
 		ShortUsage: "asc web review iaps <subcommand> [flags]",
@@ -172,9 +172,9 @@ This stages the IAP for review; it does not submit the draft to Apple.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebReviewIAPsAttachCommand(),
+			newWebReviewIAPsAttachCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -182,16 +182,16 @@ This stages the IAP for review; it does not submit the draft to Apple.
 	}
 }
 
-// WebReviewIAPsAttachCommand adds an IAP version to an existing review draft.
-func WebReviewIAPsAttachCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review iaps attach", flag.ExitOnError)
+// newWebReviewIAPsAttachCommand adds an IAP version to an existing review draft.
+func newWebReviewIAPsAttachCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review iaps attach", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	iapID := fs.String("iap-id", "", "Iris IAP resource ID, product ID, or exact reference name")
 	submissionID := fs.String("submission", "", "Review draft ID (required when multiple READY_FOR_REVIEW drafts exist)")
 	confirm := fs.Bool("confirm", false, "Confirm the attach operation")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attach",
@@ -214,19 +214,19 @@ expose the public numeric ASC IAP id, so that numeric id is not resolved by this
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedIAPID := strings.TrimSpace(*iapID)
 			trimmedSubmissionID := strings.TrimSpace(*submissionID)
 			if *submissionID != "" && trimmedSubmissionID == "" {
-				return shared.UsageError("--submission must not be blank")
+				return d.UsageError("--submission must not be blank")
 			}
-			if err := validateReviewIAPAttachInputs(trimmedAppID, trimmedIAPID, *confirm); err != nil {
+			if err := validateReviewIAPAttachInputs(d, trimmedAppID, trimmedIAPID, *confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -249,7 +249,7 @@ expose the public numeric ASC IAP id, so that numeric id is not resolved by this
 			if err != nil {
 				return withWebAuthHint(err, "web review iaps attach")
 			}
-			draft, err := selectReviewIAPSubmission(submissions, trimmedSubmissionID)
+			draft, err := selectReviewIAPSubmission(d, submissions, trimmedSubmissionID)
 			if err != nil {
 				return err
 			}
@@ -259,7 +259,7 @@ expose the public numeric ASC IAP id, so that numeric id is not resolved by this
 			}
 			changed := false
 			if itemID == "" {
-				createdID, createErr := withWebSpinnerValue("Adding IAP version to review draft", func() (string, error) {
+				createdID, createErr := withWebSpinnerValueWith(d, "Adding IAP version to review draft", func() (string, error) {
 					return client.CreateReviewIAPSubmissionItem(requestCtx, draft.ID, versionID)
 				})
 				if createErr != nil && !webcore.IsAlreadyExistsConflict(createErr) {
@@ -293,12 +293,12 @@ expose the public numeric ASC IAP id, so that numeric id is not resolved by this
 					SubmitWithNextAppStoreVersion: draft.AppStoreVersionForReview != nil && draft.AppStoreVersionForReview.ID != "",
 				},
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderReviewIAPMutationTable(payload) },
-				func() error { return renderReviewIAPMutationMarkdown(payload) },
+				func() error { return renderReviewIAPMutationTable(d, payload) },
+				func() error { return renderReviewIAPMutationMarkdown(d, payload) },
 			)
 		},
 	}

@@ -42,7 +42,6 @@ var (
 	revokeWebAPIKeyFn = func(ctx context.Context, client *webcore.Client, keyID, kind string) error {
 		return client.RevokeAPIKey(ctx, keyID, kind)
 	}
-	waitWebAPIKeyRetryFn = waitForWebAPIKeyRetry
 )
 
 type webAPIKeyCreateResult struct {
@@ -57,9 +56,9 @@ type webAPIKeyCreateResult struct {
 	P8Path         string   `json:"p8Path"`
 }
 
-// WebAPIKeysCommand returns the web-session API keys command group.
-func WebAPIKeysCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web api-keys", flag.ExitOnError)
+// newWebAPIKeysCommand returns the web-session API keys command group.
+func newWebAPIKeysCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web api-keys", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "api-keys",
@@ -78,13 +77,13 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAPIKeysListCommand(),
-			WebAPIKeysViewCommand(),
-			WebAPIKeysCreateCommand(),
-			WebAPIKeysCreateIndividualCommand(),
-			WebAPIKeysRevokeCommand(),
+			newWebAPIKeysListCommand(d),
+			newWebAPIKeysViewCommand(d),
+			newWebAPIKeysCreateCommand(d),
+			newWebAPIKeysCreateIndividualCommand(d),
+			newWebAPIKeysRevokeCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -92,12 +91,12 @@ Examples:
 	}
 }
 
-// WebAPIKeysListCommand lists team and individual API keys visible to the web session.
-func WebAPIKeysListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web api-keys list", flag.ExitOnError)
+// newWebAPIKeysListCommand lists team and individual API keys visible to the web session.
+func newWebAPIKeysListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web api-keys list", flag.ExitOnError)
 
 	authFlags := bindWebSessionFlagsWithSessionFromEnv(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -125,13 +124,13 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -139,7 +138,7 @@ Examples:
 			client := newWebAPIKeyClientFn(session)
 
 			var keys []webcore.APIKeyListItem
-			err = withWebSpinner("Loading App Store Connect API keys", func() error {
+			err = withWebSpinnerWith(d, "Loading App Store Connect API keys", func() error {
 				var listErr error
 				keys, listErr = listWebAPIKeysFn(requestCtx, client)
 				return listErr
@@ -155,18 +154,18 @@ Examples:
 			for _, key := range keys {
 				result.Keys = append(result.Keys, webAPIKeyListItemFromClient(key))
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAPIKeysViewCommand inspects one team API key by ID.
-func WebAPIKeysViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web api-keys view", flag.ExitOnError)
+// newWebAPIKeysViewCommand inspects one team API key by ID.
+func newWebAPIKeysViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web api-keys view", flag.ExitOnError)
 
 	keyID := fs.String("key-id", "", "API key ID")
 	authFlags := bindWebSessionFlagsWithSessionFromEnv(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -193,17 +192,17 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			keyIDValue := strings.TrimSpace(*keyID)
 			if keyIDValue == "" {
-				return shared.UsageError("--key-id is required")
+				return d.UsageError("--key-id is required")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -211,7 +210,7 @@ Examples:
 			client := newWebAPIKeyClientFn(session)
 
 			var details *webcore.APIKey
-			err = withWebSpinner("Loading App Store Connect API key", func() error {
+			err = withWebSpinnerWith(d, "Loading App Store Connect API key", func() error {
 				var getErr error
 				details, getErr = getWebAPIKeyFn(requestCtx, client, keyIDValue)
 				return getErr
@@ -224,7 +223,7 @@ Examples:
 			}
 
 			result := webAPIKeyGetResultFromClient(details)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -234,15 +233,15 @@ const (
 	webAPIKeyRevokeStatusAlreadyInactive = "already_inactive"
 )
 
-// WebAPIKeysRevokeCommand revokes one team or individual API key.
-func WebAPIKeysRevokeCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web api-keys revoke", flag.ExitOnError)
+// newWebAPIKeysRevokeCommand revokes one team or individual API key.
+func newWebAPIKeysRevokeCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web api-keys revoke", flag.ExitOnError)
 
 	keyID := fs.String("key-id", "", "API key ID")
 	kind := fs.String("type", "", "API key type: team or individual")
 	confirm := fs.Bool("confirm", false, "Confirm revoking this API key")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "revoke",
@@ -267,25 +266,25 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			resolvedKeyID := strings.TrimSpace(*keyID)
 			if resolvedKeyID == "" {
-				return shared.UsageError("--key-id is required")
+				return d.UsageError("--key-id is required")
 			}
 			resolvedKind, err := normalizeWebAPIKeyKind(*kind)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -293,7 +292,7 @@ Examples:
 			client := newWebAPIKeyClientFn(session)
 
 			var before []webcore.APIKeyListItem
-			err = withWebSpinner("Loading API key before revocation", func() error {
+			err = withWebSpinnerWith(d, "Loading API key before revocation", func() error {
 				var listErr error
 				before, listErr = listWebAPIKeysByKindFn(requestCtx, client, resolvedKind)
 				return listErr
@@ -306,7 +305,7 @@ Examples:
 				return err
 			}
 			if !selected.Active {
-				return shared.PrintOutput(&asc.WebAPIKeyRevokeResult{
+				return d.PrintOutput(&asc.WebAPIKeyRevokeResult{
 					KeyID:   resolvedKeyID,
 					Kind:    resolvedKind,
 					Changed: false,
@@ -315,7 +314,7 @@ Examples:
 				}, *output.Output, *output.Pretty)
 			}
 
-			err = withWebSpinner("Revoking App Store Connect API key", func() error {
+			err = withWebSpinnerWith(d, "Revoking App Store Connect API key", func() error {
 				return revokeWebAPIKeyFn(requestCtx, client, resolvedKeyID, resolvedKind)
 			})
 			if err != nil {
@@ -326,7 +325,7 @@ Examples:
 			}
 
 			var after []webcore.APIKeyListItem
-			err = withWebSpinner("Verifying API key revocation", func() error {
+			err = withWebSpinnerWith(d, "Verifying API key revocation", func() error {
 				var listErr error
 				after, listErr = listWebAPIKeysByKindFn(requestCtx, client, resolvedKind)
 				return listErr
@@ -345,7 +344,7 @@ Examples:
 				)
 			}
 
-			return shared.PrintOutput(&asc.WebAPIKeyRevokeResult{
+			return d.PrintOutput(&asc.WebAPIKeyRevokeResult{
 				KeyID:   resolvedKeyID,
 				Kind:    resolvedKind,
 				Changed: true,
@@ -441,15 +440,15 @@ func webAPIKeyGetResultFromClient(key *webcore.APIKey) *asc.WebAPIKeyGetResult {
 	}
 }
 
-// WebAPIKeysCreateCommand creates a team API key and saves its one-time P8.
-func WebAPIKeysCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web api-keys create", flag.ExitOnError)
+// newWebAPIKeysCreateCommand creates a team API key and saves its one-time P8.
+func newWebAPIKeysCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web api-keys create", flag.ExitOnError)
 
 	name := fs.String("name", "", "API key name")
 	role := fs.String("role", "ADMIN", "API key role")
 	outputDir := fs.String("output-dir", ".", "Directory for AuthKey_<KEY_ID>.p8")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -474,33 +473,33 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.UsageError("--name is required")
+				return d.UsageError("--name is required")
 			}
-			roleValue, err := normalizeWebAPIKeyRole(*role)
+			roleValue, err := normalizeWebAPIKeyRole(d, *role)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			outputDirValue := strings.TrimSpace(*outputDir)
 			if outputDirValue == "" {
-				return shared.UsageError("--output-dir is required")
+				return d.UsageError("--output-dir is required")
 			}
-			outputRoot, err := rootfs.New(outputDirValue)
+			outputRoot, err := rootfs.New(d.OSPath(outputDirValue))
 			if err != nil {
-				return shared.UsageErrorf("invalid --output-dir: %v", err)
+				return d.UsageErrorf("invalid --output-dir: %v", err)
 			}
 			if err := outputRoot.MkdirAll(".", 0o700); err != nil {
 				return fmt.Errorf("prepare API key output directory: %w", err)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -508,7 +507,7 @@ Examples:
 			client := newWebAPIKeyClientFn(session)
 
 			var created *webcore.APIKey
-			err = withWebSpinner("Creating App Store Connect API key", func() error {
+			err = withWebSpinnerWith(d, "Creating App Store Connect API key", func() error {
 				var createErr error
 				created, createErr = createWebAPIKeyFn(requestCtx, client, webcore.APIKeyCreateAttributes{
 					Nickname: nameValue,
@@ -536,9 +535,9 @@ Examples:
 			}
 
 			var p8 []byte
-			err = withWebSpinner("Downloading one-time API key P8", func() error {
+			err = withWebSpinnerWith(d, "Downloading one-time API key P8", func() error {
 				var downloadErr error
-				p8, downloadErr = downloadWebAPIKeyWithRetry(requestCtx, client, created.KeyID)
+				p8, downloadErr = downloadWebAPIKeyWithRetry(requestCtx, d, client, created.KeyID)
 				return downloadErr
 			})
 			if err != nil {
@@ -568,7 +567,7 @@ Examples:
 			}
 
 			var details *webcore.APIKey
-			err = withWebSpinner("Loading API key issuer ID", func() error {
+			err = withWebSpinnerWith(d, "Loading API key issuer ID", func() error {
 				var getErr error
 				details, getErr = getWebAPIKeyFn(requestCtx, client, created.KeyID)
 				return getErr
@@ -602,18 +601,18 @@ Examples:
 				KeyType:        firstNonEmpty(details.KeyType, created.KeyType, "PUBLIC_API"),
 				P8Path:         p8Path,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWebAPIKeyCreateTable(result) },
-				func() error { return renderWebAPIKeyCreateMarkdown(result) },
+				func() error { return renderWebAPIKeyCreateTable(d, result) },
+				func() error { return renderWebAPIKeyCreateMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func normalizeWebAPIKeyRole(value string) (string, error) {
+func normalizeWebAPIKeyRole(d *shared.Deps, value string) (string, error) {
 	role := strings.ToUpper(strings.TrimSpace(value))
 	if role == "" {
 		return "", fmt.Errorf("--role is required")
@@ -621,7 +620,7 @@ func normalizeWebAPIKeyRole(value string) (string, error) {
 	if !isWebAPIKeyRoleIdentifier(role) {
 		return "", fmt.Errorf("--role must be a role identifier such as ADMIN or APP_MANAGER (letters, digits, and underscores; case-insensitive)")
 	}
-	if err := classifyWebAPIKeyRole(role); err != nil {
+	if err := classifyWebAPIKeyRole(d, role); err != nil {
 		return "", err
 	}
 	return role, nil
@@ -644,7 +643,7 @@ func isWebAPIKeyRoleIdentifier(role string) bool {
 	return true
 }
 
-func classifyWebAPIKeyRole(role string) error {
+func classifyWebAPIKeyRole(d *shared.Deps, role string) error {
 	view, err := webref.Resolve("team", []string{role})
 	if err != nil {
 		return fmt.Errorf("load team API key role reference: %w", err)
@@ -659,7 +658,7 @@ func classifyWebAPIKeyRole(role string) error {
 	}
 	for _, unknown := range view.UnknownRoles {
 		if unknown == role {
-			fmt.Fprintf(os.Stderr, "Warning: --role %s is not a documented selectable team API key role; continuing so App Store Connect can accept or reject it.\n", role)
+			fmt.Fprintf(d.IO.ErrOut, "Warning: --role %s is not a documented selectable team API key role; continuing so App Store Connect can accept or reject it.\n", role)
 			return nil
 		}
 	}
@@ -678,7 +677,7 @@ func removeReservedWebAPIKeyP8(root rootfs.Root, fileName string) error {
 	return nil
 }
 
-func downloadWebAPIKeyWithRetry(ctx context.Context, client *webcore.Client, keyID string) ([]byte, error) {
+func downloadWebAPIKeyWithRetry(ctx context.Context, d *shared.Deps, client *webcore.Client, keyID string) ([]byte, error) {
 	var lastErr error
 	for attempt := 0; attempt < webAPIKeyDownloadAttempts; attempt++ {
 		p8, err := downloadWebAPIKeyFn(ctx, client, keyID)
@@ -689,20 +688,18 @@ func downloadWebAPIKeyWithRetry(ctx context.Context, client *webcore.Client, key
 		if attempt == webAPIKeyDownloadAttempts-1 || !webcore.IsAPIKeyDownloadRetryable(err) {
 			break
 		}
-		if err := waitWebAPIKeyRetryFn(ctx, time.Duration(attempt+1)*time.Second); err != nil {
+		if err := waitForWebAPIKeyRetry(ctx, d, time.Duration(attempt+1)*time.Second); err != nil {
 			return nil, err
 		}
 	}
 	return nil, lastErr
 }
 
-func waitForWebAPIKeyRetry(ctx context.Context, delay time.Duration) error {
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
+func waitForWebAPIKeyRetry(ctx context.Context, d *shared.Deps, delay time.Duration) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-timer.C:
+	case <-d.After(delay):
 		return nil
 	}
 }
@@ -738,14 +735,14 @@ func webAPIKeyCreateRows(result *webAPIKeyCreateResult) ([]string, [][]string) {
 	return headers, rows
 }
 
-func renderWebAPIKeyCreateTable(result *webAPIKeyCreateResult) error {
+func renderWebAPIKeyCreateTable(d *shared.Deps, result *webAPIKeyCreateResult) error {
 	headers, rows := webAPIKeyCreateRows(result)
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }
 
-func renderWebAPIKeyCreateMarkdown(result *webAPIKeyCreateResult) error {
+func renderWebAPIKeyCreateMarkdown(d *shared.Deps, result *webAPIKeyCreateResult) error {
 	headers, rows := webAPIKeyCreateRows(result)
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 	return nil
 }
