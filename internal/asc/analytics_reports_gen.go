@@ -2,5 +2,40 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+)
+
 // AnalyticsReportResponse is the AnalyticsReportResponse schema.
 type AnalyticsReportResponse = SingleResponse[AnalyticsReportAttributes]
+
+// GetAnalyticsReport sends GET /v1/analyticsReports/{id} (analyticsReports_getInstance).
+func (c *Client) GetAnalyticsReport(ctx context.Context, reportID string) (*AnalyticsReportResponse, error) {
+	path, err := resourcePath("/v1/analyticsReports/%s", reportID)
+	if err != nil {
+		return nil, fmt.Errorf("analytics report: %w", err)
+	}
+	return getJSON[AnalyticsReportResponse](ctx, c, readRequest{
+		Path: path,
+	})
+}
+
+// GetAnalyticsReportInstances sends GET /v1/analyticsReports/{id}/instances (analyticsReports_instances_getToManyRelated).
+func (c *Client) GetAnalyticsReportInstances(ctx context.Context, reportID string, opts ...AnalyticsReportInstancesOption) (*AnalyticsReportInstancesResponse, error) {
+	query := applyOptions(opts)
+	var path string
+	if query.nextURL == "" {
+		var err error
+		path, err = resourcePath("/v1/analyticsReports/%s/instances", reportID)
+		if err != nil {
+			return nil, fmt.Errorf("analytics report instances: %w", err)
+		}
+	}
+	return getJSON[AnalyticsReportInstancesResponse](ctx, c, readRequest{
+		Path:        path,
+		Query:       buildAnalyticsReportInstancesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "analyticsReportInstances",
+	})
+}

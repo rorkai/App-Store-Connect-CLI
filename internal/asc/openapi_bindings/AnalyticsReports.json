@@ -3,5 +3,9 @@
   "file": "analytics_reports_gen.go",
   "types": [
     "AnalyticsReportResponse"
+  ],
+  "operations": [
+    {"operation":"analyticsReports_getInstance","name":"GetAnalyticsReport","params":["reportID"],"check":"path","pathErr":"analytics report"},
+    {"operation":"analyticsReports_instances_getToManyRelated","name":"GetAnalyticsReportInstances","params":["reportID"],"check":"path","pathErr":"analytics report instances","options":"AnalyticsReportInstancesOption","query":"buildAnalyticsReportInstancesQuery","nextContext":"analyticsReportInstances"}
   ]
 }
