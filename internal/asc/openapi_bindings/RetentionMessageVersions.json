@@ -9,6 +9,7 @@
     {"data":"RetentionMessageVersionCreateData","type":"*RetentionMessageVersionCreateRelationships"}
   ],
   "operations": [
-    {"operation":"retentionMessageVersions_createInstance","name":"CreateRetentionMessageVersion","params":["messageID"],"check":"require","links":["retentionMessage"],"optional":[{"param":"placementID","link":"placement"}]}
+    {"operation":"retentionMessageVersions_createInstance","name":"CreateRetentionMessageVersion","params":["messageID"],"check":"require","links":["retentionMessage"],"optional":[{"param":"placementID","link":"placement"}]},
+    {"operation":"retentionMessageVersions_localizations_getToManyRelationship","name":"GetRetentionMessageVersionLocalizationsRelationships","params":["versionID"],"check":"require","messages":["resource ID is required"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"retention messages","response":"LinkagesResponse"}
   ]
 }

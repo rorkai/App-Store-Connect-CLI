@@ -145,11 +145,6 @@ func (c *Client) GetAppRetentionMessages(ctx context.Context, appID string, opts
 	return getRetentionMessageRead[RetentionMessagesResponse](c, ctx, "/v1/apps/%s/retentionMessages", appID, opts)
 }
 
-// GetAppRetentionMessagesRelationships lists retention message linkages for an app.
-func (c *Client) GetAppRetentionMessagesRelationships(ctx context.Context, appID string, opts ...RetentionMessagesOption) (*LinkagesResponse, error) {
-	return getRetentionMessageRead[LinkagesResponse](c, ctx, "/v1/apps/%s/relationships/retentionMessages", appID, opts)
-}
-
 // GetRetentionMessage retrieves a retention message.
 func (c *Client) GetRetentionMessage(ctx context.Context, messageID string, opts ...RetentionMessagesOption) (*RetentionMessageResponse, error) {
 	return getRetentionMessageRead[RetentionMessageResponse](c, ctx, "/v1/retentionMessages/%s", messageID, opts)
@@ -160,19 +155,9 @@ func (c *Client) GetRetentionMessageVersions(ctx context.Context, messageID stri
 	return getRetentionMessageRead[RetentionMessageVersionsResponse](c, ctx, "/v1/retentionMessages/%s/versions", messageID, opts)
 }
 
-// GetRetentionMessageVersionsRelationships lists version linkages of a retention message.
-func (c *Client) GetRetentionMessageVersionsRelationships(ctx context.Context, messageID string, opts ...RetentionMessagesOption) (*LinkagesResponse, error) {
-	return getRetentionMessageRead[LinkagesResponse](c, ctx, "/v1/retentionMessages/%s/relationships/versions", messageID, opts)
-}
-
 // GetRetentionMessageSubscriptions lists subscriptions assigned to a retention message.
 func (c *Client) GetRetentionMessageSubscriptions(ctx context.Context, messageID string, opts ...RetentionMessagesOption) (*SubscriptionsResponse, error) {
 	return getRetentionMessageRead[SubscriptionsResponse](c, ctx, "/v1/retentionMessages/%s/subscriptions", messageID, opts)
-}
-
-// GetRetentionMessageSubscriptionsRelationships lists subscription linkages of a retention message.
-func (c *Client) GetRetentionMessageSubscriptionsRelationships(ctx context.Context, messageID string, opts ...RetentionMessagesOption) (*LinkagesResponse, error) {
-	return getRetentionMessageRead[LinkagesResponse](c, ctx, "/v1/retentionMessages/%s/relationships/subscriptions", messageID, opts)
 }
 
 // GetRetentionMessageVersion retrieves a retention message version.
@@ -183,11 +168,6 @@ func (c *Client) GetRetentionMessageVersion(ctx context.Context, versionID strin
 // GetRetentionMessageVersionLocalizations lists localizations of a retention message version.
 func (c *Client) GetRetentionMessageVersionLocalizations(ctx context.Context, versionID string, opts ...RetentionMessagesOption) (*RetentionMessageLocalizationsResponse, error) {
 	return getRetentionMessageRead[RetentionMessageLocalizationsResponse](c, ctx, "/v1/retentionMessageVersions/%s/localizations", versionID, opts)
-}
-
-// GetRetentionMessageVersionLocalizationsRelationships lists localization linkages of a version.
-func (c *Client) GetRetentionMessageVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...RetentionMessagesOption) (*LinkagesResponse, error) {
-	return getRetentionMessageRead[LinkagesResponse](c, ctx, "/v1/retentionMessageVersions/%s/relationships/localizations", versionID, opts)
 }
 
 // GetRetentionMessageVersionPlacement retrieves the raw asset library placement of a version.

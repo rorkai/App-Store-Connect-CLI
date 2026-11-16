@@ -68,3 +68,33 @@ func (c *Client) DeleteRetentionMessage(ctx context.Context, messageID string) e
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/retentionMessages/%s", messageID), nil)
 }
+
+// GetRetentionMessageSubscriptionsRelationships sends GET /v1/retentionMessages/{id}/relationships/subscriptions (retentionMessages_subscriptions_getToManyRelationship).
+func (c *Client) GetRetentionMessageSubscriptionsRelationships(ctx context.Context, messageID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	messageID = strings.TrimSpace(messageID)
+	if query.nextURL == "" && messageID == "" {
+		return nil, fmt.Errorf("resource ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/retentionMessages/%s/relationships/subscriptions", messageID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retention messages",
+	})
+}
+
+// GetRetentionMessageVersionsRelationships sends GET /v1/retentionMessages/{id}/relationships/versions (retentionMessages_versions_getToManyRelationship).
+func (c *Client) GetRetentionMessageVersionsRelationships(ctx context.Context, messageID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	messageID = strings.TrimSpace(messageID)
+	if query.nextURL == "" && messageID == "" {
+		return nil, fmt.Errorf("resource ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/retentionMessages/%s/relationships/versions", messageID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retention messages",
+	})
+}

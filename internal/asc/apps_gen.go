@@ -452,6 +452,21 @@ func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, prom
 	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/apps/%s/relationships/promotedPurchases", appID), payload)
 }
 
+// GetAppRetentionMessagesRelationships sends GET /v1/apps/{id}/relationships/retentionMessages (apps_retentionMessages_getToManyRelationship).
+func (c *Client) GetAppRetentionMessagesRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("resource ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/relationships/retentionMessages", appID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retention messages",
+	})
+}
+
 // GetAppSearchKeywords sends GET /v1/apps/{id}/searchKeywords (apps_searchKeywords_getToManyRelated).
 func (c *Client) GetAppSearchKeywords(ctx context.Context, appID string, opts ...AppSearchKeywordsOption) (*AppKeywordsResponse, error) {
 	query := applyOptions(opts)

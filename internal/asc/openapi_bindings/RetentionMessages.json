@@ -12,6 +12,8 @@
   ],
   "operations": [
     {"operation":"retentionMessages_createInstance","name":"CreateRetentionMessage","params":["appID"],"check":"require","links":["app"],"args":[{"name":"referenceName"}]},
-    {"operation":"retentionMessages_deleteInstance","name":"DeleteRetentionMessage","params":["messageID"],"check":"require"}
+    {"operation":"retentionMessages_deleteInstance","name":"DeleteRetentionMessage","params":["messageID"],"check":"require"},
+    {"operation":"retentionMessages_subscriptions_getToManyRelationship","name":"GetRetentionMessageSubscriptionsRelationships","params":["messageID"],"check":"require","messages":["resource ID is required"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"retention messages","response":"LinkagesResponse"},
+    {"operation":"retentionMessages_versions_getToManyRelationship","name":"GetRetentionMessageVersionsRelationships","params":["messageID"],"check":"require","messages":["resource ID is required"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"retention messages","response":"LinkagesResponse"}
   ]
 }
