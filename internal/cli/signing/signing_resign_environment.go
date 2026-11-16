@@ -14,13 +14,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var signingResignPlatformDepsFn = func() signingRunDeps { return platformSigningRunDeps(shared.DefaultDeps()) }
+var signingResignPlatformDepsFn = platformSigningRunDeps
 
 // runSigningResignEnvironment performs the narrow keychain portion of an IPA
 // re-signing run. It intentionally does not install provisioning profiles in
 // any user-controlled Xcode directory: profiles are embedded in the staged
 // bundle by the caller instead.
-func runSigningResignEnvironment(ctx context.Context, identity *signingRunIdentity, operation func(context.Context, string) error) (resultErr error) {
+func runSigningResignEnvironment(ctx context.Context, d *shared.Deps, identity *signingRunIdentity, operation func(context.Context, string) error) (resultErr error) {
 	defer func() {
 		if resultErr != nil && !signingResignOperationalErrorTree(resultErr) {
 			resultErr = wrapSigningResignOperationalError(
@@ -36,7 +36,7 @@ func runSigningResignEnvironment(ctx context.Context, identity *signingRunIdenti
 	if operation == nil {
 		return fmt.Errorf("signing resign operation is required")
 	}
-	deps := signingResignPlatformDepsFn()
+	deps := signingResignPlatformDepsFn(d)
 	if deps.GOOS != "darwin" {
 		return fmt.Errorf("signing resign is supported only on macOS")
 	}
