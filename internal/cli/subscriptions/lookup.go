@@ -15,7 +15,7 @@ func addSubscriptionLookupAppFlag(fs *flag.FlagSet) *string {
 }
 
 func resolveSubscriptionLookupID(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
-	resolvedAppID := shared.ResolveAppID(appValue)
+	resolvedAppID := d.ResolveAppID(appValue)
 	if err := d.RequireAppForStableSelector(resolvedAppID, selector, "--subscription-id"); err != nil {
 		return "", err
 	}

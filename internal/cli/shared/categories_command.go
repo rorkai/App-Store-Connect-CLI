@@ -49,7 +49,7 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appIDValue, err := d.AppIDFlagValue(ResolveAppID(*appID))
+			appIDValue, err := d.AppIDFlagValue(d.ResolveAppID(*appID))
 			if err != nil {
 				return err
 			}

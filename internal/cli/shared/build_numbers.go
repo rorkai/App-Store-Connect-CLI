@@ -45,17 +45,17 @@ type NextBuildNumberOptions struct {
 // app/version/platform filters. When allowEmpty is true, nil is returned when
 // no matching build exists.
 func ResolveLatestBuild(ctx context.Context, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*asc.BuildResponse, error) {
-	return resolveLatestBuildTo(ctx, os.Stderr, client, opts, allowEmpty)
+	return resolveLatestBuildTo(ctx, os.Stderr, ResolveAppID, client, opts, allowEmpty)
 }
 
 // ResolveLatestBuild is ResolveLatestBuild with its notes and "Error:" lines
 // written to d's stderr.
 func (d *Deps) ResolveLatestBuild(ctx context.Context, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*asc.BuildResponse, error) {
-	return resolveLatestBuildTo(ctx, d.IO.ErrOut, client, opts, allowEmpty)
+	return resolveLatestBuildTo(ctx, d.IO.ErrOut, d.ResolveAppID, client, opts, allowEmpty)
 }
 
-func resolveLatestBuildTo(ctx context.Context, stderr io.Writer, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*asc.BuildResponse, error) {
-	selection, err := resolveLatestBuildSelection(ctx, stderr, client, opts, allowEmpty)
+func resolveLatestBuildTo(ctx context.Context, stderr io.Writer, resolveApp func(string) string, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*asc.BuildResponse, error) {
+	selection, err := resolveLatestBuildSelection(ctx, stderr, resolveApp, client, opts, allowEmpty)
 	if err != nil {
 		return nil, err
 	}
@@ -65,17 +65,17 @@ func resolveLatestBuildTo(ctx context.Context, stderr io.Writer, client *asc.Cli
 // NormalizeLatestBuildSelectionOptions validates and normalizes the common
 // version/platform filters shared by latest-build selection workflows.
 func NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
-	return normalizeLatestBuildSelectionOptionsTo(os.Stderr, appID, version, platform, processingState, excludeExpired)
+	return normalizeLatestBuildSelectionOptionsTo(os.Stderr, ResolveAppID, appID, version, platform, processingState, excludeExpired)
 }
 
 // NormalizeLatestBuildSelectionOptions is NormalizeLatestBuildSelectionOptions
 // with the "Error:" line written to d's stderr.
 func (d *Deps) NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
-	return normalizeLatestBuildSelectionOptionsTo(d.IO.ErrOut, appID, version, platform, processingState, excludeExpired)
+	return normalizeLatestBuildSelectionOptionsTo(d.IO.ErrOut, d.ResolveAppID, appID, version, platform, processingState, excludeExpired)
 }
 
-func normalizeLatestBuildSelectionOptionsTo(stderr io.Writer, appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
-	if ResolveAppID(strings.TrimSpace(appID)) == "" {
+func normalizeLatestBuildSelectionOptionsTo(stderr io.Writer, resolveApp func(string) string, appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
+	if resolveApp(strings.TrimSpace(appID)) == "" {
 		return LatestBuildSelectionOptions{}, usageErrorTo(stderr, "--app is required (or set ASC_APP_ID)")
 	}
 
@@ -104,16 +104,16 @@ func normalizeLatestBuildSelectionOptionsTo(stderr io.Writer, appID, version, pl
 // ResolveNextBuildNumber compares the highest observed processed build and
 // in-flight build upload numbers, then returns the next safe build number.
 func ResolveNextBuildNumber(ctx context.Context, client *asc.Client, opts NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
-	return resolveNextBuildNumberTo(ctx, os.Stderr, client, opts)
+	return resolveNextBuildNumberTo(ctx, os.Stderr, ResolveAppID, client, opts)
 }
 
 // ResolveNextBuildNumber is ResolveNextBuildNumber with its notes, warnings
 // and "Error:" lines written to d's stderr.
 func (d *Deps) ResolveNextBuildNumber(ctx context.Context, client *asc.Client, opts NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
-	return resolveNextBuildNumberTo(ctx, d.IO.ErrOut, client, opts)
+	return resolveNextBuildNumberTo(ctx, d.IO.ErrOut, d.ResolveAppID, client, opts)
 }
 
-func resolveNextBuildNumberTo(ctx context.Context, stderr io.Writer, client *asc.Client, opts NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
+func resolveNextBuildNumberTo(ctx context.Context, stderr io.Writer, resolveApp func(string) string, client *asc.Client, opts NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
 	if opts.InitialBuildNumber < 1 {
 		return nil, usageErrorTo(stderr, "--initial-build-number must be >= 1")
 	}
@@ -124,7 +124,7 @@ func resolveNextBuildNumberTo(ctx context.Context, stderr io.Writer, client *asc
 	// request deadline and give every outbound request its own fresh one.
 	scanCtx := contextWithoutCurrentTimeout(ctx)
 
-	selection, err := resolveLatestBuildSelection(scanCtx, stderr, client, opts.LatestBuildSelectionOptions, true)
+	selection, err := resolveLatestBuildSelection(scanCtx, stderr, resolveApp, client, opts.LatestBuildSelectionOptions, true)
 	if err != nil {
 		return nil, err
 	}
@@ -220,12 +220,12 @@ func resolveNextBuildNumberTo(ctx context.Context, stderr io.Writer, client *asc
 	}, nil
 }
 
-func resolveLatestBuildSelection(ctx context.Context, stderr io.Writer, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*latestBuildSelectionResult, error) {
+func resolveLatestBuildSelection(ctx context.Context, stderr io.Writer, resolveApp func(string) string, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*latestBuildSelectionResult, error) {
 	if client == nil {
 		return nil, fmt.Errorf("build client is required")
 	}
 
-	resolvedAppID := ResolveAppID(opts.AppID)
+	resolvedAppID := resolveApp(opts.AppID)
 	if resolvedAppID == "" {
 		return nil, usageErrorTo(stderr, "--app is required (or set ASC_APP_ID)")
 	}

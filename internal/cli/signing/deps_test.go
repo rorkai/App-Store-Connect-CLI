@@ -21,3 +21,10 @@ func newSigningTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 		After:          time.After,
 	}, &stdout, &stderr
 }
+
+// testSigningDeps returns the deps of newSigningTestDeps for a call whose
+// output the test does not read.
+func testSigningDeps() *shared.Deps {
+	d, _, _ := newSigningTestDeps()
+	return d
+}

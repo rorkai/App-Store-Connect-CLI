@@ -146,7 +146,7 @@ func parseDSYMSelection(d *shared.Deps, input dsymFlagInput) (dsymSelection, err
 		if err := validateResolveBuildOptions(d, selection.Resolve); err != nil {
 			return dsymSelection{}, err
 		}
-	} else if shared.ResolveAppID(selection.Resolve.AppID) == "" {
+	} else if d.ResolveAppID(selection.Resolve.AppID) == "" {
 		return dsymSelection{}, d.UsageError("builds dsyms: --app is required (or set ASC_APP_ID)")
 	}
 	return selection, nil
