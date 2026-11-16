@@ -65,6 +65,7 @@ func newVersionsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("versions list", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID)")
+	shared.BindFlagAlias(fs, "app-id", "app")
 	version := fs.String("version", "", "Filter by version string (comma-separated)")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
 	state := fs.String("state", "", "Filter by state (comma-separated)")

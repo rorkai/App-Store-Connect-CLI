@@ -14,6 +14,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type buildGroupMembershipOutput struct {
@@ -52,6 +53,9 @@ func TestBuildsGroupsListCommandHasNarrowBuildSurface(t *testing.T) {
 		"pretty":   true,
 	}
 	list.FlagSet.VisitAll(func(value *flag.Flag) {
+		if shared.IsFlagAlias(value) {
+			return
+		}
 		if !wantFlags[value.Name] {
 			t.Errorf("unexpected --%s flag on builds groups list", value.Name)
 		}

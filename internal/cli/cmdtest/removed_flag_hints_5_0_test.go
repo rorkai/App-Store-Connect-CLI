@@ -24,21 +24,9 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 		deps bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
-			name: "review submit --build",
-			args: []string{"review", "submit", "--app", "app-1", "--version-id", "version-1", "--build", "PRIVATE_VALUE"},
-			deps: true,
-			want: "Error: `--build` was removed in 5.0.0; use `--build-id` or `--build-number` (see migrate-to-5-0)\nFor help:\n  asc review submit --help\n",
-		},
-		{
-			name: "builds info --build",
-			args: []string{"builds", "info", "--build", "PRIVATE_VALUE"},
-			want: "Error: `--build` was removed in 5.0.0; use `--build-id` or `--build-number` (see migrate-to-5-0)\nFor help:\n  asc builds info --help\n",
-			deps: true,
-		},
-		{
 			name: "single-dash spelling",
-			args: []string{"builds", "info", "-build", "PRIVATE_VALUE"},
-			want: "Error: `--build` was removed in 5.0.0; use `--build-id` or `--build-number` (see migrate-to-5-0)\nFor help:\n  asc builds info --help\n",
+			args: []string{"web", "agreements", "status", "-two-factor-code", "PRIVATE_VALUE"},
+			want: "Error: `--two-factor-code` was removed in 5.0.0; use `--two-factor-code-command` or `ASC_WEB_2FA_CODE_COMMAND` (see migrate-to-5-0)\nFor help:\n  asc web agreements status --help\n",
 			deps: true,
 		},
 		{

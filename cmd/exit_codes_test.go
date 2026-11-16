@@ -795,36 +795,6 @@ func TestBuildsTestNotesUpdateConflictingFlagsExitCode(t *testing.T) {
 	}
 }
 
-func TestRemovedBuildSelectorAliasesExitUsage(t *testing.T) {
-	for _, test := range []struct {
-		name string
-		args []string
-		flag string
-	}{
-		{name: "builds wait --build", args: []string{"builds", "wait", "--build", "BUILD_123"}, flag: "--build"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			resetReportFlags(t)
-
-			stdout, stderr := captureCommandOutput(t, func() {
-				if code := Run(test.args, "1.0.0"); code != ExitUsage {
-					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, "Error: `"+test.flag+"` was removed in 5.0.0") {
-				t.Fatalf("expected removed-flag guidance for %s, got %q", test.flag, stderr)
-			}
-			if strings.Contains(stderr, "is deprecated") {
-				t.Fatalf("removed alias must not emit deprecation guidance, got %q", stderr)
-			}
-		})
-	}
-}
-
 func TestBuildsExpiredFlagsInvalidBooleanExitCode(t *testing.T) {
 	tmpDir := t.TempDir()
 	binaryPath := buildASCBlackboxBinary(t)

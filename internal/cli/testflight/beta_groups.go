@@ -793,6 +793,7 @@ func BuildGroupsListCommandWith(d *shared.Deps, config BuildGroupsListCommandCon
 	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID whose TestFlight groups should be listed")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	output := d.BindOutputFlags(fs)
 
 	errorPrefix := strings.TrimSpace(config.ErrorPrefix)

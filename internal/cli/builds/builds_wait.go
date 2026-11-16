@@ -29,6 +29,7 @@ func newBuildsWaitCommand(d *shared.Deps) *ffcli.Command {
 	shared.BindFlagAlias(fs, "newest", "latest")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app")
 	buildNumber := fs.String("build-number", "", "Select a unique build by build number (CFBundleVersion) for --app context")
+	shared.BindBuildFlagAlias(fs)
 	since := fs.String("since", "", "Only consider builds uploaded on or after this RFC3339 timestamp")
 	platform := fs.String("platform", "", "Platform filter for --app selectors (required with --build-number): IOS, MAC_OS, TV_OS, VISION_OS")
 	timeout := fs.Duration("timeout", buildsWaitDefaultTimeout, "Maximum time to wait for build processing")

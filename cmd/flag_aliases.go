@@ -76,7 +76,7 @@ func resolveFlagAliases(root *ffcli.Command, args []string) ([]string, error) {
 		}
 
 		canonical := name
-		if target, ok := shared.FlagAliasTarget(item); ok {
+		if target, ok := shared.FlagAliasTarget(item, value); ok {
 			canonical = target
 			tokens[0] = dashes + canonical
 			if hasInlineValue {

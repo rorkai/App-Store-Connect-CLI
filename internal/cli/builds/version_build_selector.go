@@ -39,7 +39,7 @@ type VersionBuildScope struct {
 // selector writes its errors and notes to d's streams and bounds its lookup
 // with d's timeout.
 func BindVersionBuildSelectorWith(d *shared.Deps, fs *flag.FlagSet) *VersionBuildSelector {
-	return &VersionBuildSelector{
+	selector := &VersionBuildSelector{
 		d:            d,
 		fs:           fs,
 		buildID:      shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to attach"),
@@ -49,6 +49,8 @@ func BindVersionBuildSelectorWith(d *shared.Deps, fs *flag.FlagSet) *VersionBuil
 		timeout:      fs.Duration("timeout", buildsWaitDefaultTimeout, "Maximum time to wait with --wait"),
 		pollInterval: fs.Duration("poll-interval", buildsWaitDefaultPollInterval, "Polling interval for --wait"),
 	}
+	shared.BindBuildFlagAlias(fs)
+	return selector
 }
 
 func (s *VersionBuildSelector) Validate() error {

@@ -33,6 +33,7 @@ func newBuildsDsymsCommand(d *shared.Deps) *ffcli.Command {
 	appID := fs.String("app", "", "App ID, bundle ID, or app name (or ASC_APP_ID)")
 	version := fs.String("version", "", "Marketing version, latest, or live")
 	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion)")
+	shared.BindBuildFlagAlias(fs)
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	latest := fs.Bool("latest", false, "Download dSYMs for the latest build")
 	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds")

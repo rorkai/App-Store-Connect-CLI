@@ -56,7 +56,7 @@ func bindBuildSelectorFlags(d *shared.Deps, fs *flag.FlagSet, opts buildSelector
 		platformUsage = "Platform filter for --app selectors (required with --build-number): IOS, MAC_OS, TV_OS, VISION_OS"
 	}
 
-	return buildSelectorFlags{
+	flags := buildSelectorFlags{
 		d:              d,
 		buildID:        shared.BindResourceIDFlag(fs, "build-id", "builds", buildIDUsage),
 		appID:          shared.BindResourceIDFlag(fs, "app", "apps", appUsage),
@@ -67,6 +67,8 @@ func bindBuildSelectorFlags(d *shared.Deps, fs *flag.FlagSet, opts buildSelector
 		excludeExpired: fs.Bool("exclude-expired", false, "Exclude expired builds when selecting --latest"),
 		notExpired:     fs.Bool("not-expired", false, "Alias for --exclude-expired"),
 	}
+	shared.BindBuildFlagAlias(fs)
+	return flags
 }
 
 func (s buildSelectorFlags) resolveOptions() ResolveBuildOptions {
