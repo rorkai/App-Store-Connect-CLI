@@ -164,6 +164,21 @@ func TestWaitForBuildProcessing_ToleratesTransientLookupFailures(t *testing.T) {
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
 		}
 	}
+
+	calls = 0
+	var notices bytes.Buffer
+	processStderr := captureWaitStderr(t, func() {
+		build, err = client.WaitForBuildProcessingTo(context.Background(), &notices, "build-1", time.Millisecond)
+	})
+	if err != nil || build == nil || build.Data.Attributes.ProcessingState != BuildProcessingStateValid {
+		t.Fatalf("WaitForBuildProcessingTo() = %#v, %v; want the VALID build", build, err)
+	}
+	if processStderr != "" {
+		t.Fatalf("process stderr = %q, want empty", processStderr)
+	}
+	if notices.String() != stderr {
+		t.Fatalf("notices = %q, want the process form's %q", notices.String(), stderr)
+	}
 }
 
 func TestWaitForBuildProcessing_FailsAfterConsecutiveTransientLimit(t *testing.T) {
