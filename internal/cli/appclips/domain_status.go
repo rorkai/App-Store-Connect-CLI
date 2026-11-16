@@ -26,7 +26,7 @@ Examples:
   asc app-clips domain-status cache --build-bundle-id "BUILD_BUNDLE_ID"
   asc app-clips domain-status debug --build-bundle-id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipDomainStatusCacheCommand(d),
 			newAppClipDomainStatusDebugCommand(d),
@@ -53,7 +53,7 @@ func newAppClipDomainStatusCacheCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc app-clips domain-status cache --build-bundle-id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
@@ -99,7 +99,7 @@ func newAppClipDomainStatusDebugCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc app-clips domain-status debug --build-bundle-id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {

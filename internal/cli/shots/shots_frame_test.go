@@ -10,7 +10,7 @@ import (
 func TestResolveOutputPath_ConfigModeDefaultsToScreenshotName(t *testing.T) {
 	outputDir := t.TempDir()
 
-	got, err := resolveOutputPath("", outputDir, "", "", "iphone-air")
+	got, err := resolveOutputPath(newShotsTestDepsOnly(), "", outputDir, "", "", "iphone-air")
 	if err != nil {
 		t.Fatalf("resolveOutputPath() error = %v", err)
 	}
@@ -34,7 +34,7 @@ func TestResolveOutputPath_RejectsNameWithPathSeparators(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		_, err := resolveOutputPath("", outputDir, tc, "", "iphone-air")
+		_, err := resolveOutputPath(newShotsTestDepsOnly(), "", outputDir, tc, "", "iphone-air")
 		if err == nil {
 			t.Fatalf("resolveOutputPath() error = nil for name %q", tc)
 		}

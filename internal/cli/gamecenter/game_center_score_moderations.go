@@ -15,7 +15,7 @@ import (
 
 // newGameCenterScoreModerationsCommand returns the leaderboard score moderation group.
 func newGameCenterScoreModerationsCommand(d *shared.Deps) *ffcli.Command {
-	return &ffcli.Command{Name: "score-moderations", ShortUsage: "asc game-center leaderboards v2 score-moderations <subcommand> [flags]", ShortHelp: "List submitted scores and manage their blocked status.", FlagSet: d.NewFlagSet("score-moderations", flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc, Subcommands: []*ffcli.Command{gameCenterScoreModerationsListCommand(d), gameCenterScoreModerationsUpdateCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
+	return &ffcli.Command{Name: "score-moderations", ShortUsage: "asc game-center leaderboards v2 score-moderations <subcommand> [flags]", ShortHelp: "List submitted scores and manage their blocked status.", FlagSet: d.NewFlagSet("score-moderations", flag.ExitOnError), UsageFunc: d.DefaultUsageFunc, Subcommands: []*ffcli.Command{gameCenterScoreModerationsListCommand(d), gameCenterScoreModerationsUpdateCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
 }
 
 func gameCenterScoreModerationsListCommand(d *shared.Deps) *ffcli.Command {
@@ -31,7 +31,7 @@ func gameCenterScoreModerationsListCommand(d *shared.Deps) *ffcli.Command {
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
-	return &ffcli.Command{Name: "list", ShortUsage: "asc " + command + " --leaderboard-id ID [flags]", ShortHelp: "List scores submitted to a v2 leaderboard.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+	return &ffcli.Command{Name: "list", ShortUsage: "asc " + command + " --leaderboard-id ID [flags]", ShortHelp: "List scores submitted to a v2 leaderboard.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		provided := map[string]bool{}
 		fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
 		if provided["limit"] && (*limit < 1 || *limit > 200) {
@@ -120,7 +120,7 @@ func gameCenterScoreModerationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	fs.Var(&blocked, "blocked", "Block or unblock the submitted score (true/false)")
 	confirm := fs.Bool("confirm", false, "Confirm score moderation")
 	output := d.BindOutputFlags(fs)
-	return &ffcli.Command{Name: "update", ShortUsage: "asc " + command + " --id ID --blocked true|false --confirm", ShortHelp: "Block or unblock a submitted score.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+	return &ffcli.Command{Name: "update", ShortUsage: "asc " + command + " --id ID --blocked true|false --confirm", ShortHelp: "Block or unblock a submitted score.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		scoreID := strings.TrimSpace(*id)
 		if scoreID == "" {
 			return d.UsageError(command + ": --id is required")

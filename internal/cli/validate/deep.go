@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -28,16 +30,16 @@ var (
 	}
 )
 
-func loadDeepSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, error) {
+func loadDeepSession(ctx context.Context, transport http.RoundTripper, appleID string) (*webcore.AuthSession, bool, error) {
 	requestCtx, cancel := readinessRequestContext(ctx)
 	defer cancel()
 	var session *webcore.AuthSession
 	var ok bool
 	var err error
 	if strings.TrimSpace(appleID) != "" {
-		session, ok, err = webcore.ResumeCachedSessionWithoutPersist(requestCtx, strings.TrimSpace(appleID))
+		session, ok, err = webcore.ResumeCachedSessionWithoutPersist(requestCtx, strings.TrimSpace(appleID), transport)
 	} else {
-		session, ok, err = webcore.ResumeLastCachedSessionWithoutPersist(requestCtx)
+		session, ok, err = webcore.ResumeLastCachedSessionWithoutPersist(requestCtx, transport)
 	}
 	if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
 		return session, false, webcore.ErrCachedSessionValidationFailed
@@ -45,8 +47,8 @@ func loadDeepSession(ctx context.Context, appleID string) (*webcore.AuthSession,
 	return session, ok, err
 }
 
-func collectDeepValidation(ctx context.Context, report validation.Report, appleID string) (validation.DeepReport, []validation.CheckResult, error) {
-	session, ok, err := loadDeepSessionFn(ctx, strings.TrimSpace(appleID))
+func collectDeepValidation(ctx context.Context, d *shared.Deps, report validation.Report, appleID string) (validation.DeepReport, []validation.CheckResult, error) {
+	session, ok, err := loadDeepSessionFn(ctx, d.HTTPTransport(), strings.TrimSpace(appleID))
 	selectedAppleID := strings.TrimSpace(appleID)
 	if session != nil && strings.TrimSpace(session.UserEmail) != "" {
 		selectedAppleID = strings.TrimSpace(session.UserEmail)

@@ -122,7 +122,7 @@ func TestAuditDuplicateSearchSinkRedactsRedisCredential(t *testing.T) {
 	t.Cleanup(func() { setGitHubAPIBase(originalBase) })
 	setGitHubAPIBase(server.URL)
 
-	if _, err := searchIssues(t.Context(), "synthetic-token", "redis-cli -a "+secret+" GET foo"); err != nil {
+	if _, err := searchIssues(t.Context(), newSnitchTestDeps(), "synthetic-token", "redis-cli -a "+secret+" GET foo"); err != nil {
 		t.Fatalf("searchIssues() error: %v", err)
 	}
 	if strings.Contains(searchQuery, secret) {

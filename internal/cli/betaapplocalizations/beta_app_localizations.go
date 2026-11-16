@@ -27,7 +27,7 @@ Examples:
   asc beta-app-localizations list --app "APP_ID"
   asc beta-app-localizations create --app "APP_ID" --locale "en-US" --description "Welcome testers"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaAppLocalizationsListCommand(d),
 			newBetaAppLocalizationsGetCommand(d),
@@ -64,7 +64,7 @@ Examples:
   asc beta-app-localizations list --app "APP_ID" --locale "en-US,ja"
   asc beta-app-localizations list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "beta-app-localizations list", 200, "locale"); err != nil {
 				return err
@@ -169,7 +169,7 @@ Examples:
   asc beta-app-localizations create --app "APP_ID" --locale "en-US"
   asc beta-app-localizations create --app "APP_ID" --locale "en-US" --description "Welcome testers"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -245,7 +245,7 @@ Examples:
   asc beta-app-localizations update --id "LOCALIZATION_ID" --description "Updated copy"
   asc beta-app-localizations update --id "LOCALIZATION_ID" --feedback-email "qa@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

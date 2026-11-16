@@ -1068,6 +1068,7 @@ func TestApplyPrivacyPlanRejectsDuplicateUpdateUsageID(t *testing.T) {
 }
 
 func TestParsePrivacyDeclarationFileRejectsUnknownFields(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "privacy.json")
 	if err := os.WriteFile(path, []byte(`{
@@ -1084,7 +1085,7 @@ func TestParsePrivacyDeclarationFileRejectsUnknownFields(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	_, err := parsePrivacyDeclarationFile(path)
+	_, err := parsePrivacyDeclarationFile(d, path)
 	if err == nil {
 		t.Fatal("expected parse error")
 	}
@@ -1094,6 +1095,7 @@ func TestParsePrivacyDeclarationFileRejectsUnknownFields(t *testing.T) {
 }
 
 func TestParsePrivacyDeclarationFileRejectsMultipleJSONValues(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "privacy.json")
 	if err := os.WriteFile(path, []byte(`{
@@ -1117,7 +1119,7 @@ func TestParsePrivacyDeclarationFileRejectsMultipleJSONValues(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	_, err := parsePrivacyDeclarationFile(path)
+	_, err := parsePrivacyDeclarationFile(d, path)
 	if err == nil {
 		t.Fatal("expected parse error")
 	}
@@ -1127,6 +1129,7 @@ func TestParsePrivacyDeclarationFileRejectsMultipleJSONValues(t *testing.T) {
 }
 
 func TestParsePrivacyDeclarationFileCanonicalizesTrackingPurposeAway(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "privacy.json")
 	if err := os.WriteFile(path, []byte(`{
@@ -1142,7 +1145,7 @@ func TestParsePrivacyDeclarationFileCanonicalizesTrackingPurposeAway(t *testing.
 		t.Fatalf("write file: %v", err)
 	}
 
-	declaration, err := parsePrivacyDeclarationFile(path)
+	declaration, err := parsePrivacyDeclarationFile(d, path)
 	if err != nil {
 		t.Fatalf("parsePrivacyDeclarationFile() error = %v", err)
 	}
@@ -1182,12 +1185,13 @@ func TestWebPrivacyPullReportsUnknownWhenPublishedAttributeMissing(t *testing.T)
 	})
 
 	t.Run("json", func(t *testing.T) {
-		cmd := WebPrivacyPullCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := newWebPrivacyPullCommand(d)
 		if err := cmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, stderr := captureWebCommandOutput(t, func() {
+		stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -1217,12 +1221,13 @@ func TestWebPrivacyPullReportsUnknownWhenPublishedAttributeMissing(t *testing.T)
 	})
 
 	t.Run("table", func(t *testing.T) {
-		cmd := WebPrivacyPullCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := newWebPrivacyPullCommand(d)
 		if err := cmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--output", "table"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, stderr := captureWebCommandOutput(t, func() {
+		stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -1257,13 +1262,14 @@ func TestWebPrivacyPublishErrorsBeforePatchWhenPublishStateIDEmpty(t *testing.T)
 		return fixture.Response("unexpected request: %s %s", req.Method, req.URL.Path), nil
 	})
 
-	cmd := WebPrivacyPublishCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyPublishCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	assertNoPrivacySecrets(t, stdout, stderr)
@@ -1328,13 +1334,14 @@ func TestWebPrivacyPublishExitsNonZeroWhenPatchDoesNotConfirmPublished(t *testin
 				}
 			})
 
-			cmd := WebPrivacyPublishCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebPrivacyPublishCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--confirm", "--output", "json"}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 
 			var execErr error
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				execErr = cmd.Exec(context.Background(), nil)
 			})
 			assertNoPrivacySecrets(t, stdout, stderr)
@@ -1373,12 +1380,13 @@ func TestWebPrivacyPublishSucceedsWhenPatchConfirmsPublished(t *testing.T) {
 		}
 	})
 
-	cmd := WebPrivacyPublishCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyPublishCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -1406,7 +1414,6 @@ func TestWebPrivacyPublishSucceedsWhenPatchConfirmsPublished(t *testing.T) {
 
 func stubPrivacyWebSession(t *testing.T, roundTrip func(*http.Request) (*http.Response, error)) {
 	t.Helper()
-	_ = stubWebProgressLabels(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
@@ -1480,12 +1487,13 @@ func TestWebPrivacyPullDoesNotWriteNotCollectedForMalformedRemoteUsages(t *testi
 		}
 	})
 
-	cmd := WebPrivacyPullCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyPullCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--out", outPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -1554,12 +1562,13 @@ func TestWebPrivacyPullPreservesMalformedUsagesAlongsideValidOnes(t *testing.T) 
 		}
 	})
 
-	cmd := WebPrivacyPullCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyPullCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -1620,12 +1629,13 @@ func TestWebPrivacyPullNotCollectedRoundTripsThroughPlan(t *testing.T) {
 		}
 	})
 
-	pullCmd := WebPrivacyPullCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	pullCmd := newWebPrivacyPullCommand(d)
 	if err := pullCmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--out", outPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := pullCmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("pull exec error: %v", err)
 		}
@@ -1664,12 +1674,13 @@ func TestWebPrivacyPullNotCollectedRoundTripsThroughPlan(t *testing.T) {
 		t.Fatalf("expected canonical not-collected file without empty category/purposes keys:\n%s", fileData)
 	}
 
-	planCmd := WebPrivacyPlanCommand()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	planCmd := newWebPrivacyPlanCommand(d)
 	if err := planCmd.FlagSet.Parse([]string{"--app", privacyTestAppID, "--file", outPath, "--output", "json"}); err != nil {
 		t.Fatalf("plan parse error: %v", err)
 	}
 
-	planStdout, planStderr := captureWebCommandOutput(t, func() {
+	planStdout, planStderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := planCmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("plan exec error: %v", err)
 		}
@@ -1708,7 +1719,8 @@ func TestWebPrivacyApplyRefusesUnrepresentableDeclarationWithoutDeletes(t *testi
 		t.Fatalf("write file: %v", err)
 	}
 
-	cmd := WebPrivacyApplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyApplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -1720,7 +1732,7 @@ func TestWebPrivacyApplyRefusesUnrepresentableDeclarationWithoutDeletes(t *testi
 	}
 
 	var execErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	assertNoPrivacySecrets(t, stdout, stderr)
@@ -1914,7 +1926,8 @@ func TestWebPrivacyApplyReportsPartialReceiptWhenCreateFailsMidSequence(t *testi
 	stub := stubPrivacyMidSequenceFailure(t)
 
 	path := writePrivacyDeclarationForTest(t)
-	cmd := WebPrivacyApplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyApplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -1926,7 +1939,7 @@ func TestWebPrivacyApplyReportsPartialReceiptWhenCreateFailsMidSequence(t *testi
 	}
 
 	var execErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	assertNoPrivacySecrets(t, stdout, stderr)
@@ -2002,7 +2015,8 @@ func TestWebPrivacyApplyFailsClosedOnStaleCatalogTokenBeforeAnyMutation(t *testi
 	})
 
 	path := writePrivacyDeclarationForTest(t)
-	cmd := WebPrivacyApplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyApplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -2012,7 +2026,7 @@ func TestWebPrivacyApplyFailsClosedOnStaleCatalogTokenBeforeAnyMutation(t *testi
 	}
 
 	var execErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	assertNoPrivacySecrets(t, stdout, stderr)
@@ -2043,7 +2057,8 @@ func TestWebPrivacyPlanFlagsStaleCatalogTokens(t *testing.T) {
 	})
 
 	path := writePrivacyDeclarationForTest(t)
-	cmd := WebPrivacyPlanCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyPlanCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -2052,7 +2067,7 @@ func TestWebPrivacyPlanFlagsStaleCatalogTokens(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("plan must stay a read-only diagnostic: %v", err)
 		}
@@ -2114,7 +2129,8 @@ func TestWebPrivacyApplyRerunAfterConvergenceIsANoOp(t *testing.T) {
 	})
 
 	path := writePrivacyDeclarationForTest(t)
-	cmd := WebPrivacyApplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyApplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -2123,7 +2139,7 @@ func TestWebPrivacyApplyRerunAfterConvergenceIsANoOp(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("converged rerun must succeed: %v", err)
 		}
@@ -2191,7 +2207,8 @@ func TestWebPrivacyApplyDoesNotReportSuccessWhenSkippedDeletesRemain(t *testing.
 	})
 
 	path := writePrivacyDeclarationForTest(t)
-	cmd := WebPrivacyApplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyApplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -2201,7 +2218,7 @@ func TestWebPrivacyApplyDoesNotReportSuccessWhenSkippedDeletesRemain(t *testing.
 	}
 
 	var execErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	assertNoPrivacySecrets(t, stdout, stderr)
@@ -2459,7 +2476,8 @@ func TestWebPrivacyApplyTableReceiptSeparatesAppliedAndNotAppliedActions(t *test
 	stubPrivacyMidSequenceFailure(t)
 
 	path := writePrivacyDeclarationForTest(t)
-	cmd := WebPrivacyApplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyApplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -2471,7 +2489,7 @@ func TestWebPrivacyApplyTableReceiptSeparatesAppliedAndNotAppliedActions(t *test
 	}
 
 	var execErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	assertNoPrivacySecrets(t, stdout, stderr)
@@ -2541,13 +2559,13 @@ func (r *recordingPrivacyUsageReader) ListAppDataUsages(ctx context.Context, _ s
 }
 
 func TestRecheckPrivacyRemoteUsagesUsesAFreshTimeoutBudget(t *testing.T) {
-	_ = stubWebProgressLabels(t)
+	d, _, _ := newWebTestDeps()
 
 	// The apply request context can already be past its deadline when the
 	// mutation fails, so the recheck derives its own budget from the command
 	// context instead of inheriting the exhausted one.
 	reader := &recordingPrivacyUsageReader{}
-	if _, err := recheckPrivacyRemoteUsages(context.Background(), reader, "123456789"); err != nil {
+	if _, err := recheckPrivacyRemoteUsages(context.Background(), d, reader, "123456789"); err != nil {
 		t.Fatalf("recheckPrivacyRemoteUsages() error = %v", err)
 	}
 	if !reader.called {
@@ -2562,13 +2580,13 @@ func TestRecheckPrivacyRemoteUsagesUsesAFreshTimeoutBudget(t *testing.T) {
 }
 
 func TestRecheckPrivacyRemoteUsagesHonoursParentCancellation(t *testing.T) {
-	_ = stubWebProgressLabels(t)
+	d, _, _ := newWebTestDeps()
 
 	parent, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	reader := &recordingPrivacyUsageReader{}
-	if _, err := recheckPrivacyRemoteUsages(parent, reader, "123456789"); err != nil {
+	if _, err := recheckPrivacyRemoteUsages(parent, d, reader, "123456789"); err != nil {
 		t.Fatalf("recheckPrivacyRemoteUsages() error = %v", err)
 	}
 	if reader.ctxErr == nil {
@@ -2632,7 +2650,8 @@ func TestWebPrivacyApplyReportsConvergenceWhenTheFailedStepActuallyCommitted(t *
 	})
 
 	path := writePrivacyDeclarationForTest(t)
-	cmd := WebPrivacyApplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyApplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -2644,7 +2663,7 @@ func TestWebPrivacyApplyReportsConvergenceWhenTheFailedStepActuallyCommitted(t *
 	}
 
 	var execErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	assertNoPrivacySecrets(t, stdout, stderr)
@@ -2712,7 +2731,8 @@ func TestWebPrivacyApplyOmitsRemainingChangesWhenTheRecheckFails(t *testing.T) {
 	})
 
 	path := writePrivacyDeclarationForTest(t)
-	cmd := WebPrivacyApplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebPrivacyApplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", privacyTestAppID,
 		"--file", path,
@@ -2722,7 +2742,7 @@ func TestWebPrivacyApplyOmitsRemainingChangesWhenTheRecheckFails(t *testing.T) {
 	}
 
 	var execErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	assertNoPrivacySecrets(t, stdout, stderr)

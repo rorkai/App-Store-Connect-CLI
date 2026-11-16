@@ -41,9 +41,7 @@ func TestOptimizeKeywordsDiscoverUsageErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 			t.Setenv("ASC_APP_ID", "")
-			asctest.NewRegistry(t).Install()
-
-			stdout, stderr, runErr := runCommand(t, test.args)
+			stdout, stderr, runErr := runRootWithHTTPTransport(t, nil, asctest.NewRegistry(t), test.args...)
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", runErr)
 			}
@@ -64,14 +62,12 @@ func TestOptimizeKeywordsDiscoverFailsActionablyWithoutAppleAdsCredentials(t *te
 	t.Setenv("ASC_ADS_CLIENT_ID", "")
 	t.Setenv("ASC_ADS_CLIENT_SECRET", "")
 
-	asctest.NewRegistry(t).Install()
-
-	stdout, _, runErr := runCommand(t, []string{
+	stdout, _, runErr := runRootWithHTTPTransport(t, nil, asctest.NewRegistry(t), []string{
 		"optimize", "keywords", "discover",
 		"--app", "1234567890",
 		"--country", "US",
 		"--output", "json",
-	})
+	}...)
 	if runErr == nil {
 		t.Fatal("expected an error when Apple Ads is the only source and is unavailable")
 	}

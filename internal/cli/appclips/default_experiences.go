@@ -28,7 +28,7 @@ Examples:
   asc app-clips default-experiences update --experience-id "EXP_ID" --action VIEW
   asc app-clips default-experiences delete --experience-id "EXP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipDefaultExperiencesListCommand(d),
 			newAppClipDefaultExperiencesGetCommand(d),
@@ -67,7 +67,7 @@ Examples:
   asc app-clips default-experiences list --app-clip-id "CLIP_ID"
   asc app-clips default-experiences list --app-clip-id "CLIP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips default-experiences list", 200); err != nil {
 				return err
@@ -193,7 +193,7 @@ Examples:
   asc app-clips default-experiences create --app-clip-id "CLIP_ID" --release-version-id "VERSION_ID"
   asc app-clips default-experiences create --app-clip-id "CLIP_ID" --release-version-id "VERSION_ID" --template-id "CURRENT_EXPERIENCE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" {
@@ -257,7 +257,7 @@ Examples:
   asc app-clips default-experiences update --experience-id "EXP_ID" --action VIEW
   asc app-clips default-experiences update --experience-id "EXP_ID" --release-version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -342,7 +342,7 @@ func newAppClipDefaultExperienceReviewDetailCommand(d *shared.Deps) *ffcli.Comma
 Examples:
   asc app-clips default-experiences review-detail --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -383,7 +383,7 @@ func newAppClipDefaultExperienceReleaseWithAppStoreVersionCommand(d *shared.Deps
 Examples:
   asc app-clips default-experiences release-with-app-store-version --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {

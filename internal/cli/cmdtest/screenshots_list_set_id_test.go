@@ -10,7 +10,7 @@ import (
 
 func TestScreenshotsListBySetIDPassesEnvelopeThrough(t *testing.T) {
 	const body = `{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"home.png","fileSize":42,"assetDeliveryState":{"state":"COMPLETE","warnings":[{"code":"IMAGE_TOO_DARK","description":"retained"}]},"uploadOperations":[{"method":"PUT","url":"https://upload.example/1","length":42,"offset":0}]},"relationships":{"appScreenshotSet":{"data":{"type":"appScreenshotSets","id":"set-1"}}}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/appScreenshotSets/set-1/appScreenshots"},"meta":{"paging":{"total":1,"limit":5}}}`
-	installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		q := req.URL.Query()
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/appScreenshotSets/set-1/appScreenshots" || q.Get("fields[appScreenshots]") != "fileName,assetDeliveryState,uploadOperations" || q.Get("limit") != "5" || len(q) != 2 {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL)
@@ -18,7 +18,7 @@ func TestScreenshotsListBySetIDPassesEnvelopeThrough(t *testing.T) {
 		writeScreenshotsListJSON(t, w, body)
 	})
 
-	stdout, stderr, err := runRootCommand(t, []string{"screenshots", "list", "--set-id", "set-1", "--fields", "fileName,assetDeliveryState,uploadOperations", "--limit", "5", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, client, []string{"screenshots", "list", "--set-id", "set-1", "--fields", "fileName,assetDeliveryState,uploadOperations", "--limit", "5", "--output", "json"}...)
 	if err != nil {
 		t.Fatalf("screenshots list error: %v (stderr %q)", err, stderr)
 	}
@@ -53,11 +53,11 @@ func TestScreenshotsListBySetIDUsageErrors(t *testing.T) {
 		args := tt.args
 
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
-			installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+			client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 				t.Errorf("unexpected request: %s %s", req.Method, req.URL)
 			})
 			t.Setenv("ASC_APP_ID", "")
-			stdout, stderr, err := runRootCommand(t, append([]string{"screenshots", "list"}, args...))
+			stdout, stderr, err := runRootWithDeps(t, client, append([]string{"screenshots", "list"}, args...)...)
 			if !isUsageClassError(err) || stdout != "" || !strings.HasPrefix(stderr, tt.wantErr) {
 				t.Fatalf("expected usage error, got err=%v stdout=%q stderr=%q", err, stdout, stderr)
 			}

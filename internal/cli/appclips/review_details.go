@@ -27,7 +27,7 @@ Examples:
   asc app-clips review-details create --experience-id "EXP_ID" --url "https://example.com/clip"
   asc app-clips review-details update --id "DETAIL_ID" --url "https://example.com/clip"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipReviewDetailsGetCommand(d),
 			newAppClipReviewDetailsCreateCommand(d),
@@ -76,7 +76,7 @@ func newAppClipReviewDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc app-clips review-details create --experience-id "EXP_ID" --url "https://example.com/clip"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -124,7 +124,7 @@ func newAppClipReviewDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc app-clips review-details update --id "DETAIL_ID" --url "https://example.com/clip"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {

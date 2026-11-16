@@ -35,7 +35,7 @@ Examples:
   asc game-center challenges images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
   asc game-center challenges releases list --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterChallengesListCommand(d),
 			newGameCenterChallengesGetCommand(d),
@@ -123,7 +123,7 @@ Examples:
   asc game-center challenges create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID" --create-initial-version true
   asc game-center challenges create --group-id "GROUP_ID" --reference-name "Weekly" --vendor-id "grp.com.example.weekly" --leaderboard-id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group != "" && strings.TrimSpace(*appID) != "" {
@@ -224,7 +224,7 @@ Examples:
   asc game-center challenges update --id "CHALLENGE_ID" --reference-name "New Name"
   asc game-center challenges update --id "CHALLENGE_ID" --archived true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*challengeID)
 			if id == "" {
@@ -322,7 +322,7 @@ Examples:
   asc game-center challenges versions create --challenge-id "CHALLENGE_ID"
   asc game-center challenges versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterChallengeVersionsListCommand(d),
 			newGameCenterChallengeVersionsGetCommand(d),
@@ -417,7 +417,7 @@ Examples:
   asc game-center challenges localizations delete --id "LOC_ID" --confirm
   asc game-center challenges localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterChallengeLocalizationsListCommand(d),
 			newGameCenterChallengeLocalizationsGetCommand(d),
@@ -567,7 +567,7 @@ Examples:
   asc game-center challenges images view --id "IMAGE_ID"
   asc game-center challenges images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterChallengeImagesUploadCommand(d),
 			newGameCenterChallengeImagesGetCommand(d),
@@ -600,7 +600,7 @@ Examples:
   asc game-center challenges images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
   asc game-center challenges images upload --version-id "VERSION_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			verID := strings.TrimSpace(*versionID)
@@ -690,7 +690,7 @@ Examples:
   asc game-center challenges releases create --version-id "VERSION_ID"
   asc game-center challenges releases delete --id "RELEASE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterChallengeReleasesListCommand(d),
 			newGameCenterChallengeReleasesCreateCommand(d),
@@ -785,7 +785,7 @@ func newGameCenterChallengeLocalizationImageCommand(d *shared.Deps) *ffcli.Comma
 Examples:
   asc game-center challenges localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterChallengeLocalizationImageGetCommand(d),
 		},
@@ -828,7 +828,7 @@ func newGameCenterChallengeVersionDefaultImageCommand(d *shared.Deps) *ffcli.Com
 Examples:
   asc game-center challenges versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterChallengeVersionDefaultImageGetCommand(d),
 		},

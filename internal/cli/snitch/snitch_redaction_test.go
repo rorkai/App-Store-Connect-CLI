@@ -5413,7 +5413,7 @@ func TestWriteLocalLogRedactsEveryStringField(t *testing.T) {
 		OS:          "webhook_secret=" + secrets[6],
 	}
 
-	if err := writeLocalLog(entry); err != nil {
+	if err := writeLocalLog(newSnitchTestDeps(), entry); err != nil {
 		t.Fatalf("writeLocalLog() error: %v", err)
 	}
 
@@ -5447,7 +5447,7 @@ func TestSearchIssuesRedactsCredentialInQuery(t *testing.T) {
 	defer func() { setGitHubAPIBase(origBase) }()
 	setGitHubAPIBase(server.URL)
 
-	if _, err := searchIssues(t.Context(), "test-token", "Authorization: Bearer "+secret); err != nil {
+	if _, err := searchIssues(t.Context(), newSnitchTestDeps(), "test-token", "Authorization: Bearer "+secret); err != nil {
 		t.Fatalf("searchIssues() error: %v", err)
 	}
 	if strings.Contains(searchQuery, secret) {
@@ -5482,7 +5482,7 @@ func TestCreateIssueRedactsCredentialPayload(t *testing.T) {
 		Actual:      "Bearer " + secret,
 		Severity:    "bug",
 	}
-	if _, err := createIssue(t.Context(), "test-token", entry); err != nil {
+	if _, err := createIssue(t.Context(), newSnitchTestDeps(), "test-token", entry); err != nil {
 		t.Fatalf("createIssue() error: %v", err)
 	}
 
@@ -5517,7 +5517,7 @@ func TestAddIssueLabelsRedactsSensitiveValues(t *testing.T) {
 	defer func() { setGitHubAPIBase(origBase) }()
 	setGitHubAPIBase(server.URL)
 
-	if err := addIssueLabels(t.Context(), "test-token", 42, []string{"token=" + secret}); err != nil {
+	if err := addIssueLabels(t.Context(), newSnitchTestDeps(), "test-token", 42, []string{"token=" + secret}); err != nil {
 		t.Fatalf("addIssueLabels() error: %v", err)
 	}
 	encoded, err := json.Marshal(payload)

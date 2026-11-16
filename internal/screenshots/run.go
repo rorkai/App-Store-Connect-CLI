@@ -32,6 +32,10 @@ type RunResult struct {
 	Steps     []RunStepResult `json:"steps"`
 }
 
+// DefaultPlanOutputDir is where a plan without app.output_dir writes its
+// screenshots, relative to the working directory.
+const DefaultPlanOutputDir = "./screenshots/raw"
+
 // RunPlan executes a validated plan.
 func RunPlan(ctx context.Context, plan *Plan) (*RunResult, error) {
 	return runPlan(ctx, plan, nil)
@@ -69,7 +73,7 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 	}
 	outputDir := plan.App.OutputDir
 	if strings.TrimSpace(outputDir) == "" {
-		outputDir = "./screenshots/raw"
+		outputDir = DefaultPlanOutputDir
 	}
 	var absOutputDir string
 	var err error

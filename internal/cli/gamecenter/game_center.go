@@ -43,7 +43,7 @@ Examples:
   asc game-center details achievements-v2 list --id "DETAILS_ID"
   asc game-center matchmaking queues list`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementsCommand(d),
 			newGameCenterLeaderboardsCommand(d),
