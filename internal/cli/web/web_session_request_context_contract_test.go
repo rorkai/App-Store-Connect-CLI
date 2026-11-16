@@ -19,7 +19,7 @@ var webSessionResolveNames = map[string]struct{}{
 	"resolveWebSessionForCommandWith":            {},
 	"callResolveSessionForProviderSelection":     {},
 	"callResolveSessionForProviderSelectionWith": {},
-	"resolveWebSession":                          {},
+	"resolveWebSessionWith":                      {},
 	"callResolveAppCreateSessionFn":              {},
 	"resolveWebComplianceClient":                 {},
 }
