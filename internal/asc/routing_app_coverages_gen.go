@@ -47,6 +47,43 @@ type RoutingAppCoverageUpdateRequest struct {
 	Data RoutingAppCoverageUpdateData `json:"data"`
 }
 
+// CreateRoutingAppCoverage sends POST /v1/routingAppCoverages (routingAppCoverages_createInstance).
+func (c *Client) CreateRoutingAppCoverage(ctx context.Context, versionID, fileName string, fileSize int64) (*RoutingAppCoverageResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	fileName = strings.TrimSpace(fileName)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	if fileName == "" {
+		return nil, fmt.Errorf("fileName is required")
+	}
+	if fileSize <= 0 {
+		return nil, fmt.Errorf("fileSize is required")
+	}
+	payload := RoutingAppCoverageCreateRequest{
+		Data: RoutingAppCoverageCreateData{
+			Type: ResourceTypeRoutingAppCoverages,
+			Attributes: RoutingAppCoverageCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: &RoutingAppCoverageRelationships{
+				AppStoreVersion: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[RoutingAppCoverageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/routingAppCoverages",
+		Payload: payload,
+	})
+}
+
 // DeleteRoutingAppCoverage sends DELETE /v1/routingAppCoverages/{id} (routingAppCoverages_deleteInstance).
 func (c *Client) DeleteRoutingAppCoverage(ctx context.Context, coverageID string) error {
 	coverageID = strings.TrimSpace(coverageID)
