@@ -223,7 +223,11 @@ Examples:
 				asc.WithAppRetentionMessageFields(retentionMessageFieldValues),
 				asc.WithAppInclude(includeValues),
 			}
-			return client.GetAppWithOptions(ctx, id, opts...)
+			resp, err := client.GetAppWithOptions(ctx, id, opts...)
+			if err != nil {
+				return nil, err
+			}
+			return asc.RedactAppStoreReviewDetailIncludesInSingleResponse(resp)
 		},
 	})
 }

@@ -183,6 +183,18 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 			body: `{"data":{"type":"appStoreReviewAttachments","id":"attachment-1","attributes":{"fileName":"review.pdf"}},"included":[` +
 				includedAppStoreReviewDetailJSON() + `]}`,
 		},
+		{
+			name:  "apps view",
+			deps:  true,
+			path:  "/v1/apps/app-1",
+			query: []string{"include=betaAppReviewDetail"},
+			args: []string{
+				"apps", "view", "--id", "app-1",
+				"--include", "betaAppReviewDetail", "--output", "json",
+			},
+			body: `{"data":{"type":"apps","id":"app-1","attributes":{"name":"App"}},"included":[` +
+				`{"type":"betaAppReviewDetails","id":"detail-1","attributes":{"demoAccountPassword":"` + appStoreDemoPasswordSentinel + `"}}]}`,
+		},
 	}
 
 	for _, test := range tests {
