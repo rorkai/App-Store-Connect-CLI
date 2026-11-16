@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -49,7 +50,7 @@ type publicationVerifier struct {
 }
 
 func newPublicationVerifier(d *shared.Deps, documentTimeout time.Duration) (*publicationVerifier, error) {
-	delegate, err := core.NewHTTPVerifierWithEnvironmentTrust(0)
+	delegate, err := core.NewHTTPVerifierWithEnvironmentTrust(d.HTTPTransport(), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +67,22 @@ func (verifier *publicationVerifier) Verify(ctx context.Context, request core.Ve
 	}
 	defer cancel()
 	return verifier.delegate.Verify(verifyCtx, request)
+}
+
+// objectStoreHTTPClient returns the HTTP client the S3 store sends through:
+// none, so the store uses the AWS SDK's own client, when d's transport is the
+// process default (or nil), and a client on d's transport when the caller injected
+// one, so uploads and verification share one network path. The SDK's client
+// has its own transport defaults and applies AWS_CA_BUNDLE itself, so
+// replacing it on a normal run would change S3 networking. With
+// AWS_CA_BUNDLE set, the SDK refuses a client of another kind, so an injected
+// transport makes the store setup fail before any upload.
+func objectStoreHTTPClient(d *shared.Deps) *http.Client {
+	transport := d.HTTPTransport()
+	if core.IsDefaultHTTPTransport(transport) {
+		return nil
+	}
+	return &http.Client{Transport: transport}
 }
 
 // newPublishCommand returns the provider-neutral S3-compatible publisher.
@@ -252,6 +269,7 @@ Examples:
 			store, credentialLimit, err := newObjectStore(setupCtx, core.S3StoreConfig{
 				Endpoint: *endpoint, DownloadEndpoint: *downloadEndpoint, Region: *region, Bucket: *bucket,
 				AddressingStyle: *addressingStyle, RequestTimeout: d.ResolveTimeout(shared.UploadTimeoutSetting, asc.DefaultUploadTimeout),
+				HTTPClient: objectStoreHTTPClient(d),
 			})
 			setupCancel()
 			if err != nil {
