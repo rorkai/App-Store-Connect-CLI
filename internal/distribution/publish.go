@@ -1088,12 +1088,25 @@ func NewHTTPVerifier(client *http.Client, timeout time.Duration) *HTTPVerifier {
 	return &HTTPVerifier{client: &clone, timeout: timeout}
 }
 
-// NewHTTPVerifierWithEnvironmentTrust builds a verifier that honors the same
-// AWS_CA_BUNDLE trust override used by the S3 SDK for private endpoints.
-func NewHTTPVerifierWithEnvironmentTrust(timeout time.Duration) (*HTTPVerifier, error) {
+// NewHTTPVerifierWithEnvironmentTrust builds a verifier that sends through
+// transport (nil means http.DefaultTransport) and honors the AWS_CA_BUNDLE
+// trust override the S3 SDK uses for private endpoints:
+//   - without AWS_CA_BUNDLE, transport is used as given;
+//   - with AWS_CA_BUNDLE and http.DefaultTransport itself, the bundle is added
+//     to a clone of the default transport;
+//   - with AWS_CA_BUNDLE and any other transport, it returns an error before
+//     the verifier sends anything: a custom transport carries its own trust,
+//     so the two cannot be combined.
+func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout time.Duration) (*HTTPVerifier, error) {
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
 	caPath := strings.TrimSpace(os.Getenv("AWS_CA_BUNDLE"))
 	if caPath == "" {
-		return NewHTTPVerifier(nil, timeout), nil
+		return NewHTTPVerifier(&http.Client{Transport: transport}, timeout), nil
+	}
+	if transport != http.DefaultTransport {
+		return nil, fmt.Errorf("AWS_CA_BUNDLE cannot be combined with a custom HTTP transport (%T); unset AWS_CA_BUNDLE or use the default transport", transport)
 	}
 	file, err := os.Open(caPath)
 	if err != nil {
@@ -1115,11 +1128,11 @@ func NewHTTPVerifierWithEnvironmentTrust(timeout time.Duration) (*HTTPVerifier, 
 	if !roots.AppendCertsFromPEM(pemBytes) {
 		return nil, fmt.Errorf("custom CA bundle contains no certificates")
 	}
-	transport, ok := http.DefaultTransport.(*http.Transport)
+	base, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		return nil, fmt.Errorf("default HTTP transport is unavailable")
 	}
-	clone := transport.Clone()
+	clone := base.Clone()
 	clone.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
 	return NewHTTPVerifier(&http.Client{Transport: clone}, timeout), nil
 }

@@ -175,7 +175,7 @@ func executePrivatePublishIntent(ctx context.Context, d *shared.Deps, request pr
 	setupCtx, setupCancel := d.UploadTimeout(ctx)
 	store, credentialLimit, err := newObjectStore(setupCtx, core.S3StoreConfig{
 		Endpoint: request.Endpoint, DownloadEndpoint: request.DownloadEndpoint, Region: request.Region,
-		Bucket: request.Bucket, AddressingStyle: request.AddressingStyle,
+		Bucket: request.Bucket, AddressingStyle: request.AddressingStyle, HTTPClient: objectStoreHTTPClient(d),
 	})
 	setupCancel()
 	if err != nil {

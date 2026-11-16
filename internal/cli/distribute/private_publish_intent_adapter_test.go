@@ -211,10 +211,13 @@ func TestExecutePrivatePublishIntentPersistsBeforeExecutionAndRecoversWithoutPre
 	bundleDir, bundle := privatePublishIntentTestBundle(t)
 	loadPreparedBundle = func(context.Context, rootfs.Root) (*core.PreparedBundle, error) { return bundle(), nil }
 	storeCalls := 0
-	newObjectStore = func(ctx context.Context, _ core.S3StoreConfig) (core.ObjectStore, time.Time, error) {
+	newObjectStore = func(ctx context.Context, config core.S3StoreConfig) (core.ObjectStore, time.Time, error) {
 		storeCalls++
 		if _, ok := ctx.Deadline(); !ok {
 			t.Fatal("object-store setup context has no deadline")
+		}
+		if config.HTTPClient != nil {
+			t.Fatal("object-store setup with the default transport replaced the AWS SDK's client")
 		}
 		return noOpStore{}, time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC), nil
 	}

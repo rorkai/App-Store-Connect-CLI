@@ -6,9 +6,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -1166,3 +1168,67 @@ func sha256Hex(data []byte) string {
 }
 
 var _ = errors.Is
+
+func TestHTTPVerifierEnvironmentTrustTransportRule(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var requests int
+	custom := publishVerifyRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: request}, nil
+	})
+
+	t.Run("without AWS_CA_BUNDLE the transport is used as given", func(t *testing.T) {
+		t.Setenv("AWS_CA_BUNDLE", "")
+		requests = 0
+		verifier, err := NewHTTPVerifierWithEnvironmentTrust(custom, time.Second)
+		if err != nil {
+			t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() error = %v", err)
+		}
+		response, err := verifier.client.Get("https://objects.example.com/app.ipa")
+		if err != nil {
+			t.Fatalf("request through the given transport: %v", err)
+		}
+		_ = response.Body.Close()
+		if requests != 1 {
+			t.Fatalf("requests on the given transport = %d, want 1", requests)
+		}
+	})
+	t.Run("with AWS_CA_BUNDLE the default transport trusts the bundle", func(t *testing.T) {
+		t.Setenv("AWS_CA_BUNDLE", caPath)
+		for name, transport := range map[string]http.RoundTripper{"http.DefaultTransport": http.DefaultTransport, "nil": nil} {
+			verifier, err := NewHTTPVerifierWithEnvironmentTrust(transport, time.Second)
+			if err != nil {
+				t.Fatalf("%s: NewHTTPVerifierWithEnvironmentTrust() error = %v", name, err)
+			}
+			response, err := verifier.client.Get(server.URL)
+			if err != nil {
+				t.Fatalf("%s: request to a server signed by the bundle: %v", name, err)
+			}
+			_ = response.Body.Close()
+		}
+	})
+	t.Run("with AWS_CA_BUNDLE a custom transport is a configuration error", func(t *testing.T) {
+		t.Setenv("AWS_CA_BUNDLE", caPath)
+		requests = 0
+		for name, transport := range map[string]http.RoundTripper{"round tripper": custom, "*http.Transport": &http.Transport{}} {
+			verifier, err := NewHTTPVerifierWithEnvironmentTrust(transport, time.Second)
+			if err == nil || verifier != nil || !strings.Contains(err.Error(), "AWS_CA_BUNDLE cannot be combined with a custom HTTP transport") {
+				t.Fatalf("%s: NewHTTPVerifierWithEnvironmentTrust() = %v, %v; want the configuration error", name, verifier, err)
+			}
+		}
+		if requests != 0 {
+			t.Fatalf("requests on the custom transport = %d, want none", requests)
+		}
+	})
+}
+
+type publishVerifyRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f publishVerifyRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
