@@ -177,6 +177,8 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"relationships when set with a required link", &Family{Relationships: yokeRels, Operations: []*OpBind{{Operation: "yokes_createInstance", Name: "X", Params: []string{"widgetID"}, Links: []string{"widget"}, Optional: []OptionalLink{{Param: "gadgetID", Link: "gadget"}}, RelationshipsWhenSet: true}}}},
 		{"relationships when set without optional links", &Family{Relationships: yokeRels, Operations: []*OpBind{{Operation: "yokes_updateInstance", Name: "X", Params: []string{"id"}, RelationshipsWhenSet: true}}}},
 		{"optional links on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, Optional: []OptionalLink{{Param: "gadgetID", Link: "gadget"}}}}}},
+		{"positive check on a string arg", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName", Positive: "fileName is required"}}}}}},
+		{"positive check on a param arg", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Check: checkRequire, Args: []ArgBind{{Name: "fileName", Param: true, Positive: "fileName is required"}}}}}},
 		{"decode error text on a relationship change", &Family{Operations: []*OpBind{{Operation: "widgets_gadgets_replaceToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", ParseErr: "failed to parse gadgets"}}}},
 		{"path check without an error context", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkPath}}}},
 		{"path error context without the path check", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkRequire, PathErr: "yarn"}}}},

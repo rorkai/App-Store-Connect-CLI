@@ -38,6 +38,43 @@ type InAppPurchaseImageV2UpdateRequest struct {
 	Data InAppPurchaseImageV2UpdateData `json:"data"`
 }
 
+// CreateInAppPurchaseImageV2 sends POST /v2/inAppPurchaseImages (inAppPurchaseImagesV2_createInstance).
+func (c *Client) CreateInAppPurchaseImageV2(ctx context.Context, versionID, fileName string, fileSize int64) (*InAppPurchaseImageV2Response, error) {
+	versionID = strings.TrimSpace(versionID)
+	fileName = strings.TrimSpace(fileName)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	if fileName == "" {
+		return nil, fmt.Errorf("fileName is required")
+	}
+	if fileSize <= 0 {
+		return nil, fmt.Errorf("fileSize is required")
+	}
+	payload := InAppPurchaseImageV2CreateRequest{
+		Data: InAppPurchaseImageV2CreateData{
+			Type: ResourceTypeInAppPurchaseImages,
+			Attributes: InAppPurchaseImageV2CreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: InAppPurchaseImageV2CreateRelationships{
+				Version: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeInAppPurchaseVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[InAppPurchaseImageV2Response](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v2/inAppPurchaseImages",
+		Payload: payload,
+	})
+}
+
 // DeleteInAppPurchaseImageV2 sends DELETE /v2/inAppPurchaseImages/{id} (inAppPurchaseImagesV2_deleteInstance).
 func (c *Client) DeleteInAppPurchaseImageV2(ctx context.Context, imageID string) error {
 	imageID = strings.TrimSpace(imageID)

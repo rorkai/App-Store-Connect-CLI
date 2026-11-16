@@ -32,6 +32,43 @@ type SubscriptionVersionRelationship struct {
 	Version *Relationship `json:"version"`
 }
 
+// CreateSubscriptionImageV2 sends POST /v2/subscriptionImages (subscriptionImagesV2_createInstance).
+func (c *Client) CreateSubscriptionImageV2(ctx context.Context, versionID, fileName string, fileSize int64) (*SubscriptionImageV2Response, error) {
+	versionID = strings.TrimSpace(versionID)
+	fileName = strings.TrimSpace(fileName)
+	if versionID == "" {
+		return nil, fmt.Errorf("version ID is required")
+	}
+	if fileName == "" {
+		return nil, fmt.Errorf("file name is required")
+	}
+	if fileSize <= 0 {
+		return nil, fmt.Errorf("file size must be greater than zero")
+	}
+	payload := SubscriptionImageV2CreateRequest{
+		Data: SubscriptionImageV2CreateData{
+			Type: ResourceTypeSubscriptionImages,
+			Attributes: SubscriptionImageV2CreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: &SubscriptionVersionRelationship{
+				Version: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptionVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v2/subscriptionImages",
+		Payload: payload,
+	})
+}
+
 // DeleteSubscriptionImageV2 sends DELETE /v2/subscriptionImages/{id} (subscriptionImagesV2_deleteInstance).
 func (c *Client) DeleteSubscriptionImageV2(ctx context.Context, imageID string) error {
 	imageID = strings.TrimSpace(imageID)

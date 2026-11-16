@@ -647,6 +647,11 @@ func (m *method) payload(spec *Spec) (string, error) {
 		fields = append(fields, "Relationships: "+relationships)
 	}
 	m.checks()
+	for _, arg := range m.b.Args {
+		if arg.Positive != "" {
+			m.pre = append(m.pre, fmt.Sprintf("if %s <= 0 {\nreturn nil, fmt.Errorf(%s)\n}", arg.Name, strconv.Quote(arg.Positive)))
+		}
+	}
 	return linkSteps + fmt.Sprintf("payload := %s{\nData: %s{\n%s,\n},\n}", m.fam.goType(m.op.Request), m.fam.goType(base+"Data"), strings.Join(fields, ",\n")) + step, nil
 }
 
@@ -859,6 +864,8 @@ func (m *method) argAttributes(data *Schema, base string) (string, error) {
 		switch {
 		case err != nil || !scalar:
 			return "", fmt.Errorf("arg %s: attribute %q is not a scalar", arg.Name, name)
+		case arg.Positive != "" && (arg.Param || !strings.HasPrefix(typ, "int")):
+			return "", fmt.Errorf("arg %s: a positive check needs an integer arg that is no param arg", arg.Name)
 		case arg.Param:
 			if err := m.checkParamArg(i, typ); err != nil {
 				return "", err

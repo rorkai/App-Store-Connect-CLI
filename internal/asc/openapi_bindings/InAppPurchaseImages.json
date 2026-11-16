@@ -12,6 +12,7 @@
     {"data":"InAppPurchaseImageV2CreateData","type":"InAppPurchaseImageV2CreateRelationships"}
   ],
   "operations": [
+    {"operation":"inAppPurchaseImagesV2_createInstance","name":"CreateInAppPurchaseImageV2","params":["versionID"],"check":"require","links":["version"],"args":[{"name":"fileName","param":true},{"name":"fileSize","type":"int64","positive":"fileSize is required"}]},
     {"operation":"inAppPurchaseImagesV2_deleteInstance","name":"DeleteInAppPurchaseImageV2","params":["imageID"],"check":"require"},
     {"operation":"inAppPurchaseImagesV2_getInstance","name":"GetInAppPurchaseImageV2","params":["imageID"],"check":"require","checkFirst":true,"options":"IAPImageV2Option","query":"buildIAPImageFieldsQuery","single":true},
     {"operation":"inAppPurchaseImagesV2_updateInstance","name":"UpdateInAppPurchaseImageV2","params":["imageID"],"check":"require","skipEmptyAttributes":true}

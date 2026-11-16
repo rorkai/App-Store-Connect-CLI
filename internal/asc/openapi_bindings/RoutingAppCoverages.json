@@ -14,6 +14,7 @@
     {"data":"RoutingAppCoverageCreateData","type":"*RoutingAppCoverageRelationships"}
   ],
   "operations": [
+    {"operation":"routingAppCoverages_createInstance","name":"CreateRoutingAppCoverage","params":["versionID"],"check":"require","links":["appStoreVersion"],"args":[{"name":"fileName","param":true},{"name":"fileSize","type":"int64","positive":"fileSize is required"}]},
     {"operation":"routingAppCoverages_deleteInstance","name":"DeleteRoutingAppCoverage","params":["coverageID"],"check":"require"},
     {"operation":"routingAppCoverages_getInstance","name":"GetRoutingAppCoverage","params":["coverageID"],"check":"require"},
     {"operation":"routingAppCoverages_updateInstance","name":"UpdateRoutingAppCoverage","params":["coverageID"],"check":"require","skipEmptyAttributes":true}
