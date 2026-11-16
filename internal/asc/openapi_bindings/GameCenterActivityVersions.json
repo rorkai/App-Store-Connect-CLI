@@ -15,6 +15,7 @@
     {"data":"GameCenterActivityVersionCreateData","type":"*GameCenterActivityVersionRelationships","omitempty":true}
   ],
   "operations": [
+    {"operation":"gameCenterActivityVersions_createInstance","name":"CreateGameCenterActivityVersion","params":["activityID"],"links":["activity"],"attrs":"pointer"},
     {"operation":"gameCenterActivityVersions_defaultImage_getToOneRelated","name":"GetGameCenterActivityVersionDefaultImage","params":["versionID"],"response":"GameCenterActivityVersionDefaultImageResponse"},
     {"operation":"gameCenterActivityVersions_getInstance","name":"GetGameCenterActivityVersion","params":["versionID"]},
     {"operation":"gameCenterActivityVersions_localizations_getToManyRelated","name":"GetGameCenterActivityLocalizations","params":["versionID"],"options":"GCActivityLocalizationsOption","query":"buildGCActivityLocalizationsQuery","nextContext":"game-center-activity-localizations"}

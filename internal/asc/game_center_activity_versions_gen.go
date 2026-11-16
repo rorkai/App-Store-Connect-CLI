@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -51,6 +52,29 @@ type GameCenterActivityVersionUpdateData struct {
 // GameCenterActivityVersionUpdateRequest is the GameCenterActivityVersionUpdateRequest schema.
 type GameCenterActivityVersionUpdateRequest struct {
 	Data GameCenterActivityVersionUpdateData `json:"data"`
+}
+
+// CreateGameCenterActivityVersion sends POST /v1/gameCenterActivityVersions (gameCenterActivityVersions_createInstance).
+func (c *Client) CreateGameCenterActivityVersion(ctx context.Context, activityID string, attrs *GameCenterActivityVersionCreateAttributes) (*GameCenterActivityVersionResponse, error) {
+	payload := GameCenterActivityVersionCreateRequest{
+		Data: GameCenterActivityVersionCreateData{
+			Type:       ResourceTypeGameCenterActivityVersions,
+			Attributes: attrs,
+			Relationships: &GameCenterActivityVersionRelationships{
+				Activity: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterActivities,
+						ID:   strings.TrimSpace(activityID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterActivityVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterActivityVersions",
+		Payload: payload,
+	})
 }
 
 // GetGameCenterActivityVersionDefaultImage sends GET /v1/gameCenterActivityVersions/{id}/defaultImage (gameCenterActivityVersions_defaultImage_getToOneRelated).

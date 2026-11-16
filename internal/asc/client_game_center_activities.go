@@ -179,29 +179,6 @@ func (c *Client) RemoveGameCenterActivityLeaderboards(ctx context.Context, activ
 	return err
 }
 
-// CreateGameCenterActivityVersion creates a new activity version.
-func (c *Client) CreateGameCenterActivityVersion(ctx context.Context, activityID string, attrs *GameCenterActivityVersionCreateAttributes) (*GameCenterActivityVersionResponse, error) {
-	payload := GameCenterActivityVersionCreateRequest{
-		Data: GameCenterActivityVersionCreateData{
-			Type:       ResourceTypeGameCenterActivityVersions,
-			Attributes: attrs,
-			Relationships: &GameCenterActivityVersionRelationships{
-				Activity: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterActivities,
-						ID:   strings.TrimSpace(activityID),
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[GameCenterActivityVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/gameCenterActivityVersions",
-		Payload: payload,
-	})
-}
-
 // UpdateGameCenterActivityVersion updates an activity version.
 func (c *Client) UpdateGameCenterActivityVersion(ctx context.Context, versionID string, fallbackURL *string) (*GameCenterActivityVersionResponse, error) {
 	var attrs *GameCenterActivityVersionUpdateAttributes
