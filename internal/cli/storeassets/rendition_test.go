@@ -15,18 +15,19 @@ func TestDeliveredPreviewComparisonBoundsUnknownLength(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := &unboundedPreviewBody{}
-	previous := http.DefaultClient
-	http.DefaultClient = &http.Client{Transport: previewRoundTripper(func(req *http.Request) (*http.Response, error) {
-		if _, ok := req.Context().Deadline(); !ok {
-			t.Error("comparison request has no deadline")
-		}
-		if req.Header.Get("Authorization") != "" {
-			t.Error("media comparison forwarded authorization")
-		}
-		return &http.Response{StatusCode: http.StatusOK, Body: body, ContentLength: -1, Header: http.Header{}}, nil
-	})}
-	t.Cleanup(func() { http.DefaultClient = previous })
-	match, err := matchesDeliveredMedia(context.Background(), testDeps(), path, "https://media.example/video", maxPreviewBytes)
+	d := testDeps()
+	d.HTTPTransport = func() http.RoundTripper {
+		return previewRoundTripper(func(req *http.Request) (*http.Response, error) {
+			if _, ok := req.Context().Deadline(); !ok {
+				t.Error("comparison request has no deadline")
+			}
+			if req.Header.Get("Authorization") != "" {
+				t.Error("media comparison forwarded authorization")
+			}
+			return &http.Response{StatusCode: http.StatusOK, Body: body, ContentLength: -1, Header: http.Header{}}, nil
+		})
+	}
+	match, err := matchesDeliveredMedia(context.Background(), d, path, "https://media.example/video", maxPreviewBytes)
 	if err != nil || match {
 		t.Fatalf("match=%v err=%v", match, err)
 	}

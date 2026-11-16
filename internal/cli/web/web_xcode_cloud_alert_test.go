@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -65,7 +66,8 @@ func TestValidateUsageAlertThresholds(t *testing.T) {
 }
 
 func TestWebXcodeCloudUsageAlertRejectsInvalidNotifyOn(t *testing.T) {
-	cmd := webXcodeCloudUsageAlertCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudUsageAlertCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--notify-on", "invalid",
@@ -74,7 +76,7 @@ func TestWebXcodeCloudUsageAlertRejectsInvalidNotifyOn(t *testing.T) {
 	}
 
 	var runErr error
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(runErr, flag.ErrHelp) {
@@ -86,7 +88,8 @@ func TestWebXcodeCloudUsageAlertRejectsInvalidNotifyOn(t *testing.T) {
 }
 
 func TestWebXcodeCloudUsageAlertRejectsInvalidWebhookHeader(t *testing.T) {
-	cmd := webXcodeCloudUsageAlertCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudUsageAlertCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--webhook", "https://example.com/alert",
@@ -96,7 +99,7 @@ func TestWebXcodeCloudUsageAlertRejectsInvalidWebhookHeader(t *testing.T) {
 	}
 
 	var runErr error
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(runErr, flag.ErrHelp) {
@@ -109,13 +112,11 @@ func TestWebXcodeCloudUsageAlertRejectsInvalidWebhookHeader(t *testing.T) {
 
 func TestWebXcodeCloudUsageAlertReturnsThresholdErrorWithJSONOutput(t *testing.T) {
 	origResolveSession := resolveSessionFn
-	origWebNow := webNowFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
-		webNowFn = origWebNow
 	})
 
-	webNowFn = func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
+	webTestNow := func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
 	summary := &webcore.CIUsageSummary{
 		Plan: webcore.CIUsagePlan{
 			Name:      "Starter",
@@ -128,7 +129,9 @@ func TestWebXcodeCloudUsageAlertReturnsThresholdErrorWithJSONOutput(t *testing.T
 	}
 	resolveSessionFn = stubUsageAlertSessionWithResponses(t, summary, nil)
 
-	cmd := webXcodeCloudUsageAlertCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Now = webTestNow
+	cmd := webXcodeCloudUsageAlertCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--trend-months", "0",
@@ -139,7 +142,7 @@ func TestWebXcodeCloudUsageAlertReturnsThresholdErrorWithJSONOutput(t *testing.T
 	}
 
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr == nil {
@@ -163,13 +166,11 @@ func TestWebXcodeCloudUsageAlertReturnsThresholdErrorWithJSONOutput(t *testing.T
 
 func TestWebXcodeCloudUsageAlertUsesExactThresholdRatios(t *testing.T) {
 	origResolveSession := resolveSessionFn
-	origWebNow := webNowFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
-		webNowFn = origWebNow
 	})
 
-	webNowFn = func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
+	webTestNow := func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
 	summary := &webcore.CIUsageSummary{
 		Plan: webcore.CIUsagePlan{
 			Name:      "Starter",
@@ -181,7 +182,9 @@ func TestWebXcodeCloudUsageAlertUsesExactThresholdRatios(t *testing.T) {
 	}
 	resolveSessionFn = stubUsageAlertSessionWithResponses(t, summary, nil)
 
-	cmd := webXcodeCloudUsageAlertCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Now = webTestNow
+	cmd := webXcodeCloudUsageAlertCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--warn-at", "95",
@@ -194,7 +197,7 @@ func TestWebXcodeCloudUsageAlertUsesExactThresholdRatios(t *testing.T) {
 	}
 
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {
@@ -216,14 +219,12 @@ func TestWebXcodeCloudUsageAlertUsesExactThresholdRatios(t *testing.T) {
 func TestWebXcodeCloudUsageAlertSendsSlackOnCritical(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origSendSlack := sendUsageAlertSlackFn
-	origWebNow := webNowFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
 		sendUsageAlertSlackFn = origSendSlack
-		webNowFn = origWebNow
 	})
 
-	webNowFn = func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
+	webTestNow := func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
 	summary := &webcore.CIUsageSummary{
 		Plan: webcore.CIUsagePlan{
 			Name:      "Pro",
@@ -236,7 +237,7 @@ func TestWebXcodeCloudUsageAlertSendsSlackOnCritical(t *testing.T) {
 	resolveSessionFn = stubUsageAlertSessionWithResponses(t, summary, nil)
 
 	slackCalls := 0
-	sendUsageAlertSlackFn = func(ctx context.Context, webhookURL string, result *CIUsageAlertResult) (int, error) {
+	sendUsageAlertSlackFn = func(ctx context.Context, _ *shared.Deps, webhookURL string, result *CIUsageAlertResult) (int, error) {
 		slackCalls++
 		if webhookURL != "https://hooks.slack.com/services/T/B/KEY" {
 			t.Fatalf("unexpected slack webhook url %q", webhookURL)
@@ -247,7 +248,9 @@ func TestWebXcodeCloudUsageAlertSendsSlackOnCritical(t *testing.T) {
 		return http.StatusOK, nil
 	}
 
-	cmd := webXcodeCloudUsageAlertCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Now = webTestNow
+	cmd := webXcodeCloudUsageAlertCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--trend-months", "0",
@@ -260,7 +263,7 @@ func TestWebXcodeCloudUsageAlertSendsSlackOnCritical(t *testing.T) {
 	}
 
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {
@@ -285,14 +288,12 @@ func TestWebXcodeCloudUsageAlertSendsSlackOnCritical(t *testing.T) {
 func TestWebXcodeCloudUsageAlertDoesNotNotifyBelowLevel(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origSendSlack := sendUsageAlertSlackFn
-	origWebNow := webNowFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
 		sendUsageAlertSlackFn = origSendSlack
-		webNowFn = origWebNow
 	})
 
-	webNowFn = func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
+	webTestNow := func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
 	summary := &webcore.CIUsageSummary{
 		Plan: webcore.CIUsagePlan{
 			Name:      "Pro",
@@ -305,12 +306,14 @@ func TestWebXcodeCloudUsageAlertDoesNotNotifyBelowLevel(t *testing.T) {
 	resolveSessionFn = stubUsageAlertSessionWithResponses(t, summary, nil)
 
 	slackCalls := 0
-	sendUsageAlertSlackFn = func(ctx context.Context, webhookURL string, result *CIUsageAlertResult) (int, error) {
+	sendUsageAlertSlackFn = func(ctx context.Context, _ *shared.Deps, webhookURL string, result *CIUsageAlertResult) (int, error) {
 		slackCalls++
 		return http.StatusOK, nil
 	}
 
-	cmd := webXcodeCloudUsageAlertCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Now = webTestNow
+	cmd := webXcodeCloudUsageAlertCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--trend-months", "0",
@@ -323,7 +326,7 @@ func TestWebXcodeCloudUsageAlertDoesNotNotifyBelowLevel(t *testing.T) {
 	}
 
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {
@@ -347,13 +350,11 @@ func TestWebXcodeCloudUsageAlertDoesNotNotifyBelowLevel(t *testing.T) {
 
 func TestWebXcodeCloudUsageAlertLoadsMonthlyTrend(t *testing.T) {
 	origResolveSession := resolveSessionFn
-	origWebNow := webNowFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
-		webNowFn = origWebNow
 	})
 
-	webNowFn = func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
+	webTestNow := func() time.Time { return time.Date(2026, time.February, 28, 10, 0, 0, 0, time.UTC) }
 	summary := &webcore.CIUsageSummary{
 		Plan: webcore.CIUsagePlan{
 			Name:      "Starter",
@@ -371,7 +372,9 @@ func TestWebXcodeCloudUsageAlertLoadsMonthlyTrend(t *testing.T) {
 	}
 	resolveSessionFn = stubUsageAlertSessionWithResponses(t, summary, months)
 
-	cmd := webXcodeCloudUsageAlertCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Now = webTestNow
+	cmd := webXcodeCloudUsageAlertCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--fail-on", "none",
@@ -382,7 +385,7 @@ func TestWebXcodeCloudUsageAlertLoadsMonthlyTrend(t *testing.T) {
 	}
 
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {
@@ -406,13 +409,11 @@ func TestWebXcodeCloudUsageAlertLoadsMonthlyTrend(t *testing.T) {
 
 func TestWebXcodeCloudUsageAlertTrendUsesMonthAnchoredWindow(t *testing.T) {
 	origResolveSession := resolveSessionFn
-	origWebNow := webNowFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
-		webNowFn = origWebNow
 	})
 
-	webNowFn = func() time.Time { return time.Date(2026, time.March, 31, 20, 15, 0, 0, time.UTC) }
+	webTestNow := func() time.Time { return time.Date(2026, time.March, 31, 20, 15, 0, 0, time.UTC) }
 
 	summary := &webcore.CIUsageSummary{
 		Plan: webcore.CIUsagePlan{
@@ -460,7 +461,9 @@ func TestWebXcodeCloudUsageAlertTrendUsesMonthAnchoredWindow(t *testing.T) {
 		}, "", nil
 	}
 
-	cmd := webXcodeCloudUsageAlertCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Now = webTestNow
+	cmd := webXcodeCloudUsageAlertCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--fail-on", "none",
@@ -471,7 +474,7 @@ func TestWebXcodeCloudUsageAlertTrendUsesMonthAnchoredWindow(t *testing.T) {
 	}
 
 	var runErr error
-	_, _ = captureOutput(t, func() {
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {

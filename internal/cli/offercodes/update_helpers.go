@@ -53,7 +53,7 @@ func NewActiveUpdateCommand(config ActiveUpdateCommandConfig) *ffcli.Command {
 		ShortHelp:  config.ShortHelp,
 		LongHelp:   config.LongHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {

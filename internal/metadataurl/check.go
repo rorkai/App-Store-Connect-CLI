@@ -114,27 +114,33 @@ func CheckAll(ctx context.Context, checker Checker, rawURLs []string) (map[strin
 	return outcomes, nil
 }
 
-// NewChecker returns the production bounded HTTP checker.
-func NewChecker() Checker {
-	return &httpChecker{client: newHTTPClient()}
+// NewChecker returns the bounded HTTP checker built on base. A base
+// *http.Transport is cloned, restricted to public destinations and bounded by
+// the check limits; any other RoundTripper is used as given.
+func NewChecker(base http.RoundTripper) Checker {
+	return &httpChecker{client: newHTTPClient(base)}
 }
 
 // newHTTPClient returns the configured bounded HTTP client.
-func newHTTPClient() *http.Client {
+func newHTTPClient(base http.RoundTripper) *http.Client {
 	timeout := asc.ResolveTimeoutWithDefault(CheckTimeout)
-	dialer := &net.Dialer{
-		Timeout:        timeout,
-		KeepAlive:      30 * time.Second,
-		ControlContext: PublicDialControl,
+	transport := base
+	if baseTransport, ok := base.(*http.Transport); ok {
+		dialer := &net.Dialer{
+			Timeout:        timeout,
+			KeepAlive:      30 * time.Second,
+			ControlContext: PublicDialControl,
+		}
+		bounded := baseTransport.Clone()
+		bounded.Proxy = nil
+		bounded.DialContext = dialer.DialContext
+		bounded.DisableKeepAlives = true
+		bounded.MaxConnsPerHost = CheckConcurrency
+		bounded.ResponseHeaderTimeout = timeout
+		bounded.TLSHandshakeTimeout = timeout
+		bounded.MaxResponseHeaderBytes = 1 << 20
+		transport = bounded
 	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = nil
-	transport.DialContext = dialer.DialContext
-	transport.DisableKeepAlives = true
-	transport.MaxConnsPerHost = CheckConcurrency
-	transport.ResponseHeaderTimeout = timeout
-	transport.TLSHandshakeTimeout = timeout
-	transport.MaxResponseHeaderBytes = 1 << 20
 
 	return &http.Client{
 		Transport:     transport,

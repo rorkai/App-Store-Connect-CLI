@@ -16,8 +16,8 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-func webXcodeCloudWorkflowsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows", flag.ExitOnError)
+func webXcodeCloudWorkflowsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "workflows",
@@ -46,15 +46,15 @@ Examples:
   asc web xcode-cloud workflows enable --product-id "UUID" --workflow-id "WF-UUID" --apple-id "user@example.com"
   asc web xcode-cloud workflows disable --product-id "UUID" --workflow-id "WF-UUID" --confirm --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			webXcodeCloudWorkflowListCommand(),
-			webXcodeCloudWorkflowDescribeCommand(),
-			webXcodeCloudWorkflowCreateCommand(),
-			webXcodeCloudWorkflowOptionsCommand(),
-			webXcodeCloudWorkflowEditCommand(),
-			webXcodeCloudWorkflowEnableCommand(),
-			webXcodeCloudWorkflowDisableCommand(),
+			webXcodeCloudWorkflowListCommand(d),
+			webXcodeCloudWorkflowDescribeCommand(d),
+			webXcodeCloudWorkflowCreateCommand(d),
+			webXcodeCloudWorkflowOptionsCommand(d),
+			webXcodeCloudWorkflowEditCommand(d),
+			webXcodeCloudWorkflowEnableCommand(d),
+			webXcodeCloudWorkflowDisableCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -104,10 +104,10 @@ type CIWorkflowCreateResult struct {
 	Created bool `json:"created"`
 }
 
-func webXcodeCloudWorkflowListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows list", flag.ExitOnError)
+func webXcodeCloudWorkflowListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows list", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 
@@ -130,14 +130,14 @@ Examples:
   asc web xcode-cloud workflows list --product-id "UUID" --apple-id "user@example.com"
   asc web xcode-cloud workflows list --product-id "UUID" --apple-id "user@example.com" --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -149,7 +149,7 @@ Examples:
 
 			client := newCIClientFn(session)
 			var result *asc.WebXcodeCloudWorkflowsListResult
-			err = withWebSpinner("Loading Xcode Cloud workflows", func() error {
+			err = withWebSpinnerWith(d, "Loading Xcode Cloud workflows", func() error {
 				workflows, err := client.ListCIWorkflows(requestCtx, teamID, pid)
 				if err != nil {
 					return err
@@ -161,7 +161,7 @@ Examples:
 				return withWebAuthHint(err, "xcode-cloud workflows list")
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -184,10 +184,10 @@ func newWorkflowsListResult(productID string, resp *webcore.CIWorkflowListRespon
 	return result
 }
 
-func webXcodeCloudWorkflowDescribeCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows describe", flag.ExitOnError)
+func webXcodeCloudWorkflowDescribeCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows describe", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	workflowID := fs.String("workflow-id", "", "Xcode Cloud workflow ID (required)")
@@ -207,18 +207,18 @@ Examples:
   asc web xcode-cloud workflows describe --product-id "UUID" --workflow-id "WF-UUID" --apple-id "user@example.com"
   asc web xcode-cloud workflows describe --product-id "UUID" --workflow-id "WF-UUID" --apple-id "user@example.com" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
-				return shared.RequiredFlag("--workflow-id")
+				return d.RequiredFlag("--workflow-id")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -230,7 +230,7 @@ Examples:
 
 			client := newCIClientFn(session)
 			result := &CIWorkflowDescribeResult{}
-			err = withWebSpinner("Loading Xcode Cloud workflow details", func() error {
+			err = withWebSpinnerWith(d, "Loading Xcode Cloud workflow details", func() error {
 				workflow, err := client.GetCIWorkflow(requestCtx, teamID, pid, wfID)
 				if err != nil {
 					return err
@@ -248,21 +248,21 @@ Examples:
 				return withWebAuthHint(err, "xcode-cloud workflows describe")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWorkflowDescribeTable(result) },
-				func() error { return renderWorkflowDescribeMarkdown(result) },
+				func() error { return renderWorkflowDescribeTable(d, result) },
+				func() error { return renderWorkflowDescribeMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func webXcodeCloudWorkflowCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows create", flag.ExitOnError)
+func webXcodeCloudWorkflowCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows create", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	workflowID := fs.String("workflow-id", "", "Xcode Cloud workflow ID (optional; defaults to a generated UUID)")
@@ -285,18 +285,18 @@ Examples:
   asc web xcode-cloud workflows create --product-id "UUID" --file ./workflow.json --apple-id "user@example.com"
   asc web xcode-cloud workflows create --product-id "UUID" --workflow-id "WF-UUID" --file ./workflow.json --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			payload, err := shared.ReadJSONFilePayload(fileValue)
+			payload, err := d.ReadJSONFilePayload(fileValue)
 			if err != nil {
 				return fmt.Errorf("xcode-cloud workflows create: %w", err)
 			}
@@ -307,7 +307,7 @@ Examples:
 				wfID = newUUID()
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -319,7 +319,7 @@ Examples:
 
 			client := newCIClientFn(session)
 			var result *CIWorkflowCreateResult
-			err = withWebSpinner("Creating Xcode Cloud workflow", func() error {
+			err = withWebSpinnerWith(d, "Creating Xcode Cloud workflow", func() error {
 				if userProvidedWorkflowID {
 					_, err := client.GetCIWorkflow(requestCtx, teamID, pid, wfID)
 					switch {
@@ -349,21 +349,21 @@ Examples:
 				return withWebAuthHint(err, "xcode-cloud workflows create")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWorkflowCreateTable(result) },
-				func() error { return renderWorkflowCreateMarkdown(result) },
+				func() error { return renderWorkflowCreateTable(d, result) },
+				func() error { return renderWorkflowCreateMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func webXcodeCloudWorkflowEditCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows edit", flag.ExitOnError)
+func webXcodeCloudWorkflowEditCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows edit", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	workflowID := fs.String("workflow-id", "", "Xcode Cloud workflow ID (required)")
@@ -386,22 +386,22 @@ API does not consistently accept null removals.
 Examples:
   asc web xcode-cloud workflows edit --product-id "UUID" --workflow-id "WF-UUID" --patch-file ./workflow.patch.json --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
-				return shared.RequiredFlag("--workflow-id")
+				return d.RequiredFlag("--workflow-id")
 			}
 			patchFileValue := strings.TrimSpace(*patchFile)
 			if patchFileValue == "" {
-				return shared.RequiredFlag("--patch-file")
+				return d.RequiredFlag("--patch-file")
 			}
 
-			patchPayload, err := shared.ReadJSONFilePayload(patchFileValue)
+			patchPayload, err := d.ReadJSONFilePayload(patchFileValue)
 			if err != nil {
 				return fmt.Errorf("xcode-cloud workflows edit: %w", err)
 			}
@@ -410,7 +410,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud workflows edit: %w", err)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -422,7 +422,7 @@ Examples:
 
 			client := newCIClientFn(session)
 			var result *CIWorkflowEditResult
-			err = withWebSpinner("Editing Xcode Cloud workflow", func() error {
+			err = withWebSpinnerWith(d, "Editing Xcode Cloud workflow", func() error {
 				workflow, err := client.GetCIWorkflow(requestCtx, teamID, pid, wfID)
 				if err != nil {
 					return err
@@ -454,21 +454,21 @@ Examples:
 				return withWebAuthHint(err, "xcode-cloud workflows edit")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWorkflowEditTable(result) },
-				func() error { return renderWorkflowEditMarkdown(result) },
+				func() error { return renderWorkflowEditTable(d, result) },
+				func() error { return renderWorkflowEditMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func webXcodeCloudWorkflowEnableCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows enable", flag.ExitOnError)
+func webXcodeCloudWorkflowEnableCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows enable", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	workflowID := fs.String("workflow-id", "", "Xcode Cloud workflow ID (required)")
@@ -487,37 +487,37 @@ If already enabled, this command reports no change and exits successfully.
 Examples:
   asc web xcode-cloud workflows enable --product-id "UUID" --workflow-id "WF-UUID" --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
-				return shared.RequiredFlag("--workflow-id")
+				return d.RequiredFlag("--workflow-id")
 			}
 
-			result, err := executeWorkflowToggle(ctx, sessionFlags, pid, wfID, false, "xcode-cloud workflows enable")
+			result, err := executeWorkflowToggle(ctx, d, sessionFlags, pid, wfID, false, "xcode-cloud workflows enable")
 			if err != nil {
 				return err
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWorkflowToggleTable(result) },
-				func() error { return renderWorkflowToggleMarkdown(result) },
+				func() error { return renderWorkflowToggleTable(d, result) },
+				func() error { return renderWorkflowToggleMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func webXcodeCloudWorkflowDisableCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows disable", flag.ExitOnError)
+func webXcodeCloudWorkflowDisableCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows disable", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	workflowID := fs.String("workflow-id", "", "Xcode Cloud workflow ID (required)")
@@ -538,31 +538,31 @@ If already disabled, this command reports no change and exits successfully.
 Examples:
   asc web xcode-cloud workflows disable --product-id "UUID" --workflow-id "WF-UUID" --confirm --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
-				return shared.RequiredFlag("--workflow-id")
+				return d.RequiredFlag("--workflow-id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			result, err := executeWorkflowToggle(ctx, sessionFlags, pid, wfID, true, "xcode-cloud workflows disable")
+			result, err := executeWorkflowToggle(ctx, d, sessionFlags, pid, wfID, true, "xcode-cloud workflows disable")
 			if err != nil {
 				return err
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWorkflowToggleTable(result) },
-				func() error { return renderWorkflowToggleMarkdown(result) },
+				func() error { return renderWorkflowToggleTable(d, result) },
+				func() error { return renderWorkflowToggleMarkdown(d, result) },
 			)
 		},
 	}
@@ -570,12 +570,13 @@ Examples:
 
 func executeWorkflowToggle(
 	ctx context.Context,
+	d *shared.Deps,
 	sessionFlags webSessionFlags,
 	productID, workflowID string,
 	disabled bool,
 	errorPrefix string,
 ) (*CIWorkflowToggleResult, error) {
-	session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+	session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 	defer cancel()
 	if err != nil {
 		return nil, err
@@ -587,7 +588,7 @@ func executeWorkflowToggle(
 
 	client := newCIClientFn(session)
 	var result *CIWorkflowToggleResult
-	err = withWebSpinner("Updating Xcode Cloud workflow", func() error {
+	err = withWebSpinnerWith(d, "Updating Xcode Cloud workflow", func() error {
 		workflow, err := client.GetCIWorkflow(requestCtx, teamID, productID, workflowID)
 		if err != nil {
 			return err
@@ -669,12 +670,13 @@ func newWorkflowDescribeResult(productID, workflowID string, config *webcore.CIW
 	}
 }
 
-func renderWorkflowDescribeTable(result *CIWorkflowDescribeResult) error {
+func renderWorkflowDescribeTable(d *shared.Deps, result *CIWorkflowDescribeResult) error {
 	if result == nil {
 		return nil
 	}
 
-	asc.RenderTable(
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{
 			"Workflow",
 			"Workflow ID",
@@ -703,118 +705,13 @@ func renderWorkflowDescribeTable(result *CIWorkflowDescribeResult) error {
 	return nil
 }
 
-func renderWorkflowCreateTable(result *CIWorkflowCreateResult) error {
+func renderWorkflowCreateTable(d *shared.Deps, result *CIWorkflowCreateResult) error {
 	if result == nil {
 		return nil
 	}
 
-	asc.RenderTable(
-		[]string{
-			"Workflow",
-			"Workflow ID",
-			"Created",
-			"Disabled",
-			"Locked",
-			"Xcode",
-			"macOS",
-			"Triggers",
-			"Actions",
-			"Post Actions",
-			"Shared Vars",
-		},
-		[][]string{{
-			valueOrNA(strings.TrimSpace(result.Name)),
-			result.WorkflowID,
-			fmt.Sprintf("%t", result.Created),
-			fmt.Sprintf("%t", result.Disabled),
-			fmt.Sprintf("%t", result.Locked),
-			valueOrNA(summarizeJSONValue(result.XcodeVersion)),
-			valueOrNA(summarizeJSONValue(result.MacOSVersion)),
-			summarizeStartConditions(result.StartConditions),
-			summarizeActionList(result.Actions),
-			summarizeActionList(result.PostActions),
-			fmt.Sprintf("%d", len(result.ProductEnvironmentVariables)),
-		}},
-	)
-	return nil
-}
-
-func renderWorkflowEditTable(result *CIWorkflowEditResult) error {
-	if result == nil {
-		return nil
-	}
-
-	asc.RenderTable(
-		[]string{
-			"Workflow",
-			"Workflow ID",
-			"Changed",
-			"Disabled",
-			"Locked",
-			"Xcode",
-			"macOS",
-			"Triggers",
-			"Actions",
-			"Post Actions",
-			"Shared Vars",
-		},
-		[][]string{{
-			valueOrNA(strings.TrimSpace(result.Name)),
-			result.WorkflowID,
-			fmt.Sprintf("%t", result.Changed),
-			fmt.Sprintf("%t", result.Disabled),
-			fmt.Sprintf("%t", result.Locked),
-			valueOrNA(summarizeJSONValue(result.XcodeVersion)),
-			valueOrNA(summarizeJSONValue(result.MacOSVersion)),
-			summarizeStartConditions(result.StartConditions),
-			summarizeActionList(result.Actions),
-			summarizeActionList(result.PostActions),
-			fmt.Sprintf("%d", len(result.ProductEnvironmentVariables)),
-		}},
-	)
-	return nil
-}
-
-func renderWorkflowDescribeMarkdown(result *CIWorkflowDescribeResult) error {
-	if result == nil {
-		return nil
-	}
-
-	asc.RenderMarkdown(
-		[]string{
-			"Workflow",
-			"Workflow ID",
-			"Disabled",
-			"Locked",
-			"Xcode",
-			"macOS",
-			"Triggers",
-			"Actions",
-			"Post Actions",
-			"Shared Vars",
-		},
-		[][]string{{
-			valueOrNA(strings.TrimSpace(result.Name)),
-			result.WorkflowID,
-			fmt.Sprintf("%t", result.Disabled),
-			fmt.Sprintf("%t", result.Locked),
-			valueOrNA(summarizeJSONValue(result.XcodeVersion)),
-			valueOrNA(summarizeJSONValue(result.MacOSVersion)),
-			summarizeStartConditions(result.StartConditions),
-			summarizeActionList(result.Actions),
-			summarizeActionList(result.PostActions),
-			fmt.Sprintf("%d", len(result.ProductEnvironmentVariables)),
-		}},
-	)
-	return nil
-}
-
-func renderWorkflowCreateMarkdown(result *CIWorkflowCreateResult) error {
-	if result == nil {
-		return nil
-	}
-
-	asc.RenderMarkdown(
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{
 			"Workflow",
 			"Workflow ID",
@@ -845,12 +742,13 @@ func renderWorkflowCreateMarkdown(result *CIWorkflowCreateResult) error {
 	return nil
 }
 
-func renderWorkflowEditMarkdown(result *CIWorkflowEditResult) error {
+func renderWorkflowEditTable(d *shared.Deps, result *CIWorkflowEditResult) error {
 	if result == nil {
 		return nil
 	}
 
-	asc.RenderMarkdown(
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{
 			"Workflow",
 			"Workflow ID",
@@ -881,12 +779,122 @@ func renderWorkflowEditMarkdown(result *CIWorkflowEditResult) error {
 	return nil
 }
 
-func renderWorkflowToggleTable(result *CIWorkflowToggleResult) error {
+func renderWorkflowDescribeMarkdown(d *shared.Deps, result *CIWorkflowDescribeResult) error {
 	if result == nil {
 		return nil
 	}
 
-	asc.RenderTable(
+	asc.RenderMarkdownTo(
+		d.IO.Out,
+		[]string{
+			"Workflow",
+			"Workflow ID",
+			"Disabled",
+			"Locked",
+			"Xcode",
+			"macOS",
+			"Triggers",
+			"Actions",
+			"Post Actions",
+			"Shared Vars",
+		},
+		[][]string{{
+			valueOrNA(strings.TrimSpace(result.Name)),
+			result.WorkflowID,
+			fmt.Sprintf("%t", result.Disabled),
+			fmt.Sprintf("%t", result.Locked),
+			valueOrNA(summarizeJSONValue(result.XcodeVersion)),
+			valueOrNA(summarizeJSONValue(result.MacOSVersion)),
+			summarizeStartConditions(result.StartConditions),
+			summarizeActionList(result.Actions),
+			summarizeActionList(result.PostActions),
+			fmt.Sprintf("%d", len(result.ProductEnvironmentVariables)),
+		}},
+	)
+	return nil
+}
+
+func renderWorkflowCreateMarkdown(d *shared.Deps, result *CIWorkflowCreateResult) error {
+	if result == nil {
+		return nil
+	}
+
+	asc.RenderMarkdownTo(
+		d.IO.Out,
+		[]string{
+			"Workflow",
+			"Workflow ID",
+			"Created",
+			"Disabled",
+			"Locked",
+			"Xcode",
+			"macOS",
+			"Triggers",
+			"Actions",
+			"Post Actions",
+			"Shared Vars",
+		},
+		[][]string{{
+			valueOrNA(strings.TrimSpace(result.Name)),
+			result.WorkflowID,
+			fmt.Sprintf("%t", result.Created),
+			fmt.Sprintf("%t", result.Disabled),
+			fmt.Sprintf("%t", result.Locked),
+			valueOrNA(summarizeJSONValue(result.XcodeVersion)),
+			valueOrNA(summarizeJSONValue(result.MacOSVersion)),
+			summarizeStartConditions(result.StartConditions),
+			summarizeActionList(result.Actions),
+			summarizeActionList(result.PostActions),
+			fmt.Sprintf("%d", len(result.ProductEnvironmentVariables)),
+		}},
+	)
+	return nil
+}
+
+func renderWorkflowEditMarkdown(d *shared.Deps, result *CIWorkflowEditResult) error {
+	if result == nil {
+		return nil
+	}
+
+	asc.RenderMarkdownTo(
+		d.IO.Out,
+		[]string{
+			"Workflow",
+			"Workflow ID",
+			"Changed",
+			"Disabled",
+			"Locked",
+			"Xcode",
+			"macOS",
+			"Triggers",
+			"Actions",
+			"Post Actions",
+			"Shared Vars",
+		},
+		[][]string{{
+			valueOrNA(strings.TrimSpace(result.Name)),
+			result.WorkflowID,
+			fmt.Sprintf("%t", result.Changed),
+			fmt.Sprintf("%t", result.Disabled),
+			fmt.Sprintf("%t", result.Locked),
+			valueOrNA(summarizeJSONValue(result.XcodeVersion)),
+			valueOrNA(summarizeJSONValue(result.MacOSVersion)),
+			summarizeStartConditions(result.StartConditions),
+			summarizeActionList(result.Actions),
+			summarizeActionList(result.PostActions),
+			fmt.Sprintf("%d", len(result.ProductEnvironmentVariables)),
+		}},
+	)
+	return nil
+}
+
+func renderWorkflowToggleTable(d *shared.Deps, result *CIWorkflowToggleResult) error {
+	if result == nil {
+		return nil
+	}
+
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Action", "Workflow", "Workflow ID", "Disabled Before", "Disabled After", "Changed"},
 		[][]string{{
 			result.Action,
@@ -900,12 +908,13 @@ func renderWorkflowToggleTable(result *CIWorkflowToggleResult) error {
 	return nil
 }
 
-func renderWorkflowToggleMarkdown(result *CIWorkflowToggleResult) error {
+func renderWorkflowToggleMarkdown(d *shared.Deps, result *CIWorkflowToggleResult) error {
 	if result == nil {
 		return nil
 	}
 
-	asc.RenderMarkdown(
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Action", "Workflow", "Workflow ID", "Disabled Before", "Disabled After", "Changed"},
 		[][]string{{
 			result.Action,

@@ -51,18 +51,10 @@ func TestScreenshotsPlanAndApplyValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, test.args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -82,7 +74,6 @@ func TestScreenshotsPlanBuildsApprovedUploadGroups(t *testing.T) {
 	reviewDir, _ := writeScreenshotReviewArtifacts(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
@@ -90,12 +81,12 @@ func TestScreenshotsPlanBuildsApprovedUploadGroups(t *testing.T) {
 	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"screenshots", "plan",
 		"--app", "123456789",
 		"--version", "1.2.3",
 		"--review-output-dir", reviewDir,
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -198,7 +189,6 @@ func testScreenshotsPlanVersionIDPlatform(t *testing.T, selector string) {
 	reviewDir, _ := writeScreenshotReviewArtifactsWithPlannedDisplayType(t, 2880, 1800, 2880, 1800, []string{"APP_DESKTOP"})
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-mac", "include=app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-mac","attributes":{"versionString":"2.0.0","platform":"MAC_OS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-mac/appStoreVersionLocalizations", "limit=200"),
@@ -206,13 +196,13 @@ func testScreenshotsPlanVersionIDPlatform(t *testing.T, selector string) {
 	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"screenshots", "plan",
 		"--app", "123456789",
 		selector, "version-mac",
 		"--review-output-dir", reviewDir,
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -568,7 +558,6 @@ func TestScreenshotsPlanReportsCapacityFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
@@ -577,7 +566,7 @@ func TestScreenshotsPlanReportsCapacityFailure(t *testing.T) {
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/appScreenshotSets/set-1/appScreenshots"),
 		asctest.JSON(http.StatusOK, string(existing)))
-	stdout, _, runErr := runCommand(t, []string{"screenshots", "plan", "--app", "123456789", "--version", "1.2.3", "--review-output-dir", reviewDir, "--output", "json"})
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), []string{"screenshots", "plan", "--app", "123456789", "--version", "1.2.3", "--review-output-dir", reviewDir, "--output", "json"}...)
 	if runErr == nil {
 		t.Fatal("expected capacity failure")
 	}

@@ -11,9 +11,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shots"
 )
 
-// ScreenshotsCommand returns the top-level screenshots command.
-func ScreenshotsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots", flag.ExitOnError)
+// NewScreenshotsCommand returns the top-level screenshots command.
+func NewScreenshotsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("screenshots", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "screenshots",
@@ -55,25 +55,25 @@ For most iOS submissions, one iPhone set (IPHONE_65) and one iPad set
 (IPAD_PRO_3GEN_129) are enough. "asc screenshots sizes" focuses on these by
 default; use --all only when you need the full matrix.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			shots.ShotsRunCommand(),
-			shots.ShotsMatrixCommand(),
-			shots.ShotsCaptureCommand(),
-			shots.ShotsFrameCommand(),
-			shots.ShotsFramesListDevicesCommand(),
-			shots.ShotsReviewGenerateCommand(),
-			shots.ShotsReviewOpenCommand(),
-			shots.ShotsReviewApproveCommand(),
-			assets.AssetsScreenshotsPlanCommand(),
-			assets.AssetsScreenshotsApplyCommand(),
-			assets.AssetsScreenshotsListCommand(),
-			assets.AssetsScreenshotsSizesCommand(),
-			assets.AssetsScreenshotsValidateCommand(),
-			assets.AssetsScreenshotsUploadCommand(),
-			assets.AssetsScreenshotsDownloadCommand(),
-			assets.AssetsScreenshotsReorderCommand(),
-			assets.AssetsScreenshotsDeleteCommand(),
+			shots.NewShotsRunCommand(d),
+			shots.NewShotsMatrixCommand(d),
+			shots.NewShotsCaptureCommand(d),
+			shots.NewShotsFrameCommand(d),
+			shots.NewShotsFramesListDevicesCommand(d),
+			shots.NewShotsReviewGenerateCommand(d),
+			shots.NewShotsReviewOpenCommand(d),
+			shots.NewShotsReviewApproveCommand(d),
+			assets.NewAssetsScreenshotsPlanCommand(d),
+			assets.NewAssetsScreenshotsApplyCommand(d),
+			assets.NewAssetsScreenshotsListCommand(d),
+			assets.NewAssetsScreenshotsSizesCommand(d),
+			assets.NewAssetsScreenshotsValidateCommand(d),
+			assets.NewAssetsScreenshotsUploadCommand(d),
+			assets.NewAssetsScreenshotsDownloadCommand(d),
+			assets.NewAssetsScreenshotsReorderCommand(d),
+			assets.NewAssetsScreenshotsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

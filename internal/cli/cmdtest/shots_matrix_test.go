@@ -15,32 +15,30 @@ import (
 )
 
 func TestShotsMatrix_Registered(t *testing.T) {
-	root := RootCommand("1.2.3")
+	root, _, rootStderr := shotsRootWithDeps(t)
 	missing := filepath.Join(t.TempDir(), "matrix.json")
 	if err := root.Parse([]string{"screenshots", "matrix", "--plan", missing}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	_, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); !errors.Is(err, screenshots.ErrMatrixPlanRead) {
-			t.Fatalf("expected missing matrix plan error, got %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); !errors.Is(err, screenshots.ErrMatrixPlanRead) {
+		t.Fatalf("expected missing matrix plan error, got %v", err)
+	}
+	stderr := rootStderr.String()
 	if !strings.Contains(stderr, "Error:") {
 		t.Fatalf("expected a usage diagnostic, got %q", stderr)
 	}
 }
 
 func TestShotsMatrix_InvalidConcurrencyIsUsageError(t *testing.T) {
-	root := RootCommand("1.2.3")
+	root, _, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{"screenshots", "matrix", "--plan", filepath.Join(t.TempDir(), "matrix.json"), "--max-concurrency", "9"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	_, stderr := captureOutput(t, func() {
-		err := root.Run(context.Background())
-		if !isUsageClassError(err) {
-			t.Fatalf("expected usage error, got %v", err)
-		}
-	})
+	err := root.Run(context.Background())
+	if !isUsageClassError(err) {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+	stderr := rootStderr.String()
 	if !strings.Contains(stderr, "--max-concurrency must be between 1 and 8") {
 		t.Fatalf("unexpected stderr: %q", stderr)
 	}
@@ -82,15 +80,14 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	writeShotsMatrixFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"steps":[{"action":"launch"},{"action":"screenshot","name":"home"}]}`)
 	writeShotsMatrixFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"output":{"raw_dir":"`+rawDir+`","review_dir":"`+reviewDir+`"}}`)
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{"screenshots", "matrix", "--plan", matrixPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %q", stderr)
 	}
@@ -142,12 +139,12 @@ printf '%s\n' '{"devices":{}}'
 	writeShotsMatrixFile(t, rawPath, "not a directory")
 	writeShotsMatrixFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"default"}],"output":{"raw_dir":"`+rawPath+`","review_dir":"`+reviewDir+`"}}`)
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, _ := shotsRootWithDeps(t)
 	if err := root.Parse([]string{"screenshots", "matrix", "--plan", matrixPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = root.Run(context.Background()) })
+	runErr := root.Run(context.Background())
+	stdout := rootStdout.String()
 	if runErr == nil {
 		t.Fatal("root.Run() error = nil, want output-root failure")
 	}

@@ -41,7 +41,7 @@ Examples:
   asc offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01" --output "./offer-codes.txt"
   asc offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01" --environment SANDBOX`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*outputPath, "--output-format"); err != nil {
 				return err
@@ -144,7 +144,7 @@ Examples:
   asc offer-codes values --batch-id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"
   asc offer-codes values --batch-id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.csv" --format csv`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*outputPath, ""); err != nil {
 				return err

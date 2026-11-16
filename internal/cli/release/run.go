@@ -187,7 +187,7 @@ func executePipeline(ctx context.Context, d *shared.Deps, opts runOptions) (runR
 	// steps the confirmed run would skip, and a checkpoint that no longer
 	// matches the run arguments has to fail the preview rather than only the
 	// confirmed run. Nothing below this point writes a checkpoint in dry-run.
-	existing, err := loadCheckpoint(opts.CheckpointFile)
+	existing, err := loadCheckpoint(d, opts.CheckpointFile)
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -898,16 +898,16 @@ func sanitizeCheckpointToken(value string) string {
 // repository-controlled directory component is validated. A checkpoint the
 // operator placed outside the working directory is anchored to its own parent,
 // which keeps explicitly selected external locations working.
-func checkpointRoot(path string) (rootfs.Root, string, error) {
+func checkpointRoot(d *shared.Deps, path string) (rootfs.Root, string, error) {
 	if path == "" {
 		return rootfs.Root{}, "", fmt.Errorf("checkpoint path is empty")
 	}
-	absolute, err := filepath.Abs(path)
+	absolute, err := d.Abs(path)
 	if err != nil {
 		return rootfs.Root{}, "", err
 	}
 
-	if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+	if cwd, cwdErr := d.Getwd(); cwdErr == nil {
 		if root, rootErr := rootfs.New(cwd); rootErr == nil {
 			if relative, relErr := filepath.Rel(root.Path(), absolute); relErr == nil {
 				if relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
@@ -924,8 +924,8 @@ func checkpointRoot(path string) (rootfs.Root, string, error) {
 	return root, filepath.Base(absolute), nil
 }
 
-func loadCheckpoint(path string) (*runCheckpoint, error) {
-	root, name, err := checkpointRoot(path)
+func loadCheckpoint(d *shared.Deps, path string) (*runCheckpoint, error) {
+	root, name, err := checkpointRoot(d, path)
 	if err != nil {
 		return nil, fmt.Errorf("read checkpoint: %w", err)
 	}
@@ -952,7 +952,7 @@ func saveCheckpoint(d *shared.Deps, path string, checkpoint runCheckpoint) error
 	if err != nil {
 		return fmt.Errorf("marshal checkpoint: %w", err)
 	}
-	root, name, err := checkpointRoot(path)
+	root, name, err := checkpointRoot(d, path)
 	if err != nil {
 		return fmt.Errorf("write checkpoint: %w", err)
 	}

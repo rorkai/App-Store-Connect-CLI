@@ -61,11 +61,11 @@ Examples:
 			WebWebsitePushIDsCommand(),
 			WebICloudContainersCommand(),
 			newWebAppGroupsCommand(d),
-			WebPrivacyCommand(),
-			WebReviewCommand(),
+			newWebPrivacyCommand(d),
+			newWebReviewCommand(d),
 			newWebSubscriptionsCommand(d),
 			newWebAnalyticsCommand(d),
-			WebXcodeCloudCommand(),
+			newWebXcodeCloudCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {

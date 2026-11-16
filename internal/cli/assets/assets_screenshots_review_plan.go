@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -79,9 +78,9 @@ type screenshotGroupKey struct {
 	displayType    string
 }
 
-// AssetsScreenshotsPlanCommand returns the screenshots plan subcommand.
-func AssetsScreenshotsPlanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("plan", flag.ExitOnError)
+// NewAssetsScreenshotsPlanCommand returns the screenshots plan subcommand.
+func NewAssetsScreenshotsPlanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("plan", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	version := fs.String("version", "", "App Store version ID or numeric version string")
@@ -92,7 +91,7 @@ func AssetsScreenshotsPlanCommand() *ffcli.Command {
 	approvalPath := fs.String("approval-path", "", "Optional approvals path (default: <review-output-dir>/approved.json)")
 	skipExisting := fs.Bool("skip-existing", false, "Skip files whose checksum already exists remotely")
 	replace := fs.Bool("replace", false, "Delete existing screenshots in each target set before uploading")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "plan",
@@ -108,9 +107,9 @@ Examples:
   asc screenshots plan --app "123456789" --version "1.2.3" --skip-existing
   asc screenshots plan --app "123456789" --version "VERSION_ID" --replace`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			result, err := executeScreenshotReviewPlan(ctx, screenshotReviewPlanOptions{
+			result, err := executeScreenshotReviewPlan(ctx, d, screenshotReviewPlanOptions{
 				AppID:           *appID,
 				Version:         *version,
 				VersionID:       *versionID,
@@ -122,7 +121,7 @@ Examples:
 				Replace:         *replace,
 				Apply:           false,
 			})
-			if printErr := printScreenshotReviewPlanResult(result, output); printErr != nil {
+			if printErr := printScreenshotReviewPlanResult(d, result, output); printErr != nil {
 				return printErr
 			}
 			if err != nil {
@@ -136,9 +135,9 @@ Examples:
 	}
 }
 
-// AssetsScreenshotsApplyCommand returns the screenshots apply subcommand.
-func AssetsScreenshotsApplyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apply", flag.ExitOnError)
+// NewAssetsScreenshotsApplyCommand returns the screenshots apply subcommand.
+func NewAssetsScreenshotsApplyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apply", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	version := fs.String("version", "", "App Store version ID or numeric version string")
@@ -150,7 +149,7 @@ func AssetsScreenshotsApplyCommand() *ffcli.Command {
 	skipExisting := fs.Bool("skip-existing", false, "Skip files whose checksum already exists remotely")
 	replace := fs.Bool("replace", false, "Delete existing screenshots in each target set before uploading")
 	confirm := fs.Bool("confirm", false, "Confirm screenshot uploads (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "apply",
@@ -163,9 +162,9 @@ Examples:
   asc screenshots apply --app "123456789" --version "1.2.3" --skip-existing --confirm
   asc screenshots apply --app "123456789" --version "VERSION_ID" --replace --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			result, err := executeScreenshotReviewPlan(ctx, screenshotReviewPlanOptions{
+			result, err := executeScreenshotReviewPlan(ctx, d, screenshotReviewPlanOptions{
 				AppID:           *appID,
 				Version:         *version,
 				VersionID:       *versionID,
@@ -178,7 +177,7 @@ Examples:
 				Apply:           true,
 				Confirm:         *confirm,
 			})
-			if printErr := printScreenshotReviewPlanResult(result, output); printErr != nil {
+			if printErr := printScreenshotReviewPlanResult(d, result, output); printErr != nil {
 				return printErr
 			}
 			if err != nil {
@@ -192,47 +191,47 @@ Examples:
 	}
 }
 
-func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanOptions) (*screenshotReviewPlanResult, error) {
+func executeScreenshotReviewPlan(ctx context.Context, d *shared.Deps, opts screenshotReviewPlanOptions) (*screenshotReviewPlanResult, error) {
 	resolvedAppID := shared.ResolveAppID(opts.AppID)
 	if strings.TrimSpace(resolvedAppID) == "" {
-		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+		fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 		return nil, shared.MissingRequiredUsageError("--app")
 	}
 
 	versionValue := strings.TrimSpace(opts.Version)
 	versionIDValue := strings.TrimSpace(opts.VersionID)
 	if versionValue == "" && versionIDValue == "" {
-		return nil, shared.UsageError("--version or --version-id is required")
+		return nil, d.UsageError("--version or --version-id is required")
 	}
 	if opts.Apply {
-		if err := shared.RequireConfirm(opts.Confirm); err != nil {
+		if err := d.RequireConfirm(opts.Confirm); err != nil {
 			return nil, err
 		}
 	}
 	if versionValue != "" && versionIDValue != "" {
-		return nil, shared.UsageError("--version and --version-id are mutually exclusive")
+		return nil, d.UsageError("--version and --version-id are mutually exclusive")
 	}
 	if opts.SkipExisting && opts.Replace {
-		fmt.Fprintln(os.Stderr, "Error: --skip-existing and --replace are mutually exclusive")
+		fmt.Fprintln(d.IO.ErrOut, "Error: --skip-existing and --replace are mutually exclusive")
 		return nil, flag.ErrHelp
 	}
 
 	versionValue, versionIDValue, err := normalizeScreenshotVersionSelector(versionValue, versionIDValue)
 	if err != nil {
-		return nil, shared.UsageError(err.Error())
+		return nil, d.UsageError(err.Error())
 	}
 
 	normalizedPlatform, err := resolveAppScopedScreenshotPlatform(versionValue, opts.Platform)
 	if err != nil {
-		return nil, shared.UsageError(err.Error())
+		return nil, d.UsageError(err.Error())
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return nil, fmt.Errorf("screenshots %s: %w", reviewPlanVerb(opts.Apply), err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
@@ -240,7 +239,7 @@ func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanO
 		return nil, fmt.Errorf("screenshots %s: %w", reviewPlanVerb(opts.Apply), err)
 	}
 
-	reviewOutputDir, manifestPath, approvalPath, err := resolveReviewArtifactPaths(opts.ReviewOutputDir, opts.ManifestPath, opts.ApprovalPath)
+	reviewOutputDir, manifestPath, approvalPath, err := resolveReviewArtifactPaths(d, opts.ReviewOutputDir, opts.ManifestPath, opts.ApprovalPath)
 	if err != nil {
 		return nil, fmt.Errorf("screenshots %s: %w", reviewPlanVerb(opts.Apply), err)
 	}
@@ -443,7 +442,7 @@ func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanO
 	uploadParentCtx := shared.ContextWithoutTimeout(ctx)
 	for _, key := range groupKeys {
 		files := cloneSortedFiles(groupedFiles[key])
-		uploadResult, err := uploadScreenshots(uploadParentCtx, client, key.localizationID, key.displayType, files, opts.SkipExisting, opts.Replace, !opts.Apply)
+		uploadResult, err := uploadScreenshots(uploadParentCtx, d, client, key.localizationID, key.displayType, files, opts.SkipExisting, opts.Replace, !opts.Apply)
 		if err == nil || len(uploadResult.Results) > 0 {
 			result.Groups = append(result.Groups, screenshotReviewPlanGroup{
 				Locale:                key.locale,
@@ -464,16 +463,16 @@ func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanO
 
 // printScreenshotReviewPlanResult renders whatever the run produced, including
 // completed screenshot receipts from a group that failed partway through.
-func printScreenshotReviewPlanResult(result *screenshotReviewPlanResult, output shared.OutputFlags) error {
+func printScreenshotReviewPlanResult(d *shared.Deps, result *screenshotReviewPlanResult, output shared.OutputFlags) error {
 	if result == nil {
 		return nil
 	}
-	return shared.PrintOutputWithRenderers(
+	return d.PrintOutputWithRenderers(
 		result,
 		*output.Output,
 		*output.Pretty,
-		func() error { return renderScreenshotReviewPlanResult(result, false) },
-		func() error { return renderScreenshotReviewPlanResult(result, true) },
+		func() error { return renderScreenshotReviewPlanResult(d, result, false) },
+		func() error { return renderScreenshotReviewPlanResult(d, result, true) },
 	)
 }
 
@@ -494,8 +493,12 @@ func resolveScreenshotPlanVersion(ctx context.Context, client *asc.Client, appID
 	return resolvedVersionID, strings.TrimSpace(version), strings.TrimSpace(platform), nil
 }
 
-func resolveReviewArtifactPaths(outputDir, manifestPath, approvalPath string) (string, string, string, error) {
-	resolvedOutputDir, err := reviewshots.ResolveReviewOutputDir(strings.TrimSpace(outputDir))
+func resolveReviewArtifactPaths(d *shared.Deps, outputDir, manifestPath, approvalPath string) (string, string, string, error) {
+	outputDir = strings.TrimSpace(outputDir)
+	if outputDir != "" {
+		outputDir = d.OSPath(outputDir)
+	}
+	resolvedOutputDir, err := reviewshots.ResolveReviewOutputDir(outputDir)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -536,25 +539,25 @@ func cloneSortedFiles(files []string) []string {
 	return cloned
 }
 
-func renderScreenshotReviewPlanResult(result *screenshotReviewPlanResult, markdown bool) error {
+func renderScreenshotReviewPlanResult(d *shared.Deps, result *screenshotReviewPlanResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
 
 	renderSection := func(title string, headers []string, rows [][]string) error {
-		heading := shared.Bold(strings.ToUpper(title)) + "\n"
-		renderRows := asc.WriteTable
+		heading := d.Bold(strings.ToUpper(title)) + "\n"
+		renderRows := asc.WriteTableTo
 		if markdown {
 			heading = fmt.Sprintf("### %s\n\n", title)
-			renderRows = asc.WriteMarkdown
+			renderRows = asc.WriteMarkdownTo
 		}
-		if _, err := fmt.Fprint(os.Stdout, heading); err != nil {
+		if _, err := fmt.Fprint(d.IO.Out, heading); err != nil {
 			return err
 		}
-		if err := renderRows(headers, rows); err != nil {
+		if err := renderRows(d.IO.Out, headers, rows); err != nil {
 			return err
 		}
-		_, err := fmt.Fprintln(os.Stdout)
+		_, err := fmt.Fprintln(d.IO.Out)
 		return err
 	}
 

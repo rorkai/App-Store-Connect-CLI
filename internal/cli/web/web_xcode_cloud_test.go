@@ -15,6 +15,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -52,7 +53,8 @@ func TestValidateDateFlagRejectsInvalidFormat(t *testing.T) {
 }
 
 func TestWebXcodeCloudCommandHierarchy(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	if cmd.Name != "xcode-cloud" {
 		t.Fatalf("expected command name %q, got %q", "xcode-cloud", cmd.Name)
 	}
@@ -85,7 +87,8 @@ func TestWebXcodeCloudCommandHierarchy(t *testing.T) {
 }
 
 func TestWebXcodeCloudUsageSubcommands(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	usageCmd := findSub(cmd, "usage")
 	if usageCmd == nil {
 		t.Fatal("could not find 'usage' subcommand")
@@ -114,7 +117,7 @@ func TestWebXcodeCloudSubcommandsResolveSessionBeforeTimeoutContext(t *testing.T
 	resolveErr := errors.New("stop before network call")
 	tests := []struct {
 		name  string
-		build func() *ffcli.Command
+		build func(*shared.Deps) *ffcli.Command
 		args  []string
 	}{
 		{
@@ -220,7 +223,8 @@ func TestWebXcodeCloudSubcommandsResolveSessionBeforeTimeoutContext(t *testing.T
 				return nil, "", resolveErr
 			}
 
-			cmd := tt.build()
+			d, _, _ := newWebTestDeps()
+			cmd := tt.build(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
@@ -278,12 +282,13 @@ func TestWebXcodeCloudUsageSummaryOutputTableUsesHumanRenderer(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudUsageSummaryCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudUsageSummaryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -505,7 +510,8 @@ func TestWebXcodeCloudUsageDaysProductIDsValidation(t *testing.T) {
 			return nil, "", resolveErr
 		}
 
-		cmd := webXcodeCloudUsageDaysCommand()
+		d, _, _ := newWebTestDeps()
+		cmd := webXcodeCloudUsageDaysCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-ids", "prod-1,prod-2,prod-3",
@@ -520,14 +526,15 @@ func TestWebXcodeCloudUsageDaysProductIDsValidation(t *testing.T) {
 	})
 
 	t.Run("requires product IDs", func(t *testing.T) {
-		cmd := webXcodeCloudUsageDaysCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageDaysCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		_, stderr := captureOutput(t, func() {
+		_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			err := cmd.Exec(context.Background(), nil)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", err)
@@ -539,7 +546,8 @@ func TestWebXcodeCloudUsageDaysProductIDsValidation(t *testing.T) {
 	})
 
 	t.Run("rejects invalid product IDs", func(t *testing.T) {
-		cmd := webXcodeCloudUsageDaysCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageDaysCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-ids", "prod-2,,prod-3",
@@ -547,7 +555,7 @@ func TestWebXcodeCloudUsageDaysProductIDsValidation(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		_, stderr := captureOutput(t, func() {
+		_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			err := cmd.Exec(context.Background(), nil)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", err)
@@ -560,7 +568,8 @@ func TestWebXcodeCloudUsageDaysProductIDsValidation(t *testing.T) {
 }
 
 func TestWebXcodeCloudUsageDaysFlagSet(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	daysCmd := findSub(findSub(cmd, "usage"), "days")
 	if daysCmd == nil {
 		t.Fatal("could not find 'usage days' subcommand")
@@ -581,14 +590,14 @@ func TestWebXcodeCloudUsageDaysFlagSet(t *testing.T) {
 }
 
 func TestWebXcodeCloudUsageMonthsDefaultsLast12Months(t *testing.T) {
-	origNowFn := webNowFn
 	t.Cleanup(func() {
-		webNowFn = origNowFn
 	})
 	fixedNow := time.Date(2026, time.March, 14, 12, 0, 0, 0, time.UTC)
-	webNowFn = func() time.Time { return fixedNow }
+	webTestNow := func() time.Time { return fixedNow }
 
-	cmd := webXcodeCloudUsageMonthsCommand()
+	d, _, _ := newWebTestDeps()
+	d.Now = webTestNow
+	cmd := webXcodeCloudUsageMonthsCommand(d)
 	fs := cmd.FlagSet
 	if fs == nil {
 		t.Fatal("expected flag set on months command")
@@ -658,7 +667,8 @@ func TestFilterProductUsageByIDs(t *testing.T) {
 
 func TestWebXcodeCloudUsageMonthsProductIDsValidation(t *testing.T) {
 	t.Run("rejects invalid product IDs", func(t *testing.T) {
-		cmd := webXcodeCloudUsageMonthsCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageMonthsCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-ids", "prod-2,,prod-3",
@@ -666,7 +676,7 @@ func TestWebXcodeCloudUsageMonthsProductIDsValidation(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		_, stderr := captureOutput(t, func() {
+		_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			err := cmd.Exec(context.Background(), nil)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", err)
@@ -720,7 +730,8 @@ func TestWebXcodeCloudUsageMonthsOutputTableWithProductFilter(t *testing.T) {
 
 	t.Run("without product filter shows all products", func(t *testing.T) {
 		requestCount = 0
-		cmd := webXcodeCloudUsageMonthsCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageMonthsCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--output", "table",
@@ -728,7 +739,7 @@ func TestWebXcodeCloudUsageMonthsOutputTableWithProductFilter(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, _ := captureOutput(t, func() {
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -746,7 +757,8 @@ func TestWebXcodeCloudUsageMonthsOutputTableWithProductFilter(t *testing.T) {
 
 	t.Run("with product filter shows only matching products", func(t *testing.T) {
 		requestCount = 0
-		cmd := webXcodeCloudUsageMonthsCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageMonthsCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-ids", "prod-1",
@@ -755,7 +767,7 @@ func TestWebXcodeCloudUsageMonthsOutputTableWithProductFilter(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, _ := captureOutput(t, func() {
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -770,7 +782,8 @@ func TestWebXcodeCloudUsageMonthsOutputTableWithProductFilter(t *testing.T) {
 
 	t.Run("json output skips summary fetch", func(t *testing.T) {
 		requestCount = 0
-		cmd := webXcodeCloudUsageMonthsCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageMonthsCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--output", "json",
@@ -778,7 +791,7 @@ func TestWebXcodeCloudUsageMonthsOutputTableWithProductFilter(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, _ := captureOutput(t, func() {
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -830,7 +843,8 @@ func TestWebXcodeCloudUsageMonthsTableDoesNotFailWhenSummaryUnavailable(t *testi
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudUsageMonthsCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudUsageMonthsCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--output", "table",
@@ -838,7 +852,7 @@ func TestWebXcodeCloudUsageMonthsTableDoesNotFailWhenSummaryUnavailable(t *testi
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -899,7 +913,8 @@ func TestWebXcodeCloudUsageDaysOutputBehavior(t *testing.T) {
 			}, "cache", nil
 		}
 
-		cmd := webXcodeCloudUsageDaysCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageDaysCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-ids", "prod-1",
@@ -908,7 +923,7 @@ func TestWebXcodeCloudUsageDaysOutputBehavior(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, _ := captureOutput(t, func() {
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -989,7 +1004,8 @@ func TestWebXcodeCloudUsageDaysOutputBehavior(t *testing.T) {
 			}, "cache", nil
 		}
 
-		cmd := webXcodeCloudUsageDaysCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageDaysCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-ids", "prod-1",
@@ -998,7 +1014,7 @@ func TestWebXcodeCloudUsageDaysOutputBehavior(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, _ := captureOutput(t, func() {
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -1054,7 +1070,8 @@ func TestWebXcodeCloudUsageDaysOutputBehavior(t *testing.T) {
 			}, "cache", nil
 		}
 
-		cmd := webXcodeCloudUsageDaysCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageDaysCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-ids", "prod-1,prod-2",
@@ -1063,7 +1080,7 @@ func TestWebXcodeCloudUsageDaysOutputBehavior(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, _ := captureOutput(t, func() {
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -1081,7 +1098,8 @@ func TestWebXcodeCloudUsageDaysOutputBehavior(t *testing.T) {
 }
 
 func TestWebXcodeCloudUsageWorkflowsFlagSet(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	workflowsCmd := findSub(findSub(cmd, "usage"), "workflows")
 	if workflowsCmd == nil {
 		t.Fatal("could not find 'usage workflows' subcommand")
@@ -1097,14 +1115,15 @@ func TestWebXcodeCloudUsageWorkflowsFlagSet(t *testing.T) {
 }
 
 func TestWebXcodeCloudUsageWorkflowsRequiresProductID(t *testing.T) {
-	cmd := webXcodeCloudUsageWorkflowsCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudUsageWorkflowsCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected ErrHelp, got %v", err)
@@ -1189,7 +1208,8 @@ func TestWebXcodeCloudUsageWorkflowsListOutput(t *testing.T) {
 	}
 
 	t.Run("lists all workflows", func(t *testing.T) {
-		cmd := webXcodeCloudUsageWorkflowsCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageWorkflowsCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-id", "prod-1",
@@ -1198,7 +1218,7 @@ func TestWebXcodeCloudUsageWorkflowsListOutput(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, _ := captureOutput(t, func() {
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -1218,7 +1238,8 @@ func TestWebXcodeCloudUsageWorkflowsListOutput(t *testing.T) {
 	})
 
 	t.Run("drills into specific workflow", func(t *testing.T) {
-		cmd := webXcodeCloudUsageWorkflowsCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		cmd := webXcodeCloudUsageWorkflowsCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-id", "prod-1",
@@ -1228,7 +1249,7 @@ func TestWebXcodeCloudUsageWorkflowsListOutput(t *testing.T) {
 			t.Fatalf("parse error: %v", err)
 		}
 
-		stdout, _ := captureOutput(t, func() {
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := cmd.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -1249,7 +1270,8 @@ func TestWebXcodeCloudUsageWorkflowsListOutput(t *testing.T) {
 	})
 
 	t.Run("workflow not found returns error", func(t *testing.T) {
-		cmd := webXcodeCloudUsageWorkflowsCommand()
+		d, _, _ := newWebTestDeps()
+		cmd := webXcodeCloudUsageWorkflowsCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--apple-id", "user@example.com",
 			"--product-id", "prod-1",
@@ -1317,7 +1339,8 @@ func TestWebXcodeCloudUsageWorkflowsJSONSkipsSummaryFetch(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudUsageWorkflowsCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudUsageWorkflowsCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -1326,7 +1349,7 @@ func TestWebXcodeCloudUsageWorkflowsJSONSkipsSummaryFetch(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -1365,7 +1388,8 @@ func TestPopulateWorkflowNames(t *testing.T) {
 }
 
 func TestWebXcodeCloudAllCommandsHaveUsageFunc(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	if cmd.UsageFunc == nil {
 		t.Fatal("expected UsageFunc on xcode-cloud command")
 	}

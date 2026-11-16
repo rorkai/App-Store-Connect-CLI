@@ -60,7 +60,7 @@ var subscriptionIntroductoryOffersImportKnownColumns = map[string]string{
 }
 
 func readSubscriptionIntroductoryOffersImportCSV(d *shared.Deps, path string) ([]subscriptionIntroductoryOfferImportCSVRow, error) {
-	file, err := shared.OpenExistingNoFollow(path)
+	file, err := shared.OpenExistingNoFollow(d.OSPath(path))
 	if err != nil {
 		return nil, err
 	}

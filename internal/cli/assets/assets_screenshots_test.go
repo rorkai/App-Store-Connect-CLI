@@ -19,17 +19,17 @@ import (
 )
 
 func TestAssetsScreenshotsSizesCommandDefaultFocused(t *testing.T) {
-	cmd := AssetsScreenshotsSizesCommand()
+	d, stdoutBuf, stderrBuf := newAssetsTestDeps(nil)
+	cmd := NewAssetsScreenshotsSizesCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
-			t.Fatalf("exec error: %v", err)
-		}
-	})
+	if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
+		t.Fatalf("exec error: %v", err)
+	}
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -94,16 +94,15 @@ func TestAssetsScreenshotsDownloadCommandRequiredFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := AssetsScreenshotsDownloadCommand()
+			d, stdoutBuf, stderrBuf := newAssetsTestDeps(nil)
+			cmd := NewAssetsScreenshotsDownloadCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-			})
+			runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
+			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
@@ -159,12 +158,11 @@ func TestAssetsScreenshotsDownloadCommandIncludesPaginatedSetsAndScreenshots(t *
 			http.Error(w, "unexpected request", http.StatusNotFound)
 		}
 	}))
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	}))
-
 	outputDir := filepath.Join(t.TempDir(), "screenshots")
-	cmd := AssetsScreenshotsDownloadCommand()
+	d, stdoutBuf, stderrBuf := newAssetsTestDeps(func() (*asc.Client, error) {
+		return client, nil
+	})
+	cmd := NewAssetsScreenshotsDownloadCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--version-localization", "loc-1",
@@ -173,10 +171,8 @@ func TestAssetsScreenshotsDownloadCommandIncludesPaginatedSetsAndScreenshots(t *
 		t.Fatalf("parse error: %v", err)
 	}
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
+	runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 	if runErr != nil {
 		t.Fatalf("download command error: %v (stdout=%q, stderr=%q)", runErr, stdout, stderr)
 	}
@@ -245,17 +241,17 @@ func TestAssetsScreenshotsSizesCommandFilter(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.displayType, func(t *testing.T) {
-			cmd := AssetsScreenshotsSizesCommand()
+			d, stdoutBuf, stderrBuf := newAssetsTestDeps(nil)
+			cmd := NewAssetsScreenshotsSizesCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse([]string{"--display-type", test.displayType}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
-					t.Fatalf("exec error: %v", err)
-				}
-			})
+			if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
+				t.Fatalf("exec error: %v", err)
+			}
+			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -273,17 +269,17 @@ func TestAssetsScreenshotsSizesCommandFilter(t *testing.T) {
 }
 
 func TestAssetsScreenshotsSizesCommandAllIncludesNonFocusedTypes(t *testing.T) {
-	cmd := AssetsScreenshotsSizesCommand()
+	d, stdoutBuf, stderrBuf := newAssetsTestDeps(nil)
+	cmd := NewAssetsScreenshotsSizesCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--all"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
-			t.Fatalf("exec error: %v", err)
-		}
-	})
+	if err := cmd.Exec(context.Background(), cmd.FlagSet.Args()); err != nil {
+		t.Fatalf("exec error: %v", err)
+	}
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -310,16 +306,15 @@ func TestAssetsScreenshotsSizesCommandAllIncludesNonFocusedTypes(t *testing.T) {
 }
 
 func TestAssetsScreenshotsSizesCommandRejectsAllWithDisplayType(t *testing.T) {
-	cmd := AssetsScreenshotsSizesCommand()
+	d, stdoutBuf, stderrBuf := newAssetsTestDeps(nil)
+	cmd := NewAssetsScreenshotsSizesCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--all", "--display-type", "APP_IPHONE_65"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
+	runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -360,16 +355,15 @@ func TestAssetsScreenshotsUploadCommandValidatesFlagsBeforeUpload(t *testing.T) 
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := AssetsScreenshotsUploadCommand()
+			d, stdoutBuf, stderrBuf := newAssetsTestDeps(nil)
+			cmd := NewAssetsScreenshotsUploadCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-			})
+			runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
+			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -391,16 +385,14 @@ func TestExecuteScreenshotUploadCommandRejectsMoreThanTenScreenshotsBeforeAuth(t
 	}
 
 	clientCalled := false
-	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	_, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+		clientCalled = true
+		return &asc.Client{}, nil
+	}), screenshotUploadCommandOptions{
 		VersionLocalizationID: "LOC_ID",
 		Path:                  dir,
 		DeviceType:            "IPHONE_65",
-	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			clientCalled = true
-			return &asc.Client{}, nil
-		},
-	})
+	}, screenshotUploadDependencies{})
 
 	if err == nil {
 		t.Fatal("expected screenshot-count error")
@@ -422,19 +414,17 @@ func TestExecuteScreenshotUploadCommandRejectsMoreThanTenScreenshotsBeforeAuth(t
 func TestExecuteScreenshotUploadCommandRejectsMaxScreenshotsAboveAppleLimit(t *testing.T) {
 	clientCalled := false
 	var err error
-	_, stderr := captureOutput(t, func() {
-		_, err = executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
-			VersionLocalizationID: "LOC_ID",
-			Path:                  "unused",
-			DeviceType:            "IPHONE_65",
-			MaxScreenshots:        11,
-		}, screenshotUploadDependencies{
-			GetClient: func() (*asc.Client, error) {
-				clientCalled = true
-				return &asc.Client{}, nil
-			},
-		})
+	d, _, stderrBuf := newAssetsTestDeps(func() (*asc.Client, error) {
+		clientCalled = true
+		return &asc.Client{}, nil
 	})
+	_, err = executeScreenshotUploadCommand(context.Background(), d, screenshotUploadCommandOptions{
+		VersionLocalizationID: "LOC_ID",
+		Path:                  "unused",
+		DeviceType:            "IPHONE_65",
+		MaxScreenshots:        11,
+	}, screenshotUploadDependencies{})
+	stderr := stderrBuf.String()
 
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -515,7 +505,7 @@ func TestUploadScreenshotsDryRunCapacityGuidance(t *testing.T) {
 					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 				}
 			}))
-			_, err := uploadScreenshots(context.Background(), client, "LOC_123", "APP_IPHONE_65", []string{filePath, filePath}, false, false, true)
+			_, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath, filePath}, false, false, true)
 			if err == nil {
 				t.Fatal("expected screenshot capacity error")
 			}
@@ -533,15 +523,14 @@ func TestExecuteScreenshotUploadCommandMaxScreenshotsCapsSortedFiles(t *testing.
 	}
 
 	var gotFiles []string
-	result, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	result, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+		return &asc.Client{}, nil
+	}), screenshotUploadCommandOptions{
 		VersionLocalizationID: "LOC_ID",
 		Path:                  dir,
 		DeviceType:            "IPHONE_65",
 		MaxScreenshots:        10,
 	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			return &asc.Client{}, nil
-		},
 		ExecuteUpload: func(_ context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], _ string) (asc.AppScreenshotUploadResult, error) {
 			gotFiles = append([]string(nil), cfg.Files...)
 			return asc.AppScreenshotUploadResult{
@@ -574,14 +563,13 @@ func TestExecuteScreenshotUploadCommandCanonicalizesDisplayTypeBeforeASCRequests
 	writeAssetsTestPNGWithSize(t, dir, "01-home.png", 1260, 2736)
 
 	var gotDisplayType string
-	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	_, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+		return &asc.Client{}, nil
+	}), screenshotUploadCommandOptions{
 		VersionLocalizationID: "LOC_ID",
 		Path:                  dir,
 		DeviceType:            "IPHONE_69",
 	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			return &asc.Client{}, nil
-		},
 		ExecuteUpload: func(_ context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], _ string) (asc.AppScreenshotUploadResult, error) {
 			gotDisplayType = cfg.DisplayType
 			return asc.AppScreenshotUploadResult{}, nil
@@ -603,15 +591,14 @@ func TestExecuteScreenshotUploadCommandMaxScreenshotsCapsBeforeDimensionValidati
 	writeAssetsTestPNGWithSize(t, dir, "11-wrong-size.png", 100, 100)
 
 	var gotFiles []string
-	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	_, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+		return &asc.Client{}, nil
+	}), screenshotUploadCommandOptions{
 		VersionLocalizationID: "LOC_ID",
 		Path:                  dir,
 		DeviceType:            "IPHONE_65",
 		MaxScreenshots:        10,
 	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			return &asc.Client{}, nil
-		},
 		ExecuteUpload: func(_ context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], _ string) (asc.AppScreenshotUploadResult, error) {
 			gotFiles = append([]string(nil), cfg.Files...)
 			return asc.AppScreenshotUploadResult{}, nil
@@ -640,15 +627,14 @@ func TestExecuteScreenshotUploadCommandMaxScreenshotsCapsBeforeImageValidation(t
 	}
 
 	var gotFiles []string
-	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	_, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+		return &asc.Client{}, nil
+	}), screenshotUploadCommandOptions{
 		VersionLocalizationID: "LOC_ID",
 		Path:                  dir,
 		DeviceType:            "IPHONE_65",
 		MaxScreenshots:        10,
 	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			return &asc.Client{}, nil
-		},
 		ExecuteUpload: func(_ context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], _ string) (asc.AppScreenshotUploadResult, error) {
 			gotFiles = append([]string(nil), cfg.Files...)
 			return asc.AppScreenshotUploadResult{}, nil

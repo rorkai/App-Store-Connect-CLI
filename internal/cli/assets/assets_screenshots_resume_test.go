@@ -37,6 +37,7 @@ func TestExecuteAppScreenshotUploadDryRunValidatesSourceRootBeforePreview(t *tes
 	}))
 
 	_, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -75,6 +76,7 @@ func TestExecuteAppScreenshotUploadDryRunRejectsSymlinkAboveSelectedFileRoot(t *
 	}))
 
 	_, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -121,6 +123,7 @@ func TestExecuteAppScreenshotUploadDryRunAllowsSystemAliasedSourceDirectories(t 
 			}))
 
 			_, err = executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+				Deps:           newAssetsUploadTestDeps(),
 				Client:         client,
 				LocalizationID: "LOC_123",
 				DisplayType:    "APP_IPHONE_65",
@@ -160,7 +163,7 @@ func TestResolveScreenshotUploadRootRejectsSymlinkedSourceFileOutsideTrustedRoot
 		t.Fatalf("create screenshot symlink: %v", err)
 	}
 
-	if _, err := resolveScreenshotUploadRoot("", []string{linkPath}); !errors.Is(err, rootfs.ErrSymlink) {
+	if _, err := resolveScreenshotUploadRoot(newAssetsUploadTestDeps(), "", []string{linkPath}); !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("resolveScreenshotUploadRoot() error = %v, want rootfs.ErrSymlink", err)
 	}
 }
@@ -195,6 +198,7 @@ func TestExecuteAppScreenshotUploadSkipExistingDoesNotPatchOrderingWhenAlreadyMa
 
 	client := newAssetsUploadTestClient(t)
 	result, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -228,7 +232,7 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 	fileC := writeAssetsTestPNG(t, workDir, "03-profile.png")
 
 	artifactPath := filepath.Join(workDir, "resume-artifact.json")
-	_, err := persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+	_, err := persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
 		VersionLocalizationID: "LOC_123",
 		DisplayType:           "APP_IPHONE_65",
 		SetID:                 "set-1",
@@ -277,7 +281,7 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err == nil {
 		t.Fatal("expected resumeAppScreenshotUpload() error")
 	}
@@ -301,7 +305,7 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 		t.Fatalf("expected only %q to remain failed, got %#v", fileC, result.Failures)
 	}
 
-	artifactData, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifactData, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("loadScreenshotUploadFailureArtifact() error: %v", err)
 	}
@@ -317,7 +321,7 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 func TestResumeAppScreenshotUploadRetriesCleanupBeforeNewUploads(t *testing.T) {
 	workDir := t.TempDir()
 	artifactPath := filepath.Join(workDir, "resume-artifact.json")
-	if _, err := persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+	if _, err := persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
 		SetID:      "set-1",
 		OrderedIDs: []string{"existing-1"},
 		CleanupFailures: []screenshotPendingAsset{{
@@ -352,7 +356,7 @@ func TestResumeAppScreenshotUploadRetriesCleanupBeforeNewUploads(t *testing.T) {
 		}
 	}))
 
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err == nil || !strings.Contains(err.Error(), "cleanup unavailable") {
 		t.Fatalf("first resume error = %v, want cleanup failure", err)
 	}
@@ -362,7 +366,7 @@ func TestResumeAppScreenshotUploadRetriesCleanupBeforeNewUploads(t *testing.T) {
 	if result.FailureArtifactPath == "" {
 		t.Fatal("expected updated failure artifact path")
 	}
-	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifact, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("load rewritten artifact: %v", err)
 	}
@@ -370,7 +374,7 @@ func TestResumeAppScreenshotUploadRetriesCleanupBeforeNewUploads(t *testing.T) {
 		t.Fatalf("rewritten cleanup failures = %#v, want leaked-1", artifact.CleanupFailures)
 	}
 
-	result, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err = resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("second resume error = %v, want 404 cleanup to be idempotent", err)
 	}
@@ -423,21 +427,22 @@ func TestExecuteAppScreenshotUploadSurfacesCleanupFailures(t *testing.T) {
 		result asc.AppScreenshotUploadResult
 		err    error
 	)
-	_, stderr := captureOutput(t, func() {
-		result, err = executeAppScreenshotUpload(
-			withScreenshotUploadConcurrency(context.Background(), 3),
-			screenshotUploadConfig[asc.AppScreenshotUploadResult]{
-				Client:         client,
-				LocalizationID: "LOC_123",
-				DisplayType:    "APP_IPHONE_65",
-				Files:          files,
-				RequestContext: contextWithAssetUploadTimeout,
-				UploadContext:  contextWithAssetUploadTimeout,
-				Access:         appStoreVersionScreenshotSetAccess,
-			},
-			artifactPath,
-		)
-	})
+	d, _, stderrBuf := newAssetsTestDeps(nil)
+	result, err = executeAppScreenshotUpload(
+		withScreenshotUploadConcurrency(context.Background(), 3),
+		screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+			Deps:           d,
+			Client:         client,
+			LocalizationID: "LOC_123",
+			DisplayType:    "APP_IPHONE_65",
+			Files:          files,
+			RequestContext: contextWithAssetUploadTimeout,
+			UploadContext:  contextWithAssetUploadTimeout,
+			Access:         appStoreVersionScreenshotSetAccess,
+		},
+		artifactPath,
+	)
+	stderr := stderrBuf.String()
 	if !errors.Is(err, uploadErr) || !strings.Contains(err.Error(), "cleanup failed") {
 		t.Fatalf("executeAppScreenshotUpload() error = %v, want upload and cleanup failures", err)
 	}
@@ -453,7 +458,7 @@ func TestExecuteAppScreenshotUploadSurfacesCleanupFailures(t *testing.T) {
 	if result.Failures[0].FilePath != files[0] || result.Failures[1].FileName != "screenshot cleanup" {
 		t.Fatalf("result failures = %#v, want failed file and cleanup entries", result.Failures)
 	}
-	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifact, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("load failure artifact: %v", err)
 	}
@@ -510,6 +515,7 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 	}))
 
 	result, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -525,7 +531,7 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 		t.Fatalf("expected resumable failure result, got %#v", result)
 	}
 
-	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifact, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("loadScreenshotUploadFailureArtifact() error: %v", err)
 	}
@@ -537,7 +543,7 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 		t.Fatalf("unexpected pending asset: %#v", pending)
 	}
 
-	result, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err = resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -636,7 +642,7 @@ func assertScreenshotResumeRejectsChecksumMismatch(t *testing.T, changeLocal, ch
 		t.Fatalf("computeFileChecksum() error: %v", err)
 	}
 	artifactPath := filepath.Join(workDir, "resume-artifact.json")
-	_, err = persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+	_, err = persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
 		RootPath:     workDir,
 		SetID:        "set-1",
 		PendingFiles: []string{filePath},
@@ -675,7 +681,7 @@ func assertScreenshotResumeRejectsChecksumMismatch(t *testing.T, changeLocal, ch
 		}
 	}))
 
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err == nil {
 		t.Fatal("expected a checksum mismatch to fail resume")
 	}
@@ -685,7 +691,7 @@ func assertScreenshotResumeRejectsChecksumMismatch(t *testing.T, changeLocal, ch
 	if orderPatched {
 		t.Fatal("did not expect ordering to be updated for a stale completed reservation")
 	}
-	artifact, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifact, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -738,7 +744,7 @@ func TestResumeAppScreenshotUploadRejectsSymlinkedParentBelowRecordedRoot(t *tes
 		writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`)
 	}))
 
-	_, err = resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	_, err = resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("resumeAppScreenshotUpload() error = %v, want rootfs.ErrSymlink", err)
 	}
@@ -798,6 +804,7 @@ func TestResumeScreenshotsDeletesIncompleteReservationBeforeRecreating(t *testin
 
 	progress, err := resumeScreenshotsWithOrderState(
 		context.Background(),
+		shared.ContextWithTimeout,
 		client,
 		"set-1",
 		nil,
@@ -838,6 +845,7 @@ func TestResumeScreenshotsDoesNotCreateWhenPendingLookupFails(t *testing.T) {
 
 	progress, err := resumeScreenshotsWithOrderState(
 		context.Background(),
+		shared.ContextWithTimeout,
 		client,
 		"set-1",
 		nil,
@@ -892,6 +900,7 @@ func TestExecuteAppScreenshotUploadKeepsUploadErrorWhenArtifactWriteFails(t *tes
 
 	client := newAssetsUploadTestClient(t)
 	_, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -947,6 +956,7 @@ func TestExecuteAppScreenshotUploadOrderSyncFailureSurfacesOrderingError(t *test
 
 	client := newAssetsUploadTestClient(t)
 	result, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -985,7 +995,7 @@ func TestExecuteAppScreenshotUploadOrderSyncFailureSurfacesOrderingError(t *test
 		t.Fatalf("expected failure artifact path, got %#v", result)
 	}
 
-	artifactData, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifactData, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("loadScreenshotUploadFailureArtifact() error: %v", err)
 	}
@@ -1004,7 +1014,7 @@ func TestResumeAppScreenshotUploadOrderingOnlyDoesNotRequireSourceRoot(t *testin
 	workDir := t.TempDir()
 	missingRoot := filepath.Join(workDir, "removed-screenshots")
 	artifactPath := filepath.Join(workDir, "failure-artifact.json")
-	_, err := persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+	_, err := persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
 		RootPath:   missingRoot,
 		SetID:      "set-1",
 		Files:      []string{filepath.Join(missingRoot, "01-home.png")},
@@ -1031,7 +1041,7 @@ func TestResumeAppScreenshotUploadOrderingOnlyDoesNotRequireSourceRoot(t *testin
 		writeAssetsTestJSON(w, http.StatusNoContent, "")
 	}))
 
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1084,6 +1094,7 @@ func TestExecuteAppScreenshotUploadSkipExistingPatchFailurePersistsLocalOrder(t 
 
 	client := newAssetsUploadTestClient(t)
 	_, err = executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -1097,7 +1108,7 @@ func TestExecuteAppScreenshotUploadSkipExistingPatchFailurePersistsLocalOrder(t 
 		t.Fatal("expected executeAppScreenshotUpload() error")
 	}
 
-	artifactData, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifactData, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("loadScreenshotUploadFailureArtifact() error: %v", err)
 	}
@@ -1152,6 +1163,7 @@ func TestExecuteAppScreenshotUploadSkipExistingSyncFailurePersistsLocalOrder(t *
 
 	client := newAssetsUploadTestClient(t)
 	result, err := executeAppScreenshotUpload(context.Background(), screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		LocalizationID: "LOC_123",
 		DisplayType:    "APP_IPHONE_65",
@@ -1171,7 +1183,7 @@ func TestExecuteAppScreenshotUploadSkipExistingSyncFailurePersistsLocalOrder(t *
 		t.Fatalf("expected failure artifact path, got %#v", result)
 	}
 
-	artifactData, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifactData, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("loadScreenshotUploadFailureArtifact() error: %v", err)
 	}
@@ -1191,7 +1203,7 @@ func TestResumeAppScreenshotUploadSkipExistingPreservesPendingLocalOrder(t *test
 	pendingSizeBytes := fileSize(t, pendingPath)
 	artifactPath := filepath.Join(workDir, "failure-artifact.json")
 
-	_, err := persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+	_, err := persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
 		VersionLocalizationID: "LOC_123",
 		Path:                  artifactPath,
 		DisplayType:           "APP_IPHONE_65",
@@ -1250,7 +1262,7 @@ func TestResumeAppScreenshotUploadSkipExistingPreservesPendingLocalOrder(t *test
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1271,7 +1283,7 @@ func TestResumeAppScreenshotUploadSkipExistingRetriesOrderingWithoutIDs(t *testi
 	existingPath := writeAssetsTestPNG(t, workDir, "01-existing.png")
 	artifactPath := filepath.Join(workDir, "failure-artifact.json")
 
-	_, err := persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+	_, err := persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
 		VersionLocalizationID: "LOC_123",
 		Path:                  artifactPath,
 		DisplayType:           "APP_IPHONE_65",
@@ -1323,7 +1335,7 @@ func TestResumeAppScreenshotUploadSkipExistingRetriesOrderingWithoutIDs(t *testi
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1362,7 +1374,7 @@ func TestPersistScreenshotUploadFailureArtifactNormalizesPendingPathsForResume(t
 		t.Fatalf("Abs(%q) error: %v", relativeFile, err)
 	}
 
-	_, err = persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+	_, err = persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
 		VersionLocalizationID: "LOC_123",
 		DisplayType:           "APP_IPHONE_65",
 		SetID:                 "set-1",
@@ -1374,7 +1386,7 @@ func TestPersistScreenshotUploadFailureArtifactNormalizesPendingPathsForResume(t
 		t.Fatalf("persistScreenshotUploadFailureArtifact() error: %v", err)
 	}
 
-	artifactData, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	artifactData, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("loadScreenshotUploadFailureArtifact() error: %v", err)
 	}
@@ -1410,7 +1422,7 @@ func TestPersistScreenshotUploadFailureArtifactNormalizesPendingPathsForResume(t
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}

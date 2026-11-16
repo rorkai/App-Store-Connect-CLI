@@ -23,7 +23,7 @@ func newSubscriptionsVersionImagesCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc subscriptions versions images list --version-id "VERSION_ID"
   asc subscriptions versions images upload --version-id "VERSION_ID" --file "./image.png"`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsVersionImagesListCommand(d),
 			newSubscriptionsVersionImagesPrimaryCommand(d),
@@ -49,7 +49,7 @@ func newSubscriptionsVersionImagesListCommand(d *shared.Deps) *ffcli.Command {
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: "asc subscriptions versions images list [flags]", ShortHelp: "List images for a subscription version.",
-		LongHelp: "List version-scoped subscription images.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "List version-scoped subscription images.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions images list", 200, "fields", "limit"); err != nil {
 				return err
@@ -99,7 +99,7 @@ func newSubscriptionsVersionImagesPrimaryCommand(d *shared.Deps) *ffcli.Command 
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "primary", ShortUsage: "asc subscriptions versions images primary --version-id \"VERSION_ID\"", ShortHelp: "View the singular image for a version.",
-		LongHelp: "View the singular image relationship for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "View the singular image relationship for a subscription version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
@@ -134,7 +134,7 @@ func newSubscriptionsVersionImagesLinksCommand(d *shared.Deps) *ffcli.Command {
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "links", ShortUsage: "asc subscriptions versions images links [flags]", ShortHelp: "List raw image linkages.",
-		LongHelp: "List raw plural image relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "List raw plural image relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions images links", 200, "limit"); err != nil {
 				return err
@@ -178,7 +178,7 @@ func newSubscriptionsVersionImagesPrimaryLinkCommand(d *shared.Deps) *ffcli.Comm
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "primary-link", ShortUsage: "asc subscriptions versions images primary-link --version-id \"VERSION_ID\"", ShortHelp: "View the singular image linkage.",
-		LongHelp: "View the raw singular image relationship linkage for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "View the raw singular image relationship linkage for a subscription version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
@@ -229,7 +229,7 @@ func newSubscriptionsVersionImagesUploadCommand(d *shared.Deps) *ffcli.Command {
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "upload", ShortUsage: "asc subscriptions versions images upload [flags]", ShortHelp: "Upload a version-scoped subscription image.",
-		LongHelp: "Reserve, upload, and commit an image for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "Reserve, upload, and commit an image for a subscription version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id, pathValue := strings.TrimSpace(*versionID), strings.TrimSpace(*filePath)
 			if id == "" {
@@ -282,7 +282,7 @@ func newSubscriptionsVersionImagesUpdateCommand(d *shared.Deps) *ffcli.Command {
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "update", ShortUsage: "asc subscriptions versions images update --id \"IMAGE_ID\" --uploaded true", ShortHelp: "Update a version-scoped image.",
-		LongHelp: "Update the uploaded state for a version-scoped subscription image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "Update the uploaded state for a version-scoped subscription image.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {

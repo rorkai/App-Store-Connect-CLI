@@ -12,7 +12,7 @@ import (
 )
 
 func TestNormalizeKeywordListTrimsLowercasesCollapsesAndDedupes(t *testing.T) {
-	got, err := normalizeKeywordList(" Focus Timer , focus   timer ,HABIT tracker, ,focus timer")
+	got, err := normalizeKeywordList(newOptimizeTestDeps(nil), " Focus Timer , focus   timer ,HABIT tracker, ,focus timer")
 	if err != nil {
 		t.Fatalf("normalizeKeywordList error = %v", err)
 	}
@@ -62,7 +62,7 @@ func TestNormalizeKeywordListRejectsInvalidInput(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := normalizeKeywordList(test.raw)
+			got, err := normalizeKeywordList(newOptimizeTestDeps(nil), test.raw)
 			if err == nil {
 				t.Fatalf("normalizeKeywordList(%q) = %v, want error", test.raw, got)
 			}
@@ -82,7 +82,7 @@ func TestNormalizeKeywordListAcceptsBoundaryValues(t *testing.T) {
 		strings.Repeat("a", 60),
 		"one two three four",
 	}
-	got, err := normalizeKeywordList(strings.Join(boundary, ","))
+	got, err := normalizeKeywordList(newOptimizeTestDeps(nil), strings.Join(boundary, ","))
 	if err != nil {
 		t.Fatalf("normalizeKeywordList error = %v", err)
 	}
@@ -90,7 +90,7 @@ func TestNormalizeKeywordListAcceptsBoundaryValues(t *testing.T) {
 		t.Fatalf("keywords = %v, want %v", got, boundary)
 	}
 
-	if _, err := normalizeKeywordList(strings.Join(manyKeywords(100), ",")); err != nil {
+	if _, err := normalizeKeywordList(newOptimizeTestDeps(nil), strings.Join(manyKeywords(100), ",")); err != nil {
 		t.Fatalf("100 keywords must be accepted, got %v", err)
 	}
 }
@@ -213,7 +213,7 @@ func TestRepresentativeKeywordErrorPrefersServerFailuresThenLowestStatus(t *test
 }
 
 func TestKeywordsGroupReturnsHelpAndRegistersRank(t *testing.T) {
-	group := KeywordsCommand()
+	group := newKeywordsCommand(newOptimizeTestDeps(nil))
 	if group.FlagSet == nil {
 		t.Fatal("keywords group is missing a FlagSet")
 	}
@@ -238,7 +238,7 @@ func TestKeywordsGroupReturnsHelpAndRegistersRank(t *testing.T) {
 
 func TestOptimizeGroupRegistersKeywords(t *testing.T) {
 	var names []string
-	for _, sub := range OptimizeCommand().Subcommands {
+	for _, sub := range NewOptimizeCommand(newOptimizeTestDeps(nil)).Subcommands {
 		names = append(names, sub.Name)
 	}
 	found := false

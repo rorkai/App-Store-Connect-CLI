@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -15,7 +13,7 @@ import (
 func TestShotsValidationDiagnostics(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() interface {
+		command func(*shared.Deps) interface {
 			ParseAndRun(context.Context, []string) error
 		}
 		args           []string
@@ -28,10 +26,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 	}{
 		{
 			name: "capture missing bundle id",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsCaptureCommand()
+				return NewShotsCaptureCommand(d)
 			},
 			args:          []string{"--name", "home"},
 			wantError:     "--bundle-id",
@@ -42,10 +40,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "capture missing name",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsCaptureCommand()
+				return NewShotsCaptureCommand(d)
 			},
 			args:          []string{"--bundle-id", "com.example.app"},
 			wantError:     "--name",
@@ -56,10 +54,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "capture name with path separators",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsCaptureCommand()
+				return NewShotsCaptureCommand(d)
 			},
 			args:          []string{"--bundle-id", "com.example.app", "--name", "../home"},
 			wantError:     flag.ErrHelp.Error(),
@@ -70,10 +68,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "capture invalid provider",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsCaptureCommand()
+				return NewShotsCaptureCommand(d)
 			},
 			args:          []string{"--bundle-id", "com.example.app", "--name", "home", "--provider", "invalid"},
 			wantError:     flag.ErrHelp.Error(),
@@ -84,10 +82,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame missing input",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			wantError:     "--input",
 			wantStderr:    "Error: --input is required when --config is not set\n",
@@ -97,10 +95,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame input and config",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--input", "/tmp/raw.png", "--config", "/tmp/frame.yaml"},
 			wantError:     flag.ErrHelp.Error(),
@@ -111,10 +109,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame watch without config",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--input", "/tmp/raw.png", "--watch"},
 			wantError:     flag.ErrHelp.Error(),
@@ -125,10 +123,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame invalid device",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--input", "/tmp/raw.png", "--device", "iphone-se"},
 			wantError:     flag.ErrHelp.Error(),
@@ -139,10 +137,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame canvas flags with config",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--config", "/tmp/frame.yaml", "--title", "Hello"},
 			wantError:     flag.ErrHelp.Error(),
@@ -153,10 +151,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame unsupported frame color",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--input", "/tmp/raw.png", "--device", "iphone-17", "--frame-color", "gold"},
 			wantError:     `--frame-color: unsupported frame color "gold" for device iphone-17 (allowed: white, black, lavender, mist-blue, sage)`,
@@ -167,10 +165,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame input dir with input",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--input", "/tmp/raw.png", "--input-dir", "/tmp/raw"},
 			wantError:     "use either --input, --input-dir, or --config",
@@ -181,10 +179,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame name with path separators",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:           []string{"--input", "/tmp/raw.png", "--name", "../home"},
 			wantError:      "screenshots frame: --name must be a file name without path separators",
@@ -194,10 +192,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "review approve missing selector",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsReviewApproveCommand()
+				return NewShotsReviewApproveCommand(d)
 			},
 			wantError:  flag.ErrHelp.Error(),
 			wantStderr: "Error: provide at least one selector: --all-ready, --key, --id, --locale, or --device\n",
@@ -206,10 +204,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame unsupported watch flag",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--config", "/tmp/frame.yaml", "--watch", "--title", "Hello"},
 			wantError:     "--title cannot be used with --watch; watch mode regenerates from the Koubou YAML config",
@@ -220,10 +218,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame multiple unsupported watch flags",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:       []string{"--config", "/tmp/frame.yaml", "--watch", "--title", "Hello", "--subtitle", "World"},
 			wantError:  "--subtitle, --title cannot be used with --watch; watch mode regenerates from the Koubou YAML config",
@@ -233,10 +231,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame debounce without watch",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--input", "/tmp/raw.png", "--watch-debounce", "1s"},
 			wantError:     "--watch-debounce requires --watch",
@@ -247,10 +245,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame review directory without watch",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--input", "/tmp/raw.png", "--watch-review-dir", "/tmp/review"},
 			wantError:     "--watch-review-dir requires --watch",
@@ -261,10 +259,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame raw directory without watch",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--input", "/tmp/raw.png", "--watch-raw-dir", "/tmp/raw"},
 			wantError:     "--watch-raw-dir requires --watch",
@@ -275,10 +273,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame raw directory without review directory",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--config", "/tmp/frame.yaml", "--watch", "--watch-raw-dir", "/tmp/raw"},
 			wantError:     "--watch-raw-dir requires --watch-review-dir",
@@ -289,10 +287,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame empty review directory",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--config", "/tmp/frame.yaml", "--watch", "--watch-review-dir", "   "},
 			wantError:     "--watch-review-dir must not be empty",
@@ -303,10 +301,10 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 		},
 		{
 			name: "frame nonpositive debounce",
-			command: func() interface {
+			command: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ShotsFrameCommand()
+				return NewShotsFrameCommand(d)
 			},
 			args:          []string{"--config", "/tmp/frame.yaml", "--watch", "--watch-debounce", "0s"},
 			wantError:     "--watch-debounce must be greater than 0",
@@ -319,10 +317,9 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var err error
-			stderr := captureShotsDiagnosticStderr(t, func() {
-				err = test.command().ParseAndRun(context.Background(), test.args)
-			})
+			d, _, stderrBuf := newShotsTestDeps()
+			err := test.command(d).ParseAndRun(context.Background(), test.args)
+			stderr := stderrBuf.String()
 			if err == nil {
 				t.Fatal("expected validation error")
 			}
@@ -347,36 +344,4 @@ func TestShotsValidationDiagnostics(t *testing.T) {
 			}
 		})
 	}
-}
-
-func captureShotsDiagnosticStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	original := os.Stderr
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	readResult := make(chan []byte, 1)
-	readError := make(chan error, 1)
-	go func() {
-		data, readErr := io.ReadAll(reader)
-		readResult <- data
-		readError <- readErr
-	}()
-
-	os.Stderr = writer
-	fn()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	os.Stderr = original
-	data := <-readResult
-	if err := <-readError; err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return string(data)
 }

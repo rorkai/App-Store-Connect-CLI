@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type assetsUploadRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -255,5 +256,5 @@ func fileSize(t *testing.T, path string) int64 {
 }
 
 func uploadScreenshotsToSetFromRoot(ctx context.Context, client *asc.Client, setID string, files []string, sourceRootPath string, preserveExistingOrder bool) ([]asc.AssetUploadResultItem, error) {
-	return uploadScreenshotsToSetFromRootWithOpenedFiles(ctx, client, setID, files, sourceRootPath, preserveExistingOrder, nil)
+	return uploadScreenshotsToSetFromRootWithOpenedFiles(ctx, shared.ContextWithTimeout, client, setID, files, sourceRootPath, preserveExistingOrder, nil)
 }

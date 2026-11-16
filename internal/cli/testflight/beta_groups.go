@@ -168,7 +168,7 @@ Examples:
   asc testflight beta-groups beta-recruitment-criteria view --group-id "GROUP_ID"
   asc testflight beta-groups beta-recruitment-criterion-compatible-build-check view --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaGroupsListCommand(d),
 			newBetaGroupsCreateCommand(d),
@@ -295,7 +295,7 @@ Examples:
   asc testflight beta-groups list --global --internal
   asc testflight beta-groups list --global --sort "name"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// Both beta group reads follow a links.next URL verbatim, so any
 			// query-shaping flag passed alongside --next would be dropped
@@ -806,7 +806,7 @@ func BuildGroupsListCommandWith(d *shared.Deps, config BuildGroupsListCommandCon
 		ShortHelp:  config.ShortHelp,
 		LongHelp:   config.LongHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedBuildID := strings.TrimSpace(*buildID)
 			buildIDSet := false
@@ -926,7 +926,7 @@ Examples:
   asc testflight beta-groups create --app "APP_ID" --name "Internal Testers" --internal --access-all-builds
   asc testflight beta-groups create --app "APP_ID" --name "Public Beta" --public-link-enabled --public-link-limit-enabled --public-link-limit 250 --feedback-enabled`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -1148,7 +1148,7 @@ Examples:
   asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled
   asc testflight beta-groups update --id "GROUP_ID" --ios-builds-available-for-apple-silicon-mac --ios-builds-available-for-apple-vision=false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
@@ -1246,7 +1246,7 @@ func newBetaGroupsDeleteCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-groups delete --id "GROUP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
 				return d.RequiredFlag("--id")
@@ -1307,7 +1307,7 @@ Examples:
   asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"
   asc testflight beta-groups add-testers --group "GROUP_ID" --email "tester@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
@@ -1463,7 +1463,7 @@ Examples:
   asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID" --confirm
   asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -42,15 +41,10 @@ func TestXcodeVersionMutationWarnsAboutLiteralInfoPlist(t *testing.T) {
 			} else {
 				args = append(args, "--type", "build")
 			}
-			command := RootCommand("test")
-			stdout, stderr := captureOutput(t, func() {
-				if err := command.Parse(args); err != nil {
-					t.Fatal(err)
-				}
-				if err := command.Run(context.Background()); err != nil {
-					t.Fatal(err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, args...)
+			if err != nil {
+				t.Fatal(err)
+			}
 			var receipt struct {
 				BuildNumber      string   `json:"buildNumber"`
 				NewBuild         string   `json:"newBuild"`
