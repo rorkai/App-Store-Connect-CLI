@@ -54,3 +54,18 @@ func (c *Client) CreateRetentionMessageVersion(ctx context.Context, messageID st
 		Payload: payload,
 	})
 }
+
+// GetRetentionMessageVersionLocalizationsRelationships sends GET /v1/retentionMessageVersions/{id}/relationships/localizations (retentionMessageVersions_localizations_getToManyRelationship).
+func (c *Client) GetRetentionMessageVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("resource ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/retentionMessageVersions/%s/relationships/localizations", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retention messages",
+	})
+}
