@@ -1253,6 +1253,26 @@ func TestHTTPVerifierEnvironmentTrustTransportRule(t *testing.T) {
 			t.Fatalf("requests on the given round tripper = %d, want none", requests)
 		}
 	})
+	t.Run("with AWS_CA_BUNDLE an *http.Transport with its own TLS dialer is a configuration error", func(t *testing.T) {
+		t.Setenv("AWS_CA_BUNDLE", caPath)
+		var dials int
+		dial := func(context.Context, string, string) (net.Conn, error) {
+			dials++
+			return nil, errors.New("unexpected dial")
+		}
+		for name, transport := range map[string]*http.Transport{
+			"DialTLSContext": {DialTLSContext: dial},
+			"DialTLS":        {DialTLS: func(network, address string) (net.Conn, error) { return dial(context.Background(), network, address) }},
+		} {
+			verifier, err := NewHTTPVerifierWithEnvironmentTrust(transport, time.Second)
+			if err == nil || verifier != nil || !strings.Contains(err.Error(), "AWS_CA_BUNDLE") || !strings.Contains(err.Error(), "TLS dialer") {
+				t.Fatalf("%s: NewHTTPVerifierWithEnvironmentTrust() = %v, %v; want an error naming AWS_CA_BUNDLE and the TLS dialer", name, verifier, err)
+			}
+		}
+		if dials != 0 {
+			t.Fatalf("dials = %d, want none", dials)
+		}
+	})
 	t.Run("with AWS_CA_BUNDLE a nil transport is http.DefaultTransport with the bundle roots", func(t *testing.T) {
 		t.Setenv("AWS_CA_BUNDLE", caPath)
 		verifier, err := NewHTTPVerifierWithEnvironmentTrust(nil, time.Second)

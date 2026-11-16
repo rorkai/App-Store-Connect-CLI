@@ -1096,8 +1096,9 @@ func NewHTTPVerifier(client *http.Client, timeout time.Duration) *HTTPVerifier {
 //   - with AWS_CA_BUNDLE and an *http.Transport, the bundle is added to a copy
 //     of its root pool (the system pool when it has none), its other TLS
 //     settings are kept, and its minimum version is raised to TLS 1.2;
-//   - with AWS_CA_BUNDLE and any other round tripper, it returns an error,
-//     before the verifier sends anything.
+//   - with AWS_CA_BUNDLE and any other round tripper, or an *http.Transport
+//     with its own TLS dialer (which would skip the roots), it returns an
+//     error, before the verifier sends anything.
 func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout time.Duration) (*HTTPVerifier, error) {
 	if transport == nil {
 		transport = http.DefaultTransport
@@ -1109,6 +1110,9 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	base, ok := transport.(*http.Transport)
 	if !ok {
 		return nil, fmt.Errorf("AWS_CA_BUNDLE needs an *http.Transport to add its roots to; the configured transport is %T", transport)
+	}
+	if base.DialTLSContext != nil || base.DialTLS != nil {
+		return nil, fmt.Errorf("AWS_CA_BUNDLE cannot be applied to an *http.Transport with its own TLS dialer, which handshakes without the bundle's roots")
 	}
 	file, err := os.Open(caPath)
 	if err != nil {
