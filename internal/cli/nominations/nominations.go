@@ -296,7 +296,7 @@ Examples:
 				visited[f.Name] = true
 			})
 
-			relatedApps := shared.SplitCSV(shared.ResolveAppID(appID.String()))
+			relatedApps := shared.SplitCSV(d.ResolveAppID(appID.String()))
 			if len(relatedApps) == 0 {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")

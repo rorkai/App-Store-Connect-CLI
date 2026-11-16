@@ -65,7 +65,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			resp, err := collectAccountStatus(ctx, d, resolvedAppID)
 			if err != nil {
 				return fmt.Errorf("account status: %w", err)

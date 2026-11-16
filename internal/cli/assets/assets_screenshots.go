@@ -451,7 +451,7 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 			return nil, shared.MissingRequiredUsageError("")
 		}
 		if versionValue != "" || (versionIDValue != "" && platformValue != "") {
-			appValue = shared.ResolveAppID(appValue)
+			appValue = d.ResolveAppID(appValue)
 		}
 		if versionValue != "" {
 			if appValue == "" {
@@ -1002,7 +1002,7 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 	}
 
 	if locID == "" {
-		resolvedAppValue := shared.ResolveAppID(appFlagValue)
+		resolvedAppValue := d.ResolveAppID(appFlagValue)
 		if resolvedAppValue == "" {
 			fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 			return nil, shared.MissingRequiredUsageError("--app")

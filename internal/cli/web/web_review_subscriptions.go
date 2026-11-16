@@ -574,7 +574,7 @@ func newWebReviewSubscriptionsListCommand(d *shared.Deps) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if trimmedAppID == "" {
 				return shared.WithDiagnostic(
 					d.UsageError("--app is required (or set ASC_APP_ID)"),
@@ -628,7 +628,7 @@ func newWebReviewSubscriptionsAttachCommand(d *shared.Deps) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedSubscriptionID := strings.TrimSpace(*subscriptionID)
 			switch {
 			case trimmedAppID == "":
@@ -718,7 +718,7 @@ func newWebReviewSubscriptionsAttachGroupCommand(d *shared.Deps) *ffcli.Command 
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			switch {
 			case trimmedAppID == "":
@@ -835,7 +835,7 @@ func newWebReviewSubscriptionsRemoveCommand(d *shared.Deps) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedSubscriptionID := strings.TrimSpace(*subscriptionID)
 			switch {
 			case trimmedAppID == "":
@@ -920,7 +920,7 @@ func newWebReviewSubscriptionsRemoveGroupCommand(d *shared.Deps) *ffcli.Command 
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			switch {
 			case trimmedAppID == "":
