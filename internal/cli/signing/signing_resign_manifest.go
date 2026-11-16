@@ -73,8 +73,6 @@ var signingResignAppleProfileRootFingerprints = map[string]struct{}{
 	"63343abfb89a6a03ebb57e9b3f5fa7be7c4f5c756f3017b3a8c488c3653e9179": {},
 }
 
-var signingResignNowFn = time.Now
-
 func readSigningResignManifest(path string) (signingResignManifest, error) {
 	if strings.TrimSpace(path) == "" {
 		return signingResignManifest{}, fmt.Errorf("profiles manifest path is empty")
