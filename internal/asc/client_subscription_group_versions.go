@@ -143,11 +143,6 @@ func (c *Client) GetSubscriptionGroupVersions(ctx context.Context, groupID strin
 	})
 }
 
-// GetSubscriptionGroupVersionsRelationships retrieves raw version linkages for a group.
-func (c *Client) GetSubscriptionGroupVersionsRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(ctx, groupID, "versions", "groupID", "/v1/subscriptionGroups/%s/relationships/%s", "subscriptionGroupVersionsRelationships", opts...)
-}
-
 // GetSubscriptionGroupVersionLocalizations lists v2 localizations owned by a version.
 func (c *Client) GetSubscriptionGroupVersionLocalizations(ctx context.Context, versionID string, opts ...SubscriptionGroupVersionLocalizationsOption) (*SubscriptionGroupLocalizationsV2Response, error) {
 	q := applyOptions(opts)
@@ -161,11 +156,6 @@ func (c *Client) GetSubscriptionGroupVersionLocalizations(ctx context.Context, v
 		Next:        q.nextURL,
 		NextContext: "subscription-group-version-localizations",
 	})
-}
-
-// GetSubscriptionGroupVersionLocalizationsRelationships retrieves raw localization linkages.
-func (c *Client) GetSubscriptionGroupVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(ctx, versionID, "localizations", "versionID", "/v1/subscriptionGroupVersions/%s/relationships/%s", "subscriptionGroupVersionLocalizationsRelationships", opts...)
 }
 
 // CreateSubscriptionGroupLocalizationV2 creates a version-scoped localization.

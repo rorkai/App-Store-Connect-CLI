@@ -56,6 +56,22 @@ func (c *Client) GetPreReleaseVersionBuilds(ctx context.Context, versionID strin
 	})
 }
 
+// GetPreReleaseVersionBuildsRelationships sends GET /v1/preReleaseVersions/{id}/relationships/builds (preReleaseVersions_builds_getToManyRelationship).
+func (c *Client) GetPreReleaseVersionBuildsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/preReleaseVersions/%s/relationships/builds", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "preReleaseVersionBuilds",
+		ParseErr:    "failed to parse builds relationship response",
+	})
+}
+
 // GetPreReleaseVersions sends GET /v1/preReleaseVersions (preReleaseVersions_getCollection).
 func (c *Client) GetPreReleaseVersions(ctx context.Context, opts ...PreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
 	query := applyOptions(opts)

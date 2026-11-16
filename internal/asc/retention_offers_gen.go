@@ -2,6 +2,12 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
 // RetentionOfferCreateData is the data object of the RetentionOfferCreateRequest schema.
 type RetentionOfferCreateData struct {
 	Type          ResourceType                      `json:"type"`
@@ -22,4 +28,20 @@ type RetentionOfferResponse = SingleResponse[RetentionOfferAttributes]
 type RetentionOfferUpdateAttributes struct {
 	CustomerEligibilityPaidSubscriptionDurationInMonths *int `json:"customerEligibilityPaidSubscriptionDurationInMonths,omitempty"`
 	CustomerEligibilityWaitBetweenOffersInMonths        *int `json:"customerEligibilityWaitBetweenOffersInMonths,omitempty"`
+}
+
+// GetRetentionOfferPricesRelationships sends GET /v1/retentionOffers/{id}/relationships/prices (retentionOffers_prices_getToManyRelationship).
+func (c *Client) GetRetentionOfferPricesRelationships(ctx context.Context, offerID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	offerID = strings.TrimSpace(offerID)
+	if query.nextURL == "" && offerID == "" {
+		return nil, fmt.Errorf("offerID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/retentionOffers/%s/relationships/prices", offerID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retentionOfferPrices relationships",
+		ParseErr:    "failed to parse prices relationship response",
+	})
 }
