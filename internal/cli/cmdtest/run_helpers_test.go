@@ -109,6 +109,10 @@ func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps
 	resetCmdtestState()
 	t.Cleanup(resetCmdtestState)
 
+	var clientWithTimeout func(time.Duration) (*asc.Client, error)
+	if client != nil {
+		clientWithTimeout = func(time.Duration) (*asc.Client, error) { return client() }
+	}
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
 		Client:         client,
@@ -120,6 +124,8 @@ func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps
 		After:          time.After,
 		Getwd:          os.Getwd,
 		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
+
+		ClientWithTimeout: clientWithTimeout,
 	}, &stdout, &stderr
 }
 

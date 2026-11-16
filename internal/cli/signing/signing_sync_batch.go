@@ -186,6 +186,7 @@ func runSigningSyncBatch(ctx context.Context, client *asc.Client, options signin
 			}
 			planCtx, cancelPlan := contextWithTimeout(ctx)
 			profile, certificates, _, err := resolveSigningAssets(planCtx, client, signingAssetsOptions{
+				Now:                      signingFetchNowFn,
 				BundleIDResourceID:       bundleIDResponse.Data.ID,
 				BundleIdentifier:         bundleID,
 				ProfileType:              options.ProfileType,
@@ -256,6 +257,7 @@ func runSigningSyncBatch(ctx context.Context, client *asc.Client, options signin
 			assetCtx,
 			client,
 			signingAssetsOptions{
+				Now:                      signingFetchNowFn,
 				BundleIDResourceID:       bundleIDResponse.Data.ID,
 				BundleIdentifier:         bundleID,
 				ProfileType:              options.ProfileType,

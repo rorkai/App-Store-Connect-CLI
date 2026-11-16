@@ -171,17 +171,17 @@ func trimPasswordFileNewlineBytes(password []byte) []byte {
 	}
 }
 
-func readNonEmptyIdentityPasswordFile(path string) ([]byte, error) {
+func readNonEmptyIdentityPasswordFile(d *shared.Deps, path string) ([]byte, error) {
 	password, err := readProtectedSecretFile(path, "identity password")
 	if err != nil {
 		if err.Error() == "identity password file is empty" {
-			return nil, shared.UsageError(err.Error())
+			return nil, d.UsageError(err.Error())
 		}
 		return nil, err
 	}
 	password = trimPasswordFileNewlineBytes(password)
 	if len(password) == 0 {
-		return nil, shared.UsageError("identity password file is empty")
+		return nil, d.UsageError("identity password file is empty")
 	}
 	return password, nil
 }
@@ -280,7 +280,7 @@ func syncPushCommand() *ffcli.Command {
 			if err := validateSigningSyncLifecycleFlags(profType, storageSelection.kind, *deviceIDs, *renewExpired, *forceForNewDevices, *includeMacInProfiles); err != nil {
 				return err
 			}
-			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing || *renewExpired || *forceForNewDevices); err != nil {
+			if err := rejectDeviceWithoutCreateMissing(shared.DefaultDeps(), *deviceIDs, *createMissing || *renewExpired || *forceForNewDevices); err != nil {
 				return err
 			}
 			if *createMissing && !*forceForNewDevices && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" {
@@ -319,7 +319,7 @@ func syncPushCommand() *ffcli.Command {
 			}
 			var certificatePassword []byte
 			if *createMissingCertificate {
-				certificatePassword, err = readNonEmptyIdentityPasswordFile(*identityPasswordFile)
+				certificatePassword, err = readNonEmptyIdentityPasswordFile(shared.DefaultDeps(), *identityPasswordFile)
 				if err != nil {
 					return fmt.Errorf("signing sync push: identity password: %w", err)
 				}
@@ -477,6 +477,7 @@ func syncPushCommand() *ffcli.Command {
 				requestCtx,
 				client,
 				signingAssetsOptions{
+					Now:                      signingFetchNowFn,
 					BundleIDResourceID:       bundleIDResp.Data.ID,
 					BundleIdentifier:         bundle,
 					ProfileType:              profType,

@@ -12,8 +12,9 @@ import (
 )
 
 func TestWriteWebSessionBundleAppliesOwnerOnlyDACL(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	path := filepath.Join(t.TempDir(), "session.json")
-	if _, err := writeWebSessionBundle(path, []byte(`{"kind":"asc-web-session"}`), false); err != nil {
+	if _, err := writeWebSessionBundle(d, path, []byte(`{"kind":"asc-web-session"}`), false); err != nil {
 		t.Fatalf("writeWebSessionBundle() error = %v", err)
 	}
 

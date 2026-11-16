@@ -9,6 +9,7 @@ import (
 )
 
 func TestAuthExportToConfigPreservesExactPathBytes(t *testing.T) {
+	d := newAuthTestDeps()
 	base := t.TempDir()
 	spacedConfig := filepath.Join(base, " config.json ")
 	spacedKeyDir := filepath.Join(base, " keys ")
@@ -19,7 +20,7 @@ func TestAuthExportToConfigPreservesExactPathBytes(t *testing.T) {
 	})
 	t.Cleanup(restore)
 
-	cmd := AuthExportToConfigCommand()
+	cmd := newAuthExportToConfigCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--confirm",
 		"--output", "json",
@@ -41,6 +42,7 @@ func TestAuthExportToConfigPreservesExactPathBytes(t *testing.T) {
 }
 
 func TestAuthExportToConfigTreatsAllSpaceNamesAsPaths(t *testing.T) {
+	d := newAuthTestDeps()
 	var captured authsvc.MigrateKeychainToConfigOptions
 	restore := SetMigrateKeychainToConfig(func(opts authsvc.MigrateKeychainToConfigOptions) (authsvc.MigrateKeychainToConfigResult, error) {
 		captured = opts
@@ -48,7 +50,7 @@ func TestAuthExportToConfigTreatsAllSpaceNamesAsPaths(t *testing.T) {
 	})
 	t.Cleanup(restore)
 
-	cmd := AuthExportToConfigCommand()
+	cmd := newAuthExportToConfigCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--confirm",
 		"--output", "json",

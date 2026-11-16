@@ -95,16 +95,7 @@ func TestWebAppsCreateMissingFieldsWithControllingTTYReturnsUsageError(t *testin
 }
 
 func TestWebAuthLogoutMutuallyExclusiveFlags(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "auth", "logout", "--all", "--apple-id", "user@example.com"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, stderr, runErr := runRootWithDeps(t, nil, "web", "auth", "logout", "--all", "--apple-id", "user@example.com")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)

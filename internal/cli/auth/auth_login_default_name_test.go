@@ -22,9 +22,10 @@ const (
 // runLocalLogin runs `auth login --bypass-keychain --local` against the temp
 // repo's ./.asc/config.json, so no host configuration or keychain is touched.
 func runLocalLogin(t *testing.T, args ...string) (string, error) {
+	d := newAuthTestDeps()
 	t.Helper()
 
-	cmd := AuthLoginCommand()
+	cmd := newAuthLoginCommand(d)
 	parsed := append([]string{
 		"--bypass-keychain",
 		"--local",
@@ -37,7 +38,7 @@ func runLocalLogin(t *testing.T, args ...string) (string, error) {
 	}
 
 	var runErr error
-	_, stderr := captureAuthOutput(t, func() {
+	_, stderr := captureAuthOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), []string{})
 	})
 	return stderr, runErr
@@ -134,6 +135,7 @@ func TestAuthLoginWithoutNameRefusesWhenOnlyALegacyCredentialExists(t *testing.T
 }
 
 func TestAuthLoginWithoutNameListsKeychainProfiles(t *testing.T) {
+	d := newAuthTestDeps()
 	withTempRepo(t, func(repo string) {
 		clearResolvedAuthEnv(t)
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "0")
@@ -143,7 +145,7 @@ func TestAuthLoginWithoutNameListsKeychainProfiles(t *testing.T) {
 		})
 		t.Cleanup(restore)
 
-		cmd := AuthLoginCommand()
+		cmd := newAuthLoginCommand(d)
 		if err := cmd.FlagSet.Parse([]string{
 			"--key-id", defaultNameTestKeyID,
 			"--issuer-id", defaultNameTestIssuerID,
@@ -153,7 +155,7 @@ func TestAuthLoginWithoutNameListsKeychainProfiles(t *testing.T) {
 		}
 
 		var runErr error
-		_, stderr := captureAuthOutput(t, func() {
+		_, stderr := captureAuthOutput(t, d, func() {
 			runErr = cmd.Exec(context.Background(), []string{})
 		})
 		if !errors.Is(runErr, flag.ErrHelp) {

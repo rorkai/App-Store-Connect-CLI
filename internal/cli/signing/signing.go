@@ -29,7 +29,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SigningFetchCommand(),
+			newSigningFetchCommand(d),
 			newSigningKeychainCommand(d),
 			SigningReconcileCommand(),
 			SigningResignCommand(),

@@ -46,10 +46,7 @@ func isolateAuthConfigWrite(t *testing.T) string {
 func runAuthConfigCommand(t *testing.T, args ...string) (string, string) {
 	t.Helper()
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run(args, "1.0.0")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, args...)
 	if code != cmd.ExitSuccess {
 		t.Fatalf("%v exit code = %d, want %d; stderr=%q", args, code, cmd.ExitSuccess, stderr)
 	}

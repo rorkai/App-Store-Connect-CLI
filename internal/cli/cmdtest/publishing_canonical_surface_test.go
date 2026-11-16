@@ -8,7 +8,7 @@ import (
 )
 
 func TestPublishHelpShowsCanonicalAppStoreAndTestFlightSurfaces(t *testing.T) {
-	stdout, stderr, runErr := runRootCommand(t, []string{"publish"})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "publish")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -76,7 +76,7 @@ func TestPublishAppStoreHelpShowsCanonicalWorkflowGuidance(t *testing.T) {
 }
 
 func TestPublishAppStoreInvocationDoesNotWarn(t *testing.T) {
-	stdout, stderr, runErr := runRootCommand(t, []string{"publish", "appstore", "--app", "app-1", "--version", "1.0.0"})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "publish", "appstore", "--app", "app-1", "--version", "1.0.0")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
