@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -956,10 +955,10 @@ func executePrivacyStep(ctx context.Context, client privacyMutationClient, appID
 // The apply request context can already be past its deadline - a timeout is
 // exactly the failure where reconciliation matters most - so this derives a new
 // deadline from the command context while still honouring its cancellation.
-func recheckPrivacyRemoteUsages(ctx context.Context, client privacyUsageReader, appID string) ([]webcore.AppDataUsage, error) {
-	recheckCtx, cancel := shared.ContextWithTimeout(ctx)
+func recheckPrivacyRemoteUsages(ctx context.Context, d *shared.Deps, client privacyUsageReader, appID string) ([]webcore.AppDataUsage, error) {
+	recheckCtx, cancel := d.Timeout(ctx)
 	defer cancel()
-	return withWebSpinnerValue(
+	return withWebSpinnerValueWith(d,
 		"Re-reading privacy state after failure",
 		func() ([]webcore.AppDataUsage, error) {
 			return client.ListAppDataUsages(recheckCtx, appID)
@@ -1133,11 +1132,11 @@ func validateApplyPlanUsageIDs(plan privacyPlanOutput) error {
 	return nil
 }
 
-func parsePrivacyDeclarationFile(path string) (privacyDeclarationFile, error) {
+func parsePrivacyDeclarationFile(d *shared.Deps, path string) (privacyDeclarationFile, error) {
 	if path == "" {
 		return privacyDeclarationFile{}, fmt.Errorf("file path is required")
 	}
-	root, name, err := privacyDeclarationRoot(path)
+	root, name, err := privacyDeclarationRoot(d, path)
 	if err != nil {
 		return privacyDeclarationFile{}, err
 	}
@@ -1169,11 +1168,11 @@ func parsePrivacyDeclarationFile(path string) (privacyDeclarationFile, error) {
 // privacyDeclarationRoot anchors privacy declaration reads and writes to the
 // parent directory of the operator-selected path, so the final component and any
 // component created below it cannot resolve through a symlink.
-func privacyDeclarationRoot(path string) (rootfs.Root, string, error) {
+func privacyDeclarationRoot(d *shared.Deps, path string) (rootfs.Root, string, error) {
 	if path == "" {
 		return rootfs.Root{}, "", fmt.Errorf("file path is required")
 	}
-	absolute, err := filepath.Abs(path)
+	absolute, err := d.Abs(path)
 	if err != nil {
 		return rootfs.Root{}, "", err
 	}
@@ -1184,11 +1183,11 @@ func privacyDeclarationRoot(path string) (rootfs.Root, string, error) {
 	return root, filepath.Base(absolute), nil
 }
 
-func writePrivacyDeclarationFile(path string, declaration privacyDeclarationFile) error {
+func writePrivacyDeclarationFile(d *shared.Deps, path string, declaration privacyDeclarationFile) error {
 	if strings.TrimSpace(path) == "" {
 		return fmt.Errorf("output path is required")
 	}
-	root, name, err := privacyDeclarationRoot(path)
+	root, name, err := privacyDeclarationRoot(d, path)
 	if err != nil {
 		return err
 	}
@@ -1396,211 +1395,227 @@ func formatPrivacyPublished(state privacyPublishState) string {
 	return fmt.Sprintf("%t", state.Published)
 }
 
-func renderPrivacyPullTable(payload privacyPullOutput) error {
-	fmt.Printf("App ID: %s\n", payload.AppID)
-	fmt.Printf("Published: %s\n", formatPrivacyPublished(payload.PublishState))
+func renderPrivacyPullTable(d *shared.Deps, payload privacyPullOutput) error {
+	fmt.Fprintf(d.IO.Out, "App ID: %s\n", payload.AppID)
+	fmt.Fprintf(d.IO.Out, "Published: %s\n", formatPrivacyPublished(payload.PublishState))
 	if payload.UnrepresentableCount > 0 {
-		fmt.Printf("Unrepresentable: %d\n", payload.UnrepresentableCount)
+		fmt.Fprintf(d.IO.Out, "Unrepresentable: %d\n", payload.UnrepresentableCount)
 	}
 	if strings.TrimSpace(payload.Out) != "" {
-		fmt.Printf("Output File: %s\n", payload.Out)
+		fmt.Fprintf(d.IO.Out, "Output File: %s\n", payload.Out)
 	}
-	fmt.Println()
-	asc.RenderTable(
+	fmt.Fprintln(d.IO.Out)
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Category", "Purposes", "Data Protections"},
 		buildPrivacyRows(payload.Declaration.DataUsages),
 	)
 	return nil
 }
 
-func renderPrivacyPullMarkdown(payload privacyPullOutput) error {
-	fmt.Printf("**App ID:** %s\n\n", payload.AppID)
-	fmt.Printf("**Published:** %s\n\n", formatPrivacyPublished(payload.PublishState))
+func renderPrivacyPullMarkdown(d *shared.Deps, payload privacyPullOutput) error {
+	fmt.Fprintf(d.IO.Out, "**App ID:** %s\n\n", payload.AppID)
+	fmt.Fprintf(d.IO.Out, "**Published:** %s\n\n", formatPrivacyPublished(payload.PublishState))
 	if payload.UnrepresentableCount > 0 {
-		fmt.Printf("**Unrepresentable:** %d\n\n", payload.UnrepresentableCount)
+		fmt.Fprintf(d.IO.Out, "**Unrepresentable:** %d\n\n", payload.UnrepresentableCount)
 	}
 	if strings.TrimSpace(payload.Out) != "" {
-		fmt.Printf("**Output File:** %s\n\n", payload.Out)
+		fmt.Fprintf(d.IO.Out, "**Output File:** %s\n\n", payload.Out)
 	}
-	asc.RenderMarkdown(
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Category", "Purposes", "Data Protections"},
 		buildPrivacyRows(payload.Declaration.DataUsages),
 	)
 	return nil
 }
 
-func renderPrivacyPlanTable(payload privacyPlanOutput) error {
-	fmt.Printf("App ID: %s\n", payload.AppID)
-	fmt.Printf("File: %s\n", payload.File)
-	fmt.Printf("Updates: %d\n", len(payload.Updates))
-	fmt.Printf("Adds: %d\n", len(payload.Adds))
-	fmt.Printf("Deletes: %d\n", len(payload.Deletes))
-	fmt.Printf("Skipped Deletes: %d\n", len(payload.SkippedDeletes))
-	fmt.Printf("Stale Tokens: %d\n\n", len(payload.StaleTokens))
-	asc.RenderTable(
+func renderPrivacyPlanTable(d *shared.Deps, payload privacyPlanOutput) error {
+	fmt.Fprintf(d.IO.Out, "App ID: %s\n", payload.AppID)
+	fmt.Fprintf(d.IO.Out, "File: %s\n", payload.File)
+	fmt.Fprintf(d.IO.Out, "Updates: %d\n", len(payload.Updates))
+	fmt.Fprintf(d.IO.Out, "Adds: %d\n", len(payload.Adds))
+	fmt.Fprintf(d.IO.Out, "Deletes: %d\n", len(payload.Deletes))
+	fmt.Fprintf(d.IO.Out, "Skipped Deletes: %d\n", len(payload.SkippedDeletes))
+	fmt.Fprintf(d.IO.Out, "Stale Tokens: %d\n\n", len(payload.StaleTokens))
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Change", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 		buildPrivacyPlanRows(payload.Updates, payload.Adds, payload.Deletes),
 	)
 	if len(payload.SkippedDeletes) > 0 {
-		fmt.Println()
-		asc.RenderTable(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(
+			d.IO.Out,
 			[]string{"Key", "Category", "Purpose", "Data Protection", "Reason", "Usage ID"},
 			buildPrivacySkippedDeleteRows(payload.SkippedDeletes),
 		)
 	}
 	if len(payload.StaleTokens) > 0 {
-		fmt.Println()
-		asc.RenderTable([]string{"Kind", "Token", "Reason"}, buildPrivacyStaleTokenRows(payload.StaleTokens))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"Kind", "Token", "Reason"}, buildPrivacyStaleTokenRows(payload.StaleTokens))
 	}
 	if len(payload.APICalls) > 0 {
-		fmt.Println()
-		asc.RenderTable([]string{"Operation", "Count"}, buildPrivacyAPICallRows(payload.APICalls))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"Operation", "Count"}, buildPrivacyAPICallRows(payload.APICalls))
 	}
 	return nil
 }
 
-func renderPrivacyPlanMarkdown(payload privacyPlanOutput) error {
-	fmt.Printf("**App ID:** %s\n\n", payload.AppID)
-	fmt.Printf("**File:** %s\n\n", payload.File)
-	fmt.Printf("**Updates:** %d\n\n", len(payload.Updates))
-	fmt.Printf("**Adds:** %d\n\n", len(payload.Adds))
-	fmt.Printf("**Deletes:** %d\n\n", len(payload.Deletes))
-	fmt.Printf("**Skipped Deletes:** %d\n\n", len(payload.SkippedDeletes))
-	fmt.Printf("**Stale Tokens:** %d\n\n", len(payload.StaleTokens))
-	asc.RenderMarkdown(
+func renderPrivacyPlanMarkdown(d *shared.Deps, payload privacyPlanOutput) error {
+	fmt.Fprintf(d.IO.Out, "**App ID:** %s\n\n", payload.AppID)
+	fmt.Fprintf(d.IO.Out, "**File:** %s\n\n", payload.File)
+	fmt.Fprintf(d.IO.Out, "**Updates:** %d\n\n", len(payload.Updates))
+	fmt.Fprintf(d.IO.Out, "**Adds:** %d\n\n", len(payload.Adds))
+	fmt.Fprintf(d.IO.Out, "**Deletes:** %d\n\n", len(payload.Deletes))
+	fmt.Fprintf(d.IO.Out, "**Skipped Deletes:** %d\n\n", len(payload.SkippedDeletes))
+	fmt.Fprintf(d.IO.Out, "**Stale Tokens:** %d\n\n", len(payload.StaleTokens))
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Change", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 		buildPrivacyPlanRows(payload.Updates, payload.Adds, payload.Deletes),
 	)
 	if len(payload.SkippedDeletes) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(
+			d.IO.Out,
 			[]string{"Key", "Category", "Purpose", "Data Protection", "Reason", "Usage ID"},
 			buildPrivacySkippedDeleteRows(payload.SkippedDeletes),
 		)
 	}
 	if len(payload.StaleTokens) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"Kind", "Token", "Reason"}, buildPrivacyStaleTokenRows(payload.StaleTokens))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"Kind", "Token", "Reason"}, buildPrivacyStaleTokenRows(payload.StaleTokens))
 	}
 	if len(payload.APICalls) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"Operation", "Count"}, buildPrivacyAPICallRows(payload.APICalls))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"Operation", "Count"}, buildPrivacyAPICallRows(payload.APICalls))
 	}
 	return nil
 }
 
-func renderPrivacyApplyTable(payload privacyApplyOutput) error {
-	fmt.Printf("App ID: %s\n", payload.AppID)
-	fmt.Printf("File: %s\n", payload.File)
-	fmt.Printf("Applied: %t\n", payload.Applied)
-	fmt.Printf("Changed: %s\n", formatPrivacyApplyChanged(payload.Changed))
-	fmt.Printf("Updates: %d\n", len(payload.Updates))
-	fmt.Printf("Adds: %d\n", len(payload.Adds))
-	fmt.Printf("Deletes: %d\n", len(payload.Deletes))
-	fmt.Printf("Skipped Deletes: %d\n\n", len(payload.SkippedDeletes))
-	asc.RenderTable(
+func renderPrivacyApplyTable(d *shared.Deps, payload privacyApplyOutput) error {
+	fmt.Fprintf(d.IO.Out, "App ID: %s\n", payload.AppID)
+	fmt.Fprintf(d.IO.Out, "File: %s\n", payload.File)
+	fmt.Fprintf(d.IO.Out, "Applied: %t\n", payload.Applied)
+	fmt.Fprintf(d.IO.Out, "Changed: %s\n", formatPrivacyApplyChanged(payload.Changed))
+	fmt.Fprintf(d.IO.Out, "Updates: %d\n", len(payload.Updates))
+	fmt.Fprintf(d.IO.Out, "Adds: %d\n", len(payload.Adds))
+	fmt.Fprintf(d.IO.Out, "Deletes: %d\n", len(payload.Deletes))
+	fmt.Fprintf(d.IO.Out, "Skipped Deletes: %d\n\n", len(payload.SkippedDeletes))
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Change", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 		buildPrivacyPlanRows(payload.Updates, payload.Adds, payload.Deletes),
 	)
 	if len(payload.SkippedDeletes) > 0 {
-		fmt.Println()
-		asc.RenderTable(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(
+			d.IO.Out,
 			[]string{"Key", "Category", "Purpose", "Data Protection", "Reason", "Usage ID"},
 			buildPrivacySkippedDeleteRows(payload.SkippedDeletes),
 		)
 	}
 	if len(payload.Actions) > 0 {
-		fmt.Println()
-		fmt.Println("Applied Actions")
-		asc.RenderTable(
+		fmt.Fprintln(d.IO.Out)
+		fmt.Fprintln(d.IO.Out, "Applied Actions")
+		asc.RenderTableTo(
+			d.IO.Out,
 			[]string{"Action", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 			buildPrivacyActionRows(payload.Actions),
 		)
 	}
 	if len(payload.UnknownActions) > 0 {
-		fmt.Println()
-		fmt.Println("Unknown Actions")
-		asc.RenderTable(
+		fmt.Fprintln(d.IO.Out)
+		fmt.Fprintln(d.IO.Out, "Unknown Actions")
+		asc.RenderTableTo(
+			d.IO.Out,
 			[]string{"Action", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 			buildPrivacyActionRows(payload.UnknownActions),
 		)
 	}
 	if len(payload.NotAppliedActions) > 0 {
-		fmt.Println()
-		fmt.Println("Not Applied Actions")
-		asc.RenderTable(
+		fmt.Fprintln(d.IO.Out)
+		fmt.Fprintln(d.IO.Out, "Not Applied Actions")
+		asc.RenderTableTo(
+			d.IO.Out,
 			[]string{"Action", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 			buildPrivacyActionRows(payload.NotAppliedActions),
 		)
 	}
 	if payload.Recheck != nil {
-		fmt.Println()
-		asc.RenderTable([]string{"Field", "Value"}, buildPrivacyRecheckRows(*payload.Recheck))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"Field", "Value"}, buildPrivacyRecheckRows(*payload.Recheck))
 	}
 	if len(payload.APICalls) > 0 {
-		fmt.Println()
-		asc.RenderTable([]string{"Operation", "Count"}, buildPrivacyAPICallRows(payload.APICalls))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"Operation", "Count"}, buildPrivacyAPICallRows(payload.APICalls))
 	}
 	return nil
 }
 
-func renderPrivacyApplyMarkdown(payload privacyApplyOutput) error {
-	fmt.Printf("**App ID:** %s\n\n", payload.AppID)
-	fmt.Printf("**File:** %s\n\n", payload.File)
-	fmt.Printf("**Applied:** %t\n\n", payload.Applied)
-	fmt.Printf("**Changed:** %s\n\n", formatPrivacyApplyChanged(payload.Changed))
-	fmt.Printf("**Updates:** %d\n\n", len(payload.Updates))
-	fmt.Printf("**Adds:** %d\n\n", len(payload.Adds))
-	fmt.Printf("**Deletes:** %d\n\n", len(payload.Deletes))
-	fmt.Printf("**Skipped Deletes:** %d\n\n", len(payload.SkippedDeletes))
-	asc.RenderMarkdown(
+func renderPrivacyApplyMarkdown(d *shared.Deps, payload privacyApplyOutput) error {
+	fmt.Fprintf(d.IO.Out, "**App ID:** %s\n\n", payload.AppID)
+	fmt.Fprintf(d.IO.Out, "**File:** %s\n\n", payload.File)
+	fmt.Fprintf(d.IO.Out, "**Applied:** %t\n\n", payload.Applied)
+	fmt.Fprintf(d.IO.Out, "**Changed:** %s\n\n", formatPrivacyApplyChanged(payload.Changed))
+	fmt.Fprintf(d.IO.Out, "**Updates:** %d\n\n", len(payload.Updates))
+	fmt.Fprintf(d.IO.Out, "**Adds:** %d\n\n", len(payload.Adds))
+	fmt.Fprintf(d.IO.Out, "**Deletes:** %d\n\n", len(payload.Deletes))
+	fmt.Fprintf(d.IO.Out, "**Skipped Deletes:** %d\n\n", len(payload.SkippedDeletes))
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Change", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 		buildPrivacyPlanRows(payload.Updates, payload.Adds, payload.Deletes),
 	)
 	if len(payload.SkippedDeletes) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(
+			d.IO.Out,
 			[]string{"Key", "Category", "Purpose", "Data Protection", "Reason", "Usage ID"},
 			buildPrivacySkippedDeleteRows(payload.SkippedDeletes),
 		)
 	}
 	if len(payload.Actions) > 0 {
-		fmt.Println()
-		fmt.Printf("**Applied Actions**\n\n")
-		asc.RenderMarkdown(
+		fmt.Fprintln(d.IO.Out)
+		fmt.Fprintf(d.IO.Out, "**Applied Actions**\n\n")
+		asc.RenderMarkdownTo(
+			d.IO.Out,
 			[]string{"Action", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 			buildPrivacyActionRows(payload.Actions),
 		)
 	}
 	if len(payload.UnknownActions) > 0 {
-		fmt.Println()
-		fmt.Printf("**Unknown Actions**\n\n")
-		asc.RenderMarkdown(
+		fmt.Fprintln(d.IO.Out)
+		fmt.Fprintf(d.IO.Out, "**Unknown Actions**\n\n")
+		asc.RenderMarkdownTo(
+			d.IO.Out,
 			[]string{"Action", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 			buildPrivacyActionRows(payload.UnknownActions),
 		)
 	}
 	if len(payload.NotAppliedActions) > 0 {
-		fmt.Println()
-		fmt.Printf("**Not Applied Actions**\n\n")
-		asc.RenderMarkdown(
+		fmt.Fprintln(d.IO.Out)
+		fmt.Fprintf(d.IO.Out, "**Not Applied Actions**\n\n")
+		asc.RenderMarkdownTo(
+			d.IO.Out,
 			[]string{"Action", "Key", "Category", "Purpose", "Data Protection", "Usage ID"},
 			buildPrivacyActionRows(payload.NotAppliedActions),
 		)
 	}
 	if payload.Recheck != nil {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"Field", "Value"}, buildPrivacyRecheckRows(*payload.Recheck))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"Field", "Value"}, buildPrivacyRecheckRows(*payload.Recheck))
 	}
 	if len(payload.APICalls) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"Operation", "Count"}, buildPrivacyAPICallRows(payload.APICalls))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"Operation", "Count"}, buildPrivacyAPICallRows(payload.APICalls))
 	}
 	return nil
 }
 
-func renderPrivacyPublishTable(payload privacyPublishOutput) error {
-	asc.RenderTable([]string{"Field", "Value"}, [][]string{
+func renderPrivacyPublishTable(d *shared.Deps, payload privacyPublishOutput) error {
+	asc.RenderTableTo(d.IO.Out, []string{"Field", "Value"}, [][]string{
 		{"App ID", payload.AppID},
 		{"Publish State ID", valueOrNA(payload.PublishState.ID)},
 		{"Published", formatPrivacyPublished(payload.PublishState)},
@@ -1610,8 +1625,8 @@ func renderPrivacyPublishTable(payload privacyPublishOutput) error {
 	return nil
 }
 
-func renderPrivacyPublishMarkdown(payload privacyPublishOutput) error {
-	asc.RenderMarkdown([]string{"Field", "Value"}, [][]string{
+func renderPrivacyPublishMarkdown(d *shared.Deps, payload privacyPublishOutput) error {
+	asc.RenderMarkdownTo(d.IO.Out, []string{"Field", "Value"}, [][]string{
 		{"App ID", payload.AppID},
 		{"Publish State ID", valueOrNA(payload.PublishState.ID)},
 		{"Published", formatPrivacyPublished(payload.PublishState)},
@@ -1621,31 +1636,33 @@ func renderPrivacyPublishMarkdown(payload privacyPublishOutput) error {
 	return nil
 }
 
-func renderPrivacyCatalogTable(payload privacyCatalogOutput) error {
-	fmt.Printf("Categories: %d\n", len(payload.Categories))
-	fmt.Printf("Purposes: %d\n", len(payload.Purposes))
-	fmt.Printf("Data Protections: %d\n\n", len(payload.DataProtections))
-	asc.RenderTable(
+func renderPrivacyCatalogTable(d *shared.Deps, payload privacyCatalogOutput) error {
+	fmt.Fprintf(d.IO.Out, "Categories: %d\n", len(payload.Categories))
+	fmt.Fprintf(d.IO.Out, "Purposes: %d\n", len(payload.Purposes))
+	fmt.Fprintf(d.IO.Out, "Data Protections: %d\n\n", len(payload.DataProtections))
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Kind", "ID", "Grouping", "Deleted"},
 		buildCatalogRows(payload.Categories, payload.Purposes, payload.DataProtections),
 	)
 	return nil
 }
 
-func renderPrivacyCatalogMarkdown(payload privacyCatalogOutput) error {
-	fmt.Printf("**Categories:** %d\n\n", len(payload.Categories))
-	fmt.Printf("**Purposes:** %d\n\n", len(payload.Purposes))
-	fmt.Printf("**Data Protections:** %d\n\n", len(payload.DataProtections))
-	asc.RenderMarkdown(
+func renderPrivacyCatalogMarkdown(d *shared.Deps, payload privacyCatalogOutput) error {
+	fmt.Fprintf(d.IO.Out, "**Categories:** %d\n\n", len(payload.Categories))
+	fmt.Fprintf(d.IO.Out, "**Purposes:** %d\n\n", len(payload.Purposes))
+	fmt.Fprintf(d.IO.Out, "**Data Protections:** %d\n\n", len(payload.DataProtections))
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Kind", "ID", "Grouping", "Deleted"},
 		buildCatalogRows(payload.Categories, payload.Purposes, payload.DataProtections),
 	)
 	return nil
 }
 
-// WebPrivacyCommand returns the detached web privacy command group.
-func WebPrivacyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web privacy", flag.ExitOnError)
+// newWebPrivacyCommand returns the detached web privacy command group.
+func newWebPrivacyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web privacy", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "privacy",
@@ -1666,13 +1683,13 @@ Subcommands:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebPrivacyCatalogCommand(),
-			WebPrivacyPullCommand(),
-			WebPrivacyPlanCommand(),
-			WebPrivacyApplyCommand(),
-			WebPrivacyPublishCommand(),
+			newWebPrivacyCatalogCommand(d),
+			newWebPrivacyPullCommand(d),
+			newWebPrivacyPlanCommand(d),
+			newWebPrivacyApplyCommand(d),
+			newWebPrivacyPublishCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1680,12 +1697,12 @@ Subcommands:
 	}
 }
 
-// WebPrivacyCatalogCommand lists available privacy declaration catalog values.
-func WebPrivacyCatalogCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web privacy catalog", flag.ExitOnError)
+// newWebPrivacyCatalogCommand lists available privacy declaration catalog values.
+func newWebPrivacyCatalogCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web privacy catalog", flag.ExitOnError)
 
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "catalog",
@@ -1699,9 +1716,9 @@ privacy declaration files.
 Examples:
   asc web privacy catalog --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -1709,7 +1726,7 @@ Examples:
 			client := webcore.NewClient(session)
 
 			payload := privacyCatalogOutput{}
-			err = withWebSpinner("Loading privacy catalog", func() error {
+			err = withWebSpinnerWith(d, "Loading privacy catalog", func() error {
 				categories, err := client.ListAppDataUsageCategories(requestCtx)
 				if err != nil {
 					return err
@@ -1737,25 +1754,25 @@ Examples:
 			if err != nil {
 				return withWebAuthHint(err, "web privacy catalog")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderPrivacyCatalogTable(payload) },
-				func() error { return renderPrivacyCatalogMarkdown(payload) },
+				func() error { return renderPrivacyCatalogTable(d, payload) },
+				func() error { return renderPrivacyCatalogMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebPrivacyPullCommand pulls remote app privacy declarations into canonical JSON.
-func WebPrivacyPullCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web privacy pull", flag.ExitOnError)
+// newWebPrivacyPullCommand pulls remote app privacy declarations into canonical JSON.
+func newWebPrivacyPullCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web privacy pull", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	out := fs.String("out", "", "Optional output file path for canonical declaration JSON")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "pull",
@@ -1774,18 +1791,18 @@ Examples:
   asc web privacy pull --app "123456789"
   asc web privacy pull --app "123456789" --out "./privacy.json"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
 				return shared.WithDiagnostic(
-					shared.UsageError("--app is required (or set ASC_APP_ID)"),
+					d.UsageError("--app is required (or set ASC_APP_ID)"),
 					shared.DiagnosticRequiredInputMissing,
 					"--app",
 				)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -1796,7 +1813,7 @@ Examples:
 				remoteUsages []webcore.AppDataUsage
 				publishState *webcore.AppDataUsagesPublishState
 			)
-			err = withWebSpinner("Loading app privacy state", func() error {
+			err = withWebSpinnerWith(d, "Loading app privacy state", func() error {
 				var err error
 				remoteUsages, err = client.ListAppDataUsages(requestCtx, resolvedAppID)
 				if err != nil {
@@ -1812,7 +1829,7 @@ Examples:
 			declaration := declarationFromRemoteDataUsages(remoteUsages)
 			outPath := *out
 			if outPath != "" {
-				if err := writePrivacyDeclarationFile(outPath, declaration); err != nil {
+				if err := writePrivacyDeclarationFile(d, outPath, declaration); err != nil {
 					return err
 				}
 			} else {
@@ -1826,25 +1843,25 @@ Examples:
 				UnrepresentableCount: countUnrepresentableRemoteUsages(remoteUsages),
 				Out:                  outPath,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderPrivacyPullTable(payload) },
-				func() error { return renderPrivacyPullMarkdown(payload) },
+				func() error { return renderPrivacyPullTable(d, payload) },
+				func() error { return renderPrivacyPullMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebPrivacyPlanCommand compares local declaration file with remote state.
-func WebPrivacyPlanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web privacy plan", flag.ExitOnError)
+// newWebPrivacyPlanCommand compares local declaration file with remote state.
+func newWebPrivacyPlanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web privacy plan", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	filePath := fs.String("file", "", "Path to canonical privacy declaration JSON")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "plan",
@@ -1865,34 +1882,34 @@ staleTokens. plan stays read-only and still exits zero.
 Examples:
   asc web privacy plan --app "123456789" --file "./privacy.json"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 			resolvedFilePath := *filePath
 			if resolvedFilePath == "" {
-				return shared.UsageError("--file is required")
+				return d.UsageError("--file is required")
 			}
 
-			declaration, err := parsePrivacyDeclarationFile(resolvedFilePath)
+			declaration, err := parsePrivacyDeclarationFile(d, resolvedFilePath)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			desiredTuples, err := declarationToTupleSet(declaration)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := webcore.NewClient(session)
 			plan := privacyPlanOutput{}
-			err = withWebSpinner("Planning privacy changes", func() error {
+			err = withWebSpinnerWith(d, "Planning privacy changes", func() error {
 				remoteUsages, err := client.ListAppDataUsages(requestCtx, resolvedAppID)
 				if err != nil {
 					return err
@@ -1910,27 +1927,27 @@ Examples:
 				return withWebAuthHint(err, "web privacy plan")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				plan,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderPrivacyPlanTable(plan) },
-				func() error { return renderPrivacyPlanMarkdown(plan) },
+				func() error { return renderPrivacyPlanTable(d, plan) },
+				func() error { return renderPrivacyPlanMarkdown(d, plan) },
 			)
 		},
 	}
 }
 
-// WebPrivacyApplyCommand applies local declaration changes to remote app data usages.
-func WebPrivacyApplyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web privacy apply", flag.ExitOnError)
+// newWebPrivacyApplyCommand applies local declaration changes to remote app data usages.
+func newWebPrivacyApplyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web privacy apply", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	filePath := fs.String("file", "", "Path to canonical privacy declaration JSON")
 	allowDeletes := fs.Bool("allow-deletes", false, "Allow delete operations when remote tuples are missing locally")
 	confirm := fs.Bool("confirm", false, "Confirm delete operations (required with --allow-deletes)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "apply",
@@ -1961,37 +1978,37 @@ Examples:
   asc web privacy apply --app "123456789" --file "./privacy.json"
   asc web privacy apply --app "123456789" --file "./privacy.json" --allow-deletes --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 			resolvedFilePath := *filePath
 			if resolvedFilePath == "" {
-				return shared.UsageError("--file is required")
+				return d.UsageError("--file is required")
 			}
 			if *allowDeletes && !*confirm {
-				return shared.UsageError("--confirm is required when --allow-deletes is set")
+				return d.UsageError("--confirm is required when --allow-deletes is set")
 			}
 
-			declaration, err := parsePrivacyDeclarationFile(resolvedFilePath)
+			declaration, err := parsePrivacyDeclarationFile(d, resolvedFilePath)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			desiredTuples, err := declarationToTupleSet(declaration)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := webcore.NewClient(session)
 			plan := privacyPlanOutput{}
-			err = withWebSpinner("Planning privacy changes", func() error {
+			err = withWebSpinnerWith(d, "Planning privacy changes", func() error {
 				remoteUsages, err := client.ListAppDataUsages(requestCtx, resolvedAppID)
 				if err != nil {
 					return err
@@ -2010,19 +2027,19 @@ Examples:
 			}
 
 			if len(plan.StaleTokens) > 0 {
-				return shared.UsageErrorf(
+				return d.UsageErrorf(
 					"web privacy apply: declaration references catalog tokens Apple no longer accepts: %s; refresh the catalog and the declaration before applying",
 					formatPrivacyStaleTokens(plan.StaleTokens),
 				)
 			}
 			if len(plan.Deletes) > 0 && !*allowDeletes {
-				return shared.UsageError("--allow-deletes is required to apply delete operations")
+				return d.UsageError("--allow-deletes is required to apply delete operations")
 			}
 			if len(plan.Deletes) > 0 && !*confirm {
-				return shared.UsageError("--confirm is required when applying delete operations")
+				return d.UsageError("--confirm is required when applying delete operations")
 			}
 
-			result, applyErr := withWebSpinnerValue("Applying privacy changes", func() (privacyApplyResult, error) {
+			result, applyErr := withWebSpinnerValueWith(d, "Applying privacy changes", func() (privacyApplyResult, error) {
 				return applyPrivacyPlan(requestCtx, client, resolvedAppID, plan)
 			})
 
@@ -2039,7 +2056,7 @@ Examples:
 			var recheckErr error
 			if applyErr != nil {
 				recheck := privacyApplyRecheck{Performed: true}
-				remoteUsages, readErr := recheckPrivacyRemoteUsages(ctx, client, resolvedAppID)
+				remoteUsages, readErr := recheckPrivacyRemoteUsages(ctx, d, client, resolvedAppID)
 				if readErr != nil {
 					recheckErr = withWebAuthHint(readErr, "web privacy apply recheck")
 				}
@@ -2078,41 +2095,41 @@ Examples:
 			}
 
 			if applyErr != nil {
-				if renderErr := shared.PrintOutputWithRenderers(
+				if renderErr := d.PrintOutputWithRenderers(
 					payload,
 					*output.Output,
 					*output.Pretty,
-					func() error { return renderPrivacyApplyTable(payload) },
-					func() error { return renderPrivacyApplyMarkdown(payload) },
+					func() error { return renderPrivacyApplyTable(d, payload) },
+					func() error { return renderPrivacyApplyMarkdown(d, payload) },
 				); renderErr != nil {
 					return renderErr
 				}
 				cause := withWebAuthHint(applyErr, "web privacy apply")
 				message := privacyApplyFailureMessage(resolvedAppID, payload, cause, recheckErr)
-				fmt.Fprintf(os.Stderr, "Error: %s\n", shared.SanitizeTerminal(message))
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", shared.SanitizeTerminal(message))
 				return shared.NewStderrReportedError(
 					shared.NewErrorWithCause(fmt.Errorf("%s", message), cause),
 				)
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderPrivacyApplyTable(payload) },
-				func() error { return renderPrivacyApplyMarkdown(payload) },
+				func() error { return renderPrivacyApplyTable(d, payload) },
+				func() error { return renderPrivacyApplyMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebPrivacyPublishCommand explicitly publishes app data usage declarations.
-func WebPrivacyPublishCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web privacy publish", flag.ExitOnError)
+// newWebPrivacyPublishCommand explicitly publishes app data usage declarations.
+func newWebPrivacyPublishCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web privacy publish", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	confirm := fs.Bool("confirm", false, "Confirm publish operation")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "publish",
@@ -2129,24 +2146,24 @@ never reported as success.
 Examples:
   asc web privacy publish --app "123456789" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := webcore.NewClient(session)
 
-			stateBefore, err := withWebSpinnerValue("Loading privacy publish state", func() (*webcore.AppDataUsagesPublishState, error) {
+			stateBefore, err := withWebSpinnerValueWith(d, "Loading privacy publish state", func() (*webcore.AppDataUsagesPublishState, error) {
 				return client.GetAppDataUsagesPublishState(requestCtx, resolvedAppID)
 			})
 			if err != nil {
@@ -2160,7 +2177,7 @@ Examples:
 				if strings.TrimSpace(stateBefore.ID) == "" {
 					return fmt.Errorf("web privacy publish: publish-state id is missing; cannot publish")
 				}
-				stateAfter, err = withWebSpinnerValue("Publishing app privacy declarations", func() (*webcore.AppDataUsagesPublishState, error) {
+				stateAfter, err = withWebSpinnerValueWith(d, "Publishing app privacy declarations", func() (*webcore.AppDataUsagesPublishState, error) {
 					return client.SetAppDataUsagesPublished(requestCtx, stateBefore.ID, true)
 				})
 				if err != nil {
@@ -2177,12 +2194,12 @@ Examples:
 				WasPublished: stateBefore.Published,
 				Changed:      !stateBefore.Published && stateAfter.Published,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderPrivacyPublishTable(payload) },
-				func() error { return renderPrivacyPublishMarkdown(payload) },
+				func() error { return renderPrivacyPublishTable(d, payload) },
+				func() error { return renderPrivacyPublishMarkdown(d, payload) },
 			)
 		},
 	}

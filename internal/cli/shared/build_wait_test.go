@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -948,6 +949,23 @@ func TestWaitForBuildByNumberOrUploadFailureToleratesTransientLookupFailures(t *
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
 		}
+	}
+
+	preReleaseCalls = 0
+	d := DefaultDeps()
+	var depsStderr bytes.Buffer
+	d.IO.ErrOut = &depsStderr
+	processStderr := captureStderr(t, func() {
+		buildResp, err = d.WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.3", "42", "IOS", time.Millisecond)
+	})
+	if err != nil || buildResp == nil || buildResp.Data.ID != "build-123" {
+		t.Fatalf("d.WaitForBuildByNumberOrUploadFailure() = %v, %v; want build-123", buildResp, err)
+	}
+	if processStderr != "" {
+		t.Fatalf("process stderr = %q, want empty", processStderr)
+	}
+	if depsStderr.String() != stderr {
+		t.Fatalf("deps stderr = %q, want the process form's %q", depsStderr.String(), stderr)
 	}
 }
 

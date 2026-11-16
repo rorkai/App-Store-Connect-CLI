@@ -122,10 +122,7 @@ func TestAuthStatusShowsEnvironmentPrecedenceWithoutValidatingPrivateKey(t *test
 
 	const wantNote = "Complete environment credential fields take precedence when no profile is selected; stored credential lookup is skipped."
 
-	var jsonCode int
-	jsonOutput, jsonStderr := captureOutput(t, func() {
-		jsonCode = cmd.Run([]string{"auth", "status", "--output", "json"}, "1.0.0")
-	})
+	jsonOutput, jsonStderr, jsonCode := runWithDeps(t, nil, "auth", "status", "--output", "json")
 	if jsonCode != cmd.ExitSuccess || jsonStderr != "" {
 		t.Fatalf("json status: exit=%d stderr=%q", jsonCode, jsonStderr)
 	}
@@ -141,10 +138,7 @@ func TestAuthStatusShowsEnvironmentPrecedenceWithoutValidatingPrivateKey(t *test
 		t.Fatalf("unexpected environment status payload: %+v", payload)
 	}
 
-	var tableCode int
-	tableOutput, tableStderr := captureOutput(t, func() {
-		tableCode = cmd.Run([]string{"auth", "status", "--output", "table"}, "1.0.0")
-	})
+	tableOutput, tableStderr, tableCode := runWithDeps(t, nil, "auth", "status", "--output", "table")
 	if tableCode != cmd.ExitSuccess || tableStderr != "" {
 		t.Fatalf("table status: exit=%d stderr=%q", tableCode, tableStderr)
 	}

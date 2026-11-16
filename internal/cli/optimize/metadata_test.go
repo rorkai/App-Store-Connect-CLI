@@ -15,7 +15,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type searchMetadataRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -52,9 +51,10 @@ func TestResolveSearchMetadataJoinsVersionAndAppInfoLocalizations(t *testing.T) 
 			return nil, nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	d := newOptimizeTestDeps(nil)
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
-	result, err := resolveSearchMetadata(context.Background(), "123456789", "4.4.4", "IOS", "", "en-US")
+	result, err := resolveSearchMetadata(context.Background(), d, "123456789", "4.4.4", "IOS", "", "en-US")
 	if err != nil {
 		t.Fatal(err)
 	}

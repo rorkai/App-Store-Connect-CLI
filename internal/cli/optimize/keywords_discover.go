@@ -25,17 +25,17 @@ const (
 
 var collectSearchDataForDiscover = ads.CollectSearchSuggestions
 
-// KeywordsDiscoverCommand returns the official Apple Ads keyword suggestion
+// newKeywordsDiscoverCommand returns the official Apple Ads keyword suggestion
 // command.
-func KeywordsDiscoverCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("discover", flag.ExitOnError)
+func newKeywordsDiscoverCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("discover", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store app ID (required, or ASC_APP_ID env)")
 	country := fs.String("country", "us", "ISO alpha-2 Apple Ads country or region")
 	genre := fs.String("genre", "", "Apple Ads genre; optional report label (does not affect suggestions)")
 	adAccount := fs.String("ad-account", "", "Apple Ads ad account ID (or ASC_ADS_AD_ACCOUNT_ID/profile default)")
 	adsProfile := fs.String("ads-profile", "", "Use named Apple Ads authentication profile")
 	limit := fs.Int("limit", keywordDiscoverDefaultLimit, "Maximum suggestions to return")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "discover",
@@ -68,27 +68,27 @@ Examples:
   asc optimize keywords discover --app "1234567890" --country US --ad-account "987654321" --limit 25
   asc optimize keywords discover --app "1234567890" --country US --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, err := normalizeKeywordAppID(*appID)
+			resolvedAppID, err := normalizeKeywordAppID(d, *appID)
 			if err != nil {
 				return err
 			}
-			normalizedCountry, err := normalizeKeywordCountry(*country)
+			normalizedCountry, err := normalizeKeywordCountry(d, *country)
 			if err != nil {
 				return err
 			}
 			normalizedGenre := strings.ToUpper(strings.TrimSpace(*genre))
 			if normalizedGenre != "" && !searchPlanGenrePattern.MatchString(normalizedGenre) {
-				return shared.UsageError("--genre must be an Apple Ads genre identifier such as PRODUCTIVITY_UTILITIES")
+				return d.UsageError("--genre must be an Apple Ads genre identifier such as PRODUCTIVITY_UTILITIES")
 			}
 			if *limit < 1 {
-				return shared.UsageError("--limit must be at least 1")
+				return d.UsageError("--limit must be at least 1")
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
-			data, err := collectSearchDataForDiscover(requestCtx, *adsProfile, *adAccount, ads.SearchOptimizationRequest{
+			data, err := collectSearchDataForDiscover(requestCtx, d, *adsProfile, *adAccount, ads.SearchOptimizationRequest{
 				AppID:   resolvedAppID,
 				Country: strings.ToUpper(normalizedCountry),
 				Genre:   normalizedGenre,
@@ -98,8 +98,8 @@ Examples:
 				return keywordDiscoverUnavailableError(err.Error())
 			}
 
-			report := buildKeywordDiscoverReport(keywordDiscoverBuildInput{
-				GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+			report := buildKeywordDiscoverReport(d, keywordDiscoverBuildInput{
+				GeneratedAt: d.Now().UTC().Format(time.RFC3339),
 				AppID:       resolvedAppID,
 				Country:     strings.ToUpper(normalizedCountry),
 				Genre:       normalizedGenre,
@@ -114,7 +114,7 @@ Examples:
 				}
 			}
 
-			return shared.PrintOutput(&report, *output.Output, *output.Pretty)
+			return d.PrintOutput(&report, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -130,7 +130,7 @@ type keywordDiscoverBuildInput struct {
 	Truncated   bool
 }
 
-func buildKeywordDiscoverReport(input keywordDiscoverBuildInput) asc.KeywordDiscoverReport {
+func buildKeywordDiscoverReport(d *shared.Deps, input keywordDiscoverBuildInput) asc.KeywordDiscoverReport {
 	seen := make(map[string]int, len(input.Suggestions))
 	suggestions := make([]asc.KeywordSuggestion, 0, len(input.Suggestions))
 	duplicates := 0
@@ -179,7 +179,7 @@ func buildKeywordDiscoverReport(input keywordDiscoverBuildInput) asc.KeywordDisc
 		default:
 			summary.KeywordSource++
 		}
-		if len(scoreReady) < keywordMaxCount && isScoreReadyKeyword(suggestion.Keyword) {
+		if len(scoreReady) < keywordMaxCount && isScoreReadyKeyword(d, suggestion.Keyword) {
 			scoreReady = append(scoreReady, suggestion.Keyword)
 		}
 	}
@@ -204,11 +204,11 @@ func buildKeywordDiscoverReport(input keywordDiscoverBuildInput) asc.KeywordDisc
 // isScoreReadyKeyword reports whether a suggestion satisfies the same keyword
 // hygiene that `asc optimize keywords score` enforces, so scoreKeywords can be
 // passed straight through without being rejected.
-func isScoreReadyKeyword(keyword string) bool {
+func isScoreReadyKeyword(d *shared.Deps, keyword string) bool {
 	if strings.ContainsRune(keyword, ',') {
 		return false
 	}
-	_, err := normalizeKeywordList(keyword)
+	_, err := normalizeKeywordList(d, keyword)
 	return err == nil
 }
 

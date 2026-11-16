@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,9 +22,9 @@ var (
 	}
 )
 
-// WebAppsCompatibilityCommand returns the web app compatibility command group.
-func WebAppsCompatibilityCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps compatibility", flag.ExitOnError)
+// newWebAppsCompatibilityCommand returns the web app compatibility command group.
+func newWebAppsCompatibilityCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps compatibility", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "compatibility",
@@ -38,10 +37,10 @@ Apple silicon Mac and Apple Vision Pro using Apple's internal web API.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppsCompatibilityViewCommand(),
-			WebAppsCompatibilityEditCommand(),
+			newWebAppsCompatibilityViewCommand(d),
+			newWebAppsCompatibilityEditCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -49,35 +48,35 @@ Apple silicon Mac and Apple Vision Pro using Apple's internal web API.
 	}
 }
 
-// WebAppsCompatibilityViewCommand returns the compatibility view command.
-func WebAppsCompatibilityViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps compatibility view", flag.ExitOnError)
+// newWebAppsCompatibilityViewCommand returns the compatibility view command.
+func newWebAppsCompatibilityViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps compatibility view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
 		ShortUsage: "asc web apps compatibility view --app APP_ID [flags]",
 		ShortHelp:  "View App Store Mac and Vision Pro opt-in settings.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var result *webcore.AppCompatibility
-			err = withWebSpinner("Fetching App Store compatibility", func() error {
+			err = withWebSpinnerWith(d, "Fetching App Store compatibility", func() error {
 				var err error
 				result, err = getWebAppCompatibilityFn(requestCtx, newWebClientFn(session), resolvedAppID)
 				return err
@@ -86,14 +85,14 @@ func WebAppsCompatibilityViewCommand() *ffcli.Command {
 				return withWebAuthHint(err, "web apps compatibility view")
 			}
 
-			return printWebAppCompatibility(result, *output.Output, *output.Pretty)
+			return printWebAppCompatibility(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAppsCompatibilityEditCommand returns the compatibility edit command.
-func WebAppsCompatibilityEditCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps compatibility edit", flag.ExitOnError)
+// newWebAppsCompatibilityEditCommand returns the compatibility edit command.
+func newWebAppsCompatibilityEditCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps compatibility edit", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	var iosAppOnMac shared.OptionalBool
@@ -101,22 +100,22 @@ func WebAppsCompatibilityEditCommand() *ffcli.Command {
 	fs.Var(&iosAppOnMac, "ios-app-on-mac", "Opt iPhone/iPad app into Mac App Store compatibility: true or false")
 	fs.Var(&iosAppOnVisionPro, "ios-app-on-vision-pro", "Opt iPhone/iPad app into Apple Vision Pro App Store compatibility: true or false")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "edit",
 		ShortUsage: "asc web apps compatibility edit --app APP_ID [--ios-app-on-mac true|false] [--ios-app-on-vision-pro true|false] [flags]",
 		ShortHelp:  "Edit App Store Mac and Vision Pro opt-in settings.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if !iosAppOnMac.IsSet() && !iosAppOnVisionPro.IsSet() {
-				return shared.UpdateFlagRequired(fs, &iosAppOnMac, &iosAppOnVisionPro)
+				return d.UpdateFlagRequired(fs, &iosAppOnMac, &iosAppOnVisionPro)
 			}
 
 			var macValue *bool
@@ -130,14 +129,14 @@ func WebAppsCompatibilityEditCommand() *ffcli.Command {
 				visionValue = &value
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var result *webcore.AppCompatibility
-			err = withWebSpinner("Updating App Store compatibility", func() error {
+			err = withWebSpinnerWith(d, "Updating App Store compatibility", func() error {
 				var err error
 				result, err = updateWebAppCompatibilityFn(requestCtx, newWebClientFn(session), resolvedAppID, macValue, visionValue)
 				return err
@@ -146,22 +145,22 @@ func WebAppsCompatibilityEditCommand() *ffcli.Command {
 				return withWebAuthHint(err, "web apps compatibility edit")
 			}
 
-			return printWebAppCompatibility(result, *output.Output, *output.Pretty)
+			return printWebAppCompatibility(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func printWebAppCompatibility(result *webcore.AppCompatibility, output string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printWebAppCompatibility(d *shared.Deps, result *webcore.AppCompatibility, output string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		output,
 		pretty,
 		func() error {
-			asc.RenderTable([]string{"field", "value"}, webAppCompatibilityRows(result))
+			asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, webAppCompatibilityRows(result))
 			return nil
 		},
 		func() error {
-			asc.RenderMarkdown([]string{"field", "value"}, webAppCompatibilityRows(result))
+			asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, webAppCompatibilityRows(result))
 			return nil
 		},
 	)

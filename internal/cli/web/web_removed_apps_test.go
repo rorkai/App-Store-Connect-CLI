@@ -14,7 +14,8 @@ import (
 )
 
 func TestWebRemovedAppsCommandHierarchy(t *testing.T) {
-	cmd := WebRemovedAppsCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebRemovedAppsCommand(d)
 	if cmd.Name != "removed-apps" {
 		t.Fatalf("expected command name %q, got %q", "removed-apps", cmd.Name)
 	}
@@ -66,11 +67,12 @@ func TestWebRemovedAppsListOutputsJSON(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebRemovedAppsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebRemovedAppsListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--limit", "10", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("expected success, got %v", err)
 		}
@@ -116,11 +118,12 @@ func TestWebRemovedAppsListTableIncludesCoreColumns(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebRemovedAppsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebRemovedAppsListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("expected success, got %v", err)
 		}
@@ -146,11 +149,12 @@ func TestWebRemovedAppsListValidationErrors(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := WebRemovedAppsListCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebRemovedAppsListCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureWebCommandOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), cmd.FlagSet.Args())
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -182,12 +186,13 @@ func TestWebRemovedAppsRestoreValidationBeforeAuth(t *testing.T) {
 		{"pretty human output", []string{"--app", "123", "--access", "full", "--confirm", "--output", "table", "--pretty"}, "--pretty is only valid with JSON output"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := WebRemovedAppsRestoreCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebRemovedAppsRestoreCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatal(err)
 			}
 			var gotErr error
-			captureWebCommandOutput(t, func() { gotErr = cmd.Exec(context.Background(), cmd.FlagSet.Args()) })
+			runWithWebTestDeps(depsStdout, depsStderr, func() { gotErr = cmd.Exec(context.Background(), cmd.FlagSet.Args()) })
 			if gotErr == nil || !strings.Contains(gotErr.Error(), tc.want) {
 				t.Fatalf("expected %q in %v", tc.want, gotErr)
 			}
@@ -203,7 +208,8 @@ func TestWebRemovedAppsRestoreSessionErrorIncludesAuthHint(t *testing.T) {
 		return nil, "", &webcore.APIError{Status: 401}
 	})
 	t.Cleanup(restoreSession)
-	cmd := WebRemovedAppsRestoreCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebRemovedAppsRestoreCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--access", "full", "--confirm"}); err != nil {
 		t.Fatal(err)
 	}
@@ -236,11 +242,12 @@ func TestWebRemovedAppsRestoreCallOrderAndJSON(t *testing.T) {
 		calls = append(calls, "permission")
 		return nil
 	}
-	cmd := WebRemovedAppsRestoreCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebRemovedAppsRestoreCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--access", "full", "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatal(err)
 		}
@@ -286,11 +293,12 @@ func TestWebRemovedAppsRestoreHumanRenderers(t *testing.T) {
 		{name: "markdown", format: "markdown", want: "| App ID | Access | Removed | Permission Written |"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := WebRemovedAppsRestoreCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebRemovedAppsRestoreCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--app", "123", "--access", "full", "--confirm", "--output", tc.format}); err != nil {
 				t.Fatal(err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := cmd.Exec(context.Background(), nil); err != nil {
 					t.Fatal(err)
 				}
@@ -312,11 +320,12 @@ func TestWebRemovedAppsRestoreHumanRenderers(t *testing.T) {
 	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
 	shared.ResetDefaultOutputFormat()
 	t.Cleanup(shared.ResetDefaultOutputFormat)
-	cmd := WebRemovedAppsRestoreCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebRemovedAppsRestoreCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--access", "full", "--confirm"}); err != nil {
 		t.Fatal(err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatal(err)
 		}
@@ -360,12 +369,13 @@ func TestWebRemovedAppsRestoreStopsAtFailure(t *testing.T) {
 				permissionCalled = true
 				return tc.permissionErr
 			}
-			cmd := WebRemovedAppsRestoreCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebRemovedAppsRestoreCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--app", "123", "--access", "limited", "--confirm"}); err != nil {
 				t.Fatal(err)
 			}
 			var gotErr error
-			captureWebCommandOutput(t, func() { gotErr = cmd.Exec(context.Background(), nil) })
+			runWithWebTestDeps(depsStdout, depsStderr, func() { gotErr = cmd.Exec(context.Background(), nil) })
 			if gotErr == nil || !strings.Contains(gotErr.Error(), tc.want) {
 				t.Fatalf("expected %q in %v", tc.want, gotErr)
 			}

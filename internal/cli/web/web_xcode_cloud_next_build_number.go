@@ -17,42 +17,42 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-func webXcodeCloudNextBuildNumberCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings", flag.ExitOnError)
+func webXcodeCloudNextBuildNumberCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "settings",
 		ShortUsage: "asc web xcode-cloud settings <subcommand> [flags]",
 		ShortHelp:  "Manage Xcode Cloud product settings.",
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		FlagSet:    fs,
 		Subcommands: []*ffcli.Command{
-			webNextBuildNumberGroup(),
-			webVersionAliasesGroup(),
+			webNextBuildNumberGroup(d),
+			webVersionAliasesGroup(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func webNextBuildNumberGroup() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings next-build-number", flag.ExitOnError)
+func webNextBuildNumberGroup(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings next-build-number", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "next-build-number",
 		ShortUsage: "asc web xcode-cloud settings next-build-number <subcommand> [flags]",
 		ShortHelp:  "Manage the next Xcode Cloud build number.",
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		FlagSet:    fs,
 		Subcommands: []*ffcli.Command{
-			webNextBuildNumberShow(),
-			webNextBuildNumberSet(),
+			webNextBuildNumberShow(d),
+			webNextBuildNumberSet(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func webNextBuildNumberShow() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings next-build-number show", flag.ExitOnError)
+func webNextBuildNumberShow(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings next-build-number show", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 
 	return &ffcli.Command{
@@ -67,15 +67,15 @@ Show the persistent next build number configured for an Xcode Cloud product.
 
 Example:
   asc web xcode-cloud settings next-build-number show --product-id "UUID" --apple-id "user@example.com"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -93,21 +93,21 @@ Example:
 				ProductID:       pid,
 				NextBuildNumber: current.NextBuildNumber,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return asc.PrintTable(result) },
-				func() error { return asc.PrintMarkdown(result) },
+				func() error { return asc.PrintTableTo(d.IO.Out, result) },
+				func() error { return asc.PrintMarkdownTo(d.IO.Out, result) },
 			)
 		},
 	}
 }
 
-func webNextBuildNumberSet() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings next-build-number set", flag.ExitOnError)
+func webNextBuildNumberSet(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings next-build-number set", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	value := fs.Int("value", 0, "Next build number (required; must exceed the current value)")
 	confirm := fs.Bool("confirm", false, "Confirm changing the persistent next build number (required)")
@@ -127,21 +127,21 @@ setting requires the App Store Connect Admin or App Manager role.
 
 Example:
   asc web xcode-cloud settings next-build-number set --product-id "UUID" --value 102 --confirm --apple-id "user@example.com"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			if *value <= 0 {
-				return shared.UsageError("--value must be greater than 0")
+				return d.UsageError("--value must be greater than 0")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -167,7 +167,7 @@ Example:
 			verifyCtx := requestCtx
 			verifyCancel := func() {}
 			if writeErr != nil {
-				verifyCtx, verifyCancel = newWebRequestContext(ctx)
+				verifyCtx, verifyCancel = newWebRequestContextWith(ctx, d)
 			}
 			defer verifyCancel()
 
@@ -196,12 +196,12 @@ Example:
 				NextBuildNumber:         updated.NextBuildNumber,
 				Updated:                 true,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return asc.PrintTable(result) },
-				func() error { return asc.PrintMarkdown(result) },
+				func() error { return asc.PrintTableTo(d.IO.Out, result) },
+				func() error { return asc.PrintMarkdownTo(d.IO.Out, result) },
 			)
 		},
 	}
