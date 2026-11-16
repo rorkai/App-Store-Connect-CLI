@@ -171,6 +171,8 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"named arg type for an attribute that is no enum", wristband(ArgBind{Name: "label", Type: "WristbandLabel"})},
 		{"named arg type that is not a type name", wristband(ArgBind{Name: "color", Type: "*WristbandColor"})},
 		{"decode error text on a delete", &Family{Operations: []*OpBind{{Operation: "widgets_deleteInstance", Name: "X", Params: []string{"id"}, ParseErr: "failed to parse widget"}}}},
+		{"positive check on a string arg", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName", Positive: "fileName is required"}}}}}},
+		{"positive check on a param arg", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Check: checkRequire, Args: []ArgBind{{Name: "fileName", Param: true, Positive: "fileName is required"}}}}}},
 		{"decode error text on a relationship change", &Family{Operations: []*OpBind{{Operation: "widgets_gadgets_replaceToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", ParseErr: "failed to parse gadgets"}}}},
 		{"path check without an error context", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkPath}}}},
 		{"path error context without the path check", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkRequire, PathErr: "yarn"}}}},

@@ -2,8 +2,6 @@ package asc
 
 import (
 	"context"
-	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -71,39 +69,4 @@ func (c *Client) GetAppEncryptionDeclarations(ctx context.Context, appID string,
 		Next:        query.nextURL,
 		NextContext: "app-encryption-declarations",
 	})
-}
-
-// CreateAppEncryptionDeclarationDocument creates a new document upload reservation.
-func (c *Client) CreateAppEncryptionDeclarationDocument(ctx context.Context, declarationID, fileName string, fileSize int64) (*AppEncryptionDeclarationDocumentResponse, error) {
-	declarationID = strings.TrimSpace(declarationID)
-	fileName = strings.TrimSpace(fileName)
-	if declarationID == "" {
-		return nil, fmt.Errorf("declarationID is required")
-	}
-	if fileName == "" {
-		return nil, fmt.Errorf("fileName is required")
-	}
-	if fileSize <= 0 {
-		return nil, fmt.Errorf("fileSize is required")
-	}
-
-	payload := AppEncryptionDeclarationDocumentCreateRequest{
-		Data: AppEncryptionDeclarationDocumentCreateData{
-			Type: ResourceTypeAppEncryptionDeclarationDocuments,
-			Attributes: AppEncryptionDeclarationDocumentCreateAttributes{
-				FileName: fileName,
-				FileSize: fileSize,
-			},
-			Relationships: &AppEncryptionDeclarationDocumentRelationships{
-				AppEncryptionDeclaration: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppEncryptionDeclarations,
-						ID:   declarationID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appEncryptionDeclarationDocuments", Payload: payload})
 }

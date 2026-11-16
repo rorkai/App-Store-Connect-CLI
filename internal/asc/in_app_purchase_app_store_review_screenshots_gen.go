@@ -47,6 +47,43 @@ type InAppPurchaseAppStoreReviewScreenshotUpdateRequest struct {
 	Data InAppPurchaseAppStoreReviewScreenshotUpdateData `json:"data"`
 }
 
+// CreateInAppPurchaseAppStoreReviewScreenshot sends POST /v1/inAppPurchaseAppStoreReviewScreenshots (inAppPurchaseAppStoreReviewScreenshots_createInstance).
+func (c *Client) CreateInAppPurchaseAppStoreReviewScreenshot(ctx context.Context, iapID, fileName string, fileSize int64) (*InAppPurchaseAppStoreReviewScreenshotResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	fileName = strings.TrimSpace(fileName)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+	if fileName == "" {
+		return nil, fmt.Errorf("fileName is required")
+	}
+	if fileSize <= 0 {
+		return nil, fmt.Errorf("fileSize is required")
+	}
+	payload := InAppPurchaseAppStoreReviewScreenshotCreateRequest{
+		Data: InAppPurchaseAppStoreReviewScreenshotCreateData{
+			Type: ResourceTypeInAppPurchaseAppStoreReviewScreenshots,
+			Attributes: InAppPurchaseAppStoreReviewScreenshotCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: InAppPurchaseAppStoreReviewScreenshotRelationships{
+				InAppPurchaseV2: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeInAppPurchases,
+						ID:   iapID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/inAppPurchaseAppStoreReviewScreenshots",
+		Payload: payload,
+	})
+}
+
 // DeleteInAppPurchaseAppStoreReviewScreenshot sends DELETE /v1/inAppPurchaseAppStoreReviewScreenshots/{id} (inAppPurchaseAppStoreReviewScreenshots_deleteInstance).
 func (c *Client) DeleteInAppPurchaseAppStoreReviewScreenshot(ctx context.Context, screenshotID string) error {
 	screenshotID = strings.TrimSpace(screenshotID)

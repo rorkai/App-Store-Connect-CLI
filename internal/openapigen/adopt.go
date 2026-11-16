@@ -384,12 +384,23 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 	var trimmed, next, attrsByValue, builtPath bool
 	pathErr := ""
 	var trimAt, optionsAt token.Pos
+	positive := map[string]string{}
 	list := &IDList{}
 	ast.Inspect(fn.Body, func(x ast.Node) bool {
 		if b.IDs != "" && strings.HasSuffix(op.Request, "LinkagesRequest") && readIDList(x, b.IDs, list) {
 			return false
 		}
 		switch n := x.(type) {
+		case *ast.IfStmt:
+			if cond, ok := n.Cond.(*ast.BinaryExpr); ok && cond.Op == token.LEQ && exprString(cond.Y) == "0" {
+				ast.Inspect(n.Body, func(y ast.Node) bool {
+					if call, ok := y.(*ast.CallExpr); ok && exprString(call.Fun) == "fmt.Errorf" && len(call.Args) == 1 {
+						positive[exprString(cond.X)] = stringLit(call.Args[0])
+					}
+					return true
+				})
+				return false
+			}
 		case *ast.KeyValueExpr:
 			key, _ := n.Key.(*ast.Ident)
 			if key == nil {
@@ -455,6 +466,9 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 	}
 	if *list != (IDList{}) {
 		b.IDList = list
+	}
+	for i := range b.Args {
+		b.Args[i].Positive = positive[b.Args[i].Name]
 	}
 	b.CheckFirst = b.Options != "" && trimAt.IsValid() && optionsAt.IsValid() && trimAt < optionsAt
 	b.Links = linkNames(spec, op, links)

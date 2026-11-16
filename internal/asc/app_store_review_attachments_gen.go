@@ -48,6 +48,43 @@ type AppStoreReviewAttachmentUpdateRequest struct {
 	Data AppStoreReviewAttachmentUpdateData `json:"data"`
 }
 
+// CreateAppStoreReviewAttachment sends POST /v1/appStoreReviewAttachments (appStoreReviewAttachments_createInstance).
+func (c *Client) CreateAppStoreReviewAttachment(ctx context.Context, reviewDetailID, fileName string, fileSize int64) (*AppStoreReviewAttachmentResponse, error) {
+	reviewDetailID = strings.TrimSpace(reviewDetailID)
+	fileName = strings.TrimSpace(fileName)
+	if reviewDetailID == "" {
+		return nil, fmt.Errorf("reviewDetailID is required")
+	}
+	if fileName == "" {
+		return nil, fmt.Errorf("fileName is required")
+	}
+	if fileSize <= 0 {
+		return nil, fmt.Errorf("fileSize is required")
+	}
+	payload := AppStoreReviewAttachmentCreateRequest{
+		Data: AppStoreReviewAttachmentCreateData{
+			Type: ResourceTypeAppStoreReviewAttachments,
+			Attributes: AppStoreReviewAttachmentCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: &AppStoreReviewAttachmentRelationships{
+				AppStoreReviewDetail: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreReviewDetails,
+						ID:   reviewDetailID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appStoreReviewAttachments",
+		Payload: payload,
+	})
+}
+
 // DeleteAppStoreReviewAttachment sends DELETE /v1/appStoreReviewAttachments/{id} (appStoreReviewAttachments_deleteInstance).
 func (c *Client) DeleteAppStoreReviewAttachment(ctx context.Context, attachmentID string) error {
 	attachmentID = strings.TrimSpace(attachmentID)

@@ -47,6 +47,43 @@ type AppEncryptionDeclarationDocumentUpdateRequest struct {
 	Data AppEncryptionDeclarationDocumentUpdateData `json:"data"`
 }
 
+// CreateAppEncryptionDeclarationDocument sends POST /v1/appEncryptionDeclarationDocuments (appEncryptionDeclarationDocuments_createInstance).
+func (c *Client) CreateAppEncryptionDeclarationDocument(ctx context.Context, declarationID, fileName string, fileSize int64) (*AppEncryptionDeclarationDocumentResponse, error) {
+	declarationID = strings.TrimSpace(declarationID)
+	fileName = strings.TrimSpace(fileName)
+	if declarationID == "" {
+		return nil, fmt.Errorf("declarationID is required")
+	}
+	if fileName == "" {
+		return nil, fmt.Errorf("fileName is required")
+	}
+	if fileSize <= 0 {
+		return nil, fmt.Errorf("fileSize is required")
+	}
+	payload := AppEncryptionDeclarationDocumentCreateRequest{
+		Data: AppEncryptionDeclarationDocumentCreateData{
+			Type: ResourceTypeAppEncryptionDeclarationDocuments,
+			Attributes: AppEncryptionDeclarationDocumentCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: &AppEncryptionDeclarationDocumentRelationships{
+				AppEncryptionDeclaration: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppEncryptionDeclarations,
+						ID:   declarationID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appEncryptionDeclarationDocuments",
+		Payload: payload,
+	})
+}
+
 // GetAppEncryptionDeclarationDocument sends GET /v1/appEncryptionDeclarationDocuments/{id} (appEncryptionDeclarationDocuments_getInstance).
 func (c *Client) GetAppEncryptionDeclarationDocument(ctx context.Context, documentID string, fields []string) (*AppEncryptionDeclarationDocumentResponse, error) {
 	documentID = strings.TrimSpace(documentID)

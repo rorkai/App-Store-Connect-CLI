@@ -142,6 +142,9 @@ type ArgBind struct {
 	// group of the signature, and checks it with their check style. Param
 	// args come first.
 	Param bool `json:"param,omitempty"`
+	// Positive is the error for an integer argument that is not above zero,
+	// checked after the path parameters.
+	Positive string `json:"positive,omitempty"`
 }
 
 // Deviation is one problem text of the contract test that the method is known

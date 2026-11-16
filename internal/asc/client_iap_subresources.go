@@ -47,41 +47,6 @@ func (c *Client) CreateInAppPurchaseLocalization(ctx context.Context, iapID stri
 	return sendJSON[InAppPurchaseLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseLocalizations", Payload: payload})
 }
 
-// CreateInAppPurchaseAppStoreReviewScreenshot creates a review screenshot upload reservation.
-func (c *Client) CreateInAppPurchaseAppStoreReviewScreenshot(ctx context.Context, iapID, fileName string, fileSize int64) (*InAppPurchaseAppStoreReviewScreenshotResponse, error) {
-	iapID = strings.TrimSpace(iapID)
-	fileName = strings.TrimSpace(fileName)
-	if iapID == "" {
-		return nil, fmt.Errorf("iapID is required")
-	}
-	if fileName == "" {
-		return nil, fmt.Errorf("fileName is required")
-	}
-	if fileSize <= 0 {
-		return nil, fmt.Errorf("fileSize is required")
-	}
-
-	payload := InAppPurchaseAppStoreReviewScreenshotCreateRequest{
-		Data: InAppPurchaseAppStoreReviewScreenshotCreateData{
-			Type: ResourceTypeInAppPurchaseAppStoreReviewScreenshots,
-			Attributes: InAppPurchaseAppStoreReviewScreenshotCreateAttributes{
-				FileName: fileName,
-				FileSize: fileSize,
-			},
-			Relationships: InAppPurchaseAppStoreReviewScreenshotRelationships{
-				InAppPurchaseV2: Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeInAppPurchases,
-						ID:   iapID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchaseAppStoreReviewScreenshots", Payload: payload})
-}
-
 // UpdateInAppPurchaseAppStoreReviewScreenshot updates a review screenshot.
 func (c *Client) UpdateInAppPurchaseAppStoreReviewScreenshot(ctx context.Context, screenshotID string, attrs InAppPurchaseAppStoreReviewScreenshotUpdateAttributes) (*InAppPurchaseAppStoreReviewScreenshotResponse, error) {
 	screenshotID = strings.TrimSpace(screenshotID)
