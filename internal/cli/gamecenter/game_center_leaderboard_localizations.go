@@ -28,7 +28,7 @@ Examples:
   asc game-center leaderboards localizations delete --id "LOCALIZATION_ID" --confirm
   asc game-center leaderboards localizations image view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardLocalizationsListCommand(d),
 			newGameCenterLeaderboardLocalizationsGetCommand(d),
@@ -183,7 +183,7 @@ func newGameCenterLeaderboardLocalizationImageCommand(d *shared.Deps) *ffcli.Com
 Examples:
   asc game-center leaderboards localizations image view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardLocalizationImageGetCommand(d),
 		},

@@ -19,7 +19,7 @@ func TestResolveOutputPath_RejectsNonASCMarkdownFile(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	_, _, err := resolveOutputPath(os.Getwd, target)
+	_, _, err := resolveOutputPath(shared.DefaultDeps(), target)
 	if !errors.Is(err, ErrInvalidASCReferencePath) {
 		t.Fatalf("expected ErrInvalidASCReferencePath, got %v", err)
 	}
@@ -28,7 +28,7 @@ func TestResolveOutputPath_RejectsNonASCMarkdownFile(t *testing.T) {
 func TestResolveOutputPath_RejectsFileLikeNonMarkdownPath(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "notes.txt")
 
-	_, _, err := resolveOutputPath(os.Getwd, target)
+	_, _, err := resolveOutputPath(shared.DefaultDeps(), target)
 	if !errors.Is(err, ErrInvalidASCReferencePath) {
 		t.Fatalf("expected ErrInvalidASCReferencePath, got %v", err)
 	}
@@ -40,7 +40,7 @@ func TestResolveOutputPath_DirectoryPathResolvesASCFile(t *testing.T) {
 		t.Fatalf("create directory: %v", err)
 	}
 
-	path, linkRoot, err := resolveOutputPath(os.Getwd, dir)
+	path, linkRoot, err := resolveOutputPath(shared.DefaultDeps(), dir)
 	if err != nil {
 		t.Fatalf("resolveOutputPath error: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestResolveOutputPathPreservesWhitespaceInDirectoryName(t *testing.T) {
 		t.Fatalf("create whitespace-named repo: %v", err)
 	}
 
-	target, linkRoot, err := resolveOutputPath(os.Getwd, repo)
+	target, linkRoot, err := resolveOutputPath(shared.DefaultDeps(), repo)
 	if err != nil {
 		t.Fatalf("resolveOutputPath() error = %v", err)
 	}

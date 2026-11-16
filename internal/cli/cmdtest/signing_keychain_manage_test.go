@@ -28,10 +28,7 @@ func TestSigningKeychainManageUsageErrors(t *testing.T) {
 			if test.darwinOnly && runtime.GOOS != "darwin" {
 				t.Skip("keychain paths are checked only on macOS")
 			}
-			var exitCode int
-			stdout, stderr := captureOutput(t, func() {
-				exitCode = rootcmd.Run(test.args, "test")
-			})
+			stdout, stderr, exitCode := runWithDeps(t, nil, test.args...)
 			if exitCode != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr = %q", exitCode, rootcmd.ExitUsage, stderr)
 			}

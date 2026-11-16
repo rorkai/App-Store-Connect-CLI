@@ -51,7 +51,7 @@ Example:
 		ShortHelp:  "Upload an Apple Ads brand image asset.",
 		LongHelp:   longHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			outputFormat, err := validateAdsRawOutput(output)
 			if err != nil {

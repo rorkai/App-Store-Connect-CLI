@@ -44,7 +44,8 @@ func TestXcodeBuildPassesTypedAndRawOptionsAndPrintsJSON(t *testing.T) {
 		}, nil
 	}
 
-	cmd := XcodeBuildCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeBuildCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--project", "Demo App.xcodeproj",
@@ -63,7 +64,7 @@ func TestXcodeBuildPassesTypedAndRawOptionsAndPrintsJSON(t *testing.T) {
 	}
 
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -116,13 +117,14 @@ func TestXcodeBuildValidationErrorsAreUsageErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := XcodeBuildCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeBuildCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("FlagSet.Parse() error = %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureCommandOutput(t, func() error {
+			stdout, stderr := captureCommandOutput(t, d, func() error {
 				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})
@@ -176,7 +178,8 @@ func TestXcodeBuildRejectsExplicitlyEmptyOptionalValues(t *testing.T) {
 				return nil, nil
 			}
 
-			cmd := XcodeBuildCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeBuildCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			args := append([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo"}, test.args...)
 			if err := cmd.FlagSet.Parse(args); err != nil {
@@ -184,7 +187,7 @@ func TestXcodeBuildRejectsExplicitlyEmptyOptionalValues(t *testing.T) {
 			}
 
 			var runErr error
-			stdout, stderr := captureCommandOutput(t, func() error {
+			stdout, stderr := captureCommandOutput(t, d, func() error {
 				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})
@@ -225,13 +228,14 @@ func TestXcodeBuildAcceptsOmittedOptionalValues(t *testing.T) {
 		}, nil
 	}
 
-	cmd := XcodeBuildCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeBuildCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--output", "json"}); err != nil {
 		t.Fatalf("FlagSet.Parse() error = %v", err)
 	}
 	var runErr error
-	_, stderr := captureCommandOutput(t, func() error {
+	_, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -254,13 +258,14 @@ func TestXcodeBuildRejectsInvalidOutputBeforeStartingBuild(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := XcodeBuildCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeBuildCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--output", "yaml"}); err != nil {
 		t.Fatalf("FlagSet.Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -293,13 +298,14 @@ func TestXcodeBuildPrintsStructuredFailureBeforeReturningError(t *testing.T) {
 		}, errors.New("xcodebuild build failed: compile failed")
 	}
 
-	cmd := XcodeBuildCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeBuildCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--output", "json"}); err != nil {
 		t.Fatalf("FlagSet.Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -339,13 +345,14 @@ func TestXcodeBuildPrintsPreflightFailureReason(t *testing.T) {
 		}, errors.New("xcodebuild not usable: xcodebuild version failed: exit status 72")
 	}
 
-	cmd := XcodeBuildCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeBuildCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--output", "json"}); err != nil {
 		t.Fatalf("FlagSet.Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -394,13 +401,14 @@ func TestXcodeBuildPrintsSignaledFailureReason(t *testing.T) {
 		}, fmt.Errorf("xcodebuild build failed: compile started: %w", signalErr)
 	}
 
-	cmd := XcodeBuildCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeBuildCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--output", "json"}); err != nil {
 		t.Fatalf("FlagSet.Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -441,13 +449,14 @@ func TestXcodeBuildPrintsCancellationReasonWithoutReplayingLog(t *testing.T) {
 		}, fmt.Errorf("xcodebuild build timed out or was canceled: compile interrupted: %w", context.Canceled)
 	}
 
-	cmd := XcodeBuildCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeBuildCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--output", "json"}); err != nil {
 		t.Fatalf("FlagSet.Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -489,7 +498,8 @@ func TestXcodeBuildRendersTableAndMarkdown(t *testing.T) {
 
 	for _, format := range []string{"table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
-			cmd := XcodeBuildCommand()
+			d := newXcodeTestDeps(nil)
+			cmd := newXcodeBuildCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse([]string{
 				"--workspace", "Demo.xcworkspace", "--scheme", "Demo",
@@ -498,7 +508,7 @@ func TestXcodeBuildRendersTableAndMarkdown(t *testing.T) {
 				t.Fatalf("FlagSet.Parse() error = %v", err)
 			}
 			var runErr error
-			stdout, _ := captureCommandOutput(t, func() error {
+			stdout, _ := captureCommandOutput(t, d, func() error {
 				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})
@@ -509,6 +519,47 @@ func TestXcodeBuildRendersTableAndMarkdown(t *testing.T) {
 				if !strings.Contains(stdout, want) {
 					t.Fatalf("%s output = %q, want %q", format, stdout, want)
 				}
+			}
+		})
+	}
+}
+
+func TestXcodeBuildResolvesPathsInDepsWorkingDirectory(t *testing.T) {
+	originalRunBuild := runBuild
+	t.Cleanup(func() { runBuild = originalRunBuild })
+	var gotWorkspace, gotProject string
+	runBuild = func(_ context.Context, opts localxcode.BuildOptions) (*localxcode.BuildResult, error) {
+		gotWorkspace, gotProject = opts.WorkspacePath, opts.ProjectPath
+		return &localxcode.BuildResult{Success: true}, nil
+	}
+
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "App.xcworkspace"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name          string
+		args          []string
+		wantWorkspace string
+		wantProject   string
+	}{
+		{name: "detected workspace", wantWorkspace: filepath.Join(dir, "App.xcworkspace")},
+		{name: "explicit project", args: []string{"--project", "App.xcodeproj"}, wantProject: filepath.Join(dir, "App.xcodeproj")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			gotWorkspace, gotProject = "", ""
+			d := newXcodeTestDeps(nil)
+			d.Getwd = func() (string, error) { return dir, nil }
+			cmd := newXcodeBuildCommand(d)
+			if err := cmd.FlagSet.Parse(append([]string{"--scheme", "App", "--output", "json"}, test.args...)); err != nil {
+				t.Fatalf("FlagSet.Parse() error = %v", err)
+			}
+			if err := cmd.Exec(context.Background(), nil); err != nil {
+				_, stderr := depsOutput(d)
+				t.Fatalf("Exec() error = %v; stderr = %q", err, stderr)
+			}
+			if gotWorkspace != test.wantWorkspace || gotProject != test.wantProject {
+				t.Fatalf("workspace=%q project=%q, want workspace=%q project=%q", gotWorkspace, gotProject, test.wantWorkspace, test.wantProject)
 			}
 		})
 	}
@@ -564,6 +615,7 @@ func TestXcodeCommandsDetectContainerInWorkingDirectory(t *testing.T) {
 			t.Chdir(dir)
 			gotWorkspace, gotProject = "", ""
 
+			d := newXcodeTestDeps(nil)
 			var cmd *ffcli.Command
 			args := append([]string{"--output", "json"}, test.args...)
 			if !test.noScheme {
@@ -571,12 +623,12 @@ func TestXcodeCommandsDetectContainerInWorkingDirectory(t *testing.T) {
 			}
 			switch test.command {
 			case "build":
-				cmd = XcodeBuildCommand()
+				cmd = newXcodeBuildCommand(d)
 			case "archive":
-				cmd = XcodeArchiveCommand()
+				cmd = newXcodeArchiveCommand(d)
 				args = append(args, "--archive-path", filepath.Join(dir, "out", "App.xcarchive"))
 			case "test":
-				cmd = XcodeTestCommand()
+				cmd = newXcodeTestCommand(d)
 				args = append(args, "--destination", "generic/platform=iOS")
 			}
 			cmd.FlagSet.SetOutput(io.Discard)
@@ -584,7 +636,7 @@ func TestXcodeCommandsDetectContainerInWorkingDirectory(t *testing.T) {
 				t.Fatalf("FlagSet.Parse() error = %v", err)
 			}
 			var runErr error
-			_, stderr := captureCommandOutput(t, func() error {
+			_, stderr := captureCommandOutput(t, d, func() error {
 				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})

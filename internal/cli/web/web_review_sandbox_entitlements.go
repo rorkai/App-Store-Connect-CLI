@@ -13,10 +13,10 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-// WebReviewSandboxEntitlementsCommand returns the command group for the App
+// newWebReviewSandboxEntitlementsCommand returns the command group for the App
 // Sandbox Information section of a macOS version's App Review details.
-func WebReviewSandboxEntitlementsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review sandbox-entitlements", flag.ExitOnError)
+func newWebReviewSandboxEntitlementsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review sandbox-entitlements", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "sandbox-entitlements",
@@ -38,12 +38,12 @@ Examples:
   asc web review sandbox-entitlements set --version-id "VERSION_ID" --entitlement "com.apple.security.network.server" --justification "Accepts connections from paired devices on the local network." --confirm
   asc web review sandbox-entitlements delete --version-id "VERSION_ID" --entitlement "com.apple.security.network.server" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebReviewSandboxEntitlementsCatalogCommand(),
-			WebReviewSandboxEntitlementsListCommand(),
-			WebReviewSandboxEntitlementsSetCommand(),
-			WebReviewSandboxEntitlementsDeleteCommand(),
+			newWebReviewSandboxEntitlementsCatalogCommand(d),
+			newWebReviewSandboxEntitlementsListCommand(d),
+			newWebReviewSandboxEntitlementsSetCommand(d),
+			newWebReviewSandboxEntitlementsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -51,12 +51,12 @@ Examples:
 	}
 }
 
-// WebReviewSandboxEntitlementsCatalogCommand lists the entitlement keys App
+// newWebReviewSandboxEntitlementsCatalogCommand lists the entitlement keys App
 // Store Connect accepts in the App Sandbox Information section.
-func WebReviewSandboxEntitlementsCatalogCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review sandbox-entitlements catalog", flag.ExitOnError)
+func newWebReviewSandboxEntitlementsCatalogCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review sandbox-entitlements catalog", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "catalog",
@@ -71,12 +71,12 @@ Apple's raw JSON:API envelope.
 Example:
   asc web review sandbox-entitlements catalog --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewSandboxCommonInput(output); err != nil {
+			if err := validateWebReviewSandboxCommonInput(d, output); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web review sandbox-entitlements catalog")
@@ -84,7 +84,7 @@ Example:
 			client := newWebClientFn(session)
 
 			var result *webcore.AppSandboxEntitlementsResult
-			err = withWebSpinner("Loading App Sandbox entitlement keys", func() error {
+			err = withWebSpinnerWith(d, "Loading App Sandbox entitlement keys", func() error {
 				result, err = client.ListAppSandboxEntitlements(requestCtx)
 				return err
 			})
@@ -99,18 +99,18 @@ Example:
 				}
 				rows = append(rows, []string{entitlement.ID, optional})
 			}
-			return shared.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"Entitlement", "Optional"}, rows)
+			return d.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"Entitlement", "Optional"}, rows)
 		},
 	}
 }
 
-// WebReviewSandboxEntitlementsListCommand lists the App Sandbox Information
+// newWebReviewSandboxEntitlementsListCommand lists the App Sandbox Information
 // rows of one macOS version.
-func WebReviewSandboxEntitlementsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review sandbox-entitlements list", flag.ExitOnError)
+func newWebReviewSandboxEntitlementsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review sandbox-entitlements list", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "macOS App Store version ID (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -125,16 +125,16 @@ JSON:API envelope.
 Example:
   asc web review sandbox-entitlements list --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewSandboxCommonInput(output); err != nil {
+			if err := validateWebReviewSandboxCommonInput(d, output); err != nil {
 				return err
 			}
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
-				return shared.UsageError("--version-id is required")
+				return d.UsageError("--version-id is required")
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web review sandbox-entitlements list")
@@ -142,7 +142,7 @@ Example:
 			client := newWebClientFn(session)
 
 			var result *webcore.AppSandboxEntitlementUsagesResult
-			err = withWebSpinner("Loading App Sandbox Information", func() error {
+			err = withWebSpinnerWith(d, "Loading App Sandbox Information", func() error {
 				target, err := resolveWebReviewSandboxTarget(requestCtx, client, version)
 				if err != nil {
 					return err
@@ -157,21 +157,21 @@ Example:
 			for _, usage := range result.Data {
 				rows = append(rows, []string{usage.EntitlementID, usage.Justification, usage.ID})
 			}
-			return shared.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"Entitlement", "Justification", "Usage ID"}, rows)
+			return d.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"Entitlement", "Justification", "Usage ID"}, rows)
 		},
 	}
 }
 
-// WebReviewSandboxEntitlementsSetCommand creates or updates the usage
+// newWebReviewSandboxEntitlementsSetCommand creates or updates the usage
 // information of one entitlement and verifies it with a fresh read.
-func WebReviewSandboxEntitlementsSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review sandbox-entitlements set", flag.ExitOnError)
+func newWebReviewSandboxEntitlementsSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review sandbox-entitlements set", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "macOS App Store version ID (required)")
 	entitlement := fs.String("entitlement", "", "Entitlement key, for example com.apple.security.network.server (required)")
 	justification := fs.String("justification", "", "Usage information that explains the entitlement to App Review (required)")
 	confirm := fs.Bool("confirm", false, "Confirm writing the App Sandbox Information row (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -192,23 +192,23 @@ starts from the current rows again.
 Example:
   asc web review sandbox-entitlements set --version-id "VERSION_ID" --entitlement "com.apple.security.network.client" --justification "Downloads the demo film when the person asks for it." --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewSandboxCommonInput(output); err != nil {
+			if err := validateWebReviewSandboxCommonInput(d, output); err != nil {
 				return err
 			}
-			version, key, err := requireWebReviewSandboxRowFlags(*versionID, *entitlement)
+			version, key, err := requireWebReviewSandboxRowFlags(d, *versionID, *entitlement)
 			if err != nil {
 				return err
 			}
 			text := strings.TrimSpace(*justification)
 			if text == "" {
-				return shared.UsageError("--justification is required")
+				return d.UsageError("--justification is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web review sandbox-entitlements set")
@@ -216,7 +216,7 @@ Example:
 			client := newWebClientFn(session)
 
 			var receipt *asc.WebReviewSandboxEntitlementResult
-			err = withWebSpinner("Setting App Sandbox Information", func() error {
+			err = withWebSpinnerWith(d, "Setting App Sandbox Information", func() error {
 				target, err := resolveWebReviewSandboxTarget(requestCtx, client, version)
 				if err != nil {
 					return err
@@ -267,20 +267,20 @@ Example:
 			if err != nil {
 				return withWebAuthHint(err, "web review sandbox-entitlements set")
 			}
-			return shared.PrintOutput(receipt, *output.Output, *output.Pretty)
+			return d.PrintOutput(receipt, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebReviewSandboxEntitlementsDeleteCommand removes the App Sandbox
+// newWebReviewSandboxEntitlementsDeleteCommand removes the App Sandbox
 // Information row of one entitlement and verifies its absence.
-func WebReviewSandboxEntitlementsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review sandbox-entitlements delete", flag.ExitOnError)
+func newWebReviewSandboxEntitlementsDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review sandbox-entitlements delete", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "macOS App Store version ID (required)")
 	entitlement := fs.String("entitlement", "", "Entitlement key of the row to remove (required)")
 	confirm := fs.Bool("confirm", false, "Confirm removing the App Sandbox Information row (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -296,19 +296,19 @@ no row for the entitlement, nothing is written and the receipt reports
 Example:
   asc web review sandbox-entitlements delete --version-id "VERSION_ID" --entitlement "com.apple.security.network.server" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewSandboxCommonInput(output); err != nil {
+			if err := validateWebReviewSandboxCommonInput(d, output); err != nil {
 				return err
 			}
-			version, key, err := requireWebReviewSandboxRowFlags(*versionID, *entitlement)
+			version, key, err := requireWebReviewSandboxRowFlags(d, *versionID, *entitlement)
 			if err != nil {
 				return err
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web review sandbox-entitlements delete")
@@ -316,7 +316,7 @@ Example:
 			client := newWebClientFn(session)
 
 			var receipt *asc.WebReviewSandboxEntitlementResult
-			err = withWebSpinner("Deleting App Sandbox Information", func() error {
+			err = withWebSpinnerWith(d, "Deleting App Sandbox Information", func() error {
 				target, err := resolveWebReviewSandboxTarget(requestCtx, client, version)
 				if err != nil {
 					return err
@@ -349,26 +349,26 @@ Example:
 			if err != nil {
 				return withWebAuthHint(err, "web review sandbox-entitlements delete")
 			}
-			return shared.PrintOutput(receipt, *output.Output, *output.Pretty)
+			return d.PrintOutput(receipt, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func validateWebReviewSandboxCommonInput(output shared.OutputFlags) error {
+func validateWebReviewSandboxCommonInput(d *shared.Deps, output shared.OutputFlags) error {
 	if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	return nil
 }
 
-func requireWebReviewSandboxRowFlags(versionID, entitlement string) (string, string, error) {
+func requireWebReviewSandboxRowFlags(d *shared.Deps, versionID, entitlement string) (string, string, error) {
 	version := strings.TrimSpace(versionID)
 	if version == "" {
-		return "", "", shared.UsageError("--version-id is required")
+		return "", "", d.UsageError("--version-id is required")
 	}
 	key := strings.TrimSpace(entitlement)
 	if key == "" {
-		return "", "", shared.UsageError("--entitlement is required")
+		return "", "", d.UsageError("--entitlement is required")
 	}
 	return version, key, nil
 }

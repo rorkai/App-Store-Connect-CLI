@@ -631,14 +631,14 @@ func writeSubscriptionPriceImportFailureArtifact(d *shared.Deps, summary *subscr
 		return "", err
 	}
 	path := filepath.Join(".asc", "reports", "subscription-prices-import", fmt.Sprintf("failures-%d.json", d.Now().UTC().UnixNano()))
-	if _, err := shared.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
+	if _, err := d.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
 		return "", err
 	}
 	return path, nil
 }
 
 func readSubscriptionPricesImportCSV(d *shared.Deps, path string) ([]subscriptionPriceImportCSVRow, error) {
-	file, err := shared.OpenExistingNoFollow(path)
+	file, err := shared.OpenExistingNoFollow(d.OSPath(path))
 	if err != nil {
 		return nil, err
 	}

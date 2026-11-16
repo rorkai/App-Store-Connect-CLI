@@ -98,7 +98,7 @@ func newTestFlightSyncCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight sync pull --app "APP_ID" --output "./testflight.yaml"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightSyncPullCommand(d),
 		},
@@ -132,7 +132,7 @@ Examples:
   asc testflight sync pull --app "APP_ID" --output "./testflight.yaml" --include-builds
   asc testflight sync pull --app "APP_ID" --output "./testflight.yaml" --include-builds --include-testers`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*output, ""); err != nil {
 				return err

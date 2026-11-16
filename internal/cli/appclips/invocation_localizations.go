@@ -26,7 +26,7 @@ Examples:
   asc app-clips invocations localizations list --invocation-id "INVOCATION_ID"
   asc app-clips invocations localizations create --invocation-id "INVOCATION_ID" --locale "en-US" --title "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipInvocationLocalizationsListCommand(d),
 			newAppClipInvocationLocalizationsCreateCommand(d),
@@ -56,7 +56,7 @@ func newAppClipInvocationLocalizationsListCommand(d *shared.Deps) *ffcli.Command
 Examples:
   asc app-clips invocations localizations list --invocation-id "INVOCATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips invocations localizations list", 200); err != nil {
 				return err

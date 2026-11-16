@@ -125,7 +125,8 @@ func TestSigningKeychainInstallLiveDedicatedKeychain(t *testing.T) {
 	if os.Getenv("ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST") != "1" {
 		t.Skip("set ASC_SIGNING_KEYCHAIN_INSTALL_LIVE_TEST=1 to exercise a disposable persistent keychain")
 	}
-	deps := platformSigningKeychainInstallDeps(true)
+	d, _, _ := newSigningTestDeps()
+	deps := platformSigningKeychainInstallDeps(d, true)
 	if deps.GOOS != "darwin" || !deps.SecurityAvailable {
 		t.Skip("requires a cgo-enabled macOS build")
 	}

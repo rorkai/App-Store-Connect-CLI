@@ -28,7 +28,7 @@ Examples:
   asc iap pricing schedules create --iap-id "IAP_ID" --base-territory "USA" --prices "PRICE_POINT_ID:2024-03-01"
   asc iap pricing schedules manual-prices --schedule-id "SCHEDULE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPPriceSchedulesGetCommand(d),
 			newIAPPriceSchedulesBaseTerritoryCommand(d),
@@ -68,7 +68,7 @@ Examples:
   asc iap pricing schedules view --schedule-id "SCHEDULE_ID"
   asc iap pricing schedules view --iap-id "IAP_ID" --include "baseTerritory,manualPrices,automaticPrices" --price-fields "startDate,endDate,manual,inAppPurchasePricePoint,territory" --territory-fields "currency" --manual-prices-limit 50 --automatic-prices-limit 50`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			scheduleValue := strings.TrimSpace(*scheduleID)
@@ -193,7 +193,7 @@ func newIAPPriceSchedulesBaseTerritoryCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc iap pricing schedules base-territory --schedule-id "SCHEDULE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" {
@@ -243,7 +243,7 @@ Examples:
   asc iap pricing schedules create --iap-id "IAP_ID" --base-territory "USA" --tier 5 --start-date "2024-03-01"
   asc iap pricing schedules create --iap-id "IAP_ID" --base-territory "USA" --price "4.99" --start-date "2024-03-01"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -381,7 +381,7 @@ Examples:
   asc iap pricing schedules manual-prices --schedule-id "SCHEDULE_ID" --paginate
   asc iap pricing schedules manual-prices --schedule-id "SCHEDULE_ID" --resolved`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "iap pricing schedules manual-prices", 200); err != nil {
 				return err
@@ -466,7 +466,7 @@ Examples:
   asc iap pricing schedules automatic-prices --schedule-id "SCHEDULE_ID" --paginate
   asc iap pricing schedules automatic-prices --schedule-id "SCHEDULE_ID" --resolved`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "iap pricing schedules automatic-prices", 200); err != nil {
 				return err
