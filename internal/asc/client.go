@@ -536,7 +536,7 @@ func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOpt
 	query := applyOptions(opts)
 	return getJSON[ReviewsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/apps/%s/customerReviews", appID),
-		Query:       buildReviewQuery(opts),
+		Query:       buildReviewQuery(query),
 		Next:        query.nextURL,
 		NextContext: "reviews",
 	})
@@ -549,9 +549,10 @@ func (c *Client) GetCustomerReview(ctx context.Context, reviewID string, opts ..
 	if reviewID == "" {
 		return nil, fmt.Errorf("reviewID is required")
 	}
+	query := applyOptions(opts)
 	return getJSON[CustomerReviewResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/customerReviews/%s", reviewID),
-		Query: buildCustomerReviewQuery(opts),
+		Query: buildCustomerReviewQuery(query),
 	})
 }
 

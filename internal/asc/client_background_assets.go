@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -17,10 +18,12 @@ func (c *Client) CreateBackgroundAsset(ctx context.Context, appID, assetPackIden
 		return nil, fmt.Errorf("asset pack identifier is required")
 	}
 
-	request := BackgroundAssetCreateRequest{
+	payload := BackgroundAssetCreateRequest{
 		Data: BackgroundAssetCreateData{
-			Type:       ResourceTypeBackgroundAssets,
-			Attributes: BackgroundAssetCreateAttributes{AssetPackIdentifier: assetPackIdentifier},
+			Type: ResourceTypeBackgroundAssets,
+			Attributes: BackgroundAssetCreateAttributes{
+				AssetPackIdentifier: assetPackIdentifier,
+			},
 			Relationships: BackgroundAssetCreateRelationships{
 				App: Relationship{
 					Data: ResourceData{
@@ -32,7 +35,7 @@ func (c *Client) CreateBackgroundAsset(ctx context.Context, appID, assetPackIden
 		},
 	}
 
-	return sendJSON[BackgroundAssetResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/backgroundAssets", Payload: request})
+	return sendJSON[BackgroundAssetResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/backgroundAssets", Payload: payload})
 }
 
 // CreateBackgroundAssetUploadFile creates a background asset upload file.

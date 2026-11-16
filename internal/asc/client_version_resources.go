@@ -15,7 +15,7 @@ func (c *Client) GetAppStoreVersionCustomerReviews(ctx context.Context, versionI
 	}
 	return getJSON[ReviewsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/customerReviews", versionID),
-		Query:       buildReviewQuery(opts),
+		Query:       buildReviewQuery(query),
 		Next:        query.nextURL,
 		NextContext: "customerReviews",
 	})
