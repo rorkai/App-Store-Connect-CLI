@@ -45,7 +45,7 @@ func TestParseKeychainSearchList(t *testing.T) {
 }
 
 func TestRunSigningRunChildPreservesExitCode(t *testing.T) {
-	err := runSigningRunChild(context.Background(), []string{"/bin/sh", "-c", "exit 42"})
+	err := runSigningRunChild(context.Background(), time.After, []string{"/bin/sh", "-c", "exit 42"})
 	if code, ok := shared.ProcessExitCode(err); !ok || code != 42 {
 		t.Fatalf("error = %v, want exit code 42", err)
 	}
@@ -55,7 +55,7 @@ func TestRunSigningRunChildRejectsPreCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	started := time.Now()
-	err := runSigningRunChild(ctx, []string{"/bin/sh", "-c", "sleep 30"})
+	err := runSigningRunChild(ctx, time.After, []string{"/bin/sh", "-c", "sleep 30"})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("error = %v, want context canceled before launch", err)
 	}
@@ -76,7 +76,7 @@ func TestRunSigningRunChildDoesNotSignalProcessGroupAfterWait(t *testing.T) {
 	}
 	t.Cleanup(func() { signingRunKillProcessGroupFn = previous })
 
-	if err := runSigningRunChild(context.Background(), []string{"/bin/sh", "-c", "exit 0"}); err != nil {
+	if err := runSigningRunChild(context.Background(), time.After, []string{"/bin/sh", "-c", "exit 0"}); err != nil {
 		t.Fatalf("runSigningRunChild() error: %v", err)
 	}
 	if len(signals) != 0 {
@@ -98,7 +98,7 @@ func TestRunSigningRunChildSignalsProcessGroupBeforeWaitOnCancellation(t *testin
 		cancel(&signingRunSignalCause{signal: syscall.SIGTERM})
 	})
 	defer timer.Stop()
-	err := runSigningRunChild(ctx, []string{"/bin/sleep", "30"})
+	err := runSigningRunChild(ctx, time.After, []string{"/bin/sleep", "30"})
 	if code, ok := shared.ProcessExitCode(err); !ok || code != 143 {
 		t.Fatalf("error = %v, want signal exit code 143", err)
 	}
@@ -139,7 +139,7 @@ func TestRunSigningRunChildDoesNotInheritSigningSecrets(t *testing.T) {
 	t.Setenv("ASC_PRIVATE_KEY", "secret")
 	t.Setenv("ASC_PRIVATE_KEY_B64", "secret")
 	t.Setenv("ASC_ISSUER_ID", "issuer")
-	err := runSigningRunChild(context.Background(), []string{
+	err := runSigningRunChild(context.Background(), time.After, []string{
 		"/bin/sh", "-c", "test -z \"$ASC_PRIVATE_KEY\" && test -z \"$ASC_PRIVATE_KEY_B64\" && test -z \"$ASC_ISSUER_ID\"",
 	})
 	if err != nil {
@@ -1192,7 +1192,7 @@ func TestSigningRunLegacyImportDoesNotExpandChain(t *testing.T) {
 		t.Skip("set ASC_SIGNING_RUN_LIVE_TEST=1 to exercise disposable macOS keychains")
 	}
 	ctx := context.Background()
-	unlock, err := acquireSigningRunLock(ctx)
+	unlock, err := acquireSigningRunLock(ctx, time.After)
 	if err != nil {
 		t.Fatal(err)
 	}
