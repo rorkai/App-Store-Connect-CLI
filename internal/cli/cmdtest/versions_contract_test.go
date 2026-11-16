@@ -153,7 +153,7 @@ func TestVersionsViewSelectorValidationBeforeClient(t *testing.T) {
 		{
 			name:       "version with whitespace app",
 			args:       []string{"versions", "view", "--app", " ", "--version", "1.2.3"},
-			wantStderr: "--app is required (or set ASC_APP_ID)",
+			wantStderr: "--app must not be empty",
 		},
 		{
 			name:       "invalid platform",
