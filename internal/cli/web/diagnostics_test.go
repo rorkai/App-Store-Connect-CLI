@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -211,39 +209,6 @@ func TestChooseSubmissionForShowUnknownSubmissionExposesStructuredDiagnostic(t *
 	}
 }
 
-func captureWebDiagnosticStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	readResult := make(chan []byte, 1)
-	readError := make(chan error, 1)
-	go func() {
-		data, readErr := io.ReadAll(reader)
-		readResult <- data
-		readError <- readErr
-	}()
-
-	original := os.Stderr
-	os.Stderr = writer
-	defer func() { os.Stderr = original }()
-	fn()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	os.Stderr = original
-	data := <-readResult
-	if err := <-readError; err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return strings.ReplaceAll(string(data), "\r\n", "\n")
-}
-
 func TestWebCommandsRejectNegativeProviderIDBeforeResolvingSession(t *testing.T) {
 	for _, name := range []string{"auth login", "privacy pull"} {
 		t.Run(name, func(t *testing.T) {
@@ -255,17 +220,14 @@ func TestWebCommandsRejectNegativeProviderIDBeforeResolvingSession(t *testing.T)
 				return nil, "", errors.New("session resolution was reached")
 			}))
 			var err error
-			var stderr string
-			if name == "auth login" {
-				stderr = captureWebDiagnosticStderr(t, func() {
-					err = WebAuthLoginCommand().ParseAndRun(context.Background(), []string{"--provider-id=-1"})
-				})
-			} else {
-				d, _, depsStderr := newWebTestDeps()
-				stderr = runWithWebTestDepsStderr(depsStderr, func() {
+			d, _, depsStderr := newWebTestDeps()
+			stderr := runWithWebTestDepsStderr(depsStderr, func() {
+				if name == "auth login" {
+					err = newWebAuthLoginCommand(d).ParseAndRun(context.Background(), []string{"--provider-id=-1"})
+				} else {
 					err = newWebPrivacyPullCommand(d).ParseAndRun(context.Background(), []string{"--app", "123456789", "--provider-id=-1"})
-				})
-			}
+				}
+			})
 			if resolutions != 0 {
 				t.Errorf("session resolver called %d times, want none", resolutions)
 			}

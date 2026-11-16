@@ -126,8 +126,8 @@ func NewCatalog(version string) *Catalog {
 func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 	catalog := &Catalog{}
 	catalog.factories = []factory{
-		commandFactory("auth", "Manage authentication for the App Store Connect API.", auth.AuthCommand),
-		commandFactory("doctor", "Diagnose authentication configuration issues.", auth.AuthDoctorCommand),
+		commandFactory("auth", "Manage authentication for the App Store Connect API.", func() *ffcli.Command { return auth.NewAuthCommand(d) }),
+		commandFactory("doctor", "Diagnose authentication configuration issues.", func() *ffcli.Command { return auth.NewAuthDoctorCommand(d) }),
 		commandFactory("web", "Apple web-session workflows, including finance report downloads.", func() *ffcli.Command {
 			return web.NewWebCommand(d)
 		}),
@@ -231,11 +231,13 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("build-bundles", "Manage build bundles and App Clip data.", func() *ffcli.Command {
 			return buildbundles.NewBuildBundlesCommand(d)
 		}),
-		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", publish.PublishCommand),
+		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", func() *ffcli.Command {
+			return publish.NewPublishCommand(d)
+		}),
 		commandFactory("release", "Run high-level App Store release workflows.", func() *ffcli.Command {
 			return release.NewReleaseCommand(d)
 		}),
-		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
+		commandFactory("workflow", "Run multi-step automation workflows.", func() *ffcli.Command { return workflow.NewWorkflowCommand(d) }),
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", func() *ffcli.Command {
 			return xcode.NewXcodeCommand(d)
 		}),

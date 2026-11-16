@@ -46,10 +46,7 @@ func writeAPIKeyJSON(t *testing.T, fields map[string]any, base64Key bool) (strin
 func runAuthLoginKeyJSON(t *testing.T, args ...string) (int, string) {
 	t.Helper()
 
-	var code int
-	_, stderr := captureOutput(t, func() {
-		code = rootcmd.Run(append([]string{"auth", "login", "--skip-validation", "--name", "CI"}, args...), "1.2.3")
-	})
+	_, stderr, code := runWithDeps(t, nil, append([]string{"auth", "login", "--skip-validation", "--name", "CI"}, args...)...)
 	return code, stderr
 }
 

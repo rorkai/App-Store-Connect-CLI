@@ -31,7 +31,10 @@ type IO struct {
 // command reads explicitly, as os.Getwd; relative paths a command passes to
 // the operating system or to filepath.Abs still resolve against the process
 // directory. HTTPTransport is the transport of the clients a command builds
-// for services other than the App Store Connect API.
+// for services other than the App Store Connect API. ClientWithTimeout
+// returns an App Store Connect client whose HTTP timeout is the given
+// duration, for commands whose single requests may run longer than the
+// request timeout.
 type Deps struct {
 	Client         func() (*asc.Client, error)
 	IO             *IO
@@ -45,6 +48,8 @@ type Deps struct {
 	Getwd func() (string, error)
 
 	HTTPTransport func() http.RoundTripper
+
+	ClientWithTimeout func(time.Duration) (*asc.Client, error)
 }
 
 // DefaultDeps returns the dependencies of a normal run: the shared client
@@ -72,6 +77,8 @@ func DefaultDeps() *Deps {
 		Getwd: os.Getwd,
 
 		HTTPTransport: processHTTPTransport,
+
+		ClientWithTimeout: GetASCClientWithTimeout,
 	}
 }
 

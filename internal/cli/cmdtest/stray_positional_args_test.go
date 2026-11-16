@@ -147,8 +147,9 @@ func TestOperandCommandsFailForTheirOwnReasons(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
+		deps bool // the command is built on shared.Deps: run it on test deps
 	}{
-		{name: "workflow run", args: []string{"workflow", "run", "release", "--file", "missing-workflow.json"}},
+		{name: "workflow run", args: []string{"workflow", "run", "release", "--file", "missing-workflow.json"}, deps: true},
 		{
 			name: "signing run passthrough",
 			args: []string{"signing", "run", "--identity", "missing.p12", "--profile", "missing.mobileprovision", "true"},
@@ -157,9 +158,14 @@ func TestOperandCommandsFailForTheirOwnReasons(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, stderr := captureOutput(t, func() {
-				_ = rootcmd.Run(test.args, "1.2.3")
-			})
+			var stderr string
+			if test.deps {
+				_, stderr, _ = runWithDeps(t, nil, test.args...)
+			} else {
+				_, stderr = captureOutput(t, func() {
+					_ = rootcmd.Run(test.args, "1.2.3")
+				})
+			}
 			if strings.Contains(stderr, "unexpected argument") {
 				t.Fatalf("stderr = %q, want no stray-operand diagnostic", stderr)
 			}
