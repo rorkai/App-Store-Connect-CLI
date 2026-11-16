@@ -229,7 +229,8 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	runUsageOutput := &bytes.Buffer{}
 	restoreRunUsageOutput := redirectCommandFlagOutput(analysis.command, runUsageOutput)
 	start := d.Now()
-	runErr := root.Run(runCtx)
+	commandCtx, apiOperation := shared.WithAPIOperationRecord(runCtx)
+	runErr := root.Run(commandCtx)
 	elapsed := d.Now().Sub(start)
 	restoreRunUsageOutput()
 
@@ -260,11 +261,11 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 			// Report write failure is a hard error - CI depends on it
 			fmt.Fprintf(d.IO.ErrOut, "Error: failed to write JUnit report: %v\n", reportErr)
 			if reportRunErr == nil {
-				emitTelemetry(commandName, versionInfo, elapsed, ExitError, telemetry.EventContext{
+				emitTelemetry(commandName, versionInfo, elapsed, ExitError, withAPIOperation(telemetry.EventContext{
 					InvocationShape: analysis.shape,
 					ErrorKind:       telemetry.ErrorKindOther,
 					FailureStage:    telemetry.FailureStageExecution,
-				})
+				}, apiOperation))
 				return ExitError
 			}
 		}
@@ -280,25 +281,34 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 				fmt.Fprint(d.IO.ErrOut, errfmt.FormatCommandStderr(commandName, runErr))
 			}
 			exitCode := ExitCodeFromError(runErr)
-			emitTelemetry(commandName, versionInfo, elapsed, exitCode, runtimeFailureContext(analysis, runErr, exitCode))
+			emitTelemetry(commandName, versionInfo, elapsed, exitCode, withAPIOperation(runtimeFailureContext(analysis, runErr, exitCode), apiOperation))
 			return exitCode
 		}
 		if errors.Is(runErr, flag.ErrHelp) {
 			printUnknownSubcommandSuggestion(d.IO.ErrOut, analysis, commandName)
-			emitTelemetry(commandName, versionInfo, elapsed, ExitUsage, validationFailureContext(analysis, runErr))
+			emitTelemetry(commandName, versionInfo, elapsed, ExitUsage, withAPIOperation(validationFailureContext(analysis, runErr), apiOperation))
 			return ExitUsage
 		}
 		printUnknownSubcommandSuggestion(d.IO.ErrOut, analysis, commandName)
 		fmt.Fprint(d.IO.ErrOut, errfmt.FormatCommandStderr(commandName, runErr))
 		exitCode := ExitCodeFromError(runErr)
-		emitTelemetry(commandName, versionInfo, elapsed, exitCode, runtimeFailureContext(analysis, runErr, exitCode))
+		emitTelemetry(commandName, versionInfo, elapsed, exitCode, withAPIOperation(runtimeFailureContext(analysis, runErr, exitCode), apiOperation))
 		return exitCode
 	}
 
-	emitTelemetry(commandName, versionInfo, elapsed, ExitSuccess, telemetry.EventContext{
+	emitTelemetry(commandName, versionInfo, elapsed, ExitSuccess, withAPIOperation(telemetry.EventContext{
 		InvocationShape: analysis.shape,
-	})
+	}, apiOperation))
 	return ExitSuccess
+}
+
+// withAPIOperation adds what `asc api` recorded while it ran to the
+// invocation's telemetry facts.
+func withAPIOperation(eventContext telemetry.EventContext, operation *shared.APIOperation) telemetry.EventContext {
+	eventContext.APIMethod = operation.Method
+	eventContext.APIPath = operation.Path
+	eventContext.APIQueryNames = operation.QueryNames
+	return eventContext
 }
 
 func recoverCIReportFlags(root *ffcli.Command, args []string) {

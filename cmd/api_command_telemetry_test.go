@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -12,8 +13,9 @@ import (
 )
 
 // TestRunAPITelemetryNeverCarriesRequestDetails pins the passthrough command's
-// telemetry contract: the command path stops at `asc api`, and the method,
-// path, query, and body never appear in any event field.
+// telemetry contract: the command path stops at `asc api`, the event carries
+// the method, the path as an embedded schema template, and the schema names of
+// the query parameters, and no identifier, value, or body ever reaches it.
 func TestRunAPITelemetryNeverCarriesRequestDetails(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_KEY_ID", "")
@@ -28,28 +30,59 @@ func TestRunAPITelemetryNeverCarriesRequestDetails(t *testing.T) {
 	const secretPath = "/v1/apps/SECRET-APP-ID/builds"
 	const secretQuery = "filter[version]=SECRET-VERSION"
 	const secretBody = `{"data":{"type":"apps","id":"SECRET-BODY-ID"}}`
+	method := func(value string) *string { return &value }
+	names := func(values ...string) *[]string { return &values }
 
 	tests := []struct {
 		name          string
 		args          []string
 		wantExit      int
 		wantParameter string
+		wantMethod    *string
+		wantTemplate  *string
+		wantQuery     *[]string
 	}{
 		{
-			name:     "usage error with unknown path",
-			args:     []string{"api", "GET", secretPath + "z", "--query", secretQuery},
-			wantExit: ExitUsage,
+			name:         "usage error with unknown path",
+			args:         []string{"api", "GET", secretPath + "z", "--query", secretQuery},
+			wantExit:     ExitUsage,
+			wantMethod:   method("GET"),
+			wantTemplate: method("other"),
+			wantQuery:    names("filter[version]"),
 		},
 		{
 			name:          "mutation without confirm",
 			args:          []string{"api", "PATCH", "/v1/apps/SECRET-APP-ID", "--body", secretBody},
 			wantExit:      ExitUsage,
 			wantParameter: "--confirm",
+			wantMethod:    method("PATCH"),
+			wantTemplate:  method("/v1/apps/{id}"),
 		},
 		{
-			name:     "request fails without credentials",
-			args:     []string{"api", "GET", secretPath, "--query", secretQuery},
-			wantExit: ExitAuth,
+			name:         "request fails without credentials",
+			args:         []string{"api", "GET", secretPath, "--query", secretQuery},
+			wantExit:     ExitAuth,
+			wantMethod:   method("GET"),
+			wantTemplate: method("/v1/apps/{id}/builds"),
+			wantQuery:    names("filter[version]"),
+		},
+		{
+			name:         "full URL with a query string",
+			args:         []string{"api", "GET", "https://api.appstoreconnect.apple.com/v1/apps/SECRET-APP-ID?cursor=SECRET-CURSOR&limit=5&SECRET-NAME=SECRET-VALUE"},
+			wantExit:     ExitAuth,
+			wantMethod:   method("GET"),
+			wantTemplate: method("/v1/apps/{id}"),
+			wantQuery:    names("cursor", "limit", "other"),
+		},
+		{
+			name:     "missing PATH",
+			args:     []string{"api", "GET"},
+			wantExit: ExitUsage,
+		},
+		{
+			name:     "unsupported method",
+			args:     []string{"api", "PUT", secretPath},
+			wantExit: ExitUsage,
 		},
 	}
 
@@ -77,20 +110,35 @@ func TestRunAPITelemetryNeverCarriesRequestDetails(t *testing.T) {
 			if gotContext.FailureParameter != test.wantParameter {
 				t.Fatalf("failure parameter = %q, want %q", gotContext.FailureParameter, test.wantParameter)
 			}
-			serialized := reflect.ValueOf(gotContext)
-			for i := 0; i < serialized.NumField(); i++ {
-				field := serialized.Field(i)
-				if field.Kind() != reflect.String {
-					continue
-				}
-				for _, secret := range []string{"SECRET", "/v1/", "filter[", "{\"data\""} {
-					if strings.Contains(field.String(), secret) {
-						t.Fatalf("telemetry field %s = %q leaks request details", serialized.Type().Field(i).Name, field.String())
-					}
+			event, ok := telemetry.BuildEventWithContext(gotCommand, "1.2.3", 0, test.wantExit, gotContext)
+			if !ok {
+				t.Fatal("BuildEventWithContext() returned no event")
+			}
+			if !reflect.DeepEqual(event.APIMethod, test.wantMethod) ||
+				!reflect.DeepEqual(event.APIPathTemplate, test.wantTemplate) ||
+				!reflect.DeepEqual(event.APIQueryParams, test.wantQuery) {
+				t.Fatalf("api fields = %v %v %v, want %v %v %v",
+					deref(event.APIMethod), deref(event.APIPathTemplate), event.APIQueryParams,
+					deref(test.wantMethod), deref(test.wantTemplate), test.wantQuery)
+			}
+			payload, err := json.Marshal(event)
+			if err != nil {
+				t.Fatalf("marshal event: %v", err)
+			}
+			for _, secret := range []string{"SECRET", "api.appstoreconnect.apple.com", "{\"data\""} {
+				if strings.Contains(string(payload), secret) {
+					t.Fatalf("event %s leaks request details (%q)", payload, secret)
 				}
 			}
 		})
 	}
+}
+
+func deref(value *string) string {
+	if value == nil {
+		return "<nil>"
+	}
+	return *value
 }
 
 // TestNormalizeSpacedBooleanFlagsPreservesAPIPositionals keeps a leading bool

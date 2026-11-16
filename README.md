@@ -226,10 +226,13 @@ or machine identifier.
 Telemetry includes the CLI version, operating system and architecture,
 registered command path, duration, runtime context, invocation source, a
 bounded outcome class, and the HTTP status when an API request fails. It may
-include a sanitized public flag name. It does **not** include raw arguments,
-stderr, error messages, flag values, response bodies, credentials, private
-keys, Apple account, team, or issuer IDs, app or bundle IDs, usernames,
-hostnames, repository names, or file paths.
+include a sanitized public flag name. For `asc api`, it also includes the HTTP
+method, the request path with every identifier replaced by `{id}` (or `other`
+when the path is not in the CLI's embedded API schema), and the names of the
+query parameters; never their values, identifiers, headers, or bodies. It does
+**not** include raw arguments, stderr, error messages, flag values, response
+bodies, credentials, private keys, Apple account, team, or issuer IDs, app or
+bundle IDs, usernames, hostnames, repository names, or file paths.
 
 Review or change telemetry at any time:
 

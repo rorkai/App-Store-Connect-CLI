@@ -87,7 +87,7 @@ Examples:
 				}
 			})
 
-			request, err := parseRequest(d, positional, query, *body, *bodyFile, bodyProvided, bodyFileProvided, *paginate, *confirm, *allowUnknownPath)
+			request, err := parseRequest(ctx, d, positional, query, *body, *bodyFile, bodyProvided, bodyFileProvided, *paginate, *confirm, *allowUnknownPath)
 			if err != nil {
 				return err
 			}
@@ -125,7 +125,7 @@ type rawRequest struct {
 
 // parseRequest validates the invocation before any credential or network
 // access. Every failure is a usage error with exit code 2.
-func parseRequest(d *shared.Deps, positional []string, query []string, body, bodyFile string, bodyProvided, bodyFileProvided, paginate, confirm, allowUnknownPath bool) (rawRequest, error) {
+func parseRequest(ctx context.Context, d *shared.Deps, positional []string, query []string, body, bodyFile string, bodyProvided, bodyFileProvided, paginate, confirm, allowUnknownPath bool) (rawRequest, error) {
 	if len(positional) < 2 {
 		err := d.UsageError("api: METHOD and PATH are required")
 		if len(positional) == 1 && (strings.HasPrefix(positional[0], "/") || strings.HasPrefix(positional[0], "https://")) {
@@ -147,6 +147,7 @@ func parseRequest(d *shared.Deps, positional []string, query []string, body, bod
 	if err != nil {
 		return rawRequest{}, err
 	}
+	shared.RecordAPIOperation(ctx, method, path)
 
 	if bodyProvided && bodyFileProvided {
 		return rawRequest{}, d.UsageError("api: --body and --body-file are mutually exclusive")
@@ -186,6 +187,7 @@ func parseRequest(d *shared.Deps, positional []string, query []string, body, bod
 		}
 		values.Add(key, value)
 	}
+	shared.RecordAPIQueryNames(ctx, values)
 
 	endpoint, indexed, err := schema.MatchOperation(method, path)
 	if err != nil {
