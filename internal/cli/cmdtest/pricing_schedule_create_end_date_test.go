@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -261,17 +262,35 @@ func TestPricingScheduleCreateTemporaryPriceUsageErrors(t *testing.T) {
 func TestPricingScheduleCreateTemporaryPriceRechecksDefaultStartDate(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	server, creates := newAppPriceScheduleCreateServer(t, http.StatusCreated, `{"data":{"type":"appPriceSchedules","id":"sched-1"}}`)
+	// US Pacific midnight passes while App Store Connect answers the --free
+	// lookup: the clock moves when that lookup is served, not after a number of
+	// reads, since other code reads the same clock.
+	var freeLookupServed atomic.Bool
+	creates := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appPricePoints":
+			freeLookupServed.Store(true)
+			_, _ = w.Write([]byte(`{"data":[{"type":"appPricePoints","id":"pp-free","attributes":{"customerPrice":"0.0","proceeds":"0.0"}}],"links":{}}`))
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appPriceSchedules":
+			creates++
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"data":{"type":"appPriceSchedules","id":"sched-1"}}`))
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			http.Error(w, "unexpected request", http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(server.Close)
 	useServerTransport(t, server)
 
 	beforeMidnight := mustParseRFC3339(t, "2026-11-01T06:59:00Z")
-	reads := 0
 	t.Cleanup(setRootNow(func() time.Time {
-		reads++
-		if reads == 1 {
-			return beforeMidnight
+		if freeLookupServed.Load() {
+			return beforeMidnight.Add(2 * time.Minute)
 		}
-		return beforeMidnight.Add(2 * time.Minute)
+		return beforeMidnight
 	}))
 
 	_, stderr, runErr := runCommand(t, []string{
@@ -282,8 +301,8 @@ func TestPricingScheduleCreateTemporaryPriceRechecksDefaultStartDate(t *testing.
 	if got := cmd.ExitCodeFromError(runErr); got != cmd.ExitUsage {
 		t.Fatalf("exit code = %d, want %d (err=%v)", got, cmd.ExitUsage, runErr)
 	}
-	if *creates != 0 {
-		t.Fatalf("expected no create request, got %d", *creates)
+	if creates != 0 {
+		t.Fatalf("expected no create request, got %d", creates)
 	}
 	if !strings.Contains(stderr, "--end-date must be after the start date 2026-11-01") {
 		t.Fatalf("stderr = %q", stderr)
