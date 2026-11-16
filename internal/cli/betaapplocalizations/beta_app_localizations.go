@@ -202,7 +202,7 @@ Examples:
 				attrs.PrivacyPolicyURL = value
 			}
 			if value := strings.TrimSpace(*tvOsPrivacyPolicy); value != "" {
-				attrs.TvOsPrivacyPolicy = value
+				attrs.TvOSPrivacyPolicy = value
 			}
 
 			client, err := d.Client()
@@ -285,7 +285,7 @@ Examples:
 			}
 			if visited["tv-os-privacy-policy"] {
 				value := strings.TrimSpace(*tvOsPrivacyPolicy)
-				attrs.TvOsPrivacyPolicy = &value
+				attrs.TvOSPrivacyPolicy = &value
 			}
 
 			client, err := d.Client()

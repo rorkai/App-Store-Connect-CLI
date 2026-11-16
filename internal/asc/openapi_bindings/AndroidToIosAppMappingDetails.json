@@ -2,6 +2,8 @@
   "tag": "AndroidToIosAppMappingDetails",
   "file": "android_to_ios_app_mapping_details_gen.go",
   "types": [
+    "AndroidToIosAppMappingDetailAttributes",
+    "AndroidToIosAppMappingDetailCreateAttributes",
     "AndroidToIosAppMappingDetailCreateData",
     "AndroidToIosAppMappingDetailCreateRequest",
     "AndroidToIosAppMappingDetailResponse",
@@ -12,6 +14,7 @@
     {"data":"AndroidToIosAppMappingDetailCreateData","type":"AndroidToIosAppMappingDetailCreateRelationships"}
   ],
   "operations": [
+    {"operation":"androidToIosAppMappingDetails_createInstance","name":"CreateAndroidToIosAppMappingDetail","params":["appID"],"check":"require","messages":["app ID is required"],"links":["app"]},
     {"operation":"androidToIosAppMappingDetails_deleteInstance","name":"DeleteAndroidToIosAppMappingDetail","params":["id"],"check":"require","messages":["mapping ID is required"]},
     {"operation":"androidToIosAppMappingDetails_getInstance","name":"GetAndroidToIosAppMappingDetail","params":["id"],"check":"require","checkFirst":true,"messages":["mapping ID is required"],"options":"AndroidToIosAppMappingDetailsOption","query":"buildAndroidToIosAppMappingDetailQuery","single":true},
     {"operation":"androidToIosAppMappingDetails_updateInstance","name":"UpdateAndroidToIosAppMappingDetail","params":["id"],"check":"require","messages":["mapping ID is required"]}

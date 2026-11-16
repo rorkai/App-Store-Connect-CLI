@@ -164,7 +164,7 @@ Examples:
 
 			resp, err := client.CreateAndroidToIosAppMappingDetail(requestCtx, resolvedAppID, asc.AndroidToIosAppMappingDetailCreateAttributes{
 				PackageName: packageValue,
-				AppSigningKeyPublicCertificateSha256Fingerprints: fingerprintValues,
+				AppSigningKeyPublicCertificateSHA256Fingerprints: fingerprintValues,
 			})
 			if err != nil {
 				return fmt.Errorf("android-ios-mapping create: %w", err)
@@ -236,10 +236,10 @@ Examples:
 				if len(fingerprintValues) == 0 {
 					return d.UsageError("android-ios-mapping update: --fingerprints must include at least one value")
 				}
-				attrs.AppSigningKeyPublicCertificateSha256Fingerprints = &asc.NullableStringSlice{Value: fingerprintValues}
+				attrs.AppSigningKeyPublicCertificateSHA256Fingerprints = &asc.NullableStringSlice{Value: fingerprintValues}
 			}
 			if *clearFingerprints {
-				attrs.AppSigningKeyPublicCertificateSha256Fingerprints = &asc.NullableStringSlice{}
+				attrs.AppSigningKeyPublicCertificateSHA256Fingerprints = &asc.NullableStringSlice{}
 			}
 
 			client, err := d.Client()

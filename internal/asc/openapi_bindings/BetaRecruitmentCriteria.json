@@ -1,6 +1,9 @@
 {
   "tag": "BetaRecruitmentCriteria",
   "file": "beta_recruitment_criteria_gen.go",
+  "types": [
+    "BetaRecruitmentCriterionAttributes"
+  ],
   "operations": [
     {"operation":"betaRecruitmentCriteria_deleteInstance","name":"DeleteBetaRecruitmentCriteria","params":["criteriaID"],"check":"require"}
   ]

@@ -2,6 +2,13 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+)
+
 // AppStoreVersionPromotionCreateData is the data object of the AppStoreVersionPromotionCreateRequest schema.
 type AppStoreVersionPromotionCreateData struct {
 	Type          ResourceType                          `json:"type"`
@@ -11,4 +18,40 @@ type AppStoreVersionPromotionCreateData struct {
 // AppStoreVersionPromotionCreateRequest is the AppStoreVersionPromotionCreateRequest schema.
 type AppStoreVersionPromotionCreateRequest struct {
 	Data AppStoreVersionPromotionCreateData `json:"data"`
+}
+
+// CreateAppStoreVersionPromotion sends POST /v1/appStoreVersionPromotions (appStoreVersionPromotions_createInstance).
+func (c *Client) CreateAppStoreVersionPromotion(ctx context.Context, versionID, treatmentID string) (*AppStoreVersionPromotionResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	treatmentID = strings.TrimSpace(treatmentID)
+	if versionID == "" {
+		return nil, fmt.Errorf("version ID is required")
+	}
+	if treatmentID == "" {
+		return nil, fmt.Errorf("treatment ID is required")
+	}
+	payload := AppStoreVersionPromotionCreateRequest{
+		Data: AppStoreVersionPromotionCreateData{
+			Type: ResourceTypeAppStoreVersionPromotions,
+			Relationships: AppStoreVersionPromotionRelationships{
+				AppStoreVersion: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersions,
+						ID:   versionID,
+					},
+				},
+				AppStoreVersionExperimentTreatment: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersionExperimentTreatments,
+						ID:   treatmentID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppStoreVersionPromotionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appStoreVersionPromotions",
+		Payload: payload,
+	})
 }
