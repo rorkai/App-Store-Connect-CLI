@@ -3,6 +3,8 @@ package cmdtest
 import (
 	"errors"
 	"flag"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -78,5 +80,50 @@ func TestOptimizeKeywordsDiscoverFailsActionablyWithoutAppleAdsCredentials(t *te
 		if !strings.Contains(runErr.Error(), want) {
 			t.Fatalf("error = %v, want it to mention %q", runErr, want)
 		}
+	}
+}
+
+func TestOptimizeKeywordCommandsReportAMissingAdAccountOnce(t *testing.T) {
+	itunes := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Host != "itunes.apple.com" {
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"resultCount":0,"results":[]}`)),
+		}, nil
+	})
+	for _, test := range []struct {
+		name       string
+		args       []string
+		wantCode   int
+		wantStderr string
+	}{
+		{
+			name:       "discover fails with its own message",
+			args:       []string{"optimize", "keywords", "discover", "--app", "1234567890", "--country", "US"},
+			wantCode:   1,
+			wantStderr: "Error: optimize keywords discover: Apple Ads keyword suggestions are unavailable: --ad-account is required",
+		},
+		{
+			name:     "score degrades without an error line",
+			args:     []string{"optimize", "keywords", "score", "--app", "1234567890", "--keywords", "habit,tracker", "--country", "US", "--genre", "PRODUCTIVITY_UTILITIES"},
+			wantCode: 0,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_ADS_ACCESS_TOKEN", "token")
+			t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "")
+
+			_, stderr, code := runWithHTTPTransport(t, nil, itunes, test.args...)
+			if code != test.wantCode {
+				t.Fatalf("exit code = %d, want %d; stderr=%q", code, test.wantCode, stderr)
+			}
+			if strings.Count(stderr, "Error:") != strings.Count(test.wantStderr, "Error:") || !strings.HasPrefix(stderr, test.wantStderr) {
+				t.Fatalf("stderr = %q, want only %q", stderr, test.wantStderr)
+			}
+		})
 	}
 }

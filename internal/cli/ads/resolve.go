@@ -19,7 +19,21 @@ type commonFlags struct {
 	AdAccount  *string
 }
 
+var errAdAccountRequired = errors.New("--ad-account is required (or set ASC_ADS_AD_ACCOUNT_ID or an Ads profile ad_account_id)")
+
 func resolvePlatformClientAndAdAccountID(ctx context.Context, d *shared.Deps, flags commonFlags, contextKind appleads.ContextKind) (*appleads.Client, string, error) {
+	_ = ctx
+	client, adAccountID, err := resolvePlatformClient(d, flags, contextKind)
+	if errors.Is(err, errAdAccountRequired) {
+		return nil, "", d.UsageError(err.Error())
+	}
+	return client, adAccountID, err
+}
+
+// resolvePlatformClient is resolvePlatformClientAndAdAccountID for callers
+// that report a failure as data instead of returning it from the command: a
+// missing ad account is errAdAccountRequired, and nothing is printed.
+func resolvePlatformClient(d *shared.Deps, flags commonFlags, contextKind appleads.ContextKind) (*appleads.Client, string, error) {
 	credentials, err := resolveCredentials(flags)
 	if err != nil {
 		return nil, "", err
@@ -31,11 +45,10 @@ func resolvePlatformClientAndAdAccountID(ctx context.Context, d *shared.Deps, fl
 			return nil, "", err
 		}
 		if adAccountID == "" && contextKind == appleads.ContextAdAccount {
-			return nil, "", d.UsageError("--ad-account is required (or set ASC_ADS_AD_ACCOUNT_ID or an Ads profile ad_account_id)")
+			return nil, "", errAdAccountRequired
 		}
 		credentials.AdAccountID = adAccountID
 	}
-	_ = ctx
 	client, err := appleads.NewClient(credentials, appleads.WithTransport(d.HTTPTransport()))
 	return client, adAccountID, err
 }

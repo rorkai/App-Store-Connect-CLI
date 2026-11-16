@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestSubmitResolvedVersionRejectsUnverifiedConflictSubmission(t *testing.T) {
@@ -70,7 +72,7 @@ func TestSubmitResolvedVersionRejectsUnverifiedConflictSubmission(t *testing.T) 
 		}
 	}))
 
-	result, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	result, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",
@@ -118,7 +120,7 @@ func TestSubmitResolvedVersionPreservesCreatedSubmissionAfterAmbiguousAddFailure
 		}
 	}))
 
-	result, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	result, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",
@@ -193,7 +195,7 @@ func TestSubmitResolvedVersionPreservesCreatedSubmissionAfterConflictRecovery(t 
 		}
 	}))
 
-	result, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	result, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",
@@ -337,7 +339,7 @@ func TestSubmitResolvedVersionReusesTargetOnlySubmissionWithoutVersionRelationsh
 		}
 	}))
 
-	result, err := SubmitResolvedVersion(context.Background(), client, SubmitResolvedVersionOptions{
+	result, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",

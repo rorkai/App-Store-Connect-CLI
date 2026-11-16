@@ -91,7 +91,18 @@ jobs:
               fi
               nix fmt
 
+      # Dependabot stops rebasing a branch once anyone else commits to it, so
+      # its pull requests get the fixes as a failing check, applied at merge.
+      - name: Check that the Dependabot update needs no fixes
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Apply the diff above (nix run .#update-vendor-hash) right before merging."
+            exit 1
+          fi
+
       - name: Push fixes with autofix.ci
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # v1.3.4
         with:
           fail-fast: false

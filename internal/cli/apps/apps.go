@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -145,7 +146,7 @@ Examples:
 
 // newAppsGetCommand returns the apps view subcommand.
 func newAppsGetCommand(d *shared.Deps) *ffcli.Command {
-	var fieldValues, appInfoFieldValues, iapFieldValues, groupFieldValues, retentionMessageFieldValues []string
+	var fieldValues, appInfoFieldValues, iapFieldValues, groupFieldValues, retentionMessageFieldValues, requestedIncludes []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Deps:        d,
@@ -158,6 +159,7 @@ func newAppsGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc apps view --id "APP_ID"
   asc apps view --id "APP_ID" --app-info-fields state,primaryCategory --iap-fields versions --subscription-group-fields versions
+  asc apps view --id "APP_ID" --include appInfos,appStoreVersions
   asc apps view --id "APP_ID" --output table
   asc apps view --id "APP_ID" --fields "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox" --output json`,
 		IDUsage:            "App Store Connect app ID",
@@ -170,7 +172,11 @@ Examples:
 			iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
 			subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
 			retentionMessageFields := fs.String("retention-message-fields", "", "Sparse fields for included retention messages: "+strings.Join(shared.RetentionMessageSparseFields, ", "))
+			include := fs.String("include", "", "Include related resources: "+strings.Join(appViewIncludeValues, ", "))
 			return func() (err error) {
+				if requestedIncludes, err = shared.NormalizeSelection(*include, appViewIncludeValues, "--include"); err != nil {
+					return d.UsageError(err.Error())
+				}
 				if fieldValues, err = normalizeSparseField(fs, *fields, appAttributeFields, "--fields"); err != nil {
 					return d.UsageError(err.Error())
 				}
@@ -192,7 +198,7 @@ Examples:
 			}
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
-			includeValues := []string{}
+			includeValues := slices.Clone(requestedIncludes)
 			if len(appInfoFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "appInfos")
 			}
@@ -489,4 +495,13 @@ func validateAccessibilityURL(value string) (string, error) {
 var appAttributeFields = []string{
 	"name", "bundleId", "sku", "primaryLocale", "contentRightsDeclaration", "accessibilityUrl",
 	"subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox",
+}
+
+// appViewIncludeValues are the include values GET /v1/apps/{id} accepts.
+var appViewIncludeValues = []string{
+	"appEncryptionDeclarations", "appStoreIcon", "ciProduct", "betaGroups", "appStoreVersions", "preReleaseVersions",
+	"betaAppLocalizations", "builds", "betaLicenseAgreement", "betaAppReviewDetail", "appInfos", "appClips",
+	"endUserLicenseAgreement", "inAppPurchases", "subscriptionGroups", "retentionMessages", "gameCenterEnabledVersions",
+	"appCustomProductPages", "inAppPurchasesV2", "promotedPurchases", "appEvents", "reviewSubmissions",
+	"subscriptionGracePeriod", "gameCenterDetail", "appStoreVersionExperimentsV2", "androidToIosAppMappingDetails",
 }

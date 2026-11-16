@@ -31,6 +31,10 @@ def assert_nix_cache_contract() -> None:
         for key in keys:
             inputs = re.search(r"hashFiles\((.*?)\)", key)
             assert inputs and "'go.mod'" in inputs.group(1), f"{name}: Go upgrades must invalidate the Nix cache"
+    autofix = (ROOT / ".github/workflows/autofix.yml").read_text()
+    assert "if: github.event.pull_request.user.login != 'dependabot[bot]'\n        uses: autofix-ci/action@" in autofix, (
+        "autofix.yml: a commit on a Dependabot branch stops Dependabot from rebasing it"
+    )
     build = job_block(workflow, "nix")
     assert "actions: write" not in build, "PR-controlled Nix builds must not receive Actions write permission"
     purge = job_block(workflow, "purge-cache")
@@ -332,6 +336,9 @@ def assert_optimized_workflow_text(path: Path, workflow: str, test_job: str) -> 
 
     build_platforms = job_block(workflow, "build-platforms")
     assert "needs.changes.outputs.scope == 'full'" in build_platforms
+    assert "if grep -F '[no tests to run]' \"$output\"; then" in build_platforms, (
+        f"{path}: build-platforms must fail when a go test -run pattern matches no test"
+    )
     for runner in ("macos-latest", "ubuntu-latest", "windows-latest"):
         assert f"runner: {runner}" in build_platforms, f"{path}: missing native build runner {runner}"
     assert "go test -short ./internal/screenshots" in build_platforms, f"{path}: missing Darwin-only tests"
@@ -443,6 +450,7 @@ def assert_optimized_workflow_rejects_weakened_checks() -> None:
             "ASC_BYPASS_KEYCHAIN=1 go test -race -tags fido2 -p=1 -parallel=4 -count=1",
             "./internal/securitykey ./internal/web ./internal/cli/web ./internal/cli/cmdtest",
             "ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/rootfs",
+            "if grep -F '[no tests to run]' \"$output\"; then",
         ):
             assert command in workflow, f"{path}: expected to find {command!r}"
             weakened = workflow.replace(command, "true")

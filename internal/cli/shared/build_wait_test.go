@@ -303,7 +303,7 @@ func TestWaitForBuildProcessingWithDetailsIncludesProcessingDetails(t *testing.T
 		}
 	})
 
-	build, err := WaitForBuildProcessingWithDetails(context.Background(), client, "", "build-1", time.Millisecond)
+	build, err := DefaultDeps().WaitForBuildProcessingWithDetails(context.Background(), client, "", "build-1", time.Millisecond)
 	if err == nil {
 		t.Fatal("expected processing failure, got nil")
 	}
@@ -338,7 +338,7 @@ func TestWaitForBuildProcessingWithDetailsKeepsStateErrorWhenLookupsFail(t *test
 		}, nil
 	})
 
-	_, err := WaitForBuildProcessingWithDetails(context.Background(), client, "app-1", "build-1", time.Millisecond)
+	_, err := DefaultDeps().WaitForBuildProcessingWithDetails(context.Background(), client, "app-1", "build-1", time.Millisecond)
 	if err == nil || err.Error() != "build processing failed: INVALID" {
 		t.Fatalf("error = %v, want the unmodified state error", err)
 	}
@@ -357,7 +357,7 @@ func TestWaitForBuildProcessingWithDetailsLeavesValidBuildUntouched(t *testing.T
 		return buildWaitJSONResponse(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`)
 	})
 
-	build, err := WaitForBuildProcessingWithDetails(context.Background(), client, "app-1", "build-1", time.Millisecond)
+	build, err := DefaultDeps().WaitForBuildProcessingWithDetails(context.Background(), client, "app-1", "build-1", time.Millisecond)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

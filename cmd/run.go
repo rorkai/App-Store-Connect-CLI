@@ -95,7 +95,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	} else {
 		resolvedArgs, err := args, aliasErr
 		if err == nil {
-			resolvedArgs, err = resolveFlagValueIndirection(root, args)
+			resolvedArgs, err = resolveFlagValueIndirection(d, root, args)
 		}
 		if err != nil {
 			recoverCIReportFlags(root, args)

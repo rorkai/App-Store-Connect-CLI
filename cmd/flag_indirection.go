@@ -59,8 +59,8 @@ func isIndirectionExcluded(name string, isRootFlag bool) bool {
 // Boolean flags, excluded flags, positional arguments, and everything after
 // `--` are untouched. Rewriting stops at the first unknown flag so the
 // unknown-flag diagnostic stays authoritative for that invocation.
-func resolveFlagValueIndirection(root *ffcli.Command, args []string) ([]string, error) {
-	return rewriteFlagValueIndirection(root, args, false)
+func resolveFlagValueIndirection(d *shared.Deps, root *ffcli.Command, args []string) ([]string, error) {
+	return rewriteFlagValueIndirection(d, root, args, false)
 }
 
 // dropIndirectFlagValues removes every flag token that carries an indirect
@@ -73,7 +73,7 @@ func resolveFlagValueIndirection(root *ffcli.Command, args []string) ([]string, 
 // that help prints whatever the indirect value would have been, and keeps a
 // resolved value out of help output and out of any parse diagnostic.
 func dropIndirectFlagValues(root *ffcli.Command, args []string) []string {
-	dropped, err := rewriteFlagValueIndirection(root, args, true)
+	dropped, err := rewriteFlagValueIndirection(nil, root, args, true)
 	if err != nil {
 		// Dropping never resolves a value, so it cannot fail.
 		return args
@@ -81,7 +81,7 @@ func dropIndirectFlagValues(root *ffcli.Command, args []string) []string {
 	return dropped
 }
 
-func rewriteFlagValueIndirection(root *ffcli.Command, args []string, drop bool) ([]string, error) {
+func rewriteFlagValueIndirection(d *shared.Deps, root *ffcli.Command, args []string, drop bool) ([]string, error) {
 	command := root
 	sawPositional := false
 	resolved := make([]string, 0, len(args))
@@ -144,7 +144,7 @@ func rewriteFlagValueIndirection(root *ffcli.Command, args []string, drop bool) 
 				resolved = append(resolved, token)
 				continue
 			}
-			value, err := shared.ResolveFlagValueIndirection(name, inlineValue)
+			value, err := d.ResolveFlagValueIndirection(name, inlineValue)
 			if err != nil {
 				return nil, err
 			}
@@ -165,7 +165,7 @@ func rewriteFlagValueIndirection(root *ffcli.Command, args []string, drop bool) 
 		}
 		resolved = append(resolved, token)
 		index++
-		value, err := shared.ResolveFlagValueIndirection(name, args[index])
+		value, err := d.ResolveFlagValueIndirection(name, args[index])
 		if err != nil {
 			return nil, err
 		}

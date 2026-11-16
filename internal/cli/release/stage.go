@@ -127,7 +127,7 @@ Examples:
 			trimmedRoutingCoverageFile := strings.TrimSpace(*routingCoverageFile)
 			var preparedRoutingCoverageFile *routingcoveragecli.PreparedRoutingCoverageFile
 			if trimmedRoutingCoverageFile != "" {
-				prepared, prepareErr := routingcoveragecli.PrepareRoutingCoverageFile(trimmedRoutingCoverageFile)
+				prepared, prepareErr := routingcoveragecli.PrepareRoutingCoverageFile(d, trimmedRoutingCoverageFile)
 				if prepareErr != nil {
 					return d.UsageError(fmt.Sprintf("--routing-coverage-file is not usable: %v", prepareErr))
 				}

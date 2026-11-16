@@ -4,10 +4,12 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestVersionCommand(t *testing.T) {
-	cmd := VersionCommand("v1.2.3")
+	cmd := VersionCommand(shared.DefaultDeps(), "v1.2.3")
 	if cmd == nil {
 		t.Fatal("expected non-nil version command")
 		return

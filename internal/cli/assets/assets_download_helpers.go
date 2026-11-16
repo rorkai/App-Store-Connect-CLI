@@ -827,7 +827,8 @@ func ResolveImageAssetDownloadURL(asset *asc.ImageAsset, fileName string) (strin
 	return resolveImageAssetDownloadURL(asset, fileName)
 }
 
-// DownloadMediaURL downloads an unauthenticated media URL using the asset transfer path.
-func DownloadMediaURL(ctx context.Context, url, outputPath string, overwrite bool) (int64, string, error) {
-	return downloadURLToFile(ctx, shared.DefaultDeps(), url, outputPath, overwrite)
+// DownloadMediaURL downloads an unauthenticated media URL using the asset
+// transfer path, on d.
+func DownloadMediaURL(ctx context.Context, d *shared.Deps, url, outputPath string, overwrite bool) (int64, string, error) {
+	return downloadURLToFile(ctx, d, url, outputPath, overwrite)
 }

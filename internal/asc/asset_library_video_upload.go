@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"strings"
@@ -34,7 +35,9 @@ type assetLibraryVideoUploadResponse struct {
 // UploadAssetLibraryVideoWithCategory uploads an independently managed video.
 // An empty referenceName leaves Apple's default reference name in place. A
 // non-empty previewFrameTimeCode also makes readiness wait for that frame.
-func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, libraryID, fileName string, file *os.File, fileSize int64, category, referenceName, previewFrameTimeCode string, requestContext RequestContextFunc) (AssetLibraryVideoUploadResult, error) {
+// Transient failures tolerated during that wait are reported on stderr; nil
+// means the process stderr.
+func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, stderr io.Writer, libraryID, fileName string, file *os.File, fileSize int64, category, referenceName, previewFrameTimeCode string, requestContext RequestContextFunc) (AssetLibraryVideoUploadResult, error) {
 	result := AssetLibraryVideoUploadResult{LibraryID: libraryID, FileName: fileName, FileSize: fileSize, ReferenceName: referenceName, PreviewFrameTimeCode: previewFrameTimeCode, Category: category}
 	if category != "CREATIVE_ASSETS" && category != "APP_SCREENSHOTS_AND_PREVIEWS" {
 		return result, fmt.Errorf("unsupported asset category %q", category)
@@ -140,7 +143,7 @@ func (c *Client) UploadAssetLibraryVideoWithCategory(ctx context.Context, librar
 		frameReady := previewFrameTimeCode == "" || frameState == "COMPLETE"
 		result.Ready = attrs.State == "PREPARE_FOR_SUBMISSION" && attrs.SpecID != "" && videoAvailable && frameReady
 		return struct{}{}, result.Ready, nil
-	}, PollOptions{Tolerate: IsTransientWaitError})
+	}, PollOptions{Tolerate: IsTransientWaitError, Stderr: stderr})
 	if err != nil {
 		return result, fmt.Errorf("wait for video %s processing (state %q): %w", result.VideoID, result.State, err)
 	}
