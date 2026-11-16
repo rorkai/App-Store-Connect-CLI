@@ -3,10 +3,12 @@ package validate
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -559,4 +561,23 @@ func deepCheckByID(t *testing.T, report validation.DeepReport, id string) valida
 	}
 	t.Fatalf("deep check %q not found in %#v", id, report.Checks)
 	return validation.DeepCheck{}
+}
+
+func TestCollectDeepValidationLoadsSessionOnDepsTransport(t *testing.T) {
+	transport := &http.Transport{}
+	var loaderTransport http.RoundTripper
+	previous := loadDeepSessionFn
+	loadDeepSessionFn = func(_ context.Context, rt http.RoundTripper, _ string) (*webcore.AuthSession, bool, error) {
+		loaderTransport = rt
+		return nil, false, nil
+	}
+	t.Cleanup(func() { loadDeepSessionFn = previous })
+
+	d := &shared.Deps{HTTPTransport: func() http.RoundTripper { return transport }}
+	if _, _, err := collectDeepValidation(context.Background(), d, validation.Report{}, ""); err != nil {
+		t.Fatalf("collectDeepValidation() error: %v", err)
+	}
+	if loaderTransport != transport {
+		t.Fatalf("session loader transport = %v, want the deps transport", loaderTransport)
+	}
 }

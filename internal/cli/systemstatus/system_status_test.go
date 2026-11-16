@@ -57,7 +57,7 @@ func (transport *countingTransport) RoundTrip(*http.Request) (*http.Response, er
 }
 
 func TestSystemStatusCommandJSONFiltersServices(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("method = %s, want GET", r.Method)
 		}
@@ -208,7 +208,7 @@ func TestSystemStatusCommandRejectsInvalidArguments(t *testing.T) {
 func TestSystemStatusCommandWatchPrintsOnlyChanges(t *testing.T) {
 	var requests atomic.Int32
 	healthy := `{"drMessage":null,"services":[{"serviceName":"App Store Connect API","redirectUrl":null,"events":[]}]}`
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		poll := requests.Add(1)
 		if poll < 3 {
 			_, _ = io.WriteString(w, healthy)
@@ -266,7 +266,7 @@ func TestSystemStatusCommandWatchSeparatesHumanSnapshots(t *testing.T) {
 			want := snapshot(healthy) + test.separator + snapshot(healthyAndOutagePayload)
 
 			var requests atomic.Int32
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if requests.Add(1) == 1 {
 					_, _ = io.WriteString(w, healthy)
 					return
@@ -289,7 +289,7 @@ func TestSystemStatusCommandWatchSeparatesHumanSnapshots(t *testing.T) {
 func TestSystemStatusCommandWatchRetriesTransientFailures(t *testing.T) {
 	var requests atomic.Int32
 	healthy := `{"drMessage":null,"services":[{"serviceName":"App Store Connect API","redirectUrl":null,"events":[]}]}`
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if requests.Add(1) == 1 {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
@@ -320,7 +320,7 @@ func TestSystemStatusCommandWatchRetriesTransientFailures(t *testing.T) {
 
 func TestSystemStatusCommandWatchStopsAfterRepeatedFailures(t *testing.T) {
 	var requests atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		requests.Add(1)
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
@@ -380,7 +380,7 @@ func TestFetchDeveloperSystemStatusErrors(t *testing.T) {
 
 func statusServer(t *testing.T, payload string) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, payload)
 	}))
 }
@@ -399,6 +399,9 @@ func runCommandWithWaits(t *testing.T, client *http.Client, endpoint string, arg
 	d := &shared.Deps{
 		IO:      &shared.IO{Out: &stdoutBuffer, ErrOut: &stderrBuffer},
 		Timeout: shared.ContextWithTimeout,
+		HTTPTransport: func() http.RoundTripper {
+			return client.Transport
+		},
 		After: func(delay time.Duration) <-chan time.Time {
 			waits = append(waits, delay)
 			fired := make(chan time.Time, 1)
@@ -406,7 +409,7 @@ func runCommandWithWaits(t *testing.T, client *http.Client, endpoint string, arg
 			return fired
 		},
 	}
-	command := commandWithClient(d, client, endpoint)
+	command := commandWithEndpoint(d, endpoint)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.Parse(args); err != nil {
 		return "", "", nil, err

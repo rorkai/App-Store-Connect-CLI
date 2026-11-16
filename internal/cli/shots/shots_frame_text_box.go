@@ -31,25 +31,25 @@ type textBoxFlags struct {
 	used *bool
 }
 
-func parseTextBoxFlags(enabled bool, values textBoxFlagValues) (textBoxFlags, error) {
+func parseTextBoxFlags(d *shared.Deps, enabled bool, values textBoxFlagValues) (textBoxFlags, error) {
 	flags := textBoxFlags{enabled: enabled, used: new(bool)}
 	if values.colorSet {
 		color := strings.TrimSpace(values.color)
 		if err := screenshots.ValidateTextBoxColor(color); err != nil {
-			return textBoxFlags{}, shared.WithDiagnostic(shared.UsageError("--text-box-color "+err.Error()), shared.DiagnosticInvalidInput, "--text-box-color")
+			return textBoxFlags{}, shared.WithDiagnostic(d.UsageError("--text-box-color "+err.Error()), shared.DiagnosticInvalidInput, "--text-box-color")
 		}
 		flags.color = color
 	}
 	if values.paddingSet {
 		if values.padding < 0 {
-			return textBoxFlags{}, shared.WithDiagnostic(shared.UsageError("--text-box-padding must be >= 0"), shared.DiagnosticInvalidInput, "--text-box-padding")
+			return textBoxFlags{}, shared.WithDiagnostic(d.UsageError("--text-box-padding must be >= 0"), shared.DiagnosticInvalidInput, "--text-box-padding")
 		}
 		padding := values.padding
 		flags.padding = &padding
 	}
 	if values.radiusSet {
 		if values.radius < 0 {
-			return textBoxFlags{}, shared.WithDiagnostic(shared.UsageError("--text-box-radius must be >= 0"), shared.DiagnosticInvalidInput, "--text-box-radius")
+			return textBoxFlags{}, shared.WithDiagnostic(d.UsageError("--text-box-radius must be >= 0"), shared.DiagnosticInvalidInput, "--text-box-radius")
 		}
 		radius := values.radius
 		flags.radius = &radius
@@ -103,11 +103,11 @@ func (flags textBoxFlags) resolve(entry screenshots.OverlayEntry) *screenshots.T
 // requireUsed rejects --text-box-color, --text-box-padding, and
 // --text-box-radius when every framed input resolved without a box. Call it
 // after resolving every input.
-func (flags textBoxFlags) requireUsed() error {
+func (flags textBoxFlags) requireUsed(d *shared.Deps) error {
 	detailSet := flags.color != "" || flags.padding != nil || flags.radius != nil
 	if !detailSet || (flags.used != nil && *flags.used) {
 		return nil
 	}
 	parameter := flags.firstDetailFlag()
-	return shared.WithDiagnostic(shared.UsageError(parameter+" has no effect: no framed input has a title or keyword with a text box enabled by --text-box or its --overlay-config entry"), shared.DiagnosticConflictingInput, parameter)
+	return shared.WithDiagnostic(d.UsageError(parameter+" has no effect: no framed input has a title or keyword with a text box enabled by --text-box or its --overlay-config entry"), shared.DiagnosticConflictingInput, parameter)
 }

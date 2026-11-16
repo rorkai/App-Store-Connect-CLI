@@ -266,7 +266,7 @@ func validateDirWithOptions(ctx context.Context, d *shared.Deps, dir string, opt
 	if options.checkURLs && len(urlTargets) > 0 {
 		checker := options.urlChecker
 		if checker == nil {
-			checker = newMetadataURLChecker()
+			checker = newMetadataURLChecker(d.HTTPTransport())
 		}
 		urlIssues, urlErr := metadataURLCheckIssues(ctx, checker, urlTargets)
 		if urlErr != nil {

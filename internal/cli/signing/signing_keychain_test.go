@@ -30,14 +30,15 @@ func TestSigningKeychainInstallCommandThreadsOptions(t *testing.T) {
 	signingKeychainInstallContext = func(ctx context.Context) (context.Context, func()) {
 		return context.WithValue(ctx, installContextKey{}, true), func() { contextStopped = true }
 	}
-	installSigningKeychainFn = func(ctx context.Context, options signingKeychainInstallOptions) (*asc.SigningKeychainInstallResult, error) {
+	installSigningKeychainFn = func(ctx context.Context, _ *shared.Deps, options signingKeychainInstallOptions) (*asc.SigningKeychainInstallResult, error) {
 		if wrapped, _ := ctx.Value(installContextKey{}).(bool); !wrapped {
 			t.Fatal("install context was not wrapped for termination signals")
 		}
 		got = options
 		return &asc.SigningKeychainInstallResult{Action: "installed"}, nil
 	}
-	command := SigningKeychainInstallCommand()
+	d, depsStdout, _ := newSigningTestDeps()
+	command := newSigningKeychainInstallCommand(d)
 	command.FlagSet.SetOutput(&strings.Builder{})
 	if err := command.Parse([]string{
 		"--identity", "App.p12",
@@ -52,8 +53,8 @@ func TestSigningKeychainInstallCommandThreadsOptions(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = command.Run(context.Background()) })
+	runErr := command.Run(context.Background())
+	stdout := depsStdout.String()
 	if runErr != nil {
 		t.Fatal(runErr)
 	}
@@ -82,7 +83,7 @@ func TestSigningKeychainInstallCommandValidatesBeforeExecution(t *testing.T) {
 	previous := installSigningKeychainFn
 	t.Cleanup(func() { installSigningKeychainFn = previous })
 	called := false
-	installSigningKeychainFn = func(context.Context, signingKeychainInstallOptions) (*asc.SigningKeychainInstallResult, error) {
+	installSigningKeychainFn = func(context.Context, *shared.Deps, signingKeychainInstallOptions) (*asc.SigningKeychainInstallResult, error) {
 		called = true
 		return nil, nil
 	}
@@ -103,7 +104,8 @@ func TestSigningKeychainInstallCommandValidatesBeforeExecution(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			called = false
-			command := SigningKeychainInstallCommand()
+			d, _, stderr := newSigningTestDeps()
+			command := newSigningKeychainInstallCommand(d)
 			command.FlagSet.SetOutput(&strings.Builder{})
 			if err := command.Parse(test.args); err != nil {
 				t.Fatal(err)
@@ -111,6 +113,9 @@ func TestSigningKeychainInstallCommandValidatesBeforeExecution(t *testing.T) {
 			err := command.Run(context.Background())
 			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 				t.Fatalf("error = %v, want %q", err, test.wantErr)
+			}
+			if line := stderr.String(); !strings.HasPrefix(line, "Error: ") || !strings.Contains(line, test.wantErr) {
+				t.Fatalf("deps stderr = %q, want the %q usage error", line, test.wantErr)
 			}
 			if !errors.Is(err, flag.ErrHelp) || shared.ClassifyUsageError(err) == "" {
 				t.Fatalf("error = %v, want classified usage error", err)
@@ -516,10 +521,12 @@ func TestExecuteSigningKeychainInstallAppleIntermediates(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var events []string
+			var stderrBuffer strings.Builder
 			deps := signingKeychainInstallDeps{
 				GOOS:              "darwin",
 				SecurityAvailable: true,
 				Now:               func() time.Time { return fixture.now },
+				Stderr:            &stderrBuffer,
 				AcquireLock:       acquireSigningKeychainTestLock,
 				CreateKeychain: func(context.Context, string, []byte) (bool, error) {
 					events = append(events, "create")
@@ -542,15 +549,12 @@ func TestExecuteSigningKeychainInstallAppleIntermediates(t *testing.T) {
 					return test.importErr
 				},
 			}
-			var result *asc.SigningKeychainInstallResult
-			var err error
-			_, stderr := captureOutput(t, func() {
-				result, err = executeSigningKeychainInstallWith(context.Background(), signingKeychainInstallOptions{
-					IdentityPath: identityPath, IdentityPasswordPath: identityPasswordPath,
-					KeychainPath: filepath.Join(t.TempDir(), "release.keychain-db"), KeychainPasswordPath: keychainPasswordPath,
-					AddToSearchList: true, AddAppleIntermediates: test.flag,
-				}, deps)
-			})
+			result, err := executeSigningKeychainInstallWith(context.Background(), signingKeychainInstallOptions{
+				IdentityPath: identityPath, IdentityPasswordPath: identityPasswordPath,
+				KeychainPath: filepath.Join(t.TempDir(), "release.keychain-db"), KeychainPasswordPath: keychainPasswordPath,
+				AddToSearchList: true, AddAppleIntermediates: test.flag,
+			}, deps)
+			stderr := stderrBuffer.String()
 			if test.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 					t.Fatalf("error = %v, want %q", err, test.wantErr)

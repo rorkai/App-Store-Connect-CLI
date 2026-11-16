@@ -41,8 +41,7 @@ func TestBuildsDSYMExistingFileMalformedSignedURLIsRedacted(t *testing.T) {
 func TestBuildsDSYMExactVersionDownloadsNewestMatchingBuild(t *testing.T) {
 	setupAuth(t)
 	outputDir := filepath.Join(t.TempDir(), "dsyms")
-	restoreTransport(t)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/v1/builds" && req.URL.Query().Get("include") == "preReleaseVersion":
 			body := `{"data":[
@@ -65,7 +64,7 @@ func TestBuildsDSYMExactVersionDownloadsNewestMatchingBuild(t *testing.T) {
 		}
 	})
 
-	stdout, stderr := runDSYM(t, outputDir, "builds", "dsyms", "--app", "123456789", "--version", "1.2.3", "--output", "json")
+	stdout, stderr := runDSYM(t, transport, outputDir, "builds", "dsyms", "--app", "123456789", "--version", "1.2.3", "--output", "json")
 	if strings.Contains(stderr, "--build-id, --latest, or --build-number is required") {
 		t.Fatalf("exact version was rejected: %s", stderr)
 	}
@@ -127,10 +126,9 @@ func TestBuildsDSYMVersionLiveDownloadsAttachedBuild(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			outputDir := filepath.Join(t.TempDir(), "dsyms")
-			restoreTransport(t)
 
 			var versionQueries []string
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch {
 				case req.URL.Path == "/v1/apps/123456789/appStoreVersions":
 					query := req.URL.Query()
@@ -177,7 +175,7 @@ func TestBuildsDSYMVersionLiveDownloadsAttachedBuild(t *testing.T) {
 				}
 			})
 
-			stdout, stderr := runDSYM(t, outputDir, "builds", "dsyms", "--app", "123456789", "--version", "live", "--output", "json")
+			stdout, stderr := runDSYM(t, transport, outputDir, "builds", "dsyms", "--app", "123456789", "--version", "live", "--output", "json")
 			if got, want := strings.Join(versionQueries, ","), "READY_FOR_SALE,PREORDER_READY_FOR_SALE|,|READY_FOR_DISTRIBUTION"; got != want {
 				t.Fatalf("live version queries = %q, want %q", got, want)
 			}
@@ -219,8 +217,7 @@ func TestBuildsDSYMVersionLiveSkipsVersionsThatAreNoLongerLive(t *testing.T) {
 func TestBuildsDSYMMinVersionSelectsTheRange(t *testing.T) {
 	setupAuth(t)
 	outputDir := filepath.Join(t.TempDir(), "dsyms")
-	restoreTransport(t)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/v1/builds" && req.URL.Query().Get("include") == "preReleaseVersion":
 			body := `{"data":[
@@ -245,7 +242,7 @@ func TestBuildsDSYMMinVersionSelectsTheRange(t *testing.T) {
 		}
 	})
 
-	stdout, _ := runDSYM(t, outputDir, "builds", "dsyms", "--app", "123456789", "--min-version", "1.2", "--output", "json")
+	stdout, _ := runDSYM(t, transport, outputDir, "builds", "dsyms", "--app", "123456789", "--min-version", "1.2", "--output", "json")
 	if strings.Contains(stdout, "build-11") {
 		t.Fatalf("included build below min version: %s", stdout)
 	}
@@ -257,9 +254,8 @@ func TestBuildsDSYMMinVersionSelectsTheRange(t *testing.T) {
 func TestBuildsDSYMWaitSucceedsAfterPolling(t *testing.T) {
 	setupAuth(t)
 	outputDir := filepath.Join(t.TempDir(), "dsyms")
-	restoreTransport(t)
 	bundleCalls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/v1/builds/build-1" && req.URL.RawQuery == "":
 			return dsymJSON(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"7"}}}`), nil
@@ -279,7 +275,7 @@ func TestBuildsDSYMWaitSucceedsAfterPolling(t *testing.T) {
 		}
 	})
 
-	stdout, stderr := runDSYM(t, outputDir, "builds", "dsyms", "--build-id", "build-1", "--wait", "--poll-interval", "1ms", "--timeout", "2s", "--output", "json")
+	stdout, stderr := runDSYM(t, transport, outputDir, "builds", "dsyms", "--build-id", "build-1", "--wait", "--poll-interval", "1ms", "--timeout", "2s", "--output", "json")
 	if bundleCalls < 2 {
 		t.Fatalf("bundle calls = %d, want at least 2", bundleCalls)
 	}
@@ -337,10 +333,10 @@ func TestBuildsDSYMRejectsConflictingSelectorsBeforeAuth(t *testing.T) {
 	}
 }
 
-func runDSYM(t *testing.T, outputDir string, args ...string) (string, string) {
+func runDSYM(t *testing.T, rt http.RoundTripper, outputDir string, args ...string) (string, string) {
 	t.Helper()
 	args = append(args, "--output-dir", outputDir)
-	stdout, stderr, err := runDSYMErr(t, args...)
+	stdout, stderr, err := runRootWithHTTPTransport(t, stubClient(t, rt), rt, args...)
 	if err != nil {
 		t.Fatalf("run error: %v\nstderr: %s", err, stderr)
 	}
@@ -383,9 +379,8 @@ func dsymJSON(body string) *http.Response {
 func TestBuildsDSYMAllKeepsSameNamedPlatformArtifactsSeparate(t *testing.T) {
 	setupAuth(t)
 	outputDir := filepath.Join(t.TempDir(), "dsyms")
-	restoreTransport(t)
 	onlyMac := false
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/v1/builds":
 			if onlyMac {
@@ -409,7 +404,7 @@ func TestBuildsDSYMAllKeepsSameNamedPlatformArtifactsSeparate(t *testing.T) {
 			return nil, nil
 		}
 	})
-	stdout, _ := runDSYM(t, outputDir, "builds", "dsyms", "--app", "123456789", "--all", "--output", "json")
+	stdout, _ := runDSYM(t, transport, outputDir, "builds", "dsyms", "--app", "123456789", "--all", "--output", "json")
 	var result asc.DSYMDownloadResult
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatal(err)
@@ -437,7 +432,7 @@ func TestBuildsDSYMAllKeepsSameNamedPlatformArtifactsSeparate(t *testing.T) {
 	}
 	// Selecting only one platform later must keep the same build-specific path.
 	onlyMac = true
-	stdout, _ = runDSYM(t, outputDir, "builds", "dsyms", "--app", "123456789", "--all", "--platform", "MAC_OS", "--output", "json")
+	stdout, _ = runDSYM(t, transport, outputDir, "builds", "dsyms", "--app", "123456789", "--all", "--platform", "MAC_OS", "--output", "json")
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatal(err)
 	}

@@ -18,10 +18,10 @@ import (
 
 const webReviewDraftBodyMaxBytes int64 = 1 << 20
 
-// WebReviewDraftsCommand groups the unsent Resolution Center
+// newWebReviewDraftsCommand groups the unsent Resolution Center
 // draft operations. The send path remains exclusively on web review reply.
-func WebReviewDraftsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review drafts", flag.ExitOnError)
+func newWebReviewDraftsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review drafts", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "drafts",
@@ -41,11 +41,11 @@ Subcommands:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebReviewDraftCreateCommand(),
-			WebReviewDraftUpdateCommand(),
-			WebReviewDraftDeleteCommand(),
+			newWebReviewDraftCreateCommand(d),
+			newWebReviewDraftUpdateCommand(d),
+			newWebReviewDraftDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -53,16 +53,16 @@ Subcommands:
 	}
 }
 
-// WebReviewDraftCreateCommand creates one unsent Resolution Center draft.
-func WebReviewDraftCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review drafts create", flag.ExitOnError)
+// newWebReviewDraftCreateCommand creates one unsent Resolution Center draft.
+func newWebReviewDraftCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review drafts create", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	message := fs.String("message", "", "Draft message body")
 	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file")
 	confirm := fs.Bool("confirm", false, "Confirm creating the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -77,23 +77,23 @@ not send the draft or support attachments.
 Example:
   asc web review drafts create --app "APP_ID" --thread-id "THREAD_ID" --message "We updated the demo account." --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewDraftOutput(output); err != nil {
+			if err := validateWebReviewDraftOutput(d, output); err != nil {
 				return err
 			}
-			app, thread, err := validateWebReviewDraftIDs(*appID, *threadID)
+			app, thread, err := validateWebReviewDraftIDs(d, *appID, *threadID)
 			if err != nil {
 				return err
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			body, err := readWebReviewDraftBody(fs, *message, *bodyFile)
+			body, err := readWebReviewDraftBody(d, fs, *message, *bodyFile)
 			if err != nil {
 				return err
 			}
-			return executeWebReviewDraftMutation(ctx, authFlags, output, webReviewDraftMutation{
+			return executeWebReviewDraftMutation(ctx, d, authFlags, output, webReviewDraftMutation{
 				Action:   "created",
 				AppID:    app,
 				ThreadID: thread,
@@ -103,9 +103,9 @@ Example:
 	}
 }
 
-// WebReviewDraftUpdateCommand updates one existing unsent Resolution Center draft.
-func WebReviewDraftUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review drafts update", flag.ExitOnError)
+// newWebReviewDraftUpdateCommand updates one existing unsent Resolution Center draft.
+func newWebReviewDraftUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review drafts update", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	draftID := fs.String("draft-id", "", "Resolution Center draft message ID")
@@ -113,7 +113,7 @@ func WebReviewDraftUpdateCommand() *ffcli.Command {
 	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file")
 	confirm := fs.Bool("confirm", false, "Confirm updating the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -129,27 +129,27 @@ not send the draft or support attachments.
 Example:
   asc web review drafts update --app "APP_ID" --thread-id "THREAD_ID" --draft-id "DRAFT_ID" --message "The updated demo account is ready." --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewDraftOutput(output); err != nil {
+			if err := validateWebReviewDraftOutput(d, output); err != nil {
 				return err
 			}
-			app, thread, err := validateWebReviewDraftIDs(*appID, *threadID)
+			app, thread, err := validateWebReviewDraftIDs(d, *appID, *threadID)
 			if err != nil {
 				return err
 			}
 			resolvedDraftID := strings.TrimSpace(*draftID)
 			if resolvedDraftID == "" {
-				return shared.UsageError("--draft-id is required")
+				return d.UsageError("--draft-id is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			body, err := readWebReviewDraftBody(fs, *message, *bodyFile)
+			body, err := readWebReviewDraftBody(d, fs, *message, *bodyFile)
 			if err != nil {
 				return err
 			}
-			return executeWebReviewDraftMutation(ctx, authFlags, output, webReviewDraftMutation{
+			return executeWebReviewDraftMutation(ctx, d, authFlags, output, webReviewDraftMutation{
 				Action:   "updated",
 				AppID:    app,
 				ThreadID: thread,
@@ -160,15 +160,15 @@ Example:
 	}
 }
 
-// WebReviewDraftDeleteCommand deletes one existing unsent Resolution Center draft.
-func WebReviewDraftDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web review drafts delete", flag.ExitOnError)
+// newWebReviewDraftDeleteCommand deletes one existing unsent Resolution Center draft.
+func newWebReviewDraftDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review drafts delete", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	draftID := fs.String("draft-id", "", "Resolution Center draft message ID")
 	confirm := fs.Bool("confirm", false, "Confirm deleting the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -181,23 +181,23 @@ does not support attachments.
 Example:
   asc web review drafts delete --app "APP_ID" --thread-id "THREAD_ID" --draft-id "DRAFT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateWebReviewDraftOutput(output); err != nil {
+			if err := validateWebReviewDraftOutput(d, output); err != nil {
 				return err
 			}
-			app, thread, err := validateWebReviewDraftIDs(*appID, *threadID)
+			app, thread, err := validateWebReviewDraftIDs(d, *appID, *threadID)
 			if err != nil {
 				return err
 			}
 			resolvedDraftID := strings.TrimSpace(*draftID)
 			if resolvedDraftID == "" {
-				return shared.UsageError("--draft-id is required")
+				return d.UsageError("--draft-id is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			return executeWebReviewDraftMutation(ctx, authFlags, output, webReviewDraftMutation{
+			return executeWebReviewDraftMutation(ctx, d, authFlags, output, webReviewDraftMutation{
 				Action:   "deleted",
 				AppID:    app,
 				ThreadID: thread,
@@ -215,51 +215,51 @@ type webReviewDraftMutation struct {
 	Body     string
 }
 
-func validateWebReviewDraftOutput(output shared.OutputFlags) error {
+func validateWebReviewDraftOutput(d *shared.Deps, output shared.OutputFlags) error {
 	if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	return nil
 }
 
-func validateWebReviewDraftIDs(appID, threadID string) (string, string, error) {
+func validateWebReviewDraftIDs(d *shared.Deps, appID, threadID string) (string, string, error) {
 	app := strings.TrimSpace(shared.ResolveAppID(appID))
 	if app == "" {
-		return "", "", shared.UsageError("--app is required (or set ASC_APP_ID)")
+		return "", "", d.UsageError("--app is required (or set ASC_APP_ID)")
 	}
 	thread := strings.TrimSpace(threadID)
 	if thread == "" {
-		return "", "", shared.UsageError("--thread-id is required")
+		return "", "", d.UsageError("--thread-id is required")
 	}
 	return app, thread, nil
 }
 
-func readWebReviewDraftBody(fs *flag.FlagSet, message, bodyFile string) (string, error) {
+func readWebReviewDraftBody(d *shared.Deps, fs *flag.FlagSet, message, bodyFile string) (string, error) {
 	messageSet := webReviewDraftFlagProvided(fs, "message")
 	bodyFileSet := webReviewDraftFlagProvided(fs, "body-file")
 	switch {
 	case messageSet && bodyFileSet:
-		return "", shared.UsageError("--message and --body-file cannot be combined")
+		return "", d.UsageError("--message and --body-file cannot be combined")
 	case !messageSet && !bodyFileSet:
-		return "", shared.UsageError("exactly one of --message or --body-file is required")
+		return "", d.UsageError("exactly one of --message or --body-file is required")
 	case messageSet:
 		if !utf8.ValidString(message) {
-			return "", shared.UsageError("--message must be valid UTF-8")
+			return "", d.UsageError("--message must be valid UTF-8")
 		}
 		if strings.TrimSpace(message) == "" {
-			return "", shared.UsageError("--message must not be empty")
+			return "", d.UsageError("--message must not be empty")
 		}
 		return message, nil
 	}
 
 	path := strings.TrimSpace(bodyFile)
 	if path == "" {
-		return "", shared.UsageError("--body-file must not be empty")
+		return "", d.UsageError("--body-file must not be empty")
 	}
 	if path == "-" {
-		return "", shared.UsageError("--body-file does not support stdin")
+		return "", d.UsageError("--body-file does not support stdin")
 	}
-	file, err := rootfs.OpenFile(path)
+	file, err := rootfs.OpenFile(d.OSPath(path))
 	if err != nil {
 		return "", fmt.Errorf("read --body-file: %w", err)
 	}
@@ -272,11 +272,11 @@ func readWebReviewDraftBody(fs *flag.FlagSet, message, bodyFile string) (string,
 		return "", fmt.Errorf("--body-file exceeds the %d-byte size limit", webReviewDraftBodyMaxBytes)
 	}
 	if !utf8.Valid(body) {
-		return "", shared.UsageError("--body-file must contain valid UTF-8")
+		return "", d.UsageError("--body-file must contain valid UTF-8")
 	}
 	messageBody := string(body)
 	if strings.TrimSpace(messageBody) == "" {
-		return "", shared.UsageError("--body-file must contain a non-empty message body")
+		return "", d.UsageError("--body-file must contain a non-empty message body")
 	}
 	return messageBody, nil
 }
@@ -291,9 +291,9 @@ func webReviewDraftFlagProvided(fs *flag.FlagSet, name string) bool {
 	return provided
 }
 
-func executeWebReviewDraftMutation(ctx context.Context, authFlags webSessionFlags, output shared.OutputFlags, mutation webReviewDraftMutation) error {
+func executeWebReviewDraftMutation(ctx context.Context, d *shared.Deps, authFlags webSessionFlags, output shared.OutputFlags, mutation webReviewDraftMutation) error {
 	operation := webReviewDraftOperation(mutation.Action)
-	session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+	session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 	defer cancel()
 	if err != nil {
 		return withWebAuthHint(err, "web review drafts "+operation)
@@ -307,19 +307,19 @@ func executeWebReviewDraftMutation(ctx context.Context, authFlags webSessionFlag
 	var draft *webcore.ResolutionCenterDraftMessage
 	switch mutation.Action {
 	case "created":
-		err = withWebSpinner("Creating Resolution Center draft", func() error {
+		err = withWebSpinnerWith(d, "Creating Resolution Center draft", func() error {
 			var err error
 			draft, err = client.CreateResolutionCenterDraftMessage(requestCtx, mutation.ThreadID, mutation.Body)
 			return err
 		})
 	case "updated":
-		err = withWebSpinner("Updating Resolution Center draft", func() error {
+		err = withWebSpinnerWith(d, "Updating Resolution Center draft", func() error {
 			var err error
 			draft, err = client.UpdateResolutionCenterDraftMessage(requestCtx, mutation.DraftID, mutation.Body)
 			return err
 		})
 	case "deleted":
-		err = withWebSpinner("Deleting Resolution Center draft", func() error {
+		err = withWebSpinnerWith(d, "Deleting Resolution Center draft", func() error {
 			return client.DeleteResolutionCenterDraftMessage(requestCtx, mutation.DraftID)
 		})
 	default:
@@ -350,7 +350,7 @@ func executeWebReviewDraftMutation(ctx context.Context, authFlags webSessionFlag
 		Action:   mutation.Action,
 		Verified: verified,
 	}
-	if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+	if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 		return fmt.Errorf("web review drafts %s was verified, but receipt output failed; do not retry automatically: %w", operation, err)
 	}
 	return nil

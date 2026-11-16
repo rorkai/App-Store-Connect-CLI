@@ -26,7 +26,7 @@ func TestCheckpointRootPreservesOperatorPathWhitespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, gotName, err := checkpointRoot(tt.path)
+			_, gotName, err := checkpointRoot(releaseTestDeps(), tt.path)
 			if err != nil {
 				t.Fatalf("checkpointRoot(%q) error = %v", tt.path, err)
 			}
@@ -55,11 +55,35 @@ func TestSaveAndLoadCheckpointPreserveOperatorPathWhitespace(t *testing.T) {
 		t.Fatalf("Lstat(%q) error = %v", checkpointPath, err)
 	}
 
-	loaded, err := loadCheckpoint(checkpointPath)
+	loaded, err := loadCheckpoint(releaseTestDeps(), checkpointPath)
 	if err != nil {
 		t.Fatalf("loadCheckpoint(%q) error = %v", checkpointPath, err)
 	}
 	if loaded == nil || loaded.AppID != checkpoint.AppID {
 		t.Fatalf("loadCheckpoint(%q) = %#v, want app %q", checkpointPath, loaded, checkpoint.AppID)
+	}
+}
+
+func TestCheckpointRootResolvesAgainstDepsWorkingDirectory(t *testing.T) {
+	processDir, depsDir := t.TempDir(), t.TempDir()
+	t.Chdir(processDir)
+	d := releaseTestDeps()
+	d.Getwd = func() (string, error) { return depsDir, nil }
+
+	root, name, err := checkpointRoot(d, filepath.Join("checkpoints", "run.json"))
+	if err != nil {
+		t.Fatalf("checkpointRoot() error = %v", err)
+	}
+	defer root.Close()
+	wantRoot, err := filepath.EvalSymlinks(depsDir)
+	if err != nil {
+		t.Fatalf("resolve deps directory: %v", err)
+	}
+	gotRoot, err := filepath.EvalSymlinks(root.Path())
+	if err != nil {
+		t.Fatalf("resolve root: %v", err)
+	}
+	if gotRoot != wantRoot || name != filepath.Join("checkpoints", "run.json") {
+		t.Fatalf("checkpointRoot() = (%q, %q), want (%q, %q)", gotRoot, name, wantRoot, filepath.Join("checkpoints", "run.json"))
 	}
 }

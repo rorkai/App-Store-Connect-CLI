@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -140,16 +139,7 @@ func TestWebReviewIAPsAttachValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected flag.ErrHelp, got %v", runErr)
@@ -267,7 +257,7 @@ func TestWebReviewIAPsAttachInvalidValueExitCodes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantStderr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantStderr)
 		})
 	}
 }

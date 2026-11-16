@@ -52,7 +52,7 @@ func TestWebReviewCommandsRejectInvalidFlagsWithUsageExit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assertUsageExit(t, tt.args, tt.wantErr)
+			assertUsageExitWithDeps(t, nil, tt.args, tt.wantErr)
 		})
 	}
 }

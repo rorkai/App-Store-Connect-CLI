@@ -30,7 +30,8 @@ func TestNotifySlackRefusedInReadOnlyModeWithoutLeakingWebhookPath(t *testing.T)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 	if err := root.Parse([]string{"--message", "Hello, Slack!"}); err != nil {
 		t.Fatalf("parse error: %v", err)

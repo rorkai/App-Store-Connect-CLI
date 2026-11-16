@@ -27,7 +27,7 @@ Examples:
   asc docs init --path ./ASC.md
   asc docs init --force --link=false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newListCommand(d),
 			newShowCommand(d),
