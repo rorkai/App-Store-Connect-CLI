@@ -11,7 +11,7 @@ func androidToIosAppMappingDetailsRows(resp *AndroidToIosAppMappingDetailsRespon
 		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.PackageName,
-			formatAndroidToIosFingerprints(item.Attributes.AppSigningKeyPublicCertificateSha256Fingerprints),
+			formatAndroidToIosFingerprints(item.Attributes.AppSigningKeyPublicCertificateSHA256Fingerprints),
 		})
 	}
 	return headers, rows

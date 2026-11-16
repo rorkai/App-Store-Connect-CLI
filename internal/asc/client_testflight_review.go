@@ -68,7 +68,7 @@ func (c *Client) CreateBetaRecruitmentCriteria(ctx context.Context, groupID stri
 		Data: BetaRecruitmentCriteriaCreateData{
 			Type: ResourceTypeBetaRecruitmentCriteria,
 			Attributes: BetaRecruitmentCriteriaCreateAttributes{
-				DeviceFamilyOsVersionFilters: filters,
+				DeviceFamilyOSVersionFilters: filters,
 			},
 			Relationships: &BetaRecruitmentCriteriaRelationships{
 				BetaGroup: &Relationship{
@@ -103,7 +103,7 @@ func (c *Client) UpdateBetaRecruitmentCriteria(ctx context.Context, criteriaID s
 			Type: ResourceTypeBetaRecruitmentCriteria,
 			ID:   criteriaID,
 			Attributes: &BetaRecruitmentCriteriaUpdateAttributes{
-				DeviceFamilyOsVersionFilters: filters,
+				DeviceFamilyOSVersionFilters: filters,
 			},
 		},
 	}

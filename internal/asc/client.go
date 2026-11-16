@@ -119,7 +119,7 @@ type BetaAppLocalizationAttributes struct {
 	FeedbackEmail     string `json:"feedbackEmail,omitempty"`
 	MarketingURL      string `json:"marketingUrl,omitempty"`
 	PrivacyPolicyURL  string `json:"privacyPolicyUrl,omitempty"`
-	TvOsPrivacyPolicy string `json:"tvOsPrivacyPolicy,omitempty"`
+	TvOSPrivacyPolicy string `json:"tvOsPrivacyPolicy,omitempty"`
 	Description       string `json:"description,omitempty"`
 	Locale            string `json:"locale,omitempty"`
 
@@ -468,15 +468,6 @@ type BetaAppLocalizationCreateData struct {
 	Type          ResourceType                      `json:"type"`
 	Attributes    BetaAppLocalizationAttributes     `json:"attributes"`
 	Relationships *BetaAppLocalizationRelationships `json:"relationships"`
-}
-
-// BetaAppLocalizationUpdateAttributes describes attributes for updating beta app localizations.
-type BetaAppLocalizationUpdateAttributes struct {
-	FeedbackEmail     *string `json:"feedbackEmail,omitempty"`
-	MarketingURL      *string `json:"marketingUrl,omitempty"`
-	PrivacyPolicyURL  *string `json:"privacyPolicyUrl,omitempty"`
-	TvOsPrivacyPolicy *string `json:"tvOsPrivacyPolicy,omitempty"`
-	Description       *string `json:"description,omitempty"`
 }
 
 // BetaBuildLocalizationCreateData is the data portion of a beta build localization create request.

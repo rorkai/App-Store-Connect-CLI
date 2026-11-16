@@ -23,6 +23,15 @@ type BetaAppLocalizationRelationships struct {
 // BetaAppLocalizationResponse is the BetaAppLocalizationResponse schema.
 type BetaAppLocalizationResponse = SingleResponse[BetaAppLocalizationAttributes]
 
+// BetaAppLocalizationUpdateAttributes is the data.attributes object of the BetaAppLocalizationUpdateRequest schema.
+type BetaAppLocalizationUpdateAttributes struct {
+	FeedbackEmail     *string `json:"feedbackEmail,omitempty"`
+	MarketingURL      *string `json:"marketingUrl,omitempty"`
+	PrivacyPolicyURL  *string `json:"privacyPolicyUrl,omitempty"`
+	TvOSPrivacyPolicy *string `json:"tvOsPrivacyPolicy,omitempty"`
+	Description       *string `json:"description,omitempty"`
+}
+
 // BetaAppLocalizationUpdateData is the data object of the BetaAppLocalizationUpdateRequest schema.
 type BetaAppLocalizationUpdateData struct {
 	Type       ResourceType                         `json:"type"`

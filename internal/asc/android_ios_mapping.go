@@ -2,18 +2,6 @@ package asc
 
 import "encoding/json"
 
-// AndroidToIosAppMappingDetailAttributes describes an android-to-iOS mapping resource.
-type AndroidToIosAppMappingDetailAttributes struct {
-	PackageName                                      string   `json:"packageName,omitempty"`
-	AppSigningKeyPublicCertificateSha256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints,omitempty"`
-}
-
-// AndroidToIosAppMappingDetailCreateAttributes describes attributes for creating a mapping.
-type AndroidToIosAppMappingDetailCreateAttributes struct {
-	PackageName                                      string   `json:"packageName"`
-	AppSigningKeyPublicCertificateSha256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints"`
-}
-
 // NullableStringSlice represents a nullable string array for update requests.
 type NullableStringSlice struct {
 	Value []string
@@ -44,12 +32,12 @@ func (n *NullableStringSlice) UnmarshalJSON(data []byte) error {
 // AndroidToIosAppMappingDetailUpdateAttributes describes attributes for updating a mapping.
 type AndroidToIosAppMappingDetailUpdateAttributes struct {
 	PackageName                                      *NullableString      `json:"packageName,omitempty"`
-	AppSigningKeyPublicCertificateSha256Fingerprints *NullableStringSlice `json:"appSigningKeyPublicCertificateSha256Fingerprints,omitempty"`
+	AppSigningKeyPublicCertificateSHA256Fingerprints *NullableStringSlice `json:"appSigningKeyPublicCertificateSha256Fingerprints,omitempty"`
 }
 
 // AndroidToIosAppMappingDetailCreateRelationships describes relationships for creating a mapping.
 type AndroidToIosAppMappingDetailCreateRelationships struct {
-	App *Relationship `json:"app"`
+	App Relationship `json:"app"`
 }
 
 // AndroidToIosAppMappingDetailsResponse is the response from the mapping list endpoint.
