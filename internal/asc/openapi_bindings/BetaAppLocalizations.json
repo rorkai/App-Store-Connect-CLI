@@ -5,6 +5,7 @@
     "BetaAppLocalizationCreateRequest",
     "BetaAppLocalizationRelationships",
     "BetaAppLocalizationResponse",
+    "BetaAppLocalizationUpdateAttributes",
     "BetaAppLocalizationUpdateData",
     "BetaAppLocalizationUpdateRequest",
     "BetaAppLocalizationsResponse"

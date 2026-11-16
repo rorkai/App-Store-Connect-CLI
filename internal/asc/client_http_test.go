@@ -8564,14 +8564,14 @@ func TestCreateBetaRecruitmentCriteria_SendsRequest(t *testing.T) {
 		if payload.Data.Relationships.BetaGroup.Data.ID != "group-1" {
 			t.Fatalf("expected group id group-1, got %q", payload.Data.Relationships.BetaGroup.Data.ID)
 		}
-		if payload.Data.Attributes.DeviceFamilyOsVersionFilters == nil || len(payload.Data.Attributes.DeviceFamilyOsVersionFilters) != 2 {
+		if payload.Data.Attributes.DeviceFamilyOSVersionFilters == nil || len(payload.Data.Attributes.DeviceFamilyOSVersionFilters) != 2 {
 			t.Fatalf("expected 2 device family filters")
 		}
-		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily != DeviceFamilyIPhone {
-			t.Fatalf("expected device family IPHONE, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily)
+		if payload.Data.Attributes.DeviceFamilyOSVersionFilters[0].DeviceFamily != DeviceFamilyIPhone {
+			t.Fatalf("expected device family IPHONE, got %q", payload.Data.Attributes.DeviceFamilyOSVersionFilters[0].DeviceFamily)
 		}
-		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].MinimumOsInclusive != "26" {
-			t.Fatalf("expected min os 26, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].MinimumOsInclusive)
+		if payload.Data.Attributes.DeviceFamilyOSVersionFilters[0].MinimumOsInclusive != "26" {
+			t.Fatalf("expected min os 26, got %q", payload.Data.Attributes.DeviceFamilyOSVersionFilters[0].MinimumOsInclusive)
 		}
 		assertAuthorized(t, req)
 	}, response)
@@ -8603,11 +8603,11 @@ func TestUpdateBetaRecruitmentCriteria_SendsRequest(t *testing.T) {
 		if payload.Data.ID != "criteria-1" {
 			t.Fatalf("expected id criteria-1, got %q", payload.Data.ID)
 		}
-		if payload.Data.Attributes == nil || len(payload.Data.Attributes.DeviceFamilyOsVersionFilters) != 1 {
+		if payload.Data.Attributes == nil || len(payload.Data.Attributes.DeviceFamilyOSVersionFilters) != 1 {
 			t.Fatalf("expected 1 device family filter")
 		}
-		if payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily != DeviceFamilyMac {
-			t.Fatalf("expected device family MAC, got %q", payload.Data.Attributes.DeviceFamilyOsVersionFilters[0].DeviceFamily)
+		if payload.Data.Attributes.DeviceFamilyOSVersionFilters[0].DeviceFamily != DeviceFamilyMac {
+			t.Fatalf("expected device family MAC, got %q", payload.Data.Attributes.DeviceFamilyOSVersionFilters[0].DeviceFamily)
 		}
 		assertAuthorized(t, req)
 	}, response)
@@ -9232,10 +9232,10 @@ func TestCreateAndroidToIosAppMappingDetail(t *testing.T) {
 		if payload.Data.Attributes.PackageName != "com.example.android" {
 			t.Fatalf("unexpected packageName: %s", payload.Data.Attributes.PackageName)
 		}
-		if len(payload.Data.Attributes.AppSigningKeyPublicCertificateSha256Fingerprints) != 2 {
-			t.Fatalf("expected 2 fingerprints, got %d", len(payload.Data.Attributes.AppSigningKeyPublicCertificateSha256Fingerprints))
+		if len(payload.Data.Attributes.AppSigningKeyPublicCertificateSHA256Fingerprints) != 2 {
+			t.Fatalf("expected 2 fingerprints, got %d", len(payload.Data.Attributes.AppSigningKeyPublicCertificateSHA256Fingerprints))
 		}
-		if payload.Data.Relationships.App == nil || payload.Data.Relationships.App.Data.ID != "app-1" {
+		if payload.Data.Relationships.App.Data.ID != "app-1" {
 			t.Fatalf("unexpected app relationship: %+v", payload.Data.Relationships.App)
 		}
 		assertAuthorized(t, req)
@@ -9243,7 +9243,7 @@ func TestCreateAndroidToIosAppMappingDetail(t *testing.T) {
 
 	_, err := client.CreateAndroidToIosAppMappingDetail(context.Background(), "app-1", AndroidToIosAppMappingDetailCreateAttributes{
 		PackageName: "com.example.android",
-		AppSigningKeyPublicCertificateSha256Fingerprints: []string{"sha1", "sha2"},
+		AppSigningKeyPublicCertificateSHA256Fingerprints: []string{"sha1", "sha2"},
 	})
 	if err != nil {
 		t.Fatalf("CreateAndroidToIosAppMappingDetail() error: %v", err)

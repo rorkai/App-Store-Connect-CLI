@@ -88,6 +88,21 @@ func (c *Client) GetGameCenterLeaderboardSetMembersV2(ctx context.Context, setID
 	})
 }
 
+// UpdateGameCenterLeaderboardSetMembersV2 sends PATCH /v2/gameCenterLeaderboardSets/{id}/relationships/gameCenterLeaderboards (gameCenterLeaderboardSetsV2_gameCenterLeaderboards_replaceToManyRelationship).
+func (c *Client) UpdateGameCenterLeaderboardSetMembersV2(ctx context.Context, setID string, leaderboardIDs []string) error {
+	leaderboardIDs = normalizeList(leaderboardIDs)
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(leaderboardIDs)),
+	}
+	for _, leaderboardID := range leaderboardIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeGameCenterLeaderboards,
+			ID:   leaderboardID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v2/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", strings.TrimSpace(setID)), payload)
+}
+
 // GetGameCenterLeaderboardSetV2 sends GET /v2/gameCenterLeaderboardSets/{id} (gameCenterLeaderboardSetsV2_getInstance).
 func (c *Client) GetGameCenterLeaderboardSetV2(ctx context.Context, setID string) (*GameCenterLeaderboardSetResponse, error) {
 	return getJSON[GameCenterLeaderboardSetResponse](ctx, c, readRequest{
@@ -168,6 +183,21 @@ func (c *Client) GetGameCenterLeaderboardSetMembers(ctx context.Context, setID s
 		Next:        query.nextURL,
 		NextContext: "game-center-leaderboard-set-members",
 	})
+}
+
+// UpdateGameCenterLeaderboardSetMembers sends PATCH /v1/gameCenterLeaderboardSets/{id}/relationships/gameCenterLeaderboards (gameCenterLeaderboardSets_gameCenterLeaderboards_replaceToManyRelationship).
+func (c *Client) UpdateGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
+	leaderboardIDs = normalizeList(leaderboardIDs)
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(leaderboardIDs)),
+	}
+	for _, leaderboardID := range leaderboardIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeGameCenterLeaderboards,
+			ID:   leaderboardID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", strings.TrimSpace(setID)), payload)
 }
 
 // GetGameCenterLeaderboardSet sends GET /v1/gameCenterLeaderboardSets/{id} (gameCenterLeaderboardSets_getInstance).

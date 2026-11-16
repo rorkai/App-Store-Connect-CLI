@@ -58,6 +58,22 @@ func (c *Client) GetMerchantIDCertificates(ctx context.Context, merchantID strin
 	})
 }
 
+// GetMerchantIDCertificatesRelationships sends GET /v1/merchantIds/{id}/relationships/certificates (merchantIds_certificates_getToManyRelationship).
+func (c *Client) GetMerchantIDCertificatesRelationships(ctx context.Context, merchantID string, opts ...LinkagesOption) (*MerchantIDCertificatesLinkagesResponse, error) {
+	query := applyOptions(opts)
+	merchantID = strings.TrimSpace(merchantID)
+	if query.nextURL == "" && merchantID == "" {
+		return nil, fmt.Errorf("merchant ID is required")
+	}
+	return getJSON[MerchantIDCertificatesLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/merchantIds/%s/relationships/certificates", merchantID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "merchantIdCertificatesRelationships",
+		ParseErr:    "failed to parse certificates relationship response",
+	})
+}
+
 // CreateMerchantID sends POST /v1/merchantIds (merchantIds_createInstance).
 func (c *Client) CreateMerchantID(ctx context.Context, attrs MerchantIDCreateAttributes) (*MerchantIDResponse, error) {
 	payload := MerchantIDCreateRequest{

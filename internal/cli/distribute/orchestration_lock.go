@@ -7,6 +7,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const (
@@ -23,8 +25,8 @@ var distributionRunLockAfterOpenForTest func()
 // lock inode remains in the protected run directory permanently: unlinking it
 // would allow a second process to lock a replacement inode while the first
 // process still owns the original lock.
-func acquireDistributionRunLock(ctx context.Context, stateDir, runID string) (func() error, error) {
-	_, release, err := acquireDistributionRunLockLease(ctx, stateDir, runID)
+func acquireDistributionRunLock(ctx context.Context, d *shared.Deps, stateDir, runID string) (func() error, error) {
+	_, release, err := acquireDistributionRunLockLease(ctx, d, stateDir, runID)
 	return release, err
 }
 
@@ -32,7 +34,7 @@ func acquireDistributionRunLock(ctx context.Context, stateDir, runID string) (fu
 // verifier for the exact lock inode retained by the holder. Mutating callers
 // compose the verifier into every path-lease guard so replacing the permanent
 // lock pathname can never be accepted by a later checkpoint.
-func acquireDistributionRunLockLease(ctx context.Context, stateDir, runID string) (func() error, func() error, error) {
+func acquireDistributionRunLockLease(ctx context.Context, d *shared.Deps, stateDir, runID string) (func() error, func() error, error) {
 	if ctx == nil {
 		return nil, nil, fmt.Errorf("distribution run lock context is required")
 	}
@@ -102,12 +104,10 @@ func acquireDistributionRunLockLease(ctx context.Context, stateDir, runID string
 			return verify, release, nil
 		}
 
-		timer := time.NewTimer(distributionRunLockPollInterval)
 		select {
 		case <-ctx.Done():
-			timer.Stop()
 			return nil, nil, ctx.Err()
-		case <-timer.C:
+		case <-d.After(distributionRunLockPollInterval):
 		}
 	}
 }

@@ -338,20 +338,6 @@ func (c *Client) GetAnalyticsReports(ctx context.Context, requestID string, opts
 	})
 }
 
-// GetAnalyticsReportInstancesRelationships retrieves report instance linkages for a report.
-func (c *Client) GetAnalyticsReportInstancesRelationships(ctx context.Context, reportID string, opts ...LinkagesOption) (*AnalyticsReportInstancesLinkagesResponse, error) {
-	return getTypedResourceLinkages[AnalyticsReportInstancesLinkagesResponse](
-		c,
-		ctx,
-		reportID,
-		"instances",
-		"report ID",
-		"/v1/analyticsReports/%s/relationships/%s",
-		"analyticsReportInstancesRelationships",
-		opts...,
-	)
-}
-
 // GetAnalyticsReportInstances retrieves report instances for a report.
 func (c *Client) GetAnalyticsReportInstances(ctx context.Context, reportID string, opts ...AnalyticsReportInstancesOption) (*AnalyticsReportInstancesResponse, error) {
 	query := applyOptions(opts)

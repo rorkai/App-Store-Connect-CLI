@@ -20,13 +20,13 @@ var (
 	distributionRunIDPattern = regexp.MustCompile(`^drun_[0-9a-f]{32}$`)
 )
 
-func distributionPlanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("distribute plan", flag.ExitOnError)
+func distributionPlanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("distribute plan", flag.ExitOnError)
 	archivePath := fs.String("archive-path", "", "Existing Xcode archive to distribute (required)")
 	configPath := fs.String("config", "", "Owner-private distribution configuration JSON (required)")
 	planPath := fs.String("plan", "", "Create-only distribution plan path (required)")
 	stateDir := fs.String("state-dir", ".asc/distribution/runs", "Owner-private distribution run-state directory")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "plan",
 		ShortUsage: "asc distribute plan --archive-path PATH --config PATH --plan PATH [flags]",
@@ -39,45 +39,45 @@ local/storage effects. Apply authorizes only its exact planHash.
 
 Example:
   asc distribute plan --archive-path .asc/artifacts/App.xcarchive --config .asc/distribution/config.json --plan .asc/distribution/plan.json --output json`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*archivePath) == "" {
-				return shared.UsageError("--archive-path is required")
+				return d.UsageError("--archive-path is required")
 			}
 			if strings.TrimSpace(*configPath) == "" {
-				return shared.UsageError("--config is required")
+				return d.UsageError("--config is required")
 			}
 			if strings.TrimSpace(*planPath) == "" {
-				return shared.UsageError("--plan is required")
+				return d.UsageError("--plan is required")
 			}
 			if strings.TrimSpace(*stateDir) == "" {
-				return shared.UsageError("--state-dir is required")
+				return d.UsageError("--state-dir is required")
 			}
-			if err := validateDistributionOutputFormat(*output.Output, *output.Pretty); err != nil {
+			if err := validateDistributionOutputFormat(d, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
-			plan, err := executeDistributionPlan(ctx, distributionPlanRequest{
-				ArchivePath: *archivePath, ConfigPath: *configPath, PlanPath: *planPath, StateDir: *stateDir,
+			plan, err := executeDistributionPlan(ctx, d, distributionPlanRequest{
+				ArchivePath: d.OSPath(*archivePath), ConfigPath: d.OSPath(*configPath), PlanPath: d.OSPath(*planPath), StateDir: d.OSPath(*stateDir),
 			})
 			if err != nil {
 				return fmt.Errorf("distribute plan: %w", err)
 			}
-			return printDistributionValue(plan, *output.Output, *output.Pretty)
+			return printDistributionValue(d, plan, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func distributionApplyCommand() *ffcli.Command {
-	return distributionApplyCommandWithExecutor(executeDistributionApply)
+func distributionApplyCommand(d *shared.Deps) *ffcli.Command {
+	return distributionApplyCommandWithExecutor(d, executeDistributionApply)
 }
 
-type distributionApplyExecutor func(context.Context, distributionApplyRequest) (*distributionRunState, error)
+type distributionApplyExecutor func(context.Context, *shared.Deps, distributionApplyRequest) (*distributionRunState, error)
 
-func distributionApplyCommandWithExecutor(execute distributionApplyExecutor) *ffcli.Command {
-	fs := flag.NewFlagSet("distribute apply", flag.ExitOnError)
+func distributionApplyCommandWithExecutor(d *shared.Deps, execute distributionApplyExecutor) *ffcli.Command {
+	fs := d.NewFlagSet("distribute apply", flag.ExitOnError)
 	planPath := fs.String("plan", "", "Exact distribution plan path (required)")
 	confirm := fs.String("confirm", "", "Exact 64-character planHash to authorize")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "apply",
 		ShortUsage: "asc distribute apply --plan PATH --confirm PLAN_HASH [flags]",
@@ -89,24 +89,24 @@ inputs or remote state that require different effects stop and require a new pla
 
 Example:
   asc distribute apply --plan .asc/distribution/plan.json --confirm PLAN_HASH --output json`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			confirmation := strings.TrimSpace(*confirm)
 			if confirmation == "" {
-				return shared.UsageError("--confirm PLAN_HASH is required")
+				return d.UsageError("--confirm PLAN_HASH is required")
 			}
 			if !planHashPattern.MatchString(confirmation) {
-				return shared.UsageError("--confirm must be a 64-character lowercase SHA-256 plan hash")
+				return d.UsageError("--confirm must be a 64-character lowercase SHA-256 plan hash")
 			}
 			if strings.TrimSpace(*planPath) == "" {
-				return shared.UsageError("--plan is required")
+				return d.UsageError("--plan is required")
 			}
-			if err := validateDistributionOutputFormat(*output.Output, *output.Pretty); err != nil {
+			if err := validateDistributionOutputFormat(d, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
-			result, err := execute(ctx, distributionApplyRequest{PlanPath: *planPath, Confirmation: confirmation})
+			result, err := execute(ctx, d, distributionApplyRequest{PlanPath: d.OSPath(*planPath), Confirmation: confirmation})
 			if result != nil {
-				if printErr := printDistributionValue(result, *output.Output, *output.Pretty); printErr != nil {
+				if printErr := printDistributionValue(d, result, *output.Output, *output.Pretty); printErr != nil {
 					return printErr
 				}
 			}
@@ -118,54 +118,54 @@ Example:
 	}
 }
 
-func distributionResumeCommand() *ffcli.Command {
-	return distributionRunCommand("resume", "Continue a previously confirmed recoverable distribution run.", executeDistributionResume)
+func distributionResumeCommand(d *shared.Deps) *ffcli.Command {
+	return distributionRunCommand(d, "resume", "Continue a previously confirmed recoverable distribution run.", executeDistributionResume)
 }
 
-func distributionStatusCommand() *ffcli.Command {
-	return distributionRunCommand("status", "Read a distribution run without network or keychain access.", executeDistributionStatus)
+func distributionStatusCommand(d *shared.Deps) *ffcli.Command {
+	return distributionRunCommand(d, "status", "Read a distribution run without network or keychain access.", executeDistributionStatus)
 }
 
-func distributionVerifyCommand() *ffcli.Command {
-	return distributionVerifyCommandWithExecutor(executeDistributionVerify)
+func distributionVerifyCommand(d *shared.Deps) *ffcli.Command {
+	return distributionVerifyCommandWithExecutor(d, executeDistributionVerify)
 }
 
-type distributionVerifyExecutor func(context.Context, distributionVerifyRequest) (*distributionVerificationResult, error)
+type distributionVerifyExecutor func(context.Context, *shared.Deps, distributionVerifyRequest) (*distributionVerificationResult, error)
 
-func distributionVerifyCommandWithExecutor(execute distributionVerifyExecutor) *ffcli.Command {
-	fs := flag.NewFlagSet("distribute verify", flag.ExitOnError)
+func distributionVerifyCommandWithExecutor(d *shared.Deps, execute distributionVerifyExecutor) *ffcli.Command {
+	fs := d.NewFlagSet("distribute verify", flag.ExitOnError)
 	runID := fs.String("run", "", "Distribution run ID (required)")
 	stateDir := fs.String("state-dir", ".asc/distribution/runs", "Distribution run-state directory")
 	device := fs.String("device", "", "Optional connected-device selector for installed-app observation")
 	timeout := fs.Duration("timeout", 30*time.Second, "Timeout for live fetch and optional device checks")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "verify", ShortUsage: "asc distribute verify --run RUN_ID [flags]",
 		ShortHelp: "Reverify published artifacts and optionally observe a device install.",
 		LongHelp: `Reverify the immutable receipt, local IPA, and every remotely
 published object without mutation. --device observes the matching bundle, version,
 and build on a connected device; it does not claim byte identity with the IPA.`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateDistributionRunFlags(*runID, *stateDir, *output.Output, *output.Pretty); err != nil {
+			if err := validateDistributionRunFlags(d, *runID, *stateDir, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if *timeout <= 0 {
-				return shared.UsageError("--timeout must be positive")
+				return d.UsageError("--timeout must be positive")
 			}
 			deviceSelector := strings.TrimSpace(*device)
 			if deviceSelector != "" && (*timeout < deviceObservationMinimumTimeout || *timeout > deviceObservationMaximumTimeout) {
-				return shared.UsageError(fmt.Sprintf(
+				return d.UsageError(fmt.Sprintf(
 					"--timeout with --device must be between %s and %s",
 					deviceObservationMinimumTimeout,
 					deviceObservationMaximumTimeout,
 				))
 			}
-			result, err := execute(ctx, distributionVerifyRequest{
-				RunID: *runID, StateDir: *stateDir, Device: deviceSelector, Timeout: *timeout,
+			result, err := execute(ctx, d, distributionVerifyRequest{
+				RunID: *runID, StateDir: d.OSPath(*stateDir), Device: deviceSelector, Timeout: *timeout,
 			})
 			if result != nil {
-				if printErr := printDistributionValue(result, *output.Output, *output.Pretty); printErr != nil {
+				if printErr := printDistributionValue(d, result, *output.Output, *output.Pretty); printErr != nil {
 					return printErr
 				}
 			}
@@ -177,24 +177,24 @@ and build on a connected device; it does not claim byte identity with the IPA.`,
 	}
 }
 
-type distributionRunExecutor func(context.Context, distributionRunRequest) (*distributionRunState, error)
+type distributionRunExecutor func(context.Context, *shared.Deps, distributionRunRequest) (*distributionRunState, error)
 
-func distributionRunCommand(name, help string, execute distributionRunExecutor) *ffcli.Command {
-	fs := flag.NewFlagSet("distribute "+name, flag.ExitOnError)
+func distributionRunCommand(d *shared.Deps, name, help string, execute distributionRunExecutor) *ffcli.Command {
+	fs := d.NewFlagSet("distribute "+name, flag.ExitOnError)
 	runID := fs.String("run", "", "Distribution run ID (required)")
 	stateDir := fs.String("state-dir", ".asc/distribution/runs", "Distribution run-state directory")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: name, ShortUsage: "asc distribute " + name + " --run RUN_ID [flags]",
 		ShortHelp: "" + help,
-		FlagSet:   fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet:   fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateDistributionRunFlags(*runID, *stateDir, *output.Output, *output.Pretty); err != nil {
+			if err := validateDistributionRunFlags(d, *runID, *stateDir, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
-			result, err := execute(ctx, distributionRunRequest{RunID: *runID, StateDir: *stateDir})
+			result, err := execute(ctx, d, distributionRunRequest{RunID: *runID, StateDir: d.OSPath(*stateDir)})
 			if result != nil {
-				if printErr := printDistributionValue(result, *output.Output, *output.Pretty); printErr != nil {
+				if printErr := printDistributionValue(d, result, *output.Output, *output.Pretty); printErr != nil {
 					return printErr
 				}
 			}
@@ -206,41 +206,41 @@ func distributionRunCommand(name, help string, execute distributionRunExecutor) 
 	}
 }
 
-func validateDistributionRunFlags(runID, stateDir, format string, pretty bool) error {
+func validateDistributionRunFlags(d *shared.Deps, runID, stateDir, format string, pretty bool) error {
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
-		return shared.UsageError("--run is required")
+		return d.UsageError("--run is required")
 	}
 	if !distributionRunIDPattern.MatchString(runID) {
-		return shared.UsageError("--run must be a drun_ identifier returned by distribute apply")
+		return d.UsageError("--run must be a drun_ identifier returned by distribute apply")
 	}
 	if strings.TrimSpace(stateDir) == "" {
-		return shared.UsageError("--state-dir is required")
+		return d.UsageError("--state-dir is required")
 	}
-	if err := validateDistributionOutputFormat(format, pretty); err != nil {
+	if err := validateDistributionOutputFormat(d, format, pretty); err != nil {
 		return err
 	}
 	return nil
 }
 
-func printDistributionValue(value any, format string, pretty bool) error {
+func printDistributionValue(d *shared.Deps, value any, format string, pretty bool) error {
 	switch typed := value.(type) {
 	case *distributionPlan:
-		return printDistributionPlan(typed, format, pretty)
+		return printDistributionPlan(d, typed, format, pretty)
 	case *distributionRunState:
-		return printDistributionRunState(typed, format, pretty)
+		return printDistributionRunState(d, typed, format, pretty)
 	case *distributionVerificationResult:
-		return printDistributionVerification(typed, format, pretty)
+		return printDistributionVerification(d, typed, format, pretty)
 	default:
 		return fmt.Errorf("unsupported distribution output type %T", value)
 	}
 }
 
-func printDistributionPlan(plan *distributionPlan, format string, pretty bool) error {
+func printDistributionPlan(d *shared.Deps, plan *distributionPlan, format string, pretty bool) error {
 	if plan == nil {
 		return fmt.Errorf("distribution plan output is required")
 	}
-	return printDistributionRows(plan, format, pretty, distributionPlanRows(plan))
+	return printDistributionRows(d, plan, format, pretty, distributionPlanRows(plan))
 }
 
 func distributionPlanRows(plan *distributionPlan) [][]string {
@@ -307,11 +307,11 @@ func distributionPlanRows(plan *distributionPlan) [][]string {
 	return rows
 }
 
-func printDistributionRunState(state *distributionRunState, format string, pretty bool) error {
+func printDistributionRunState(d *shared.Deps, state *distributionRunState, format string, pretty bool) error {
 	if state == nil {
 		return fmt.Errorf("distribution run output is required")
 	}
-	return printDistributionRows(state, format, pretty, distributionRunRows(state))
+	return printDistributionRows(d, state, format, pretty, distributionRunRows(state))
 }
 
 func distributionRunRows(state *distributionRunState) [][]string {
@@ -353,11 +353,11 @@ func distributionRunRows(state *distributionRunState) [][]string {
 	return rows
 }
 
-func printDistributionVerification(result *distributionVerificationResult, format string, pretty bool) error {
+func printDistributionVerification(d *shared.Deps, result *distributionVerificationResult, format string, pretty bool) error {
 	if result == nil {
 		return fmt.Errorf("distribution verification output is required")
 	}
-	return printDistributionRows(result, format, pretty, distributionVerificationRows(result))
+	return printDistributionRows(d, result, format, pretty, distributionVerificationRows(result))
 }
 
 func distributionVerificationRows(result *distributionVerificationResult) [][]string {
@@ -386,24 +386,24 @@ func distributionVerificationRows(result *distributionVerificationResult) [][]st
 	return rows
 }
 
-func printDistributionRows(value any, format string, pretty bool, rows [][]string) error {
-	return shared.PrintOutputWithRenderers(
+func printDistributionRows(d *shared.Deps, value any, format string, pretty bool, rows [][]string) error {
+	return d.PrintOutputWithRenderers(
 		value, format, pretty,
 		func() error {
-			asc.RenderTable([]string{"Field", "Value"}, rows)
+			asc.RenderTableTo(d.IO.Out, []string{"Field", "Value"}, rows)
 			return nil
 		},
 		func() error {
-			asc.RenderMarkdown([]string{"Field", "Value"}, rows)
+			asc.RenderMarkdownTo(d.IO.Out, []string{"Field", "Value"}, rows)
 			return nil
 		},
 	)
 }
 
-func validateDistributionOutputFormat(format string, pretty bool) error {
+func validateDistributionOutputFormat(d *shared.Deps, format string, pretty bool) error {
 	_, err := shared.ValidateOutputFormatAllowed(format, pretty, "json", "table", "markdown")
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	return nil
 }

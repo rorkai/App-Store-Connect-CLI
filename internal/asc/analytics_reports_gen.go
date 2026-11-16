@@ -2,5 +2,27 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
 // AnalyticsReportResponse is the AnalyticsReportResponse schema.
 type AnalyticsReportResponse = SingleResponse[AnalyticsReportAttributes]
+
+// GetAnalyticsReportInstancesRelationships sends GET /v1/analyticsReports/{id}/relationships/instances (analyticsReports_instances_getToManyRelationship).
+func (c *Client) GetAnalyticsReportInstancesRelationships(ctx context.Context, reportID string, opts ...LinkagesOption) (*AnalyticsReportInstancesLinkagesResponse, error) {
+	query := applyOptions(opts)
+	reportID = strings.TrimSpace(reportID)
+	if query.nextURL == "" && reportID == "" {
+		return nil, fmt.Errorf("report ID is required")
+	}
+	return getJSON[AnalyticsReportInstancesLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/analyticsReports/%s/relationships/instances", reportID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "analyticsReportInstancesRelationships",
+		ParseErr:    "failed to parse instances relationship response",
+	})
+}

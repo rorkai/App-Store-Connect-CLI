@@ -105,6 +105,21 @@ func (c *Client) GetSubscriptionVersionImages(ctx context.Context, versionID str
 	})
 }
 
+// GetSubscriptionVersionImagesRelationships sends GET /v1/subscriptionVersions/{id}/relationships/images (subscriptionVersions_images_getToManyRelationship).
+func (c *Client) GetSubscriptionVersionImagesRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("owner ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionVersions/%s/relationships/images", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionVersionImagesRelationships",
+	})
+}
+
 // GetSubscriptionVersionLocalizations sends GET /v1/subscriptionVersions/{id}/localizations (subscriptionVersions_localizations_getToManyRelated).
 func (c *Client) GetSubscriptionVersionLocalizations(ctx context.Context, versionID string, opts ...SubscriptionVersionLocalizationsOption) (*SubscriptionLocalizationsV2Response, error) {
 	query := applyOptions(opts)
@@ -117,6 +132,21 @@ func (c *Client) GetSubscriptionVersionLocalizations(ctx context.Context, versio
 		Query:       buildSubscriptionVersionLocalizationsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "subscriptionVersionLocalizations",
+	})
+}
+
+// GetSubscriptionVersionLocalizationsRelationships sends GET /v1/subscriptionVersions/{id}/relationships/localizations (subscriptionVersions_localizations_getToManyRelationship).
+func (c *Client) GetSubscriptionVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("owner ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionVersions/%s/relationships/localizations", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionVersionLocalizationsRelationships",
 	})
 }
 

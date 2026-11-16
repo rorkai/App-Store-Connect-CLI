@@ -1,6 +1,7 @@
 package distribute
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -78,8 +79,9 @@ func TestDistributionHumanOutputUsesTypedPlanRunAndVerificationRows(t *testing.T
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, err := captureDistributionCommandOutput(t, func() error {
-				return printDistributionValue(test.value, test.format, false)
+			d := newDistributeTestDeps()
+			stdout, stderr, err := captureDistributionCommandOutput(t, d, func() error {
+				return printDistributionValue(d, test.value, test.format, false)
 			})
 			if err != nil {
 				t.Fatalf("printDistributionValue() error = %v", err)
@@ -101,16 +103,17 @@ func TestDistributionHumanOutputUsesTypedPlanRunAndVerificationRows(t *testing.T
 
 func TestDistributionApplyWellFormedConfirmationMismatchRemainsUsageError(t *testing.T) {
 	confirmation := strings.Repeat("1", 64)
-	cmd := distributionApplyCommandWithExecutor(func(_ context.Context, request distributionApplyRequest) (*distributionRunState, error) {
+	d := newDistributeTestDeps()
+	cmd := distributionApplyCommandWithExecutor(d, func(_ context.Context, executorDeps *shared.Deps, request distributionApplyRequest) (*distributionRunState, error) {
 		if request.Confirmation != confirmation {
 			t.Fatalf("confirmation = %q", request.Confirmation)
 		}
-		return nil, shared.UsageError("--confirm must be the exact planHash")
+		return nil, executorDeps.UsageError("--confirm must be the exact planHash")
 	})
 	if err := cmd.FlagSet.Parse([]string{"--plan", "/private/plan.json", "--confirm", confirmation, "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	stdout, stderr, err := captureDistributionCommandOutput(t, func() error {
+	stdout, stderr, err := captureDistributionCommandOutput(t, d, func() error {
 		return cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if got := shared.ClassifyUsageError(err); got != shared.UsageErrorInvalidValue {
@@ -124,7 +127,8 @@ func TestDistributionApplyWellFormedConfirmationMismatchRemainsUsageError(t *tes
 func TestDistributionApplyPrintsJSONResultBeforeReturningOperationalError(t *testing.T) {
 	runID := "drun_11111111111111111111111111111111"
 	wantErr := errors.New("provider result remains unknown")
-	cmd := distributionApplyCommandWithExecutor(func(context.Context, distributionApplyRequest) (*distributionRunState, error) {
+	d := newDistributeTestDeps()
+	cmd := distributionApplyCommandWithExecutor(d, func(context.Context, *shared.Deps, distributionApplyRequest) (*distributionRunState, error) {
 		return &distributionRunState{SchemaVersion: 1, RunID: runID, Status: "recoverable"}, wantErr
 	})
 	if err := cmd.FlagSet.Parse([]string{
@@ -134,7 +138,7 @@ func TestDistributionApplyPrintsJSONResultBeforeReturningOperationalError(t *tes
 	}); err != nil {
 		t.Fatal(err)
 	}
-	stdout, stderr, err := captureDistributionCommandOutput(t, func() error {
+	stdout, stderr, err := captureDistributionCommandOutput(t, d, func() error {
 		return cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if !errors.Is(err, wantErr) {
@@ -159,7 +163,7 @@ func TestDistributionVerifyRejectsInvalidDeviceTimeoutBeforeExecution(t *testing
 	for _, timeout := range []string{"4s", "6m"} {
 		t.Run(timeout, func(t *testing.T) {
 			executeCalls := 0
-			cmd := distributionVerifyCommandWithExecutor(func(context.Context, distributionVerifyRequest) (*distributionVerificationResult, error) {
+			cmd := distributionVerifyCommandWithExecutor(newDistributeTestDeps(), func(context.Context, *shared.Deps, distributionVerifyRequest) (*distributionVerificationResult, error) {
 				executeCalls++
 				return nil, nil
 			})
@@ -181,7 +185,19 @@ func TestDistributionVerifyRejectsInvalidDeviceTimeoutBeforeExecution(t *testing
 	}
 }
 
-func captureDistributionCommandOutput(t *testing.T, run func() error) (string, string, error) {
+// captureDistributionCommandOutput runs run and returns what it wrote to d's
+// stdout and stderr. It fails the test if run wrote to the process stdout or
+// stderr.
+func captureDistributionCommandOutput(t *testing.T, d *shared.Deps, run func() error) (string, string, error) {
+	t.Helper()
+	processStdout, processStderr, err := captureProcessOutput(t, run)
+	if processStdout != "" || processStderr != "" {
+		t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
+	}
+	return d.IO.Out.(*bytes.Buffer).String(), d.IO.ErrOut.(*bytes.Buffer).String(), err
+}
+
+func captureProcessOutput(t *testing.T, run func() error) (string, string, error) {
 	t.Helper()
 	oldStdout, oldStderr := os.Stdout, os.Stderr
 	stdoutReader, stdoutWriter, err := os.Pipe()

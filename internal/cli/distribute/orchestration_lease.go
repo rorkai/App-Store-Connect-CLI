@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type distributionRunLeaseContextKey struct{}
@@ -75,12 +77,12 @@ func openDistributionRunPathLease(stateDir, runID string) (*distributionRunPathL
 	return lease, nil
 }
 
-func acquireDistributionRunLease(ctx context.Context, stateDir, runID string) (func() error, func() error, error) {
+func acquireDistributionRunLease(ctx context.Context, d *shared.Deps, stateDir, runID string) (func() error, func() error, error) {
 	lease, err := openDistributionRunPathLease(stateDir, runID)
 	if err != nil {
 		return nil, nil, err
 	}
-	verifyLock, releaseLock, err := acquireDistributionRunLockLease(ctx, stateDir, runID)
+	verifyLock, releaseLock, err := acquireDistributionRunLockLease(ctx, d, stateDir, runID)
 	if err != nil {
 		_ = lease.close()
 		return nil, nil, err

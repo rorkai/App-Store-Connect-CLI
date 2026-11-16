@@ -486,34 +486,6 @@ func (c *Client) CreateCertificate(ctx context.Context, csrContent string, certT
 	return sendJSON[CertificateResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/certificates", Payload: request})
 }
 
-// GetProfileCertificatesRelationships retrieves certificate linkages for a profile.
-func (c *Client) GetProfileCertificatesRelationships(ctx context.Context, profileID string, opts ...LinkagesOption) (*ProfileCertificatesLinkagesResponse, error) {
-	return getTypedResourceLinkages[ProfileCertificatesLinkagesResponse](
-		c,
-		ctx,
-		profileID,
-		"certificates",
-		"profile ID",
-		"/v1/profiles/%s/relationships/%s",
-		"profileCertificatesRelationships",
-		opts...,
-	)
-}
-
-// GetProfileDevicesRelationships retrieves device linkages for a profile.
-func (c *Client) GetProfileDevicesRelationships(ctx context.Context, profileID string, opts ...LinkagesOption) (*ProfileDevicesLinkagesResponse, error) {
-	return getTypedResourceLinkages[ProfileDevicesLinkagesResponse](
-		c,
-		ctx,
-		profileID,
-		"devices",
-		"profile ID",
-		"/v1/profiles/%s/relationships/%s",
-		"profileDevicesRelationships",
-		opts...,
-	)
-}
-
 // CreateProfile creates a new provisioning profile.
 func (c *Client) CreateProfile(ctx context.Context, attrs ProfileCreateAttributes, bundleID string, certificateIDs []string, deviceIDs []string) (*ProfileResponse, error) {
 	bundleID = strings.TrimSpace(bundleID)

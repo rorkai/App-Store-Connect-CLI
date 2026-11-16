@@ -35,18 +35,12 @@ func TestCreateAppStoreVersionPromotion_WithTreatment(t *testing.T) {
 			t.Fatalf("failed to decode request: %v", err)
 		}
 
-		if createReq.Data.Relationships.AppStoreVersionExperimentTreatment == nil {
-			t.Fatal("expected treatment relationship to be set")
-		}
 		rel := createReq.Data.Relationships.AppStoreVersionExperimentTreatment
 		if rel.Data.ID != "treatment-456" {
 			t.Errorf("expected treatment ID treatment-456, got %s", rel.Data.ID)
 		}
 		if rel.Data.Type != ResourceTypeAppStoreVersionExperimentTreatments {
 			t.Errorf("expected type appStoreVersionExperimentTreatments, got %s", rel.Data.Type)
-		}
-		if createReq.Data.Relationships.AppStoreVersion == nil {
-			t.Fatal("expected appStoreVersion relationship to be set")
 		}
 		if createReq.Data.Relationships.AppStoreVersion.Data.ID != "version-123" {
 			t.Errorf("expected version ID version-123, got %s", createReq.Data.Relationships.AppStoreVersion.Data.ID)

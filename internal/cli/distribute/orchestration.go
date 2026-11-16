@@ -103,7 +103,6 @@ type distributionDeviceObservationRequest struct {
 }
 
 type distributionOrchestrationDependencies struct {
-	now                       func() time.Time
 	readConfig                func(string) (distributionConfig, string, error)
 	hashProtectedFile         func(string) (string, error)
 	inspectIdentity           func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error)
@@ -113,8 +112,8 @@ type distributionOrchestrationDependencies struct {
 	readPlan                  func(string) (persistedDistributionPlan, error)
 	createRun                 func(string, string) error
 	ensureRun                 func(string, string) error
-	acquireLock               func(context.Context, string, string) (func() error, error)
-	acquireLease              func(context.Context, string, string) (func() error, func() error, error)
+	acquireLock               func(context.Context, *shared.Deps, string, string) (func() error, error)
+	acquireLease              func(context.Context, *shared.Deps, string, string) (func() error, func() error, error)
 	acquireVerifyLease        func(string, string) (distributionVerifyLease, error)
 	recoverEphemeral          func(context.Context) error
 	readRun                   func(string, string) (persistedDistributionRunState, error)
@@ -122,7 +121,7 @@ type distributionOrchestrationDependencies struct {
 	snapshotArchive           func(context.Context, string, string, string) (archiveTreeSnapshot, error)
 	copyArtifact              func(string, string, string, string, int64) (distributionSizedFileArtifact, error)
 	revalidateArchive         func(context.Context, string, string, distributionArchiveSnapshot) error
-	preflightPublish          func(context.Context, distributionPublicationConfig) error
+	preflightPublish          func(context.Context, *shared.Deps, distributionPublicationConfig) error
 	reconcileApply            func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error)
 	verifyReconcile           func(context.Context, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error)
 	readReconcilePlan         func(signing.ReconcileApplyOptions) (signing.ReconcilePlanView, error)
@@ -136,8 +135,8 @@ type distributionOrchestrationDependencies struct {
 	hashFile                  func(string) (distributionSizedFileArtifact, error)
 	pathExists                func(string) (bool, error)
 	prepareIPA                func(context.Context, distributionPrepareRequest) (core.PrepareResult, error)
-	publish                   func(context.Context, privatePublishIntentRequest) (publishExecutionResult, error)
-	reverifyPublish           func(context.Context, privatePublishVerificationRequest) (publishExecutionResult, error)
+	publish                   func(context.Context, *shared.Deps, privatePublishIntentRequest) (publishExecutionResult, error)
+	reverifyPublish           func(context.Context, *shared.Deps, privatePublishVerificationRequest) (publishExecutionResult, error)
 	observeDevice             func(context.Context, distributionDeviceObservationRequest) (deviceObservation, error)
 	readReceipt               func(string, string) (persistedDistributionReceipt, error)
 	writeReceipt              func(string, persistedDistributionReceipt) error
@@ -148,7 +147,6 @@ var distributionOrchestrationDeps = productionDistributionOrchestrationDependenc
 
 func productionDistributionOrchestrationDependencies() distributionOrchestrationDependencies {
 	return distributionOrchestrationDependencies{
-		now:                       func() time.Time { return time.Now().UTC() },
 		readConfig:                readDistributionConfig,
 		hashProtectedFile:         hashProtectedDistributionFile,
 		inspectIdentity:           signing.InspectPKCS12Identity,
@@ -190,7 +188,7 @@ func productionDistributionOrchestrationDependencies() distributionOrchestration
 	}
 }
 
-func executeDistributionPlan(ctx context.Context, request distributionPlanRequest) (*distributionPlan, error) {
+func executeDistributionPlan(ctx context.Context, d *shared.Deps, request distributionPlanRequest) (*distributionPlan, error) {
 	archivePath, err := canonicalAbsolutePath(request.ArchivePath)
 	if err != nil {
 		return nil, safeDistributionPlanningFailure("archive_path_invalid")
@@ -238,7 +236,7 @@ func executeDistributionPlan(ctx context.Context, request distributionPlanReques
 	if configuredFingerprint != "" && configuredFingerprint != identity.CertificateSHA256 {
 		return nil, safeDistributionPlanningFailure("identity_certificate_mismatch")
 	}
-	now := distributionOrchestrationDeps.now().UTC()
+	now := d.Now().UTC()
 	effectiveMinimumValidityDays, err := effectiveDistributionMinimumValidityDays(config.Signing.MinimumValidityDays, config.Publication.URLTTLDuration, config.Publication.DownloadGraceDuration)
 	if err != nil {
 		return nil, safeDistributionPlanningFailure("validity_policy_invalid")
@@ -343,7 +341,7 @@ func executeDistributionPlan(ctx context.Context, request distributionPlanReques
 	return &plan, nil
 }
 
-func executeDistributionApply(ctx context.Context, request distributionApplyRequest) (*distributionRunState, error) {
+func executeDistributionApply(ctx context.Context, d *shared.Deps, request distributionApplyRequest) (*distributionRunState, error) {
 	planPath, err := canonicalAbsolutePath(request.PlanPath)
 	if err != nil {
 		return nil, fmt.Errorf("plan path: %w", err)
@@ -353,7 +351,7 @@ func executeDistributionApply(ctx context.Context, request distributionApplyRequ
 		return nil, fmt.Errorf("read distribution plan: %w", err)
 	}
 	if request.Confirmation != plan.PlanHash {
-		return nil, shared.UsageError("--confirm must be the exact planHash")
+		return nil, d.UsageError("--confirm must be the exact planHash")
 	}
 	if !plan.Ready {
 		return nil, fmt.Errorf("distribution plan is blocked")
@@ -368,7 +366,7 @@ func executeDistributionApply(ctx context.Context, request distributionApplyRequ
 		}
 	}
 	if distributionOrchestrationDeps.acquireLease != nil {
-		verifyLease, closeLease, leaseErr := distributionOrchestrationDeps.acquireLease(ctx, plan.Paths.StateDir, runID)
+		verifyLease, closeLease, leaseErr := distributionOrchestrationDeps.acquireLease(ctx, d, plan.Paths.StateDir, runID)
 		if leaseErr != nil {
 			return nil, fmt.Errorf("lock and pin distribution run: %w", leaseErr)
 		}
@@ -378,7 +376,7 @@ func executeDistributionApply(ctx context.Context, request distributionApplyRequ
 		}
 		ctx = context.WithValue(ctx, distributionRunLeaseContextKey{}, verifyLease)
 	} else {
-		release, err := distributionOrchestrationDeps.acquireLock(ctx, plan.Paths.StateDir, runID)
+		release, err := distributionOrchestrationDeps.acquireLock(ctx, d, plan.Paths.StateDir, runID)
 		if err != nil {
 			return nil, fmt.Errorf("lock distribution run: %w", err)
 		}
@@ -392,8 +390,8 @@ func executeDistributionApply(ctx context.Context, request distributionApplyRequ
 	state, err := distributionOrchestrationDeps.readRun(plan.Paths.StateDir, runID)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			state = newDistributionRunState(plan, planPath, runID, distributionOrchestrationDeps.now())
-			return continueDistributionRun(ctx, plan, state)
+			state = newDistributionRunState(plan, planPath, runID, d.Now().UTC())
+			return continueDistributionRun(ctx, d, plan, state)
 		}
 		return nil, fmt.Errorf("read existing distribution run: %w", err)
 	}
@@ -415,16 +413,16 @@ func executeDistributionApply(ctx context.Context, request distributionApplyRequ
 	if state.Status == "blocked" {
 		return &state, fmt.Errorf("distribution run is blocked; create and confirm a new plan")
 	}
-	return continueDistributionRun(ctx, plan, state)
+	return continueDistributionRun(ctx, d, plan, state)
 }
 
-func executeDistributionResume(ctx context.Context, request distributionRunRequest) (*distributionRunState, error) {
+func executeDistributionResume(ctx context.Context, d *shared.Deps, request distributionRunRequest) (*distributionRunState, error) {
 	stateDir, err := canonicalAbsolutePath(request.StateDir)
 	if err != nil {
 		return nil, fmt.Errorf("state directory: %w", err)
 	}
 	if distributionOrchestrationDeps.acquireLease != nil {
-		verifyLease, closeLease, leaseErr := distributionOrchestrationDeps.acquireLease(ctx, stateDir, request.RunID)
+		verifyLease, closeLease, leaseErr := distributionOrchestrationDeps.acquireLease(ctx, d, stateDir, request.RunID)
 		if leaseErr != nil {
 			return nil, fmt.Errorf("lock and pin distribution run: %w", leaseErr)
 		}
@@ -434,7 +432,7 @@ func executeDistributionResume(ctx context.Context, request distributionRunReque
 		}
 		ctx = context.WithValue(ctx, distributionRunLeaseContextKey{}, verifyLease)
 	} else {
-		release, err := distributionOrchestrationDeps.acquireLock(ctx, stateDir, request.RunID)
+		release, err := distributionOrchestrationDeps.acquireLock(ctx, d, stateDir, request.RunID)
 		if err != nil {
 			return nil, fmt.Errorf("lock distribution run: %w", err)
 		}
@@ -469,7 +467,7 @@ func executeDistributionResume(ctx context.Context, request distributionRunReque
 	if state.Status == "blocked" {
 		return &state, fmt.Errorf("distribution run is blocked; create and confirm a new plan")
 	}
-	return continueDistributionRun(ctx, plan, state)
+	return continueDistributionRun(ctx, d, plan, state)
 }
 
 func validateDistributionAuthorizedReconcilePlan(plan persistedDistributionPlan) error {
@@ -535,7 +533,7 @@ func distributionPublicationPolicyEqual(plan, config distributionPublicationConf
 		plan.VerifyTimeout == config.VerifyTimeout
 }
 
-func executeDistributionStatus(_ context.Context, request distributionRunRequest) (*distributionRunState, error) {
+func executeDistributionStatus(_ context.Context, _ *shared.Deps, request distributionRunRequest) (*distributionRunState, error) {
 	stateDir, err := canonicalAbsolutePath(request.StateDir)
 	if err != nil {
 		return nil, fmt.Errorf("state directory: %w", err)
@@ -559,7 +557,7 @@ func executeDistributionStatus(_ context.Context, request distributionRunRequest
 	return &state, nil
 }
 
-func executeDistributionVerify(ctx context.Context, request distributionVerifyRequest) (*distributionVerificationResult, error) {
+func executeDistributionVerify(ctx context.Context, d *shared.Deps, request distributionVerifyRequest) (*distributionVerificationResult, error) {
 	stateDir, err := canonicalAbsolutePath(request.StateDir)
 	if err != nil {
 		return nil, err
@@ -649,7 +647,7 @@ func executeDistributionVerify(ctx context.Context, request distributionVerifyRe
 	if err := guard(); err != nil {
 		return nil, err
 	}
-	published, err := distributionOrchestrationDeps.reverifyPublish(verifyCtx, privatePublishVerificationRequest{
+	published, err := distributionOrchestrationDeps.reverifyPublish(verifyCtx, d, privatePublishVerificationRequest{
 		BundleDir:   filepath.Join(runDir, state.Artifacts.Bundle.Path),
 		ReceiptPath: filepath.Join(runDir, state.Artifacts.Publication.ReceiptPath),
 		LinkPath:    filepath.Join(runDir, state.Artifacts.Publication.LinkPath), VerifyTimeout: verifyTimeout,
@@ -665,7 +663,7 @@ func executeDistributionVerify(ctx context.Context, request distributionVerifyRe
 	}
 	result := &distributionVerificationResult{
 		SchemaVersion: distributionStateSchemaVersion, RunID: state.RunID, PlanHash: state.PlanHash,
-		PublicationVerified: true, VerifiedAt: distributionOrchestrationDeps.now().UTC().Format(time.RFC3339),
+		PublicationVerified: true, VerifiedAt: d.Now().UTC().Format(time.RFC3339),
 		ArtifactSHA256: receipt.ArtifactSHA256, AppBundleID: receipt.AppBundleID, AppVersion: receipt.AppVersion, AppBuildNumber: receipt.AppBuildNumber,
 	}
 	if strings.TrimSpace(request.Device) != "" {
@@ -740,7 +738,7 @@ func distributionVerificationSubtrees(state persistedDistributionRunState) []str
 	return subtrees
 }
 
-func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan, state persistedDistributionRunState) (*distributionRunState, error) {
+func continueDistributionRun(ctx context.Context, d *shared.Deps, plan persistedDistributionPlan, state persistedDistributionRunState) (*distributionRunState, error) {
 	state.Attempt++
 	state.Status, state.Recoverable, state.LastFailureCode = "running", false, ""
 	guard := func(stage string) error {
@@ -754,23 +752,23 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 	}
 	if err := distributionOrchestrationDeps.recoverEphemeral(ctx); err != nil {
 		terminal := errors.Is(err, signing.ErrEphemeralRecoveryJournalInvalid) || shared.IsValidationError(err)
-		return checkpointDistributionFailure(ctx, plan, state, "preflight", "signing_recovery_failed", !terminal, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "signing_recovery_failed", !terminal, err)
 	}
 	config, configSHA, err := distributionOrchestrationDeps.readConfig(plan.ConfigPath)
 	if err != nil || configSHA != plan.ConfigSHA256 {
-		return checkpointDistributionFailure(ctx, plan, state, "preflight", "config_changed", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "config_changed", false, err)
 	}
 	devicesPath, err := resolveDistributionConfigPath(plan.ConfigPath, config.DevicesFile)
 	if err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "preflight", "devices_path_invalid", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "devices_path_invalid", false, err)
 	}
 	identityPath, err := resolveDistributionConfigPath(plan.ConfigPath, config.Signing.Identity.Path)
 	if err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "preflight", "identity_path_invalid", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "identity_path_invalid", false, err)
 	}
 	passwordPath, err := resolveOptionalDistributionConfigPath(plan.ConfigPath, config.Signing.Identity.PasswordFile)
 	if err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "preflight", "password_path_invalid", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "password_path_invalid", false, err)
 	}
 	identity, err := distributionOrchestrationDeps.inspectIdentity(ctx, signing.PKCS12IdentityOptions{IdentityPath: identityPath, IdentityPasswordPath: passwordPath})
 	plannedExpiration, expirationErr := time.Parse(time.RFC3339, plan.Identity.ExpirationDate)
@@ -778,17 +776,17 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 	if err != nil || expirationErr != nil || minimumErr != nil ||
 		!strings.EqualFold(identity.CertificateSHA256, plan.Identity.CertificateSHA256) || identity.TeamID != plan.Identity.TeamID ||
 		!identity.NotAfter.Equal(plannedExpiration) || !identity.NotAfter.After(minimumValidUntil) {
-		return checkpointDistributionFailure(ctx, plan, state, "identity_validate", "identity_changed", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "identity_validate", "identity_changed", false, err)
 	}
 	if state.Artifacts.ArchiveSnapshot == nil {
 		archive, archiveErr := distributionOrchestrationDeps.digestArchive(ctx, plan.Archive.Path)
 		if archiveErr != nil || !archiveSnapshotMatchesPlan(archive, plan.Archive) {
-			return checkpointDistributionFailure(ctx, plan, state, "identity_validate", "archive_changed", false, archiveErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "identity_validate", "archive_changed", false, archiveErr)
 		}
 	}
 	if state.Artifacts.Publication == nil {
-		if err := distributionOrchestrationDeps.preflightPublish(ctx, plan.Publication); err != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "preflight", "storage_preflight_failed", true, err)
+		if err := distributionOrchestrationDeps.preflightPublish(ctx, d, plan.Publication); err != nil {
+			return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "storage_preflight_failed", true, err)
 		}
 	}
 	if err := guard("identity_validate"); err != nil {
@@ -797,20 +795,20 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 	if state.Artifacts.ArchiveSnapshot == nil {
 		snapshot, err := distributionOrchestrationDeps.snapshotArchive(ctx, plan.Archive.Path, plan.Paths.StateDir, state.RunID)
 		if err != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "identity_validate", "archive_snapshot_failed", true, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "identity_validate", "archive_snapshot_failed", true, err)
 		}
 		if !archiveSnapshotMatchesPlan(snapshot, plan.Archive) {
-			return checkpointDistributionFailure(ctx, plan, state, "identity_validate", "archive_snapshot_mismatch", false, nil)
+			return checkpointDistributionFailure(ctx, d, plan, state, "identity_validate", "archive_snapshot_mismatch", false, nil)
 		}
 		state.Artifacts.ArchiveSnapshot = &distributionArchiveSnapshot{RelativePath: snapshot.RelativePath, TreeSHA256: snapshot.TreeSHA256, SizeBytes: snapshot.SizeBytes, EntryCount: snapshot.EntryCount, App: snapshot.App}
 	} else if err := distributionOrchestrationDeps.revalidateArchive(ctx, plan.Paths.StateDir, state.RunID, *state.Artifacts.ArchiveSnapshot); err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "identity_validate", "archive_snapshot_changed", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "identity_validate", "archive_snapshot_changed", false, err)
 	}
 	deviceFileSHA, err := distributionOrchestrationDeps.hashProtectedFile(devicesPath)
 	if err != nil || deviceFileSHA != plan.DeviceSet.FileSHA256 {
-		return checkpointDistributionFailure(ctx, plan, state, "preflight", "devices_changed", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "devices_changed", false, err)
 	}
-	if err := checkpointDistributionState(ctx, plan, &state, "account_reconcile"); err != nil {
+	if err := checkpointDistributionState(ctx, d, plan, &state, "account_reconcile"); err != nil {
 		return checkpointDistributionWriteFailure(plan, state, err)
 	}
 	reconcileOptions := signing.ReconcileApplyOptions{PlanPath: plan.Reconcile.PlanPath, ExpectedPlanHash: plan.Reconcile.PlanHash, Confirm: true}
@@ -825,7 +823,7 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		}
 		if err != nil {
 			recoverable := signing.ClassifyReconcileExecutionError(err) == signing.ReconcileExecutionErrorRetryable
-			return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "account_reconcile_failed", recoverable, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "account_reconcile_failed", recoverable, err)
 		}
 	} else {
 		archiveSnapshotPath := filepath.Join(plan.Paths.StateDir, state.RunID, state.Artifacts.ArchiveSnapshot.RelativePath)
@@ -841,18 +839,18 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		reconcile, err = distributionOrchestrationDeps.verifyReconcile(ctx, reconcileOptions, archiveSnapshotPath, evidence)
 		if err != nil {
 			if signing.ClassifyReconcileExecutionError(err) == signing.ReconcileExecutionErrorRetryable {
-				return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "account_verification_failed", true, err)
+				return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "account_verification_failed", true, err)
 			}
-			return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "account_state_changed", false, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "account_state_changed", false, err)
 		}
 	}
 	if !reconcile.Complete || reconcile.MainProfile == nil || reconcile.MainProfile.BundleID != plan.Archive.BundleID {
-		return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "profile_binding_failed", false, nil)
+		return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "profile_binding_failed", false, nil)
 	}
 	profile := reconcile.MainProfile
 	if state.Artifacts.ReconcileReceipt != nil && state.Artifacts.Profile != nil {
 		if err := distributionOrchestrationDeps.validateReconcileEvidence(plan.Paths.StateDir, plan, state, reconcile, *state.Artifacts.ReconcileReceipt, *state.Artifacts.Profile); err != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "reconcile_evidence_changed", false, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "reconcile_evidence_changed", false, err)
 		}
 	}
 	reconcileReceiptArtifact := state.Artifacts.ReconcileReceipt
@@ -860,17 +858,17 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 	if reconcileReceiptArtifact == nil {
 		artifact, copyErr := distributionOrchestrationDeps.copyArtifact(reconcile.ReceiptPath, plan.Paths.StateDir, state.RunID, distributionReconcileRelative, distributionStateMaxBytes)
 		if copyErr != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "reconcile_receipt_copy_failed", !errors.Is(copyErr, errDistributionArtifactConflict), copyErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "reconcile_receipt_copy_failed", !errors.Is(copyErr, errDistributionArtifactConflict), copyErr)
 		}
 		reconcileReceiptArtifact = &distributionFileArtifact{Path: artifact.Path, SHA256: artifact.SHA256}
 	}
 	if profileArtifact == nil {
 		artifact, copyErr := distributionOrchestrationDeps.copyArtifact(profile.Path, plan.Paths.StateDir, state.RunID, distributionProfileRelative, 16<<20)
 		if copyErr != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "profile_copy_failed", !errors.Is(copyErr, errDistributionArtifactConflict), copyErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "profile_copy_failed", !errors.Is(copyErr, errDistributionArtifactConflict), copyErr)
 		}
 		if artifact.SHA256 != profile.SHA256 {
-			return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "profile_copy_failed", false, nil)
+			return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "profile_copy_failed", false, nil)
 		}
 		profileArtifact = &distributionProfileArtifact{ResourceID: profile.ResourceID, UUID: profile.UUID, Path: artifact.Path, SHA256: artifact.SHA256, BundleID: profile.BundleID}
 	}
@@ -880,9 +878,9 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 	state.Artifacts.ReconcileReceipt = reconcileReceiptArtifact
 	state.Artifacts.Profile = profileArtifact
 	if err := distributionOrchestrationDeps.validateReconcileEvidence(plan.Paths.StateDir, plan, state, reconcile, *state.Artifacts.ReconcileReceipt, *state.Artifacts.Profile); err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "account_reconcile", "reconcile_evidence_invalid", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "reconcile_evidence_invalid", false, err)
 	}
-	if err := checkpointDistributionState(ctx, plan, &state, "export"); err != nil {
+	if err := checkpointDistributionState(ctx, d, plan, &state, "export"); err != nil {
 		return checkpointDistributionWriteFailure(plan, state, err)
 	}
 	runDir := filepath.Join(plan.Paths.StateDir, state.RunID)
@@ -897,25 +895,25 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		exportOptionsPath := filepath.Join(runDir, distributionExportOptionsRel)
 		exists, existsErr := orchestrationPathExists(exportOptionsPath)
 		if existsErr != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "export", "export_options_recovery_failed", false, existsErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "export", "export_options_recovery_failed", false, existsErr)
 		}
 		if exists {
 			result, validateErr := distributionOrchestrationDeps.validateExportOptions(ctx, expectedOptions)
 			if validateErr != nil {
-				return checkpointDistributionFailure(ctx, plan, state, "export", "export_options_recovery_failed", false, validateErr)
+				return checkpointDistributionFailure(ctx, d, plan, state, "export", "export_options_recovery_failed", false, validateErr)
 			}
 			state.Artifacts.ExportOptions = &distributionFileArtifact{Path: distributionExportOptionsRel, SHA256: result.SHA256}
 		} else {
 			result, err := distributionOrchestrationDeps.writeExportOptions(ctx, expectedOptions)
 			if err != nil {
-				return checkpointDistributionFailure(ctx, plan, state, "export", "export_options_failed", true, err)
+				return checkpointDistributionFailure(ctx, d, plan, state, "export", "export_options_failed", true, err)
 			}
 			state.Artifacts.ExportOptions = &distributionFileArtifact{Path: distributionExportOptionsRel, SHA256: result.SHA256}
 		}
 	}
 	validatedOptions, validateOptionsErr := distributionOrchestrationDeps.validateExportOptions(ctx, expectedOptions)
 	if validateOptionsErr != nil || !strings.EqualFold(validatedOptions.SHA256, state.Artifacts.ExportOptions.SHA256) {
-		return checkpointDistributionFailure(ctx, plan, state, "export", "export_options_changed", false, validateOptionsErr)
+		return checkpointDistributionFailure(ctx, d, plan, state, "export", "export_options_changed", false, validateOptionsErr)
 	}
 	if state.Artifacts.IPA == nil || state.Artifacts.SigningReceipt == nil {
 		if err := guard("export"); err != nil {
@@ -941,24 +939,24 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 				return callbackErr
 			})
 			if err != nil {
-				return checkpointDistributionFailure(ctx, plan, state, "export", "xcode_export_failed", true, err)
+				return checkpointDistributionFailure(ctx, d, plan, state, "export", "xcode_export_failed", true, err)
 			}
 			if exportResult == nil || exportResult.BundleID != plan.Archive.BundleID {
-				return checkpointDistributionFailure(ctx, plan, state, "export", "export_identity_mismatch", false, nil)
+				return checkpointDistributionFailure(ctx, d, plan, state, "export", "export_identity_mismatch", false, nil)
 			}
 			ipa, hashErr := distributionOrchestrationDeps.hashFile(exportResult.IPAPath)
 			if hashErr != nil {
-				return checkpointDistributionFailure(ctx, plan, state, "export", "ipa_hash_failed", true, hashErr)
+				return checkpointDistributionFailure(ctx, d, plan, state, "export", "ipa_hash_failed", true, hashErr)
 			}
 			ipa.Path = currentIPARel
 			state.Artifacts.IPA = &ipa
 			signingReceipt, copyErr := distributionOrchestrationDeps.copyArtifact(signingReceiptPath, plan.Paths.StateDir, state.RunID, currentSigningReceiptRel, distributionStateMaxBytes)
 			if copyErr != nil {
-				return checkpointDistributionFailure(ctx, plan, state, "export", "signing_receipt_hash_failed", true, copyErr)
+				return checkpointDistributionFailure(ctx, d, plan, state, "export", "signing_receipt_hash_failed", true, copyErr)
 			}
 			candidate := distributionFileArtifact{Path: currentSigningReceiptRel, SHA256: signingReceipt.SHA256}
 			if err := distributionOrchestrationDeps.validateSigningEvidence(plan.Paths.StateDir, plan, state, candidate); err != nil {
-				return checkpointDistributionFailure(ctx, plan, state, "export", "signing_evidence_invalid", false, err)
+				return checkpointDistributionFailure(ctx, d, plan, state, "export", "signing_evidence_invalid", false, err)
 			}
 			state.Artifacts.SigningReceipt = &candidate
 		}
@@ -967,13 +965,13 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		}
 	}
 	if err := distributionOrchestrationDeps.validateSigningEvidence(plan.Paths.StateDir, plan, state, *state.Artifacts.SigningReceipt); err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "export", "signing_evidence_changed", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "export", "signing_evidence_changed", false, err)
 	}
 	currentIPA, currentIPAErr := distributionOrchestrationDeps.hashFile(filepath.Join(runDir, state.Artifacts.IPA.Path))
 	if currentIPAErr != nil || currentIPA.SHA256 != state.Artifacts.IPA.SHA256 || currentIPA.SizeBytes != state.Artifacts.IPA.SizeBytes {
-		return checkpointDistributionFailure(ctx, plan, state, "export", "ipa_changed", false, currentIPAErr)
+		return checkpointDistributionFailure(ctx, d, plan, state, "export", "ipa_changed", false, currentIPAErr)
 	}
-	if err := checkpointDistributionState(ctx, plan, &state, "prepare"); err != nil {
+	if err := checkpointDistributionState(ctx, d, plan, &state, "prepare"); err != nil {
 		return checkpointDistributionWriteFailure(plan, state, err)
 	}
 	var prepared core.PrepareResult
@@ -987,14 +985,14 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		})
 		if err != nil {
 			terminal := errors.Is(err, core.ErrBundleConflict) || errors.Is(err, core.ErrIPAIdentityMismatch) || errors.Is(err, core.ErrNotEligible)
-			return checkpointDistributionFailure(ctx, plan, state, "prepare", "prepare_failed", !terminal, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "prepare", "prepare_failed", !terminal, err)
 		}
 		if err := validatePreparedDistributionBinding(plan, state, prepared.Descriptor); err != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "prepare", "prepared_profile_or_identity_mismatch", false, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "prepare", "prepared_profile_or_identity_mismatch", false, err)
 		}
 		descriptor, hashErr := distributionOrchestrationDeps.hashFile(filepath.Join(prepared.BundlePath, "bundle.json"))
 		if hashErr != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "prepare", "descriptor_hash_failed", true, hashErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "prepare", "descriptor_hash_failed", true, hashErr)
 		}
 		state.Artifacts.Bundle = &distributionBundleArtifact{Path: distributionBundleRelative, DescriptorSHA256: descriptor.SHA256}
 		if err := guard("prepare"); err != nil {
@@ -1002,13 +1000,13 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		}
 	}
 	if err := distributionOrchestrationDeps.validatePreparedBundle(filepath.Join(runDir, state.Artifacts.Bundle.Path), plan, state); err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "prepare", "prepared_bundle_changed", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "prepare", "prepared_bundle_changed", false, err)
 	}
 	authorizedDescriptor, descriptorErr := distributionOrchestrationDeps.hashFile(filepath.Join(runDir, state.Artifacts.Bundle.Path, "bundle.json"))
 	if descriptorErr != nil || authorizedDescriptor.SHA256 != state.Artifacts.Bundle.DescriptorSHA256 {
-		return checkpointDistributionFailure(ctx, plan, state, "prepare", "prepared_bundle_changed", false, descriptorErr)
+		return checkpointDistributionFailure(ctx, d, plan, state, "prepare", "prepared_bundle_changed", false, descriptorErr)
 	}
-	if err := checkpointDistributionState(ctx, plan, &state, "publish"); err != nil {
+	if err := checkpointDistributionState(ctx, d, plan, &state, "publish"); err != nil {
 		return checkpointDistributionWriteFailure(plan, state, err)
 	}
 	var published publishExecutionResult
@@ -1018,9 +1016,9 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		}
 		urlTTL, downloadGrace, verifyTimeout, durationErr := distributionPublicationDurations(plan.Publication)
 		if durationErr != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "publish", "publication_policy_invalid", false, durationErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "publish", "publication_policy_invalid", false, durationErr)
 		}
-		published, err = distributionOrchestrationDeps.publish(ctx, privatePublishIntentRequest{
+		published, err = distributionOrchestrationDeps.publish(ctx, d, privatePublishIntentRequest{
 			BundleDir: filepath.Join(runDir, state.Artifacts.Bundle.Path),
 			ExpectedBundle: privatePublishBundleAuthorization{
 				DescriptorSHA256: authorizedDescriptor.SHA256, DescriptorSize: authorizedDescriptor.SizeBytes,
@@ -1040,15 +1038,15 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		}
 		if err != nil {
 			terminal := errors.Is(err, errPrivatePublishIntentConflict) || errors.Is(err, core.ErrPrivatePublishConflict) || errors.Is(err, core.ErrPrivatePublishLinkExpired) || errors.Is(err, core.ErrPrivatePublishProfileExpired)
-			return checkpointDistributionFailure(ctx, plan, state, "publish", "provider_outcome_unknown", !terminal, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "publish", "provider_outcome_unknown", !terminal, err)
 		}
 		receiptFile, hashErr := distributionOrchestrationDeps.hashFile(filepath.Join(runDir, distributionPublishReceiptRel))
 		if hashErr != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "publish", "publication_receipt_hash_failed", true, hashErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "publish", "publication_receipt_hash_failed", true, hashErr)
 		}
 		intentFile, hashErr := distributionOrchestrationDeps.hashFile(filepath.Join(runDir, distributionPublishIntentRel))
 		if hashErr != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "publish", "publication_intent_hash_failed", true, hashErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "publish", "publication_intent_hash_failed", true, hashErr)
 		}
 		state.Artifacts.Publication = &distributionPublicationArtifact{
 			ReceiptPath: distributionPublishReceiptRel, ReceiptSHA256: receiptFile.SHA256,
@@ -1057,7 +1055,7 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 			InstallURLRedacted: published.Receipt.InstallURL,
 		}
 	}
-	if err := checkpointDistributionState(ctx, plan, &state, "fetch_verify"); err != nil {
+	if err := checkpointDistributionState(ctx, d, plan, &state, "fetch_verify"); err != nil {
 		return checkpointDistributionWriteFailure(plan, state, err)
 	}
 	if published.Receipt.SchemaVersion == "" {
@@ -1066,9 +1064,9 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		}
 		_, _, verifyTimeout, durationErr := distributionPublicationDurations(plan.Publication)
 		if durationErr != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "fetch_verify", "publication_policy_invalid", false, durationErr)
+			return checkpointDistributionFailure(ctx, d, plan, state, "fetch_verify", "publication_policy_invalid", false, durationErr)
 		}
-		published, err = distributionOrchestrationDeps.reverifyPublish(ctx, privatePublishVerificationRequest{
+		published, err = distributionOrchestrationDeps.reverifyPublish(ctx, d, privatePublishVerificationRequest{
 			BundleDir: filepath.Join(runDir, state.Artifacts.Bundle.Path), ReceiptPath: filepath.Join(runDir, state.Artifacts.Publication.ReceiptPath),
 			LinkPath: filepath.Join(runDir, state.Artifacts.Publication.LinkPath), VerifyTimeout: verifyTimeout,
 		})
@@ -1077,7 +1075,7 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 		}
 		if err != nil {
 			code, recoverable := classifyDistributionPublicationReverificationFailure(err)
-			return checkpointDistributionFailure(ctx, plan, state, "fetch_verify", code, recoverable, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "fetch_verify", code, recoverable, err)
 		}
 	}
 	if prepared.Descriptor.SchemaVersion == "" {
@@ -1090,9 +1088,9 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 	}
 	descriptorFile, descriptorErr := distributionOrchestrationDeps.hashFile(filepath.Join(runDir, state.Artifacts.Bundle.Path, "bundle.json"))
 	if descriptorErr != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "fetch_verify", "descriptor_recheck_failed", true, descriptorErr)
+		return checkpointDistributionFailure(ctx, d, plan, state, "fetch_verify", "descriptor_recheck_failed", true, descriptorErr)
 	}
-	completion := newPersistedDistributionReceipt(plan, state, prepared.Descriptor, published.Receipt, descriptorFile.SizeBytes, distributionOrchestrationDeps.now())
+	completion := newPersistedDistributionReceipt(plan, state, prepared.Descriptor, published.Receipt, descriptorFile.SizeBytes, d.Now().UTC())
 	existing, readErr := distributionOrchestrationDeps.readReceipt(plan.Paths.StateDir, state.RunID)
 	if readErr == nil {
 		validate := distributionOrchestrationDeps.validateCompletion
@@ -1100,25 +1098,25 @@ func continueDistributionRun(ctx context.Context, plan persistedDistributionPlan
 			validate = validateExactDistributionCompletion
 		}
 		if err := validate(plan, state, existing); err != nil {
-			return checkpointDistributionFailure(ctx, plan, state, "fetch_verify", "completion_receipt_conflict", false, err)
+			return checkpointDistributionFailure(ctx, d, plan, state, "fetch_verify", "completion_receipt_conflict", false, err)
 		}
 		completion = existing
 	} else if !errors.Is(readErr, os.ErrNotExist) {
-		return checkpointDistributionFailure(ctx, plan, state, "fetch_verify", "completion_receipt_conflict", false, readErr)
+		return checkpointDistributionFailure(ctx, d, plan, state, "fetch_verify", "completion_receipt_conflict", false, readErr)
 	} else if err := distributionOrchestrationDeps.writeReceipt(plan.Paths.StateDir, completion); err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "fetch_verify", "completion_receipt_failed", true, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "fetch_verify", "completion_receipt_failed", true, err)
 	}
 	validate := distributionOrchestrationDeps.validateCompletion
 	if validate == nil {
 		validate = validateExactDistributionCompletion
 	}
 	if err := validate(plan, state, completion); err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "fetch_verify", "completion_evidence_changed", false, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "fetch_verify", "completion_evidence_changed", false, err)
 	}
 	state.Status, state.Stage, state.Recoverable, state.LastFailureCode = "complete", "complete", false, ""
-	state.UpdatedAt = distributionOrchestrationDeps.now().UTC().Format(time.RFC3339)
+	state.UpdatedAt = d.Now().UTC().Format(time.RFC3339)
 	if err := distributionOrchestrationDeps.writeRun(plan.Paths.StateDir, state); err != nil {
-		return checkpointDistributionFailure(ctx, plan, state, "fetch_verify", "completion_state_failed", true, err)
+		return checkpointDistributionFailure(ctx, d, plan, state, "fetch_verify", "completion_state_failed", true, err)
 	}
 	if err := guard("complete"); err != nil {
 		return nil, err
@@ -1154,13 +1152,13 @@ func newDistributionRunState(plan persistedDistributionPlan, planPath, runID str
 	}
 }
 
-func checkpointDistributionState(ctx context.Context, plan persistedDistributionPlan, state *persistedDistributionRunState, stage string) error {
+func checkpointDistributionState(ctx context.Context, d *shared.Deps, plan persistedDistributionPlan, state *persistedDistributionRunState, stage string) error {
 	if err := verifyDistributionRunPathLease(ctx); err != nil {
 		return fmt.Errorf("%w: %w", errDistributionRunPathChanged, safeDistributionFailure(stage, "run_path_changed", err))
 	}
 	stage = monotonicDistributionStage(state.Stage, stage)
 	state.Status, state.Stage, state.Recoverable, state.LastFailureCode = "running", stage, false, ""
-	state.UpdatedAt = distributionOrchestrationDeps.now().UTC().Format(time.RFC3339)
+	state.UpdatedAt = d.Now().UTC().Format(time.RFC3339)
 	if err := distributionOrchestrationDeps.writeRun(plan.Paths.StateDir, *state); err != nil {
 		return safeDistributionFailure(stage, "checkpoint_failed", err)
 	}
@@ -1170,7 +1168,7 @@ func checkpointDistributionState(ctx context.Context, plan persistedDistribution
 	return nil
 }
 
-func checkpointDistributionFailure(ctx context.Context, plan persistedDistributionPlan, state persistedDistributionRunState, stage, code string, recoverable bool, cause error) (*distributionRunState, error) {
+func checkpointDistributionFailure(ctx context.Context, d *shared.Deps, plan persistedDistributionPlan, state persistedDistributionRunState, stage, code string, recoverable bool, cause error) (*distributionRunState, error) {
 	if err := verifyDistributionRunPathLease(ctx); err != nil {
 		return nil, safeDistributionFailure(stage, "run_path_changed", err)
 	}
@@ -1180,7 +1178,7 @@ func checkpointDistributionFailure(ctx context.Context, plan persistedDistributi
 	if recoverable {
 		state.Status = "recoverable"
 	}
-	state.UpdatedAt = distributionOrchestrationDeps.now().UTC().Format(time.RFC3339)
+	state.UpdatedAt = d.Now().UTC().Format(time.RFC3339)
 	if err := distributionOrchestrationDeps.writeRun(plan.Paths.StateDir, state); err != nil {
 		durable, readErr := distributionOrchestrationDeps.readRun(plan.Paths.StateDir, state.RunID)
 		if readErr == nil {
@@ -1658,11 +1656,11 @@ func copyDistributionArtifact(source, stateDir, runID, relative string, limit in
 	return distributionSizedFileArtifact{Path: relative, SHA256: hex.EncodeToString(digest[:]), SizeBytes: int64(len(data))}, nil
 }
 
-func preflightDistributionPublication(ctx context.Context, config distributionPublicationConfig) error {
+func preflightDistributionPublication(ctx context.Context, d *shared.Deps, config distributionPublicationConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	credentialCtx, cancel := shared.ContextWithTimeout(ctx)
+	credentialCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	_, credentialLimit, err := newObjectStore(credentialCtx, core.S3StoreConfig{Endpoint: config.Endpoint, DownloadEndpoint: config.DownloadEndpoint, Region: config.Region, Bucket: config.Bucket, AddressingStyle: config.AddressingStyle})
 	if err != nil {

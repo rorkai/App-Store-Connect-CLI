@@ -207,6 +207,22 @@ func (c *Client) GetAppTags(ctx context.Context, appID string, opts ...AppTagsOp
 	})
 }
 
+// GetAppTagsRelationshipsForApp sends GET /v1/apps/{id}/relationships/appTags (apps_appTags_getToManyRelationship).
+func (c *Client) GetAppTagsRelationshipsForApp(ctx context.Context, appID string, opts ...LinkagesOption) (*AppAppTagsLinkagesResponse, error) {
+	query := applyOptions(opts)
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+	return getJSON[AppAppTagsLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/relationships/appTags", appID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appTagsRelationships",
+		ParseErr:    "failed to parse appTags relationship response",
+	})
+}
+
 // GetBackgroundAssets sends GET /v1/apps/{id}/backgroundAssets (apps_backgroundAssets_getToManyRelated).
 func (c *Client) GetBackgroundAssets(ctx context.Context, appID string, opts ...BackgroundAssetsOption) (*BackgroundAssetsResponse, error) {
 	query := applyOptions(opts)

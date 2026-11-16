@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 )
 
@@ -36,7 +37,7 @@ func TestDistributionApplyAndResumeRejectConfigBindingTamperBeforeSideEffects(t 
 					deps := validApplyDistributionOrchestrationDependencies(t, plan)
 					deps.createRun = func(string, string) error { t.Fatal("run created before config authorization"); return nil }
 					deps.recoverEphemeral = func(context.Context) error { t.Fatal("signing recovery ran before config authorization"); return nil }
-					deps.preflightPublish = func(context.Context, distributionPublicationConfig) error {
+					deps.preflightPublish = func(context.Context, *shared.Deps, distributionPublicationConfig) error {
 						t.Fatal("publication preflight ran before config authorization")
 						return nil
 					}
@@ -52,9 +53,9 @@ func TestDistributionApplyAndResumeRejectConfigBindingTamperBeforeSideEffects(t 
 
 					var err error
 					if operation == "apply" {
-						_, err = executeDistributionApply(context.Background(), distributionApplyRequest{PlanPath: plan.ConfigPath, Confirmation: plan.PlanHash})
+						_, err = executeDistributionApply(context.Background(), distributionTestDepsAt(distributionTestNow), distributionApplyRequest{PlanPath: plan.ConfigPath, Confirmation: plan.PlanHash})
 					} else {
-						_, err = executeDistributionResume(context.Background(), distributionRunRequest{RunID: deterministicDistributionRunID(plan), StateDir: plan.Paths.StateDir})
+						_, err = executeDistributionResume(context.Background(), distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: deterministicDistributionRunID(plan), StateDir: plan.Paths.StateDir})
 					}
 					if err == nil || !strings.Contains(err.Error(), "effect authorization") {
 						t.Fatalf("error = %v, want config authorization rejection", err)
@@ -70,7 +71,6 @@ func TestExecuteDistributionPlanRejectsNestedPolicyEchoMismatchBeforeWriting(t *
 		t.Run(field, func(t *testing.T) {
 			now := time.Date(2026, 8, 13, 8, 0, 0, 0, time.UTC)
 			deps := validDistributionOrchestrationDependencies(t)
-			deps.now = func() time.Time { return now }
 			deps.reconcilePlan = func(_ context.Context, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 				plan := validDistributionReconcilePlan(now)
 				plan.MinimumValidityDays = options.MinimumValidityDays
@@ -88,7 +88,7 @@ func TestExecuteDistributionPlanRejectsNestedPolicyEchoMismatchBeforeWriting(t *
 			}
 			installDistributionOrchestrationDependencies(t, deps)
 
-			_, err := executeDistributionPlan(context.Background(), distributionPlanRequest{
+			_, err := executeDistributionPlan(context.Background(), distributionTestDepsAt(now), distributionPlanRequest{
 				ArchivePath: "/archives/Demo.xcarchive", ConfigPath: "/config/distribution.json",
 				PlanPath: "/plans/plan.json", StateDir: "/state/runs",
 			})
@@ -102,7 +102,6 @@ func TestExecuteDistributionPlanRejectsNestedPolicyEchoMismatchBeforeWriting(t *
 func TestExecuteDistributionPlanWritesLegitimateBlockedNestedPlan(t *testing.T) {
 	now := time.Date(2026, 8, 13, 8, 0, 0, 0, time.UTC)
 	deps := validDistributionOrchestrationDependencies(t)
-	deps.now = func() time.Time { return now }
 	deps.reconcilePlan = func(_ context.Context, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 		plan := validDistributionReconcilePlan(now)
 		plan.Ready = false
@@ -119,7 +118,7 @@ func TestExecuteDistributionPlanWritesLegitimateBlockedNestedPlan(t *testing.T) 
 	deps.writePlan = func(string, persistedDistributionPlan) error { written = true; return nil }
 	installDistributionOrchestrationDependencies(t, deps)
 
-	plan, err := executeDistributionPlan(context.Background(), distributionPlanRequest{
+	plan, err := executeDistributionPlan(context.Background(), distributionTestDepsAt(now), distributionPlanRequest{
 		ArchivePath: "/archives/Demo.xcarchive", ConfigPath: "/config/distribution.json",
 		PlanPath: "/plans/plan.json", StateDir: "/state/runs",
 	})
