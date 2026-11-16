@@ -112,6 +112,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--path` for `asc signing resign`\n" +
 				"Try:\n  --ipa\n  --output\n" +
 				"For help:\n  asc signing resign --help\n",
+			deps: true,
 		},
 		{
 			name: "ipa-info --ipa",

@@ -10,8 +10,6 @@ import (
 )
 
 func TestWebAnalyticsSourcesCommandOutputsJSON(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	origGetSources := getAnalyticsSourcesPageFn
 	t.Cleanup(func() {
@@ -70,8 +68,6 @@ func TestWebAnalyticsSourcesCommandOutputsJSON(t *testing.T) {
 }
 
 func TestWebAnalyticsSalesCommandTableIncludesRevenueLabels(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	origGetSales := getAnalyticsSalesSummaryFn
 	t.Cleanup(func() {
@@ -129,8 +125,6 @@ func TestWebAnalyticsSalesCommandTableIncludesRevenueLabels(t *testing.T) {
 }
 
 func TestWebAnalyticsBenchmarksCommandTableIncludesPercentiles(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	origGetBenchmarks := getAnalyticsBenchmarksFn
 	t.Cleanup(func() {
@@ -187,8 +181,6 @@ func TestWebAnalyticsBenchmarksCommandTableIncludesPercentiles(t *testing.T) {
 }
 
 func TestWebAnalyticsProductPagesCommandOutputsCapabilityJSON(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	origGetAppInfo := getAnalyticsAppInfoFn
 	t.Cleanup(func() {

@@ -42,7 +42,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			inspectCommand(d),
 			prepareCommand(d),
-			PublishCommand(),
+			newPublishCommand(d),
 			distributionPlanCommand(),
 			distributionApplyCommand(),
 			distributionResumeCommand(),

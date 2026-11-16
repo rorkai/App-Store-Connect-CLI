@@ -156,7 +156,7 @@ func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts Readines
 				return fmt.Errorf("failed to fetch app price schedule: %w", fetchErr)
 			}
 			priceScheduleID = priceScheduleResp.Data.ID
-			basePrice, fetchErr := pricing.FetchAppBasePriceStatus(taskCtx, client, priceScheduleID, runReadinessRequest)
+			basePrice, fetchErr := pricing.FetchAppBasePriceStatus(taskCtx, client, priceScheduleID, runReadinessRequest, d.Now)
 			switch {
 			case fetchErr != nil:
 				if errors.Is(fetchErr, context.Canceled) {

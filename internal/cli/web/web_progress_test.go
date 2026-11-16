@@ -8,27 +8,10 @@ import (
 	"strings"
 	"testing"
 	"testing/synctest"
-	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
-
-func stubWebProgressLabels(t *testing.T) *[]string {
-	t.Helper()
-
-	origSpinner := webWithSpinnerDelayedFn
-	labels := []string{}
-	webWithSpinnerDelayedFn = func(label string, delay time.Duration, fn func() error) error {
-		labels = append(labels, label)
-		return fn()
-	}
-	t.Cleanup(func() {
-		webWithSpinnerDelayedFn = origSpinner
-	})
-
-	return &labels
-}
 
 func TestResolveSessionUsesProgressLabels(t *testing.T) {
 	d, _, stderr := newWebSpinnerTestDeps(t)

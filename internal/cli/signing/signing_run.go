@@ -178,7 +178,6 @@ var (
 	signingRunSystemRootsFn   = systemSigningRunRoots
 	signingRunProfileTrustFn  = verifySigningRunProfileTrust
 	signingRunEnvironmentFn   = runSigningEnvironment
-	signingRunNowFn           = time.Now
 )
 
 var sanitizedSigningChildEnvironmentNames = map[string]struct{}{
@@ -318,7 +317,8 @@ func InspectPKCS12Identity(ctx context.Context, options PKCS12IdentityOptions) (
 	if err := ctx.Err(); err != nil {
 		return PKCS12IdentityInfo{}, err
 	}
-	if platformSigningRunDeps(shared.DefaultDeps()).GOOS != "darwin" {
+	d := shared.DefaultDeps()
+	if platformSigningRunDeps(d).GOOS != "darwin" {
 		return PKCS12IdentityInfo{}, shared.NewValidationError(fmt.Errorf("inspect PKCS#12 identity is supported only on macOS"))
 	}
 	identityData, err := readBoundedSigningRunFile(options.IdentityPath, signingRunInputLimit, true)
@@ -339,7 +339,7 @@ func InspectPKCS12Identity(ctx context.Context, options PKCS12IdentityOptions) (
 	}
 	identityPassword := bytes.TrimSuffix(passwordData, []byte("\n"))
 	identityPassword = bytes.TrimSuffix(identityPassword, []byte("\r"))
-	identity, err := inspectSigningRunIdentity(identityData, identityPassword, signingRunNowFn())
+	identity, err := inspectSigningRunIdentity(identityData, identityPassword, d.Now())
 	if err != nil {
 		return PKCS12IdentityInfo{}, fmt.Errorf("inspect PKCS#12 identity: %w", err)
 	}
