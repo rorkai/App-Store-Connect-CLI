@@ -119,7 +119,7 @@ Examples:
 		paginate := boolFlagValue(cmd.FlagSet, "paginate")
 		output := stringFlagValue(cmd.FlagSet, "output")
 		pretty := boolFlagValue(cmd.FlagSet, "pretty")
-		appID := shared.ResolveAppID(stringFlagValue(cmd.FlagSet, "app"))
+		appID := d.ResolveAppID(stringFlagValue(cmd.FlagSet, "app"))
 		errorPrefix := promotedPurchasesCommandErrorPrefix(cfg, "list")
 
 		if err := d.ValidatePaginationFlags(ctx, cmd.FlagSet, errorPrefix, 200, "iap-fields", "subscription-fields"); err != nil {
@@ -482,7 +482,7 @@ Examples:
   %s link --app "APP_ID" --clear --confirm`, cfg.ProductPlural, cfg.ProductPlural, otherProductPlural(cfg.ProductType), cfg.PathPrefix, cfg.PathPrefix, cfg.PathPrefix)
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		appID := shared.ResolveAppID(stringFlagValue(cmd.FlagSet, "app"))
+		appID := d.ResolveAppID(stringFlagValue(cmd.FlagSet, "app"))
 		promotedIDs := stringFlagValue(cmd.FlagSet, "promoted-purchase-id")
 		clear := boolFlagValue(cmd.FlagSet, "clear")
 		confirm := boolFlagValue(cmd.FlagSet, "confirm")

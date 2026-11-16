@@ -192,7 +192,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -383,7 +383,7 @@ Examples:
 			nextURL := strings.TrimSpace(*next)
 			resolvedAppID := ""
 			if appFlag != "" || (id == "" && nextURL == "") {
-				resolvedAppID = shared.ResolveAppID(*appID)
+				resolvedAppID = d.ResolveAppID(*appID)
 			}
 			if id == "" && resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --group-id or --app is required (or set ASC_APP_ID)")
@@ -1569,7 +1569,7 @@ Examples:
 			if subscriptionValue == "" && flagWasProvided(fs, "app") {
 				return d.UsageError("--app requires --subscription-id")
 			}
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if err := d.RequireAppForStableSelector(resolvedAppID, subscriptionValue, "--subscription-id"); err != nil {
 				return err
 			}
