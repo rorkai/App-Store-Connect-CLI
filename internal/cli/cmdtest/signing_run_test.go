@@ -17,10 +17,7 @@ func TestSigningRunUnsupportedPlatformRendersStderrAndErrorExit(t *testing.T) {
 		"--", "child-tool", "--child-flag",
 	}
 
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run(args, "test")
-	})
+	stdout, stderr, exitCode := runWithDeps(t, nil, args...)
 	if exitCode != rootcmd.ExitError {
 		t.Fatalf("exit code = %d, want %d", exitCode, rootcmd.ExitError)
 	}

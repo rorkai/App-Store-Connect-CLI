@@ -9,13 +9,15 @@ import (
 )
 
 // newSigningTestDeps returns deps that write to the returned stdout and stderr
-// buffers, with the process clock, timer and request timeout and no client.
+// buffers, with the process clock, timer, request timeout and timeout settings
+// and no client.
 func newSigningTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
-		IO:      &shared.IO{In: strings.NewReader(""), Out: &stdout, ErrOut: &stderr},
-		Now:     time.Now,
-		Timeout: shared.ContextWithTimeout,
-		After:   time.After,
+		IO:             &shared.IO{In: strings.NewReader(""), Out: &stdout, ErrOut: &stderr},
+		Now:            time.Now,
+		Timeout:        shared.ContextWithTimeout,
+		ResolveTimeout: shared.ResolveTimeoutSetting,
+		After:          time.After,
 	}, &stdout, &stderr
 }
