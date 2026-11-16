@@ -7,17 +7,6 @@ import (
 	"strings"
 )
 
-// GetBetaAppReviewDetails retrieves beta app review details filtered by app.
-func (c *Client) GetBetaAppReviewDetails(ctx context.Context, appID string, opts ...BetaAppReviewDetailsOption) (*BetaAppReviewDetailsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaAppReviewDetailsResponse](ctx, c, readRequest{
-		Path:        "/v1/betaAppReviewDetails",
-		Query:       buildBetaAppReviewDetailsQuery(appID, query),
-		Next:        query.nextURL,
-		NextContext: "betaAppReviewDetails",
-	})
-}
-
 // UpdateBetaAppReviewDetail updates beta app review details by ID.
 func (c *Client) UpdateBetaAppReviewDetail(ctx context.Context, detailID string, attrs BetaAppReviewDetailUpdateAttributes) (*BetaAppReviewDetailResponse, error) {
 	detailID = strings.TrimSpace(detailID)

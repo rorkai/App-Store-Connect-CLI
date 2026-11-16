@@ -95,18 +95,6 @@ type AppStoreVersionBuildRelationshipUpdateRequest struct {
 	Data ResourceData `json:"data"`
 }
 
-// GetPreReleaseVersions retrieves TestFlight pre-release versions for an app.
-func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts ...PreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
-	query := applyOptions(opts)
-	appID = strings.TrimSpace(appID)
-	return getJSON[PreReleaseVersionsResponse](ctx, c, readRequest{
-		Path:        "/v1/preReleaseVersions",
-		Query:       buildPreReleaseVersionsQuery(appID, query),
-		Next:        query.nextURL,
-		NextContext: "preReleaseVersions",
-	})
-}
-
 // CreateAppStoreVersion creates a new app store version for an app.
 func (c *Client) CreateAppStoreVersion(ctx context.Context, appID string, attrs AppStoreVersionCreateAttributes) (*AppStoreVersionResponse, error) {
 	return c.CreateAppStoreVersionWithBuild(ctx, appID, "", attrs)

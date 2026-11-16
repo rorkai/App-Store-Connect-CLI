@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -49,6 +50,17 @@ func (c *Client) GetBetaAppReviewDetailApp(ctx context.Context, detailID string)
 	})
 }
 
+// GetBetaAppReviewDetails sends GET /v1/betaAppReviewDetails (betaAppReviewDetails_getCollection).
+func (c *Client) GetBetaAppReviewDetails(ctx context.Context, opts ...BetaAppReviewDetailsOption) (*BetaAppReviewDetailsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[BetaAppReviewDetailsResponse](ctx, c, readRequest{
+		Path:        "/v1/betaAppReviewDetails",
+		Query:       buildBetaAppReviewDetailsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaAppReviewDetails",
+	})
+}
+
 // GetBetaAppReviewDetail sends GET /v1/betaAppReviewDetails/{id} (betaAppReviewDetails_getInstance).
 func (c *Client) GetBetaAppReviewDetail(ctx context.Context, detailID string) (*BetaAppReviewDetailResponse, error) {
 	detailID = strings.TrimSpace(detailID)
@@ -58,4 +70,30 @@ func (c *Client) GetBetaAppReviewDetail(ctx context.Context, detailID string) (*
 	return getJSON[BetaAppReviewDetailResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/betaAppReviewDetails/%s", detailID),
 	})
+}
+
+// BetaAppReviewDetailsOption sets the query of GET /v1/betaAppReviewDetails (betaAppReviewDetails_getCollection).
+type BetaAppReviewDetailsOption func(*betaAppReviewDetailsQuery)
+
+type betaAppReviewDetailsQuery struct {
+	listQuery
+	appID string
+}
+
+// WithBetaAppReviewDetailsAppID sets filter[app].
+func WithBetaAppReviewDetailsAppID(appID string) BetaAppReviewDetailsOption {
+	return func(q *betaAppReviewDetailsQuery) {
+		if strings.TrimSpace(appID) != "" {
+			q.appID = strings.TrimSpace(appID)
+		}
+	}
+}
+
+func buildBetaAppReviewDetailsQuery(query *betaAppReviewDetailsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.appID) != "" {
+		values.Set("filter[app]", strings.TrimSpace(query.appID))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
 }
