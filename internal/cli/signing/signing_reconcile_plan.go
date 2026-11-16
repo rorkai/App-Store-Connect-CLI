@@ -21,18 +21,18 @@ import (
 	"howett.net/plist"
 )
 
-func executeSigningReconcilePlan(ctx context.Context, options signingReconcilePlanOptions) (signingReconcilePlanArtifact, error) {
+func executeSigningReconcilePlan(ctx context.Context, d *shared.Deps, options signingReconcilePlanOptions) (signingReconcilePlanArtifact, error) {
 	paths := reconcilePaths(options)
-	if err := validateSigningReconcileInputPaths(paths); err != nil {
+	if err := validateSigningReconcileInputPaths(d, paths); err != nil {
 		return signingReconcilePlanArtifact{}, err
 	}
 	deviceBytes, err := readProtectedFile(paths.DevicesFile)
 	if err != nil {
-		return signingReconcilePlanArtifact{}, protectedDevicesFileUsageError(err)
+		return signingReconcilePlanArtifact{}, protectedDevicesFileUsageError(d, err)
 	}
 	devicesFile, err := decodeSigningDevicesFile(deviceBytes)
 	if err != nil {
-		return signingReconcilePlanArtifact{}, invalidDevicesFileUsageError(err)
+		return signingReconcilePlanArtifact{}, invalidDevicesFileUsageError(d, err)
 	}
 	archive, err := readSigningArchiveRequirements(paths.ArchivePath)
 	if err != nil {
@@ -42,11 +42,11 @@ func executeSigningReconcilePlan(ctx context.Context, options signingReconcilePl
 		return signingReconcilePlanArtifact{}, newReconcilePlanInvalid(fmt.Errorf("archive contains no signing targets"))
 	}
 
-	client, err := sharedASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return signingReconcilePlanArtifact{}, err
 	}
-	requestCtx, cancel := signingRequestContext(ctx)
+	requestCtx, cancel := signingRequestContext(ctx, d)
 	defer cancel()
 
 	plan := signingReconcilePlanArtifact{
@@ -116,34 +116,29 @@ func executeSigningReconcilePlan(ctx context.Context, options signingReconcilePl
 	return plan, nil
 }
 
-func validateSigningReconcileInputPaths(paths signingReconcilePaths) error {
+func validateSigningReconcileInputPaths(d *shared.Deps, paths signingReconcilePaths) error {
 	devicesPath, err := filepath.Abs(paths.DevicesFile)
 	if err != nil {
-		return shared.UsageErrorf("invalid --devices-file path")
+		return d.UsageErrorf("invalid --devices-file path")
 	}
 	planPath, err := filepath.Abs(paths.PlanPath)
 	if err != nil {
-		return shared.UsageErrorf("invalid --state-dir path")
+		return d.UsageErrorf("invalid --state-dir path")
 	}
 	if devicesPath == planPath {
-		return shared.UsageErrorf("--devices-file must be distinct from the generated plan path")
+		return d.UsageErrorf("--devices-file must be distinct from the generated plan path")
 	}
 	devicesInfo, devicesErr := os.Stat(devicesPath)
 	planInfo, planErr := os.Stat(planPath)
 	if devicesErr == nil && planErr == nil && os.SameFile(devicesInfo, planInfo) {
-		return shared.UsageErrorf("--devices-file must be distinct from the generated plan path")
+		return d.UsageErrorf("--devices-file must be distinct from the generated plan path")
 	}
 	return nil
 }
 
-// These indirections make the planning core independently testable while the
-// public command continues to use the shared auth and timeout contracts.
-var (
-	sharedASCClient       = func() (*asc.Client, error) { return shared.GetASCClient() }
-	signingRequestContext = func(ctx context.Context) (context.Context, context.CancelFunc) {
-		return shared.ContextWithResolvedTimeout(ctx, reconcileWorkflowTimeout)
-	}
-)
+func signingRequestContext(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return d.ResolvedTimeout(ctx, reconcileWorkflowTimeout)
+}
 
 func getAllReconcileDevices(ctx context.Context, client *asc.Client) ([]asc.Resource[asc.DeviceAttributes], error) {
 	var result []asc.Resource[asc.DeviceAttributes]
