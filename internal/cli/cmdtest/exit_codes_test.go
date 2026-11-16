@@ -253,6 +253,7 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			name:    "publish appstore invalid timeout",
 			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than 0",
+			deps:    true,
 		},
 		{
 			name:    "builds list invalid processing-state",

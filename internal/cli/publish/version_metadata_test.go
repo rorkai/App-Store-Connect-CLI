@@ -82,7 +82,7 @@ func TestApplyPublishVersionMetadataRetainsPartialResultsAndArtifact(t *testing.
 	}))
 	client := newPublishCommandTestClient(t)
 
-	results, err := applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
+	results, err := applyPublishVersionMetadata(context.Background(), newPublishTestDeps(), client, publishVersionMetadataOptions{
 		VersionID: "version-1",
 		Dir:       "metadata",
 		ValuesByLocale: map[string]map[string]string{
@@ -121,7 +121,7 @@ func TestApplyPublishVersionMetadataPreservesZeroResultInputError(t *testing.T) 
 	}))
 	client := newPublishCommandTestClient(t)
 
-	results, err := applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
+	results, err := applyPublishVersionMetadata(context.Background(), newPublishTestDeps(), client, publishVersionMetadataOptions{
 		VersionID: "version-1",
 		Dir:       "metadata",
 		ValuesByLocale: map[string]map[string]string{
@@ -151,7 +151,7 @@ func TestApplyPublishVersionMetadataPreservesZeroResultAPIError(t *testing.T) {
 	}))
 	client := newPublishCommandTestClient(t)
 
-	results, err := applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
+	results, err := applyPublishVersionMetadata(context.Background(), newPublishTestDeps(), client, publishVersionMetadataOptions{
 		VersionID: "version-1",
 		Dir:       "metadata",
 		ValuesByLocale: map[string]map[string]string{
@@ -205,7 +205,7 @@ func TestApplyPublishVersionMetadataUsesFreshDeadlinePerLocale(t *testing.T) {
 	var results []asc.LocalizationUploadLocaleResult
 	var err error
 	synctest.Test(t, func(*testing.T) {
-		results, err = applyPublishVersionMetadata(context.Background(), client, publishVersionMetadataOptions{
+		results, err = applyPublishVersionMetadata(context.Background(), newPublishTestDeps(), client, publishVersionMetadataOptions{
 			VersionID: "version-1",
 			ValuesByLocale: map[string]map[string]string{
 				"en-US": {"description": "New English"},
