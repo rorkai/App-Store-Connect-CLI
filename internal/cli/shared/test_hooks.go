@@ -7,8 +7,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-var mkdirTempForTest = os.MkdirTemp
-
 // SetASCClientFactoryForTesting replaces the general command ASC client factory.
 // It returns a restore function to reset the previous handler.
 func SetASCClientFactoryForTesting(fn func() (*asc.Client, error)) func() {
@@ -41,25 +39,16 @@ func SetAvailabilityClientFactory(fn func() (*asc.Client, error)) func() {
 	}
 }
 
-// ResetTierCacheForTest routes tier-cache reads and writes to an isolated temp dir for tests.
-func ResetTierCacheForTest() {
+// ResetTierCacheForTest empties dir and routes tier-cache reads and writes to it.
+func ResetTierCacheForTest(dir string) {
 	tierCacheDirOverrideMu.Lock()
-	override := tierCacheDirOverride
-	if override == "" {
-		tempDir, err := mkdirTempForTest("", "asc-tier-cache-*")
-		if err != nil {
-			tierCacheDirOverrideMu.Unlock()
-			panic(fmt.Errorf("create isolated tier cache dir: %w", err))
-		}
-		override = tempDir
-		tierCacheDirOverride = override
-	}
+	tierCacheDirOverride = dir
 	tierCacheDirOverrideMu.Unlock()
 
-	if err := os.RemoveAll(override); err != nil {
+	if err := os.RemoveAll(dir); err != nil {
 		panic(fmt.Errorf("reset isolated tier cache dir: %w", err))
 	}
-	if err := os.MkdirAll(override, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		panic(fmt.Errorf("recreate isolated tier cache dir: %w", err))
 	}
 }
