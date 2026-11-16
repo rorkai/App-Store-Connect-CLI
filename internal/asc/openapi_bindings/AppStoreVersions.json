@@ -26,6 +26,7 @@
     {"operation":"appStoreVersions_appStoreVersionSubmission_getToOneRelationship","name":"GetAppStoreVersionSubmissionRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse appStoreVersionSubmission relationship response"},
     {"operation":"appStoreVersions_build_getToOneRelated","name":"GetAppStoreVersionBuild","params":["versionID"],"check":"raw","response":"BuildResponse"},
     {"operation":"appStoreVersions_build_getToOneRelationship","name":"GetAppStoreVersionBuildRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse build relationship response"},
+    {"operation":"appStoreVersions_customerReviews_getToManyRelated","name":"GetAppStoreVersionCustomerReviews","params":["versionID"],"check":"require","options":"ReviewOption","query":"buildReviewQuery","nextContext":"customerReviews","response":"ReviewsResponse"},
     {"operation":"appStoreVersions_deleteInstance","name":"DeleteAppStoreVersion","params":["versionID"]},
     {"operation":"appStoreVersions_gameCenterAppVersion_getToOneRelated","name":"GetAppStoreVersionGameCenterAppVersion","params":["versionID"]},
     {"operation":"appStoreVersions_gameCenterAppVersion_getToOneRelationship","name":"GetAppStoreVersionGameCenterAppVersionRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse gameCenterAppVersion relationship response"},

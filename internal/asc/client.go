@@ -531,31 +531,6 @@ type BetaTesterInvitationCreateRelationships struct {
 	BetaTester *Relationship `json:"betaTester,omitempty"`
 }
 
-// GetReviews retrieves App Store reviews
-func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOption) (*ReviewsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[ReviewsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/customerReviews", appID),
-		Query:       buildReviewQuery(query),
-		Next:        query.nextURL,
-		NextContext: "reviews",
-	})
-}
-
-// GetCustomerReview retrieves a customer review by ID. Only include and fields
-// options apply; Apple accepts no filters on this endpoint.
-func (c *Client) GetCustomerReview(ctx context.Context, reviewID string, opts ...ReviewOption) (*CustomerReviewResponse, error) {
-	reviewID = strings.TrimSpace(reviewID)
-	if reviewID == "" {
-		return nil, fmt.Errorf("reviewID is required")
-	}
-	query := applyOptions(opts)
-	return getJSON[CustomerReviewResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/customerReviews/%s", reviewID),
-		Query: buildCustomerReviewQuery(query),
-	})
-}
-
 // CreateBetaGroupWithAttributes creates a beta group for an app with explicit
 // attributes, attaching any builds and beta testers in the same request.
 // Note: some attributes (e.g., isInternalGroup) are create-only in the ASC API.

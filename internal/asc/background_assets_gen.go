@@ -51,6 +51,39 @@ type BackgroundAssetUpdateRequest struct {
 	Data BackgroundAssetUpdateData `json:"data"`
 }
 
+// CreateBackgroundAsset sends POST /v1/backgroundAssets (backgroundAssets_createInstance).
+func (c *Client) CreateBackgroundAsset(ctx context.Context, appID, assetPackIdentifier string) (*BackgroundAssetResponse, error) {
+	appID = strings.TrimSpace(appID)
+	assetPackIdentifier = strings.TrimSpace(assetPackIdentifier)
+	if appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+	if assetPackIdentifier == "" {
+		return nil, fmt.Errorf("asset pack identifier is required")
+	}
+	payload := BackgroundAssetCreateRequest{
+		Data: BackgroundAssetCreateData{
+			Type: ResourceTypeBackgroundAssets,
+			Attributes: BackgroundAssetCreateAttributes{
+				AssetPackIdentifier: assetPackIdentifier,
+			},
+			Relationships: BackgroundAssetCreateRelationships{
+				App: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[BackgroundAssetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/backgroundAssets",
+		Payload: payload,
+	})
+}
+
 // GetBackgroundAsset sends GET /v1/backgroundAssets/{id} (backgroundAssets_getInstance).
 func (c *Client) GetBackgroundAsset(ctx context.Context, id string) (*BackgroundAssetResponse, error) {
 	id = strings.TrimSpace(id)

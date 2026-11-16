@@ -307,6 +307,17 @@ func (c *Client) GetAppCiProduct(ctx context.Context, appID string) (*CiProductR
 	})
 }
 
+// GetReviews sends GET /v1/apps/{id}/customerReviews (apps_customerReviews_getToManyRelated).
+func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOption) (*ReviewsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[ReviewsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/customerReviews", appID),
+		Query:       buildReviewQuery(query),
+		Next:        query.nextURL,
+		NextContext: "reviews",
+	})
+}
+
 // GetEndUserLicenseAgreementForApp sends GET /v1/apps/{id}/endUserLicenseAgreement (apps_endUserLicenseAgreement_getToOneRelated).
 func (c *Client) GetEndUserLicenseAgreementForApp(ctx context.Context, appID string) (*EndUserLicenseAgreementResponse, error) {
 	appID = strings.TrimSpace(appID)
