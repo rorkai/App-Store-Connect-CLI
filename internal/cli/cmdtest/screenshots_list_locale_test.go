@@ -47,8 +47,16 @@ func installScreenshotsListTestClient(t *testing.T, handler http.HandlerFunc) {
 	}))
 }
 
+func screenshotsListTestClient(t *testing.T, handler http.HandlerFunc) func() (*asc.Client, error) {
+	t.Helper()
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return stubServerClient(t, server)
+}
+
 func TestScreenshotsListWithoutLocaleListsEveryLocalization(t *testing.T) {
-	installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		switch req.URL.Path {
 		case "/v1/apps/123456789/appStoreVersions":
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{}}`)
@@ -68,12 +76,12 @@ func TestScreenshotsListWithoutLocaleListsEveryLocalization(t *testing.T) {
 		}
 	})
 
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, client, []string{
 		"screenshots", "list",
 		"--app", "123456789",
 		"--version", "1.2.3",
 		"--output", "json",
-	})
+	}...)
 	if runErr != nil {
 		t.Fatalf("screenshots list error: %v (stderr %q)", runErr, stderr)
 	}
@@ -132,7 +140,7 @@ func TestScreenshotsListWithoutLocaleTableOutputIncludesLocaleColumn(t *testing.
 
 func testScreenshotListVersionSelector(t *testing.T, selector, value, id string) {
 	t.Helper()
-	installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		switch req.URL.Path {
 		case "/v1/appStoreVersions/" + id + "/appStoreVersionLocalizations":
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`)
@@ -149,11 +157,11 @@ func testScreenshotListVersionSelector(t *testing.T, selector, value, id string)
 	})
 
 	t.Setenv("ASC_APP_ID", "ambient-app-must-not-be-used")
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, client,
 		"screenshots", "list",
 		selector, value,
 		"--output", "table",
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("screenshots list error: %v (stderr %q)", runErr, stderr)
 	}
@@ -163,7 +171,7 @@ func testScreenshotListVersionSelector(t *testing.T, selector, value, id string)
 }
 
 func TestScreenshotsListWithoutLocaleReportsVersionWithoutLocalizations(t *testing.T) {
-	installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		switch req.URL.Path {
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			writeScreenshotsListJSON(t, w, `{"data":[],"links":{}}`)
@@ -173,11 +181,11 @@ func TestScreenshotsListWithoutLocaleReportsVersionWithoutLocalizations(t *testi
 		}
 	})
 
-	stdout, _, runErr := runRootCommand(t, []string{
+	stdout, _, runErr := runRootWithDeps(t, client, []string{
 		"screenshots", "list",
 		"--version-id", "version-1",
 		"--output", "json",
-	})
+	}...)
 	if runErr == nil {
 		t.Fatal("screenshots list error = nil, want no-localization error")
 	}
@@ -204,7 +212,7 @@ func writeScreenshotsListJSON(t *testing.T, w http.ResponseWriter, body string) 
 
 func TestVideoPreviewsListReadsEveryPreviewSetPage(t *testing.T) {
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/appPreviewSets?cursor=page-2&include=appPreviews"
-	installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path != "/v1/appStoreVersionLocalizations/loc-1/appPreviewSets" {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 			http.Error(w, "unexpected request", http.StatusNotFound)
@@ -215,9 +223,10 @@ func TestVideoPreviewsListReadsEveryPreviewSetPage(t *testing.T) {
 			return
 		}
 		writeScreenshotsListJSON(t, w, `{"data":[{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"},"relationships":{"appPreviews":{"data":[{"type":"appPreviews","id":"preview-1"}]}}}],"included":[{"type":"appPreviews","id":"preview-1","attributes":{"fileName":"iphone.mov"}}],"links":{"next":"`+nextURL+`"}}`)
-	})
+	}))
+	t.Cleanup(server.Close)
 
-	stdout, stderr, runErr := runRootCommand(t, []string{"video-previews", "list", "--version-localization", "loc-1", "--output", "json"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), "video-previews", "list", "--version-localization", "loc-1", "--output", "json")
 	if runErr != nil {
 		t.Fatalf("video-previews list error: %v (stderr %q)", runErr, stderr)
 	}

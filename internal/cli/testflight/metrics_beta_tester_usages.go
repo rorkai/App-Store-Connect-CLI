@@ -50,7 +50,7 @@ Examples:
 		groupByFlag.Usage = "Group results by dimension (testers)"
 		groupByFlag.DefValue = "testers"
 	}
-	cmd.UsageFunc = shared.DefaultUsageFunc
+	cmd.UsageFunc = d.DefaultUsageFunc
 	return cmd
 }
 
@@ -68,7 +68,7 @@ func newTestFlightMetricsGroupTestersCommand(d *shared.Deps) *ffcli.Command {
 			{old: "metrics testers", new: "metrics group-testers"},
 		},
 	)
-	cmd.UsageFunc = shared.DefaultUsageFunc
+	cmd.UsageFunc = d.DefaultUsageFunc
 	return cmd
 }
 
@@ -100,7 +100,7 @@ Examples:
   asc testflight metrics beta-tester-usages --app "APP_ID" --filter-tester "TESTER_ID"
   asc testflight metrics beta-tester-usages --app "APP_ID" --resolve-testers`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight metrics app-testers", 200, "period", "group-by", "filter-tester"); err != nil {
 				return err

@@ -28,7 +28,7 @@ Examples:
   asc release-notes generate --since-tag "v1.2.2" --until-ref "HEAD" --output markdown
   asc release-notes generate --since-ref "origin/main" --until-ref "HEAD" --max-chars 4000`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGenerateCommand(d),
 		},
@@ -78,7 +78,7 @@ Examples:
   asc release-notes generate --since-tag-pattern "v*"
   asc release-notes generate --max-commits 20`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			sinceTagValue := strings.TrimSpace(*sinceTag)
 			sinceRefValue := strings.TrimSpace(*sinceRef)

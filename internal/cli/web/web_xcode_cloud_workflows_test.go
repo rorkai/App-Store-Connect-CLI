@@ -16,7 +16,8 @@ import (
 )
 
 func TestWorkflowsCommandHierarchy(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	workflowsCmd := findSub(cmd, "workflows")
 	if workflowsCmd == nil {
 		t.Fatal("expected 'workflows' subcommand")
@@ -40,7 +41,8 @@ func TestWorkflowsCommandHierarchy(t *testing.T) {
 }
 
 func TestWorkflowsGroupReturnsErrHelp(t *testing.T) {
-	cmd := webXcodeCloudWorkflowsCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowsCommand(d)
 	err := cmd.Exec(context.Background(), nil)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -59,12 +61,13 @@ func TestWorkflowsListMissingProductIDFailsBeforeHTTP(t *testing.T) {
 		return nil, "", nil
 	}
 
-	cmd := webXcodeCloudWorkflowListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -108,7 +111,8 @@ func TestWorkflowsListSuccess(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -117,7 +121,7 @@ func TestWorkflowsListSuccess(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -174,7 +178,8 @@ func TestWorkflowsListEmptyItems(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -183,7 +188,7 @@ func TestWorkflowsListEmptyItems(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -225,7 +230,8 @@ func TestWorkflowsListTableHeaders(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -234,7 +240,7 @@ func TestWorkflowsListTableHeaders(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -269,7 +275,8 @@ func TestWorkflowsListHTTPError(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowListCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -331,7 +338,8 @@ func TestWorkflowsDescribeSuccess(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowDescribeCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowDescribeCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -341,7 +349,7 @@ func TestWorkflowsDescribeSuccess(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -388,11 +396,12 @@ func TestWorkflowsDescribeMissingFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webXcodeCloudWorkflowDescribeCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webXcodeCloudWorkflowDescribeCommand(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -483,7 +492,8 @@ func TestWorkflowsCreateSuccess(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -494,7 +504,7 @@ func TestWorkflowsCreateSuccess(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -558,11 +568,12 @@ func TestWorkflowsCreateMissingFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webXcodeCloudWorkflowCreateCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webXcodeCloudWorkflowCreateCommand(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -618,7 +629,8 @@ func TestWorkflowsCreateRejectsExistingWorkflowID(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowCreateCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -731,7 +743,8 @@ func TestWorkflowsEditSuccess(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowEditCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowEditCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -742,7 +755,7 @@ func TestWorkflowsEditSuccess(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -855,7 +868,8 @@ func TestWorkflowsEditNullDescriptionNormalizesToEmptyString(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowEditCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowEditCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -866,7 +880,7 @@ func TestWorkflowsEditNullDescriptionNormalizesToEmptyString(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -946,7 +960,8 @@ func TestWorkflowsEditNoChangeSkipsUpdate(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowEditCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowEditCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -957,7 +972,7 @@ func TestWorkflowsEditNoChangeSkipsUpdate(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -1000,11 +1015,12 @@ func TestWorkflowsEditMissingFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webXcodeCloudWorkflowEditCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webXcodeCloudWorkflowEditCommand(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -1066,7 +1082,8 @@ func TestWorkflowsEnableSuccess(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowEnableCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowEnableCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -1076,7 +1093,7 @@ func TestWorkflowsEnableSuccess(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -1143,7 +1160,8 @@ func TestWorkflowsEnableAlreadyEnabledSkipsUpdate(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowEnableCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowEnableCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -1153,7 +1171,7 @@ func TestWorkflowsEnableAlreadyEnabledSkipsUpdate(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -1217,7 +1235,8 @@ func TestWorkflowsDisableSuccess(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudWorkflowDisableCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowDisableCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -1228,7 +1247,7 @@ func TestWorkflowsDisableSuccess(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -1253,7 +1272,8 @@ func TestWorkflowsDisableSuccess(t *testing.T) {
 }
 
 func TestWorkflowsDisableMissingConfirm(t *testing.T) {
-	cmd := webXcodeCloudWorkflowDisableCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowDisableCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--product-id", "prod-1",
 		"--workflow-id", "wf-1",
@@ -1261,7 +1281,7 @@ func TestWorkflowsDisableMissingConfirm(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)

@@ -28,7 +28,7 @@ Examples:
   asc game-center leaderboards v2 localizations list --version-id "VER_ID"
   asc game-center leaderboards v2 images upload --localization-id "LOC_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardsV2ListCommand(d),
 			newGameCenterScoreModerationsCommand(d),
@@ -64,7 +64,7 @@ Examples:
   asc game-center leaderboards v2 list --group-id "GROUP_ID"
   asc game-center leaderboards v2 list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "game-center leaderboards v2 list", 200); err != nil {
 				return err
@@ -147,7 +147,7 @@ Examples:
   asc game-center leaderboards v2 versions view --id "VERSION_ID"
   asc game-center leaderboards v2 versions create --leaderboard-id "LB_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardVersionsV2ListCommand(d),
 			newGameCenterLeaderboardVersionsV2GetCommand(d),
@@ -237,7 +237,7 @@ Examples:
   asc game-center leaderboards v2 localizations list --version-id "VER_ID"
   asc game-center leaderboards v2 localizations create --version-id "VER_ID" --locale en-US --name "High Score"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardLocalizationsV2ListCommand(d),
 			newGameCenterLeaderboardLocalizationsV2GetCommand(d),
@@ -393,7 +393,7 @@ Examples:
   asc game-center leaderboards v2 images view --localization-id "LOC_ID"
   asc game-center leaderboards v2 images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardImagesV2UploadCommand(d),
 			newGameCenterLeaderboardImagesV2GetCommand(d),
@@ -424,7 +424,7 @@ This command performs the full upload flow: reserves the upload, uploads the fil
 Examples:
   asc game-center leaderboards v2 images upload --localization-id "LOC_ID" --file leaderboard.png`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -472,7 +472,7 @@ Examples:
   asc game-center leaderboards v2 images view --id "IMAGE_ID"
   asc game-center leaderboards v2 images view --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			locID := strings.TrimSpace(*localizationID)

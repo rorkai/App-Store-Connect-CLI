@@ -39,7 +39,7 @@ Examples:
 			groupsCommand(d),
 			retentionMessagingCommand(d),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
 		},

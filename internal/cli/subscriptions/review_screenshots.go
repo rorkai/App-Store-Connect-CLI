@@ -29,7 +29,7 @@ Examples:
   asc subscriptions review-screenshots view --screenshot-id "SHOT_ID"
   asc subscriptions review-screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsReviewScreenshotsGetCommand(d),
 			newSubscriptionsReviewScreenshotsCreateCommand(d),
@@ -59,7 +59,7 @@ func newSubscriptionsReviewScreenshotsGetCommand(d *shared.Deps) *ffcli.Command 
 Examples:
   asc subscriptions review-screenshots view --screenshot-id "SHOT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(d, fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {
@@ -118,7 +118,7 @@ delivery; if it does, delete the failed screenshot and upload a corrected file:
 Examples:
   asc subscriptions review-screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
@@ -189,7 +189,7 @@ func newSubscriptionsReviewScreenshotsUpdateCommand(d *shared.Deps) *ffcli.Comma
 Examples:
   asc subscriptions review-screenshots update --screenshot-id "SHOT_ID" --uploaded true --checksum "HASH"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {

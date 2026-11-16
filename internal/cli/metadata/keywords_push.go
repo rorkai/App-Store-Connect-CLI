@@ -329,7 +329,7 @@ func writeMetadataKeywordsPushFailureArtifact(d *shared.Deps, summary *metadataK
 		"metadata-keywords-push",
 		fmt.Sprintf("failures-%d.json", d.Now().UTC().UnixNano()),
 	)
-	if _, err := shared.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
+	if _, err := d.WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
 		return "", err
 	}
 

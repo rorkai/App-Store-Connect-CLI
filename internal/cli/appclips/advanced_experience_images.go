@@ -27,7 +27,7 @@ Examples:
   asc app-clips advanced-experiences images create --file path/to/image.png
   asc app-clips advanced-experiences images create --file path/to/image.png --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipAdvancedExperienceImagesGetCommand(d),
 			newAppClipAdvancedExperienceImagesCreateCommand(d),
@@ -81,7 +81,7 @@ Examples:
   asc app-clips advanced-experiences images create --file path/to/image.png
   asc app-clips advanced-experiences images create --file path/to/image.png --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			fileValue := strings.TrimSpace(*filePath)
 			if fileValue == "" {

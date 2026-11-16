@@ -3367,10 +3367,10 @@ func TestSessionCacheIgnoresLegacyIrisFileCacheAndEnvironment(t *testing.T) {
 	if resumed, ok, err := TryResumeLastSession(context.Background()); err != nil || ok || resumed != nil {
 		t.Fatalf("TryResumeLastSession = (%+v, %t, %v), want cache miss", resumed, ok, err)
 	}
-	if resumed, ok, err := ResumeCachedSessionWithoutPersist(context.Background(), "user@example.com"); err != nil || ok || resumed != nil {
+	if resumed, ok, err := ResumeCachedSessionWithoutPersist(context.Background(), "user@example.com", http.DefaultTransport); err != nil || ok || resumed != nil {
 		t.Fatalf("ResumeCachedSessionWithoutPersist = (%+v, %t, %v), want cache miss", resumed, ok, err)
 	}
-	if resumed, ok, err := ResumeLastCachedSessionWithoutPersist(context.Background()); err != nil || ok || resumed != nil {
+	if resumed, ok, err := ResumeLastCachedSessionWithoutPersist(context.Background(), http.DefaultTransport); err != nil || ok || resumed != nil {
 		t.Fatalf("ResumeLastCachedSessionWithoutPersist = (%+v, %t, %v), want cache miss", resumed, ok, err)
 	}
 	if _, err := os.Stat(filepath.Join(webDir, "session-"+key+".json")); !os.IsNotExist(err) {
@@ -3442,7 +3442,7 @@ func TestResumeCachedSessionWithoutPersistNeverOpensKeychain(t *testing.T) {
 		t.Fatalf("writeSessionToFile error: %v", err)
 	}
 
-	resumed, ok, err := ResumeCachedSessionWithoutPersist(context.Background(), "user@example.com")
+	resumed, ok, err := ResumeCachedSessionWithoutPersist(context.Background(), "user@example.com", http.DefaultTransport)
 	if err != nil || !ok || resumed == nil {
 		t.Fatalf("resume = (%+v, %t, %v), want cached file session", resumed, ok, err)
 	}
@@ -3483,7 +3483,7 @@ func TestResumeCachedSessionWithoutPersistPreservesExpiredCache(t *testing.T) {
 				t.Fatalf("read cache before resume: %v", err)
 			}
 
-			resumed, ok, err := ResumeCachedSessionWithoutPersist(context.Background(), "user@example.com")
+			resumed, ok, err := ResumeCachedSessionWithoutPersist(context.Background(), "user@example.com", http.DefaultTransport)
 			if !errors.Is(err, ErrCachedSessionExpired) || ok || resumed == nil {
 				t.Fatalf("resume = (%+v, %t, %v), want identity plus expired sentinel", resumed, ok, err)
 			}
@@ -3503,8 +3503,11 @@ func TestResumeCachedSessionWithoutPersistClassifiesTransientValidationFailure(t
 	t.Setenv(webSessionBackendEnv, "file")
 	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
 
+	transport := &resumeTestTransport{}
+	var validationTransport http.RoundTripper
 	previousFetcher := sessionInfoFetcher
-	sessionInfoFetcher = func(context.Context, *http.Client) (*sessionInfo, error) {
+	sessionInfoFetcher = func(_ context.Context, client *http.Client) (*sessionInfo, error) {
+		validationTransport = client.Transport
 		return nil, errors.New("temporary network failure")
 	}
 	t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
@@ -3520,11 +3523,16 @@ func TestResumeCachedSessionWithoutPersistClassifiesTransientValidationFailure(t
 		t.Fatalf("writeSessionToFile error: %v", err)
 	}
 
-	resumed, ok, err := ResumeCachedSessionWithoutPersist(context.Background(), "user@example.com")
+	resumed, ok, err := ResumeCachedSessionWithoutPersist(context.Background(), "user@example.com", transport)
 	if !errors.Is(err, ErrCachedSessionValidationFailed) || ok || resumed == nil || resumed.UserEmail != "user@example.com" {
 		t.Fatalf("resume = (%+v, %t, %v), want identity plus validation sentinel", resumed, ok, err)
 	}
+	if validationTransport != transport {
+		t.Fatalf("validation client transport = %v, want the given transport", validationTransport)
+	}
 }
+
+type resumeTestTransport struct{ http.RoundTripper }
 
 func persistedMyacinfoCookieValue(sess persistedSession, baseURL string) string {
 	list := sess.Cookies[baseURL]
@@ -4187,7 +4195,9 @@ func TestCachedSessionRejectsDifferentAppleAccount(t *testing.T) {
 		resume func(context.Context, string) (*AuthSession, bool, error)
 	}{
 		{"normal", TryResumeSession},
-		{"read_only", ResumeCachedSessionWithoutPersist},
+		{"read_only", func(ctx context.Context, username string) (*AuthSession, bool, error) {
+			return ResumeCachedSessionWithoutPersist(ctx, username, http.DefaultTransport)
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			session, ok, err := tc.resume(context.Background(), webTestSessionEmail)

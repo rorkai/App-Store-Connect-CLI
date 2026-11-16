@@ -43,7 +43,7 @@ Examples:
   asc subscriptions versions localizations list --version-id "VERSION_ID"
   asc subscriptions versions images upload --version-id "VERSION_ID" --file "./image.png"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsVersionsCreateCommand(d),
 			newSubscriptionsVersionsListCommand(d),
@@ -70,7 +70,7 @@ func newSubscriptionsVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc subscriptions versions create --subscription-id "SUBSCRIPTION_ID"`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
@@ -120,7 +120,7 @@ Examples:
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID"
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID" --state PREPARE_FOR_SUBMISSION --include localizations --localizations-limit 10
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID" --include images --images-limit 10`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions list", 200, "state", "fields", "subscription-fields", "image-fields", "localization-fields", "include", "images-limit", "localizations-limit", "limit"); err != nil {
 				return err
@@ -275,7 +275,7 @@ func newSubscriptionsVersionsLinksCommand(d *shared.Deps) *ffcli.Command {
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "links", ShortUsage: "asc subscriptions versions links [flags]", ShortHelp: "List raw subscription version linkages.",
-		LongHelp: "List raw version relationship linkages for a subscription.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "List raw version relationship linkages for a subscription.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions links", 200, "limit"); err != nil {
 				return err

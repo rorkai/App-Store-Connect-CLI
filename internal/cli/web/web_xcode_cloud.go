@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -15,14 +14,10 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-var (
-	newCIClientFn = webcore.NewCIClient
-	webNowFn      = time.Now
-)
+var newCIClientFn = webcore.NewCIClient
 
-// WebXcodeCloudCommand returns the xcode-cloud command group.
-func WebXcodeCloudCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud", flag.ExitOnError)
+func newWebXcodeCloudCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "xcode-cloud",
@@ -58,14 +53,14 @@ Examples:
   asc web xcode-cloud settings version-aliases update --product-id "UUID" --id "ALIAS_UUID" --name "Stable" --confirm --apple-id "user@example.com"
   asc web xcode-cloud settings version-aliases delete --product-id "UUID" --id "ALIAS_UUID" --confirm --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			webXcodeCloudUsageCommand(),
-			webXcodeCloudProductsCommand(),
-			webXcodeCloudWorkflowsCommand(),
-			webXcodeCloudEnvVarsCommand(),
-			webXcodeCloudNextBuildNumberCommand(),
-			webXcodeCloudScmCommand(),
+			webXcodeCloudUsageCommand(d),
+			webXcodeCloudProductsCommand(d),
+			webXcodeCloudWorkflowsCommand(d),
+			webXcodeCloudEnvVarsCommand(d),
+			webXcodeCloudNextBuildNumberCommand(d),
+			webXcodeCloudScmCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -73,8 +68,8 @@ Examples:
 	}
 }
 
-func webXcodeCloudUsageCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud usage", flag.ExitOnError)
+func webXcodeCloudUsageCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud usage", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "usage",
@@ -86,13 +81,13 @@ Query Xcode Cloud compute usage: plan summary, monthly history, daily breakdown,
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			webXcodeCloudUsageSummaryCommand(),
-			webXcodeCloudUsageAlertCommand(),
-			webXcodeCloudUsageMonthsCommand(),
-			webXcodeCloudUsageDaysCommand(),
-			webXcodeCloudUsageWorkflowsCommand(),
+			webXcodeCloudUsageSummaryCommand(d),
+			webXcodeCloudUsageAlertCommand(d),
+			webXcodeCloudUsageMonthsCommand(d),
+			webXcodeCloudUsageDaysCommand(d),
+			webXcodeCloudUsageWorkflowsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -100,10 +95,10 @@ Query Xcode Cloud compute usage: plan summary, monthly history, daily breakdown,
 	}
 }
 
-func webXcodeCloudUsageSummaryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud usage summary", flag.ExitOnError)
+func webXcodeCloudUsageSummaryCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud usage summary", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "summary",
@@ -119,9 +114,9 @@ Examples:
   asc web xcode-cloud usage summary --apple-id "user@example.com"
   asc web xcode-cloud usage summary --apple-id "user@example.com" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -132,29 +127,29 @@ Examples:
 			}
 
 			client := newCIClientFn(session)
-			result, err := withWebSpinnerValue("Loading Xcode Cloud usage summary", func() (*webcore.CIUsageSummary, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading Xcode Cloud usage summary", func() (*webcore.CIUsageSummary, error) {
 				return client.GetCIUsageSummary(requestCtx, teamID)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "xcode-cloud usage summary")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderCIUsageSummaryTable(result) },
-				func() error { return renderCIUsageSummaryMarkdown(result) },
+				func() error { return renderCIUsageSummaryTable(d, result) },
+				func() error { return renderCIUsageSummaryMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func webXcodeCloudUsageMonthsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud usage months", flag.ExitOnError)
+func webXcodeCloudUsageMonthsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud usage months", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	now := webNowFn()
+	now := d.Now()
 	defaultEndMonth := int(now.Month())
 	defaultEndYear := now.Year()
 	startOfWindow := now.AddDate(0, -11, 0)
@@ -183,23 +178,23 @@ Examples:
   asc web xcode-cloud usage months --apple-id "user@example.com" --start-month 1 --start-year 2025 --output table
   asc web xcode-cloud usage months --product-ids "UUID,OTHER_UUID" --apple-id "user@example.com" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *startMonth < 1 || *startMonth > 12 {
-				fmt.Fprintln(os.Stderr, "Error: --start-month must be between 1 and 12")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --start-month must be between 1 and 12")
 				return flag.ErrHelp
 			}
 			if *endMonth < 1 || *endMonth > 12 {
-				fmt.Fprintln(os.Stderr, "Error: --end-month must be between 1 and 12")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --end-month must be between 1 and 12")
 				return flag.ErrHelp
 			}
 			requestedProductIDs, err := parseProductIDs(*productIDs)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -212,7 +207,7 @@ Examples:
 			client := newCIClientFn(session)
 			var result *webcore.CIUsageMonths
 			planTotal := 0
-			err = withWebSpinner("Loading Xcode Cloud monthly usage", func() error {
+			err = withWebSpinnerWith(d, "Loading Xcode Cloud monthly usage", func() error {
 				var err error
 				result, err = client.GetCIUsageMonths(requestCtx, teamID, *startMonth, *startYear, *endMonth, *endYear)
 				if err != nil {
@@ -233,23 +228,23 @@ Examples:
 			if err != nil {
 				return withWebAuthHint(err, "xcode-cloud usage months")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderCIUsageMonthsTable(result, planTotal) },
-				func() error { return renderCIUsageMonthsMarkdown(result, planTotal) },
+				func() error { return renderCIUsageMonthsTable(d, result, planTotal) },
+				func() error { return renderCIUsageMonthsMarkdown(d, result, planTotal) },
 			)
 		},
 	}
 }
 
-func webXcodeCloudUsageDaysCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud usage days", flag.ExitOnError)
+func webXcodeCloudUsageDaysCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud usage days", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	now := webNowFn()
+	now := d.Now()
 	defaultEnd := now.Format("2006-01-02")
 	defaultStart := now.AddDate(0, 0, -30).Format("2006-01-02")
 
@@ -274,27 +269,27 @@ Examples:
   asc web xcode-cloud usage days --product-ids "UUID" --start 2025-01-01 --end 2025-01-31 --apple-id "user@example.com" --output table
   asc web xcode-cloud usage days --product-ids "UUID,OTHER_ID,ANOTHER_ID" --apple-id "user@example.com" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			requestedProductIDs, err := parseProductIDs(*productIDs)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 			if len(requestedProductIDs) == 0 {
-				return shared.RequiredFlag("--product-ids")
+				return d.RequiredFlag("--product-ids")
 			}
 			primaryProductID := requestedProductIDs[0]
 			if err := validateDateFlag("--start", *start); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 			if err := validateDateFlag("--end", *end); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -309,7 +304,7 @@ Examples:
 			var overall *webcore.CIUsageDays
 			productNames := map[string]string{}
 			planTotal := 0
-			err = withWebSpinner("Loading Xcode Cloud daily usage", func() error {
+			err = withWebSpinnerWith(d, "Loading Xcode Cloud daily usage", func() error {
 				var err error
 				result, err = client.GetCIUsageDays(requestCtx, teamID, primaryProductID, *start, *end)
 				if err != nil {
@@ -332,12 +327,13 @@ Examples:
 			if err != nil {
 				return withWebAuthHint(err, "xcode-cloud usage days")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
 					return renderCIUsageDaysTable(
+						d,
 						result,
 						overall,
 						requestedProductIDs,
@@ -347,6 +343,7 @@ Examples:
 				},
 				func() error {
 					return renderCIUsageDaysMarkdown(
+						d,
 						result,
 						overall,
 						requestedProductIDs,
@@ -368,12 +365,12 @@ type CIWorkflowsResult struct {
 	Workflows []webcore.CIWorkflowUsage `json:"workflows"`
 }
 
-func webXcodeCloudUsageWorkflowsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud usage workflows", flag.ExitOnError)
+func webXcodeCloudUsageWorkflowsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud usage workflows", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	now := webNowFn()
+	now := d.Now()
 	defaultEnd := now.Format("2006-01-02")
 	defaultStart := now.AddDate(0, 0, -30).Format("2006-01-02")
 
@@ -399,22 +396,22 @@ Examples:
   asc web xcode-cloud usage workflows --product-id "UUID" --apple-id "user@example.com" --output table
   asc web xcode-cloud usage workflows --product-id "UUID" --workflow-id "WF-UUID" --apple-id "user@example.com" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			if err := validateDateFlag("--start", *start); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 			if err := validateDateFlag("--end", *end); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err)
 				return flag.ErrHelp
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -426,7 +423,7 @@ Examples:
 
 			client := newCIClientFn(session)
 			var result *webcore.CIUsageDays
-			err = withWebSpinner("Loading Xcode Cloud workflow usage", func() error {
+			err = withWebSpinnerWith(d, "Loading Xcode Cloud workflow usage", func() error {
 				var err error
 				result, err = client.GetCIUsageDays(requestCtx, teamID, pid, *start, *end)
 				if err != nil {
@@ -449,12 +446,12 @@ Examples:
 				if wf == nil {
 					return fmt.Errorf("workflow %q not found in product %q", wfID, pid)
 				}
-				return shared.PrintOutputWithRenderers(
+				return d.PrintOutputWithRenderers(
 					wf,
 					*output.Output,
 					*output.Pretty,
-					func() error { return renderCIWorkflowDetailTable(wf) },
-					func() error { return renderCIWorkflowDetailMarkdown(wf) },
+					func() error { return renderCIWorkflowDetailTable(d, wf) },
+					func() error { return renderCIWorkflowDetailMarkdown(d, wf) },
 				)
 			}
 
@@ -468,19 +465,19 @@ Examples:
 			planTotal := 0
 			switch shared.NormalizeOutputFormat(*output.Output) {
 			case "table", "markdown":
-				summary, _ := withWebSpinnerValue("Loading Xcode Cloud plan summary", func() (*webcore.CIUsageSummary, error) {
+				summary, _ := withWebSpinnerValueWith(d, "Loading Xcode Cloud plan summary", func() (*webcore.CIUsageSummary, error) {
 					return client.GetCIUsageSummary(requestCtx, teamID)
 				})
 				if summary != nil {
 					planTotal = summary.Plan.Total
 				}
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				out,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderCIWorkflowsListTable(out, planTotal) },
-				func() error { return renderCIWorkflowsListMarkdown(out, planTotal) },
+				func() error { return renderCIWorkflowsListTable(d, out, planTotal) },
+				func() error { return renderCIWorkflowsListMarkdown(d, out, planTotal) },
 			)
 		},
 	}
@@ -527,16 +524,17 @@ func findWorkflowByID(workflows []webcore.CIWorkflowUsage, id string) *webcore.C
 	return nil
 }
 
-func renderCIWorkflowsListTable(result *CIWorkflowsResult, planTotal int) error {
+func renderCIWorkflowsListTable(d *shared.Deps, result *CIWorkflowsResult, planTotal int) error {
 	if result == nil || len(result.Workflows) == 0 {
-		fmt.Println("No workflow usage found.")
+		fmt.Fprintln(d.IO.Out, "No workflow usage found.")
 		return nil
 	}
 	maxMinutes := maxWorkflowUsageMinutes(result.Workflows)
-	fmt.Printf("Product: %s\n", result.ProductID)
-	fmt.Printf("Range: %s to %s\n", result.Start, result.End)
-	fmt.Printf("Workflows: %d\n\n", len(result.Workflows))
-	asc.RenderTable(
+	fmt.Fprintf(d.IO.Out, "Product: %s\n", result.ProductID)
+	fmt.Fprintf(d.IO.Out, "Range: %s to %s\n", result.Start, result.End)
+	fmt.Fprintf(d.IO.Out, "Workflows: %d\n\n", len(result.Workflows))
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Workflow ID", "Workflow Name", "Minutes", "Builds", "Prev Minutes", "Prev Builds", "Usage Bar"},
 		buildCIWorkflowUsageRows(result.Workflows, maxMinutes),
 	)
@@ -546,21 +544,22 @@ func renderCIWorkflowsListTable(result *CIWorkflowsResult, planTotal int) error 
 			m, _ := normalizeWorkflowUsage(wf)
 			totalMinutes += m
 		}
-		fmt.Printf("\nProduct total: %s\n", formatUsageBarWithValues(totalMinutes, planTotal))
+		fmt.Fprintf(d.IO.Out, "\nProduct total: %s\n", formatUsageBarWithValues(totalMinutes, planTotal))
 	}
 	return nil
 }
 
-func renderCIWorkflowsListMarkdown(result *CIWorkflowsResult, planTotal int) error {
+func renderCIWorkflowsListMarkdown(d *shared.Deps, result *CIWorkflowsResult, planTotal int) error {
 	if result == nil || len(result.Workflows) == 0 {
-		fmt.Println("No workflow usage found.")
+		fmt.Fprintln(d.IO.Out, "No workflow usage found.")
 		return nil
 	}
 	maxMinutes := maxWorkflowUsageMinutes(result.Workflows)
-	fmt.Printf("**Product:** %s\n\n", result.ProductID)
-	fmt.Printf("**Range:** %s to %s\n\n", result.Start, result.End)
-	fmt.Printf("**Workflows:** %d\n\n", len(result.Workflows))
-	asc.RenderMarkdown(
+	fmt.Fprintf(d.IO.Out, "**Product:** %s\n\n", result.ProductID)
+	fmt.Fprintf(d.IO.Out, "**Range:** %s to %s\n\n", result.Start, result.End)
+	fmt.Fprintf(d.IO.Out, "**Workflows:** %d\n\n", len(result.Workflows))
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Workflow ID", "Workflow Name", "Minutes", "Builds", "Prev Minutes", "Prev Builds", "Usage Bar"},
 		buildCIWorkflowUsageRows(result.Workflows, maxMinutes),
 	)
@@ -570,59 +569,61 @@ func renderCIWorkflowsListMarkdown(result *CIWorkflowsResult, planTotal int) err
 			m, _ := normalizeWorkflowUsage(wf)
 			totalMinutes += m
 		}
-		fmt.Printf("\n**Product total:** %s\n", formatUsageBarWithValues(totalMinutes, planTotal))
+		fmt.Fprintf(d.IO.Out, "\n**Product total:** %s\n", formatUsageBarWithValues(totalMinutes, planTotal))
 	}
 	return nil
 }
 
-func renderCIWorkflowDetailTable(wf *webcore.CIWorkflowUsage) error {
+func renderCIWorkflowDetailTable(d *shared.Deps, wf *webcore.CIWorkflowUsage) error {
 	if wf == nil {
 		return nil
 	}
 	minutes, builds := normalizeWorkflowUsage(*wf)
 	maxDayMinutes := maxDayUsageMinutes(wf.Usage)
 
-	fmt.Printf("Workflow: %s (%s)\n", valueOrNA(wf.WorkflowName), wf.WorkflowID)
-	fmt.Printf("Current: %d minutes, %d builds\n", minutes, builds)
-	fmt.Printf("Previous: %d minutes, %d builds\n\n", wf.PreviousUsageInMinutes, wf.PreviousNumberOfBuilds)
+	fmt.Fprintf(d.IO.Out, "Workflow: %s (%s)\n", valueOrNA(wf.WorkflowName), wf.WorkflowID)
+	fmt.Fprintf(d.IO.Out, "Current: %d minutes, %d builds\n", minutes, builds)
+	fmt.Fprintf(d.IO.Out, "Previous: %d minutes, %d builds\n\n", wf.PreviousUsageInMinutes, wf.PreviousNumberOfBuilds)
 
 	if len(wf.Usage) == 0 {
-		fmt.Println("No daily usage data.")
+		fmt.Fprintln(d.IO.Out, "No daily usage data.")
 		return nil
 	}
-	asc.RenderTable(
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Date", "Minutes", "Builds", "Usage Bar"},
 		buildCIDayUsageRows(wf.Usage, maxDayMinutes),
 	)
 	return nil
 }
 
-func renderCIWorkflowDetailMarkdown(wf *webcore.CIWorkflowUsage) error {
+func renderCIWorkflowDetailMarkdown(d *shared.Deps, wf *webcore.CIWorkflowUsage) error {
 	if wf == nil {
 		return nil
 	}
 	minutes, builds := normalizeWorkflowUsage(*wf)
 	maxDayMinutes := maxDayUsageMinutes(wf.Usage)
 
-	fmt.Printf("**Workflow:** %s (%s)\n\n", valueOrNA(wf.WorkflowName), wf.WorkflowID)
-	fmt.Printf("**Current:** %d minutes, %d builds\n\n", minutes, builds)
-	fmt.Printf("**Previous:** %d minutes, %d builds\n\n", wf.PreviousUsageInMinutes, wf.PreviousNumberOfBuilds)
+	fmt.Fprintf(d.IO.Out, "**Workflow:** %s (%s)\n\n", valueOrNA(wf.WorkflowName), wf.WorkflowID)
+	fmt.Fprintf(d.IO.Out, "**Current:** %d minutes, %d builds\n\n", minutes, builds)
+	fmt.Fprintf(d.IO.Out, "**Previous:** %d minutes, %d builds\n\n", wf.PreviousUsageInMinutes, wf.PreviousNumberOfBuilds)
 
 	if len(wf.Usage) == 0 {
-		fmt.Println("No daily usage data.")
+		fmt.Fprintln(d.IO.Out, "No daily usage data.")
 		return nil
 	}
-	asc.RenderMarkdown(
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Date", "Minutes", "Builds", "Usage Bar"},
 		buildCIDayUsageRows(wf.Usage, maxDayMinutes),
 	)
 	return nil
 }
 
-func webXcodeCloudProductsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud products", flag.ExitOnError)
+func webXcodeCloudProductsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud products", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "products",
@@ -639,9 +640,9 @@ Examples:
   asc web xcode-cloud products --apple-id "user@example.com"
   asc web xcode-cloud products --apple-id "user@example.com" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -652,33 +653,35 @@ Examples:
 			}
 
 			client := newCIClientFn(session)
-			result, err := withWebSpinnerValue("Loading Xcode Cloud products", func() (*webcore.CIProductListResponse, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading Xcode Cloud products", func() (*webcore.CIProductListResponse, error) {
 				return client.ListCIProducts(requestCtx, teamID)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "xcode-cloud products")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderCIProductsTable(result) },
-				func() error { return renderCIProductsMarkdown(result) },
+				func() error { return renderCIProductsTable(d, result) },
+				func() error { return renderCIProductsMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func renderCIUsageSummaryTable(result *webcore.CIUsageSummary) error {
-	asc.RenderTable(
+func renderCIUsageSummaryTable(d *shared.Deps, result *webcore.CIUsageSummary) error {
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Plan", "Usage Bar", "Used", "Available", "Total", "Reset Date", "Reset Date Time", "Manage URL"},
 		buildCIUsageSummaryRows(result),
 	)
 	return nil
 }
 
-func renderCIUsageSummaryMarkdown(result *webcore.CIUsageSummary) error {
-	asc.RenderMarkdown(
+func renderCIUsageSummaryMarkdown(d *shared.Deps, result *webcore.CIUsageSummary) error {
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Plan", "Usage Bar", "Used", "Available", "Total", "Reset Date", "Reset Date Time", "Manage URL"},
 		buildCIUsageSummaryRows(result),
 	)
@@ -703,20 +706,21 @@ func buildCIUsageSummaryRows(result *webcore.CIUsageSummary) [][]string {
 	}
 }
 
-func renderCIUsageMonthsTable(result *webcore.CIUsageMonths, planTotal int) error {
+func renderCIUsageMonthsTable(d *shared.Deps, result *webcore.CIUsageMonths, planTotal int) error {
 	if result == nil {
 		result = &webcore.CIUsageMonths{}
 	}
 	maxMonthMinutes := maxMonthUsageMinutes(result.Usage)
 
-	fmt.Printf("Range: %s\n", formatCIMonthRange(result.Usage, result.Info))
-	fmt.Printf("Current: %d minutes (%d builds), avg30=%d\n", result.Info.Current.Used, result.Info.Current.Builds, result.Info.Current.Average30Days)
-	fmt.Printf("Previous: %d minutes (%d builds), avg30=%d\n\n", result.Info.Previous.Used, result.Info.Previous.Builds, result.Info.Previous.Average30Days)
-	asc.RenderTable([]string{"Year", "Month", "Minutes", "Builds", "Usage Bar"}, buildCIMonthUsageRows(result.Usage, maxMonthMinutes))
+	fmt.Fprintf(d.IO.Out, "Range: %s\n", formatCIMonthRange(result.Usage, result.Info))
+	fmt.Fprintf(d.IO.Out, "Current: %d minutes (%d builds), avg30=%d\n", result.Info.Current.Used, result.Info.Current.Builds, result.Info.Current.Average30Days)
+	fmt.Fprintf(d.IO.Out, "Previous: %d minutes (%d builds), avg30=%d\n\n", result.Info.Previous.Used, result.Info.Previous.Builds, result.Info.Previous.Average30Days)
+	asc.RenderTableTo(d.IO.Out, []string{"Year", "Month", "Minutes", "Builds", "Usage Bar"}, buildCIMonthUsageRows(result.Usage, maxMonthMinutes))
 
 	if len(result.ProductUsage) > 0 {
-		fmt.Println()
-		asc.RenderTable(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(
+			d.IO.Out,
 			[]string{"Product ID", "Product Name", "Bundle ID", "Minutes", "Builds", "Prev Minutes", "Prev Builds", "Usage Bar (Plan)"},
 			buildCIProductUsageSummaryRows(result.ProductUsage, planTotal),
 		)
@@ -725,20 +729,21 @@ func renderCIUsageMonthsTable(result *webcore.CIUsageMonths, planTotal int) erro
 	return nil
 }
 
-func renderCIUsageMonthsMarkdown(result *webcore.CIUsageMonths, planTotal int) error {
+func renderCIUsageMonthsMarkdown(d *shared.Deps, result *webcore.CIUsageMonths, planTotal int) error {
 	if result == nil {
 		result = &webcore.CIUsageMonths{}
 	}
 	maxMonthMinutes := maxMonthUsageMinutes(result.Usage)
 
-	fmt.Printf("**Range:** %s\n\n", formatCIMonthRange(result.Usage, result.Info))
-	fmt.Printf("**Current:** %d minutes (%d builds), avg30=%d\n\n", result.Info.Current.Used, result.Info.Current.Builds, result.Info.Current.Average30Days)
-	fmt.Printf("**Previous:** %d minutes (%d builds), avg30=%d\n\n", result.Info.Previous.Used, result.Info.Previous.Builds, result.Info.Previous.Average30Days)
-	asc.RenderMarkdown([]string{"Year", "Month", "Minutes", "Builds", "Usage Bar"}, buildCIMonthUsageRows(result.Usage, maxMonthMinutes))
+	fmt.Fprintf(d.IO.Out, "**Range:** %s\n\n", formatCIMonthRange(result.Usage, result.Info))
+	fmt.Fprintf(d.IO.Out, "**Current:** %d minutes (%d builds), avg30=%d\n\n", result.Info.Current.Used, result.Info.Current.Builds, result.Info.Current.Average30Days)
+	fmt.Fprintf(d.IO.Out, "**Previous:** %d minutes (%d builds), avg30=%d\n\n", result.Info.Previous.Used, result.Info.Previous.Builds, result.Info.Previous.Average30Days)
+	asc.RenderMarkdownTo(d.IO.Out, []string{"Year", "Month", "Minutes", "Builds", "Usage Bar"}, buildCIMonthUsageRows(result.Usage, maxMonthMinutes))
 
 	if len(result.ProductUsage) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(
+			d.IO.Out,
 			[]string{"Product ID", "Product Name", "Bundle ID", "Minutes", "Builds", "Prev Minutes", "Prev Builds", "Usage Bar (Plan)"},
 			buildCIProductUsageSummaryRows(result.ProductUsage, planTotal),
 		)
@@ -797,6 +802,7 @@ func filterProductUsageByIDs(productUsage []webcore.CIProductUsage, productIDs [
 }
 
 func renderCIUsageDaysTable(
+	d *shared.Deps,
 	result, overall *webcore.CIUsageDays,
 	productIDs []string,
 	productNames map[string]string,
@@ -815,14 +821,15 @@ func renderCIUsageDaysTable(
 		overallPrevious = overall.Info.Previous
 	}
 
-	fmt.Printf("Range: %s\n", formatCIDayRange(result.Usage, result.Info))
+	fmt.Fprintf(d.IO.Out, "Range: %s\n", formatCIDayRange(result.Usage, result.Info))
 	if hasOverall {
-		fmt.Printf("Overall current: %d minutes (%d builds), avg30=%d\n", overallCurrent.Used, overallCurrent.Builds, overallCurrent.Average30Days)
-		fmt.Printf("Overall previous: %d minutes (%d builds), avg30=%d\n\n", overallPrevious.Used, overallPrevious.Builds, overallPrevious.Average30Days)
+		fmt.Fprintf(d.IO.Out, "Overall current: %d minutes (%d builds), avg30=%d\n", overallCurrent.Used, overallCurrent.Builds, overallCurrent.Average30Days)
+		fmt.Fprintf(d.IO.Out, "Overall previous: %d minutes (%d builds), avg30=%d\n\n", overallPrevious.Used, overallPrevious.Builds, overallPrevious.Average30Days)
 	} else {
-		fmt.Printf("Overall usage unavailable; showing selected product scope only.\n\n")
+		fmt.Fprintf(d.IO.Out, "Overall usage unavailable; showing selected product scope only.\n\n")
 	}
-	asc.RenderTable(
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"Scope", "Minutes", "Builds", "Prev Minutes", "Prev Builds", "Usage Bar (Plan)"},
 		buildCIUsageScopeRows(
 			result,
@@ -832,12 +839,13 @@ func renderCIUsageDaysTable(
 			planTotal,
 		),
 	)
-	fmt.Println()
-	asc.RenderTable([]string{"Date", "Minutes", "Builds", "Usage Bar"}, buildCIDayUsageRows(result.Usage, maxDayMinutes))
+	fmt.Fprintln(d.IO.Out)
+	asc.RenderTableTo(d.IO.Out, []string{"Date", "Minutes", "Builds", "Usage Bar"}, buildCIDayUsageRows(result.Usage, maxDayMinutes))
 
 	if len(result.WorkflowUsage) > 0 {
-		fmt.Println()
-		asc.RenderTable(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(
+			d.IO.Out,
 			[]string{"Workflow ID", "Workflow Name", "Minutes", "Builds", "Prev Minutes", "Prev Builds", "Usage Bar"},
 			buildCIWorkflowUsageRows(result.WorkflowUsage, maxWorkflowMinutes),
 		)
@@ -847,6 +855,7 @@ func renderCIUsageDaysTable(
 }
 
 func renderCIUsageDaysMarkdown(
+	d *shared.Deps,
 	result, overall *webcore.CIUsageDays,
 	productIDs []string,
 	productNames map[string]string,
@@ -865,14 +874,15 @@ func renderCIUsageDaysMarkdown(
 		overallPrevious = overall.Info.Previous
 	}
 
-	fmt.Printf("**Range:** %s\n\n", formatCIDayRange(result.Usage, result.Info))
+	fmt.Fprintf(d.IO.Out, "**Range:** %s\n\n", formatCIDayRange(result.Usage, result.Info))
 	if hasOverall {
-		fmt.Printf("**Overall current:** %d minutes (%d builds), avg30=%d\n\n", overallCurrent.Used, overallCurrent.Builds, overallCurrent.Average30Days)
-		fmt.Printf("**Overall previous:** %d minutes (%d builds), avg30=%d\n\n", overallPrevious.Used, overallPrevious.Builds, overallPrevious.Average30Days)
+		fmt.Fprintf(d.IO.Out, "**Overall current:** %d minutes (%d builds), avg30=%d\n\n", overallCurrent.Used, overallCurrent.Builds, overallCurrent.Average30Days)
+		fmt.Fprintf(d.IO.Out, "**Overall previous:** %d minutes (%d builds), avg30=%d\n\n", overallPrevious.Used, overallPrevious.Builds, overallPrevious.Average30Days)
 	} else {
-		fmt.Printf("**Overall usage unavailable; showing selected product scope only.**\n\n")
+		fmt.Fprintf(d.IO.Out, "**Overall usage unavailable; showing selected product scope only.**\n\n")
 	}
-	asc.RenderMarkdown(
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"Scope", "Minutes", "Builds", "Prev Minutes", "Prev Builds", "Usage Bar (Plan)"},
 		buildCIUsageScopeRows(
 			result,
@@ -882,12 +892,13 @@ func renderCIUsageDaysMarkdown(
 			planTotal,
 		),
 	)
-	fmt.Println()
-	asc.RenderMarkdown([]string{"Date", "Minutes", "Builds", "Usage Bar"}, buildCIDayUsageRows(result.Usage, maxDayMinutes))
+	fmt.Fprintln(d.IO.Out)
+	asc.RenderMarkdownTo(d.IO.Out, []string{"Date", "Minutes", "Builds", "Usage Bar"}, buildCIDayUsageRows(result.Usage, maxDayMinutes))
 
 	if len(result.WorkflowUsage) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown(
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(
+			d.IO.Out,
 			[]string{"Workflow ID", "Workflow Name", "Minutes", "Builds", "Prev Minutes", "Prev Builds", "Usage Bar"},
 			buildCIWorkflowUsageRows(result.WorkflowUsage, maxWorkflowMinutes),
 		)
@@ -926,13 +937,13 @@ func buildCIWorkflowUsageRows(workflowUsage []webcore.CIWorkflowUsage, maxMinute
 	return rows
 }
 
-func renderCIProductsTable(result *webcore.CIProductListResponse) error {
-	asc.RenderTable([]string{"Product ID", "Name", "Bundle ID", "Type"}, buildCIProductRows(result))
+func renderCIProductsTable(d *shared.Deps, result *webcore.CIProductListResponse) error {
+	asc.RenderTableTo(d.IO.Out, []string{"Product ID", "Name", "Bundle ID", "Type"}, buildCIProductRows(result))
 	return nil
 }
 
-func renderCIProductsMarkdown(result *webcore.CIProductListResponse) error {
-	asc.RenderMarkdown([]string{"Product ID", "Name", "Bundle ID", "Type"}, buildCIProductRows(result))
+func renderCIProductsMarkdown(d *shared.Deps, result *webcore.CIProductListResponse) error {
+	asc.RenderMarkdownTo(d.IO.Out, []string{"Product ID", "Name", "Bundle ID", "Type"}, buildCIProductRows(result))
 	return nil
 }
 

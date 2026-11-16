@@ -30,11 +30,8 @@ func TestNotifySlackRefusesRedirectWithoutForwardingPayloadOrReferer(t *testing.
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalClient := slackHTTPClient
-	t.Cleanup(func() { slackHTTPClient = originalClient })
-	slackHTTPClient = source.Client
-
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(source.Client().Transport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 	if err := root.Parse([]string{
 		"--webhook", source.URL + "/services/T/B/redirect-secret",

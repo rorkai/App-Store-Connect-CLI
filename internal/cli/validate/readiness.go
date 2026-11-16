@@ -399,7 +399,7 @@ func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts Readines
 	if opts.CheckURLs {
 		targets := validateURLTargets(versionLocalizations, appInfoLocalizations)
 		if len(targets) > 0 {
-			urlChecks, checkErr := checkValidateURLs(ctx, newValidateURLChecker(), targets)
+			urlChecks, checkErr := checkValidateURLs(ctx, newValidateURLChecker(d.HTTPTransport()), targets)
 			if checkErr != nil {
 				return validation.Report{}, checkErr
 			}
