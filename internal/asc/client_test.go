@@ -1010,6 +1010,7 @@ func TestBuildAppInfoQueryAddsIncludedRelationshipsToSparseFields(t *testing.T) 
 func TestBuildPreReleaseVersionsQuery(t *testing.T) {
 	query := &preReleaseVersionsQuery{}
 	opts := []PreReleaseVersionsOption{
+		WithPreReleaseVersionsAppID("APP_ID"),
 		Limit[PreReleaseVersionsOption](15),
 		WithPreReleaseVersionsPlatform(" ios, MAC_OS "),
 		WithPreReleaseVersionsVersion("1.0.0, 1.1.0"),
@@ -1018,7 +1019,7 @@ func TestBuildPreReleaseVersionsQuery(t *testing.T) {
 		opt(query)
 	}
 
-	values, err := url.ParseQuery(buildPreReleaseVersionsQuery("APP_ID", query))
+	values, err := url.ParseQuery(buildPreReleaseVersionsQuery(query))
 	if err != nil {
 		t.Fatalf("failed to parse query: %v", err)
 	}

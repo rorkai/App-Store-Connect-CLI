@@ -44,6 +44,7 @@ type buildBundlesQuery struct {
 
 type preReleaseVersionsQuery struct {
 	listQuery
+	appID    string
 	platform string
 	version  string
 }
@@ -76,10 +77,10 @@ func buildBuildUploadsQuery(query *buildUploadsQuery) string {
 	return values.Encode()
 }
 
-func buildPreReleaseVersionsQuery(appID string, query *preReleaseVersionsQuery) string {
+func buildPreReleaseVersionsQuery(query *preReleaseVersionsQuery) string {
 	values := url.Values{}
-	if strings.TrimSpace(appID) != "" {
-		values.Set("filter[app]", strings.TrimSpace(appID))
+	if strings.TrimSpace(query.appID) != "" {
+		values.Set("filter[app]", strings.TrimSpace(query.appID))
 	}
 	if strings.TrimSpace(query.platform) != "" {
 		values.Set("filter[platform]", strings.TrimSpace(query.platform))
@@ -272,6 +273,15 @@ func WithBuildUploadsSort(sort string) BuildUploadsOption {
 	return func(q *buildUploadsQuery) {
 		if strings.TrimSpace(sort) != "" {
 			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithPreReleaseVersionsAppID sets filter[app].
+func WithPreReleaseVersionsAppID(appID string) PreReleaseVersionsOption {
+	return func(q *preReleaseVersionsQuery) {
+		if strings.TrimSpace(appID) != "" {
+			q.appID = strings.TrimSpace(appID)
 		}
 	}
 }

@@ -96,12 +96,11 @@ type AppStoreVersionBuildRelationshipUpdateRequest struct {
 }
 
 // GetPreReleaseVersions retrieves TestFlight pre-release versions for an app.
-func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts ...PreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
+func (c *Client) GetPreReleaseVersions(ctx context.Context, opts ...PreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
 	query := applyOptions(opts)
-	appID = strings.TrimSpace(appID)
 	return getJSON[PreReleaseVersionsResponse](ctx, c, readRequest{
 		Path:        "/v1/preReleaseVersions",
-		Query:       buildPreReleaseVersionsQuery(appID, query),
+		Query:       buildPreReleaseVersionsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "preReleaseVersions",
 	})

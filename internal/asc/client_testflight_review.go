@@ -8,11 +8,11 @@ import (
 )
 
 // GetBetaAppReviewDetails retrieves beta app review details filtered by app.
-func (c *Client) GetBetaAppReviewDetails(ctx context.Context, appID string, opts ...BetaAppReviewDetailsOption) (*BetaAppReviewDetailsResponse, error) {
+func (c *Client) GetBetaAppReviewDetails(ctx context.Context, opts ...BetaAppReviewDetailsOption) (*BetaAppReviewDetailsResponse, error) {
 	query := applyOptions(opts)
 	return getJSON[BetaAppReviewDetailsResponse](ctx, c, readRequest{
 		Path:        "/v1/betaAppReviewDetails",
-		Query:       buildBetaAppReviewDetailsQuery(appID, query),
+		Query:       buildBetaAppReviewDetailsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaAppReviewDetails",
 	})

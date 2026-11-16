@@ -75,6 +75,7 @@ type betaTestersQuery struct {
 
 type betaAppReviewDetailsQuery struct {
 	listQuery
+	appID string
 }
 
 type betaAppReviewSubmissionsQuery struct {
@@ -244,10 +245,10 @@ func buildBetaTestersQuery(appID string, query *betaTestersQuery) (string, error
 	return values.Encode(), nil
 }
 
-func buildBetaAppReviewDetailsQuery(appID string, query *betaAppReviewDetailsQuery) string {
+func buildBetaAppReviewDetailsQuery(query *betaAppReviewDetailsQuery) string {
 	values := url.Values{}
-	if strings.TrimSpace(appID) != "" {
-		values.Set("filter[app]", strings.TrimSpace(appID))
+	if strings.TrimSpace(query.appID) != "" {
+		values.Set("filter[app]", strings.TrimSpace(query.appID))
 	}
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -286,6 +287,15 @@ type BetaTesterBuildsOption func(*listQuery)
 
 // BetaAppReviewDetailsOption is a functional option for beta app review details.
 type BetaAppReviewDetailsOption func(*betaAppReviewDetailsQuery)
+
+// WithBetaAppReviewDetailsAppID sets filter[app].
+func WithBetaAppReviewDetailsAppID(appID string) BetaAppReviewDetailsOption {
+	return func(q *betaAppReviewDetailsQuery) {
+		if strings.TrimSpace(appID) != "" {
+			q.appID = strings.TrimSpace(appID)
+		}
+	}
+}
 
 // BetaAppReviewSubmissionsOption is a functional option for beta app review submissions.
 type BetaAppReviewSubmissionsOption func(*betaAppReviewSubmissionsQuery)
