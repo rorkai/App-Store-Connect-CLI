@@ -101,6 +101,12 @@ func IsFlagAlias(f *flag.Flag) bool {
 	return ok && len(alias.targets) > 0
 }
 
+// FlagAliasDependsOnValue reports whether the alias f stands for a different
+// flag depending on the value it is given.
+func FlagAliasDependsOnValue(f *flag.Flag) bool {
+	return IsFlagAlias(f) && len(f.Value.(*flagAlias).targets) > 1
+}
+
 // FlagAliasTarget returns the name of the flag that the alias f stands for
 // when it is given value.
 func FlagAliasTarget(f *flag.Flag, value string) (string, bool) {

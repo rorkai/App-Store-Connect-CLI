@@ -252,6 +252,18 @@ func testFlagAliasAgainstCanonical(t *testing.T, path []string, aliasName, canon
 	}
 }
 
+// An alias of a flag that never resolves @env:/@file: keeps that flag's rule:
+// the token stays a literal value under either spelling.
+func TestFlagAliasKeepsCanonicalIndirectionExclusion(t *testing.T) {
+	t.Setenv("ALIAS_TEST_UNSET", "")
+	args := []string{"profiles", "download", "--id", "PROFILE_ID"}
+	aliased := runAliasInvocation(t, append(slices.Clone(args), "--output-path", "@env:ALIAS_TEST_UNSET"))
+	canonical := runAliasInvocation(t, append(slices.Clone(args), "--output", "@env:ALIAS_TEST_UNSET"))
+	if !reflect.DeepEqual(aliased, canonical) {
+		t.Fatalf("--output-path @env:… ran differently from --output @env:…:\nalias:     %+v\ncanonical: %+v", aliased, canonical)
+	}
+}
+
 // TestBuildAliasReadsItsValueByShape runs --build on a read, a write and a
 // wait command: a UUID must behave exactly as --build-id and any other value
 // exactly as --build-number, and a second flag the value conflicts with exits 2.

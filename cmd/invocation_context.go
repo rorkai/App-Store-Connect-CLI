@@ -343,7 +343,7 @@ func commonCommandPathRecoveryForOS(root *ffcli.Command, analysis invocationAnal
 			continue
 		}
 		if !isTerminalRecoveryHelpSuffix(suffix) {
-			resolved, err := resolveFlagAliases(destination, suffix)
+			resolved, err := resolveFlagAliases(destination, suffix, nil)
 			if err != nil {
 				continue
 			}

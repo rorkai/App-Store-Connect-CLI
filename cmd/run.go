@@ -80,8 +80,9 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	// text. Structural analyses keep using the original args: the rewrite is
 	// token-for-token, so structural diagnostics and telemetry keep the
 	// original tokens. Typed flag validation may quote an invalid value.
-	// Flag aliases are rewritten to their target after indirection, so an
-	// alias whose target depends on its value's shape reads the resolved value.
+	// Flag aliases are rewritten to their target first, so the target flag's
+	// indirection rules apply; an alias whose target depends on its value
+	// resolves an indirect value only to choose that target.
 	//
 	// An explicit help request wins unconditionally: help output depends only
 	// on which command the args select, so the indirect flag tokens are
@@ -94,9 +95,9 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	if helpRequested {
 		parseArgs = dropIndirectFlagValues(root, helpArgs)
 	} else {
-		resolvedArgs, err := resolveFlagValueIndirection(d, root, args)
+		resolvedArgs, err := resolveFlagAliases(root, args, d.ResolveFlagValueIndirection)
 		if err == nil {
-			resolvedArgs, err = resolveFlagAliases(root, resolvedArgs)
+			resolvedArgs, err = resolveFlagValueIndirection(d, root, resolvedArgs)
 		}
 		if err != nil {
 			recoverCIReportFlags(root, args)

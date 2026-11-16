@@ -17,10 +17,14 @@ import (
 // way the standard flag package parses them and stops where parsing would
 // stop: at `--`, at the first positional argument, and at an unknown flag.
 //
+// An alias whose target depends on its value reads an @env:/@file: value
+// through resolveIndirect to choose the target; the token itself is left for
+// the target flag's own indirection rules. resolveIndirect may be nil.
+//
 // A flag given under two spellings with the same value is kept once. When a
 // spelling's value differs from the latest value given under another
 // spelling, the invocation is ambiguous, so it is a usage error.
-func resolveFlagAliases(root *ffcli.Command, args []string) ([]string, error) {
+func resolveFlagAliases(root *ffcli.Command, args []string, resolveIndirect func(name, value string) (string, error)) ([]string, error) {
 	command := root
 	commandPath := make([]string, 0, 4)
 	if root != nil && root.Name != "" {
@@ -76,7 +80,13 @@ func resolveFlagAliases(root *ffcli.Command, args []string) ([]string, error) {
 		}
 
 		canonical := name
-		if target, ok := shared.FlagAliasTarget(item, value); ok {
+		shape := value
+		if resolveIndirect != nil && shared.FlagAliasDependsOnValue(item) && shared.HasFlagValueIndirection(value) {
+			if resolved, err := resolveIndirect(name, value); err == nil {
+				shape = resolved
+			}
+		}
+		if target, ok := shared.FlagAliasTarget(item, shape); ok {
 			canonical = target
 			tokens[0] = dashes + canonical
 			if hasInlineValue {
