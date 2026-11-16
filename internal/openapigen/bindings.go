@@ -107,6 +107,13 @@ type OpBind struct {
 	// sets as body attributes, in signature order, which is also the order
 	// the attributes literal lists them in.
 	Args []ArgBind `json:"args,omitempty"`
+	// Optional are the to-one links a create or update sets only when their
+	// ID argument is not blank, declared after the attributes. The IDs are
+	// trimmed unless the check style is checkRaw.
+	Optional []OptionalLink `json:"optional,omitempty"`
+	// RelationshipsWhenSet leaves the relationships out until an optional
+	// link is set; without it the relationships object is always sent.
+	RelationshipsWhenSet bool `json:"relationshipsWhenSet,omitempty"`
 	// Deviations are known differences from the schema that the contract test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`
@@ -128,6 +135,13 @@ type IDList struct {
 	Message   string `json:"message,omitempty"`   // error for an empty list after normalizing; none allows it
 	Payload   string `json:"payload,omitempty"`   // one of the payload styles
 	Item      string `json:"item,omitempty"`      // loop variable of the append and resourceList styles
+}
+
+// OptionalLink is a to-one relationship set from a parameter when it is not
+// blank.
+type OptionalLink struct {
+	Param string `json:"param"`
+	Link  string `json:"link"`
 }
 
 // ArgBind is one scalar parameter set as one request attribute.

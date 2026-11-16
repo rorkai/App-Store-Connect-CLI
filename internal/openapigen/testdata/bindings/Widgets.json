@@ -19,7 +19,9 @@
   "relationships": [
     {"data":"WidgetNoteCreateData","type":"*WidgetNoteRelationships","omitempty":true},
     {"data":"WidgetReleaseCreateData","type":"WidgetReleaseCreateRelationships"},
-    {"data":"WristbandCreateData","type":"*WristbandCreateRelationships"}
+    {"data":"WristbandCreateData","type":"*WristbandCreateRelationships"},
+    {"data":"YokeCreateData","type":"*YokeCreateRelationships"},
+    {"data":"YokeUpdateData","type":"*YokeUpdateRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"widgetNotes_createInstance","name":"CreateWidgetNote","params":["widgetID"],"check":"require","messages":["widget ID is required"],"links":["widget"]},
@@ -47,7 +49,10 @@
     {"operation":"wrenches_createInstance","name":"CreateWrench","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
     {"operation":"wrenches_updateInstance","name":"UpdateWrench","params":["wrenchID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksum","attribute":"sourceFileChecksum"}]},
     {"operation":"wristbands_createInstance","name":"CreateWristband","params":["widgetID"],"check":"require","messages":["widget ID is required"],"links":["widget"],"args":[{"name":"label","param":true},{"name":"color","type":"WristbandColor"},{"name":"size"}]},
-    {"operation":"wristbands_createInstance","name":"RegisterWristband","params":["widgetID"],"check":"require","messages":["widget ID is required"],"parseErr":"failed to parse wristband response","links":["widget"],"args":[{"name":"label","param":true},{"name":"color","type":"WristbandColor"},{"name":"size"}]}
+    {"operation":"wristbands_createInstance","name":"RegisterWristband","params":["widgetID"],"check":"require","messages":["widget ID is required"],"parseErr":"failed to parse wristband response","links":["widget"],"args":[{"name":"label","param":true},{"name":"color","type":"WristbandColor"},{"name":"size"}]},
+    {"operation":"yokes_createInstance","name":"CreateYoke","params":["widgetID"],"check":"require","links":["widget"],"optional":[{"param":"gadgetID","link":"gadget"},{"param":"ownerID","link":"owner"}]},
+    {"operation":"yokes_updateInstance","name":"UpdateYoke","params":["yokeID"],"check":"require","optional":[{"param":"gadgetID","link":"gadget"}],"relationshipsWhenSet":true},
+    {"operation":"yokes_updateInstance","name":"UpdateYokeAsGiven","params":["yokeID"],"check":"raw","optional":[{"param":"gadgetID","link":"gadget"}]}
   ],
   "queries": [
     {"operation":"widgets_getCollection","name":"Widgets","params":[{"name":"filter[name]","field":"names"},{"name":"fields[widgets]"},{"name":"fields[gadgets]","arg":"fields"},{"name":"include","with":"WithWidgetsIncluded"}]},

@@ -553,6 +553,109 @@ func (c *Client) RegisterWristband(ctx context.Context, widgetID, label string, 
 	})
 }
 
+// CreateYoke sends POST /v1/yokes (yokes_createInstance).
+func (c *Client) CreateYoke(ctx context.Context, widgetID string, attrs YokeCreateAttributes, gadgetID, ownerID string) (*WidgetResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	relationships := &YokeCreateRelationships{
+		Widget: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeWidgets,
+				ID:   widgetID,
+			},
+		},
+	}
+	if id := strings.TrimSpace(gadgetID); id != "" {
+		relationships.Gadget = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGadgets,
+				ID:   id,
+			},
+		}
+	}
+	if id := strings.TrimSpace(ownerID); id != "" {
+		relationships.Owner = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeWidgets,
+				ID:   id,
+			},
+		}
+	}
+	payload := YokeCreateRequest{
+		Data: YokeCreateData{
+			Type:          ResourceTypeYokes,
+			Attributes:    attrs,
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/yokes",
+		Payload: payload,
+	})
+}
+
+// UpdateYoke sends PATCH /v1/yokes/{id} (yokes_updateInstance).
+func (c *Client) UpdateYoke(ctx context.Context, yokeID string, attrs YokeUpdateAttributes, gadgetID string) (*WidgetResponse, error) {
+	yokeID = strings.TrimSpace(yokeID)
+	if yokeID == "" {
+		return nil, fmt.Errorf("yokeID is required")
+	}
+	var relationships *YokeUpdateRelationships
+	if id := strings.TrimSpace(gadgetID); id != "" {
+		if relationships == nil {
+			relationships = &YokeUpdateRelationships{}
+		}
+		relationships.Gadget = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGadgets,
+				ID:   id,
+			},
+		}
+	}
+	payload := YokeUpdateRequest{
+		Data: YokeUpdateData{
+			Type:          ResourceTypeYokes,
+			ID:            yokeID,
+			Attributes:    &attrs,
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/yokes/%s", yokeID),
+		Payload: payload,
+	})
+}
+
+// UpdateYokeAsGiven sends PATCH /v1/yokes/{id} (yokes_updateInstance).
+func (c *Client) UpdateYokeAsGiven(ctx context.Context, yokeID string, attrs YokeUpdateAttributes, gadgetID string) (*WidgetResponse, error) {
+	relationships := &YokeUpdateRelationships{}
+	if gadgetID != "" {
+		relationships.Gadget = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGadgets,
+				ID:   gadgetID,
+			},
+		}
+	}
+	payload := YokeUpdateRequest{
+		Data: YokeUpdateData{
+			Type:          ResourceTypeYokes,
+			ID:            yokeID,
+			Attributes:    &attrs,
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/yokes/%s", yokeID),
+		Payload: payload,
+	})
+}
+
 // WidgetsOption sets the query of GET /v1/widgets (widgets_getCollection).
 type WidgetsOption func(*widgetsQuery)
 
