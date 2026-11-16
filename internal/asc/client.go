@@ -566,13 +566,6 @@ const (
 	BetaTesterStateRevoked    BetaTesterState = "REVOKED"
 )
 
-// AppStoreVersionLocalizationCreateData is the data portion of a version localization create request.
-type AppStoreVersionLocalizationCreateData struct {
-	Type          ResourceType                                `json:"type"`
-	Attributes    AppStoreVersionLocalizationCreateAttributes `json:"attributes"`
-	Relationships *AppStoreVersionLocalizationRelationships   `json:"relationships"`
-}
-
 // AppStoreVersionLocalizationUpdateData is the data portion of a version localization update request.
 type AppStoreVersionLocalizationUpdateData struct {
 	Type       ResourceType                                `json:"type"`
@@ -583,13 +576,6 @@ type AppStoreVersionLocalizationUpdateData struct {
 // AppStoreVersionLocalizationRelationships describes relationships for version localizations.
 type AppStoreVersionLocalizationRelationships struct {
 	AppStoreVersion *Relationship `json:"appStoreVersion"`
-}
-
-// BetaAppLocalizationCreateData is the data portion of a beta app localization create request.
-type BetaAppLocalizationCreateData struct {
-	Type          ResourceType                        `json:"type"`
-	Attributes    BetaAppLocalizationCreateAttributes `json:"attributes"`
-	Relationships *BetaAppLocalizationRelationships   `json:"relationships"`
 }
 
 // BetaBuildLocalizationCreateData is the data portion of a beta build localization create request.
@@ -604,13 +590,6 @@ type BetaBuildLocalizationUpdateData struct {
 	Type       ResourceType                    `json:"type"`
 	ID         string                          `json:"id"`
 	Attributes BetaBuildLocalizationAttributes `json:"attributes"`
-}
-
-// AppInfoLocalizationCreateData is the data portion of an app info localization create request.
-type AppInfoLocalizationCreateData struct {
-	Type          ResourceType                        `json:"type"`
-	Attributes    AppInfoLocalizationCreateAttributes `json:"attributes"`
-	Relationships *AppInfoLocalizationRelationships   `json:"relationships"`
 }
 
 // AppInfoLocalizationUpdateData is the data portion of an app info localization update request.
@@ -712,45 +691,6 @@ func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastNam
 	return sendJSON[BetaTesterResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesters", Payload: payload})
 }
 
-// CreateAppStoreVersionLocalization creates a localization for an app store version.
-func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionID string, attrs AppStoreVersionLocalizationCreateAttributes) (*AppStoreVersionLocalizationResponse, error) {
-	payload := AppStoreVersionLocalizationCreateRequest{
-		Data: AppStoreVersionLocalizationCreateData{
-			Type:       ResourceTypeAppStoreVersionLocalizations,
-			Attributes: attrs,
-			Relationships: &AppStoreVersionLocalizationRelationships{
-				AppStoreVersion: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppStoreVersions,
-						ID:   versionID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appStoreVersionLocalizations",
-		Payload: payload,
-	})
-}
-
-// UpdateAppStoreVersionLocalization updates a localization for an app store version.
-func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localizationID string, attrs AppStoreVersionLocalizationUpdateAttributes) (*AppStoreVersionLocalizationResponse, error) {
-	payload := AppStoreVersionLocalizationUpdateRequest{
-		Data: AppStoreVersionLocalizationUpdateData{
-			Type:       ResourceTypeAppStoreVersionLocalizations,
-			ID:         localizationID,
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID),
-		Payload: payload,
-	})
-}
-
 // UpdateAppStoreVersionLocalizationFields updates exactly the supplied fields,
 // preserving explicit empty strings while leaving omitted fields unchanged.
 func (c *Client) UpdateAppStoreVersionLocalizationFields(ctx context.Context, localizationID string, fields map[string]string) (*AppStoreVersionLocalizationResponse, error) {
@@ -800,45 +740,6 @@ func (c *Client) UpdateBetaBuildLocalization(ctx context.Context, localizationID
 		},
 	}
 	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID), Payload: payload})
-}
-
-// CreateAppInfoLocalization creates a localization for an app info resource.
-func (c *Client) CreateAppInfoLocalization(ctx context.Context, appInfoID string, attrs AppInfoLocalizationCreateAttributes) (*AppInfoLocalizationResponse, error) {
-	payload := AppInfoLocalizationCreateRequest{
-		Data: AppInfoLocalizationCreateData{
-			Type:       ResourceTypeAppInfoLocalizations,
-			Attributes: attrs,
-			Relationships: &AppInfoLocalizationRelationships{
-				AppInfo: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppInfos,
-						ID:   appInfoID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appInfoLocalizations",
-		Payload: payload,
-	})
-}
-
-// UpdateAppInfoLocalization updates a localization for an app info resource.
-func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID string, attrs AppInfoLocalizationUpdateAttributes) (*AppInfoLocalizationResponse, error) {
-	payload := AppInfoLocalizationUpdateRequest{
-		Data: AppInfoLocalizationUpdateData{
-			Type:       ResourceTypeAppInfoLocalizations,
-			ID:         localizationID,
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID),
-		Payload: payload,
-	})
 }
 
 // UpdateAppInfoLocalizationFields updates exactly the supplied fields,

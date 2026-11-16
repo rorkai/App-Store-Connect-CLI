@@ -2,6 +2,7 @@
   "tag": "AppInfoLocalizations",
   "file": "app_info_localizations_gen.go",
   "types": [
+    "AppInfoLocalizationCreateData",
     "AppInfoLocalizationCreateRequest",
     "AppInfoLocalizationRelationships",
     "AppInfoLocalizationResponse",
@@ -11,6 +12,8 @@
     {"data":"AppInfoLocalizationCreateData","type":"*AppInfoLocalizationRelationships"}
   ],
   "operations": [
-    {"operation":"appInfoLocalizations_deleteInstance","name":"DeleteAppInfoLocalization","params":["localizationID"],"check":"require"}
+    {"operation":"appInfoLocalizations_createInstance","name":"CreateAppInfoLocalization","params":["appInfoID"],"check":"raw","links":["appInfo"]},
+    {"operation":"appInfoLocalizations_deleteInstance","name":"DeleteAppInfoLocalization","params":["localizationID"],"check":"require"},
+    {"operation":"appInfoLocalizations_updateInstance","name":"UpdateAppInfoLocalization","params":["localizationID"],"check":"raw","attrs":"value"}
   ]
 }
