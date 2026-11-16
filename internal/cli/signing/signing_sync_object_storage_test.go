@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -54,7 +55,8 @@ func publishSigningObjectSeed(t *testing.T, fake *objectstoretest.Server, seed *
 }
 
 func TestSigningSyncObjectStorageFlagsArePresent(t *testing.T) {
-	for _, command := range []*ffcli.Command{syncPushCommand(), syncPullCommand(), syncRotatePasswordCommand()} {
+	d, _, _ := newSigningTestDeps()
+	for _, command := range []*ffcli.Command{syncPushCommand(d), syncPullCommand(d), syncRotatePasswordCommand(d)} {
 		for _, name := range signingSyncObjectFlagNames {
 			found := command.FlagSet.Lookup(name)
 			if found == nil || strings.TrimSpace(found.Usage) == "" {
@@ -76,7 +78,7 @@ func TestSigningSyncObjectStorageRejectsMixedBackendFlagsBeforeSideEffects(t *te
 	object := []string{"--storage", signingSyncStorageObject, "--object-bucket", signingObjectTestBucket}
 	tests := []struct {
 		name       string
-		newCommand func() *ffcli.Command
+		newCommand func(*shared.Deps) *ffcli.Command
 		args       []string
 		want       string
 	}{
@@ -102,11 +104,11 @@ func TestSigningSyncObjectStorageRejectsMixedBackendFlagsBeforeSideEffects(t *te
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(signingSyncPasswordEnvVar, "repository-password")
 			clientCalls := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				clientCalls++
 				return nil, errors.New("client must not be created")
-			}))
-			stdout, stderr, err := runSigningSyncCommandForStorage(t, tt.newCommand(), tt.args)
+			}
+			stdout, stderr, err := runSigningSyncCommandForStorage(t, tt.newCommand, clientFactory, tt.args)
 			if err == nil || err.Error() != tt.want {
 				t.Fatalf("error = %v, want %q", err, tt.want)
 			}
@@ -129,7 +131,7 @@ func TestSigningSyncObjectTransportMirrorsGitLayoutAndDecryptsIdentically(t *tes
 		kind:   signingSyncStorageObject,
 		object: signingpkg.ObjectStorageOptions{Bucket: fake.Bucket, Prefix: "asc/", Region: "us-east-1", Endpoint: fake.HTTP.URL},
 	}
-	transport, err := selection.transport(context.Background())
+	transport, err := selection.transport(context.Background(), testSigningDeps())
 	if err != nil {
 		t.Fatalf("transport() error: %v", err)
 	}
@@ -142,7 +144,7 @@ func TestSigningSyncObjectTransportMirrorsGitLayoutAndDecryptsIdentically(t *tes
 		"certs/distribution/serial.cer":                     []byte("certificate-plaintext"),
 		"profiles/appstore/com.example.app.mobileprovision": []byte("profile-plaintext"),
 	}
-	gitTree := newSigningSyncStore(signingSyncGitTransport{}, t.TempDir(), "", "")
+	gitTree := newSigningSyncStore(signingSyncGitTransport{stderr: io.Discard}, t.TempDir(), "", "")
 	for relPath, plaintext := range plaintexts {
 		if err := gitTree.WriteEncryptedFile(relPath, plaintext, password); err != nil {
 			t.Fatal(err)
@@ -195,7 +197,7 @@ func TestSigningSyncPullFromObjectStorageWritesDecryptedFiles(t *testing.T) {
 
 	outputDir := filepath.Join(t.TempDir(), "signing")
 	args := append(signingObjectStorageArgs(fake), "--output-dir", outputDir, "--output", "json")
-	stdout, stderr, err := runSigningSyncCommandForStorage(t, syncPullCommand(), args)
+	stdout, stderr, err := runSigningSyncCommandForStorage(t, syncPullCommand, nil, args)
 	if err != nil {
 		t.Fatalf("pull error = %v\nstderr=%s", err, stderr)
 	}
@@ -227,7 +229,7 @@ func TestSigningSyncObjectTransportReportsConcurrentPushAsOperationalError(t *te
 		kind:   signingSyncStorageObject,
 		object: signingpkg.ObjectStorageOptions{Bucket: fake.Bucket, Prefix: "asc", Region: "us-east-1", Endpoint: fake.HTTP.URL},
 	}
-	transport, err := selection.transport(context.Background())
+	transport, err := selection.transport(context.Background(), testSigningDeps())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +303,7 @@ func TestSigningSyncRotatePasswordReencryptsObjectStorage(t *testing.T) {
 	certificatePath, identityPath := seedSigningObjectRotationStore(t, fake, oldPassword)
 	liveKeys := fake.Keys()
 
-	stdout, stderr, err := runSigningSyncCommandForStorage(t, syncRotatePasswordCommand(), signingObjectRotationArgs(t, fake, oldPassword, newPassword))
+	stdout, stderr, err := runSigningSyncCommandForStorage(t, syncRotatePasswordCommand, nil, signingObjectRotationArgs(t, fake, oldPassword, newPassword))
 	if err != nil {
 		t.Fatalf("rotate-password error = %v\nstderr=%s", err, stderr)
 	}
@@ -333,7 +335,7 @@ func TestSigningSyncRotatePasswordReencryptsObjectStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareDecryptedSigningFiles(verify, encryptedFiles, newPassword, t.TempDir()); err != nil {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), verify, encryptedFiles, newPassword, t.TempDir()); err != nil {
 		t.Fatalf("new password rejected: %v", err)
 	}
 	if _, err := verify.ReadEncryptedFile(certificatePath, oldPassword); err == nil {
@@ -366,7 +368,7 @@ func TestSigningSyncRotatePasswordObjectStorageConflictExitsOperationally(t *tes
 		}
 	}
 
-	_, stderr, err := runSigningSyncCommandForStorage(t, syncRotatePasswordCommand(), signingObjectRotationArgs(t, fake, oldPassword, newPassword))
+	_, stderr, err := runSigningSyncCommandForStorage(t, syncRotatePasswordCommand, nil, signingObjectRotationArgs(t, fake, oldPassword, newPassword))
 	if err == nil || errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want an operational (exit 1) failure", err)
 	}
@@ -400,14 +402,14 @@ func TestSigningSyncReceiptPinsStorageForEveryBackend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	awsTransport, err := signingSyncStorageSelection{kind: signingSyncStorageAWS, prefix: "asc-signing", region: "us-east-1"}.transport(context.Background())
+	awsTransport, err := signingSyncStorageSelection{kind: signingSyncStorageAWS, prefix: "asc-signing", region: "us-east-1"}.transport(context.Background(), testSigningDeps())
 	if err != nil {
 		t.Fatal(err)
 	}
 	objectTransport, err := signingSyncStorageSelection{
 		kind:   signingSyncStorageObject,
 		object: signingpkg.ObjectStorageOptions{Bucket: fake.Bucket, Prefix: "asc/", Endpoint: fake.HTTP.URL, Region: "us-east-1"},
-	}.transport(context.Background())
+	}.transport(context.Background(), testSigningDeps())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,12 +421,12 @@ func TestSigningSyncReceiptPinsStorageForEveryBackend(t *testing.T) {
 	}{
 		{
 			name:      "git",
-			transport: signingSyncGitTransport{repoURL: "https://token:secret@example.com/team/certs.git", branch: "release"},
+			transport: signingSyncGitTransport{repoURL: "https://token:secret@example.com/team/certs.git", branch: "release", stderr: io.Discard},
 			want:      `{"operation":"pull","repoUrl":"https://%5BREDACTED%5D@example.com/team/certs.git","storage":{"kind":"git","location":"https://%5BREDACTED%5D@example.com/team/certs.git","branch":"release"},"bundleId":"","profileType":"","files":[],"identityPresent":false}`,
 		},
 		{
 			name:      "gitlab-secure-files",
-			transport: signingSyncRemoteTransport{kind: signingSyncStorageGitLab, label: "GitLab Secure Files", backend: gitLab},
+			transport: signingSyncRemoteTransport{kind: signingSyncStorageGitLab, label: "GitLab Secure Files", backend: gitLab, stderr: io.Discard},
 			want:      `{"operation":"pull","repoUrl":"gitlab-secure-files://gitlab.com/projects/42/asc-signing","storage":{"kind":"gitlab-secure-files","location":"gitlab-secure-files://gitlab.com/projects/42/asc-signing"},"bundleId":"","profileType":"","files":[],"identityPresent":false}`,
 		},
 		{

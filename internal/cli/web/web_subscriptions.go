@@ -113,7 +113,7 @@ Examples:
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedSubscriptionID := strings.TrimSpace(*subscriptionID)
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedPlanAvailabilityID := strings.TrimSpace(*planAvailabilityID)
 			switch {
 			case trimmedSubscriptionID == "":

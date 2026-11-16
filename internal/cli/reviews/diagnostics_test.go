@@ -257,8 +257,9 @@ func TestReviewAttachmentUnreadableSourceIsDiagnosedBeforeAuth(t *testing.T) {
 func newReviewTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
-		Client:  client,
-		IO:      &shared.IO{Out: &stdout, ErrOut: &stderr},
-		Timeout: shared.ContextWithTimeout,
+		Client:    client,
+		IO:        &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Timeout:   shared.ContextWithTimeout,
+		LookupEnv: os.LookupEnv,
 	}, &stdout, &stderr
 }

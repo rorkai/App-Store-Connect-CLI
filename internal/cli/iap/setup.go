@@ -160,7 +160,7 @@ Examples:
 			}
 
 			opts := iapSetupOptions{
-				AppID:            shared.ResolveAppID(*appID),
+				AppID:            d.ResolveAppID(*appID),
 				ReferenceName:    referenceNameValue,
 				ProductID:        strings.TrimSpace(*productID),
 				FamilySharable:   *familySharable,

@@ -101,7 +101,7 @@ Examples:
 				return err
 			}
 			resolvedAppID := ""
-			if strings.TrimSpace(shared.ResolveAppID(*appID)) != "" {
+			if strings.TrimSpace(d.ResolveAppID(*appID)) != "" {
 				if resolvedAppID, err = normalizeKeywordAppID(d, *appID); err != nil {
 					return err
 				}

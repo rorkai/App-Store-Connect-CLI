@@ -77,7 +77,7 @@ Examples:
 				return err
 			}
 
-			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
+			appValue := strings.TrimSpace(d.ResolveAppID(*appID))
 			if appValue == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--app")
 			}

@@ -270,7 +270,7 @@ func runTestFlightDiagnosticCommand(t *testing.T, build func(*shared.Deps) *ffcl
 	t.Helper()
 
 	var depsStdout, depsStderr bytes.Buffer
-	cmd := build(&shared.Deps{IO: &shared.IO{Out: &depsStdout, ErrOut: &depsStderr}})
+	cmd := build(&shared.Deps{IO: &shared.IO{Out: &depsStdout, ErrOut: &depsStderr}, LookupEnv: os.LookupEnv})
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}

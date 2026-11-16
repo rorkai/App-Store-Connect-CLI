@@ -557,10 +557,10 @@ func TestIdentityCertificateFilterRejectsMismatchedPrivateKey(t *testing.T) {
 	resource := asc.Resource[asc.CertificateAttributes]{Attributes: asc.CertificateAttributes{
 		CertificateContent: base64.StdEncoding.EncodeToString(certificate.Raw), Activated: &active, ExpirationDate: time.Now().Add(time.Hour).Format(time.RFC3339),
 	}}
-	if identityCertificateFilter(&signingIdentity{PrivateKey: firstKey})(resource) != true {
+	if identityCertificateFilter(&signingIdentity{PrivateKey: firstKey}, time.Now)(resource) != true {
 		t.Fatal("matching private key was rejected")
 	}
-	if identityCertificateFilter(&signingIdentity{PrivateKey: secondKey})(resource) != false {
+	if identityCertificateFilter(&signingIdentity{PrivateKey: secondKey}, time.Now)(resource) != false {
 		t.Fatal("mismatched private key was accepted")
 	}
 }
@@ -571,7 +571,7 @@ func TestIdentityCertificateFilterRejectsInactiveOrAPIExpiredCertificate(t *test
 	active := true
 	inactive := false
 	base := asc.CertificateAttributes{CertificateContent: base64.StdEncoding.EncodeToString(certificate.Raw), Activated: &active, ExpirationDate: time.Now().Add(time.Hour).Format(time.RFC3339)}
-	filter := identityCertificateFilter(&signingIdentity{PrivateKey: key})
+	filter := identityCertificateFilter(&signingIdentity{PrivateKey: key}, time.Now)
 	if !filter(asc.Resource[asc.CertificateAttributes]{Attributes: base}) {
 		t.Fatal("active unexpired certificate rejected")
 	}
@@ -596,7 +596,7 @@ func TestIdentityCertificateFilterFallsBackToEncodedValidity(t *testing.T) {
 	current := mustSigningCertificateWithValidity(t, key, 30, now.Add(-time.Hour), now.Add(time.Hour))
 	expired := mustSigningCertificateWithValidity(t, key, 31, now.Add(-2*time.Hour), now.Add(-time.Hour))
 	notYetValid := mustSigningCertificateWithValidity(t, key, 32, now.Add(time.Hour), now.Add(2*time.Hour))
-	filter := identityCertificateFilter(&signingIdentity{PrivateKey: key})
+	filter := identityCertificateFilter(&signingIdentity{PrivateKey: key}, time.Now)
 
 	resource := func(content string) asc.Resource[asc.CertificateAttributes] {
 		return asc.Resource[asc.CertificateAttributes]{Attributes: asc.CertificateAttributes{
@@ -628,7 +628,7 @@ func TestIdentityCertificateFilterUsesFingerprintToDisambiguateSameKey(t *testin
 			CertificateContent: base64.StdEncoding.EncodeToString(certificate.Raw), Activated: &active, ExpirationDate: time.Now().Add(time.Hour).Format(time.RFC3339),
 		}}
 	}
-	filter := identityCertificateFilter(&signingIdentity{PrivateKey: key, RequestedSHA256: certificateSHA256(second)})
+	filter := identityCertificateFilter(&signingIdentity{PrivateKey: key, RequestedSHA256: certificateSHA256(second)}, time.Now)
 	if filter(resource(first)) || !filter(resource(second)) {
 		t.Fatal("fingerprint did not deterministically select the requested same-key certificate")
 	}

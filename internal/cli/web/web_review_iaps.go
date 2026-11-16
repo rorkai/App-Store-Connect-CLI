@@ -216,7 +216,7 @@ expose the public numeric ASC IAP id, so that numeric id is not resolved by this
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			trimmedIAPID := strings.TrimSpace(*iapID)
 			trimmedSubmissionID := strings.TrimSpace(*submissionID)
 			if *submissionID != "" && trimmedSubmissionID == "" {

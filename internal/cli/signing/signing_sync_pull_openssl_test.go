@@ -20,15 +20,16 @@ import (
 func runOpenSSLSourcePull(t *testing.T, args ...string) (asc.SigningSyncResult, string, error) {
 	t.Helper()
 	t.Setenv(signingSyncPasswordEnvVar, "")
-	cmd := syncPullCommand()
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	cmd := syncPullCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Parse(append([]string{"--source-format", "openssl", "--output", "json"}, args...)); err != nil {
-			t.Fatalf("parse: %v", err)
-		}
-		runErr = cmd.Run(context.Background())
-	})
+	if err := cmd.Parse(append([]string{"--source-format", "openssl", "--output", "json"}, args...)); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	runErr = cmd.Run(context.Background())
+	stdout := depsStdout.String()
+	stderr := depsStderr.String()
 	if strings.Contains(stdout+stderr, importSourcePassword) {
 		t.Fatalf("password leaked to output:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
