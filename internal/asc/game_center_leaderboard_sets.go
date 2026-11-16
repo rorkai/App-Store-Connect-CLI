@@ -90,11 +90,6 @@ type GameCenterLeaderboardSetReleaseAttributes struct {
 // GameCenterLeaderboardSetReleasesResponse is the response from leaderboard set release list endpoints.
 type GameCenterLeaderboardSetReleasesResponse = Response[GameCenterLeaderboardSetReleaseAttributes]
 
-// GameCenterLeaderboardSetMembersUpdateRequest is a request to replace leaderboard set members.
-type GameCenterLeaderboardSetMembersUpdateRequest struct {
-	Data []RelationshipData `json:"data"`
-}
-
 // GameCenterLeaderboardSetMembersUpdateResult represents CLI output for member updates.
 type GameCenterLeaderboardSetMembersUpdateResult struct {
 	SetID       string   `json:"setId"`

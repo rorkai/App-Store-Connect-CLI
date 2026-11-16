@@ -9,17 +9,17 @@ import (
 // BetaRecruitmentCriterionAttributes describes beta recruitment criteria metadata.
 type BetaRecruitmentCriterionAttributes struct {
 	LastModifiedDate             string                        `json:"lastModifiedDate,omitempty"`
-	DeviceFamilyOsVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters,omitempty"`
+	DeviceFamilyOSVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters,omitempty"`
 }
 
 // BetaRecruitmentCriteriaCreateAttributes describes create attributes.
 type BetaRecruitmentCriteriaCreateAttributes struct {
-	DeviceFamilyOsVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters"`
+	DeviceFamilyOSVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters"`
 }
 
 // BetaRecruitmentCriteriaUpdateAttributes describes update attributes.
 type BetaRecruitmentCriteriaUpdateAttributes struct {
-	DeviceFamilyOsVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters,omitempty"`
+	DeviceFamilyOSVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters,omitempty"`
 }
 
 // BetaRecruitmentCriteriaResponse is the response from beta recruitment criteria endpoints.

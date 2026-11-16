@@ -301,7 +301,7 @@ func (c *Client) CreateGameCenterLeaderboardSetV2(ctx context.Context, gcDetailI
 func (c *Client) UpdateGameCenterLeaderboardSetMembersV2(ctx context.Context, setID string, leaderboardIDs []string) error {
 	leaderboardIDs = normalizeList(leaderboardIDs)
 
-	payload := GameCenterLeaderboardSetMembersUpdateRequest{
+	payload := RelationshipRequest{
 		Data: make([]RelationshipData, 0, len(leaderboardIDs)),
 	}
 	for _, leaderboardID := range leaderboardIDs {
