@@ -31,7 +31,7 @@ type listCommandFlags struct {
 }
 
 func bindListCommandFlags(d *shared.Deps, fs *flag.FlagSet) listCommandFlags {
-	return listCommandFlags{
+	flags := listCommandFlags{
 		appID:           shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)"),
 		output:          d.BindOutputFlags(fs),
 		deviceModel:     fs.String("device-model", "", "Filter by device model(s), comma-separated"),
@@ -48,6 +48,8 @@ func bindListCommandFlags(d *shared.Deps, fs *flag.FlagSet) listCommandFlags {
 		next:            fs.String("next", "", shared.NextFlagUsage),
 		paginate:        fs.Bool("paginate", false, shared.PaginateFlagUsage),
 	}
+	shared.BindFlagAlias(fs, "build", "build-id")
+	return flags
 }
 
 // NewListCommand builds a crashes list command with configurable help and

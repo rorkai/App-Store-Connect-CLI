@@ -35,6 +35,7 @@ func newBetaTestersExportCommand(d *shared.Deps) *ffcli.Command {
 	outputPath := fs.String("output", "", "Output CSV file path (required)")
 	group := shared.BindResourceIDFlag(fs, "group", "betaGroups", "Beta group name or ID to filter (optional)")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to filter (optional)")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	email := fs.String("email", "", "Filter by tester email (optional)")
 	firstName := fs.String("first-name", "", "Filter by tester first name (exact match, optional)")
 	lastName := fs.String("last-name", "", "Filter by tester last name (exact match, optional)")

@@ -20,6 +20,7 @@ func newPerformanceDownloadCommand(d *shared.Deps) *ffcli.Command {
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID)")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to download metrics for")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	diagnosticID := fs.String("diagnostic-id", "", "Diagnostic signature ID to download logs for")
 	platform := fs.String("platform", "", "Platform filter (IOS)")
 	metricType := fs.String("metric-type", "", "Metric types (comma-separated: "+strings.Join(perfPowerMetricTypeList(), ", ")+")")

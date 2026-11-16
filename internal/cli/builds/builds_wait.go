@@ -26,6 +26,7 @@ func newBuildsWaitCommand(d *shared.Deps) *ffcli.Command {
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to wait for")
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
 	latest := fs.Bool("latest", false, "Wait for the latest matching build for --app context")
+	shared.BindFlagAlias(fs, "newest", "latest")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app")
 	buildNumber := fs.String("build-number", "", "Select a unique build by build number (CFBundleVersion) for --app context")
 	since := fs.String("since", "", "Only consider builds uploaded on or after this RFC3339 timestamp")

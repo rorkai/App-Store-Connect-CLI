@@ -65,6 +65,7 @@ Examples:
 		Flags: func(fs *flag.FlagSet) func() error {
 			next := fs.Lookup("next").Value
 			builds = fs.String("build-id", "", "Filter by build IDs (comma-separated)")
+			shared.BindFlagAlias(fs, "build", "build-id")
 			fields := fs.String("fields", "", "Fields to include: "+strings.Join(appEncryptionDeclarationFieldsList(), ", "))
 			documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(appEncryptionDeclarationDocumentFieldsList(), ", "))
 			include := fs.String("include", "", "Include relationships: "+strings.Join(appEncryptionDeclarationIncludeList(), ", "))

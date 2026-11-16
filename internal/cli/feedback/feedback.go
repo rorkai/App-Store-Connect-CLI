@@ -32,7 +32,7 @@ type listCommandFlags struct {
 }
 
 func bindListCommandFlags(d *shared.Deps, fs *flag.FlagSet) listCommandFlags {
-	return listCommandFlags{
+	flags := listCommandFlags{
 		appID:              shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)"),
 		output:             d.BindOutputFlags(fs),
 		includeScreenshots: fs.Bool("include-screenshots", false, "Include screenshot URLs in feedback output"),
@@ -50,6 +50,8 @@ func bindListCommandFlags(d *shared.Deps, fs *flag.FlagSet) listCommandFlags {
 		next:               fs.String("next", "", shared.NextFlagUsage),
 		paginate:           fs.Bool("paginate", false, shared.PaginateFlagUsage),
 	}
+	shared.BindFlagAlias(fs, "build", "build-id")
+	return flags
 }
 
 // NewListCommand builds a feedback list command with configurable help and

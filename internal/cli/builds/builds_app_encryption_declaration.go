@@ -39,6 +39,7 @@ func newBuildsAppEncryptionDeclarationViewCommand(d *shared.Deps) *ffcli.Command
 	fs := d.NewFlagSet("app-encryption-declaration view", flag.ExitOnError)
 
 	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
+	shared.BindFlagAlias(fs, "id", "build-id")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

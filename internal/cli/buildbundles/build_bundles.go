@@ -47,6 +47,7 @@ func newBuildBundlesListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	limit := fs.Int("limit", 0, "Maximum included build bundles (1-50)")
 	output := d.BindOutputFlags(fs)
 

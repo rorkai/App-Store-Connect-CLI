@@ -215,6 +215,7 @@ func newTestFlightReviewSubmitCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("submit", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	confirm := fs.Bool("confirm", false, "Confirm submission")
 	output := d.BindOutputFlags(fs)
 
@@ -330,6 +331,7 @@ func newTestFlightReviewSubmissionsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("submissions list", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to filter")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
@@ -491,6 +493,7 @@ func newTestFlightBetaDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	output := d.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)

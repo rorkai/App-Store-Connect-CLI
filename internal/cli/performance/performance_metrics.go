@@ -119,6 +119,7 @@ Examples:
 		FetchErrorPrefix:   "performance metrics view",
 		Deps:               d,
 		Flags: func(fs *flag.FlagSet) func() error {
+			shared.BindFlagAlias(fs, "build", "build-id")
 			platform := fs.String("platform", "", "Platform filter (IOS)")
 			metricType := fs.String("metric-type", "", "Metric types (comma-separated: "+strings.Join(perfPowerMetricTypeList(), ", ")+")")
 			deviceType = fs.String("device-type", "", "Device types (comma-separated, e.g., iPhone15,2)")

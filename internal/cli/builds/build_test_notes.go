@@ -155,6 +155,7 @@ func newBuildsTestNotesViewCommand(d *shared.Deps) *ffcli.Command {
 
 	selectors := bindTestNotesBuildSelectorFlags(d, fs)
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
+	shared.BindFlagAlias(fs, "id", "localization-id")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
 	output := d.BindOutputFlags(fs)
 
@@ -284,6 +285,7 @@ func newBuildsTestNotesUpdateCommand(d *shared.Deps) *ffcli.Command {
 
 	selectors := bindTestNotesBuildSelectorFlags(d, fs)
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
+	shared.BindFlagAlias(fs, "id", "localization-id")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
 	whatsNew := fs.String("whats-new", "", "What to Test notes")
 	output := d.BindOutputFlags(fs)
@@ -359,6 +361,7 @@ func newBuildsTestNotesDeleteCommand(d *shared.Deps) *ffcli.Command {
 
 	selectors := bindTestNotesBuildSelectorFlags(d, fs)
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
+	shared.BindFlagAlias(fs, "id", "localization-id")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := d.BindOutputFlags(fs)

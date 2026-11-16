@@ -39,6 +39,7 @@ func newBetaNotificationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
