@@ -215,7 +215,7 @@ func prepareAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 	}
 	if cfg.SkipExisting && len(existingScreenshots) > 0 {
 		settleCtx, settleCancel := cfg.RequestContext(ctx)
-		existingScreenshots, err = settleExistingScreenshotChecksums(settleCtx, cfg.Client, existingScreenshots)
+		existingScreenshots, err = settleExistingScreenshotChecksums(settleCtx, cfg.Deps.IO.ErrOut, cfg.Client, existingScreenshots)
 		settleCancel()
 		if err != nil {
 			return screenshotUploadPreparedState{}, err
@@ -315,7 +315,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 		}
 	}
 
-	progress, uploadErr := uploadScreenshotsWithOrderStateWithOpenedFiles(uploadCtx, cfg.RequestContext, cfg.Client, prepared.Set.ID, prepared.OrderedIDs, prepared.Files, cfg.RootPath, false, true, openedFiles)
+	progress, uploadErr := uploadScreenshotsWithOrderStateWithOpenedFiles(uploadCtx, cfg.Deps.IO.ErrOut, cfg.RequestContext, cfg.Client, prepared.Set.ID, prepared.OrderedIDs, prepared.Files, cfg.RootPath, false, true, openedFiles)
 	if uploadErr == nil && cfg.SkipExisting && len(prepared.SkippedResults) > 0 {
 		desiredIDs, err := syncSkippedScreenshotOrder(uploadCtx, cfg.Client, prepared.Set.ID, cfg.Files, prepared.SkippedResults, progress.Results)
 		if err != nil {
@@ -455,7 +455,7 @@ func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.
 		artifact.CleanupFailures = nil
 	}
 
-	progress, uploadErr := resumeScreenshotsWithOrderState(uploadCtx, d.Timeout, client, artifact.SetID, artifact.OrderedIDs, artifact.PendingFiles, artifact.PendingAssets, sourceRootPath, true, syncAfterUpload)
+	progress, uploadErr := resumeScreenshotsWithOrderState(uploadCtx, d.IO.ErrOut, d.Timeout, client, artifact.SetID, artifact.OrderedIDs, artifact.PendingFiles, artifact.PendingAssets, sourceRootPath, true, syncAfterUpload)
 
 	result := asc.AppScreenshotUploadResult{
 		VersionLocalizationID: artifact.VersionLocalizationID,

@@ -397,7 +397,7 @@ func TestExecuteAppScreenshotUploadSurfacesCleanupFailures(t *testing.T) {
 	uploadErr := errors.New("upload failed")
 	previous := uploadOneScreenshot
 	t.Cleanup(func() { uploadOneScreenshot = previous })
-	uploadOneScreenshot = func(_ context.Context, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+	uploadOneScreenshot = func(_ context.Context, _ io.Writer, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 		if filepath.Base(filePath) == "01-home.png" {
 			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, uploadErr
 		}
@@ -594,7 +594,7 @@ func assertPendingScreenshotSettles(t *testing.T, wantCalls int) {
 		writeAssetsTestJSON(w, http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":"COMPLETE"}}}}`, strings.ToUpper(checksum)))
 	}))
 
-	result, pending, retry, err := reconcilePendingScreenshotAsset(context.Background(), client, screenshotPendingAsset{
+	result, pending, retry, err := reconcilePendingScreenshotAsset(context.Background(), nil, client, screenshotPendingAsset{
 		FileName: filepath.Base(filePath),
 		FilePath: filePath,
 		AssetID:  "pending-1",
@@ -762,7 +762,7 @@ func TestUploadScreenshotAssetRejectsSymlinkedParentBelowSourceRoot(t *testing.T
 		t.Fatalf("create parent symlink: %v", err)
 	}
 
-	_, _, err := uploadScreenshotAsset(context.Background(), nil, "set-1", rootDir, filepath.Join(linkDir, filepath.Base(outsidePath)))
+	_, _, err := uploadScreenshotAsset(context.Background(), nil, nil, "set-1", rootDir, filepath.Join(linkDir, filepath.Base(outsidePath)))
 	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "symlink") {
 		t.Fatalf("expected rooted parent-symlink rejection, got %v", err)
 	}
@@ -804,6 +804,7 @@ func TestResumeScreenshotsDeletesIncompleteReservationBeforeRecreating(t *testin
 
 	progress, err := resumeScreenshotsWithOrderState(
 		context.Background(),
+		nil,
 		shared.ContextWithTimeout,
 		client,
 		"set-1",
@@ -845,6 +846,7 @@ func TestResumeScreenshotsDoesNotCreateWhenPendingLookupFails(t *testing.T) {
 
 	progress, err := resumeScreenshotsWithOrderState(
 		context.Background(),
+		nil,
 		shared.ContextWithTimeout,
 		client,
 		"set-1",

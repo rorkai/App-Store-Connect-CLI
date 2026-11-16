@@ -199,10 +199,6 @@ func isTemporaryNetError(err net.Error) bool {
 	return ok && tempErr.Temporary()
 }
 
-func logToleratedPollFailure(err error, failures, max int) {
-	logToleratedPollFailureTo(os.Stderr, err, failures, max)
-}
-
 func logToleratedPollFailureTo(stderr io.Writer, err error, failures, max int) {
 	if stderr == nil {
 		stderr = os.Stderr

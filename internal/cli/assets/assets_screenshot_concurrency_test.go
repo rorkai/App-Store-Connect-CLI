@@ -29,7 +29,7 @@ func TestConcurrentScreenshotUploadPreservesOrderAndSpeedsUp(t *testing.T) {
 	t.Cleanup(func() { uploadOneScreenshot = previous })
 	var inFlight atomic.Int32
 	var maxInFlight atomic.Int32
-	uploadOneScreenshot = func(_ context.Context, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+	uploadOneScreenshot = func(_ context.Context, _ io.Writer, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 		current := inFlight.Add(1)
 		for {
 			seen := maxInFlight.Load()
@@ -46,7 +46,7 @@ func TestConcurrentScreenshotUploadPreservesOrderAndSpeedsUp(t *testing.T) {
 	var elapsed time.Duration
 	synctest.Test(t, func(*testing.T) {
 		start := time.Now()
-		progress, err = uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(context.Background(), 4), shared.ContextWithTimeout, nil, "set", nil, files, "", false, false, nil)
+		progress, err = uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(context.Background(), 4), nil, shared.ContextWithTimeout, nil, "set", nil, files, "", false, false, nil)
 		elapsed = time.Since(start)
 	})
 	if err != nil {
@@ -73,7 +73,7 @@ func TestConcurrentScreenshotUploadAggregatesCleanupFailures(t *testing.T) {
 	files := []string{"01.png", "02.png", "03.png", "04.png"}
 	previous := uploadOneScreenshot
 	t.Cleanup(func() { uploadOneScreenshot = previous })
-	uploadOneScreenshot = func(_ context.Context, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+	uploadOneScreenshot = func(_ context.Context, _ io.Writer, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 		if filePath == files[0] {
 			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, uploadErr
 		}
@@ -96,6 +96,7 @@ func TestConcurrentScreenshotUploadAggregatesCleanupFailures(t *testing.T) {
 
 	progress, err := uploadScreenshotsWithOrderStateWithOpenedFiles(
 		withScreenshotUploadConcurrency(context.Background(), 4),
+		nil,
 		shared.ContextWithTimeout,
 		client, "set", nil, files, "", false, false, nil,
 	)
@@ -234,7 +235,7 @@ func TestConcurrentScreenshotUploadReservesScreenshotsInFileOrder(t *testing.T) 
 
 	uploads := map[string]func(context.Context, *asc.Client) error{
 		"upload": func(ctx context.Context, client *asc.Client) error {
-			_, err := uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(ctx, 4), shared.ContextWithTimeout, client, "set", nil, files, sourceRoot, false, false, nil)
+			_, err := uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(ctx, 4), nil, shared.ContextWithTimeout, client, "set", nil, files, sourceRoot, false, false, nil)
 			return err
 		},
 		// migrate rebuilds each upload context from a parent without the reservation turn.
