@@ -249,7 +249,7 @@ func RunEphemeral(ctx context.Context, options EphemeralRunOptions, callback fun
 	if callback == nil {
 		return shared.NewValidationError(fmt.Errorf("signing run: callback is required"))
 	}
-	return executeSigningOperationFn(ctx, signingRunOptions{
+	return executeSigningOperationFn(ctx, shared.DefaultDeps(), signingRunOptions{
 		IdentityPath:              options.IdentityPath,
 		IdentityPasswordPath:      options.IdentityPasswordPath,
 		ProfilePath:               options.ProfilePath,
@@ -264,7 +264,7 @@ func RunEphemeral(ctx context.Context, options EphemeralRunOptions, callback fun
 // only validated crash-journal recovery. It reads no identity or profile and
 // creates no keychain or provisioning profile when no journal exists.
 func RecoverEphemeral(ctx context.Context) error {
-	deps := platformSigningRunDeps()
+	deps := platformSigningRunDeps(shared.DefaultDeps())
 	if deps.GOOS != "darwin" {
 		return shared.NewValidationError(fmt.Errorf("recover signing environment is supported only on macOS"))
 	}
@@ -318,7 +318,7 @@ func InspectPKCS12Identity(ctx context.Context, options PKCS12IdentityOptions) (
 	if err := ctx.Err(); err != nil {
 		return PKCS12IdentityInfo{}, err
 	}
-	if platformSigningRunDeps().GOOS != "darwin" {
+	if platformSigningRunDeps(shared.DefaultDeps()).GOOS != "darwin" {
 		return PKCS12IdentityInfo{}, shared.NewValidationError(fmt.Errorf("inspect PKCS#12 identity is supported only on macOS"))
 	}
 	identityData, err := readBoundedSigningRunFile(options.IdentityPath, signingRunInputLimit, true)
@@ -356,9 +356,8 @@ func InspectPKCS12Identity(ctx context.Context, options PKCS12IdentityOptions) (
 	}, nil
 }
 
-// SigningRunCommand returns the signing run subcommand.
-func SigningRunCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("run", flag.ExitOnError)
+func newSigningRunCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("run", flag.ExitOnError)
 
 	identityPath := fs.String("identity", "", "Path to a PKCS#12 distribution identity")
 	identityPasswordPath := fs.String("identity-password-file", "", "Path to a file containing the PKCS#12 password")
@@ -380,25 +379,25 @@ Examples:
   asc signing run --identity .asc/signing/App.p12 --profile .asc/signing/App.mobileprovision -- xcodebuild -exportArchive
   asc signing run --identity .asc/signing/App.p12 --identity-password-file .asc/secrets/p12-password --profile .asc/signing/App.mobileprovision --receipt .asc/distribution/signing-run.json -- xcodebuild -exportArchive`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			identity := strings.TrimSpace(*identityPath)
 			if identity == "" {
-				return shared.UsageError("--identity is required")
+				return d.UsageError("--identity is required")
 			}
 			profile := strings.TrimSpace(*profilePath)
 			if profile == "" {
-				return shared.UsageError("--profile is required")
+				return d.UsageError("--profile is required")
 			}
 			purposeValue := strings.TrimSpace(*purpose)
 			if purposeValue != signingRunPurposeReleaseTesting {
-				return shared.UsageError(`--purpose must be "release-testing"`)
+				return d.UsageError(`--purpose must be "release-testing"`)
 			}
 			if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
-				return shared.UsageError("a child command is required after --")
+				return d.UsageError("a child command is required after --")
 			}
 
-			return classifySigningInputError(executeSigningRunFn(ctx, signingRunOptions{
+			return classifySigningInputError(executeSigningRunFn(ctx, d, signingRunOptions{
 				IdentityPath:         identity,
 				IdentityPasswordPath: strings.TrimSpace(*identityPasswordPath),
 				ProfilePath:          profile,
@@ -410,14 +409,14 @@ Examples:
 	}
 }
 
-func executeSigningRun(ctx context.Context, options signingRunOptions) error {
-	return executeSigningOperation(ctx, options, func(runCtx context.Context) error {
-		return runSigningRunChild(runCtx, options.Child)
+func executeSigningRun(ctx context.Context, d *shared.Deps, options signingRunOptions) error {
+	return executeSigningOperation(ctx, d, options, func(runCtx context.Context) error {
+		return runSigningRunChild(runCtx, d.After, options.Child)
 	})
 }
 
-func executeSigningOperation(ctx context.Context, options signingRunOptions, operation func(context.Context) error) error {
-	deps := platformSigningRunDeps()
+func executeSigningOperation(ctx context.Context, d *shared.Deps, options signingRunOptions, operation func(context.Context) error) error {
+	deps := platformSigningRunDeps(d)
 	if deps.GOOS != "darwin" {
 		return shared.NewValidationError(fmt.Errorf("signing run is supported only on macOS"))
 	}
@@ -429,7 +428,7 @@ func executeSigningOperation(ctx context.Context, options signingRunOptions, ope
 		if err != nil {
 			return fmt.Errorf("signing run: load system certificate roots: %w", err)
 		}
-		inspection, err := inspectSigningRunInputs(identityData, identityPassword, profileData, roots, signingRunNowFn())
+		inspection, err := inspectSigningRunInputs(identityData, identityPassword, profileData, roots, d.Now())
 		if err != nil {
 			return fmt.Errorf("signing run: preflight: %w", err)
 		}
