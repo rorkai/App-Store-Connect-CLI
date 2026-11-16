@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
 
 type accountHomeFixture struct {
@@ -190,6 +192,22 @@ func TestPathDoesNotWarnOutsideAccountHome(t *testing.T) {
 	t.Chdir(outside)
 
 	assertResolvedPath(t, filepath.Join(fixture.scratchHome, ".asc", "config.json"))
+	if got := fixture.warnings.String(); got != "" {
+		t.Fatalf("unexpected warning: %q", got)
+	}
+}
+
+func TestPathDoesNotWarnAboutAccountHomeConfigTheTestGuardHides(t *testing.T) {
+	fixture := newAccountHomeFixture(t)
+	t.Cleanup(testguard.HideForTest(filepath.Dir(fixture.accountConfig)))
+	t.Setenv("ASC_CONFIG_PATH", "")
+	t.Setenv("HOME", fixture.scratchHome)
+	t.Chdir(fixture.projectDir)
+
+	assertResolvedPath(t, fixture.accountConfig)
+	if _, err := Load(); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Load() error = %v, want ErrNotFound", err)
+	}
 	if got := fixture.warnings.String(); got != "" {
 		t.Fatalf("unexpected warning: %q", got)
 	}
