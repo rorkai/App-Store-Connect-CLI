@@ -6,35 +6,6 @@ import (
 	"strings"
 )
 
-// CreateBackgroundAsset creates a background asset.
-func (c *Client) CreateBackgroundAsset(ctx context.Context, appID, assetPackIdentifier string) (*BackgroundAssetResponse, error) {
-	appID = strings.TrimSpace(appID)
-	assetPackIdentifier = strings.TrimSpace(assetPackIdentifier)
-	if appID == "" {
-		return nil, fmt.Errorf("app ID is required")
-	}
-	if assetPackIdentifier == "" {
-		return nil, fmt.Errorf("asset pack identifier is required")
-	}
-
-	request := BackgroundAssetCreateRequest{
-		Data: BackgroundAssetCreateData{
-			Type:       ResourceTypeBackgroundAssets,
-			Attributes: BackgroundAssetCreateAttributes{AssetPackIdentifier: assetPackIdentifier},
-			Relationships: BackgroundAssetCreateRelationships{
-				App: Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   appID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[BackgroundAssetResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/backgroundAssets", Payload: request})
-}
-
 // CreateBackgroundAssetUploadFile creates a background asset upload file.
 func (c *Client) CreateBackgroundAssetUploadFile(ctx context.Context, versionID, fileName string, fileSize int64, assetType BackgroundAssetUploadFileAssetType) (*BackgroundAssetUploadFileResponse, error) {
 	versionID = strings.TrimSpace(versionID)

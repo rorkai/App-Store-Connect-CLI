@@ -11,6 +11,19 @@ import (
 // CustomerReviewResponse is the CustomerReviewResponse schema.
 type CustomerReviewResponse = SingleResponse[CustomerReviewAttributes]
 
+// GetCustomerReview sends GET /v1/customerReviews/{id} (customerReviews_getInstance).
+func (c *Client) GetCustomerReview(ctx context.Context, reviewID string, opts ...ReviewOption) (*CustomerReviewResponse, error) {
+	reviewID = strings.TrimSpace(reviewID)
+	if reviewID == "" {
+		return nil, fmt.Errorf("reviewID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[CustomerReviewResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/customerReviews/%s", reviewID),
+		Query: buildCustomerReviewQuery(query),
+	})
+}
+
 // GetCustomerReviewResponseForReview sends GET /v1/customerReviews/{id}/response (customerReviews_response_getToOneRelated).
 func (c *Client) GetCustomerReviewResponseForReview(ctx context.Context, reviewID string) (*CustomerReviewResponseResponse, error) {
 	reviewID = strings.TrimSpace(reviewID)
