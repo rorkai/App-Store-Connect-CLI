@@ -37,8 +37,6 @@ const profileNameHashSuffixLen = 6
 // maxProfileNameRotations bounds the default names tried for one profile.
 const maxProfileNameRotations = 20
 
-var signingFetchNowFn = time.Now
-
 // rejectDeviceWithoutCreateMissing fails before any App Store Connect call when
 // device IDs were supplied but could never be applied.
 func rejectDeviceWithoutCreateMissing(d *shared.Deps, deviceIDs string, createMissing bool) error {

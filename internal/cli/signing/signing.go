@@ -34,7 +34,7 @@ Examples:
 			newSigningReconcileCommand(d),
 			SigningResignCommand(),
 			newSigningRunCommand(d),
-			SigningSyncCommand(),
+			newSigningSyncCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

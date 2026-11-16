@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
 )
 
@@ -139,18 +138,17 @@ func (api *nukeAPI) mutations() []string {
 	return mutations
 }
 
-func runSigningSyncNuke(t *testing.T, args ...string) (string, string, error) {
+func runSigningSyncNuke(t *testing.T, client func() (*asc.Client, error), args ...string) (string, string, error) {
 	t.Helper()
-	cmd := syncNukeCommand()
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	d.Client = client
+	cmd := syncNukeCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Parse(args); err != nil {
-			t.Fatalf("parse: %v", err)
-		}
-		runErr = cmd.Run(context.Background())
-	})
-	return stdout, stderr, runErr
+	if err := cmd.Parse(args); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	runErr := cmd.Run(context.Background())
+	return depsStdout.String(), depsStderr.String(), runErr
 }
 
 func remoteTree(t *testing.T, remotePath string) []string {
@@ -177,11 +175,11 @@ func TestSigningSyncNukeValidatesFlagsBeforeSideEffects(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(signingSyncPasswordEnvVar, nukeTestPassword)
 			clientCalls := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				clientCalls++
 				return nil, errors.New("client must not be created")
-			}))
-			stdout, stderr, err := runSigningSyncNuke(t, tt.args...)
+			}
+			stdout, stderr, err := runSigningSyncNuke(t, clientFactory, tt.args...)
 			if err == nil || !errors.Is(err, flag.ErrHelp) || err.Error() != tt.want {
 				t.Fatalf("error = %v, want usage error %q", err, tt.want)
 			}
@@ -198,11 +196,11 @@ func TestSigningSyncNukeDryRunPerformsZeroWrites(t *testing.T) {
 	api := &nukeAPI{}
 	server := api.server(t)
 	client := newSigningFetchServerTestClient(t, server)
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 	headBefore := strings.TrimSpace(gitOutput(t, remotePath, "rev-parse", "main"))
 	treeBefore := remoteTree(t, remotePath)
 
-	stdout, stderr, err := runSigningSyncNuke(t, "--profile-type", "IOS_APP_DEVELOPMENT", "--repo", remoteURL, "--dry-run", "--output", "json")
+	stdout, stderr, err := runSigningSyncNuke(t, clientFactory, "--profile-type", "IOS_APP_DEVELOPMENT", "--repo", remoteURL, "--dry-run", "--output", "json")
 	if err != nil {
 		t.Fatalf("dry run error: %v\n%s", err, stderr)
 	}
@@ -248,9 +246,9 @@ func TestSigningSyncNukeDeletesProfilesThenRevokesCertificatesAndRemovesArtifact
 	t.Setenv(signingSyncPasswordEnvVar, nukeTestPassword)
 	api := &nukeAPI{}
 	client := newSigningFetchServerTestClient(t, api.server(t))
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 
-	stdout, stderr, err := runSigningSyncNuke(t, "--profile-type", "ios_app_development", "--repo", remoteURL, "--confirm", "--output", "json")
+	stdout, stderr, err := runSigningSyncNuke(t, clientFactory, "--profile-type", "ios_app_development", "--repo", remoteURL, "--confirm", "--output", "json")
 	if err != nil {
 		t.Fatalf("nuke error: %v\n%s", err, stderr)
 	}
@@ -297,9 +295,9 @@ func TestSigningSyncNukePartialFailureKeepsFailedArtifactsAndExitsNonZero(t *tes
 	t.Setenv(signingSyncPasswordEnvVar, nukeTestPassword)
 	api := &nukeAPI{failDeletes: map[string]bool{"/v1/profiles/profile-dev-2": true}}
 	client := newSigningFetchServerTestClient(t, api.server(t))
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 
-	stdout, _, err := runSigningSyncNuke(t, "--profile-type", "IOS_APP_DEVELOPMENT", "--repo", remoteURL, "--confirm", "--output", "json")
+	stdout, _, err := runSigningSyncNuke(t, clientFactory, "--profile-type", "IOS_APP_DEVELOPMENT", "--repo", remoteURL, "--confirm", "--output", "json")
 	if err == nil || errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "failed to delete 1 profile(s) and revoke 0 certificate(s)") {
 		t.Fatalf("error = %v, want operational partial-failure error", err)
 	}
