@@ -57,6 +57,21 @@ func (c *Client) CreateSubscriptionGroupVersion(ctx context.Context, groupID str
 	})
 }
 
+// GetSubscriptionGroupVersionLocalizations sends GET /v1/subscriptionGroupVersions/{id}/localizations (subscriptionGroupVersions_localizations_getToManyRelated).
+func (c *Client) GetSubscriptionGroupVersionLocalizations(ctx context.Context, versionID string, opts ...SubscriptionGroupVersionLocalizationsOption) (*SubscriptionGroupLocalizationsV2Response, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[SubscriptionGroupLocalizationsV2Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionGroupVersions/%s/localizations", versionID),
+		Query:       buildSubscriptionGroupVersionLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscription-group-version-localizations",
+	})
+}
+
 // GetSubscriptionGroupVersionLocalizationsRelationships sends GET /v1/subscriptionGroupVersions/{id}/relationships/localizations (subscriptionGroupVersions_localizations_getToManyRelationship).
 func (c *Client) GetSubscriptionGroupVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)

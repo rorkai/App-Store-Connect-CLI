@@ -12,6 +12,7 @@
   ],
   "operations": [
     {"operation":"subscriptionGroupVersions_createInstance","name":"CreateSubscriptionGroupVersion","params":["groupID"],"check":"require","links":["subscriptionGroup"]},
+    {"operation":"subscriptionGroupVersions_localizations_getToManyRelated","name":"GetSubscriptionGroupVersionLocalizations","params":["versionID"],"check":"require","options":"SubscriptionGroupVersionLocalizationsOption","query":"buildSubscriptionGroupVersionLocalizationsQuery","nextContext":"subscription-group-version-localizations"},
     {"operation":"subscriptionGroupVersions_localizations_getToManyRelationship","name":"GetSubscriptionGroupVersionLocalizationsRelationships","params":["versionID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"subscriptionGroupVersionLocalizationsRelationships","parseErr":"failed to parse localizations relationship response","response":"LinkagesResponse"}
   ]
 }

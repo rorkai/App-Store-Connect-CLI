@@ -95,6 +95,21 @@ func (c *Client) UpdateSubscriptionGroup(ctx context.Context, groupID string, at
 	})
 }
 
+// GetSubscriptionGroupVersions sends GET /v1/subscriptionGroups/{id}/versions (subscriptionGroups_versions_getToManyRelated).
+func (c *Client) GetSubscriptionGroupVersions(ctx context.Context, groupID string, opts ...SubscriptionGroupVersionsOption) (*SubscriptionGroupVersionsResponse, error) {
+	query := applyOptions(opts)
+	groupID = strings.TrimSpace(groupID)
+	if query.nextURL == "" && groupID == "" {
+		return nil, fmt.Errorf("groupID is required")
+	}
+	return getJSON[SubscriptionGroupVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionGroups/%s/versions", groupID),
+		Query:       buildSubscriptionGroupVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscription-group-versions",
+	})
+}
+
 // GetSubscriptionGroupVersionsRelationships sends GET /v1/subscriptionGroups/{id}/relationships/versions (subscriptionGroups_versions_getToManyRelationship).
 func (c *Client) GetSubscriptionGroupVersionsRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)

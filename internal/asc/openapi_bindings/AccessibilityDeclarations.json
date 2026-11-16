@@ -17,6 +17,7 @@
   "operations": [
     {"operation":"accessibilityDeclarations_createInstance","name":"CreateAccessibilityDeclaration","params":["appID"],"links":["app"]},
     {"operation":"accessibilityDeclarations_deleteInstance","name":"DeleteAccessibilityDeclaration","params":["declarationID"]},
-    {"operation":"accessibilityDeclarations_getInstance","name":"GetAccessibilityDeclaration","params":["declarationID"],"check":"trim","query":"buildAccessibilityDeclarationsFieldsQuery","single":true}
+    {"operation":"accessibilityDeclarations_getInstance","name":"GetAccessibilityDeclaration","params":["declarationID"],"check":"trim","query":"buildAccessibilityDeclarationsFieldsQuery","single":true},
+    {"operation":"accessibilityDeclarations_updateInstance","name":"UpdateAccessibilityDeclaration","params":["declarationID"],"check":"trim","skipEmptyAttributes":true}
   ]
 }
