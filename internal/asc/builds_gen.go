@@ -80,6 +80,22 @@ func (c *Client) GetBetaBuildLocalizations(ctx context.Context, buildID string, 
 	})
 }
 
+// GetBuildBetaBuildLocalizationsRelationships sends GET /v1/builds/{id}/relationships/betaBuildLocalizations (builds_betaBuildLocalizations_getToManyRelationship).
+func (c *Client) GetBuildBetaBuildLocalizationsRelationships(ctx context.Context, buildID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	buildID = strings.TrimSpace(buildID)
+	if query.nextURL == "" && buildID == "" {
+		return nil, fmt.Errorf("buildID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/relationships/betaBuildLocalizations", buildID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "buildRelationships",
+		ParseErr:    "failed to parse betaBuildLocalizations relationship response",
+	})
+}
+
 // RemoveBetaGroupsFromBuild sends DELETE /v1/builds/{id}/relationships/betaGroups (builds_betaGroups_deleteToManyRelationship).
 func (c *Client) RemoveBetaGroupsFromBuild(ctx context.Context, buildID string, groupIDs []string) error {
 	buildID = strings.TrimSpace(buildID)
@@ -141,6 +157,22 @@ func (c *Client) GetDiagnosticSignaturesForBuild(ctx context.Context, buildID st
 	})
 }
 
+// GetBuildDiagnosticSignaturesRelationships sends GET /v1/builds/{id}/relationships/diagnosticSignatures (builds_diagnosticSignatures_getToManyRelationship).
+func (c *Client) GetBuildDiagnosticSignaturesRelationships(ctx context.Context, buildID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	buildID = strings.TrimSpace(buildID)
+	if query.nextURL == "" && buildID == "" {
+		return nil, fmt.Errorf("buildID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/relationships/diagnosticSignatures", buildID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "buildRelationships",
+		ParseErr:    "failed to parse diagnosticSignatures relationship response",
+	})
+}
+
 // GetBuildIcons sends GET /v1/builds/{id}/icons (builds_icons_getToManyRelated).
 func (c *Client) GetBuildIcons(ctx context.Context, buildID string, opts ...BuildIconsOption) (*BuildIconsResponse, error) {
 	query := applyOptions(opts)
@@ -153,6 +185,22 @@ func (c *Client) GetBuildIcons(ctx context.Context, buildID string, opts ...Buil
 		Query:       buildListQuery(query),
 		Next:        query.nextURL,
 		NextContext: "buildIcons",
+	})
+}
+
+// GetBuildIconsRelationships sends GET /v1/builds/{id}/relationships/icons (builds_icons_getToManyRelationship).
+func (c *Client) GetBuildIconsRelationships(ctx context.Context, buildID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	buildID = strings.TrimSpace(buildID)
+	if query.nextURL == "" && buildID == "" {
+		return nil, fmt.Errorf("buildID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/relationships/icons", buildID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "buildRelationships",
+		ParseErr:    "failed to parse icons relationship response",
 	})
 }
 
@@ -212,6 +260,22 @@ func (c *Client) GetBuildIndividualTesters(ctx context.Context, buildID string, 
 		Query:       buildBuildIndividualTestersQuery(query),
 		Next:        query.nextURL,
 		NextContext: "buildIndividualTesters",
+	})
+}
+
+// GetBuildIndividualTestersRelationships sends GET /v1/builds/{id}/relationships/individualTesters (builds_individualTesters_getToManyRelationship).
+func (c *Client) GetBuildIndividualTestersRelationships(ctx context.Context, buildID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	buildID = strings.TrimSpace(buildID)
+	if query.nextURL == "" && buildID == "" {
+		return nil, fmt.Errorf("buildID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "buildRelationships",
+		ParseErr:    "failed to parse individualTesters relationship response",
 	})
 }
 

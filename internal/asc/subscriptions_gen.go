@@ -124,6 +124,38 @@ func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID stri
 	})
 }
 
+// GetSubscriptionRetentionMessageOffersRelationships sends GET /v1/subscriptions/{id}/relationships/retentionMessageOffers (subscriptions_retentionMessageOffers_getToManyRelationship).
+func (c *Client) GetSubscriptionRetentionMessageOffersRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if query.nextURL == "" && subscriptionID == "" {
+		return nil, fmt.Errorf("subscriptionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptions/%s/relationships/retentionMessageOffers", subscriptionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retentionMessageOffers relationships",
+		ParseErr:    "failed to parse retentionMessageOffers relationship response",
+	})
+}
+
+// GetSubscriptionRetentionOffersRelationships sends GET /v1/subscriptions/{id}/relationships/retentionOffers (subscriptions_retentionOffers_getToManyRelationship).
+func (c *Client) GetSubscriptionRetentionOffersRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if query.nextURL == "" && subscriptionID == "" {
+		return nil, fmt.Errorf("subscriptionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptions/%s/relationships/retentionOffers", subscriptionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retentionOffers relationships",
+		ParseErr:    "failed to parse retentionOffers relationship response",
+	})
+}
+
 // GetSubscriptionAvailabilityForSubscription sends GET /v1/subscriptions/{id}/subscriptionAvailability (subscriptions_subscriptionAvailability_getToOneRelated).
 func (c *Client) GetSubscriptionAvailabilityForSubscription(ctx context.Context, subID string) (*SubscriptionAvailabilityResponse, error) {
 	subID = strings.TrimSpace(subID)
@@ -147,6 +179,21 @@ func (c *Client) GetSubscriptionVersions(ctx context.Context, subscriptionID str
 		Query:       buildSubscriptionVersionsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "subscriptionVersions",
+	})
+}
+
+// GetSubscriptionVersionsRelationships sends GET /v1/subscriptions/{id}/relationships/versions (subscriptions_versions_getToManyRelationship).
+func (c *Client) GetSubscriptionVersionsRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if query.nextURL == "" && subscriptionID == "" {
+		return nil, fmt.Errorf("owner ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptions/%s/relationships/versions", subscriptionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionVersionsRelationships",
 	})
 }
 

@@ -56,3 +56,19 @@ func (c *Client) CreateSubscriptionGroupVersion(ctx context.Context, groupID str
 		Payload: payload,
 	})
 }
+
+// GetSubscriptionGroupVersionLocalizationsRelationships sends GET /v1/subscriptionGroupVersions/{id}/relationships/localizations (subscriptionGroupVersions_localizations_getToManyRelationship).
+func (c *Client) GetSubscriptionGroupVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionGroupVersions/%s/relationships/localizations", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionGroupVersionLocalizationsRelationships",
+		ParseErr:    "failed to parse localizations relationship response",
+	})
+}

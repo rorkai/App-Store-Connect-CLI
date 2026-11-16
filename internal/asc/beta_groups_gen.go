@@ -146,6 +146,22 @@ func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts .
 	})
 }
 
+// GetBetaGroupBetaTestersRelationships sends GET /v1/betaGroups/{id}/relationships/betaTesters (betaGroups_betaTesters_getToManyRelationship).
+func (c *Client) GetBetaGroupBetaTestersRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	groupID = strings.TrimSpace(groupID)
+	if query.nextURL == "" && groupID == "" {
+		return nil, fmt.Errorf("groupID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroupRelationships",
+		ParseErr:    "failed to parse betaTesters relationship response",
+	})
+}
+
 // GetBetaGroupBuilds sends GET /v1/betaGroups/{id}/builds (betaGroups_builds_getToManyRelated).
 func (c *Client) GetBetaGroupBuilds(ctx context.Context, groupID string, opts ...BetaGroupBuildsOption) (*BuildsResponse, error) {
 	query := applyOptions(opts)
@@ -154,6 +170,22 @@ func (c *Client) GetBetaGroupBuilds(ctx context.Context, groupID string, opts ..
 		Query:       buildBetaGroupBuildsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaGroupBuilds",
+	})
+}
+
+// GetBetaGroupBuildsRelationships sends GET /v1/betaGroups/{id}/relationships/builds (betaGroups_builds_getToManyRelationship).
+func (c *Client) GetBetaGroupBuildsRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	groupID = strings.TrimSpace(groupID)
+	if query.nextURL == "" && groupID == "" {
+		return nil, fmt.Errorf("groupID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaGroups/%s/relationships/builds", groupID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroupRelationships",
+		ParseErr:    "failed to parse builds relationship response",
 	})
 }
 

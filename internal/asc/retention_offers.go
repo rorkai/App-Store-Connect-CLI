@@ -260,22 +260,6 @@ func (c *Client) GetRetentionOfferPrices(ctx context.Context, offerID string, op
 	return &response, nil
 }
 
-// GetRetentionOfferPricesRelationships lists the price linkages of a retention offer.
-func (c *Client) GetRetentionOfferPricesRelationships(ctx context.Context, offerID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(ctx, offerID, "prices", "offerID", "/v1/retentionOffers/%s/relationships/%s", "retentionOfferPrices relationships", opts...)
-}
-
-// GetSubscriptionRetentionOffersRelationships lists the retention offer linkages of a subscription.
-func (c *Client) GetSubscriptionRetentionOffersRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(ctx, subscriptionID, "retentionOffers", "subscriptionID", "/v1/subscriptions/%s/relationships/%s", "retentionOffers relationships", opts...)
-}
-
-// GetSubscriptionRetentionMessageOffersRelationships lists the linkages of the
-// retention offers presented with a subscription's retention message.
-func (c *Client) GetSubscriptionRetentionMessageOffersRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getResourceLinkages(ctx, subscriptionID, "retentionMessageOffers", "subscriptionID", "/v1/subscriptions/%s/relationships/%s", "retentionMessageOffers relationships", opts...)
-}
-
 // AddSubscriptionRetentionMessageOffers presents retention offers with a
 // subscription's retention message.
 func (c *Client) AddSubscriptionRetentionMessageOffers(ctx context.Context, subscriptionID string, offerIDs []string) error {
