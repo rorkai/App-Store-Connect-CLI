@@ -54,14 +54,14 @@ var (
 	}
 )
 
-func platformSigningRunDeps() signingRunDeps {
+func platformSigningRunDeps(d *shared.Deps) signingRunDeps {
 	return signingRunDeps{
 		GOOS:                      "darwin",
-		Stderr:                    os.Stderr,
+		Stderr:                    d.IO.ErrOut,
 		RandomBytes:               signingRunRandomBytes,
 		TempDir:                   createSigningRunTempDir,
 		RemoveTempDir:             removeSigningRunTempDir,
-		AcquireLock:               acquireSigningRunLock,
+		AcquireLock:               func(ctx context.Context) (func() error, error) { return acquireSigningRunLock(ctx, d.After) },
 		Recover:                   recoverSigningRunJournal,
 		WriteJournal:              writeSigningRunJournal,
 		RemoveJournal:             removeSigningRunJournal,
@@ -73,7 +73,7 @@ func platformSigningRunDeps() signingRunDeps {
 		DeleteKeychain:            deleteSigningRunKeychain,
 		InstallProfile:            installSigningRunProfile,
 		RemoveProfile:             removeSigningRunProfile,
-		RunChild:                  runSigningRunChild,
+		RunChild:                  func(ctx context.Context, argv []string) error { return runSigningRunChild(ctx, d.After, argv) },
 	}
 }
 
@@ -417,12 +417,7 @@ func validateSigningRunJournal(journal signingRunJournal) error {
 	return fmt.Errorf("profile path is outside an Xcode provisioning profile directory")
 }
 
-func acquireSigningRunLock(ctx context.Context) (func() error, error) {
-	return acquireSigningRunLockWith(ctx, time.After)
-}
-
-// acquireSigningRunLockWith is acquireSigningRunLock polling the lock on after.
-func acquireSigningRunLockWith(ctx context.Context, after func(time.Duration) <-chan time.Time) (func() error, error) {
+func acquireSigningRunLock(ctx context.Context, after func(time.Duration) <-chan time.Time) (func() error, error) {
 	anchor, err := signingRunStateAnchorFn()
 	if err != nil {
 		return nil, err
@@ -1173,7 +1168,7 @@ func signingRunProfileInstallDir(ctx context.Context) (string, error) {
 	return filepath.Join(homeDir, "Library", "MobileDevice", "Provisioning Profiles"), nil
 }
 
-func runSigningRunChild(ctx context.Context, argv []string) error {
+func runSigningRunChild(ctx context.Context, after func(time.Duration) <-chan time.Time, argv []string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -1197,11 +1192,9 @@ func runSigningRunChild(ctx context.Context, argv []string) error {
 	case err = <-done:
 	case <-ctx.Done():
 		_ = signingRunKillProcessGroupFn(pid, signingRunCancellationSignal(ctx))
-		timer := time.NewTimer(signingRunChildWaitDelay)
 		select {
 		case err = <-done:
-			timer.Stop()
-		case <-timer.C:
+		case <-after(signingRunChildWaitDelay):
 			_ = signingRunKillProcessGroupFn(pid, syscall.SIGKILL)
 			err = <-done
 		}

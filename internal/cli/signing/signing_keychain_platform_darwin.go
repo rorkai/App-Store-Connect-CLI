@@ -17,7 +17,7 @@ import (
 type persistentSigningUtilityRunner func(context.Context, []byte, ...string) ([]byte, []byte, error)
 
 func platformSigningKeychainInstallDeps(d *shared.Deps, lockOnSleep bool) signingKeychainInstallDeps {
-	runDeps := platformSigningRunDeps()
+	runDeps := platformSigningRunDeps(d)
 	createKeychain := func(ctx context.Context, keychainPath string, password []byte) (bool, error) {
 		return createPersistentSigningKeychain(ctx, keychainPath, password, lockOnSleep)
 	}
@@ -26,7 +26,7 @@ func platformSigningKeychainInstallDeps(d *shared.Deps, lockOnSleep bool) signin
 		SecurityAvailable:         signingRunSecurityAvailable(),
 		Now:                       d.Now,
 		Stderr:                    d.IO.ErrOut,
-		AcquireLock:               func(ctx context.Context) (func() error, error) { return acquireSigningRunLockWith(ctx, d.After) },
+		AcquireLock:               runDeps.AcquireLock,
 		CreateKeychain:            createKeychain,
 		ImportIdentity:            importPersistentSigningIdentity,
 		KeychainSearchList:        runDeps.KeychainSearchList,
