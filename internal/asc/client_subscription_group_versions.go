@@ -79,12 +79,10 @@ func WithSubscriptionGroupVersionLocalizationsVersionFields(fields []string) Sub
 	return func(q *subscriptionGroupVersionLocalizationsQuery) { q.versionFields = normalizeUniqueList(fields) }
 }
 
-func buildSubscriptionGroupVersionsQuery(q *subscriptionGroupVersionsQuery, list bool) string {
+func buildSubscriptionGroupVersionsQuery(q *subscriptionGroupVersionsQuery) string {
 	values := url.Values{}
-	if list {
-		addLimit(values, q.limit)
-		addCSV(values, "filter[state]", q.states)
-	}
+	addLimit(values, q.limit)
+	addCSV(values, "filter[state]", q.states)
 	addCSV(values, "fields[subscriptionGroupVersions]", q.versionFields)
 	addCSV(values, "fields[subscriptionGroups]", q.groupFields)
 	addCSV(values, "fields[subscriptionGroupLocalizations]", q.localizationFields)
@@ -95,11 +93,9 @@ func buildSubscriptionGroupVersionsQuery(q *subscriptionGroupVersionsQuery, list
 	return values.Encode()
 }
 
-func buildSubscriptionGroupVersionLocalizationsQuery(q *subscriptionGroupVersionLocalizationsQuery, list bool) string {
+func buildSubscriptionGroupVersionLocalizationsQuery(q *subscriptionGroupVersionLocalizationsQuery) string {
 	values := url.Values{}
-	if list {
-		addLimit(values, q.limit)
-	}
+	addLimit(values, q.limit)
 	addCSV(values, "fields[subscriptionGroupLocalizations]", q.fields)
 	addCSV(values, "fields[subscriptionGroupVersions]", q.versionFields)
 	addCSV(values, "include", q.include)
@@ -124,36 +120,36 @@ func (c *Client) GetSubscriptionGroupVersion(ctx context.Context, versionID stri
 	}
 	return getJSON[SubscriptionGroupVersionResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/subscriptionGroupVersions/%s", versionID),
-		Query: buildSubscriptionGroupVersionsQuery(q, false),
+		Query: buildSubscriptionGroupVersionsQuery(q),
 	})
 }
 
 // GetSubscriptionGroupVersions lists versions owned by a group.
 func (c *Client) GetSubscriptionGroupVersions(ctx context.Context, groupID string, opts ...SubscriptionGroupVersionsOption) (*SubscriptionGroupVersionsResponse, error) {
-	q := applyOptions(opts)
+	query := applyOptions(opts)
 	groupID = strings.TrimSpace(groupID)
-	if q.nextURL == "" && groupID == "" {
+	if query.nextURL == "" && groupID == "" {
 		return nil, fmt.Errorf("groupID is required")
 	}
 	return getJSON[SubscriptionGroupVersionsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/subscriptionGroups/%s/versions", groupID),
-		Query:       buildSubscriptionGroupVersionsQuery(q, true),
-		Next:        q.nextURL,
+		Query:       buildSubscriptionGroupVersionsQuery(query),
+		Next:        query.nextURL,
 		NextContext: "subscription-group-versions",
 	})
 }
 
 // GetSubscriptionGroupVersionLocalizations lists v2 localizations owned by a version.
 func (c *Client) GetSubscriptionGroupVersionLocalizations(ctx context.Context, versionID string, opts ...SubscriptionGroupVersionLocalizationsOption) (*SubscriptionGroupLocalizationsV2Response, error) {
-	q := applyOptions(opts)
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
-	if q.nextURL == "" && versionID == "" {
+	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
 	return getJSON[SubscriptionGroupLocalizationsV2Response](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/subscriptionGroupVersions/%s/localizations", versionID),
-		Query:       buildSubscriptionGroupVersionLocalizationsQuery(q, true),
-		Next:        q.nextURL,
+		Query:       buildSubscriptionGroupVersionLocalizationsQuery(query),
+		Next:        query.nextURL,
 		NextContext: "subscription-group-version-localizations",
 	})
 }
@@ -206,6 +202,6 @@ func (c *Client) GetSubscriptionGroupLocalizationV2(ctx context.Context, localiz
 	}
 	return getJSON[SubscriptionGroupLocalizationV2Response](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID),
-		Query: buildSubscriptionGroupVersionLocalizationsQuery(q, false),
+		Query: buildSubscriptionGroupVersionLocalizationsQuery(q),
 	})
 }
