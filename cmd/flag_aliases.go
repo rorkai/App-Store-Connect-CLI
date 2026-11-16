@@ -95,7 +95,7 @@ func resolveFlagAliases(root *ffcli.Command, args []string) ([]string, error) {
 			if other == name {
 				continue
 			}
-			if strings.TrimSpace(otherValue) != strings.TrimSpace(value) {
+			if otherValue != value {
 				return args, shared.WithDiagnostic(
 					fmt.Errorf("`--%s` and `--%s` are the same flag; pass one value", other, name),
 					shared.DiagnosticConflictingInput,
