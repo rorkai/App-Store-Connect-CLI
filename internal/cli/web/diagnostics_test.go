@@ -17,8 +17,9 @@ func TestWebPrivacyPullMissingAppExposesStructuredDiagnostic(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	var err error
-	stderr := captureWebDiagnosticStderr(t, func() {
-		err = WebPrivacyPullCommand().ParseAndRun(context.Background(), nil)
+	d, _, depsStderr := newWebTestDeps()
+	stderr := runWithWebTestDepsStderr(depsStderr, func() {
+		err = newWebPrivacyPullCommand(d).ParseAndRun(context.Background(), nil)
 	})
 
 	if err == nil {
@@ -156,13 +157,14 @@ func TestWebReviewShowInvalidInputExposesStructuredDiagnostics(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := WebReviewShowCommand()
+			d, _, depsStderr := newWebTestDeps()
+			command := newWebReviewShowCommand(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}
 
 			var err error
-			stderr := captureWebDiagnosticStderr(t, func() {
+			stderr := runWithWebTestDepsStderr(depsStderr, func() {
 				err = command.Exec(context.Background(), nil)
 			})
 			if err == nil {
@@ -256,13 +258,17 @@ func TestWebCommandsRejectNegativeProviderIDBeforeResolvingSession(t *testing.T)
 				return nil, "", errors.New("session resolution was reached")
 			}))
 			var err error
-			stderr := captureWebDiagnosticStderr(t, func() {
-				if name == "auth login" {
+			var stderr string
+			if name == "auth login" {
+				stderr = captureWebDiagnosticStderr(t, func() {
 					err = WebAuthLoginCommand().ParseAndRun(context.Background(), []string{"--provider-id=-1"})
-				} else {
-					err = WebPrivacyPullCommand().ParseAndRun(context.Background(), []string{"--app", "123456789", "--provider-id=-1"})
-				}
-			})
+				})
+			} else {
+				d, _, depsStderr := newWebTestDeps()
+				stderr = runWithWebTestDepsStderr(depsStderr, func() {
+					err = newWebPrivacyPullCommand(d).ParseAndRun(context.Background(), []string{"--app", "123456789", "--provider-id=-1"})
+				})
+			}
 			if resolutions != 0 {
 				t.Errorf("session resolver called %d times, want none", resolutions)
 			}

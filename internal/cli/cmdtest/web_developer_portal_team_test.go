@@ -35,7 +35,7 @@ func TestWebDeveloperTeamFlagAcceptedOnPortalCommands(t *testing.T) {
 }
 
 func TestWebPrivacyPullRejectsDeveloperTeamFlag(t *testing.T) {
-	assertUsageExit(t, []string{"web", "privacy", "pull", "--app", "123", "--developer-team", "X"}, "unknown flag `--developer-team`")
+	assertUsageExitWithDeps(t, nil, []string{"web", "privacy", "pull", "--app", "123", "--developer-team", "X"}, "unknown flag `--developer-team`")
 }
 
 func TestWebDeveloperTeamRejectsBlankSelectorBeforeSession(t *testing.T) {

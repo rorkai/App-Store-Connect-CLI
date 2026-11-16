@@ -20,7 +20,8 @@ func TestWebReviewReplyCreatesSendsAndVerifiesMessage(t *testing.T) {
 		"/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterMessages": `{"data":[{"id":"message-1","type":"resolutionCenterMessages","attributes":{"createdDate":"2026-09-05T00:00:00Z","messageBody":"Reply body"}}]}`,
 	})
 
-	cmd := WebReviewReplyCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebReviewReplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--thread-id", "thread-1",
 		"--message", "Reply body",
@@ -29,7 +30,7 @@ func TestWebReviewReplyCreatesSendsAndVerifiesMessage(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := runWebReviewCommand(t, func() error { return cmd.Exec(context.Background(), nil) })
+	stdout, _ := runWebReviewCommand(t, d, func() error { return cmd.Exec(context.Background(), nil) })
 
 	var receipt struct {
 		ThreadID  string `json:"threadId"`
@@ -63,7 +64,8 @@ func TestWebReviewReplyReportsConfirmedMessageWhenReceiptOutputFails(t *testing.
 		"/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterMessages": `{"data":[{"id":"message-1","type":"resolutionCenterMessages","attributes":{"createdDate":"2026-09-05T00:00:00Z","messageBody":"Reply body"}}]}`,
 	})
 
-	cmd := WebReviewReplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewReplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--thread-id", "thread-1",
 		"--message", "Reply body",
@@ -74,8 +76,7 @@ func TestWebReviewReplyReportsConfirmedMessageWhenReceiptOutputFails(t *testing.
 	}
 
 	var commandErr error
-	_, _ = captureOutput(t, func() {
-		oldStdout := os.Stdout
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		readEnd, writeEnd, err := os.Pipe()
 		if err != nil {
 			t.Fatalf("create failing stdout pipe: %v", err)
@@ -83,11 +84,8 @@ func TestWebReviewReplyReportsConfirmedMessageWhenReceiptOutputFails(t *testing.
 		if err := readEnd.Close(); err != nil {
 			t.Fatalf("close failing stdout reader: %v", err)
 		}
-		os.Stdout = writeEnd
-		defer func() {
-			os.Stdout = oldStdout
-			_ = writeEnd.Close()
-		}()
+		d.IO.Out = writeEnd
+		defer func() { _ = writeEnd.Close() }()
 
 		commandErr = cmd.Exec(context.Background(), nil)
 	})
@@ -159,7 +157,8 @@ func TestWebReviewReplyPreservesMessageBody(t *testing.T) {
 	}
 
 	messageBody := "\n  Reply body \t\n"
-	cmd := WebReviewReplyCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebReviewReplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--thread-id", "thread-1",
 		"--message", messageBody,
@@ -168,7 +167,7 @@ func TestWebReviewReplyPreservesMessageBody(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := runWebReviewCommand(t, func() error { return cmd.Exec(context.Background(), nil) })
+	stdout, _ := runWebReviewCommand(t, d, func() error { return cmd.Exec(context.Background(), nil) })
 	if strings.Contains(stdout, "Reply body") {
 		t.Fatalf("reply body must not be printed in receipt: %q", stdout)
 	}
@@ -206,12 +205,13 @@ func TestWebReviewReplyRequiresConfirmBeforeResolvingSession(t *testing.T) {
 		return nil, "", nil
 	}
 
-	cmd := WebReviewReplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewReplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--thread-id", "thread-1", "--message", "Reply body"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !strings.Contains(err.Error(), "--confirm is required") {
 		t.Fatalf("expected missing confirm error, got %v (stderr=%q)", err, stderr)
 	}
@@ -225,12 +225,13 @@ func TestWebReviewReplyRejectsEmptyMessageBeforeResolvingSession(t *testing.T) {
 		return nil, "", nil
 	}
 
-	cmd := WebReviewReplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewReplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--thread-id", "thread-1", "--message", "   ", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !strings.Contains(err.Error(), "--message must not be empty") {
 		t.Fatalf("expected empty message error, got %v (stderr=%q)", err, stderr)
 	}
@@ -265,7 +266,8 @@ func TestWebReviewReplyRejectsInvalidOutputBeforeSessionOrWrites(t *testing.T) {
 		persistWebSessionFn = originalPersistSession
 	})
 
-	cmd := WebReviewReplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewReplyCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--thread-id", "thread-1",
 		"--message", "Reply body",
@@ -276,7 +278,7 @@ func TestWebReviewReplyRejectsInvalidOutputBeforeSessionOrWrites(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") {
 		t.Fatalf("expected invalid output error, got %v (stderr=%q)", err, stderr)
 	}
@@ -306,12 +308,13 @@ func TestWebReviewReplyWarnsWhenDraftResponseIsLost(t *testing.T) {
 	requested := stubWebReviewDraftSequence(t, []webReviewDraftHTTPResponse{
 		{method: http.MethodPost, path: "/iris/v1/resolutionCenterDraftMessages", err: transportErr},
 	})
-	command := WebReviewReplyCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebReviewReplyCommand(d)
 	if err := command.FlagSet.Parse([]string{"--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var commandErr error
-	_, _ = captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() { commandErr = command.Exec(context.Background(), nil) })
 	if !errors.Is(commandErr, transportErr) {
 		t.Fatalf("error = %v, want transport cause", commandErr)
 	}

@@ -16,7 +16,8 @@ import (
 )
 
 func TestWebReviewIAPsAttachRequiresIAPID(t *testing.T) {
-	cmd := WebReviewIAPsAttachCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewIAPsAttachCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--confirm",
@@ -24,7 +25,7 @@ func TestWebReviewIAPsAttachRequiresIAPID(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -36,7 +37,8 @@ func TestWebReviewIAPsAttachRequiresIAPID(t *testing.T) {
 }
 
 func TestWebReviewIAPsAttachRequiresConfirm(t *testing.T) {
-	cmd := WebReviewIAPsAttachCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewIAPsAttachCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--iap-id", "9000000001",
@@ -44,7 +46,7 @@ func TestWebReviewIAPsAttachRequiresConfirm(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -56,7 +58,8 @@ func TestWebReviewIAPsAttachRequiresConfirm(t *testing.T) {
 }
 
 func TestWebReviewIAPsAttachRejectsNonNumericAppID(t *testing.T) {
-	cmd := WebReviewIAPsAttachCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewIAPsAttachCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "com.example.app",
 		"--iap-id", "9000000001",
@@ -65,7 +68,7 @@ func TestWebReviewIAPsAttachRejectsNonNumericAppID(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -77,8 +80,6 @@ func TestWebReviewIAPsAttachRejectsNonNumericAppID(t *testing.T) {
 }
 
 func TestWebReviewIAPsAttachRejectsMatchedIAPWithoutIrisResourceID(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
@@ -118,7 +119,8 @@ func TestWebReviewIAPsAttachRejectsMatchedIAPWithoutIrisResourceID(t *testing.T)
 		}, "cache", nil
 	}
 
-	cmd := WebReviewIAPsAttachCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewIAPsAttachCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--iap-id", "com.example.lifetime",
@@ -127,7 +129,7 @@ func TestWebReviewIAPsAttachRejectsMatchedIAPWithoutIrisResourceID(t *testing.T)
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if err == nil {
 			t.Fatal("expected missing iris id error, got nil")
@@ -165,7 +167,8 @@ func TestWebReviewIAPsAttachRefusesIAPOutsideApp(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := WebReviewIAPsAttachCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebReviewIAPsAttachCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--iap-id", "9000000001",
@@ -184,8 +187,6 @@ func TestWebReviewIAPsAttachRefusesIAPOutsideApp(t *testing.T) {
 }
 
 func TestWebReviewIAPsAttachRejectsAmbiguousSelectorBeforeMutation(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = origResolveSession })
 
@@ -209,7 +210,8 @@ func TestWebReviewIAPsAttachRejectsAmbiguousSelectorBeforeMutation(t *testing.T)
 		}, "cache", nil
 	}
 
-	cmd := WebReviewIAPsAttachCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebReviewIAPsAttachCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "123456789", "--iap-id", "com.example.duplicate", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -278,8 +280,6 @@ func TestReviewIAPAmbiguousSelectionBoundsProviderText(t *testing.T) {
 }
 
 func TestWebReviewIAPsAttachRejectsMissingOrWrongTypeBeforeMutation(t *testing.T) {
-	_ = stubWebProgressLabels(t)
-
 	cases := []struct {
 		name    string
 		body    string
@@ -348,7 +348,8 @@ func TestWebReviewIAPsAttachRejectsMissingOrWrongTypeBeforeMutation(t *testing.T
 			if tc.v2Body != "" || tc.v2Error {
 				selector = "legacy-id"
 			}
-			cmd := WebReviewIAPsAttachCommand()
+			d, _, _ := newWebTestDeps()
+			cmd := newWebReviewIAPsAttachCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--app", "123456789", "--iap-id", selector, "--confirm"}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
@@ -364,7 +365,8 @@ func TestWebReviewIAPsAttachRejectsMissingOrWrongTypeBeforeMutation(t *testing.T
 }
 
 func TestWebReviewIAPsGroupCommandReturnsHelpWhenNoSubcommand(t *testing.T) {
-	cmd := WebReviewIAPsCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebReviewIAPsCommand(d)
 	if cmd.UsageFunc == nil {
 		t.Fatal("WebReviewIAPsCommand should set UsageFunc for consistent rendering")
 	}
@@ -404,7 +406,6 @@ func TestWebReviewIAPsAttachDraftSelectionAndMembership(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_ = stubWebProgressLabels(t)
 			original := resolveSessionFn
 			t.Cleanup(func() { resolveSessionFn = original })
 			posts := 0
@@ -454,7 +455,8 @@ func TestWebReviewIAPsAttachDraftSelectionAndMembership(t *testing.T) {
 					return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body)), Request: req}, nil
 				})}}, "cache", nil
 			}
-			cmd := WebReviewIAPsAttachCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebReviewIAPsAttachCommand(d)
 			args := []string{"--app", "123456789", "--iap-id", "com.example.pro", "--confirm", "--output", "json"}
 			if tc.submission != "" {
 				args = append(args, "--submission", tc.submission)
@@ -463,7 +465,7 @@ func TestWebReviewIAPsAttachDraftSelectionAndMembership(t *testing.T) {
 				t.Fatal(err)
 			}
 			var runErr error
-			stdout, _ := captureOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() { runErr = cmd.Exec(context.Background(), nil) })
 			if posts != tc.wantPosts {
 				t.Fatalf("POST count=%d, want %d", posts, tc.wantPosts)
 			}

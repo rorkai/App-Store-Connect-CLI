@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"unicode/utf8"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,7 +24,7 @@ const reviewSubscriptionsListRequest = "GET /iris/v1/apps/app-1/subscriptionGrou
 func TestWebReviewSubscriptionsListCommandOutputsJSON(t *testing.T) {
 	fake := stubReviewSubscriptions(t, premiumGroupBody(t, monthlySubscription("READY_TO_SUBMIT", true)))
 
-	stdout, _, err := runReviewSubscriptionsCommand(t, WebReviewSubscriptionsListCommand, "--app", "app-1", "--output", "json")
+	stdout, _, err := runReviewSubscriptionsCommand(t, newWebReviewSubscriptionsListCommand, "--app", "app-1", "--output", "json")
 	if err != nil {
 		t.Fatalf("exec error: %v", err)
 	}
@@ -47,7 +48,7 @@ func TestWebReviewSubscriptionsListCommandOutputsJSON(t *testing.T) {
 func TestWebReviewSubscriptionsListCommandTableIncludesGroupID(t *testing.T) {
 	fake := stubReviewSubscriptions(t, premiumGroupBody(t, monthlySubscription("READY_TO_SUBMIT", true)))
 
-	stdout, _, err := runReviewSubscriptionsCommand(t, WebReviewSubscriptionsListCommand, "--app", "app-1", "--output", "table")
+	stdout, _, err := runReviewSubscriptionsCommand(t, newWebReviewSubscriptionsListCommand, "--app", "app-1", "--output", "table")
 	if err != nil {
 		t.Fatalf("exec error: %v", err)
 	}
@@ -191,7 +192,7 @@ func TestWithReviewSelectorDiagnosticPreservesRemoteFailure(t *testing.T) {
 func TestWebReviewSubscriptionsRejectAmbiguousSelectorBeforeMutation(t *testing.T) {
 	tests := []struct {
 		name          string
-		command       func() *ffcli.Command
+		command       func(*shared.Deps) *ffcli.Command
 		args          []string
 		body          func(t *testing.T) string
 		wantMessage   string
@@ -199,7 +200,7 @@ func TestWebReviewSubscriptionsRejectAmbiguousSelectorBeforeMutation(t *testing.
 	}{
 		{
 			name:    "AttachGroupRejectsAmbiguousSelectorBeforeMutation",
-			command: WebReviewSubscriptionsAttachGroupCommand,
+			command: newWebReviewSubscriptionsAttachGroupCommand,
 			args:    []string{"--group-id", "Premium"},
 			body: func(t *testing.T) string {
 				return reviewSubscriptionGroupsBody(t,
@@ -212,7 +213,7 @@ func TestWebReviewSubscriptionsRejectAmbiguousSelectorBeforeMutation(t *testing.
 		},
 		{
 			name:    "AttachRejectsAmbiguousSelectorBeforeMutation",
-			command: WebReviewSubscriptionsAttachCommand,
+			command: newWebReviewSubscriptionsAttachCommand,
 			args:    []string{"--subscription-id", "Monthly"},
 			body: func(t *testing.T) string {
 				return premiumGroupBody(t,
@@ -247,7 +248,7 @@ func TestWebReviewSubscriptionsRejectAmbiguousSelectorBeforeMutation(t *testing.
 func TestWebReviewSubscriptionsSingleMutationReportsRefreshedState(t *testing.T) {
 	tests := []struct {
 		name              string
-		command           func() *ffcli.Command
+		command           func(*shared.Deps) *ffcli.Command
 		selector          string
 		initialAttached   bool
 		refreshedAttached bool
@@ -259,7 +260,7 @@ func TestWebReviewSubscriptionsSingleMutationReportsRefreshedState(t *testing.T)
 	}{
 		{
 			name:              "AttachCommandRefreshesState",
-			command:           WebReviewSubscriptionsAttachCommand,
+			command:           newWebReviewSubscriptionsAttachCommand,
 			selector:          "Monthly",
 			refreshedAttached: true,
 			wantOperation:     "attach",
@@ -270,7 +271,7 @@ func TestWebReviewSubscriptionsSingleMutationReportsRefreshedState(t *testing.T)
 		},
 		{
 			name:             "AttachCommandOnlyMarksChangedWhenRefreshShowsAttached",
-			command:          WebReviewSubscriptionsAttachCommand,
+			command:          newWebReviewSubscriptionsAttachCommand,
 			selector:         "sub-1",
 			wantOperation:    "attach",
 			wantSubmissionID: "submission-1",
@@ -279,7 +280,7 @@ func TestWebReviewSubscriptionsSingleMutationReportsRefreshedState(t *testing.T)
 		},
 		{
 			name:            "RemoveCommandRefreshesState",
-			command:         WebReviewSubscriptionsRemoveCommand,
+			command:         newWebReviewSubscriptionsRemoveCommand,
 			selector:        "sub-1",
 			initialAttached: true,
 			wantOperation:   "remove",
@@ -289,7 +290,7 @@ func TestWebReviewSubscriptionsSingleMutationReportsRefreshedState(t *testing.T)
 		},
 		{
 			name:              "RemoveCommandOnlyMarksChangedWhenRefreshShowsDetached",
-			command:           WebReviewSubscriptionsRemoveCommand,
+			command:           newWebReviewSubscriptionsRemoveCommand,
 			selector:          "sub-1",
 			initialAttached:   true,
 			refreshedAttached: true,
@@ -329,12 +330,12 @@ func TestWebReviewSubscriptionsSingleMutationReportsRefreshedState(t *testing.T)
 func TestWebReviewSubscriptionsMutationsRequireConfirm(t *testing.T) {
 	cases := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
-		{name: "attach", command: WebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}},
-		{name: "attach-group", command: WebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1"}},
-		{name: "remove-group", command: WebReviewSubscriptionsRemoveGroupCommand, args: []string{"--group-id", "group-1"}},
+		{name: "attach", command: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}},
+		{name: "attach-group", command: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1"}},
+		{name: "remove-group", command: newWebReviewSubscriptionsRemoveGroupCommand, args: []string{"--group-id", "group-1"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -352,7 +353,7 @@ func TestWebReviewSubscriptionsMutationsRequireConfirm(t *testing.T) {
 func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 	tests := []struct {
 		name         string
-		command      func() *ffcli.Command
+		command      func(*shared.Deps) *ffcli.Command
 		args         []string
 		body         func(t *testing.T) string
 		wantStderr   []string
@@ -360,7 +361,7 @@ func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 	}{
 		{
 			name:    "AttachFailsFastForMissingMetadata",
-			command: WebReviewSubscriptionsAttachCommand,
+			command: newWebReviewSubscriptionsAttachCommand,
 			args:    []string{"--subscription-id", "sub-1"},
 			body: func(t *testing.T) string {
 				return premiumGroupBody(t, monthlySubscription("MISSING_METADATA", false))
@@ -376,7 +377,7 @@ func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 		},
 		{
 			name:    "AttachFailsFastForNonReadyState",
-			command: WebReviewSubscriptionsAttachCommand,
+			command: newWebReviewSubscriptionsAttachCommand,
 			args:    []string{"--subscription-id", "sub-1"},
 			body: func(t *testing.T) string {
 				return premiumGroupBody(t, monthlySubscription("DEVELOPER_ACTION_NEEDED", false))
@@ -385,7 +386,7 @@ func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 		},
 		{
 			name:    "AttachGroupFailsFastWhenNoSubscriptionsAreReadyToSubmit",
-			command: WebReviewSubscriptionsAttachGroupCommand,
+			command: newWebReviewSubscriptionsAttachGroupCommand,
 			args:    []string{"--group-id", "group-1"},
 			body: func(t *testing.T) string {
 				return premiumGroupBody(t,
@@ -432,7 +433,7 @@ func TestWebReviewSubscriptionsGroupMutationsReportRefreshedState(t *testing.T) 
 	)
 	tests := []struct {
 		name          string
-		command       func() *ffcli.Command
+		command       func(*shared.Deps) *ffcli.Command
 		groupSelector string
 		initial       func(t *testing.T) string
 		refreshed     func(t *testing.T) string
@@ -444,7 +445,7 @@ func TestWebReviewSubscriptionsGroupMutationsReportRefreshedState(t *testing.T) 
 	}{
 		{
 			name:          "AttachGroupResolvesReferenceName",
-			command:       WebReviewSubscriptionsAttachGroupCommand,
+			command:       newWebReviewSubscriptionsAttachGroupCommand,
 			groupSelector: "Premium",
 			initial: func(t *testing.T) string {
 				return premiumGroupBody(t, monthlySubscription("READY_TO_SUBMIT", false))
@@ -459,7 +460,7 @@ func TestWebReviewSubscriptionsGroupMutationsReportRefreshedState(t *testing.T) 
 		},
 		{
 			name:          "AttachGroupCommandRefreshesReadySubscriptions",
-			command:       WebReviewSubscriptionsAttachGroupCommand,
+			command:       newWebReviewSubscriptionsAttachGroupCommand,
 			groupSelector: "group-1",
 			initial:       func(t *testing.T) string { return premiumTrioBody(t, false, false) },
 			refreshed:     func(t *testing.T) string { return premiumTrioBody(t, true, true) },
@@ -471,7 +472,7 @@ func TestWebReviewSubscriptionsGroupMutationsReportRefreshedState(t *testing.T) 
 		},
 		{
 			name:          "AttachGroupCommandOnlyCountsRefreshedAttachedSubscriptions",
-			command:       WebReviewSubscriptionsAttachGroupCommand,
+			command:       newWebReviewSubscriptionsAttachGroupCommand,
 			groupSelector: "group-1",
 			initial:       func(t *testing.T) string { return premiumTrioBody(t, false, false) },
 			refreshed:     func(t *testing.T) string { return premiumTrioBody(t, true, false) },
@@ -483,7 +484,7 @@ func TestWebReviewSubscriptionsGroupMutationsReportRefreshedState(t *testing.T) 
 		},
 		{
 			name:          "AttachGroupCommandIsIdempotentAfterReadySubscriptionsAlreadyAttached",
-			command:       WebReviewSubscriptionsAttachGroupCommand,
+			command:       newWebReviewSubscriptionsAttachGroupCommand,
 			groupSelector: "group-1",
 			initial:       func(t *testing.T) string { return premiumTrioBody(t, true, true) },
 			refreshed:     func(t *testing.T) string { return premiumTrioBody(t, true, true) },
@@ -493,7 +494,7 @@ func TestWebReviewSubscriptionsGroupMutationsReportRefreshedState(t *testing.T) 
 		},
 		{
 			name:          "RemoveGroupCommandRefreshesAttachedSubscriptions",
-			command:       WebReviewSubscriptionsRemoveGroupCommand,
+			command:       newWebReviewSubscriptionsRemoveGroupCommand,
 			groupSelector: "group-1",
 			initial:       func(t *testing.T) string { return premiumTrioBody(t, true, true) },
 			refreshed:     func(t *testing.T) string { return premiumTrioBody(t, false, false) },
@@ -505,7 +506,7 @@ func TestWebReviewSubscriptionsGroupMutationsReportRefreshedState(t *testing.T) 
 		},
 		{
 			name:          "RemoveGroupCommandOnlyCountsRefreshedDetachedSubscriptions",
-			command:       WebReviewSubscriptionsRemoveGroupCommand,
+			command:       newWebReviewSubscriptionsRemoveGroupCommand,
 			groupSelector: "group-1",
 			initial:       func(t *testing.T) string { return premiumTrioBody(t, true, true) },
 			refreshed:     func(t *testing.T) string { return premiumTrioBody(t, false, true) },
@@ -706,7 +707,7 @@ func TestWebReviewSubscriptionsListCommandAppSelection(t *testing.T) {
 			t.Setenv("ASC_APP_ID", tt.envAppID)
 			fake := stubReviewSubscriptions(t, `{"data": [], "included": []}`)
 
-			stdout, _, err := runReviewSubscriptionsCommand(t, WebReviewSubscriptionsListCommand, append(tt.args, "--output", "json")...)
+			stdout, _, err := runReviewSubscriptionsCommand(t, newWebReviewSubscriptionsListCommand, append(tt.args, "--output", "json")...)
 			if err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
@@ -733,13 +734,14 @@ func TestWebReviewSubscriptionsListCommandMissingAppReportsFallbackAndDiagnostic
 		return nil, "", errors.New("session resolution must not run")
 	}
 
-	cmd := WebReviewSubscriptionsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewSubscriptionsListCommand(d)
 	if err := cmd.FlagSet.Parse(nil); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var runErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(runErr, flag.ErrHelp) {
@@ -867,9 +869,11 @@ type reviewSubscriptionsFake struct {
 func stubReviewSubscriptions(t *testing.T, listBodies ...string) *reviewSubscriptionsFake {
 	t.Helper()
 	fixture := handlertest.New(t)
-	fake := &reviewSubscriptionsFake{labels: stubWebProgressLabels(t)}
+	fake := &reviewSubscriptionsFake{labels: &[]string{}}
+	activeReviewSubscriptionsFake = fake
+	t.Cleanup(func() { activeReviewSubscriptionsFake = nil })
 	lists := 0
-	stubWebSessionTransport(t, func(req *http.Request) (*http.Response, error) {
+	stubWebSessionTransport(t, spinnerShownTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/iris/v1/apps/") && strings.HasSuffix(req.URL.Path, "/subscriptionGroups"):
 			fake.requests = append(fake.requests, "GET "+req.URL.Path)
@@ -901,9 +905,13 @@ func stubReviewSubscriptions(t *testing.T, listBodies ...string) *reviewSubscrip
 		default:
 			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 		}
-	})
+	})))
 	return fake
 }
+
+// activeReviewSubscriptionsFake receives the spinner labels of each command
+// runReviewSubscriptionsCommand runs.
+var activeReviewSubscriptionsFake *reviewSubscriptionsFake
 
 func (f *reviewSubscriptionsFake) assertRequests(t *testing.T, want ...string) {
 	t.Helper()
@@ -919,13 +927,20 @@ func (f *reviewSubscriptionsFake) assertLabels(t *testing.T, want ...string) {
 	}
 }
 
-func runReviewSubscriptionsCommand(t *testing.T, command func() *ffcli.Command, args ...string) (string, string, error) {
+// runReviewSubscriptionsCommand runs the command on terminal deps, records the
+// spinner labels it drew for the active fake, and returns stderr without the
+// spinner's drawing.
+func runReviewSubscriptionsCommand(t *testing.T, command func(*shared.Deps) *ffcli.Command, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := command()
+	d, stdout, stderr := newWebSpinnerTestDeps(t)
+	cmd := command(d)
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	stdout, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
-	return stdout, stderr, err
+	synctest.Test(t, func(t *testing.T) { err = cmd.Exec(context.Background(), nil) })
+	if activeReviewSubscriptionsFake != nil {
+		*activeReviewSubscriptionsFake.labels = append(*activeReviewSubscriptionsFake.labels, spinnerLabels(stderr.String())...)
+	}
+	return stdout.String(), withoutSpinner(stderr.String()), err
 }
