@@ -2,6 +2,7 @@
   "tag": "AppPreviews",
   "file": "app_previews_gen.go",
   "types": [
+    "AppPreviewCreateData",
     "AppPreviewCreateRequest",
     "AppPreviewRelationships",
     "AppPreviewUpdateData",
@@ -11,6 +12,7 @@
     {"data":"AppPreviewCreateData","type":"*AppPreviewRelationships"}
   ],
   "operations": [
+    {"operation":"appPreviews_createInstance","name":"CreateAppPreview","params":["setID"],"check":"raw","links":["appPreviewSet"],"args":[{"name":"fileName"},{"name":"fileSize","type":"int64"},{"name":"mimeType"}]},
     {"operation":"appPreviews_deleteInstance","name":"DeleteAppPreview","params":["previewID"],"check":"raw"},
     {"operation":"appPreviews_getInstance","name":"GetAppPreview","params":["previewID"],"check":"raw"},
     {"operation":"appPreviews_updateInstance","name":"UpdateAppPreview","params":["previewID"],"check":"raw","args":[{"name":"uploaded"},{"name":"checksumHash","attribute":"sourceFileChecksum"}]},

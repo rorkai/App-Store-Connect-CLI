@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -21,13 +20,6 @@ type AppScreenshotCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// AppScreenshotCreateData is the data portion of a screenshot create request.
-type AppScreenshotCreateData struct {
-	Type          ResourceType                  `json:"type"`
-	Attributes    AppScreenshotCreateAttributes `json:"attributes"`
-	Relationships *AppScreenshotRelationships   `json:"relationships"`
-}
-
 // AppPreviewSetCreateData is the data portion of a preview set create request.
 type AppPreviewSetCreateData struct {
 	Type          ResourceType                `json:"type"`
@@ -41,13 +33,6 @@ type AppPreviewCreateAttributes struct {
 	FileName             string  `json:"fileName"`
 	PreviewFrameTimeCode *string `json:"previewFrameTimeCode,omitempty"`
 	MimeType             *string `json:"mimeType,omitempty"`
-}
-
-// AppPreviewCreateData is the data portion of a preview create request.
-type AppPreviewCreateData struct {
-	Type          ResourceType               `json:"type"`
-	Attributes    AppPreviewCreateAttributes `json:"attributes"`
-	Relationships *AppPreviewRelationships   `json:"relationships"`
 }
 
 // AppPreviewUpdateAttributes describes preview update attributes.
@@ -132,33 +117,6 @@ func (c *Client) GetAppScreenshots(ctx context.Context, setID string, opts ...Ap
 		Query:       buildAppScreenshotsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appScreenshots",
-	})
-}
-
-// CreateAppScreenshot creates a screenshot reservation.
-func (c *Client) CreateAppScreenshot(ctx context.Context, setID string, fileName string, fileSize int64) (*AppScreenshotResponse, error) {
-	payload := AppScreenshotCreateRequest{
-		Data: AppScreenshotCreateData{
-			Type: ResourceTypeAppScreenshots,
-			Attributes: AppScreenshotCreateAttributes{
-				FileName: fileName,
-				FileSize: fileSize,
-			},
-			Relationships: &AppScreenshotRelationships{
-				AppScreenshotSet: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppScreenshotSets,
-						ID:   setID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[AppScreenshotResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appScreenshots",
-		Payload: payload,
 	})
 }
 
@@ -269,33 +227,5 @@ func (c *Client) GetAppPreviews(ctx context.Context, setID string, opts ...AppPr
 		Path:        fmt.Sprintf("/v1/appPreviewSets/%s/appPreviews", setID),
 		Next:        query.nextURL,
 		NextContext: "appPreviews",
-	})
-}
-
-// CreateAppPreview creates a preview reservation.
-func (c *Client) CreateAppPreview(ctx context.Context, setID string, fileName string, fileSize int64, mimeType string) (*AppPreviewResponse, error) {
-	payload := AppPreviewCreateRequest{
-		Data: AppPreviewCreateData{
-			Type: ResourceTypeAppPreviews,
-			Attributes: AppPreviewCreateAttributes{
-				FileName: fileName,
-				FileSize: fileSize,
-				MimeType: &mimeType,
-			},
-			Relationships: &AppPreviewRelationships{
-				AppPreviewSet: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppPreviewSets,
-						ID:   setID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appPreviews",
-		Payload: payload,
 	})
 }
