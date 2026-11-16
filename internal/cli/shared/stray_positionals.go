@@ -38,7 +38,9 @@ func PrimaryIDFlagName(flagSet *flag.FlagSet) (string, bool) {
 
 	defined := make(map[string]struct{})
 	flagSet.VisitAll(func(item *flag.Flag) {
-		defined[item.Name] = struct{}{}
+		if _, alias := FlagAliasTarget(item); !alias {
+			defined[item.Name] = struct{}{}
+		}
 	})
 	provided := make(map[string]struct{})
 	flagSet.Visit(func(item *flag.Flag) {

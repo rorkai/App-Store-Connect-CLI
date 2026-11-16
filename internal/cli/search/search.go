@@ -969,7 +969,7 @@ func commandFlags(cmd *ffcli.Command) []string {
 	}
 	flags := make([]string, 0)
 	cmd.FlagSet.VisitAll(func(f *flag.Flag) {
-		if f == nil {
+		if _, alias := shared.FlagAliasTarget(f); f == nil || alias {
 			return
 		}
 		flags = append(flags, f.Name)

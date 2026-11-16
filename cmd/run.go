@@ -70,6 +70,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	// `--profile` before anything else reads the argv. Running it first also
 	// keeps spaced boolean recovery working for the flags that follow it.
 	args = hoistRootProfileFlag(root, args)
+	args, aliasErr := resolveFlagAliases(root, args)
 	args = normalizeSpacedBooleanFlags(root, args)
 	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -92,7 +93,10 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	if helpRequested {
 		parseArgs = dropIndirectFlagValues(root, helpArgs)
 	} else {
-		resolvedArgs, err := resolveFlagValueIndirection(root, args)
+		resolvedArgs, err := args, aliasErr
+		if err == nil {
+			resolvedArgs, err = resolveFlagValueIndirection(root, args)
+		}
 		if err != nil {
 			recoverCIReportFlags(root, args)
 			fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
