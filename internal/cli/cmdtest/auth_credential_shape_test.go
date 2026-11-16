@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAuthDoctorWarnsWhenEnvironmentIdentifiersLookSwapped(t *testing.T) {
@@ -22,17 +24,10 @@ func TestAuthDoctorWarnsWhenEnvironmentIdentifiersLookSwapped(t *testing.T) {
 		t.Setenv("ASC_KEY_TYPE", "team")
 		t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
 
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-
-		stdout, _ := captureOutput(t, func() {
-			if err := root.Parse([]string{"auth", "doctor"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
-			}
-		})
+		stdout, _, err := runRootWithDeps(t, shared.GetASCClient, "auth", "doctor")
+		if err != nil {
+			t.Fatalf("run error: %v", err)
+		}
 
 		if !strings.Contains(stdout, "[WARN] ASC_KEY_ID looks like an issuer ID — the values may be swapped") {
 			t.Fatalf("expected swapped key ID warning, got %q", stdout)
@@ -57,17 +52,10 @@ func TestAuthDoctorStaysQuietForValidEnvironmentIdentifiers(t *testing.T) {
 		t.Setenv("ASC_KEY_TYPE", "team")
 		t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
 
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-
-		stdout, _ := captureOutput(t, func() {
-			if err := root.Parse([]string{"auth", "doctor"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
-			}
-		})
+		stdout, _, err := runRootWithDeps(t, shared.GetASCClient, "auth", "doctor")
+		if err != nil {
+			t.Fatalf("run error: %v", err)
+		}
 
 		if strings.Contains(stdout, "swapped") || strings.Contains(stdout, "is not a UUID") {
 			t.Fatalf("expected no credential shape warning, got %q", stdout)

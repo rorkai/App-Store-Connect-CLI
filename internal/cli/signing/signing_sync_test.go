@@ -91,6 +91,7 @@ func TestSigningSyncPreparesRepositoryOnceInAssetOrder(t *testing.T) {
 				context.Background(),
 				client,
 				signingAssetsOptions{
+					Now:                signingFetchNowFn,
 					BundleIDResourceID: "bundle-main",
 					BundleIdentifier:   "com.example.signing.profile",
 					ProfileType:        "IOS_APP_STORE",
@@ -141,6 +142,7 @@ func TestSigningSyncIdentityConflictFailsBeforeProfileCreatePOST(t *testing.T) {
 	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
 	identity := &signingIdentity{PrivateKey: key}
 	_, _, _, err := resolveSigningAssets(context.Background(), client, signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-main",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_ADHOC",
@@ -191,6 +193,7 @@ func TestSigningSyncLegacyDestinationConflictFailsBeforeProfileCreatePOST(t *tes
 	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
 	outside := t.TempDir()
 	_, _, _, err := resolveSigningAssets(context.Background(), client, signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-main", BundleIdentifier: "com.example.app", ProfileType: "IOS_APP_ADHOC", CreateMissing: true,
 		BeforeCreate: func(plan profileCreatePlan) error {
 			conflict := filepath.Join(store.LocalDir, "profiles", "adhoc", safeFileName(plan.ProfileName, "profile")+".mobileprovision.enc")
@@ -228,6 +231,7 @@ func TestSigningSyncCaseCollisionFailsBeforeProfileCreatePOST(t *testing.T) {
 	})
 	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
 	_, _, _, err := resolveSigningAssets(context.Background(), client, signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-main", BundleIdentifier: "com.example.app", ProfileType: "IOS_APP_ADHOC", CreateMissing: true,
 		BeforeCreate: func(plan profileCreatePlan) error {
 			existing := filepath.Join("profiles", "adhoc", strings.ToLower(safeFileName(plan.ProfileName, "profile"))+".mobileprovision")
