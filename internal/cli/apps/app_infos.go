@@ -18,6 +18,7 @@ func newAppsInfoListCommand(d *shared.Deps) *ffcli.Command {
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
 	fields := fs.String("fields", "", "Sparse app info fields: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
 	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
+	include := fs.String("include", "", "Include related resources: "+strings.Join(appInfoIncludeList(), ", "))
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -34,6 +35,7 @@ Examples:
   asc apps info list --app "APP_ID"
   asc apps info list --app "APP_ID" --fields state,primaryCategory
   asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
+  asc apps info list --app "APP_ID" --include "appInfoLocalizations,primaryCategory"
   asc apps info list --app "APP_ID" --output table
   asc apps info list --app "APP_ID" --output markdown`,
 		FlagSet:   fs,
@@ -52,6 +54,10 @@ Examples:
 			if err != nil {
 				return d.UsageError(err.Error())
 			}
+			includeValues, err := normalizeAppInfoInclude(*include)
+			if err != nil {
+				return d.UsageError(err.Error())
+			}
 
 			d.WarnDeprecatedAppInfoFields(fieldValues, "")
 
@@ -63,7 +69,6 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			includeValues := []string{}
 			if len(ageRatingFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "ageRatingDeclaration")
 			}
