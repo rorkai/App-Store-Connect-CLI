@@ -93,7 +93,10 @@ func TestWebDeveloperTeamFlagAcceptedOnPortalCommands(t *testing.T) {
 		name    string
 		command func() *flag.FlagSet
 	}{
-		{"bundle-ids capabilities enable", func() *flag.FlagSet { return WebBundleIDCapabilitiesEnableCommand().FlagSet }},
+		{"bundle-ids capabilities enable", func() *flag.FlagSet {
+			d, _, _ := newWebTestDeps()
+			return newWebBundleIDCapabilitiesEnableCommand(d).FlagSet
+		}},
 		{"app-groups list", func() *flag.FlagSet { return WebAppGroupsListCommand().FlagSet }},
 		{"app-groups create", func() *flag.FlagSet { return WebAppGroupsCreateCommand().FlagSet }},
 		{"agreements status", func() *flag.FlagSet { return WebAgreementsStatusCommand().FlagSet }},

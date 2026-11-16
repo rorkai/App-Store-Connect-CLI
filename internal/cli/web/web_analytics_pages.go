@@ -50,11 +50,11 @@ type analyticsPageCapabilityOutput struct {
 	Hints              []analyticsCapabilityHint `json:"hints,omitempty"`
 }
 
-// WebAnalyticsSourcesCommand recreates the Acquisition > Sources page.
-func WebAnalyticsSourcesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics sources", flag.ExitOnError)
+// newWebAnalyticsSourcesCommand recreates the Acquisition > Sources page.
+func newWebAnalyticsSourcesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics sources", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "End date (YYYY-MM-DD)")
@@ -70,39 +70,40 @@ func WebAnalyticsSourcesCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading acquisition sources", func() (*webcore.AnalyticsSourcesPage, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading acquisition sources", func() (*webcore.AnalyticsSourcesPage, error) {
 				return getAnalyticsSourcesPageFn(requestCtx, client, resolvedAppID, startDate, endDate)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "analytics sources")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsSourcesTable(result) },
-				func() error { return renderAnalyticsSourcesMarkdown(result) },
+				func() error { return renderAnalyticsSourcesTable(d, result) },
+				func() error { return renderAnalyticsSourcesMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAnalyticsProductPagesCommand explains Product Pages availability for the app.
-func WebAnalyticsProductPagesCommand() *ffcli.Command {
+// newWebAnalyticsProductPagesCommand explains Product Pages availability for the app.
+func newWebAnalyticsProductPagesCommand(d *shared.Deps) *ffcli.Command {
 	return newAnalyticsCapabilityCommand(
+		d,
 		"product-pages",
 		"Inspect Product Pages tab availability.",
 		"Product Pages tab availability",
@@ -130,11 +131,11 @@ func WebAnalyticsProductPagesCommand() *ffcli.Command {
 	)
 }
 
-// WebAnalyticsInAppEventsCommand recreates the Acquisition > In-App Events page.
-func WebAnalyticsInAppEventsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics in-app-events", flag.ExitOnError)
+// newWebAnalyticsInAppEventsCommand recreates the Acquisition > In-App Events page.
+func newWebAnalyticsInAppEventsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics in-app-events", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Requested start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "Requested end date (YYYY-MM-DD)")
@@ -151,39 +152,40 @@ func WebAnalyticsInAppEventsCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading in-app events analytics", func() (*webcore.AnalyticsInAppEventsPage, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading in-app events analytics", func() (*webcore.AnalyticsInAppEventsPage, error) {
 				return getAnalyticsInAppEventsPageFn(requestCtx, client, resolvedAppID, startDate, endDate)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "analytics in-app-events")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsInAppEventsTable(result) },
-				func() error { return renderAnalyticsInAppEventsMarkdown(result) },
+				func() error { return renderAnalyticsInAppEventsTable(d, result) },
+				func() error { return renderAnalyticsInAppEventsMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAnalyticsAppClipsCommand explains App Clip tab availability for the app.
-func WebAnalyticsAppClipsCommand() *ffcli.Command {
+// newWebAnalyticsAppClipsCommand explains App Clip tab availability for the app.
+func newWebAnalyticsAppClipsCommand(d *shared.Deps) *ffcli.Command {
 	return newAnalyticsCapabilityCommand(
+		d,
 		"app-clips",
 		"Inspect App Clip tab availability.",
 		"App Clip tab availability",
@@ -209,11 +211,11 @@ func WebAnalyticsAppClipsCommand() *ffcli.Command {
 	)
 }
 
-// WebAnalyticsCampaignsCommand recreates the Acquisition > Campaigns page.
-func WebAnalyticsCampaignsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics campaigns", flag.ExitOnError)
+// newWebAnalyticsCampaignsCommand recreates the Acquisition > Campaigns page.
+func newWebAnalyticsCampaignsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics campaigns", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "End date (YYYY-MM-DD)")
@@ -228,41 +230,41 @@ func WebAnalyticsCampaignsCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading campaigns analytics", func() (*webcore.AnalyticsCampaignsPage, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading campaigns analytics", func() (*webcore.AnalyticsCampaignsPage, error) {
 				return getAnalyticsCampaignsPageFn(requestCtx, client, resolvedAppID, startDate, endDate)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "analytics campaigns")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsCampaignsTable(result) },
-				func() error { return renderAnalyticsCampaignsMarkdown(result) },
+				func() error { return renderAnalyticsCampaignsTable(d, result) },
+				func() error { return renderAnalyticsCampaignsMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAnalyticsSalesCommand recreates the Monetization > Sales page.
-func WebAnalyticsSalesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics sales", flag.ExitOnError)
+// newWebAnalyticsSalesCommand recreates the Monetization > Sales page.
+func newWebAnalyticsSalesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics sales", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "End date (YYYY-MM-DD)")
@@ -277,39 +279,40 @@ func WebAnalyticsSalesCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading sales analytics", func() (*webcore.AnalyticsSalesSummary, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading sales analytics", func() (*webcore.AnalyticsSalesSummary, error) {
 				return getAnalyticsSalesSummaryFn(requestCtx, client, resolvedAppID, startDate, endDate)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "analytics sales")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsSalesTable(result) },
-				func() error { return renderAnalyticsSalesMarkdown(result) },
+				func() error { return renderAnalyticsSalesTable(d, result) },
+				func() error { return renderAnalyticsSalesMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAnalyticsOffersCommand explains Offers tab capability for the app.
-func WebAnalyticsOffersCommand() *ffcli.Command {
+// newWebAnalyticsOffersCommand explains Offers tab capability for the app.
+func newWebAnalyticsOffersCommand(d *shared.Deps) *ffcli.Command {
 	return newAnalyticsCapabilityCommand(
+		d,
 		"offers",
 		"Inspect Offers tab capability.",
 		"Offers tab capability",
@@ -335,11 +338,11 @@ func WebAnalyticsOffersCommand() *ffcli.Command {
 	)
 }
 
-// WebAnalyticsBenchmarksCommand recreates the Benchmarks summary page.
-func WebAnalyticsBenchmarksCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics benchmarks", flag.ExitOnError)
+// newWebAnalyticsBenchmarksCommand recreates the Benchmarks summary page.
+func newWebAnalyticsBenchmarksCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics benchmarks", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 
 	return &ffcli.Command{
@@ -352,45 +355,46 @@ func WebAnalyticsBenchmarksCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, err := resolveAnalyticsAppIDFlag(*appID)
+			resolvedAppID, err := resolveAnalyticsAppIDFlag(d, *appID)
 			if err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading benchmarks analytics", func() (*webcore.AnalyticsBenchmarksSummary, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading benchmarks analytics", func() (*webcore.AnalyticsBenchmarksSummary, error) {
 				return getAnalyticsBenchmarksFn(requestCtx, client, resolvedAppID)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "analytics benchmarks")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsBenchmarksTable(result) },
-				func() error { return renderAnalyticsBenchmarksMarkdown(result) },
+				func() error { return renderAnalyticsBenchmarksTable(d, result) },
+				func() error { return renderAnalyticsBenchmarksMarkdown(d, result) },
 			)
 		},
 	}
 }
 
 func newAnalyticsCapabilityCommand(
+	d *shared.Deps,
 	name string,
 	shortHelp string,
 	spinnerLabel string,
 	build func(appInfo *webcore.AnalyticsAppInfoResult) analyticsPageCapabilityOutput,
 ) *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics "+name, flag.ExitOnError)
+	fs := d.NewFlagSet("web analytics "+name, flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 
 	return &ffcli.Command{
@@ -404,19 +408,19 @@ relevant analytics features or dimensions we observed while mapping the sidebar.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, err := resolveAnalyticsAppIDFlag(*appID)
+			resolvedAppID, err := resolveAnalyticsAppIDFlag(d, *appID)
 			if err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			payload, err := withWebSpinnerValue(spinnerLabel, func() (analyticsPageCapabilityOutput, error) {
+			payload, err := withWebSpinnerValueWith(d, spinnerLabel, func() (analyticsPageCapabilityOutput, error) {
 				info, err := getAnalyticsAppInfoFn(requestCtx, client, resolvedAppID)
 				if err != nil {
 					return analyticsPageCapabilityOutput{}, err
@@ -431,21 +435,21 @@ relevant analytics features or dimensions we observed while mapping the sidebar.
 				return withWebAuthHint(err, "analytics "+name)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsCapabilityTable(payload) },
-				func() error { return renderAnalyticsCapabilityMarkdown(payload) },
+				func() error { return renderAnalyticsCapabilityTable(d, payload) },
+				func() error { return renderAnalyticsCapabilityMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-func resolveAnalyticsAppIDFlag(appID string) (string, error) {
-	resolvedAppID := strings.TrimSpace(shared.ResolveAppID(appID))
+func resolveAnalyticsAppIDFlag(d *shared.Deps, appID string) (string, error) {
+	resolvedAppID := strings.TrimSpace(d.ResolveAppID(appID))
 	if resolvedAppID == "" {
-		return "", shared.UsageError("--app is required")
+		return "", d.UsageError("--app is required")
 	}
 	return resolvedAppID, nil
 }
@@ -553,8 +557,9 @@ func buildAnalyticsSourcesRows(result *webcore.AnalyticsSourcesPage) [][]string 
 	return rows
 }
 
-func renderAnalyticsSourcesTable(result *webcore.AnalyticsSourcesPage) error {
+func renderAnalyticsSourcesTable(d *shared.Deps, result *webcore.AnalyticsSourcesPage) error {
 	return renderAnalyticsTableSections(
+		d,
 		analyticsQuerySection(
 			"Sources",
 			result.AppID,
@@ -566,9 +571,9 @@ func renderAnalyticsSourcesTable(result *webcore.AnalyticsSourcesPage) error {
 	)
 }
 
-func renderAnalyticsSourcesMarkdown(result *webcore.AnalyticsSourcesPage) error {
+func renderAnalyticsSourcesMarkdown(d *shared.Deps, result *webcore.AnalyticsSourcesPage) error {
 	headers := []string{"Section", "Field", "Value", "Notes"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsSourcesRows(result), 4))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsSourcesRows(result), 4))
 	return nil
 }
 
@@ -592,12 +597,13 @@ func buildAnalyticsInAppEventsRows(result *webcore.AnalyticsInAppEventsPage) [][
 	return rows
 }
 
-func renderAnalyticsInAppEventsTable(result *webcore.AnalyticsInAppEventsPage) error {
+func renderAnalyticsInAppEventsTable(d *shared.Deps, result *webcore.AnalyticsInAppEventsPage) error {
 	var metricResults []webcore.AnalyticsMeasureResult
 	if result.SelectedMetrics != nil {
 		metricResults = result.SelectedMetrics.Results
 	}
 	return renderAnalyticsTableSections(
+		d,
 		analyticsQuerySection(
 			"In-App Events",
 			result.AppID,
@@ -611,9 +617,9 @@ func renderAnalyticsInAppEventsTable(result *webcore.AnalyticsInAppEventsPage) e
 	)
 }
 
-func renderAnalyticsInAppEventsMarkdown(result *webcore.AnalyticsInAppEventsPage) error {
+func renderAnalyticsInAppEventsMarkdown(d *shared.Deps, result *webcore.AnalyticsInAppEventsPage) error {
 	headers := []string{"Section", "Field", "Value", "Notes", "Change"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsInAppEventsRows(result), 5))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsInAppEventsRows(result), 5))
 	return nil
 }
 
@@ -651,16 +657,17 @@ func buildAnalyticsCampaignRows(result *webcore.AnalyticsCampaignsPage) [][]stri
 	return rows
 }
 
-func renderAnalyticsCampaignsTable(result *webcore.AnalyticsCampaignsPage) error {
+func renderAnalyticsCampaignsTable(d *shared.Deps, result *webcore.AnalyticsCampaignsPage) error {
 	return renderAnalyticsTableSections(
+		d,
 		analyticsQuerySection("Campaigns", result.AppID, result.StartDate, result.EndDate),
 		analyticsCampaignPerformanceSection(result),
 	)
 }
 
-func renderAnalyticsCampaignsMarkdown(result *webcore.AnalyticsCampaignsPage) error {
+func renderAnalyticsCampaignsMarkdown(d *shared.Deps, result *webcore.AnalyticsCampaignsPage) error {
 	headers := []string{"Section", "Field", "Value", "Notes"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsCampaignRows(result), 4))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsCampaignRows(result), 4))
 	return nil
 }
 
@@ -706,8 +713,9 @@ func buildAnalyticsSalesRows(result *webcore.AnalyticsSalesSummary) [][]string {
 	return rows
 }
 
-func renderAnalyticsSalesTable(result *webcore.AnalyticsSalesSummary) error {
+func renderAnalyticsSalesTable(d *shared.Deps, result *webcore.AnalyticsSalesSummary) error {
 	return renderAnalyticsTableSections(
+		d,
 		analyticsQuerySection("Sales", result.AppID, result.StartDate, result.EndDate),
 		analyticsMeasureSummarySection("Summary Cards", result.Summary),
 		analyticsLatestCohortSection("Download to Paid", result.DownloadToPaid),
@@ -717,9 +725,9 @@ func renderAnalyticsSalesTable(result *webcore.AnalyticsSalesSummary) error {
 	)
 }
 
-func renderAnalyticsSalesMarkdown(result *webcore.AnalyticsSalesSummary) error {
+func renderAnalyticsSalesMarkdown(d *shared.Deps, result *webcore.AnalyticsSalesSummary) error {
 	headers := []string{"Section", "Field", "Value", "Previous", "Change"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsSalesRows(result), 5))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsSalesRows(result), 5))
 	return nil
 }
 
@@ -744,8 +752,9 @@ func buildAnalyticsBenchmarkRows(result *webcore.AnalyticsBenchmarksSummary) [][
 	return rows
 }
 
-func renderAnalyticsBenchmarksTable(result *webcore.AnalyticsBenchmarksSummary) error {
+func renderAnalyticsBenchmarksTable(d *shared.Deps, result *webcore.AnalyticsBenchmarksSummary) error {
 	return renderAnalyticsTableSections(
+		d,
 		analyticsQuerySection(
 			"Benchmarks",
 			result.AppID,
@@ -758,9 +767,9 @@ func renderAnalyticsBenchmarksTable(result *webcore.AnalyticsBenchmarksSummary) 
 	)
 }
 
-func renderAnalyticsBenchmarksMarkdown(result *webcore.AnalyticsBenchmarksSummary) error {
+func renderAnalyticsBenchmarksMarkdown(d *shared.Deps, result *webcore.AnalyticsBenchmarksSummary) error {
 	headers := []string{"Section", "Field", "App", "25th", "50th", "75th"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsBenchmarkRows(result), 6))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsBenchmarkRows(result), 6))
 	return nil
 }
 
@@ -783,8 +792,9 @@ func buildAnalyticsCapabilityRows(payload analyticsPageCapabilityOutput) [][]str
 	return rows
 }
 
-func renderAnalyticsCapabilityTable(payload analyticsPageCapabilityOutput) error {
+func renderAnalyticsCapabilityTable(d *shared.Deps, payload analyticsPageCapabilityOutput) error {
 	return renderAnalyticsTableSections(
+		d,
 		analyticsCapabilityStatusSection(payload),
 		analyticsCapabilityListSection("Relevant Measures", "Measure", payload.RelevantMeasures),
 		analyticsCapabilityListSection("Relevant Dimensions", "Dimension", payload.RelevantDimensions),
@@ -792,8 +802,8 @@ func renderAnalyticsCapabilityTable(payload analyticsPageCapabilityOutput) error
 	)
 }
 
-func renderAnalyticsCapabilityMarkdown(payload analyticsPageCapabilityOutput) error {
+func renderAnalyticsCapabilityMarkdown(d *shared.Deps, payload analyticsPageCapabilityOutput) error {
 	headers := []string{"Section", "Field", "Value"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsCapabilityRows(payload), 3))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsCapabilityRows(payload), 3))
 	return nil
 }

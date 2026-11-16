@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
 	"strings"
 	"testing"
 
@@ -79,16 +78,7 @@ func TestWebBundleIDCapabilitiesSyncAppClipMissingConfirmFailsBeforeSession(t *t
 	})
 	defer restoreSync()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "bundle-ids", "capabilities", "sync-app-clip", "--bundle-id", "clip-1", "--parent-bundle-id", "parent-1", "--capability", "PUSH_NOTIFICATIONS"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "web", "bundle-ids", "capabilities", "sync-app-clip", "--bundle-id", "clip-1", "--parent-bundle-id", "parent-1", "--capability", "PUSH_NOTIFICATIONS")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -128,6 +118,7 @@ func TestWebCommandsUsageErrors(t *testing.T) {
 			name:    "APIKeysLegacyGetIsNotRegistered",
 			args:    []string{"web", "api-keys", "get", "--key-id", "KEY_ID"},
 			wantErr: "Error: unknown command `asc web api-keys get`",
+			deps:    true,
 		},
 		{
 			name:    "AppsCreateMissingRequiredFlags",

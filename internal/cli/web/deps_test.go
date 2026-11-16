@@ -71,7 +71,7 @@ func spinnerLabels(stderr string) []string {
 }
 
 // runWithWebTestDepsStderr runs fn and returns what it wrote to the deps
-// stderr, with CRLF line endings normalized as captureWebDiagnosticStderr does.
+// stderr, with CRLF line endings normalized to LF.
 func runWithWebTestDepsStderr(stderr *bytes.Buffer, fn func()) string {
 	fn()
 	return strings.ReplaceAll(stderr.String(), "\r\n", "\n")

@@ -14,7 +14,8 @@ import (
 )
 
 func TestWebAPIKeysCommandIncludesRevoke(t *testing.T) {
-	for _, command := range WebAPIKeysCommand().Subcommands {
+	d, _, _ := newWebTestDeps()
+	for _, command := range newWebAPIKeysCommand(d).Subcommands {
 		if command.Name == "revoke" {
 			return
 		}
@@ -42,12 +43,13 @@ func TestWebAPIKeysRevokeValidatesBeforeSession(t *testing.T) {
 			})
 			t.Cleanup(restoreSession)
 
-			cmd := WebAPIKeysRevokeCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAPIKeysRevokeCommand(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 			var execErr error
-			_, stderr := captureOutput(t, func() { execErr = cmd.Exec(context.Background(), nil) })
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { execErr = cmd.Exec(context.Background(), nil) })
 			if !errors.Is(execErr, flag.ErrHelp) {
 				t.Fatalf("expected usage error, got %v", execErr)
 			}
@@ -87,7 +89,8 @@ func TestWebAPIKeysRevokeActiveKeyUsesPreflightPatchAndPostList(t *testing.T) {
 	)
 	t.Cleanup(restore)
 
-	cmd := WebAPIKeysRevokeCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysRevokeCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--key-id", "KEY123",
 		"--type", "team",
@@ -97,7 +100,7 @@ func TestWebAPIKeysRevokeActiveKeyUsesPreflightPatchAndPostList(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, stderr := captureOutput(t, func() { execErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { execErr = cmd.Exec(context.Background(), nil) })
 	if execErr != nil {
 		t.Fatalf("expected success, got %v", execErr)
 	}
@@ -135,12 +138,13 @@ func TestWebAPIKeysRevokeInactiveKeyIsNoOp(t *testing.T) {
 	)
 	t.Cleanup(restore)
 
-	cmd := WebAPIKeysRevokeCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysRevokeCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "KEY123", "--type", "individual", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, stderr := captureOutput(t, func() { execErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { execErr = cmd.Exec(context.Background(), nil) })
 	if execErr != nil {
 		t.Fatalf("expected success, got %v", execErr)
 	}
@@ -175,12 +179,13 @@ func TestWebAPIKeysRevokeFailsWhenPostListStillActive(t *testing.T) {
 	)
 	t.Cleanup(restore)
 
-	cmd := WebAPIKeysRevokeCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAPIKeysRevokeCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "KEY123", "--type", "team", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	_, stderr := captureOutput(t, func() { execErr = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { execErr = cmd.Exec(context.Background(), nil) })
 	if execErr == nil || !strings.Contains(execErr.Error(), "remains active") {
 		t.Fatalf("expected post-state error, got %v (stderr %q)", execErr, stderr)
 	}
@@ -205,7 +210,8 @@ func TestWebAPIKeysRevokeReportsUnknownForServerErrorWithoutRetry(t *testing.T) 
 	)
 	t.Cleanup(restore)
 
-	cmd := WebAPIKeysRevokeCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAPIKeysRevokeCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "KEY123", "--type", "team", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -237,7 +243,8 @@ func TestWebAPIKeysRevokeReportsUnknownForPostListError(t *testing.T) {
 	)
 	t.Cleanup(restore)
 
-	cmd := WebAPIKeysRevokeCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAPIKeysRevokeCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "KEY123", "--type", "individual", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -264,7 +271,8 @@ func TestWebAPIKeysRevokeRejectsWrongKindBeforePatch(t *testing.T) {
 	)
 	t.Cleanup(restore)
 
-	cmd := WebAPIKeysRevokeCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAPIKeysRevokeCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--key-id", "KEY123", "--type", "individual", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}

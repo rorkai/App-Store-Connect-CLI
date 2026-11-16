@@ -65,7 +65,8 @@ func TestVerifyMonthlyCommitmentBootstrapRejectsStalePricePoints(t *testing.T) {
 		}}, nil
 	}
 
-	err := verifyMonthlyCommitmentBootstrap(context.Background(), &webcore.Client{}, asc.WebSubscriptionMonthlyCommitmentBootstrapResult{
+	d, _, _ := newWebTestDeps()
+	err := verifyMonthlyCommitmentBootstrap(context.Background(), d, &webcore.Client{}, asc.WebSubscriptionMonthlyCommitmentBootstrapResult{
 		SubscriptionID:      "sub-1",
 		Territory:           "NOR",
 		PlanAvailabilityID:  "plan-monthly",
@@ -96,7 +97,8 @@ func TestVerifyMonthlyCommitmentBootstrapRejectsConfirmedMissingTerritory(t *tes
 			AvailableTerritoriesLoaded: true,
 		}}, nil
 	}
-	err := verifyMonthlyCommitmentBootstrap(context.Background(), &webcore.Client{}, asc.WebSubscriptionMonthlyCommitmentBootstrapResult{
+	d, _, _ := newWebTestDeps()
+	err := verifyMonthlyCommitmentBootstrap(context.Background(), d, &webcore.Client{}, asc.WebSubscriptionMonthlyCommitmentBootstrapResult{
 		SubscriptionID:     "sub-1",
 		Territory:          "NOR",
 		PlanAvailabilityID: "plan-monthly",
@@ -132,7 +134,8 @@ func TestVerifyMonthlyCommitmentBootstrapTreatsCappedTerritoryReadAsInconclusive
 			PlanType: "MONTHLY", Territory: "NOR", PricePointID: "monthly-point",
 		}}, nil
 	}
-	err := verifyMonthlyCommitmentBootstrap(context.Background(), &webcore.Client{}, asc.WebSubscriptionMonthlyCommitmentBootstrapResult{
+	d, _, _ := newWebTestDeps()
+	err := verifyMonthlyCommitmentBootstrap(context.Background(), d, &webcore.Client{}, asc.WebSubscriptionMonthlyCommitmentBootstrapResult{
 		SubscriptionID:      "sub-1",
 		Territory:           "NOR",
 		PlanAvailabilityID:  "plan-monthly",
@@ -174,7 +177,8 @@ func TestVerifyMonthlyCommitmentBootstrapIgnoresCreatePreserveOption(t *testing.
 			Preserved:    false,
 		}}, nil
 	}
-	err := verifyMonthlyCommitmentBootstrap(context.Background(), &webcore.Client{}, asc.WebSubscriptionMonthlyCommitmentBootstrapResult{
+	d, _, _ := newWebTestDeps()
+	err := verifyMonthlyCommitmentBootstrap(context.Background(), d, &webcore.Client{}, asc.WebSubscriptionMonthlyCommitmentBootstrapResult{
 		SubscriptionID:       "sub-1",
 		Territory:            "NOR",
 		PlanAvailabilityID:   "plan-monthly",
