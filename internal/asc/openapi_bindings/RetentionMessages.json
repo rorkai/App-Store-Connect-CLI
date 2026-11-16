@@ -1,0 +1,17 @@
+{
+  "tag": "RetentionMessages",
+  "file": "retention_messages_gen.go",
+  "types": [
+    "RetentionMessageCreateAttributes",
+    "RetentionMessageCreateData",
+    "RetentionMessageCreateRelationships",
+    "RetentionMessageCreateRequest"
+  ],
+  "relationships": [
+    {"data":"RetentionMessageCreateData","type":"*RetentionMessageCreateRelationships"}
+  ],
+  "operations": [
+    {"operation":"retentionMessages_createInstance","name":"CreateRetentionMessage","params":["appID"],"check":"require","links":["app"],"args":[{"name":"referenceName"}]},
+    {"operation":"retentionMessages_deleteInstance","name":"DeleteRetentionMessage","params":["messageID"],"check":"require"}
+  ]
+}

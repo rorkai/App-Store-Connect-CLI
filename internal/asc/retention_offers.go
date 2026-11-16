@@ -67,11 +67,6 @@ type RetentionOfferUpdateData struct {
 	Attributes RetentionOfferUpdateAttributes `json:"attributes"`
 }
 
-// RetentionOfferUpdateRequest is the RetentionOfferUpdateRequest schema.
-type RetentionOfferUpdateRequest struct {
-	Data RetentionOfferUpdateData `json:"data"`
-}
-
 // RetentionOffersResponse is the response from retention offer list endpoints.
 type RetentionOffersResponse = Response[RetentionOfferAttributes]
 
@@ -225,30 +220,8 @@ func (c *Client) CreateRetentionOffer(ctx context.Context, req RetentionOfferCre
 	return c.sendRetentionOffer(ctx, http.MethodPost, "/v1/retentionOffers", req)
 }
 
-// UpdateRetentionOffer updates a retention offer's eligibility attributes.
-func (c *Client) UpdateRetentionOffer(ctx context.Context, offerID string, attrs RetentionOfferUpdateAttributes) (*RetentionOfferResponse, error) {
-	offerID = strings.TrimSpace(offerID)
-	payload := RetentionOfferUpdateRequest{
-		Data: RetentionOfferUpdateData{
-			Type:       ResourceTypeRetentionOffers,
-			ID:         offerID,
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[RetentionOfferResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/retentionOffers/%s", offerID),
-		Payload: payload,
-	})
-}
-
 func (c *Client) sendRetentionOffer(ctx context.Context, method, path string, payload any) (*RetentionOfferResponse, error) {
 	return sendJSON[RetentionOfferResponse](ctx, c, writeRequest{Method: method, Path: path, Payload: payload})
-}
-
-// DeleteRetentionOffer deletes a retention offer.
-func (c *Client) DeleteRetentionOffer(ctx context.Context, offerID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/retentionOffers/%s", strings.TrimSpace(offerID)), nil)
 }
 
 // GetRetentionOfferPrices lists the prices of a retention offer.
@@ -271,24 +244,6 @@ func (c *Client) GetRetentionOfferPrices(ctx context.Context, offerID string, op
 		return nil, err
 	}
 	return &response, nil
-}
-
-// AddSubscriptionRetentionMessageOffers presents retention offers with a
-// subscription's retention message.
-func (c *Client) AddSubscriptionRetentionMessageOffers(ctx context.Context, subscriptionID string, offerIDs []string) error {
-	payload := RelationshipRequest{
-		Data: buildRelationshipData(ResourceTypeRetentionOffers, offerIDs),
-	}
-	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/subscriptions/%s/relationships/retentionMessageOffers", strings.TrimSpace(subscriptionID)), payload)
-}
-
-// RemoveSubscriptionRetentionMessageOffers stops presenting retention offers
-// with a subscription's retention message.
-func (c *Client) RemoveSubscriptionRetentionMessageOffers(ctx context.Context, subscriptionID string, offerIDs []string) error {
-	payload := RelationshipRequest{
-		Data: buildRelationshipData(ResourceTypeRetentionOffers, offerIDs),
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptions/%s/relationships/retentionMessageOffers", strings.TrimSpace(subscriptionID)), payload)
 }
 
 func (c *Client) getRetentionResource(ctx context.Context, path string, out any) error {

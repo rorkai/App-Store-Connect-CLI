@@ -124,6 +124,22 @@ func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID stri
 	})
 }
 
+// AddSubscriptionRetentionMessageOffers sends POST /v1/subscriptions/{id}/relationships/retentionMessageOffers (subscriptions_retentionMessageOffers_createToManyRelationship).
+func (c *Client) AddSubscriptionRetentionMessageOffers(ctx context.Context, subscriptionID string, offerIDs []string) error {
+	payload := RelationshipRequest{
+		Data: buildRelationshipData(ResourceTypeRetentionOffers, offerIDs),
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/subscriptions/%s/relationships/retentionMessageOffers", strings.TrimSpace(subscriptionID)), payload)
+}
+
+// RemoveSubscriptionRetentionMessageOffers sends DELETE /v1/subscriptions/{id}/relationships/retentionMessageOffers (subscriptions_retentionMessageOffers_deleteToManyRelationship).
+func (c *Client) RemoveSubscriptionRetentionMessageOffers(ctx context.Context, subscriptionID string, offerIDs []string) error {
+	payload := RelationshipRequest{
+		Data: buildRelationshipData(ResourceTypeRetentionOffers, offerIDs),
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptions/%s/relationships/retentionMessageOffers", strings.TrimSpace(subscriptionID)), payload)
+}
+
 // GetSubscriptionRetentionMessageOffersRelationships sends GET /v1/subscriptions/{id}/relationships/retentionMessageOffers (subscriptions_retentionMessageOffers_getToManyRelationship).
 func (c *Client) GetSubscriptionRetentionMessageOffersRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)

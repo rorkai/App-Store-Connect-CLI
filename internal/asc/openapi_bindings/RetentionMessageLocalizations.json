@@ -2,6 +2,19 @@
   "tag": "RetentionMessageLocalizations",
   "file": "retention_message_localizations_gen.go",
   "types": [
-    "RetentionMessageLocalizationCreateAttributes"
+    "RetentionMessageLocalizationCreateAttributes",
+    "RetentionMessageLocalizationCreateData",
+    "RetentionMessageLocalizationCreateRelationships",
+    "RetentionMessageLocalizationCreateRequest",
+    "RetentionMessageLocalizationUpdateData",
+    "RetentionMessageLocalizationUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"RetentionMessageLocalizationCreateData","type":"*RetentionMessageLocalizationCreateRelationships"}
+  ],
+  "operations": [
+    {"operation":"retentionMessageLocalizations_createInstance","name":"CreateRetentionMessageLocalization","params":["versionID"],"check":"require","links":["retentionMessageVersion"]},
+    {"operation":"retentionMessageLocalizations_deleteInstance","name":"DeleteRetentionMessageLocalization","params":["localizationID"],"check":"require"},
+    {"operation":"retentionMessageLocalizations_updateInstance","name":"UpdateRetentionMessageLocalization","params":["localizationID"],"check":"require"}
   ]
 }
