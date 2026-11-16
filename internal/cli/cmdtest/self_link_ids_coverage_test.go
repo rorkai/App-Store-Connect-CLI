@@ -17,6 +17,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // These tests close the gaps left after the first two self-link passes: the
@@ -656,6 +657,9 @@ func TestSelfLinkEveryResourceIDFlagIsNormalized(t *testing.T) {
 		if command.FlagSet != nil {
 			command.FlagSet.VisitAll(func(f *flag.Flag) {
 				if f.Name != "id" && !strings.HasSuffix(f.Name, "-id") {
+					return
+				}
+				if _, alias := shared.FlagAliasTarget(f); alias {
 					return
 				}
 				key := path + " --" + f.Name

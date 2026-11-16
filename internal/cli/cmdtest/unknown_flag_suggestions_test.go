@@ -30,14 +30,6 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 				"For help:\n  asc submit status --help\n",
 		},
 		{
-			name: "subscriptions list --group",
-			args: []string{"subscriptions", "list", "--group", "PRIVATE_VALUE"},
-			want: "Error: unknown flag `--group` for `asc subscriptions list`\n" +
-				"Try:\n  --group-id\n" +
-				"For help:\n  asc subscriptions list --help\n",
-			deps: true,
-		},
-		{
 			name: "builds groups list --app",
 			args: []string{"builds", "groups", "list", "--app", "PRIVATE_VALUE"},
 			want: "Error: unknown flag `--app` for `asc builds groups list`\n" +
@@ -69,14 +61,6 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 				"For help:\n  asc review details-get --help\n",
 		},
 		{
-			name: "subscriptions versions view --version-id",
-			args: []string{"subscriptions", "versions", "view", "--version-id", "PRIVATE_VALUE"},
-			want: "Error: unknown flag `--version-id` for `asc subscriptions versions view`\n" +
-				"Try:\n  --id\n" +
-				"For help:\n  asc subscriptions versions view --help\n",
-			deps: true,
-		},
-		{
 			name: "profiles list --bundle-id",
 			args: []string{"profiles", "list", "--bundle-id", "PRIVATE_VALUE"},
 			want: "Error: unknown flag `--bundle-id` for `asc profiles list`\n" +
@@ -92,11 +76,10 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 		},
 		{
 			name: "inline value is never echoed",
-			args: []string{"subscriptions", "list", "--group=PRIVATE_VALUE"},
-			want: "Error: unknown flag `--group` for `asc subscriptions list`\n" +
-				"Try:\n  --group-id\n" +
-				"For help:\n  asc subscriptions list --help\n",
-			deps: true,
+			args: []string{"submit", "status", "--app=PRIVATE_VALUE"},
+			want: "Error: unknown flag `--app` for `asc submit status`\n" +
+				"Try:\n  --id\n" +
+				"For help:\n  asc submit status --help\n",
 		},
 		{
 			name: "a path-valued --output answers --path",
@@ -113,13 +96,6 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 				"Try:\n  --ipa\n  --output\n" +
 				"For help:\n  asc signing resign --help\n",
 			deps: true,
-		},
-		{
-			name: "ipa-info --ipa",
-			args: []string{"ipa-info", "--ipa", "PRIVATE_VALUE"},
-			want: "Error: unknown flag `--ipa` for `asc ipa-info`\n" +
-				"Try:\n  --path\n" +
-				"For help:\n  asc ipa-info --help\n",
 		},
 		{
 			name: "pkg-info --pkg",
