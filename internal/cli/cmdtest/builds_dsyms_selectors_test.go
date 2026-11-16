@@ -276,7 +276,11 @@ func TestBuildsDSYMWaitSucceedsAfterPolling(t *testing.T) {
 		}
 	})
 
-	stdout, stderr := runDSYM(t, transport, outputDir, "builds", "dsyms", "--build-id", "build-1", "--wait", "--poll-interval", "1ms", "--timeout", "2s", "--output", "json")
+	installDefaultTransport(t, transport)
+	stdout, stderr, err := runCommandOnFakeClock(t, []string{"builds", "dsyms", "--build-id", "build-1", "--wait", "--poll-interval", "1ms", "--timeout", "2s", "--output", "json", "--output-dir", outputDir})
+	if err != nil {
+		t.Fatalf("run error: %v\nstderr: %s", err, stderr)
+	}
 	if bundleCalls < 2 {
 		t.Fatalf("bundle calls = %d, want at least 2", bundleCalls)
 	}

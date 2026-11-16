@@ -80,11 +80,15 @@ func TestBetaTestersRemoveWaitCompletesWhenTesterIsGone(t *testing.T) {
 				return tt.status, tt.body
 			})
 
-			stdout, _, err := runRootWithDeps(t, stubClient(t, transport),
-				"testflight", "testers", "remove",
-				"--app", "app-1", "--email", "tester@example.com", "--confirm",
-				"--wait", "--poll-interval", "10ms", "--timeout", "5s",
-			)
+			var stdout string
+			var err error
+			synctest.Test(t, func(t *testing.T) {
+				stdout, _, err = runRootWithDeps(t, stubClient(t, transport),
+					"testflight", "testers", "remove",
+					"--app", "app-1", "--email", "tester@example.com", "--confirm",
+					"--wait", "--poll-interval", "10ms", "--timeout", "5s",
+				)
+			})
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

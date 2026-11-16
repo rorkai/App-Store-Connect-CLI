@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // versionTrainTransport serves one App Store version (version-1, versionString
@@ -85,7 +86,7 @@ func runVersionBuildSelector(t *testing.T, transport http.RoundTripper, args ...
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run(args, "1.2.3")
+		code = runWithDepsOnFakeClock(t, shared.DefaultDeps(), "1.2.3", args...)
 	})
 	return code, stdout, stderr
 }
