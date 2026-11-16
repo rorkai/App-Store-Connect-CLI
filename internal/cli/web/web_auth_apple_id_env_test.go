@@ -238,12 +238,12 @@ func TestResolveWebSessionForCommandSessionFromEnvIgnoresEnvAppleID(t *testing.T
 	if err := fs.Parse([]string{"--session-from-env"}); err != nil {
 		t.Fatal(err)
 	}
-	_, _, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
+	_, _, cancel, err := resolveWebSessionForCommandWith(context.Background(), d, flags)
 	defer cancel()
 	if err == nil || !strings.Contains(err.Error(), webSessionBundleEnvName+" is unset or empty") {
 		t.Fatalf("error = %v, want unset %s usage error", err, webSessionBundleEnvName)
 	}
-	if stderr.Len() != 0 {
-		t.Fatalf("stderr = %q, want empty", stderr.String())
+	if want := "Error: " + webSessionBundleEnvName + " is unset or empty when --session-from-env is used\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want only the usage error %q", stderr.String(), want)
 	}
 }
