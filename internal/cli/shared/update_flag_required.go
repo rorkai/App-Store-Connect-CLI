@@ -4,24 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"strings"
 )
-
-// UpdateFlagRequired reports an update command run without any of its update
-// flags. It prints "Error: at least one update flag is required (--a, --b)" to
-// stderr and returns MissingRequiredUsageError.
-//
-// updateFlags are the variables the command's flags in fs are bound to (the
-// pointers fs.String and friends return, or the flag.Value passed to fs.Var),
-// the same ones the command checks. The message names their flags in the order
-// given, so it always matches the flags the command has. A variable that no
-// flag in fs is bound to is a programming error and panics, as redefining a
-// flag does in the flag package.
-func UpdateFlagRequired(fs *flag.FlagSet, updateFlags ...any) error {
-	return updateFlagRequiredTo(os.Stderr, fs, updateFlags...)
-}
 
 func updateFlagRequiredTo(stderr io.Writer, fs *flag.FlagSet, updateFlags ...any) error {
 	names := make([]string, 0, len(updateFlags))

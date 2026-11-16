@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -52,18 +51,7 @@ type buildBetaGroupPrecondition struct {
 // state cannot prove that the relationship is acceptable; this keeps an
 // unavailable or incomplete read from turning into an avoidable POST. The
 // pure state checks are shared with the diagnostic wording used by callers.
-func PreflightBuildBetaGroupAssignment(
-	ctx context.Context,
-	client buildBetaGroupPreflightClient,
-	buildID string,
-	plan BuildBetaGroupAssignmentPlan,
-	opts BuildBetaGroupPreflightOptions,
-) error {
-	return preflightBuildBetaGroupAssignmentTo(ctx, os.Stderr, client, buildID, plan, opts)
-}
-
-// PreflightBuildBetaGroupAssignment is PreflightBuildBetaGroupAssignment with
-// the "Error:" lines written to d's stderr.
+// The "Error:" lines go to d's stderr.
 func (d *Deps) PreflightBuildBetaGroupAssignment(
 	ctx context.Context,
 	client buildBetaGroupPreflightClient,

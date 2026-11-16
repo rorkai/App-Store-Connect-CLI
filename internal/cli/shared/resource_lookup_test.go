@@ -155,7 +155,7 @@ func subscriptionsResponse(items ...subscriptionLookupFixture) *asc.Subscription
 }
 
 func TestRequireAppForStableSelector_MissingAppContext(t *testing.T) {
-	err := RequireAppForStableSelector("", "com.example.pro", "--iap-id")
+	err := DefaultDeps().RequireAppForStableSelector("", "com.example.pro", "--iap-id")
 	if err == nil {
 		t.Fatal("expected usage error")
 	}

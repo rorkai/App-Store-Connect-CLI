@@ -217,7 +217,7 @@ func TestDecompressGzipFile(t *testing.T) {
 		t.Fatalf("failed to write source gzip: %v", err)
 	}
 
-	size, err := shared.DecompressGzipFile(source, dest)
+	size, err := shared.DefaultDeps().DecompressGzipFile(source, dest)
 	if err != nil {
 		t.Fatalf("decompressGzipFile() error: %v", err)
 	}

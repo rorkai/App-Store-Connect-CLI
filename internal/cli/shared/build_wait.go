@@ -35,13 +35,8 @@ func ContextWithTimeoutDuration(ctx context.Context, timeout time.Duration) (con
 // WaitForBuildByNumberOrUploadFailure waits for a build matching version/build
 // number to appear while also watching the originating build upload for early
 // failure states. This prevents long hangs when App Store Connect rejects the
-// uploaded artifact before a build record is created.
-func WaitForBuildByNumberOrUploadFailure(ctx context.Context, client *asc.Client, appID, uploadID, version, buildNumber, platform string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-	return waitForBuildByNumberOrUploadFailureTo(ctx, os.Stderr, client, appID, uploadID, version, buildNumber, platform, pollInterval)
-}
-
-// WaitForBuildByNumberOrUploadFailure is WaitForBuildByNumberOrUploadFailure
-// with the equivalent-version note written to d's stderr.
+// uploaded artifact before a build record is created. The equivalent-version
+// note goes to d's stderr.
 func (d *Deps) WaitForBuildByNumberOrUploadFailure(ctx context.Context, client *asc.Client, appID, uploadID, version, buildNumber, platform string, pollInterval time.Duration) (*asc.BuildResponse, error) {
 	return waitForBuildByNumberOrUploadFailureTo(ctx, d.IO.ErrOut, client, appID, uploadID, version, buildNumber, platform, pollInterval)
 }
@@ -575,16 +570,11 @@ type BuildProcessingFailureContext struct {
 }
 
 // WaitForBuildProcessingWithDetails waits for a build to finish processing
-// like asc.Client.WaitForBuildProcessing, and appends the App Store Connect
-// processing details of the originating upload when the build ends FAILED or
-// INVALID. appID may be empty; it is then resolved from the build. The state
-// error is returned unchanged when no details can be resolved.
-func WaitForBuildProcessingWithDetails(ctx context.Context, client *asc.Client, appID, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-	return waitForBuildProcessingWithDetailsTo(ctx, nil, client, appID, buildID, pollInterval)
-}
-
-// WaitForBuildProcessingWithDetails is WaitForBuildProcessingWithDetails with
-// its transient-error notices written to d's stderr.
+// like asc.Client.WaitForBuildProcessing, with its transient-error notices on
+// d's stderr, and appends the App Store Connect processing details of the
+// originating upload when the build ends FAILED or INVALID. appID may be
+// empty; it is then resolved from the build. The state error is returned
+// unchanged when no details can be resolved.
 func (d *Deps) WaitForBuildProcessingWithDetails(ctx context.Context, client *asc.Client, appID, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
 	return waitForBuildProcessingWithDetailsTo(ctx, d.IO.ErrOut, client, appID, buildID, pollInterval)
 }

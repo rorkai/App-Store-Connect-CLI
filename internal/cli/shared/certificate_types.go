@@ -3,7 +3,6 @@ package shared
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -85,13 +84,8 @@ func CertificateCreateTypeList() []string {
 }
 
 // ValidateCertificateCreateType returns the canonical certificate type for value,
-// or a usage-class error when the value is not a CertificateType.
-func ValidateCertificateCreateType(flagName, value string) (string, error) {
-	return validateCertificateCreateTypeTo(os.Stderr, flagName, value)
-}
-
-// ValidateCertificateCreateType is ValidateCertificateCreateType with the
-// "Error:" line written to d's stderr.
+// or a usage-class error, with its "Error:" line on d's stderr, when the value is
+// not a CertificateType.
 func (d *Deps) ValidateCertificateCreateType(flagName, value string) (string, error) {
 	return validateCertificateCreateTypeTo(d.IO.ErrOut, flagName, value)
 }
@@ -112,13 +106,7 @@ func validateCertificateCreateTypeTo(stderr io.Writer, flagName, value string) (
 // ValidateCertificateCreateMerchantID enforces the merchantId relationship rules
 // for POST /v1/certificates: the Apple Pay types require it, every other type
 // must not send it. Callers must run this before side effects such as writing a
-// private key or CSR.
-func ValidateCertificateCreateMerchantID(certificateType, merchantID string) error {
-	return validateCertificateCreateMerchantIDTo(os.Stderr, certificateType, merchantID)
-}
-
-// ValidateCertificateCreateMerchantID is ValidateCertificateCreateMerchantID
-// with the "Error:" line written to d's stderr.
+// private key or CSR. The "Error:" line goes to d's stderr.
 func (d *Deps) ValidateCertificateCreateMerchantID(certificateType, merchantID string) error {
 	return validateCertificateCreateMerchantIDTo(d.IO.ErrOut, certificateType, merchantID)
 }

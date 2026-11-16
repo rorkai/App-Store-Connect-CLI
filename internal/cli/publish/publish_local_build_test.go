@@ -438,7 +438,7 @@ func TestPublishTestFlightUploadTestNotesFailurePreservesStructuredRecoveryConte
 	stubPublishCommandSeams(t)
 	testNotes := "Line one\nLine two\x1b[31m"
 	uploadCalls := stubPublishIPAUpload(asc.BuildProcessingStateProcessing)
-	waitForPublishBuildProcessingFn = func(context.Context, *asc.Client, string, time.Duration) (*asc.BuildResponse, error) {
+	waitForPublishBuildProcessingFn = func(*shared.Deps, context.Context, *asc.Client, string, string, time.Duration) (*asc.BuildResponse, error) {
 		return publishUploadOnlyResult("1.2.3", "42", asc.BuildProcessingStateValid).Build, nil
 	}
 	scriptPublishRequests(t,
@@ -520,7 +520,7 @@ func TestPublishTestFlightUploadTestNotesFailurePreservesStructuredRecoveryConte
 func TestPublishTestFlightUploadReportsTerminalProcessingStateAfterWaitFailure(t *testing.T) {
 	stubPublishCommandSeams(t)
 	stubPublishIPAUpload(asc.BuildProcessingStateProcessing)
-	waitForPublishBuildProcessingFn = func(context.Context, *asc.Client, string, time.Duration) (*asc.BuildResponse, error) {
+	waitForPublishBuildProcessingFn = func(*shared.Deps, context.Context, *asc.Client, string, string, time.Duration) (*asc.BuildResponse, error) {
 		return publishUploadOnlyResult("1.2.3", "42", asc.BuildProcessingStateFailed).Build, errors.New("build processing failed: FAILED")
 	}
 	scriptPublishRequests(t, publishListExternalBetaGroups)
@@ -1141,7 +1141,7 @@ func TestPublishAppStoreMetadataInputFailureUsesUsageExit(t *testing.T) {
 		return publishCommandJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
 	}))
 	inputClient := newPublishCommandTestClient(t)
-	_, _, inputErr := shared.UploadVersionLocalizationsWithWarnings(
+	_, _, inputErr := shared.DefaultDeps().UploadVersionLocalizationsWithWarnings(
 		context.Background(),
 		inputClient,
 		"version-1",
@@ -1213,7 +1213,7 @@ func TestPublishAppStoreRefreshesVersionContextAfterProcessingWait(t *testing.T)
 			BuildNumber: buildNumber,
 		}, nil
 	}
-	waitForPublishBuildProcessingFn = func(waitCtx context.Context, _ *asc.Client, _ string, _ time.Duration) (*asc.BuildResponse, error) {
+	waitForPublishBuildProcessingFn = func(_ *shared.Deps, waitCtx context.Context, _ *asc.Client, _ string, _ string, _ time.Duration) (*asc.BuildResponse, error) {
 		if _, ok := waitCtx.Deadline(); !ok {
 			t.Fatal("expected processing wait stage deadline")
 		}
@@ -1684,7 +1684,7 @@ func TestPublishBuildProcessingWaitIncludesProcessingDetails(t *testing.T) {
 		}
 	}))
 
-	build, err := waitForPublishBuildProcessingFn(context.Background(), newPublishCommandTestClient(t), "build-1", time.Millisecond)
+	build, err := waitForPublishBuildProcessingFn(shared.DefaultDeps(), context.Background(), newPublishCommandTestClient(t), "", "build-1", time.Millisecond)
 	if want := "build processing failed: FAILED; App Store Connect processing details: ITMS-90000: processing details"; err == nil || err.Error() != want {
 		t.Fatalf("error = %v, want %q", err, want)
 	}

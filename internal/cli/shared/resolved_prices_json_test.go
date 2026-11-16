@@ -14,7 +14,7 @@ func TestPrintResolvedPrices_JSON(t *testing.T) {
 	}
 
 	stdout, _ := captureOutput(t, func() {
-		if err := PrintResolvedPrices(result, "json", false); err != nil {
+		if err := DefaultDeps().PrintResolvedPrices(result, "json", false); err != nil {
 			t.Fatalf("PrintResolvedPrices(json) error = %v", err)
 		}
 	})

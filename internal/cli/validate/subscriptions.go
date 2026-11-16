@@ -96,14 +96,9 @@ func runValidateSubscriptions(ctx context.Context, d *shared.Deps, opts validate
 	return nil
 }
 
-// BuildSubscriptionsReport fetches live subscription state and returns the same
-// structured report emitted by `asc validate subscriptions` without printing it.
-func BuildSubscriptionsReport(ctx context.Context, opts SubscriptionsOptions) (validation.SubscriptionsReport, error) {
-	return BuildSubscriptionsReportWith(ctx, shared.DefaultDeps(), opts)
-}
-
-// BuildSubscriptionsReportWith is BuildSubscriptionsReport with the client and
-// request timeout taken from d.
+// BuildSubscriptionsReportWith fetches live subscription state and returns the
+// same structured report emitted by `asc validate subscriptions` without
+// printing it. The client and request timeout come from d.
 func BuildSubscriptionsReportWith(ctx context.Context, d *shared.Deps, opts SubscriptionsOptions) (validation.SubscriptionsReport, error) {
 	client, err := d.Client()
 	if err != nil {

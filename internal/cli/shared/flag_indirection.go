@@ -30,16 +30,16 @@ func HasFlagValueIndirection(value string) bool {
 
 // ResolveFlagValueIndirection expands the value-indirection prefixes shared by
 // every value-taking flag: `@env:NAME` resolves to that environment variable,
-// `@file:PATH` resolves to that file's contents with one trailing line ending
-// removed, and a leading `@@` escapes a literal `@`. Any other value, including
-// values that merely start with `@`, is returned unchanged. flagName is the
-// bare flag name used in diagnostics.
-func ResolveFlagValueIndirection(flagName, value string) (string, error) {
+// read through d, `@file:PATH` resolves to that file's contents with one
+// trailing line ending removed, and a leading `@@` escapes a literal `@`. Any
+// other value, including values that merely start with `@`, is returned
+// unchanged. flagName is the bare flag name used in diagnostics.
+func (d *Deps) ResolveFlagValueIndirection(flagName, value string) (string, error) {
 	switch {
 	case strings.HasPrefix(value, indirectEscapePrefix):
 		return value[1:], nil
 	case strings.HasPrefix(value, indirectEnvPrefix):
-		return resolveIndirectEnvValue(flagName, value[len(indirectEnvPrefix):])
+		return resolveIndirectEnvValue(d.lookupEnv, flagName, value[len(indirectEnvPrefix):])
 	case strings.HasPrefix(value, indirectFilePrefix):
 		return resolveIndirectFileValue(flagName, value[len(indirectFilePrefix):])
 	default:
@@ -47,11 +47,11 @@ func ResolveFlagValueIndirection(flagName, value string) (string, error) {
 	}
 }
 
-func resolveIndirectEnvValue(flagName, name string) (string, error) {
+func resolveIndirectEnvValue(lookupEnv func(string) (string, bool), flagName, name string) (string, error) {
 	if name == "" {
 		return "", indirectValueUsageError(flagName, "@env: requires an environment variable name")
 	}
-	value, ok := os.LookupEnv(name)
+	value, ok := lookupEnv(name)
 	if !ok {
 		return "", indirectValueUsageError(flagName, "environment variable "+SanitizeTerminal(name)+" is not set")
 	}

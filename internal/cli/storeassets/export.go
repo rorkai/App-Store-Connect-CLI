@@ -199,7 +199,7 @@ func downloadIntoRoot(ctx context.Context, d *shared.Deps, root rootfs.Root, pat
 	temp := filepath.Join(dir, "asset")
 	c, cancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
-	if _, _, err = assets.DownloadMediaURL(c, url, temp, false); err != nil {
+	if _, _, err = assets.DownloadMediaURL(c, d, url, temp, false); err != nil {
 		return errors.New("media download failed (URL omitted)")
 	}
 	file, err := os.Open(temp)

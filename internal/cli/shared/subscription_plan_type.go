@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -23,14 +22,9 @@ func NormalizeSubscriptionPlanType(value, source string) (asc.SubscriptionPlanTy
 }
 
 // BindTargetSubscriptionPlanTypeFlag registers the optional flag shared by the
-// subscription offer create commands. The returned function validates the value
-// and yields an empty plan type only when the flag was not provided.
-func BindTargetSubscriptionPlanTypeFlag(fs *flag.FlagSet) func() (asc.SubscriptionPlanType, error) {
-	return bindTargetSubscriptionPlanTypeFlagTo(os.Stderr, fs)
-}
-
-// BindTargetSubscriptionPlanTypeFlag is BindTargetSubscriptionPlanTypeFlag
-// with the validation's "Error:" line written to d's stderr.
+// subscription offer create commands. The returned function validates the value,
+// writing its "Error:" line to d's stderr, and yields an empty plan type only
+// when the flag was not provided.
 func (d *Deps) BindTargetSubscriptionPlanTypeFlag(fs *flag.FlagSet) func() (asc.SubscriptionPlanType, error) {
 	return bindTargetSubscriptionPlanTypeFlagTo(d.IO.ErrOut, fs)
 }

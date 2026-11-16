@@ -346,7 +346,7 @@ func TestMetadataPushIfExistsSkipFailsWhenReadBackFindsNothing(t *testing.T) {
 // The flag defaults to fail, so --if-exists "" is an explicitly supplied
 // unsupported value and must not be read as fail. Internal callers that leave
 // PushExecutionOptions.IfExists unset still mean fail; that path goes through
-// shared.ParseOptionalIfExistsMode instead.
+// Deps.ParseOptionalIfExistsMode instead.
 func TestMetadataRejectsUnsupportedIfExistsValue(t *testing.T) {
 	tests := []struct {
 		name    string

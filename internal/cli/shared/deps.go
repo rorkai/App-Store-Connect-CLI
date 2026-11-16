@@ -107,6 +107,17 @@ func (s *IO) stdinTerminal() bool {
 	return s.StdinTTY
 }
 
+// ChildStderr returns the stream a child process writes its stderr to: the
+// process stderr file itself when s.ErrOut writes to it, so a terminal stays a
+// terminal for the commands the child runs, and s.ErrOut otherwise, which then
+// receives the child's output through a pipe.
+func (s *IO) ChildStderr() io.Writer {
+	if _, ok := s.ErrOut.(processStderr); ok {
+		return os.Stderr
+	}
+	return s.ErrOut
+}
+
 // The process streams are resolved on each call, so a command built before
 // os.Stdin, os.Stdout or os.Stderr is replaced uses the replacement.
 type (
@@ -121,8 +132,9 @@ func (processStdout) Write(p []byte) (int, error) { return os.Stdout.Write(p) }
 
 func (processStderr) Write(p []byte) (int, error) { return os.Stderr.Write(p) }
 
-// DownloadTimeout is ContextWithDownloadTimeout on d: a download uses the
-// upload budget.
+// DownloadTimeout bounds a streamed download, including the body copy. Client
+// and request timeouts also cover that copy, so the short request budget aborts
+// a large report mid-transfer. Downloads use d's upload budget.
 func (d *Deps) DownloadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	return d.UploadTimeout(ctx)
 }
@@ -132,12 +144,14 @@ func (d *Deps) ResolvedTimeout(ctx context.Context, defaultTimeout time.Duration
 	return withTimeoutContext(ctx, d.ResolveTimeout(RequestTimeoutSetting, defaultTimeout))
 }
 
-// ResolvedUploadTimeout is ContextWithResolvedUploadTimeout on d.
+// ResolvedUploadTimeout returns a context bounded by ASC_UPLOAD_TIMEOUT when
+// configured, or by defaultTimeout otherwise.
 func (d *Deps) ResolvedUploadTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
 	return withTimeoutContext(ctx, d.ResolveTimeout(UploadTimeoutSetting, defaultTimeout))
 }
 
-// MediaUploadTimeout is ContextWithMediaUploadTimeout on d.
+// MediaUploadTimeout bounds one media file's upload and processing wait by
+// ASC_UPLOAD_TIMEOUT, or by MediaUploadTimeoutForWork when it is unset.
 func (d *Deps) MediaUploadTimeout(ctx context.Context, bytes int64) (context.Context, context.CancelFunc) {
 	return d.ResolvedUploadTimeout(ctx, MediaUploadTimeoutForWork(1, bytes))
 }
@@ -165,8 +179,11 @@ func (d *Deps) BindOutputFlags(fs *flag.FlagSet) OutputFlags {
 	return BindOutputFlagsWith(fs, "output", d.DefaultOutputFormat(), "Output format: json, table, markdown")
 }
 
-// DefaultOutputFormat is DefaultOutputFormat decided from d's stdout, with an
-// invalid ASC_DEFAULT_OUTPUT reported to d's stderr.
+// DefaultOutputFormat returns the default output format for CLI commands.
+// It checks ASC_DEFAULT_OUTPUT first and reports an invalid value to d's stderr.
+// When unset, an interactive stdout defaults to table output while CI and
+// non-interactive contexts default to JSON. Valid ASC_DEFAULT_OUTPUT values are
+// "json", "table", "markdown", and "md".
 func (d *Deps) DefaultOutputFormat() string {
 	return defaultOutputFormatFor(d.IO.StdoutTTY, d.IO.ErrOut)
 }
@@ -177,36 +194,41 @@ func (d *Deps) PrintOutput(data any, format string, pretty bool) error {
 	return printOutputTo(d.IO.Out, d.IO.ErrOut, data, format, pretty)
 }
 
-// PrintOutputWithRenderers is PrintOutputWithRenderers with JSON written to
-// d's stdout and the more-pages notice to d's stderr. The renderers must
-// write to d.IO.Out themselves.
+// PrintOutputWithRenderers writes data as JSON to d's stdout, or calls the
+// table or markdown renderer for those formats, then writes the more-pages
+// notice to d's stderr. The renderers must write to d.IO.Out themselves.
 func (d *Deps) PrintOutputWithRenderers(data any, format string, pretty bool, tableRenderer, markdownRenderer func() error) error {
 	return printOutputWithRenderersTo(d.IO.Out, d.IO.ErrOut, data, format, pretty, tableRenderer, markdownRenderer)
 }
 
-// PrintOutputRows is PrintOutputRows on d's stdout and stderr.
+// PrintOutputRows prints data to d's stdout as JSON, or as one table of
+// headers and rows.
 func (d *Deps) PrintOutputRows(data any, format string, pretty bool, headers []string, rows [][]string) error {
 	return printOutputRowsTo(d.IO.Out, d.IO.ErrOut, data, format, pretty, headers, rows)
 }
 
-// RenderSection is RenderSection on d's stdout, with the title bold when d's
-// stderr is a terminal.
+// RenderSection renders a titled section as markdown or table output on d's
+// stdout, with the title bold when d's stderr is a terminal.
 func (d *Deps) RenderSection(title string, headers []string, rows [][]string, markdown bool) {
 	renderSectionTo(d.IO.Out, d.IO.StderrTTY, title, headers, rows, markdown)
 }
 
-// PrintStreamPage is PrintStreamPage on d's stdout.
+// PrintStreamPage writes a single page of data as a JSON line to d's stdout.
+// Used with --stream --paginate to emit results page-by-page as NDJSON
+// instead of buffering all pages in memory.
 func (d *Deps) PrintStreamPage(data any) error {
 	return asc.PrintJSONTo(d.IO.Out, data)
 }
 
-// PrintResolvedPrices is PrintResolvedPrices on d's stdout and stderr.
+// PrintResolvedPrices renders resolved price rows on d's stdout and stderr
+// without registering global raw renderers.
 func (d *Deps) PrintResolvedPrices(result *ResolvedPricesResult, format string, pretty bool) error {
 	return printResolvedPricesTo(d.IO.Out, d.IO.ErrOut, result, format, pretty)
 }
 
-// RenderLocalizationUploadResult is RenderLocalizationUploadResult on d's
-// stdout.
+// RenderLocalizationUploadResult renders both the batch summary and per-locale
+// details on d's stdout so interactive output includes retry artifact
+// information.
 func (d *Deps) RenderLocalizationUploadResult(result *asc.LocalizationUploadResult, markdown bool) error {
 	return renderLocalizationUploadResultTo(d.IO.Out, result, markdown)
 }
@@ -226,14 +248,23 @@ func (d *Deps) RequiredFlag(name string) error {
 	return requiredFlagTo(d.IO.ErrOut, name)
 }
 
-// UpdateFlagRequired is UpdateFlagRequired with the "Error:" line written to
-// d's stderr.
+// UpdateFlagRequired reports an update command run without any of its update
+// flags. It prints "Error: at least one update flag is required (--a, --b)" to
+// d's stderr and returns MissingRequiredUsageError.
+//
+// updateFlags are the variables the command's flags in fs are bound to (the
+// pointers fs.String and friends return, or the flag.Value passed to fs.Var),
+// the same ones the command checks. The message names their flags in the order
+// given, so it always matches the flags the command has. A variable that no
+// flag in fs is bound to is a programming error and panics, as redefining a
+// flag does in the flag package.
 func (d *Deps) UpdateFlagRequired(fs *flag.FlagSet, updateFlags ...any) error {
 	return updateFlagRequiredTo(d.IO.ErrOut, fs, updateFlags...)
 }
 
-// RejectNextFlagConflicts is RejectNextFlagConflicts with the "Error:" line
-// written to d's stderr.
+// RejectNextFlagConflicts rejects explicitly provided query flags when --next
+// supplies the complete continuation request, including its query string. The
+// "Error:" line goes to d's stderr.
 func (d *Deps) RejectNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
 	return rejectNextFlagConflicts(d.IO.ErrOut, fs, next, command, names...)
 }

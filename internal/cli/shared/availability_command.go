@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -746,12 +745,7 @@ type TerritoryAvailabilityUpdateRequest struct {
 // territory already matched). It is the same code path
 // "asc pricing availability edit" runs, exported so a create-style command can
 // route --if-exists update to it instead of duplicating the update logic.
-func ApplyTerritoryAvailabilityUpdate(ctx context.Context, client *asc.Client, request TerritoryAvailabilityUpdateRequest) (*asc.AppAvailabilityV2Response, int, error) {
-	return applyTerritoryAvailabilityUpdateTo(ctx, os.Stderr, client, request)
-}
-
-// ApplyTerritoryAvailabilityUpdate is ApplyTerritoryAvailabilityUpdate with
-// its progress lines written to d's stderr.
+// Progress lines go to d's stderr.
 func (d *Deps) ApplyTerritoryAvailabilityUpdate(ctx context.Context, client *asc.Client, request TerritoryAvailabilityUpdateRequest) (*asc.AppAvailabilityV2Response, int, error) {
 	return applyTerritoryAvailabilityUpdateTo(ctx, d.IO.ErrOut, client, request)
 }

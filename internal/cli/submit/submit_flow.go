@@ -111,13 +111,9 @@ func LookupExistingSubmissionForVersion(ctx context.Context, client *asc.Client,
 	return strings.TrimSpace(legacySubmission.Data.ID), nil
 }
 
-// EnsureBuildAttached ensures the target build is attached to the resolved App
-// Store version. In dry-run mode it reports the planned change without mutating.
-func EnsureBuildAttached(ctx context.Context, client *asc.Client, versionID, buildID string, dryRun bool) (BuildAttachmentResult, error) {
-	return ensureBuildAttached(ctx, shared.DefaultDeps(), client, versionID, buildID, dryRun)
-}
-
-// EnsureBuildAttachedWith is EnsureBuildAttached on the given dependencies.
+// EnsureBuildAttachedWith ensures the target build is attached to the resolved
+// App Store version, on d. In dry-run mode it reports the planned change
+// without mutating.
 func EnsureBuildAttachedWith(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, buildID string, dryRun bool) (BuildAttachmentResult, error) {
 	return ensureBuildAttached(ctx, d, client, versionID, buildID, dryRun)
 }
@@ -183,13 +179,8 @@ func ensureBuildAttached(ctx context.Context, d *shared.Deps, client *asc.Client
 	return result, nil
 }
 
-// SubmitResolvedVersion runs the shared modern review-submission flow for an
-// already-resolved version ID.
-func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {
-	return submitResolvedVersion(ctx, shared.DefaultDeps(), client, opts)
-}
-
-// SubmitResolvedVersionWith is SubmitResolvedVersion on d.
+// SubmitResolvedVersionWith runs the shared modern review-submission flow for
+// an already-resolved version ID, on d.
 func SubmitResolvedVersionWith(ctx context.Context, d *shared.Deps, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {
 	return submitResolvedVersion(ctx, d, client, opts)
 }

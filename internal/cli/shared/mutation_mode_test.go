@@ -7,7 +7,7 @@ import (
 )
 
 func TestRequireConfirmUnlessDryRunCarriesStructuredDiagnostic(t *testing.T) {
-	err := RequireConfirmUnlessDryRun(false, false)
+	err := DefaultDeps().RequireConfirmUnlessDryRun(false, false)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp", err)
 	}

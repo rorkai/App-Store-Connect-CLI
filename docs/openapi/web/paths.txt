@@ -99,6 +99,7 @@ GET /ppm/complianceform/v1/accounts/{id}/requirements
 GET /sandbox/v2/provider/account/list
 GET /services-account/QH65B2/account/auth/key/download
 HEAD /logout
+PATCH /iris/v1/ageRatingDeclarations/{id}
 PATCH /iris/v1/apiKeys/{id}
 PATCH /iris/v1/appDataUsages/{id}
 PATCH /iris/v1/appDataUsagesPublishState/{id}

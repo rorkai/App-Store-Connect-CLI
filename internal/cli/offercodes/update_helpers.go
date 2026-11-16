@@ -27,16 +27,13 @@ type ActiveUpdateCommandConfig struct {
 	// --active false requires --confirm.
 	ConfirmOff string
 	Update     func(context.Context, *asc.Client, string, *bool) (any, error)
-	// Deps is what the command is built on. It defaults to shared.DefaultDeps().
+	// Deps is what the command is built on.
 	Deps *shared.Deps
 }
 
 // NewActiveUpdateCommand builds a command that updates a resource's active attribute.
 func NewActiveUpdateCommand(config ActiveUpdateCommandConfig) *ffcli.Command {
 	d := config.Deps
-	if d == nil {
-		d = shared.DefaultDeps()
-	}
 	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, config.IDFlag, config.IDType, config.IDUsage)

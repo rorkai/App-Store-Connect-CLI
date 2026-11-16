@@ -104,7 +104,7 @@ Examples:
 			if err := d.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
 				return err
 			}
-			vendorNumber := shared.ResolveVendorNumber(*vendor)
+			vendorNumber := d.ResolveVendorNumber(*vendor)
 			if vendorNumber == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --vendor is required (or set ASC_VENDOR_NUMBER)")
 				return shared.MissingRequiredUsageError("--vendor")

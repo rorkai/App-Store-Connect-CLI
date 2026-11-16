@@ -118,10 +118,8 @@ func TestExecuteCustomPageScreenshotUpload_SyncDeletesExistingScreenshotsAndReor
 	})
 
 	client := newCustomPageTestClient(t)
-	d := &shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		Timeout: shared.ContextWithTimeout,
-	}
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	result, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", dir, "IPHONE_65", true, true)
 	if err != nil {
@@ -175,10 +173,8 @@ func TestExecuteCustomPageScreenshotUploadFullSetQuotesReplacementPath(t *testin
 	httpClient := server.Client()
 	httpClient.Transport = customPageBaseURLRoundTripper{target: serverURL, next: httpClient.Transport}
 	client := newCustomPageTestClientWithHTTPClient(t, httpClient)
-	d := &shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		Timeout: shared.ContextWithTimeout,
-	}
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	_, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", trickyPath, "IPHONE_65", false, false)
 	if err == nil {

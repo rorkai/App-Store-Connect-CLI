@@ -4,19 +4,13 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 )
 
-// WarnDeprecatedAppInfoFields warns only for the legacy AppInfo selector.
-// AgeRatingDeclaration.kidsAgeBand is a separate, supported attribute.
-func WarnDeprecatedAppInfoFields(fields []string, nextURL string) {
-	warnDeprecatedAppInfoFieldsTo(os.Stderr, fields, nextURL)
-}
-
-// WarnDeprecatedAppInfoFields is WarnDeprecatedAppInfoFields writing the
-// warning to d's stderr.
+// WarnDeprecatedAppInfoFields warns on d's stderr only for the legacy AppInfo
+// selector. AgeRatingDeclaration.kidsAgeBand is a separate, supported
+// attribute.
 func (d *Deps) WarnDeprecatedAppInfoFields(fields []string, nextURL string) {
 	warnDeprecatedAppInfoFieldsTo(d.IO.ErrOut, fields, nextURL)
 }

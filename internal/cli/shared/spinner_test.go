@@ -227,7 +227,7 @@ func TestWithSpinner_NoOpWhenDisabled(t *testing.T) {
 		withTTYStub(t, false, true) // stdout not a TTY => SpinnerEnabled() false
 
 		ran := false
-		if err := WithSpinner("ignored", func() error {
+		if err := DefaultDeps().WithSpinner("ignored", func() error {
 			ran = true
 			return nil
 		}); err != nil {
@@ -256,7 +256,7 @@ func TestWithSpinner_EnabledWritesAndClearsLine_NoANSI(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		withTTYStub(t, true, true)
 
-		if err := WithSpinner("Working", func() error { return nil }); err != nil {
+		if err := DefaultDeps().WithSpinner("Working", func() error { return nil }); err != nil {
 			t.Fatalf("WithSpinner() error: %v", err)
 		}
 	})
@@ -283,7 +283,7 @@ func TestWithSpinner_ReturnsError(t *testing.T) {
 		withTTYStub(t, true, true)
 
 		want := errors.New("boom")
-		err := WithSpinner("", func() error { return want })
+		err := DefaultDeps().WithSpinner("", func() error { return want })
 		if !errors.Is(err, want) {
 			t.Fatalf("expected error %v, got %v", want, err)
 		}
@@ -302,7 +302,7 @@ func TestWithSpinner_RePanics(t *testing.T) {
 				t.Fatal("expected WithSpinner() to re-panic")
 			}
 		}()
-		_ = WithSpinner("", func() error { panic("kaboom") })
+		_ = DefaultDeps().WithSpinner("", func() error { panic("kaboom") })
 	})
 }
 
@@ -313,7 +313,7 @@ func TestWithSpinner_NilFuncIsNoOp(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		withTTYStub(t, true, true)
 
-		if err := WithSpinner("ignored", nil); err != nil {
+		if err := DefaultDeps().WithSpinner("ignored", nil); err != nil {
 			t.Fatalf("expected nil error for nil fn, got %v", err)
 		}
 	})

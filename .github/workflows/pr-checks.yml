@@ -374,7 +374,7 @@ jobs:
               ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/cli/certificates -run '^TestCreateCertificateExportStagingFileProtectsDACLAtCreation$'
               ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/rootfs
               ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/xcode -run '^TestSigningApplyUnsupportedOnWindowsLeavesProjectUntouched$'
-              ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/cli/xcode -run '^(TestXcodeHelpScopesMacOSRequirementToXcodeTooling|TestXcodeSigningApplyHelpExplainsWindowsBoundary)$'
+              ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/cli/xcode -run '^TestXcodeSigning(Plan|Apply)'
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/asc_dev_windows_amd64.exe .
               ASC_BYPASS_KEYCHAIN=1 ASC_WINDOWS_CREDENTIAL_SMOKE=1 ASC_WINDOWS_SMOKE_BINARY=../../../build/asc_dev_windows_amd64.exe go test -count=1 ./internal/cli/auth -run '^TestWindowsCredentialManagerNativeRoundTrip$'
           - name: security-key macOS
@@ -399,7 +399,15 @@ jobs:
         shell: bash
 
       - name: Build for ${{ matrix.name }}
-        run: ${{ matrix.command }}
+        run: |
+          output="$(mktemp)"
+          {
+          ${{ matrix.command }}
+          } 2>&1 | tee "$output"
+          if grep -F '[no tests to run]' "$output"; then
+            echo "a go test -run pattern above matches no test" >&2
+            exit 1
+          fi
         shell: bash
 
   ordinary-build:

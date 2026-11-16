@@ -32,14 +32,9 @@ type ReadinessOptions struct {
 	IPA *LocalIPA
 }
 
-// BuildReadinessReport fetches live App Store Connect data and returns a
-// structured readiness report without printing output.
-func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validation.Report, error) {
-	return BuildReadinessReportWith(ctx, shared.DefaultDeps(), opts)
-}
-
-// BuildReadinessReportWith is BuildReadinessReport with the client, request
-// timeout and clock taken from d.
+// BuildReadinessReportWith fetches live App Store Connect data and returns a
+// structured readiness report without printing output. The client, request
+// timeout and clock come from d.
 func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts ReadinessOptions) (validation.Report, error) {
 	client, err := d.Client()
 	if err != nil {

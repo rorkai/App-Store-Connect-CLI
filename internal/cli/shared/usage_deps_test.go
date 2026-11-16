@@ -43,12 +43,12 @@ func TestDepsUsageFuncsMatchProcessVariants(t *testing.T) {
 		},
 		{
 			name:    "VisibleUsageFunc",
-			process: VisibleUsageFunc,
+			process: func(c *ffcli.Command) string { return DefaultDeps().VisibleUsageFunc(c) },
 			deps:    func(d *Deps) func(*ffcli.Command) string { return d.VisibleUsageFunc },
 		},
 		{
 			name:    "Bold",
-			process: func(*ffcli.Command) string { return Bold("GETTING STARTED") },
+			process: func(*ffcli.Command) string { return DefaultDeps().Bold("GETTING STARTED") },
 			deps: func(d *Deps) func(*ffcli.Command) string {
 				return func(*ffcli.Command) string { return d.Bold("GETTING STARTED") }
 			},

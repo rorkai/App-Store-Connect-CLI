@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -23,14 +22,8 @@ func RelationshipTypeFlagUsage(values []string) string {
 }
 
 // MissingRelationshipTypeUsageError prints the missing --type diagnostic with
-// every accepted relationship type and returns the shared missing-required
-// usage error so the command exits with usage semantics.
-func MissingRelationshipTypeUsageError(values []string) error {
-	return missingRelationshipTypeUsageErrorTo(os.Stderr, values)
-}
-
-// MissingRelationshipTypeUsageError is MissingRelationshipTypeUsageError with
-// the "Error:" line written to d's stderr.
+// every accepted relationship type to d's stderr and returns the shared
+// missing-required usage error so the command exits with usage semantics.
 func (d *Deps) MissingRelationshipTypeUsageError(values []string) error {
 	return missingRelationshipTypeUsageErrorTo(d.IO.ErrOut, values)
 }
@@ -41,14 +34,8 @@ func missingRelationshipTypeUsageErrorTo(stderr io.Writer, values []string) erro
 }
 
 // PrintInvalidRelationshipTypeError prints the rejected --type value alongside
-// every accepted relationship type. Callers return their own usage error so
-// each links command keeps its existing error classification.
-func PrintInvalidRelationshipTypeError(value string, values []string) {
-	printInvalidRelationshipTypeErrorTo(os.Stderr, value, values)
-}
-
-// PrintInvalidRelationshipTypeError is PrintInvalidRelationshipTypeError
-// writing to d's stderr.
+// every accepted relationship type to d's stderr. Callers return their own
+// usage error so each links command keeps its existing error classification.
 func (d *Deps) PrintInvalidRelationshipTypeError(value string, values []string) {
 	printInvalidRelationshipTypeErrorTo(d.IO.ErrOut, value, values)
 }

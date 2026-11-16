@@ -171,7 +171,7 @@ func TestResolveFlagValueIndirectionRewritesArgs(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			original := append([]string(nil), test.args...)
-			got, err := resolveFlagValueIndirection(newIndirectionTestTree(), test.args)
+			got, err := resolveFlagValueIndirection(shared.DefaultDeps(), newIndirectionTestTree(), test.args)
 			if err != nil {
 				t.Fatalf("resolveFlagValueIndirection() error = %v", err)
 			}
@@ -205,7 +205,7 @@ func TestResolveFlagValueIndirectionReportsFlagOnError(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := resolveFlagValueIndirection(newIndirectionTestTree(), test.args)
+			got, err := resolveFlagValueIndirection(shared.DefaultDeps(), newIndirectionTestTree(), test.args)
 			if err == nil {
 				t.Fatalf("resolveFlagValueIndirection() = %q, want error", got)
 			}
@@ -359,7 +359,7 @@ func TestResolveFlagValueIndirectionScopesRootSelectorsToRootFlagSet(t *testing.
 
 	root := rootCommandForArgs("1.0.0", shared.DefaultDeps(), []string{"signing", "run"})
 	commandLocal := []string{"signing", "run", "--profile", "@env:ASC_TEST_PROFILE_PATH"}
-	got, err := resolveFlagValueIndirection(root, commandLocal)
+	got, err := resolveFlagValueIndirection(shared.DefaultDeps(), root, commandLocal)
 	if err != nil {
 		t.Fatalf("resolveFlagValueIndirection() error = %v", err)
 	}
@@ -369,7 +369,7 @@ func TestResolveFlagValueIndirectionScopesRootSelectorsToRootFlagSet(t *testing.
 	}
 
 	rootLevel := []string{"--profile", "@env:ASC_TEST_PROFILE_PATH", "apps", "list"}
-	got, err = resolveFlagValueIndirection(rootCommandForArgs("1.0.0", shared.DefaultDeps(), rootLevel), rootLevel)
+	got, err = resolveFlagValueIndirection(shared.DefaultDeps(), rootCommandForArgs("1.0.0", shared.DefaultDeps(), rootLevel), rootLevel)
 	if err != nil {
 		t.Fatalf("resolveFlagValueIndirection() error = %v", err)
 	}
@@ -536,7 +536,7 @@ func TestResolveFlagValueIndirectionResolvesFlagsAfterAPositional(t *testing.T) 
 	// stopping would hand the command a literal `@env:NAME` string.
 	t.Setenv("ASC_TEST_SEARCH_LIMIT", "2")
 	args := []string{"search", "upload a build", "--limit", "@env:ASC_TEST_SEARCH_LIMIT"}
-	got, err := resolveFlagValueIndirection(rootCommandForArgs("1.0.0", shared.DefaultDeps(), args), args)
+	got, err := resolveFlagValueIndirection(shared.DefaultDeps(), rootCommandForArgs("1.0.0", shared.DefaultDeps(), args), args)
 	if err != nil {
 		t.Fatalf("resolveFlagValueIndirection() error = %v", err)
 	}

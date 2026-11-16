@@ -63,7 +63,7 @@ func TestInitReference_ReturnsTypedErrorWhenASCExists(t *testing.T) {
 		t.Fatalf("write ASC.md: %v", err)
 	}
 
-	_, err := InitReference(InitOptions{Path: repo, Force: false, Link: false})
+	_, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: false, Link: false})
 	if !errors.Is(err, ErrASCReferenceExists) {
 		t.Fatalf("expected ErrASCReferenceExists, got %v", err)
 	}

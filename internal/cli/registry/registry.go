@@ -90,15 +90,15 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/xcodecloud"
 )
 
-// VersionCommand returns a version subcommand.
-func VersionCommand(version string) *ffcli.Command {
+// VersionCommand returns a version subcommand that prints to d's stdout.
+func VersionCommand(d *shared.Deps, version string) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "version",
 		ShortUsage: "asc version",
 		ShortHelp:  "Print version information and exit.",
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			fmt.Println(version)
+			fmt.Fprintln(d.IO.Out, version)
 			return nil
 		},
 	}
@@ -356,7 +356,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return snitch.NewSnitchCommand(d, version)
 		}),
 		commandFactory("version", "Print version information and exit.", func() *ffcli.Command {
-			return VersionCommand(version)
+			return VersionCommand(d, version)
 		}),
 		commandFactory("completion", "Print shell completion scripts.", func() *ffcli.Command {
 			return completion.NewCompletionCommand(d, catalog.All, func() *flag.FlagSet {

@@ -20,7 +20,7 @@ simulators must already exist and be booted. Existing `screenshots run`,
 asc screenshots matrix --plan .asc/screenshots-matrix.json [flags]
 ```
 
-The command uses `shared.DefaultUsageFunc` and `shared.BindOutputFlags`.
+The command uses `shared.DefaultUsageFunc` and `d.BindOutputFlags`.
 Besides the standard `--output` and `--pretty` flags, it accepts `--plan`,
 `--max-concurrency`, `--max-attempts`, and `--retry-backoff`. Explicit runtime
 flags override the corresponding plan values. Usage validation returns

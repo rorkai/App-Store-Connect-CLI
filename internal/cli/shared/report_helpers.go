@@ -13,13 +13,15 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-// ResolveVendorNumber resolves the vendor number for reports.
-func ResolveVendorNumber(value string) string {
+// ResolveVendorNumber resolves the vendor number for reports: value, then
+// ASC_VENDOR_NUMBER or ASC_ANALYTICS_VENDOR_NUMBER read through d, then the
+// config file.
+func (d *Deps) ResolveVendorNumber(value string) string {
 	if strings.TrimSpace(value) != "" {
 		return strings.TrimSpace(value)
 	}
-	vendorEnv, vendorSet := os.LookupEnv("ASC_VENDOR_NUMBER")
-	analyticsEnv, analyticsSet := os.LookupEnv("ASC_ANALYTICS_VENDOR_NUMBER")
+	vendorEnv, vendorSet := d.lookupEnv("ASC_VENDOR_NUMBER")
+	analyticsEnv, analyticsSet := d.lookupEnv("ASC_ANALYTICS_VENDOR_NUMBER")
 	if vendorSet || analyticsSet {
 		if env := strings.TrimSpace(vendorEnv); env != "" {
 			return env
@@ -68,18 +70,8 @@ func (d *Deps) WriteStreamToFile(path string, reader io.Reader) (int64, error) {
 	return createNewOutputFile(d.Abs, d.Getwd, path, reader)
 }
 
-// DecompressGzipFile inflates a gzip file to the destination path.
-func DecompressGzipFile(sourcePath, destPath string) (int64, error) {
-	in, err := rootfs.OpenFile(sourcePath)
-	if err != nil {
-		return 0, err
-	}
-	defer in.Close()
-	return decompressGzipTo(filepath.Abs, os.Getwd, in, destPath)
-}
-
-// DecompressGzipFile is DecompressGzipFile with relative paths resolved
-// against d's working directory.
+// DecompressGzipFile inflates a gzip file to the destination path, with
+// relative paths resolved against d's working directory.
 func (d *Deps) DecompressGzipFile(sourcePath, destPath string) (int64, error) {
 	workingDir, _ := d.Getwd()
 	in, err := rootfs.OpenFileIn(workingDir, d.OSPath(sourcePath))
