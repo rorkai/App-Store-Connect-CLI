@@ -23,3 +23,12 @@ func webAppDeleteRows(result *WebAppDeleteResult) ([]string, [][]string) {
 		fmt.Sprintf("%t", result.DryRun),
 	}}
 }
+
+// WebAgeRatingEditResult identifies a declaration when Iris returns no body.
+type WebAgeRatingEditResult struct {
+	DeclarationID string `json:"declarationId"`
+}
+
+func webAgeRatingEditRows(result *WebAgeRatingEditResult) ([]string, [][]string) {
+	return []string{"declaration_id"}, [][]string{{result.DeclarationID}}
+}

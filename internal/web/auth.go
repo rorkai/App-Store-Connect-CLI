@@ -1988,14 +1988,18 @@ func cloneHeaders(headers http.Header) http.Header {
 	return cloned
 }
 
-func (c *Client) doRequest(ctx context.Context, method, path string, body any) ([]byte, error) {
+func irisRequestHeaders() http.Header {
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Accept", "application/json")
 	headers.Set("X-Requested-With", "XMLHttpRequest")
 	headers.Set("Origin", appStoreBaseURL)
 	headers.Set("Referer", appStoreBaseURL+"/")
-	return c.doRequestBase(ctx, c.baseURL, method, path, body, headers)
+	return headers
+}
+
+func (c *Client) doRequest(ctx context.Context, method, path string, body any) ([]byte, error) {
+	return c.doRequestBase(ctx, c.baseURL, method, path, body, irisRequestHeaders())
 }
 
 func (c *Client) doRequestBase(ctx context.Context, baseURL, method, path string, body any, headers http.Header) ([]byte, error) {
