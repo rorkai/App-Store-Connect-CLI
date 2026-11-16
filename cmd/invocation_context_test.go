@@ -455,7 +455,6 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 		{"versions", "info", "--version-id", "VERSION_ID", "--include", "unknown"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include", "build", "--include-build"},
 		{"versions", "info", "--version-id", "ONE", "--id", "TWO"},
-		{"versions", "info", "--id", "VERSION_ID"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--output", "yaml"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include-build", "maybe"},
 		{"versions", "info", "--version-id", "VERSION_ID", "localizations"},
