@@ -43,6 +43,7 @@
     {"operation":"apps_searchKeywords_getToManyRelated","name":"GetAppSearchKeywords","params":["appID"],"check":"require","options":"AppSearchKeywordsOption","query":"buildAppSearchKeywordsQuery","nextContext":"searchKeywords"},
     {"operation":"apps_subscriptionGracePeriod_getToOneRelated","name":"GetAppSubscriptionGracePeriod","params":["appID"],"check":"require","messages":["app ID is required"]},
     {"operation":"apps_subscriptionGroups_getToManyRelated","name":"GetSubscriptionGroups","params":["appID"],"options":"SubscriptionGroupsOption","query":"buildSubscriptionGroupsQuery","nextContext":"subscriptionGroups"},
+    {"operation":"apps_updateInstance","name":"UpdateApp","params":["appID"],"check":"require","messages":["app ID is required"],"skipEmptyAttributes":true},
     {"operation":"apps_webhooks_getToManyRelated","name":"GetAppWebhooks","params":["appID"],"check":"trim","options":"WebhooksOption","query":"buildWebhooksQuery","nextContext":"webhooks","parseErr":"failed to parse webhooks response"}
   ],
   "queries": [
