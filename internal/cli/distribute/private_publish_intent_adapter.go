@@ -27,7 +27,7 @@ var (
 	preparePrivatePublicationIntent                                            = core.PreparePrivatePublishIntent
 	executePrivatePublicationIntent                                            = core.ExecutePrivatePublishIntent
 	newPrivatePublicationVerifier   func(time.Duration) (core.Verifier, error) = func(timeout time.Duration) (core.Verifier, error) {
-		return newPublicationVerifier(timeout)
+		return newPublicationVerifier(shared.DefaultDeps(), timeout)
 	}
 	afterPrivatePublicationIntentPersisted = func() error { return nil }
 	afterPrivatePublicationIntentExecuted  = func() error { return nil }
