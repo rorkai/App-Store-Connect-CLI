@@ -501,9 +501,11 @@ var appAttributeFields = []string{
 	"subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox",
 }
 
-// appViewIncludeValues are the include values GET /v1/apps/{id} accepts.
+// appViewIncludeValues are the include values GET /v1/apps/{id} accepts. The
+// spec also lists appEncryptionDeclarations, but Apple rejects it with 400 "is
+// not a valid relationship name".
 var appViewIncludeValues = []string{
-	"appEncryptionDeclarations", "appStoreIcon", "ciProduct", "betaGroups", "appStoreVersions", "preReleaseVersions",
+	"appStoreIcon", "ciProduct", "betaGroups", "appStoreVersions", "preReleaseVersions",
 	"betaAppLocalizations", "builds", "betaLicenseAgreement", "betaAppReviewDetail", "appInfos", "appClips",
 	"endUserLicenseAgreement", "inAppPurchases", "subscriptionGroups", "retentionMessages", "gameCenterEnabledVersions",
 	"appCustomProductPages", "inAppPurchasesV2", "promotedPurchases", "appEvents", "reviewSubmissions",
