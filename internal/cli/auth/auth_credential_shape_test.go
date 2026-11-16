@@ -13,10 +13,11 @@ import (
 )
 
 func runCredentialShapeLogin(t *testing.T, args ...string) (string, error) {
+	d := newAuthTestDeps()
 	t.Helper()
 
 	keyPath := writeTempECDSAKeyFile(t)
-	cmd := AuthLoginCommand()
+	cmd := newAuthLoginCommand(d)
 	parsed := append([]string{
 		"--bypass-keychain",
 		"--local",
@@ -28,7 +29,7 @@ func runCredentialShapeLogin(t *testing.T, args ...string) (string, error) {
 	}
 
 	var runErr error
-	_, stderr := captureAuthOutput(t, func() {
+	_, stderr := captureAuthOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), []string{})
 	})
 	return stderr, runErr

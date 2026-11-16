@@ -158,11 +158,13 @@ func TestWebAuthCapabilitiesUsageErrors(t *testing.T) {
 			name:    "rejects invalid output",
 			args:    []string{"web", "auth", "capabilities", "--output", "yaml"},
 			wantErr: `(got "yaml")`,
+			deps:    true,
 		},
 		{
 			name:    "rejects pretty for table",
 			args:    []string{"web", "auth", "capabilities", "--output", "table", "--pretty"},
 			wantErr: "--pretty is only valid with JSON output",
+			deps:    true,
 		},
 	})
 }

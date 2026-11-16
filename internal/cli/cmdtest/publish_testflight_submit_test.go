@@ -24,7 +24,6 @@ func TestPublishTestflightSubmitCreatesBetaReviewSubmissionForExternalGroups(t *
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -36,14 +35,14 @@ func TestPublishTestflightSubmitCreatesBetaReviewSubmissionForExternalGroups(t *
 	reg.Register(asctest.POST("/v1/betaAppReviewSubmissions").JSONBody(`{"data":{"type":"betaAppReviewSubmissions","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaAppReviewSubmissions","id":"submission-1"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"publish", "testflight",
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-external",
 		"--submit",
 		"--confirm",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -75,7 +74,6 @@ func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -89,7 +87,7 @@ func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.
 	reg.Register(asctest.POST("/v1/betaAppReviewSubmissions").JSONBody(`{"data":{"type":"betaAppReviewSubmissions","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaAppReviewSubmissions","id":"submission-1"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"publish", "testflight",
 		"--app", "123",
 		"--build-id", "build-1",
@@ -97,7 +95,7 @@ func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.
 		"--poll-interval", "1ms",
 		"--submit",
 		"--confirm",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -123,7 +121,6 @@ func TestPublishTestflightSubmitSkipsBetaReviewSubmissionForInternalGroups(t *te
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Friends and Family","isInternalGroup":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -131,14 +128,14 @@ func TestPublishTestflightSubmitSkipsBetaReviewSubmissionForInternalGroups(t *te
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
 		asctest.JSON(http.StatusNoContent, ""))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"publish", "testflight",
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
 		"--submit",
 		"--confirm",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -164,7 +161,6 @@ func TestPublishTestflightSubmitTreatsExistingSubmissionAsAlreadyDone(t *testing
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -174,14 +170,14 @@ func TestPublishTestflightSubmitTreatsExistingSubmissionAsAlreadyDone(t *testing
 	reg.Register(asctest.GET("/v1/builds/build-1/betaAppReviewSubmission"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"betaAppReviewSubmissions","id":"submission-existing"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"publish", "testflight",
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-external",
 		"--submit",
 		"--confirm",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -207,7 +203,6 @@ func TestPublishTestflightSubmitPreservesPartialSuccessWhenSubmissionFails(t *te
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-external","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -219,14 +214,14 @@ func TestPublishTestflightSubmitPreservesPartialSuccessWhenSubmissionFails(t *te
 	reg.Register(asctest.POST("/v1/betaAppReviewSubmissions").JSONBody(`{"data":{"type":"betaAppReviewSubmissions","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
 		asctest.JSON(http.StatusServiceUnavailable, `{"errors":[{"status":"503","code":"SERVICE_UNAVAILABLE","title":"Service unavailable","detail":"beta review temporarily unavailable"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), []string{
 		"publish", "testflight",
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-external",
 		"--submit",
 		"--confirm",
-	})
+	}...)
 
 	if runErr == nil {
 		t.Fatal("expected error")

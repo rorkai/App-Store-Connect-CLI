@@ -141,10 +141,7 @@ func TestAuthLogoutNamedGlobalOnlyProfileWithMissingOverrideFileFails(t *testing
 		t.Fatalf("Remove(override) error: %v", err)
 	}
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"auth", "logout", "--name", "global-only", "--confirm"}, "1.0.0")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "auth", "logout", "--name", "global-only", "--confirm")
 
 	if code != cmd.ExitError {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitError, stderr)

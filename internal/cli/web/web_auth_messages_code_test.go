@@ -254,10 +254,11 @@ func messagesCodeTestHooks(t *testing.T, goos string, query func(ctx context.Con
 
 func runMessagesCodeCommand(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := WebAuthMessagesCodeCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAuthMessagesCodeCommand(d)
 	cmd.FlagSet.SetOutput(os.Stderr)
 	var runErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.FlagSet.Parse(args); err != nil {
 			runErr = err
 			return

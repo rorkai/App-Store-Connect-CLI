@@ -10,8 +10,9 @@ import (
 func TestReportSkippedInternalAllBuildsGroupsSanitizesProviderID(t *testing.T) {
 	const groupID = "group-control-\x1b[31mID\nNEXT"
 
-	_, stderr := capturePublishCommandOutput(t, func() error {
-		reportSkippedInternalAllBuildsGroups([]shared.ResolvedBetaGroup{{
+	d := newPublishTestDeps()
+	_, stderr := capturePublishDepsOutput(t, d, func() error {
+		reportSkippedInternalAllBuildsGroups(d, []shared.ResolvedBetaGroup{{
 			ID:   groupID,
 			Name: "QA-\x1b[31mNAME\nINJECT",
 		}})
