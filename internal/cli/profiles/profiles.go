@@ -555,6 +555,7 @@ func newProfilesDownloadCommand(d *shared.Deps) *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
 	outputPath := fs.String("output", "", "Output .mobileprovision or .provisionprofile file path")
+	shared.BindFlagAlias(fs, "output-path", "output")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing file at --output, or existing files in --output-dir")
 	all := fs.Bool("all", false, "Download every matching profile into --output-dir")
 	outputDir := fs.String("output-dir", "", "Directory for --all; each profile is written as <UUID>.mobileprovision or <UUID>.provisionprofile")

@@ -20,6 +20,7 @@ import (
 func NewIPAInfoCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("ipa-info", flag.ExitOnError)
 	path := fs.String("path", "", "Path to an .ipa")
+	shared.BindFlagAlias(fs, "ipa", "path")
 	includeEntitlements := fs.Bool("include-entitlements", false, "Include the embedded profile entitlements map")
 	includeProfile := fs.Bool("include-profile", false, "Include the embedded profile summary")
 	verifySignature := fs.Bool("verify-signature", false, "Verify the main executable's code signature and certificate chain offline; exits 1 unless valid")

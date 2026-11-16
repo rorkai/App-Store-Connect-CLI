@@ -78,6 +78,7 @@ Examples:
 		ErrorPrefix:          "custom-pages localizations list",
 		Deps:                 d,
 		Flags: func(fs *flag.FlagSet) func() error {
+			shared.BindFlagAlias(fs, "version-id", "custom-page-version-id")
 			include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
 			return func() error {
 				var err error

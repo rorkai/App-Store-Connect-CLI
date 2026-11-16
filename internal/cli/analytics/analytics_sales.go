@@ -25,6 +25,8 @@ func newAnalyticsSalesCommand(d *shared.Deps) *ffcli.Command {
 	date := fs.String("date", "", "Report date: daily/weekly YYYY-MM-DD, monthly YYYY-MM or YYYY-MM-DD, yearly YYYY or YYYY-MM-DD (optional for DAILY)")
 	version := fs.String("version", "", "Report format version allowed for the selected type, subtype, and frequency")
 	output := fs.String("output", "", "Output file path (default: sales_report_{date|latest}_{type}.tsv.gz)")
+	shared.BindFlagAlias(fs, "output-file", "output")
+	shared.BindFlagAlias(fs, "output-path", "output")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .tsv")
 	allowMissing := fs.Bool("allow-missing", false, "Return available=false when Apple says the report is unavailable or the period had no sales")
 	outputFlags := shared.BindMetadataOutputFlags(fs)

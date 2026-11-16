@@ -789,7 +789,7 @@ Examples:
 
 // newSubscriptionsIntroductoryOffersDeleteCommand returns the introductory offers delete subcommand.
 func newSubscriptionsIntroductoryOffersDeleteCommand(d *shared.Deps) *ffcli.Command {
-	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+	command := shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Deps:        d,
 		FlagSetName: "introductory-offers delete",
 		Name:        "delete",
@@ -810,4 +810,6 @@ Examples:
 			return &asc.AssetDeleteResult{ID: id, Deleted: true}
 		},
 	})
+	shared.BindFlagAlias(command.FlagSet, "offer-id", "id")
+	return command
 }
