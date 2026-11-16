@@ -335,8 +335,9 @@ Examples:
 				id = strings.TrimSpace(localization.Data.ID)
 			}
 
-			attrs := asc.BetaBuildLocalizationAttributes{
-				WhatsNew: whatsNewValue,
+			var attrs asc.BetaBuildLocalizationUpdateAttributes
+			if whatsNewValue != "" {
+				attrs.WhatsNew = &whatsNewValue
 			}
 
 			requestCtx, cancel := d.Timeout(ctx)

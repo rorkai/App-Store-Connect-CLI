@@ -470,18 +470,31 @@ type BetaAppLocalizationCreateData struct {
 	Relationships *BetaAppLocalizationRelationships `json:"relationships"`
 }
 
+// BetaBuildLocalizationCreateAttributes is the data.attributes object of the
+// BetaBuildLocalizationCreateRequest schema. Locale comes first so the body
+// keeps the key order the create has always sent.
+type BetaBuildLocalizationCreateAttributes struct {
+	Locale   string  `json:"locale"`
+	WhatsNew *string `json:"whatsNew,omitempty"`
+}
+
+// BetaBuildLocalizationUpdateAttributes is the data.attributes object of the BetaBuildLocalizationUpdateRequest schema.
+type BetaBuildLocalizationUpdateAttributes struct {
+	WhatsNew *string `json:"whatsNew,omitempty"`
+}
+
 // BetaBuildLocalizationCreateData is the data portion of a beta build localization create request.
 type BetaBuildLocalizationCreateData struct {
-	Type          ResourceType                        `json:"type"`
-	Attributes    BetaBuildLocalizationAttributes     `json:"attributes"`
-	Relationships *BetaBuildLocalizationRelationships `json:"relationships"`
+	Type          ResourceType                          `json:"type"`
+	Attributes    BetaBuildLocalizationCreateAttributes `json:"attributes"`
+	Relationships *BetaBuildLocalizationRelationships   `json:"relationships"`
 }
 
 // BetaBuildLocalizationUpdateData is the data portion of a beta build localization update request.
 type BetaBuildLocalizationUpdateData struct {
-	Type       ResourceType                    `json:"type"`
-	ID         string                          `json:"id"`
-	Attributes BetaBuildLocalizationAttributes `json:"attributes"`
+	Type       ResourceType                          `json:"type"`
+	ID         string                                `json:"id"`
+	Attributes BetaBuildLocalizationUpdateAttributes `json:"attributes"`
 }
 
 // AppInfoLocalizationCreateData is the data portion of an app info localization create request.
@@ -644,12 +657,11 @@ func (c *Client) UpdateAppStoreVersionLocalizationNullableFields(ctx context.Con
 }
 
 // CreateBetaBuildLocalization creates a beta build localization for a build.
-func (c *Client) CreateBetaBuildLocalization(ctx context.Context, buildID string, attributes BetaBuildLocalizationAttributes) (*BetaBuildLocalizationResponse, error) {
-	attributes.api = apiAttributes{}
+func (c *Client) CreateBetaBuildLocalization(ctx context.Context, buildID string, attrs BetaBuildLocalizationCreateAttributes) (*BetaBuildLocalizationResponse, error) {
 	payload := BetaBuildLocalizationCreateRequest{
 		Data: BetaBuildLocalizationCreateData{
 			Type:       ResourceTypeBetaBuildLocalizations,
-			Attributes: attributes,
+			Attributes: attrs,
 			Relationships: &BetaBuildLocalizationRelationships{
 				Build: &Relationship{
 					Data: ResourceData{
@@ -660,20 +672,27 @@ func (c *Client) CreateBetaBuildLocalization(ctx context.Context, buildID string
 			},
 		},
 	}
-	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaBuildLocalizations", Payload: payload})
+	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/betaBuildLocalizations",
+		Payload: payload,
+	})
 }
 
 // UpdateBetaBuildLocalization updates a beta build localization by ID.
-func (c *Client) UpdateBetaBuildLocalization(ctx context.Context, localizationID string, attributes BetaBuildLocalizationAttributes) (*BetaBuildLocalizationResponse, error) {
-	attributes.api = apiAttributes{}
+func (c *Client) UpdateBetaBuildLocalization(ctx context.Context, localizationID string, attrs BetaBuildLocalizationUpdateAttributes) (*BetaBuildLocalizationResponse, error) {
 	payload := BetaBuildLocalizationUpdateRequest{
 		Data: BetaBuildLocalizationUpdateData{
 			Type:       ResourceTypeBetaBuildLocalizations,
 			ID:         localizationID,
-			Attributes: attributes,
+			Attributes: attrs,
 		},
 	}
-	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID), Payload: payload})
+	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID),
+		Payload: payload,
+	})
 }
 
 // CreateAppInfoLocalization creates a localization for an app info resource.
