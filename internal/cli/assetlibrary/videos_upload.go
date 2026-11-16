@@ -131,7 +131,7 @@ Examples:
 		}
 		uploadCtx, cancel := libraryVideoUploadContext(ctx, d)
 		defer cancel()
-		result, uploadErr := client.UploadAssetLibraryVideoWithCategory(uploadCtx, id, filepath.Base(source), staged.file, staged.size, selected, selectedReferenceName, selectedTimeCode, d.Timeout)
+		result, uploadErr := client.UploadAssetLibraryVideoWithCategory(uploadCtx, d.IO.ErrOut, id, filepath.Base(source), staged.file, staged.size, selected, selectedReferenceName, selectedTimeCode, d.Timeout)
 		if uploadErr == nil || result.VideoID != "" {
 			if err := d.PrintOutput(&result, *output.Output, *output.Pretty); err != nil {
 				return err

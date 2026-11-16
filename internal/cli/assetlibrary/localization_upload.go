@@ -213,7 +213,7 @@ func prepareLibraryVideo(ctx context.Context, d *shared.Deps, command, path stri
 	return libraryFile{path: path, close: staged.close, send: func(ctx context.Context, client *asc.Client, libraryID string) (string, error) {
 		uploadCtx, cancel := libraryVideoUploadContext(ctx, d)
 		defer cancel()
-		result, err := client.UploadAssetLibraryVideoWithCategory(uploadCtx, libraryID, filepath.Base(path), staged.file, staged.size, nativeMediaCategory, "", "", d.Timeout)
+		result, err := client.UploadAssetLibraryVideoWithCategory(uploadCtx, d.IO.ErrOut, libraryID, filepath.Base(path), staged.file, staged.size, nativeMediaCategory, "", "", d.Timeout)
 		return result.VideoID, err
 	}}, nil
 }

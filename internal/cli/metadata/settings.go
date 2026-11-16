@@ -157,7 +157,7 @@ func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingSc
 		if field.nullUnset && isJSONNull(rawValue) {
 			continue
 		}
-		value, err := decodeMetadataSettingValue(dir, field, rawValue)
+		value, err := decodeMetadataSettingValue(d, dir, field, rawValue)
 		if err != nil {
 			return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, err)
 		}
@@ -185,7 +185,7 @@ func (scope metadataSettingScope) field(name string) (metadataSettingField, bool
 	return metadataSettingField{}, false
 }
 
-func decodeMetadataSettingValue(dir string, field metadataSettingField, raw json.RawMessage) (string, error) {
+func decodeMetadataSettingValue(d *shared.Deps, dir string, field metadataSettingField, raw json.RawMessage) (string, error) {
 	if isJSONNull(raw) {
 		return "", fmt.Errorf("%s cannot be null; omit it to leave the value unchanged", field.name)
 	}
@@ -202,7 +202,7 @@ func decodeMetadataSettingValue(dir string, field metadataSettingField, raw json
 			return "", fmt.Errorf("%s must be a string", field.name)
 		}
 		if field.secretEnv != "" {
-			return resolveMetadataSecretValue(dir, field, value)
+			return resolveMetadataSecretValue(d, dir, field, value)
 		}
 		value = strings.TrimSpace(value)
 		if value == "" {
@@ -215,11 +215,11 @@ func decodeMetadataSettingValue(dir string, field metadataSettingField, raw json
 	}
 }
 
-func resolveMetadataSecretValue(dir string, field metadataSettingField, value string) (string, error) {
+func resolveMetadataSecretValue(d *shared.Deps, dir string, field metadataSettingField, value string) (string, error) {
 	var resolved string
 	switch {
 	case strings.HasPrefix(value, "@env:"):
-		envValue, err := shared.ResolveFlagValueIndirection(field.name, value)
+		envValue, err := d.ResolveFlagValueIndirection(field.name, value)
 		if err != nil {
 			return "", err
 		}

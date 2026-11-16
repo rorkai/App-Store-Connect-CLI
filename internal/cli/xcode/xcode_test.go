@@ -1829,7 +1829,7 @@ func TestXcodeExportWaitPollsForUploadedBuild(t *testing.T) {
 			},
 		}, nil
 	}
-	waitForBuildProcessingFn = func(_ context.Context, _ *asc.Client, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
+	waitForBuildProcessingFn = func(_ *shared.Deps, _ context.Context, _ *asc.Client, _ string, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
 		if buildID != "build-123" {
 			t.Fatalf("expected build-123, got %q", buildID)
 		}
@@ -1926,7 +1926,7 @@ func TestXcodeExportWaitRejectsNilProcessedBuildResponse(t *testing.T) {
 			},
 		}, nil
 	}
-	waitForBuildProcessingFn = func(context.Context, *asc.Client, string, time.Duration) (*asc.BuildResponse, error) {
+	waitForBuildProcessingFn = func(*shared.Deps, context.Context, *asc.Client, string, string, time.Duration) (*asc.BuildResponse, error) {
 		return nil, nil
 	}
 
@@ -2487,7 +2487,7 @@ func TestXcodeExportBuildProcessingWaitIncludesProcessingDetails(t *testing.T) {
 		}
 	})
 
-	_, err := waitForBuildProcessingFn(context.Background(), newXcodeCommandTestClient(t), "build-1", time.Millisecond)
+	_, err := waitForBuildProcessingFn(shared.DefaultDeps(), context.Background(), newXcodeCommandTestClient(t), "", "build-1", time.Millisecond)
 	if want := "build processing failed: INVALID; App Store Connect processing details: ITMS-90000: processing details"; err == nil || err.Error() != want {
 		t.Fatalf("error = %v, want %q", err, want)
 	}

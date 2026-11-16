@@ -575,16 +575,11 @@ type BuildProcessingFailureContext struct {
 }
 
 // WaitForBuildProcessingWithDetails waits for a build to finish processing
-// like asc.Client.WaitForBuildProcessing, and appends the App Store Connect
-// processing details of the originating upload when the build ends FAILED or
-// INVALID. appID may be empty; it is then resolved from the build. The state
-// error is returned unchanged when no details can be resolved.
-func WaitForBuildProcessingWithDetails(ctx context.Context, client *asc.Client, appID, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-	return waitForBuildProcessingWithDetailsTo(ctx, nil, client, appID, buildID, pollInterval)
-}
-
-// WaitForBuildProcessingWithDetails is WaitForBuildProcessingWithDetails with
-// its transient-error notices written to d's stderr.
+// like asc.Client.WaitForBuildProcessing, with its transient-error notices on
+// d's stderr, and appends the App Store Connect processing details of the
+// originating upload when the build ends FAILED or INVALID. appID may be
+// empty; it is then resolved from the build. The state error is returned
+// unchanged when no details can be resolved.
 func (d *Deps) WaitForBuildProcessingWithDetails(ctx context.Context, client *asc.Client, appID, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
 	return waitForBuildProcessingWithDetailsTo(ctx, d.IO.ErrOut, client, appID, buildID, pollInterval)
 }
