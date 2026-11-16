@@ -8,6 +8,13 @@ import (
 	"net/http"
 )
 
+// AppScreenshotCreateData is the data object of the AppScreenshotCreateRequest schema.
+type AppScreenshotCreateData struct {
+	Type          ResourceType                  `json:"type"`
+	Attributes    AppScreenshotCreateAttributes `json:"attributes"`
+	Relationships *AppScreenshotRelationships   `json:"relationships"`
+}
+
 // AppScreenshotCreateRequest is the AppScreenshotCreateRequest schema.
 type AppScreenshotCreateRequest struct {
 	Data AppScreenshotCreateData `json:"data"`
@@ -34,6 +41,32 @@ type AppScreenshotUpdateData struct {
 // AppScreenshotUpdateRequest is the AppScreenshotUpdateRequest schema.
 type AppScreenshotUpdateRequest struct {
 	Data AppScreenshotUpdateData `json:"data"`
+}
+
+// CreateAppScreenshot sends POST /v1/appScreenshots (appScreenshots_createInstance).
+func (c *Client) CreateAppScreenshot(ctx context.Context, setID string, fileName string, fileSize int64) (*AppScreenshotResponse, error) {
+	payload := AppScreenshotCreateRequest{
+		Data: AppScreenshotCreateData{
+			Type: ResourceTypeAppScreenshots,
+			Attributes: AppScreenshotCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: &AppScreenshotRelationships{
+				AppScreenshotSet: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppScreenshotSets,
+						ID:   setID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appScreenshots",
+		Payload: payload,
+	})
 }
 
 // DeleteAppScreenshot sends DELETE /v1/appScreenshots/{id} (appScreenshots_deleteInstance).
