@@ -1773,7 +1773,7 @@ func wrapCommandOutputValidation(cmd *ffcli.Command, d *Deps, parents []*ffcli.C
 
 	originalExec := cmd.Exec
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		if err := rejectGivenEmptyAppFlag(cmd.FlagSet, d.IO.ErrOut); err != nil {
+		if err := rejectGivenEmptyAppFlag(path, d.IO.ErrOut); err != nil {
 			return err
 		}
 		if err := validateCommandOutputPath(path); err != nil {
@@ -1787,19 +1787,22 @@ func wrapCommandOutputValidation(cmd *ffcli.Command, d *Deps, parents []*ffcli.C
 	}
 }
 
-// rejectGivenEmptyAppFlag fails when --app was set on the command line to a
-// value that is empty after trimming, so a blank value never falls back to
-// ASC_APP_ID or the config and never reaches the API.
-func rejectGivenEmptyAppFlag(fs *flag.FlagSet, stderr io.Writer) error {
-	if fs == nil {
-		return nil
-	}
+// rejectGivenEmptyAppFlag fails when --app was set on the command line, on
+// the command or on any group above it, to a value that is empty after
+// trimming, so a blank value never falls back to ASC_APP_ID or the config and
+// never reaches the API.
+func rejectGivenEmptyAppFlag(path []*ffcli.Command, stderr io.Writer) error {
 	blank := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == "app" && strings.TrimSpace(f.Value.String()) == "" {
-			blank = true
+	for _, command := range path {
+		if command.FlagSet == nil {
+			continue
 		}
-	})
+		command.FlagSet.Visit(func(f *flag.Flag) {
+			if f.Name == "app" && strings.TrimSpace(f.Value.String()) == "" {
+				blank = true
+			}
+		})
+	}
 	if !blank {
 		return nil
 	}
