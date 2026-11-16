@@ -51,6 +51,7 @@ GET /iris/v1/appBundles
 GET /iris/v1/appDataUsageCategories
 GET /iris/v1/appDataUsageDataProtections
 GET /iris/v1/appDataUsagePurposes
+GET /iris/v1/appInfos/{id}/territoryAgeRatings
 GET /iris/v1/appSandboxEntitlements
 GET /iris/v1/appStoreReviewDetails/{id}/appSandboxEntitlementUsages
 GET /iris/v1/appStoreVersions/{id}
@@ -60,6 +61,7 @@ GET /iris/v1/appTaxCategories/{id}
 GET /iris/v1/apps
 GET /iris/v1/apps/{id}
 GET /iris/v1/apps/{id}/appAvailabilityV2
+GET /iris/v1/apps/{id}/appInfos
 GET /iris/v1/apps/{id}/appStoreVersions
 GET /iris/v1/apps/{id}/customAppUsers
 GET /iris/v1/apps/{id}/dataUsagePublishState
