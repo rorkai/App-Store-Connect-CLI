@@ -94,7 +94,7 @@ Examples:
 				return d.UsageError("--source must be sales")
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}

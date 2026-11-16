@@ -263,7 +263,7 @@ Examples:
 			}
 
 			opts := subscriptionsSetupOptions{
-				AppID:                     shared.ResolveAppID(*appID),
+				AppID:                     d.ResolveAppID(*appID),
 				GroupID:                   strings.TrimSpace(*groupID),
 				GroupReferenceName:        groupReferenceNameValue,
 				GroupLocale:               strings.TrimSpace(*groupLocale),

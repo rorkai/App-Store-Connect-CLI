@@ -196,7 +196,7 @@ Examples:
 				return err
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -368,7 +368,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
 			if idValue == "" {
-				appValue = shared.ResolveAppID(*appID)
+				appValue = d.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --id is required (or set ASC_APP_ID)")
@@ -665,7 +665,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
 			if idValue == "" {
-				appValue = shared.ResolveAppID(*appID)
+				appValue = d.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --id is required (or set ASC_APP_ID)")
@@ -780,7 +780,7 @@ func resolveTerritoryAvailabilitiesAvailability(ctx context.Context, d *shared.D
 	if availabilityID != "" || next != "" {
 		return nil
 	}
-	appID := shared.ResolveAppID(appFlag)
+	appID := d.ResolveAppID(appFlag)
 	if appID == "" {
 		return d.UsageError("--app or --availability is required (or set ASC_APP_ID)")
 	}
@@ -870,7 +870,7 @@ bootstrap, keeps failing.`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -1075,7 +1075,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")

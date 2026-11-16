@@ -86,7 +86,7 @@ Examples:
 				return err
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 
 			// Require one of --app or --global (unless --next is provided)
@@ -306,7 +306,7 @@ Examples:
 			if len(args) != 0 {
 				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")

@@ -83,7 +83,7 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			idValue := readBuilderFlag(*id, config.ResolveApp)
+			idValue := readBuilderFlag(d, *id, config.ResolveApp)
 			if idValue == "" {
 				return missingBuilderInput(d, config.RequiredDiagnostic, config.ResolveApp, idFlagName)
 			}
@@ -225,7 +225,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 			return err
 		}
 
-		resolvedParentID := readBuilderFlag(*parentID, config.ResolveApp)
+		resolvedParentID := readBuilderFlag(d, *parentID, config.ResolveApp)
 		if !config.TopLevel && resolvedParentID == "" && strings.TrimSpace(*next) == "" {
 			return missingBuilderInput(d, config.RequiredDiagnostic, config.ResolveApp, parentFlagName)
 		}
@@ -305,9 +305,9 @@ func builderDefaultLimitMax(limitMax int) int {
 
 // readBuilderFlag reads a parent or ID flag; with resolveApp the value goes
 // through ResolveAppID unchanged, as the hand-written app commands did.
-func readBuilderFlag(value string, resolveApp bool) string {
+func readBuilderFlag(d *Deps, value string, resolveApp bool) string {
 	if resolveApp {
-		return ResolveAppID(value)
+		return d.ResolveAppID(value)
 	}
 	return strings.TrimSpace(value)
 }
