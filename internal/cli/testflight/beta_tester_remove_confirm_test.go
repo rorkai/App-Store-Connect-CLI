@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"strings"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 func TestBetaTestersRemoveCommand_RequiresConfirm(t *testing.T) {
 	isolateTestFlightAuthEnvForAddTests(t)
 
-	cmd := newBetaTestersRemoveCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
+	cmd := newBetaTestersRemoveCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}, LookupEnv: os.LookupEnv})
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--email", "tester@example.com",

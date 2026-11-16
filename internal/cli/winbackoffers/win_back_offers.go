@@ -176,7 +176,7 @@ Examples:
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				resolvedAppID := shared.ResolveAppID(strings.TrimSpace(*appID))
+				resolvedAppID := d.ResolveAppID(strings.TrimSpace(*appID))
 				if err := d.RequireAppForStableSelector(resolvedAppID, id, "--subscription-id"); err != nil {
 					return err
 				}
@@ -500,7 +500,7 @@ Examples:
 				return fmt.Errorf("win-back-offers create: %w", err)
 			}
 
-			resolvedAppID := shared.ResolveAppID(strings.TrimSpace(*appID))
+			resolvedAppID := d.ResolveAppID(strings.TrimSpace(*appID))
 			if err := d.RequireAppForStableSelector(resolvedAppID, subscription, "--subscription-id"); err != nil {
 				return err
 			}
@@ -888,7 +888,7 @@ Examples:
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				resolvedAppID := shared.ResolveAppID(strings.TrimSpace(*appID))
+				resolvedAppID := d.ResolveAppID(strings.TrimSpace(*appID))
 				if err := d.RequireAppForStableSelector(resolvedAppID, id, "--subscription-id"); err != nil {
 					return err
 				}

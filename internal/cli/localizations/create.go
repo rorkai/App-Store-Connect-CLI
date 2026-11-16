@@ -117,7 +117,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 			defer cancel()
 
 			if versionIsString {
-				vid, err = resolveLocalizationsVersionString(requestCtx, d, client, shared.ResolveAppID(*appID), vid, normalizedPlatform)
+				vid, err = resolveLocalizationsVersionString(requestCtx, d, client, d.ResolveAppID(*appID), vid, normalizedPlatform)
 				if err != nil {
 					return fmt.Errorf("localizations create: %w", err)
 				}

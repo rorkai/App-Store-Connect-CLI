@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
@@ -105,10 +104,10 @@ func TestSigningSyncPushRejectsEmptyIdentityPasswordBeforeClientCreation(t *test
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 			clientCreations := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				clientCreations++
 				return nil, fmt.Errorf("client must not be created")
-			}))
+			}
 			secrets := t.TempDir()
 			repositoryPassword := filepath.Join(secrets, "repository-password")
 			if err := os.WriteFile(repositoryPassword, []byte("repository-password"), 0o600); err != nil {
@@ -118,7 +117,9 @@ func TestSigningSyncPushRejectsEmptyIdentityPasswordBeforeClientCreation(t *test
 			if err := os.WriteFile(identityPassword, test.password, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			cmd := syncPushCommand()
+			d, _, _ := newSigningTestDeps()
+			d.Client = clientFactory
+			cmd := syncPushCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse([]string{
 				"--bundle-id", "com.example.app",
@@ -939,9 +940,11 @@ func TestSigningSyncPushPreservesPartialCertificateReceipt(t *testing.T) {
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 
-	cmd := syncPushCommand()
+	d, depsStdout, _ := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := syncPushCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--bundle-id", "com.example.app",
@@ -955,8 +958,8 @@ func TestSigningSyncPushPreservesPartialCertificateReceipt(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr := cmd.Run(context.Background())
+	stdout := depsStdout.String()
 	if runErr == nil || !strings.Contains(runErr.Error(), "profile create failed") {
 		t.Fatalf("error = %v, want profile creation failure", runErr)
 	}

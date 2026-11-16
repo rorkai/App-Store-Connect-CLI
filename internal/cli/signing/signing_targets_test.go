@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -52,13 +51,15 @@ func TestSigningSyncPushPreservesTargetsFilePathWhitespace(t *testing.T) {
 	t.Chdir(dir)
 
 	clientCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	clientFactory := func() (*asc.Client, error) {
 		clientCalls++
 		return nil, errors.New("client reached after manifest")
-	}))
+	}
 
 	t.Setenv(signingSyncPasswordEnvVar, "repository-password")
-	cmd := syncPushCommand()
+	d, _, _ := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := syncPushCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--targets-file", filename,

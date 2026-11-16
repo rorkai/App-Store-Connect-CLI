@@ -91,7 +91,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			requestedIAPID := strings.TrimSpace(*iapID)
 			requestedAppID := strings.TrimSpace(*appID)
-			resolvedAppID := shared.ResolveAppID(requestedAppID)
+			resolvedAppID := d.ResolveAppID(requestedAppID)
 			if requestedIAPID == "" && resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --iap-id is required")
 				return shared.MissingRequiredUsageError("")
