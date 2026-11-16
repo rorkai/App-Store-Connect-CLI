@@ -82,7 +82,7 @@ func betaRecruitmentCriteriaRows(resp *BetaRecruitmentCriteriaResponse) ([]strin
 	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(resp.Data.Attributes.LastModifiedDate),
-		compactWhitespace(formatDeviceFamilyOsVersionFilters(resp.Data.Attributes.DeviceFamilyOsVersionFilters)),
+		compactWhitespace(formatDeviceFamilyOsVersionFilters(resp.Data.Attributes.DeviceFamilyOSVersionFilters)),
 	}}
 	return headers, rows
 }

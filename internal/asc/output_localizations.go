@@ -87,7 +87,7 @@ func betaAppLocalizationsRows(resp *BetaAppLocalizationsResponse) ([]string, [][
 			item.Attributes.FeedbackEmail,
 			item.Attributes.MarketingURL,
 			item.Attributes.PrivacyPolicyURL,
-			item.Attributes.TvOsPrivacyPolicy,
+			item.Attributes.TvOSPrivacyPolicy,
 		})
 	}
 	return headers, rows

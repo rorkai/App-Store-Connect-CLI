@@ -480,7 +480,7 @@ func TestUpdateGameCenterLeaderboardSetMembersV2(t *testing.T) {
 		if req.URL.Path != "/v2/gameCenterLeaderboardSets/set-1/relationships/gameCenterLeaderboards" {
 			t.Fatalf("expected path /v2/gameCenterLeaderboardSets/set-1/relationships/gameCenterLeaderboards, got %s", req.URL.Path)
 		}
-		var payload GameCenterLeaderboardSetMembersUpdateRequest
+		var payload RelationshipRequest
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode request: %v", err)
 		}
