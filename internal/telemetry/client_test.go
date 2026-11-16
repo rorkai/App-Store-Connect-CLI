@@ -104,18 +104,22 @@ func TestEmitQueuesEventWithoutForegroundHTTPDelivery(t *testing.T) {
 }
 
 func TestEmitHonorsDisabledEnv(t *testing.T) {
-	clearContextEnv(t)
-	setTelemetryTestHome(t)
-	t.Setenv("ASC_TELEMETRY_DISABLED", "1")
+	for _, variable := range []string{"ASC_TELEMETRY_DISABLED", "DO_NOT_TRACK"} {
+		t.Run(variable, func(t *testing.T) {
+			clearContextEnv(t)
+			setTelemetryTestHome(t)
+			t.Setenv(variable, "1")
 
-	stubMaintenanceWorkerStart(t, func() error {
-		t.Fatal("worker should not start when telemetry is disabled")
-		return nil
-	})
+			stubMaintenanceWorkerStart(t, func() error {
+				t.Fatal("worker should not start when telemetry is disabled")
+				return nil
+			})
 
-	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
-	if records := readDefaultSpool(t); len(records) != 0 {
-		t.Fatalf("spool records = %d, want 0 when disabled", len(records))
+			EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
+			if records := readDefaultSpool(t); len(records) != 0 {
+				t.Fatalf("spool records = %d, want 0 when disabled", len(records))
+			}
+		})
 	}
 }
 

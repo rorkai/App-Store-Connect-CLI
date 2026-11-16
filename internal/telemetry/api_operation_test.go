@@ -228,30 +228,6 @@ func TestBuildEventAPIOperationFields(t *testing.T) {
 	}
 }
 
-func TestEmitWithTelemetryDisabledSendsNoAPIOperation(t *testing.T) {
-	for _, variable := range []string{"ASC_TELEMETRY_DISABLED", "DO_NOT_TRACK"} {
-		t.Run(variable, func(t *testing.T) {
-			clearContextEnv(t)
-			setTelemetryTestHome(t)
-			t.Setenv(variable, "1")
-			stubMaintenanceWorkerStart(t, func() error {
-				t.Fatal("worker should not start when telemetry is disabled")
-				return nil
-			})
-
-			EmitWithContext("asc api", "1.2.3", time.Millisecond, 0, EventContext{
-				InvocationShape: InvocationShapeLeaf,
-				APIMethod:       "GET",
-				APIPath:         "/v1/apps/1234567890",
-				APIQueryNames:   []string{"limit"},
-			})
-			if records := readDefaultSpool(t); len(records) != 0 {
-				t.Fatalf("spool records = %d, want 0 when disabled", len(records))
-			}
-		})
-	}
-}
-
 // An older CLI may have left schema v5 records in the spool. They must be
 // read back and sent exactly as they were written, without the v6 fields.
 func TestSpoolReadsBackSchemaV5Records(t *testing.T) {
