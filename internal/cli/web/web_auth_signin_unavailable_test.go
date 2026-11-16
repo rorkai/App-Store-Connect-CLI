@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -23,7 +23,7 @@ type signinUnavailableFixture struct {
 	warnings       bytes.Buffer
 }
 
-func newSigninUnavailableFixture(t *testing.T, cached bool) *signinUnavailableFixture {
+func newSigninUnavailableFixture(t *testing.T, d *shared.Deps, cached bool) *signinUnavailableFixture {
 	t.Helper()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
@@ -34,8 +34,6 @@ func newSigninUnavailableFixture(t *testing.T, cached bool) *signinUnavailableFi
 	origWebLoginWithClient := webLoginWithClientFn
 	origPersistWebSession := persistWebSessionFn
 	origDeleteStaleWebSession := deleteStaleWebSessionFn
-	origExpiredWriter := sessionExpiredWriter
-	origCacheWarningWriter := sessionCacheWarningWriter
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeLastFn = origTryResumeLast
@@ -46,14 +44,11 @@ func newSigninUnavailableFixture(t *testing.T, cached bool) *signinUnavailableFi
 		webLoginWithClientFn = origWebLoginWithClient
 		persistWebSessionFn = origPersistWebSession
 		deleteStaleWebSessionFn = origDeleteStaleWebSession
-		sessionExpiredWriter = origExpiredWriter
-		sessionCacheWarningWriter = origCacheWarningWriter
 	})
 	t.Setenv(webPasswordEnv, "env-secret")
 
 	fixture := &signinUnavailableFixture{cached: cached}
-	sessionExpiredWriter = io.Discard
-	sessionCacheWarningWriter = &fixture.warnings
+	d.IO.ErrOut = &fixture.warnings
 	cachedSession := &webcore.AuthSession{Client: &http.Client{}, UserEmail: "user@example.com"}
 
 	tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
@@ -111,7 +106,8 @@ func signinUnavailable(stage string) error {
 }
 
 func TestResolveSessionRetriesOnceWithCleanJarAfterCachedSignin503(t *testing.T) {
-	fixture := newSigninUnavailableFixture(t, true)
+	d, _, _ := newWebTestDeps()
+	fixture := newSigninUnavailableFixture(t, d, true)
 	freshSession := &webcore.AuthSession{UserEmail: "user@example.com", ProviderID: 99}
 	webLoginFn = func(_ context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		fixture.freshAttempts++
@@ -121,7 +117,7 @@ func TestResolveSessionRetriesOnceWithCleanJarAfterCachedSignin503(t *testing.T)
 		return freshSession, nil
 	}
 
-	session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
+	session, source, err := resolveSession(context.Background(), d, "user@example.com", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession: %v", err)
 	}
@@ -140,13 +136,14 @@ func TestResolveSessionRetriesOnceWithCleanJarAfterCachedSignin503(t *testing.T)
 }
 
 func TestResolveSessionExplainsRepeatedSignin503(t *testing.T) {
-	fixture := newSigninUnavailableFixture(t, true)
+	d, _, _ := newWebTestDeps()
+	fixture := newSigninUnavailableFixture(t, d, true)
 	webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		fixture.freshAttempts++
 		return nil, signinUnavailable("signin_init")
 	}
 
-	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	_, _, err := resolveSession(context.Background(), d, "user@example.com", "", "")
 	if err == nil {
 		t.Fatal("expected sign-in to fail")
 	}
@@ -175,13 +172,14 @@ func TestResolveSessionExplainsRepeatedSignin503(t *testing.T) {
 }
 
 func TestResolveSessionDoesNotRetrySignin503WithoutCachedCookies(t *testing.T) {
-	fixture := newSigninUnavailableFixture(t, false)
+	d, _, _ := newWebTestDeps()
+	fixture := newSigninUnavailableFixture(t, d, false)
 	webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		fixture.freshAttempts++
 		return nil, signinUnavailable("signin_complete")
 	}
 
-	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	_, _, err := resolveSession(context.Background(), d, "user@example.com", "", "")
 	if err == nil {
 		t.Fatal("expected sign-in to fail")
 	}
@@ -197,7 +195,8 @@ func TestResolveSessionDoesNotRetrySignin503WithoutCachedCookies(t *testing.T) {
 }
 
 func TestResolveSessionPromptedPasswordRetriesCleanJarAfterSignin503(t *testing.T) {
-	fixture := newSigninUnavailableFixture(t, true)
+	d, _, _ := newWebTestDeps()
+	fixture := newSigninUnavailableFixture(t, d, true)
 	preserveWebPasswordHooks(t)
 	t.Setenv(webPasswordEnv, "")
 	t.Setenv(webDontStorePasswordEnv, "")
@@ -218,7 +217,7 @@ func TestResolveSessionPromptedPasswordRetriesCleanJarAfterSignin503(t *testing.
 		return freshSession, nil
 	}
 
-	session, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	session, _, err := resolveSession(context.Background(), d, "user@example.com", "", "")
 	if err != nil || session != freshSession {
 		t.Fatalf("resolveSession = (%v, %v), want the fresh session", session, err)
 	}
@@ -228,13 +227,14 @@ func TestResolveSessionPromptedPasswordRetriesCleanJarAfterSignin503(t *testing.
 }
 
 func TestResolveSessionKeepsCacheWhenCleanRetryFailsLocally(t *testing.T) {
-	fixture := newSigninUnavailableFixture(t, true)
+	d, _, _ := newWebTestDeps()
+	fixture := newSigninUnavailableFixture(t, d, true)
 	webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		fixture.freshAttempts++
 		return nil, errors.New("dial tcp: lookup idmsa.apple.com: no such host")
 	}
 
-	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	_, _, err := resolveSession(context.Background(), d, "user@example.com", "", "")
 	if err == nil {
 		t.Fatal("expected sign-in to fail")
 	}

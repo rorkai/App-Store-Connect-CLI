@@ -66,8 +66,7 @@ func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*w
 }
 
 // resolveWebSessionForCommandWith is resolveWebSessionForCommand on d. The
-// session itself is still resolved on the process streams: the cache lookup,
-// sign-in, password and two-factor prompts belong to the web auth commands.
+// password and two-factor prompts still read and write the terminal itself.
 func resolveWebSessionForCommandWith(ctx context.Context, d *shared.Deps, flags webSessionFlags) (*webcore.AuthSession, context.Context, context.CancelFunc, error) {
 	if flags.sessionFromEnv != nil && *flags.sessionFromEnv {
 		session, err := resolveSessionFromEnv(ctx, d, flags)

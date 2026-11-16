@@ -33,7 +33,7 @@ Examples:
 			newSigningKeychainCommand(d),
 			SigningReconcileCommand(),
 			SigningResignCommand(),
-			SigningRunCommand(),
+			newSigningRunCommand(d),
 			SigningSyncCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
