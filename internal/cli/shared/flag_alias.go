@@ -60,12 +60,16 @@ var buildIDShape = regexp.MustCompile(`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f
 // --build-id or --build-number, both already bound on fs. App Store Connect
 // build IDs are UUIDs and a build number (CFBundleVersion) is a list of at
 // most three period-separated integers, so the value's shape says which one
-// it is: a UUID is the build ID, any other value the build number.
+// it is: a UUID or a URL (a build's self-link) is the build ID, any other
+// value the build number.
 func BindBuildFlagAlias(fs *flag.FlagSet) {
 	bindFlagAlias(fs, "build",
 		flagAliasTarget{
-			flag:    boundFlag(fs, "build", "build-id"),
-			matches: func(value string) bool { return buildIDShape.MatchString(strings.TrimSpace(value)) },
+			flag: boundFlag(fs, "build", "build-id"),
+			matches: func(value string) bool {
+				value = strings.TrimSpace(value)
+				return buildIDShape.MatchString(value) || looksLikeHTTPURL(value)
+			},
 		},
 		flagAliasTarget{flag: boundFlag(fs, "build", "build-number")},
 	)
