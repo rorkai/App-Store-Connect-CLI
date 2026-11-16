@@ -244,15 +244,16 @@ func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildI
 		if localizationID == "" {
 			return nil, fmt.Errorf("missing localization ID for locale %q", localeValue)
 		}
-		attrs := asc.BetaBuildLocalizationAttributes{
-			WhatsNew: notesValue,
+		var attrs asc.BetaBuildLocalizationUpdateAttributes
+		if notesValue != "" {
+			attrs.WhatsNew = &notesValue
 		}
 		return client.UpdateBetaBuildLocalization(ctx, localizationID, attrs)
 	}
 
-	attrs := asc.BetaBuildLocalizationAttributes{
-		Locale:   localeValue,
-		WhatsNew: notesValue,
+	attrs := asc.BetaBuildLocalizationCreateAttributes{Locale: localeValue}
+	if notesValue != "" {
+		attrs.WhatsNew = &notesValue
 	}
 	return client.CreateBetaBuildLocalization(ctx, buildID, attrs)
 }

@@ -13,6 +13,7 @@
     {"data":"SubscriptionIntroductoryOfferCreateData","type":"*SubscriptionIntroductoryOfferRelationships","omitempty":true}
   ],
   "operations": [
+    {"operation":"subscriptionIntroductoryOffers_createInstance","name":"CreateSubscriptionIntroductoryOffer","params":["subscriptionID"],"check":"require","messages":["subscription ID is required"],"links":["subscription"],"optional":[{"param":"territoryID","link":"territory"},{"param":"pricePointID","link":"subscriptionPricePoint"}]},
     {"operation":"subscriptionIntroductoryOffers_deleteInstance","name":"DeleteSubscriptionIntroductoryOffer","params":["offerID"]},
     {"operation":"subscriptionIntroductoryOffers_updateInstance","name":"UpdateSubscriptionIntroductoryOffer","params":["offerID"],"attrs":"value"}
   ]

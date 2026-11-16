@@ -2,6 +2,7 @@
   "tag": "AppScreenshots",
   "file": "app_screenshots_gen.go",
   "types": [
+    "AppScreenshotCreateData",
     "AppScreenshotCreateRequest",
     "AppScreenshotRelationships",
     "AppScreenshotUpdateAttributes",
@@ -12,6 +13,7 @@
     {"data":"AppScreenshotCreateData","type":"*AppScreenshotRelationships"}
   ],
   "operations": [
+    {"operation":"appScreenshots_createInstance","name":"CreateAppScreenshot","params":["setID"],"check":"raw","links":["appScreenshotSet"],"args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
     {"operation":"appScreenshots_deleteInstance","name":"DeleteAppScreenshot","params":["screenshotID"],"check":"raw"},
     {"operation":"appScreenshots_getInstance","name":"GetAppScreenshot","params":["screenshotID"],"check":"raw"}
   ]

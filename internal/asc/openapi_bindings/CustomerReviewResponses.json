@@ -1,7 +1,17 @@
 {
   "tag": "CustomerReviewResponses",
   "file": "customer_review_responses_gen.go",
+  "types": [
+    "CustomerReviewResponseRelationships",
+    "CustomerReviewResponseV1CreateAttributes",
+    "CustomerReviewResponseV1CreateData",
+    "CustomerReviewResponseV1CreateRequest"
+  ],
+  "relationships": [
+    {"data":"CustomerReviewResponseV1CreateData","type":"*CustomerReviewResponseRelationships"}
+  ],
   "operations": [
+    {"operation":"customerReviewResponses_createInstance","name":"CreateCustomerReviewResponse","params":["reviewID"],"check":"require","response":"CustomerReviewResponseResponse","links":["review"],"args":[{"name":"responseBody","param":true}]},
     {"operation":"customerReviewResponses_deleteInstance","name":"DeleteCustomerReviewResponse","params":["responseID"],"check":"require"},
     {"operation":"customerReviewResponses_getInstance","name":"GetCustomerReviewResponse","params":["responseID"],"check":"require","response":"CustomerReviewResponseResponse"}
   ]

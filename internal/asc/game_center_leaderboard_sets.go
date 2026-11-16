@@ -56,17 +56,6 @@ type GameCenterLeaderboardSetVersionRelationships struct {
 	LeaderboardSet *Relationship `json:"leaderboardSet,omitempty"`
 }
 
-// GameCenterLeaderboardSetVersionCreateData is the data portion of a version create request.
-type GameCenterLeaderboardSetVersionCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Relationships *GameCenterLeaderboardSetVersionRelationships `json:"relationships,omitempty"`
-}
-
-// GameCenterLeaderboardSetVersionCreateRequest is a request to create a leaderboard set version.
-type GameCenterLeaderboardSetVersionCreateRequest struct {
-	Data GameCenterLeaderboardSetVersionCreateData `json:"data"`
-}
-
 // GameCenterLeaderboardSetVersionsResponse is the response from leaderboard set version list endpoints.
 type GameCenterLeaderboardSetVersionsResponse = Response[GameCenterLeaderboardSetVersionV2Attributes]
 

@@ -2,9 +2,11 @@
   "tag": "BetaBuildLocalizations",
   "file": "beta_build_localizations_gen.go",
   "types": [
+    "BetaBuildLocalizationCreateData",
     "BetaBuildLocalizationCreateRequest",
     "BetaBuildLocalizationRelationships",
     "BetaBuildLocalizationResponse",
+    "BetaBuildLocalizationUpdateAttributes",
     "BetaBuildLocalizationUpdateRequest",
     "BetaBuildLocalizationsResponse"
   ],
@@ -13,9 +15,11 @@
   ],
   "operations": [
     {"operation":"betaBuildLocalizations_build_getToOneRelated","name":"GetBetaBuildLocalizationBuild","params":["localizationID"],"check":"require","response":"BuildResponse"},
+    {"operation":"betaBuildLocalizations_createInstance","name":"CreateBetaBuildLocalization","params":["buildID"],"check":"raw","links":["build"]},
     {"operation":"betaBuildLocalizations_deleteInstance","name":"DeleteBetaBuildLocalization","params":["localizationID"],"check":"raw"},
     {"operation":"betaBuildLocalizations_getCollection","name":"ListBetaBuildLocalizations","options":"BetaBuildLocalizationsOption","query":"buildBetaBuildLocalizationsQuery","nextContext":"betaBuildLocalizations"},
-    {"operation":"betaBuildLocalizations_getInstance","name":"GetBetaBuildLocalization","params":["localizationID"],"check":"raw"}
+    {"operation":"betaBuildLocalizations_getInstance","name":"GetBetaBuildLocalization","params":["localizationID"],"check":"raw"},
+    {"operation":"betaBuildLocalizations_updateInstance","name":"UpdateBetaBuildLocalization","params":["localizationID"],"check":"raw","attrs":"value"}
   ],
   "queries": [
     {"operation":"betaBuildLocalizations_getCollection","also":["builds_betaBuildLocalizations_getToManyRelated"],"name":"BetaBuildLocalizations","params":[{"name":"filter[build]","field":"buildIDs","with":"WithBetaBuildLocalizationBuildIDs","arg":"ids"},{"name":"filter[locale]","field":"locales","with":"WithBetaBuildLocalizationLocales"}],"deviations":[{"problem":"query parameters [fields[betaBuildLocalizations] fields[builds] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."},{"operation":"builds_betaBuildLocalizations_getToManyRelated","problem":"WithBetaBuildLocalizationBuildIDs sets filter[build], which the operation does not define","reason":"The query is shared with ListBetaBuildLocalizations (GET /v1/betaBuildLocalizations), which defines this filter; asc builds test-notes sets it only through that read. The callers of this read, asc validate testflight and the test-notes upsert in internal/cli/shared, set only limit."},{"operation":"builds_betaBuildLocalizations_getToManyRelated","problem":"WithBetaBuildLocalizationLocales sets filter[locale], which the operation does not define","reason":"The query is shared with ListBetaBuildLocalizations (GET /v1/betaBuildLocalizations), which defines this filter; asc builds test-notes sets it only through that read. The callers of this read, asc validate testflight and the test-notes upsert in internal/cli/shared, set only limit."},{"operation":"builds_betaBuildLocalizations_getToManyRelated","problem":"query parameters [fields[betaBuildLocalizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}

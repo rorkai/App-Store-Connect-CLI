@@ -36,12 +36,15 @@ func TestDistributionApplyAndResumeRejectConfigBindingTamperBeforeSideEffects(t 
 					}
 					deps := validApplyDistributionOrchestrationDependencies(t, plan)
 					deps.createRun = func(string, string) error { t.Fatal("run created before config authorization"); return nil }
-					deps.recoverEphemeral = func(context.Context) error { t.Fatal("signing recovery ran before config authorization"); return nil }
+					deps.recoverEphemeral = func(context.Context, *shared.Deps) error {
+						t.Fatal("signing recovery ran before config authorization")
+						return nil
+					}
 					deps.preflightPublish = func(context.Context, *shared.Deps, distributionPublicationConfig) error {
 						t.Fatal("publication preflight ran before config authorization")
 						return nil
 					}
-					deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+					deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 						t.Fatal("account reconciliation ran before config authorization")
 						return signing.ReconcileReceiptView{}, nil
 					}
@@ -71,7 +74,7 @@ func TestExecuteDistributionPlanRejectsNestedPolicyEchoMismatchBeforeWriting(t *
 		t.Run(field, func(t *testing.T) {
 			now := time.Date(2026, 8, 13, 8, 0, 0, 0, time.UTC)
 			deps := validDistributionOrchestrationDependencies(t)
-			deps.reconcilePlan = func(_ context.Context, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+			deps.reconcilePlan = func(_ context.Context, _ *shared.Deps, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 				plan := validDistributionReconcilePlan(now)
 				plan.MinimumValidityDays = options.MinimumValidityDays
 				plan.MaxMutations = options.MaxMutations
@@ -102,7 +105,7 @@ func TestExecuteDistributionPlanRejectsNestedPolicyEchoMismatchBeforeWriting(t *
 func TestExecuteDistributionPlanWritesLegitimateBlockedNestedPlan(t *testing.T) {
 	now := time.Date(2026, 8, 13, 8, 0, 0, 0, time.UTC)
 	deps := validDistributionOrchestrationDependencies(t)
-	deps.reconcilePlan = func(_ context.Context, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+	deps.reconcilePlan = func(_ context.Context, _ *shared.Deps, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 		plan := validDistributionReconcilePlan(now)
 		plan.Ready = false
 		plan.Blockers = []string{"provider rejected the requested device registration"}

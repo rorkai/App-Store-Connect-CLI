@@ -489,6 +489,28 @@ func (c *Client) GetSubscriptionGroups(ctx context.Context, appID string, opts .
 	})
 }
 
+// UpdateApp sends PATCH /v1/apps/{id} (apps_updateInstance).
+func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAttributes) (*AppResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+	payload := AppUpdateRequest{
+		Data: AppUpdateData{
+			Type: ResourceTypeApps,
+			ID:   appID,
+		},
+	}
+	if attrs.AccessibilityURL != nil || attrs.BundleID != nil || attrs.PrimaryLocale != nil || attrs.SubscriptionStatusURL != nil || attrs.SubscriptionStatusURLVersion != nil || attrs.SubscriptionStatusURLForSandbox != nil || attrs.SubscriptionStatusURLVersionForSandbox != nil || attrs.ContentRightsDeclaration != nil || attrs.StreamlinedPurchasingEnabled != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/apps/%s", appID),
+		Payload: payload,
+	})
+}
+
 // GetAppWebhooks sends GET /v1/apps/{id}/webhooks (apps_webhooks_getToManyRelated).
 func (c *Client) GetAppWebhooks(ctx context.Context, appID string, opts ...WebhooksOption) (*WebhooksResponse, error) {
 	query := applyOptions(opts)

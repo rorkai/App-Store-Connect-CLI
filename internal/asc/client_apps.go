@@ -86,27 +86,3 @@ func (c *Client) GetAppBetaTesterUsagesMetrics(ctx context.Context, appID string
 
 	return &BetaTesterUsagesResponse{Data: data}, nil
 }
-
-// UpdateApp updates an app by ID.
-func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAttributes) (*AppResponse, error) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil, fmt.Errorf("app ID is required")
-	}
-
-	payload := AppUpdateRequest{
-		Data: AppUpdateData{
-			Type: ResourceTypeApps,
-			ID:   appID,
-		},
-	}
-	if attrs != (AppUpdateAttributes{}) {
-		payload.Data.Attributes = &attrs
-	}
-
-	return sendJSON[AppResponse](ctx, c, writeRequest{
-		Method:  "PATCH",
-		Path:    fmt.Sprintf("/v1/apps/%s", appID),
-		Payload: payload,
-	})
-}

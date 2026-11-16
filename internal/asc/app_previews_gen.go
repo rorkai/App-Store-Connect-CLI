@@ -8,6 +8,13 @@ import (
 	"net/http"
 )
 
+// AppPreviewCreateData is the data object of the AppPreviewCreateRequest schema.
+type AppPreviewCreateData struct {
+	Type          ResourceType               `json:"type"`
+	Attributes    AppPreviewCreateAttributes `json:"attributes"`
+	Relationships *AppPreviewRelationships   `json:"relationships"`
+}
+
 // AppPreviewCreateRequest is the AppPreviewCreateRequest schema.
 type AppPreviewCreateRequest struct {
 	Data AppPreviewCreateData `json:"data"`
@@ -28,6 +35,33 @@ type AppPreviewUpdateData struct {
 // AppPreviewUpdateRequest is the AppPreviewUpdateRequest schema.
 type AppPreviewUpdateRequest struct {
 	Data AppPreviewUpdateData `json:"data"`
+}
+
+// CreateAppPreview sends POST /v1/appPreviews (appPreviews_createInstance).
+func (c *Client) CreateAppPreview(ctx context.Context, setID string, fileName string, fileSize int64, mimeType string) (*AppPreviewResponse, error) {
+	payload := AppPreviewCreateRequest{
+		Data: AppPreviewCreateData{
+			Type: ResourceTypeAppPreviews,
+			Attributes: AppPreviewCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+				MimeType: &mimeType,
+			},
+			Relationships: &AppPreviewRelationships{
+				AppPreviewSet: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppPreviewSets,
+						ID:   setID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appPreviews",
+		Payload: payload,
+	})
 }
 
 // DeleteAppPreview sends DELETE /v1/appPreviews/{id} (appPreviews_deleteInstance).

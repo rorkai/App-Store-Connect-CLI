@@ -2,9 +2,15 @@
   "tag": "GameCenterLeaderboardSetVersions",
   "file": "game_center_leaderboard_set_versions_gen.go",
   "types": [
-    "GameCenterLeaderboardSetVersionV2Attributes"
+    "GameCenterLeaderboardSetVersionV2Attributes",
+    "GameCenterLeaderboardSetVersionV2CreateData",
+    "GameCenterLeaderboardSetVersionV2CreateRequest"
+  ],
+  "relationships": [
+    {"data":"GameCenterLeaderboardSetVersionV2CreateData","type":"*GameCenterLeaderboardSetVersionRelationships","omitempty":true}
   ],
   "operations": [
+    {"operation":"gameCenterLeaderboardSetVersionsV2_createInstance","name":"CreateGameCenterLeaderboardSetVersion","params":["setID"],"response":"GameCenterLeaderboardSetVersionResponse","links":["leaderboardSet"]},
     {"operation":"gameCenterLeaderboardSetVersionsV2_getInstance","name":"GetGameCenterLeaderboardSetVersion","params":["versionID"],"response":"GameCenterLeaderboardSetVersionResponse"},
     {"operation":"gameCenterLeaderboardSetVersionsV2_localizations_getToManyRelated","name":"GetGameCenterLeaderboardSetVersionLocalizations","params":["versionID"],"options":"GCLeaderboardSetLocalizationsOption","query":"buildGCLeaderboardSetLocalizationsQuery","nextContext":"game-center-leaderboard-set-version-localizations","response":"GameCenterLeaderboardSetLocalizationsResponse"}
   ],

@@ -48,6 +48,44 @@ type BackgroundAssetUploadFileUpdateRequest struct {
 	Data BackgroundAssetUploadFileUpdateData `json:"data"`
 }
 
+// CreateBackgroundAssetUploadFile sends POST /v1/backgroundAssetUploadFiles (backgroundAssetUploadFiles_createInstance).
+func (c *Client) CreateBackgroundAssetUploadFile(ctx context.Context, versionID, fileName string, fileSize int64, assetType BackgroundAssetUploadFileAssetType) (*BackgroundAssetUploadFileResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	fileName = strings.TrimSpace(fileName)
+	if versionID == "" {
+		return nil, fmt.Errorf("background asset version ID is required")
+	}
+	if fileName == "" {
+		return nil, fmt.Errorf("file name is required")
+	}
+	if fileSize <= 0 {
+		return nil, fmt.Errorf("file size must be greater than 0")
+	}
+	payload := BackgroundAssetUploadFileCreateRequest{
+		Data: BackgroundAssetUploadFileCreateData{
+			Type: ResourceTypeBackgroundAssetUploadFiles,
+			Attributes: BackgroundAssetUploadFileCreateAttributes{
+				FileName:  fileName,
+				FileSize:  fileSize,
+				AssetType: assetType,
+			},
+			Relationships: BackgroundAssetUploadFileCreateRelationships{
+				BackgroundAssetVersion: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBackgroundAssetVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[BackgroundAssetUploadFileResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/backgroundAssetUploadFiles",
+		Payload: payload,
+	})
+}
+
 // GetBackgroundAssetUploadFile sends GET /v1/backgroundAssetUploadFiles/{id} (backgroundAssetUploadFiles_getInstance).
 func (c *Client) GetBackgroundAssetUploadFile(ctx context.Context, uploadFileID string) (*BackgroundAssetUploadFileResponse, error) {
 	uploadFileID = strings.TrimSpace(uploadFileID)

@@ -167,6 +167,22 @@ func (c *Client) GetSubscriptionAvailabilityForSubscription(ctx context.Context,
 	})
 }
 
+// UpdateSubscription sends PATCH /v1/subscriptions/{id} (subscriptions_updateInstance).
+func (c *Client) UpdateSubscription(ctx context.Context, subID string, attrs SubscriptionUpdateAttributes) (*SubscriptionResponse, error) {
+	payload := SubscriptionUpdateRequest{
+		Data: SubscriptionUpdateData{
+			Type:       ResourceTypeSubscriptions,
+			ID:         strings.TrimSpace(subID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptions/%s", strings.TrimSpace(subID)),
+		Payload: payload,
+	})
+}
+
 // GetSubscriptionVersions sends GET /v1/subscriptions/{id}/versions (subscriptions_versions_getToManyRelated).
 func (c *Client) GetSubscriptionVersions(ctx context.Context, subscriptionID string, opts ...SubscriptionVersionsOption) (*SubscriptionVersionsResponse, error) {
 	query := applyOptions(opts)

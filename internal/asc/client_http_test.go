@@ -4027,9 +4027,10 @@ func TestCreateBetaBuildLocalization_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	attrs := BetaBuildLocalizationAttributes{
+	whatsNew := "Test the new feature"
+	attrs := BetaBuildLocalizationCreateAttributes{
 		Locale:   "en-US",
-		WhatsNew: "Test the new feature",
+		WhatsNew: &whatsNew,
 	}
 	if _, err := client.CreateBetaBuildLocalization(context.Background(), "build-1", attrs); err != nil {
 		t.Fatalf("CreateBetaBuildLocalization() error: %v", err)
@@ -4062,8 +4063,9 @@ func TestUpdateBetaBuildLocalization_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	attrs := BetaBuildLocalizationAttributes{
-		WhatsNew: "Updated",
+	whatsNew := "Updated"
+	attrs := BetaBuildLocalizationUpdateAttributes{
+		WhatsNew: &whatsNew,
 	}
 	if _, err := client.UpdateBetaBuildLocalization(context.Background(), "loc-1", attrs); err != nil {
 		t.Fatalf("UpdateBetaBuildLocalization() error: %v", err)

@@ -43,6 +43,19 @@ type EndUserLicenseAgreementUpdateAttributes struct {
 	AgreementText *string `json:"agreementText,omitempty"`
 }
 
+// EndUserLicenseAgreementUpdateData is the data object of the EndUserLicenseAgreementUpdateRequest schema.
+type EndUserLicenseAgreementUpdateData struct {
+	Type          ResourceType                                `json:"type"`
+	ID            string                                      `json:"id"`
+	Attributes    *EndUserLicenseAgreementUpdateAttributes    `json:"attributes,omitempty"`
+	Relationships *EndUserLicenseAgreementUpdateRelationships `json:"relationships,omitempty"`
+}
+
+// EndUserLicenseAgreementUpdateRelationships is the data.relationships object of the EndUserLicenseAgreementUpdateRequest schema.
+type EndUserLicenseAgreementUpdateRelationships struct {
+	Territories *RelationshipList `json:"territories,omitempty"`
+}
+
 // EndUserLicenseAgreementUpdateRequest is the EndUserLicenseAgreementUpdateRequest schema.
 type EndUserLicenseAgreementUpdateRequest struct {
 	Data EndUserLicenseAgreementUpdateData `json:"data"`

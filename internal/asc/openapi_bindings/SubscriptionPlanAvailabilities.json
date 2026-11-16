@@ -5,7 +5,11 @@
     "SubscriptionPlanAvailabilityCreateRequest",
     "SubscriptionPlanAvailabilityResponse",
     "SubscriptionPlanAvailabilityUpdateAttributes",
+    "SubscriptionPlanAvailabilityUpdateData",
     "SubscriptionPlanAvailabilityUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"SubscriptionPlanAvailabilityUpdateData","type":"*SubscriptionPlanAvailabilityRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"subscriptionPlanAvailabilities_availableTerritories_getToManyRelated","name":"GetSubscriptionPlanAvailabilityAvailableTerritories","params":["planAvailabilityID"],"check":"require","messages":["plan availability ID is required"],"options":"SubscriptionAvailabilityTerritoriesOption","query":"buildSubscriptionAvailabilityTerritoriesQuery","nextContext":"subscriptionPlanAvailabilityAvailableTerritories"},

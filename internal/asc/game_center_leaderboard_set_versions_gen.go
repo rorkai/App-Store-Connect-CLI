@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -13,6 +14,39 @@ import (
 type GameCenterLeaderboardSetVersionV2Attributes struct {
 	Version int                    `json:"version,omitempty"`
 	State   GameCenterVersionState `json:"state,omitempty"`
+}
+
+// GameCenterLeaderboardSetVersionV2CreateData is the data object of the GameCenterLeaderboardSetVersionV2CreateRequest schema.
+type GameCenterLeaderboardSetVersionV2CreateData struct {
+	Type          ResourceType                                  `json:"type"`
+	Relationships *GameCenterLeaderboardSetVersionRelationships `json:"relationships,omitempty"`
+}
+
+// GameCenterLeaderboardSetVersionV2CreateRequest is the GameCenterLeaderboardSetVersionV2CreateRequest schema.
+type GameCenterLeaderboardSetVersionV2CreateRequest struct {
+	Data GameCenterLeaderboardSetVersionV2CreateData `json:"data"`
+}
+
+// CreateGameCenterLeaderboardSetVersion sends POST /v2/gameCenterLeaderboardSetVersions (gameCenterLeaderboardSetVersionsV2_createInstance).
+func (c *Client) CreateGameCenterLeaderboardSetVersion(ctx context.Context, setID string) (*GameCenterLeaderboardSetVersionResponse, error) {
+	payload := GameCenterLeaderboardSetVersionV2CreateRequest{
+		Data: GameCenterLeaderboardSetVersionV2CreateData{
+			Type: ResourceTypeGameCenterLeaderboardSetVersions,
+			Relationships: &GameCenterLeaderboardSetVersionRelationships{
+				LeaderboardSet: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterLeaderboardSets,
+						ID:   strings.TrimSpace(setID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterLeaderboardSetVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v2/gameCenterLeaderboardSetVersions",
+		Payload: payload,
+	})
 }
 
 // GetGameCenterLeaderboardSetVersion sends GET /v2/gameCenterLeaderboardSetVersions/{id} (gameCenterLeaderboardSetVersionsV2_getInstance).

@@ -1,9 +1,7 @@
 package asc
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 )
 
@@ -33,28 +31,6 @@ type CustomerReviewResponseResponse struct {
 	Links Links                          `json:"links"`
 }
 
-// CustomerReviewResponseCreateAttributes describes attributes for creating a review response.
-type CustomerReviewResponseCreateAttributes struct {
-	ResponseBody string `json:"responseBody"`
-}
-
-// CustomerReviewResponseCreateData is the data portion of a review response create request.
-type CustomerReviewResponseCreateData struct {
-	Type          ResourceType                           `json:"type"`
-	Attributes    CustomerReviewResponseCreateAttributes `json:"attributes"`
-	Relationships *CustomerReviewResponseRelationships   `json:"relationships"`
-}
-
-// CustomerReviewResponseRelationships describes relationships for review response requests.
-type CustomerReviewResponseRelationships struct {
-	Review *Relationship `json:"review"`
-}
-
-// CustomerReviewResponseCreateRequest is a request to create a review response.
-type CustomerReviewResponseCreateRequest struct {
-	Data CustomerReviewResponseCreateData `json:"data"`
-}
-
 // ResourceTypeCustomerReviewResponses is the resource type for customer review responses.
 const ResourceTypeCustomerReviewResponses ResourceType = "customerReviewResponses"
 
@@ -82,36 +58,4 @@ func CustomerReviewPublishedResponseID(review Resource[CustomerReviewAttributes]
 		return "", false
 	}
 	return id, true
-}
-
-// CreateCustomerReviewResponse creates a response to a customer review.
-func (c *Client) CreateCustomerReviewResponse(ctx context.Context, reviewID, responseBody string) (*CustomerReviewResponseResponse, error) {
-	reviewID = strings.TrimSpace(reviewID)
-	responseBody = strings.TrimSpace(responseBody)
-
-	if reviewID == "" {
-		return nil, fmt.Errorf("reviewID is required")
-	}
-	if responseBody == "" {
-		return nil, fmt.Errorf("responseBody is required")
-	}
-
-	payload := CustomerReviewResponseCreateRequest{
-		Data: CustomerReviewResponseCreateData{
-			Type: ResourceTypeCustomerReviewResponses,
-			Attributes: CustomerReviewResponseCreateAttributes{
-				ResponseBody: responseBody,
-			},
-			Relationships: &CustomerReviewResponseRelationships{
-				Review: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeCustomerReviews,
-						ID:   reviewID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[CustomerReviewResponseResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/customerReviewResponses", Payload: payload})
 }

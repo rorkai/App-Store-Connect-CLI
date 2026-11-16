@@ -48,6 +48,50 @@ type SubscriptionIntroductoryOfferUpdateRequest struct {
 	Data SubscriptionIntroductoryOfferUpdateData `json:"data"`
 }
 
+// CreateSubscriptionIntroductoryOffer sends POST /v1/subscriptionIntroductoryOffers (subscriptionIntroductoryOffers_createInstance).
+func (c *Client) CreateSubscriptionIntroductoryOffer(ctx context.Context, subscriptionID string, attrs SubscriptionIntroductoryOfferCreateAttributes, territoryID, pricePointID string) (*SubscriptionIntroductoryOfferResponse, error) {
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if subscriptionID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+	relationships := &SubscriptionIntroductoryOfferRelationships{
+		Subscription: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeSubscriptions,
+				ID:   subscriptionID,
+			},
+		},
+	}
+	if id := strings.TrimSpace(territoryID); id != "" {
+		relationships.Territory = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeTerritories,
+				ID:   id,
+			},
+		}
+	}
+	if id := strings.TrimSpace(pricePointID); id != "" {
+		relationships.SubscriptionPricePoint = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeSubscriptionPricePoints,
+				ID:   id,
+			},
+		}
+	}
+	payload := SubscriptionIntroductoryOfferCreateRequest{
+		Data: SubscriptionIntroductoryOfferCreateData{
+			Type:          ResourceTypeSubscriptionIntroductoryOffers,
+			Attributes:    attrs,
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[SubscriptionIntroductoryOfferResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptionIntroductoryOffers",
+		Payload: payload,
+	})
+}
+
 // DeleteSubscriptionIntroductoryOffer sends DELETE /v1/subscriptionIntroductoryOffers/{id} (subscriptionIntroductoryOffers_deleteInstance).
 func (c *Client) DeleteSubscriptionIntroductoryOffer(ctx context.Context, offerID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionIntroductoryOffers/%s", strings.TrimSpace(offerID)), nil)

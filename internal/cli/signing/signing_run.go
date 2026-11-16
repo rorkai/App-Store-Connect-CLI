@@ -226,7 +226,7 @@ func SanitizedChildEnvironment(base []string) []string {
 // RunEphemeral runs callback once inside the same audited ephemeral signing
 // boundary used by `asc signing run`. The callback must be synchronous and
 // context-aware; any subprocess it starts must use SanitizedChildEnvironment.
-func RunEphemeral(ctx context.Context, options EphemeralRunOptions, callback func(context.Context) error) error {
+func RunEphemeral(ctx context.Context, d *shared.Deps, options EphemeralRunOptions, callback func(context.Context) error) error {
 	if strings.TrimSpace(options.IdentityPath) == "" {
 		return shared.NewValidationError(fmt.Errorf("signing run: identity path is required"))
 	}
@@ -248,7 +248,7 @@ func RunEphemeral(ctx context.Context, options EphemeralRunOptions, callback fun
 	if callback == nil {
 		return shared.NewValidationError(fmt.Errorf("signing run: callback is required"))
 	}
-	return executeSigningOperationFn(ctx, shared.DefaultDeps(), signingRunOptions{
+	return executeSigningOperationFn(ctx, d, signingRunOptions{
 		IdentityPath:              options.IdentityPath,
 		IdentityPasswordPath:      options.IdentityPasswordPath,
 		ProfilePath:               options.ProfilePath,
@@ -262,8 +262,8 @@ func RunEphemeral(ctx context.Context, options EphemeralRunOptions, callback fun
 // RecoverEphemeral serializes with every ephemeral signing run and performs
 // only validated crash-journal recovery. It reads no identity or profile and
 // creates no keychain or provisioning profile when no journal exists.
-func RecoverEphemeral(ctx context.Context) error {
-	deps := platformSigningRunDeps(shared.DefaultDeps())
+func RecoverEphemeral(ctx context.Context, d *shared.Deps) error {
+	deps := platformSigningRunDeps(d)
 	if deps.GOOS != "darwin" {
 		return shared.NewValidationError(fmt.Errorf("recover signing environment is supported only on macOS"))
 	}
@@ -310,14 +310,13 @@ func normalizeSigningRunExpectedSHA256(value, label string) (string, error) {
 // InspectPKCS12Identity securely reads and validates one PKCS#12 identity and
 // returns only public leaf-certificate metadata. The certificate must be
 // currently valid and its private key must cryptographically match.
-func InspectPKCS12Identity(ctx context.Context, options PKCS12IdentityOptions) (PKCS12IdentityInfo, error) {
+func InspectPKCS12Identity(ctx context.Context, d *shared.Deps, options PKCS12IdentityOptions) (PKCS12IdentityInfo, error) {
 	if strings.TrimSpace(options.IdentityPath) == "" {
 		return PKCS12IdentityInfo{}, shared.NewValidationError(fmt.Errorf("inspect PKCS#12 identity: identity path is required"))
 	}
 	if err := ctx.Err(); err != nil {
 		return PKCS12IdentityInfo{}, err
 	}
-	d := shared.DefaultDeps()
 	if platformSigningRunDeps(d).GOOS != "darwin" {
 		return PKCS12IdentityInfo{}, shared.NewValidationError(fmt.Errorf("inspect PKCS#12 identity is supported only on macOS"))
 	}

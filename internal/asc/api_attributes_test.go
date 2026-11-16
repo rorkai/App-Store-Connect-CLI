@@ -150,18 +150,6 @@ func TestWriteRequestsDoNotEchoAppleResponseAttributes(t *testing.T) {
 			_, err := c.UpdateAppStoreVersionLocalization(context.Background(), "loc-1", attrs.UpdateAttributes())
 			return err
 		}},
-		{"create test notes", `{"data":{"type":"betaBuildLocalizations","attributes":{"locale":"en-US","whatsNew":"Fixes"},"relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`, func(t *testing.T, c *Client) error {
-			var attrs BetaBuildLocalizationAttributes
-			decode(t, &attrs)
-			_, err := c.CreateBetaBuildLocalization(context.Background(), "build-1", attrs)
-			return err
-		}},
-		{"update test notes", `{"data":{"type":"betaBuildLocalizations","id":"loc-1","attributes":{"locale":"en-US","whatsNew":"Fixes"}}}`, func(t *testing.T, c *Client) error {
-			var attrs BetaBuildLocalizationAttributes
-			decode(t, &attrs)
-			_, err := c.UpdateBetaBuildLocalization(context.Background(), "loc-1", attrs)
-			return err
-		}},
 		{"create app info localization", `{"data":{"type":"appInfoLocalizations","attributes":{"locale":"en-US"},"relationships":{"appInfo":{"data":{"type":"appInfos","id":"info-1"}}}}}`, func(t *testing.T, c *Client) error {
 			var attrs AppInfoLocalizationAttributes
 			decode(t, &attrs)

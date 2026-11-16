@@ -460,6 +460,26 @@
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/GadgetsResponse"}}}}
         }
       }
+    },
+    "/v1/yokes": {
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "yokes_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YokeCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
+    "/v1/yokes/{id}": {
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "yokes_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YokeUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
     }
   },
   "components": {
@@ -1021,6 +1041,57 @@
               }
             },
             "required": ["attributes", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "YokeCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["yokes"]},
+              "attributes": {
+                "type": "object",
+                "properties": {"name": {"type": "string"}},
+                "required": ["name"]
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "widget": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["widgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}, "required": ["data"]},
+                  "gadget": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["gadgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}, "required": ["data"]},
+                  "owner": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["widgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}, "required": ["data"]}
+                },
+                "required": ["widget"]
+              }
+            },
+            "required": ["attributes", "relationships", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "YokeUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["yokes"]},
+              "id": {"type": "string"},
+              "attributes": {
+                "type": "object",
+                "properties": {"name": {"type": "string"}}
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "gadget": {"type": "object", "properties": {"data": {"type": "object", "properties": {"type": {"type": "string", "enum": ["gadgets"]}, "id": {"type": "string"}}, "required": ["id", "type"]}}, "required": ["data"]}
+                }
+              }
+            },
+            "required": ["id", "type"]
           }
         },
         "required": ["data"]

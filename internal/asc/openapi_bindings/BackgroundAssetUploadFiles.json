@@ -14,6 +14,7 @@
     {"data":"BackgroundAssetUploadFileCreateData","type":"BackgroundAssetUploadFileCreateRelationships"}
   ],
   "operations": [
+    {"operation":"backgroundAssetUploadFiles_createInstance","name":"CreateBackgroundAssetUploadFile","params":["versionID"],"check":"require","messages":["background asset version ID is required","file name is required"],"links":["backgroundAssetVersion"],"args":[{"name":"fileName","param":true},{"name":"fileSize","type":"int64","positive":"file size must be greater than 0"},{"name":"assetType","type":"BackgroundAssetUploadFileAssetType"}]},
     {"operation":"backgroundAssetUploadFiles_getInstance","name":"GetBackgroundAssetUploadFile","params":["uploadFileID"],"check":"require","messages":["background asset upload file ID is required"]},
     {"operation":"backgroundAssetUploadFiles_updateInstance","name":"UpdateBackgroundAssetUploadFile","params":["uploadFileID"],"check":"require","messages":["background asset upload file ID is required"],"skipEmptyAttributes":true}
   ]

@@ -105,3 +105,22 @@ func (c *Client) GetAccessibilityDeclaration(ctx context.Context, declarationID 
 		Query: buildAccessibilityDeclarationsFieldsQuery(fields),
 	})
 }
+
+// UpdateAccessibilityDeclaration sends PATCH /v1/accessibilityDeclarations/{id} (accessibilityDeclarations_updateInstance).
+func (c *Client) UpdateAccessibilityDeclaration(ctx context.Context, declarationID string, attrs AccessibilityDeclarationUpdateAttributes) (*AccessibilityDeclarationResponse, error) {
+	declarationID = strings.TrimSpace(declarationID)
+	payload := AccessibilityDeclarationUpdateRequest{
+		Data: AccessibilityDeclarationUpdateData{
+			Type: ResourceTypeAccessibilityDeclarations,
+			ID:   declarationID,
+		},
+	}
+	if attrs.Publish != nil || attrs.SupportsAudioDescriptions != nil || attrs.SupportsCaptions != nil || attrs.SupportsDarkInterface != nil || attrs.SupportsDifferentiateWithoutColorAlone != nil || attrs.SupportsLargerText != nil || attrs.SupportsReducedMotion != nil || attrs.SupportsSufficientContrast != nil || attrs.SupportsVoiceControl != nil || attrs.SupportsVoiceover != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID),
+		Payload: payload,
+	})
+}

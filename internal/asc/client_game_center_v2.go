@@ -23,29 +23,6 @@ func (c *Client) GetGameCenterAchievementsV2(ctx context.Context, gcDetailID, gr
 	})
 }
 
-// CreateGameCenterAchievementVersion creates a new v2 achievement version.
-func (c *Client) CreateGameCenterAchievementVersion(ctx context.Context, achievementID string) (*GameCenterAchievementVersionResponse, error) {
-	payload := GameCenterAchievementVersionCreateRequest{
-		Data: GameCenterAchievementVersionCreateData{
-			Type: ResourceTypeGameCenterAchievementVersions,
-			Relationships: &GameCenterAchievementVersionRelationships{
-				Achievement: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterAchievements,
-						ID:   strings.TrimSpace(achievementID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v2/gameCenterAchievementVersions",
-		Payload: payload,
-	})
-}
-
 // CreateGameCenterAchievementImageV2 reserves a new v2 achievement image upload.
 func (c *Client) CreateGameCenterAchievementImageV2(ctx context.Context, localizationID, fileName string, fileSize int64) (*GameCenterAchievementImageResponse, error) {
 	payload := GameCenterAchievementImageV2CreateRequest{
@@ -133,29 +110,6 @@ func (c *Client) GetGameCenterLeaderboardsV2(ctx context.Context, gcDetailID, gr
 		Query:       buildGCLeaderboardsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "game-center-leaderboards-v2",
-	})
-}
-
-// CreateGameCenterLeaderboardVersion creates a new v2 leaderboard version.
-func (c *Client) CreateGameCenterLeaderboardVersion(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardVersionResponse, error) {
-	payload := GameCenterLeaderboardVersionCreateRequest{
-		Data: GameCenterLeaderboardVersionCreateData{
-			Type: ResourceTypeGameCenterLeaderboardVersions,
-			Relationships: &GameCenterLeaderboardVersionRelationships{
-				Leaderboard: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboards,
-						ID:   strings.TrimSpace(leaderboardID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v2/gameCenterLeaderboardVersions",
-		Payload: payload,
 	})
 }
 
@@ -304,29 +258,6 @@ func (c *Client) SetGameCenterLeaderboardSetMembersV2(ctx context.Context, setID
 		add:     c.AddGameCenterLeaderboardSetMembersV2,
 		remove:  c.RemoveGameCenterLeaderboardSetMembersV2,
 		replace: c.UpdateGameCenterLeaderboardSetMembersV2,
-	})
-}
-
-// CreateGameCenterLeaderboardSetVersion creates a new v2 leaderboard set version.
-func (c *Client) CreateGameCenterLeaderboardSetVersion(ctx context.Context, setID string) (*GameCenterLeaderboardSetVersionResponse, error) {
-	payload := GameCenterLeaderboardSetVersionCreateRequest{
-		Data: GameCenterLeaderboardSetVersionCreateData{
-			Type: ResourceTypeGameCenterLeaderboardSetVersions,
-			Relationships: &GameCenterLeaderboardSetVersionRelationships{
-				LeaderboardSet: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboardSets,
-						ID:   strings.TrimSpace(setID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v2/gameCenterLeaderboardSetVersions",
-		Payload: payload,
 	})
 }
 
