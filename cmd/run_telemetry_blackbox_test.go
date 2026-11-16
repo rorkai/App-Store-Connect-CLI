@@ -47,7 +47,7 @@ func TestRun_BuiltBinaryEmitsSchemaV4Payload(t *testing.T) {
 	if err := json.Unmarshal(record.Event, &event); err != nil {
 		t.Fatalf("decode built CLI telemetry event: %v", err)
 	}
-	if event.SchemaVersion != 5 || event.OutcomeKind != telemetry.OutcomeUsageError {
+	if event.SchemaVersion != 6 || event.OutcomeKind != telemetry.OutcomeUsageError {
 		t.Fatalf("unexpected schema-v4 payload: %+v", event)
 	}
 	if event.FailureParameter == nil || *event.FailureParameter != "--build-id" {
@@ -57,8 +57,10 @@ func TestRun_BuiltBinaryEmitsSchemaV4Payload(t *testing.T) {
 	if err := json.Unmarshal(record.Event, &payload); err != nil {
 		t.Fatalf("decode built CLI telemetry JSON: %v", err)
 	}
-	if value, exists := payload["http_status"]; !exists || value != nil {
-		t.Fatalf("http_status = %v (exists=%t), want explicit null", value, exists)
+	for _, key := range []string{"http_status", "api_method", "api_path_template", "api_query_params"} {
+		if value, exists := payload[key]; !exists || value != nil {
+			t.Fatalf("%s = %v (exists=%t), want explicit null", key, value, exists)
+		}
 	}
 	if value, exists := payload["diagnostic_code"]; !exists || value != string(shared.DiagnosticRequiredInputMissing) {
 		t.Fatalf("diagnostic_code = %v (exists=%t), want %q", value, exists, shared.DiagnosticRequiredInputMissing)

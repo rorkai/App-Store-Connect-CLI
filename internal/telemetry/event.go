@@ -33,9 +33,15 @@ type Event struct {
 	DiagnosticCode   *string          `json:"diagnostic_code,omitempty"`
 	OutcomeKind      OutcomeKind      `json:"outcome_kind,omitempty"`
 	HTTPStatus       *int             `json:"http_status,omitempty"`
-	// AttemptedChild is set only on schema v5. It is an allowlisted verb or
-	// "other", never the raw token.
+	// AttemptedChild is an allowlisted verb or "other", never the raw token.
 	AttemptedChild *string `json:"attempted_child,omitempty"`
+	// APIMethod, APIPathTemplate and APIQueryParams are set from schema v6 on,
+	// for `asc api` only: the HTTP method, the request path reduced to an
+	// embedded schema template or "other", and the schema names of the query
+	// parameters sent. Never an identifier or a value.
+	APIMethod       *string   `json:"api_method,omitempty"`
+	APIPathTemplate *string   `json:"api_path_template,omitempty"`
+	APIQueryParams  *[]string `json:"api_query_params,omitempty"`
 }
 
 type OutcomeKind string
@@ -63,7 +69,10 @@ const (
 	InvocationShapeUnknownChild   InvocationShape = "unknown_child"
 )
 
-const schemaVersionV5 uint8 = 5
+const (
+	schemaVersionV5 uint8 = 5
+	schemaVersionV6 uint8 = 6
+)
 
 // attemptedChildAllowlist is the only set of unknown-subcommand tokens that
 // may appear on the wire. Anything else, including IDs, paths, and flags, is
@@ -111,6 +120,12 @@ type EventContext struct {
 	// AttemptedChild is the raw unknown subcommand token. BuildEventWithContext
 	// classifies it; the wire value is never this raw token.
 	AttemptedChild string
+	// APIMethod, APIPath and APIQueryNames are what `asc api` parsed.
+	// BuildEventWithContext reduces them to schema templates and names; they
+	// are never sent as given. APIQueryNames is nil when not known.
+	APIMethod     string
+	APIPath       string
+	APIQueryNames []string
 }
 
 // processSessionID groups events from one CLI process without linking separate
@@ -142,15 +157,17 @@ func BuildEventWithContext(
 	}
 
 	eventContext = normalizeEventContext(eventContext, exitCode)
+	family := commandFamily(commandPath)
+	apiMethod, apiPathTemplate, apiQueryParams := apiOperationFields(family, eventContext)
 
 	return Event{
 		EventID:          uuid.NewString(),
-		SchemaVersion:    schemaVersionV5,
+		SchemaVersion:    schemaVersionV6,
 		ASCVersion:       strings.TrimSpace(version),
 		OS:               runtime.GOOS,
 		Arch:             runtime.GOARCH,
 		CommandPath:      commandPath,
-		CommandFamily:    commandFamily(commandPath),
+		CommandFamily:    family,
 		DurationMS:       durationMillis(duration),
 		DurationBucket:   durationBucket(duration),
 		ExitCode:         exitCode,
@@ -167,6 +184,9 @@ func BuildEventWithContext(
 		OutcomeKind:      eventContext.OutcomeKind,
 		HTTPStatus:       optionalHTTPStatus(eventContext.HTTPStatus),
 		AttemptedChild:   attemptedChildForShape(eventContext.InvocationShape, eventContext.AttemptedChild),
+		APIMethod:        apiMethod,
+		APIPathTemplate:  apiPathTemplate,
+		APIQueryParams:   apiQueryParams,
 	}, true
 }
 
@@ -338,17 +358,20 @@ func sanitizeHTTPStatus(status int) int {
 	return status
 }
 
-// MarshalJSON keeps queued schema-v3 records wire-compatible while ensuring
-// nullable schema-v4 fields are present even when their value is null.
+// MarshalJSON keeps queued records of older schemas wire-compatible while
+// ensuring each schema's nullable fields are present even when null.
 func (event Event) MarshalJSON() ([]byte, error) {
 	type eventAlias Event
 	switch event.SchemaVersion {
 	case 4:
 		return json.Marshal(struct {
 			eventAlias
-			HTTPStatus     *int    `json:"http_status"`
-			DiagnosticCode *string `json:"diagnostic_code"`
-			AttemptedChild *string `json:"-"`
+			HTTPStatus      *int      `json:"http_status"`
+			DiagnosticCode  *string   `json:"diagnostic_code"`
+			AttemptedChild  *string   `json:"-"`
+			APIMethod       *string   `json:"-"`
+			APIPathTemplate *string   `json:"-"`
+			APIQueryParams  *[]string `json:"-"`
 		}{
 			eventAlias:     eventAlias(event),
 			HTTPStatus:     event.HTTPStatus,
@@ -357,14 +380,35 @@ func (event Event) MarshalJSON() ([]byte, error) {
 	case schemaVersionV5:
 		return json.Marshal(struct {
 			eventAlias
-			HTTPStatus     *int    `json:"http_status"`
-			DiagnosticCode *string `json:"diagnostic_code"`
-			AttemptedChild *string `json:"attempted_child"`
+			HTTPStatus      *int      `json:"http_status"`
+			DiagnosticCode  *string   `json:"diagnostic_code"`
+			AttemptedChild  *string   `json:"attempted_child"`
+			APIMethod       *string   `json:"-"`
+			APIPathTemplate *string   `json:"-"`
+			APIQueryParams  *[]string `json:"-"`
 		}{
 			eventAlias:     eventAlias(event),
 			HTTPStatus:     event.HTTPStatus,
 			DiagnosticCode: event.DiagnosticCode,
 			AttemptedChild: event.AttemptedChild,
+		})
+	case schemaVersionV6:
+		return json.Marshal(struct {
+			eventAlias
+			HTTPStatus      *int      `json:"http_status"`
+			DiagnosticCode  *string   `json:"diagnostic_code"`
+			AttemptedChild  *string   `json:"attempted_child"`
+			APIMethod       *string   `json:"api_method"`
+			APIPathTemplate *string   `json:"api_path_template"`
+			APIQueryParams  *[]string `json:"api_query_params"`
+		}{
+			eventAlias:      eventAlias(event),
+			HTTPStatus:      event.HTTPStatus,
+			DiagnosticCode:  event.DiagnosticCode,
+			AttemptedChild:  event.AttemptedChild,
+			APIMethod:       event.APIMethod,
+			APIPathTemplate: event.APIPathTemplate,
+			APIQueryParams:  event.APIQueryParams,
 		})
 	default:
 		return json.Marshal(eventAlias(event))
