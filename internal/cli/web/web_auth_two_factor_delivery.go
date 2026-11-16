@@ -56,10 +56,6 @@ func (f twoFactorDeliveryFlags) resolveWith(d *shared.Deps) (appleauth.TwoFactor
 	return resolveTwoFactorPreferenceWith(d, method, phoneID, phoneIDSet)
 }
 
-func resolveTwoFactorPreference(methodFlag string, phoneIDFlag int, phoneIDFlagSet bool) (appleauth.TwoFactorPreference, error) {
-	return resolveTwoFactorPreferenceWith(shared.DefaultDeps(), methodFlag, phoneIDFlag, phoneIDFlagSet)
-}
-
 func resolveTwoFactorPreferenceWith(d *shared.Deps, methodFlag string, phoneIDFlag int, phoneIDFlagSet bool) (appleauth.TwoFactorPreference, error) {
 	method := strings.ToLower(strings.TrimSpace(methodFlag))
 	methodSource := "--two-factor-method"
@@ -111,9 +107,9 @@ func contextWithTwoFactorPreference(ctx context.Context, preference appleauth.Tw
 
 // twoFactorPreferenceForSignIn returns the flag-resolved preference, falling
 // back to the environment for callers without delivery flags.
-func twoFactorPreferenceForSignIn(ctx context.Context) (appleauth.TwoFactorPreference, error) {
+func twoFactorPreferenceForSignIn(ctx context.Context, d *shared.Deps) (appleauth.TwoFactorPreference, error) {
 	if preference, ok := ctx.Value(twoFactorPreferenceContextKey{}).(appleauth.TwoFactorPreference); ok {
 		return preference, nil
 	}
-	return resolveTwoFactorPreference("", 0, false)
+	return resolveTwoFactorPreferenceWith(d, "", 0, false)
 }
