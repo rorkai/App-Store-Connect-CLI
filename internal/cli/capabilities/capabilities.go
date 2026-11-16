@@ -348,9 +348,9 @@ func capabilityRows() []Capability {
 			Area:       "app-management",
 			Capability: "App age ratings via web sessions",
 			Status:     statusWebSession,
-			Commands:   []string{"asc web apps age-ratings list", "asc web apps age-ratings territories"},
-			Notes:      []string{"Read app info records with age rating declarations and list territory age ratings for a selected app info record."},
-			NextAction: "Run asc web apps age-ratings list --app APP_ID to find the app info record ID, then run asc web apps age-ratings territories --app-info APP_INFO_ID.",
+			Commands:   []string{"asc web apps age-ratings list", "asc web apps age-ratings territories", "asc web apps age-ratings edit"},
+			Notes:      []string{"Read age rating declarations and territory ratings, or edit the declaration fields observed in the web form."},
+			NextAction: "Run asc web apps age-ratings list --app APP_ID to find the app info and declaration IDs. Read territory ratings with asc web apps age-ratings territories --app-info APP_INFO_ID or edit with asc web apps age-ratings edit --id DECLARATION_ID --input PATH --confirm.",
 		},
 		{
 			Area:       "app-management",
