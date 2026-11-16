@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type doctorMigrationJSON struct {
@@ -45,17 +47,10 @@ func TestAuthDoctorJSONIncludesMigrationHints(t *testing.T) {
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
 
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-
-		stdout, _ := captureOutput(t, func() {
-			if err := root.Parse([]string{"auth", "doctor", "--output", "json"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
-			}
-		})
+		stdout, _, err := runRootWithDeps(t, shared.GetASCClient, "auth", "doctor", "--output", "json")
+		if err != nil {
+			t.Fatalf("run error: %v", err)
+		}
 
 		var report doctorReportJSON
 		if err := json.Unmarshal([]byte(stdout), &report); err != nil {
@@ -86,17 +81,10 @@ func TestAuthDoctorTextIncludesMigrationHints(t *testing.T) {
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
 
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-
-		stdout, _ := captureOutput(t, func() {
-			if err := root.Parse([]string{"auth", "doctor"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
-			}
-		})
+		stdout, _, err := runRootWithDeps(t, shared.GetASCClient, "auth", "doctor")
+		if err != nil {
+			t.Fatalf("run error: %v", err)
+		}
 
 		if !strings.Contains(stdout, "Migration Hints:") {
 			t.Fatalf("expected migration section heading, got %q", stdout)
@@ -120,17 +108,10 @@ func TestAuthDoctorTextRedactsCredentialIdentifiers(t *testing.T) {
 		t.Setenv("ASC_ISSUER_ID", "issuer-uuid")
 		t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
 
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-
-		stdout, _ := captureOutput(t, func() {
-			if err := root.Parse([]string{"auth", "doctor"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
-			}
-		})
+		stdout, _, err := runRootWithDeps(t, shared.GetASCClient, "auth", "doctor")
+		if err != nil {
+			t.Fatalf("run error: %v", err)
+		}
 
 		if !strings.Contains(stdout, "ASC_KEY_ID is set") {
 			t.Fatalf("expected ASC_KEY_ID presence message, got %q", stdout)
@@ -202,17 +183,10 @@ func TestAuthDoctorJSONMigrationHintsUseEmptyArrays(t *testing.T) {
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 		t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
 
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-
-		stdout, _ := captureOutput(t, func() {
-			if err := root.Parse([]string{"auth", "doctor", "--output", "json"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
-			}
-		})
+		stdout, _, err := runRootWithDeps(t, shared.GetASCClient, "auth", "doctor", "--output", "json")
+		if err != nil {
+			t.Fatalf("run error: %v", err)
+		}
 
 		if !strings.Contains(stdout, `"migration":{"detectedFiles":[],"detectedActions":[],"suggestedCommands":[]}`) {
 			t.Fatalf("expected migration arrays in JSON output, got %q", stdout)
@@ -267,17 +241,10 @@ func TestAuthDoctorJSONPrefillsVersionFromXcodeProject(t *testing.T) {
 		t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
 		t.Setenv("ASC_APP_ID", "123456789")
 
-		root := RootCommand("1.2.3")
-		root.FlagSet.SetOutput(io.Discard)
-
-		stdout, _ := captureOutput(t, func() {
-			if err := root.Parse([]string{"auth", "doctor", "--output", "json"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
-			}
-		})
+		stdout, _, err := runRootWithDeps(t, shared.GetASCClient, "auth", "doctor", "--output", "json")
+		if err != nil {
+			t.Fatalf("run error: %v", err)
+		}
 
 		var report doctorReportJSON
 		if err := json.Unmarshal([]byte(stdout), &report); err != nil {

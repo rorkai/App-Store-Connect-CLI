@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -29,16 +27,10 @@ func TestWorkflowRun_RetryKeepsStdoutStructured(t *testing.T) {
 		}
 	}`, counterPath))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "beta"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "beta")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result struct {
 		Status string `json:"status"`
