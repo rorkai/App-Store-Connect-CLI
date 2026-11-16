@@ -57,7 +57,7 @@ func TestWaitForBuildByNumberOrUploadFailureRequestsLinkedBuildInclude(t *testin
 
 	buildResp, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if err != nil {
-		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil || buildResp.Data.ID != "build-123" {
 		t.Fatalf("expected linked build build-123, got %+v", buildResp)

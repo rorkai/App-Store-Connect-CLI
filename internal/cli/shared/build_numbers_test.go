@@ -184,7 +184,7 @@ func TestFindPreReleaseVersionIDsMatchesEquivalentVersionFormat(t *testing.T) {
 		ids, err = DefaultDeps().FindPreReleaseVersionIDs(context.Background(), client, "app-1", "1.2.0", "IOS")
 	})
 	if err != nil {
-		t.Fatalf("DefaultDeps().FindPreReleaseVersionIDs() error: %v", err)
+		t.Fatalf("FindPreReleaseVersionIDs() error: %v", err)
 	}
 	if !slices.Equal(ids, []string{"prv-1"}) {
 		t.Fatalf("expected [prv-1], got %v", ids)
@@ -209,7 +209,7 @@ func TestFindPreReleaseVersionIDsPrefersRequestedVersionFormat(t *testing.T) {
 		ids, err = DefaultDeps().FindPreReleaseVersionIDs(context.Background(), client, "app-1", "1.2.0", "IOS")
 	})
 	if err != nil {
-		t.Fatalf("DefaultDeps().FindPreReleaseVersionIDs() error: %v", err)
+		t.Fatalf("FindPreReleaseVersionIDs() error: %v", err)
 	}
 	if !slices.Equal(ids, []string{"prv-1"}) {
 		t.Fatalf("expected [prv-1], got %v", ids)
@@ -245,7 +245,7 @@ func TestFindPreReleaseVersionIDsCollectsEquivalentFormatsAcrossPlatforms(t *tes
 
 	ids, err := DefaultDeps().FindPreReleaseVersionIDs(context.Background(), client, "app-1", "1.2.0", "")
 	if err != nil {
-		t.Fatalf("DefaultDeps().FindPreReleaseVersionIDs() error: %v", err)
+		t.Fatalf("FindPreReleaseVersionIDs() error: %v", err)
 	}
 	if !slices.Equal(ids, []string{"prv-ios", "prv-mac"}) {
 		t.Fatalf("expected both platform trains, got %v", ids)
@@ -264,7 +264,7 @@ func TestFindPreReleaseVersionIDsNotesEquivalentMatchOnlyOnce(t *testing.T) {
 	stderr := captureStderr(t, func() {
 		for range 3 {
 			if _, err := DefaultDeps().FindPreReleaseVersionIDs(context.Background(), client, "app-1", "1.2.0", "IOS"); err != nil {
-				t.Fatalf("DefaultDeps().FindPreReleaseVersionIDs() error: %v", err)
+				t.Fatalf("FindPreReleaseVersionIDs() error: %v", err)
 			}
 		}
 	})
@@ -285,7 +285,7 @@ func TestFindPreReleaseVersionIDsReportsNoMatchWithoutNote(t *testing.T) {
 		ids, err = DefaultDeps().FindPreReleaseVersionIDs(context.Background(), client, "app-1", "1.2.0", "IOS")
 	})
 	if err != nil {
-		t.Fatalf("DefaultDeps().FindPreReleaseVersionIDs() error: %v", err)
+		t.Fatalf("FindPreReleaseVersionIDs() error: %v", err)
 	}
 	if len(ids) != 0 {
 		t.Fatalf("expected no matches, got %v", ids)
@@ -306,7 +306,7 @@ func TestFindPreReleaseVersionIDsWithoutVersionFilterQueriesOnce(t *testing.T) {
 
 	ids, err := DefaultDeps().FindPreReleaseVersionIDs(context.Background(), client, "app-1", "", "IOS")
 	if err != nil {
-		t.Fatalf("DefaultDeps().FindPreReleaseVersionIDs() error: %v", err)
+		t.Fatalf("FindPreReleaseVersionIDs() error: %v", err)
 	}
 	if !slices.Equal(ids, []string{"prv-1"}) {
 		t.Fatalf("expected [prv-1], got %v", ids)
@@ -335,7 +335,7 @@ func TestFindPreReleaseVersionIDsDeduplicatesAndSkipsBlankIDs(t *testing.T) {
 
 	ids, err := DefaultDeps().FindPreReleaseVersionIDs(context.Background(), client, "app-1", "1.2.3", "IOS")
 	if err != nil {
-		t.Fatalf("DefaultDeps().FindPreReleaseVersionIDs() error: %v", err)
+		t.Fatalf("FindPreReleaseVersionIDs() error: %v", err)
 	}
 	if !slices.Equal(ids, []string{"prv-1"}) {
 		t.Fatalf("expected one normalized ID, got %v", ids)

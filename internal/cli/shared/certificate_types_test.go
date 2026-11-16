@@ -56,10 +56,10 @@ func TestCertificateCreateTypeListCoversEveryCertificateType(t *testing.T) {
 func TestValidateCertificateCreateTypeReturnsCanonicalValue(t *testing.T) {
 	got, err := DefaultDeps().ValidateCertificateCreateType("--certificate-type", "developer-id-application-g2")
 	if err != nil {
-		t.Fatalf("DefaultDeps().ValidateCertificateCreateType() error: %v", err)
+		t.Fatalf("ValidateCertificateCreateType() error: %v", err)
 	}
 	if got != "DEVELOPER_ID_APPLICATION_G2" {
-		t.Fatalf("DefaultDeps().ValidateCertificateCreateType() = %q, want %q", got, "DEVELOPER_ID_APPLICATION_G2")
+		t.Fatalf("ValidateCertificateCreateType() = %q, want %q", got, "DEVELOPER_ID_APPLICATION_G2")
 	}
 }
 
@@ -67,7 +67,7 @@ func TestValidateCertificateCreateTypeAcceptsApplePayTypes(t *testing.T) {
 	for _, value := range []string{"APPLE_PAY", "apple-pay-merchant-identity", "APPLE_PAY_PSP_IDENTITY", "APPLE_PAY_RSA"} {
 		got, err := DefaultDeps().ValidateCertificateCreateType("--certificate-type", value)
 		if err != nil {
-			t.Fatalf("DefaultDeps().ValidateCertificateCreateType(%q) error: %v", value, err)
+			t.Fatalf("ValidateCertificateCreateType(%q) error: %v", value, err)
 		}
 		if !IsApplePayCertificateType(got) {
 			t.Fatalf("expected %q to canonicalize to an Apple Pay type, got %q", value, got)

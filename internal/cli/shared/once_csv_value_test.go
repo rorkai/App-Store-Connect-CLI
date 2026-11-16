@@ -49,7 +49,7 @@ func TestOnceCSVValue_ProvidedAfterRecoveryParse(t *testing.T) {
 	}
 
 	if err := DefaultDeps().RecoverBoolFlagTailArgs(original, original.Args(), availableInNew); err != nil {
-		t.Fatalf("DefaultDeps().RecoverBoolFlagTailArgs() error: %v", err)
+		t.Fatalf("RecoverBoolFlagTailArgs() error: %v", err)
 	}
 	if !value.Provided() || value.String() != "USA" {
 		t.Fatalf("recovered --territories, Provided()=%t String()=%q", value.Provided(), value.String())

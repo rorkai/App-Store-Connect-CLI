@@ -164,7 +164,7 @@ func TestUploadVersionLocalizations_SkipsExactExistingValues(t *testing.T) {
 		},
 	}, false)
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizations() error: %v", err)
+		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
 	if len(client.updateCalls) != 0 || len(client.createCalls) != 0 {
 		t.Fatalf("expected exact state to skip mutation, creates=%d updates=%d", len(client.createCalls), len(client.updateCalls))
@@ -209,7 +209,7 @@ func TestUploadVersionLocalizations_SkipsExactExistingValuesOnSecondPage(t *test
 		}, false)
 	})
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizations() error: %v", err)
+		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
 	if client.getCalls != 2 || len(client.updateCalls) != 0 || len(client.createCalls) != 0 {
 		t.Fatalf("expected two-page skip without mutation, gets=%d creates=%d updates=%d", client.getCalls, len(client.createCalls), len(client.updateCalls))
@@ -424,7 +424,7 @@ func TestUploadVersionLocalizations_ReconcilesAmbiguousUpdateWithoutReplay(t *te
 		"en-US": {"description": "New description"},
 	}, false)
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizations() error: %v", err)
+		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
 	if len(client.updateCalls) != 1 {
 		t.Fatalf("expected one update before readback, got %d", len(client.updateCalls))
@@ -450,7 +450,7 @@ func TestUploadVersionLocalizations_UsesFreshContextForReadbackAfterRequestTimeo
 		}, false)
 	})
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizations() error: %v", err)
+		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
 	if client.updateCalls != 1 || client.getCalls != 2 {
 		t.Fatalf("expected one timed-out update and a fresh readback, updates=%d reads=%d", client.updateCalls, client.getCalls)
@@ -483,7 +483,7 @@ func TestUploadVersionLocalizations_RetriesAfterNegativeReadback(t *testing.T) {
 		"en-US": {"description": "New description"},
 	}, false)
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizations() error: %v", err)
+		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
 	if len(client.updateCalls) != 2 || client.getCalls != 3 {
 		t.Fatalf("expected negative readback before one replay, updates=%d reads=%d", len(client.updateCalls), client.getCalls)
@@ -582,7 +582,7 @@ func TestUploadVersionLocalizations_PreservesExplicitEmptyUpdateField(t *testing
 	}
 	results, err := DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", values, false)
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizations() error: %v", err)
+		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
 	if len(results) != 1 || len(client.updateFieldsCalls) != 1 {
 		t.Fatalf("unexpected update result: results=%+v fields=%+v", results, client.updateFieldsCalls)
@@ -816,7 +816,7 @@ func TestUploadVersionLocalizations_RetriesWithoutWhatsNewOnInitialReleaseError(
 		results, err = DefaultDeps().UploadVersionLocalizations(context.Background(), client, "version-id", valuesByLocale, false)
 	})
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizations() error: %v", err)
+		t.Fatalf("UploadVersionLocalizations() error: %v", err)
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
@@ -953,7 +953,7 @@ func TestUploadVersionLocalizationsWithWarnings_DryRunWarnsOnlyForCreates(t *tes
 
 	results, warnings, err := DefaultDeps().UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, true, SubmitReadinessOptions{})
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizationsWithWarnings() error: %v", err)
+		t.Fatalf("UploadVersionLocalizationsWithWarnings() error: %v", err)
 	}
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
@@ -995,7 +995,7 @@ func TestUploadVersionLocalizationsWithWarnings_AppliedCompleteCreateDoesNotWarn
 
 	results, warnings, err := DefaultDeps().UploadVersionLocalizationsWithWarnings(context.Background(), client, "version-id", valuesByLocale, false, SubmitReadinessOptions{})
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizationsWithWarnings() error: %v", err)
+		t.Fatalf("UploadVersionLocalizationsWithWarnings() error: %v", err)
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
@@ -1045,7 +1045,7 @@ func TestUploadVersionLocalizationsWithWarnings_RequiresWhatsNewWhenConfigured(t
 		SubmitReadinessOptions{RequireWhatsNew: true},
 	)
 	if err != nil {
-		t.Fatalf("DefaultDeps().UploadVersionLocalizationsWithWarnings() error: %v", err)
+		t.Fatalf("UploadVersionLocalizationsWithWarnings() error: %v", err)
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))

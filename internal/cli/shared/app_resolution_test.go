@@ -237,7 +237,7 @@ func TestResolveAppInfoID_SkipsReplacedAppInfo(t *testing.T) {
 
 	id, err := DefaultDeps().ResolveAppInfoID(context.Background(), client, "app-1", "")
 	if err != nil || id != "info-live" {
-		t.Fatalf("DefaultDeps().ResolveAppInfoID() = %q, %v; want info-live", id, err)
+		t.Fatalf("ResolveAppInfoID() = %q, %v; want info-live", id, err)
 	}
 }
 

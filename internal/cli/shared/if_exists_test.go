@@ -17,13 +17,13 @@ func TestParseIfExistsModeAcceptsSupportedValuesOnly(t *testing.T) {
 	for _, raw := range []string{"", "   "} {
 		_, err := DefaultDeps().ParseIfExistsMode(raw, IfExistsSkip)
 		if err == nil {
-			t.Fatalf("DefaultDeps().ParseIfExistsMode(%q) = nil error; want usage error", raw)
+			t.Fatalf("ParseIfExistsMode(%q) = nil error; want usage error", raw)
 		}
 		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("DefaultDeps().ParseIfExistsMode(%q) = %v; want usage-class error", raw, err)
+			t.Fatalf("ParseIfExistsMode(%q) = %v; want usage-class error", raw, err)
 		}
 		if !strings.Contains(err.Error(), "fail, skip") {
-			t.Fatalf("DefaultDeps().ParseIfExistsMode(%q) = %v; want the supported modes listed", raw, err)
+			t.Fatalf("ParseIfExistsMode(%q) = %v; want the supported modes listed", raw, err)
 		}
 	}
 	if mode, err := DefaultDeps().ParseIfExistsMode(" Skip ", IfExistsSkip); err != nil || mode != IfExistsSkip {

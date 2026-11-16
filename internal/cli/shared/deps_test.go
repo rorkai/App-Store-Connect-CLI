@@ -88,7 +88,7 @@ func TestDepsPrintOutputMatchesPrintOutputOnDepsStreams(t *testing.T) {
 		t.Run(tt.format, func(t *testing.T) {
 			wantStdout, wantStderr := captureOutput(t, func() {
 				if err := DefaultDeps().PrintOutput(&page, tt.format, tt.pretty); err != nil {
-					t.Errorf("DefaultDeps().PrintOutput() error = %v", err)
+					t.Errorf("PrintOutput() error = %v", err)
 				}
 			})
 

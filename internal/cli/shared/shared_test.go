@@ -169,7 +169,7 @@ func TestDefaultOutputFormat_UnsetReturnsJSONWhenStdoutTTYInCI(t *testing.T) {
 			t.Setenv(tt.key, tt.value)
 
 			if got := DefaultDeps().DefaultOutputFormat(); got != "json" {
-				t.Fatalf("DefaultDeps().DefaultOutputFormat() = %q, want json", got)
+				t.Fatalf("DefaultOutputFormat() = %q, want json", got)
 			}
 		})
 	}
@@ -185,7 +185,7 @@ func TestDefaultOutputFormat_FalseCIMarkersKeepTTYTableDefault(t *testing.T) {
 	t.Setenv("GITHUB_ACTIONS", "0")
 
 	if got := DefaultDeps().DefaultOutputFormat(); got != "table" {
-		t.Fatalf("DefaultDeps().DefaultOutputFormat() = %q, want table", got)
+		t.Fatalf("DefaultOutputFormat() = %q, want table", got)
 	}
 }
 
@@ -197,7 +197,7 @@ func TestDefaultOutputFormat_ExplicitEnvOverridesCI(t *testing.T) {
 	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
 
 	if got := DefaultDeps().DefaultOutputFormat(); got != "table" {
-		t.Fatalf("DefaultDeps().DefaultOutputFormat() = %q, want explicit table", got)
+		t.Fatalf("DefaultOutputFormat() = %q, want explicit table", got)
 	}
 }
 
@@ -563,7 +563,7 @@ func TestPrintOutputWithRenderers_JSONPath(t *testing.T) {
 			func() error { t.Fatal("table renderer should not run"); return nil },
 			func() error { t.Fatal("markdown renderer should not run"); return nil },
 		); err != nil {
-			t.Fatalf("DefaultDeps().PrintOutputWithRenderers() error = %v", err)
+			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
 		}
 	})
 	if !strings.Contains(stdout, `"status":"ok"`) {
@@ -580,7 +580,7 @@ func TestPrintOutputWithRenderers_JSONPrettyPath(t *testing.T) {
 			func() error { t.Fatal("table renderer should not run"); return nil },
 			func() error { t.Fatal("markdown renderer should not run"); return nil },
 		); err != nil {
-			t.Fatalf("DefaultDeps().PrintOutputWithRenderers() error = %v", err)
+			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
 		}
 	})
 	if !strings.Contains(stdout, `"status": "ok"`) {
@@ -597,7 +597,7 @@ func TestPrintOutputWithRenderers_EmptyFormatDefaultsJSON(t *testing.T) {
 			func() error { t.Fatal("table renderer should not run"); return nil },
 			func() error { t.Fatal("markdown renderer should not run"); return nil },
 		); err != nil {
-			t.Fatalf("DefaultDeps().PrintOutputWithRenderers() error = %v", err)
+			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
 		}
 	})
 	if !strings.Contains(stdout, `"status":"ok"`) {
@@ -723,7 +723,7 @@ func TestPrintOutputTruncationWarning(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			stdout, stderr := captureOutput(t, func() {
 				if err := DefaultDeps().PrintOutput(tt.data, "json", false); err != nil {
-					t.Errorf("DefaultDeps().PrintOutput() error = %v", err)
+					t.Errorf("PrintOutput() error = %v", err)
 				}
 			})
 
@@ -753,7 +753,7 @@ func TestPrintOutputWithRenderers_WarnsAfterTableRender(t *testing.T) {
 			func() error { return nil },
 			func() error { t.Error("markdown renderer should not run"); return nil },
 		); err != nil {
-			t.Errorf("DefaultDeps().PrintOutputWithRenderers() error = %v", err)
+			t.Errorf("PrintOutputWithRenderers() error = %v", err)
 		}
 	})
 

@@ -231,10 +231,10 @@ func TestWithSpinner_NoOpWhenDisabled(t *testing.T) {
 			ran = true
 			return nil
 		}); err != nil {
-			t.Fatalf("DefaultDeps().WithSpinner() error: %v", err)
+			t.Fatalf("WithSpinner() error: %v", err)
 		}
 		if !ran {
-			t.Fatal("expected DefaultDeps().WithSpinner() to run fn when spinner is disabled")
+			t.Fatal("expected WithSpinner() to run fn when spinner is disabled")
 		}
 	})
 
@@ -257,7 +257,7 @@ func TestWithSpinner_EnabledWritesAndClearsLine_NoANSI(t *testing.T) {
 		withTTYStub(t, true, true)
 
 		if err := DefaultDeps().WithSpinner("Working", func() error { return nil }); err != nil {
-			t.Fatalf("DefaultDeps().WithSpinner() error: %v", err)
+			t.Fatalf("WithSpinner() error: %v", err)
 		}
 	})
 
@@ -299,7 +299,7 @@ func TestWithSpinner_RePanics(t *testing.T) {
 
 		defer func() {
 			if r := recover(); r == nil {
-				t.Fatal("expected DefaultDeps().WithSpinner() to re-panic")
+				t.Fatal("expected WithSpinner() to re-panic")
 			}
 		}()
 		_ = DefaultDeps().WithSpinner("", func() error { panic("kaboom") })

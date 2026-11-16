@@ -24,7 +24,7 @@ func TestPrintResolvedPrices_TableAndMarkdown(t *testing.T) {
 
 	tableOut, _ := captureOutput(t, func() {
 		if err := DefaultDeps().PrintResolvedPrices(result, "table", false); err != nil {
-			t.Fatalf("DefaultDeps().PrintResolvedPrices(table) error = %v", err)
+			t.Fatalf("PrintResolvedPrices(table) error = %v", err)
 		}
 	})
 	if !strings.Contains(tableOut, "Customer Price") || !strings.Contains(tableOut, "Proceeds Y2") {
@@ -36,7 +36,7 @@ func TestPrintResolvedPrices_TableAndMarkdown(t *testing.T) {
 
 	markdownOut, _ := captureOutput(t, func() {
 		if err := DefaultDeps().PrintResolvedPrices(result, "markdown", false); err != nil {
-			t.Fatalf("DefaultDeps().PrintResolvedPrices(markdown) error = %v", err)
+			t.Fatalf("PrintResolvedPrices(markdown) error = %v", err)
 		}
 	})
 	if !strings.Contains(markdownOut, "| Territory | Plan Type | Price ID |") {

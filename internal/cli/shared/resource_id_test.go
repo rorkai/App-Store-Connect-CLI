@@ -181,10 +181,10 @@ func TestAppIDFlagValue(t *testing.T) {
 	} {
 		got, err := DefaultDeps().AppIDFlagValue(test.value)
 		if err != nil {
-			t.Fatalf("DefaultDeps().AppIDFlagValue(%q) error: %v", test.value, err)
+			t.Fatalf("AppIDFlagValue(%q) error: %v", test.value, err)
 		}
 		if got != test.want {
-			t.Fatalf("DefaultDeps().AppIDFlagValue(%q) = %q, want %q", test.value, got, test.want)
+			t.Fatalf("AppIDFlagValue(%q) = %q, want %q", test.value, got, test.want)
 		}
 	}
 

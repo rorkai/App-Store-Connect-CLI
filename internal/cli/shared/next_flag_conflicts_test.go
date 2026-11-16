@@ -24,16 +24,16 @@ func TestRejectNextFlagConflictsDetectsExplicitDefaultValue(t *testing.T) {
 		)
 	})
 	if err == nil {
-		t.Fatal("DefaultDeps().RejectNextFlagConflicts() error = nil, want conflict")
+		t.Fatal("RejectNextFlagConflicts() error = nil, want conflict")
 	}
 	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() error = %v, want usage error", err)
+		t.Fatalf("RejectNextFlagConflicts() error = %v, want usage error", err)
 	}
 	if got, want := err.Error(), "resources list: --next cannot be combined with --limit"; got != want {
-		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() error = %q, want %q", got, want)
+		t.Fatalf("RejectNextFlagConflicts() error = %q, want %q", got, want)
 	}
 	if stderr != "Error: resources list: --next cannot be combined with --limit\n" {
-		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() stderr = %q", stderr)
+		t.Fatalf("RejectNextFlagConflicts() stderr = %q", stderr)
 	}
 	diagnostic, ok := DiagnosticFromError(err)
 	if !ok || diagnostic.Code != DiagnosticConflictingInput || diagnostic.Parameter != "--limit" {
@@ -55,7 +55,7 @@ func TestRejectNextFlagConflictsAllowsUnrelatedFlags(t *testing.T) {
 		"resources list",
 		"limit",
 	); err != nil {
-		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() error = %v", err)
+		t.Fatalf("RejectNextFlagConflicts() error = %v", err)
 	}
 }
 
@@ -67,6 +67,6 @@ func TestRejectNextFlagConflictsAllowsQueryFlagsWithoutNext(t *testing.T) {
 	}
 
 	if err := DefaultDeps().RejectNextFlagConflicts(fs, "", "resources list", "limit"); err != nil {
-		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() error = %v", err)
+		t.Fatalf("RejectNextFlagConflicts() error = %v", err)
 	}
 }
