@@ -109,7 +109,7 @@ func retentionReadCommand(d *shared.Deps, r retentionRead) *ffcli.Command {
 				return err
 			}
 			if r.ownerType == "apps" && nextURL == "" {
-				id = shared.ResolveAppID(id)
+				id = d.ResolveAppID(id)
 			}
 			if id == "" && nextURL == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", r.ownerFlag)
@@ -352,7 +352,7 @@ func retentionMessagesCreateCommand(d *shared.Deps) *ffcli.Command {
 			appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
 			referenceName := fs.String("reference-name", "", "Reference name (up to 64 characters)")
 			return func() (func(context.Context, *asc.Client) (any, error), error) {
-				*appID = shared.ResolveAppID(*appID)
+				*appID = d.ResolveAppID(*appID)
 				app, err := requiredRetentionValue(d, appID, "app")
 				if err != nil {
 					return nil, err

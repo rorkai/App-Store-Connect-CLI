@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -23,6 +24,7 @@ func newBackgroundAssetsTestDeps(client func() (*asc.Client, error)) *shared.Dep
 		IO:            &shared.IO{Out: io.Discard, ErrOut: io.Discard},
 		Timeout:       shared.ContextWithTimeout,
 		UploadTimeout: shared.ContextWithUploadTimeout,
+		LookupEnv:     os.LookupEnv,
 	}
 }
 

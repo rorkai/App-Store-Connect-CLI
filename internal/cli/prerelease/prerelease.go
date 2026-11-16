@@ -71,7 +71,7 @@ Examples:
 				return err
 			}
 
-			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
+			resolvedAppID := strings.TrimSpace(d.ResolveAppID(strings.TrimSpace(*appID)))
 			nextValue := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")

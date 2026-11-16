@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -34,7 +35,8 @@ func TestAccessibilityValidationErrors(t *testing.T) {
 				Client: func() (*asc.Client, error) {
 					return nil, errors.New("unexpected client request")
 				},
-				IO: &shared.IO{Out: &stdout, ErrOut: &stderr},
+				IO:        &shared.IO{Out: &stdout, ErrOut: &stderr},
+				LookupEnv: os.LookupEnv,
 			})
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)

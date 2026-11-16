@@ -1109,7 +1109,7 @@ func newWebReviewListCommand(d *shared.Deps) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if trimmedAppID == "" {
 				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
@@ -1175,7 +1175,7 @@ are never returned because this surface is read-only.
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if trimmedAppID == "" {
 				return shared.WithDiagnostic(
 					d.UsageError("--app is required (or set ASC_APP_ID)"),
@@ -1271,7 +1271,7 @@ Selection:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if trimmedAppID == "" {
 				return shared.WithDiagnostic(
 					d.UsageError("--app is required (or set ASC_APP_ID)"),

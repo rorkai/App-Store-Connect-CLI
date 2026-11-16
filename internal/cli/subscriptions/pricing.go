@@ -89,7 +89,7 @@ func buildSubscriptionsPricingSummaryCommand(d *shared.Deps,
 		Exec: func(ctx context.Context, args []string) error {
 			requestedSubID := strings.TrimSpace(*subscriptionID)
 			requestedAppID := strings.TrimSpace(*appID)
-			resolvedAppID := shared.ResolveAppID(requestedAppID)
+			resolvedAppID := d.ResolveAppID(requestedAppID)
 			if requestedSubID == "" && resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --subscription-id is required")
 				return shared.MissingRequiredUsageError("")

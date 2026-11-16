@@ -121,7 +121,7 @@ Examples:
 				return d.UsageError("versions list: --latest fetches all pages itself and cannot be combined with --next")
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -401,7 +401,7 @@ equivalent to --include appStoreVersionSubmission.`,
 					fmt.Fprintln(d.IO.ErrOut, "Error: --version is required when resolving by app")
 					return shared.MissingRequiredUsageError("--version")
 				}
-				resolvedAppID = strings.TrimSpace(shared.ResolveAppID(*appID))
+				resolvedAppID = strings.TrimSpace(d.ResolveAppID(*appID))
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 					return shared.MissingRequiredUsageError("--app")
@@ -538,7 +538,7 @@ be combined with skip, which would leave the build unattached.`,
 				return d.UsageErrorf("versions create: %v", err)
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -1021,7 +1021,7 @@ Examples:
 				visited[f.Name] = true
 			})
 			needsScope := versionValue != "" || build.NeedsScope() || visited["app"] || visited["platform"]
-			appValue := shared.ResolveAppID(*appID)
+			appValue := d.ResolveAppID(*appID)
 			if needsScope && appValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required with --version, --platform, --build-number, or --latest (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")

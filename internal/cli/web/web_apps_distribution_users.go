@@ -296,7 +296,7 @@ Example:
 }
 
 func resolveWebDistributionUsersAppID(d *shared.Deps, value string) (string, error) {
-	resolved := strings.TrimSpace(shared.ResolveAppID(value))
+	resolved := strings.TrimSpace(d.ResolveAppID(value))
 	if resolved == "" {
 		fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 		return "", shared.MissingRequiredUsageError("--app")

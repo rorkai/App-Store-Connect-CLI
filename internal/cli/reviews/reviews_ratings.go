@@ -61,7 +61,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			app := shared.ResolveAppID(*appID)
+			app := d.ResolveAppID(*appID)
 			if strings.TrimSpace(app) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
