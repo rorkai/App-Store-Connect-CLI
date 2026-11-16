@@ -206,6 +206,22 @@ func (c *Client) UpdateInAppPurchaseV2(ctx context.Context, iapID string, attrs 
 	})
 }
 
+// GetInAppPurchaseVersionsRelationships sends GET /v2/inAppPurchases/{id}/relationships/versions (inAppPurchasesV2_versions_getToManyRelationship).
+func (c *Client) GetInAppPurchaseVersionsRelationships(ctx context.Context, iapID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	iapID = strings.TrimSpace(iapID)
+	if query.nextURL == "" && iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v2/inAppPurchases/%s/relationships/versions", iapID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "inAppPurchaseVersionsRelationships",
+		ParseErr:    "failed to parse versions relationship response",
+	})
+}
+
 // GetInAppPurchase sends GET /v1/inAppPurchases/{id} (inAppPurchases_getInstance).
 func (c *Client) GetInAppPurchase(ctx context.Context, iapID string) (*InAppPurchaseResponse, error) {
 	return getJSON[InAppPurchaseResponse](ctx, c, readRequest{

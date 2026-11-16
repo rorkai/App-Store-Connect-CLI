@@ -1096,6 +1096,60 @@ func TestAdoptSpellsIdAsIDInTypeNames(t *testing.T) {
 	}
 }
 
+func TestAdoptInlinesAMethodThatReturnsAHelperResult(t *testing.T) {
+	src := `package asc
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// GetWidgetParts lists the parts of a widget through two helpers.
+func (c *Client) GetWidgetParts(ctx context.Context, widgetID string, opts ...PartsOption) (*GadgetListResponse, error) {
+	return c.getWidgetRelated(ctx, widgetID, "parts", opts...)
+}
+
+func (c *Client) getWidgetRelated(ctx context.Context, widgetID, relationship string, opts ...PartsOption) (*GadgetListResponse, error) {
+	return getWidgetList[GadgetListResponse](c, ctx, widgetID, relationship, "widget ID", opts...)
+}
+
+// GetWidgetGadgets trims its argument in the call, so it stays hand-written
+// and keeps getWidgetList.
+func (c *Client) GetWidgetGadgets(ctx context.Context, widgetID string, opts ...PartsOption) (*GadgetListResponse, error) {
+	return getWidgetList[GadgetListResponse](c, ctx, strings.TrimSpace(widgetID), "gadgets", "widget ID", opts...)
+}
+
+func getWidgetList[T any](c *Client, ctx context.Context, id, relationship, name string, opts ...PartsOption) (*T, error) {
+	query := applyOptions(opts)
+	id = strings.TrimSpace(id)
+	if query.nextURL == "" && id == "" {
+		return nil, fmt.Errorf("%s is required", name)
+	}
+	return getJSON[T](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/%s", id, relationship), Query: buildPartsQuery(query), Next: query.nextURL, ParseErr: fmt.Sprintf("failed to parse %s", relationship)})
+}
+`
+	dir := writeHandWritten(t, map[string]string{"client.go": src})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bindings.Families) != 1 || len(bindings.Families[0].Operations) != 1 {
+		t.Fatalf("adopted families = %v", bindings.Families)
+	}
+	parts := bindings.Families[0].Operations[0]
+	if parts.Name != "GetWidgetParts" || parts.Check != checkRequire || parts.CheckFirst || strings.Join(parts.Messages, ",") != "widget ID is required" || parts.ParseErr != "failed to parse parts" || parts.Options != "PartsOption" || parts.Query != "buildPartsQuery" {
+		t.Errorf("GetWidgetParts binding = %+v", parts)
+	}
+	client := readFile(t, filepath.Join(dir, "client.go"))
+	if strings.Contains(client, "GetWidgetParts") || strings.Contains(client, "getWidgetRelated") || !strings.Contains(client, "func (c *Client) GetWidgetGadgets(") || !strings.Contains(client, "func getWidgetList[") {
+		t.Errorf("client.go after adopt:\n%s", client)
+	}
+}
+
 func TestAdoptBindsThePathCheck(t *testing.T) {
 	src := `package asc
 

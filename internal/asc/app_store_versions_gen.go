@@ -127,6 +127,22 @@ func (c *Client) GetAppStoreVersionExperimentsV2ForVersion(ctx context.Context, 
 	})
 }
 
+// GetAppStoreVersionExperimentsV2Relationships sends GET /v1/appStoreVersions/{id}/relationships/appStoreVersionExperimentsV2 (appStoreVersions_appStoreVersionExperimentsV2_getToManyRelationship).
+func (c *Client) GetAppStoreVersionExperimentsV2Relationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreVersionExperimentsV2", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionExperimentsV2Relationships",
+		ParseErr:    "failed to parse appStoreVersionExperimentsV2 relationship response",
+	})
+}
+
 // GetAppStoreVersionExperiments sends GET /v1/appStoreVersions/{id}/appStoreVersionExperiments (appStoreVersions_appStoreVersionExperiments_getToManyRelated).
 func (c *Client) GetAppStoreVersionExperiments(ctx context.Context, versionID string, opts ...AppStoreVersionExperimentsOption) (*AppStoreVersionExperimentsResponse, error) {
 	query := applyOptions(opts)
@@ -139,6 +155,22 @@ func (c *Client) GetAppStoreVersionExperiments(ctx context.Context, versionID st
 		Query:       buildAppStoreVersionExperimentsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appStoreVersionExperiments",
+	})
+}
+
+// GetAppStoreVersionExperimentsRelationships sends GET /v1/appStoreVersions/{id}/relationships/appStoreVersionExperiments (appStoreVersions_appStoreVersionExperiments_getToManyRelationship).
+func (c *Client) GetAppStoreVersionExperimentsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreVersionExperiments", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionExperimentsRelationships",
+		ParseErr:    "failed to parse appStoreVersionExperiments relationship response",
 	})
 }
 
@@ -195,6 +227,22 @@ func (c *Client) GetAppStoreVersionBuildRelationship(ctx context.Context, versio
 	return getJSON[AppStoreVersionBuildLinkageResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID),
 		ParseErr: "failed to parse build relationship response",
+	})
+}
+
+// GetAppStoreVersionCustomerReviewsRelationships sends GET /v1/appStoreVersions/{id}/relationships/customerReviews (appStoreVersions_customerReviews_getToManyRelationship).
+func (c *Client) GetAppStoreVersionCustomerReviewsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/relationships/customerReviews", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "customerReviewsRelationships",
+		ParseErr:    "failed to parse customerReviews relationship response",
 	})
 }
 

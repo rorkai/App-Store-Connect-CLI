@@ -95,6 +95,22 @@ func (c *Client) UpdateSubscriptionGroup(ctx context.Context, groupID string, at
 	})
 }
 
+// GetSubscriptionGroupVersionsRelationships sends GET /v1/subscriptionGroups/{id}/relationships/versions (subscriptionGroups_versions_getToManyRelationship).
+func (c *Client) GetSubscriptionGroupVersionsRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	groupID = strings.TrimSpace(groupID)
+	if query.nextURL == "" && groupID == "" {
+		return nil, fmt.Errorf("groupID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionGroups/%s/relationships/versions", groupID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionGroupVersionsRelationships",
+		ParseErr:    "failed to parse versions relationship response",
+	})
+}
+
 // SubscriptionGroupLocalizationsOption sets the query of GET /v1/subscriptionGroups/{id}/subscriptionGroupLocalizations (subscriptionGroups_subscriptionGroupLocalizations_getToManyRelated).
 type SubscriptionGroupLocalizationsOption func(*subscriptionGroupLocalizationsQuery)
 

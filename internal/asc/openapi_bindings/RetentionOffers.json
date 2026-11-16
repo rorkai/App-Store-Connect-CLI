@@ -9,5 +9,8 @@
   ],
   "relationships": [
     {"data":"RetentionOfferCreateData","type":"RetentionOfferCreateRelationships"}
+  ],
+  "operations": [
+    {"operation":"retentionOffers_prices_getToManyRelationship","name":"GetRetentionOfferPricesRelationships","params":["offerID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"retentionOfferPrices relationships","parseErr":"failed to parse prices relationship response","response":"LinkagesResponse"}
   ]
 }

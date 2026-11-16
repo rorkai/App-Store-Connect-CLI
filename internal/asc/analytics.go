@@ -291,20 +291,6 @@ func (c *Client) GetAnalyticsReportRequests(ctx context.Context, appID string, o
 	})
 }
 
-// GetAnalyticsReportInstancesRelationships retrieves report instance linkages for a report.
-func (c *Client) GetAnalyticsReportInstancesRelationships(ctx context.Context, reportID string, opts ...LinkagesOption) (*AnalyticsReportInstancesLinkagesResponse, error) {
-	return getTypedResourceLinkages[AnalyticsReportInstancesLinkagesResponse](
-		c,
-		ctx,
-		reportID,
-		"instances",
-		"report ID",
-		"/v1/analyticsReports/%s/relationships/%s",
-		"analyticsReportInstancesRelationships",
-		opts...,
-	)
-}
-
 // GetAnalyticsReportInstanceSegmentsRelationships retrieves segment linkages for a report instance.
 func (c *Client) GetAnalyticsReportInstanceSegmentsRelationships(ctx context.Context, instanceID string, opts ...LinkagesOption) (*AnalyticsReportInstanceSegmentsLinkagesResponse, error) {
 	if strings.TrimSpace(instanceID) != "" {
