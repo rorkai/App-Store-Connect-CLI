@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -340,7 +341,7 @@ func TestExecuteSigningKeychainInstallKeepsSearchListUnchangedByDefault(t *testi
 	keychainPath := filepath.Join(t.TempDir(), "release.keychain-db")
 	resolvedKeychainPath := canonicalSigningKeychainTestPath(t, keychainPath)
 
-	var events []string
+	var events, searchList []string
 	result, err := executeSigningKeychainInstallWith(context.Background(), signingKeychainInstallOptions{
 		IdentityPath: identityPath, IdentityPasswordPath: identityPasswordPath,
 		KeychainPath: keychainPath, KeychainPasswordPath: keychainPasswordPath,
@@ -351,13 +352,14 @@ func TestExecuteSigningKeychainInstallKeepsSearchListUnchangedByDefault(t *testi
 		AcquireLock:       acquireSigningKeychainTestLock,
 		KeychainSearchList: func(context.Context) ([]string, error) {
 			events = append(events, "list")
-			return nil, nil
+			return append([]string(nil), searchList...), nil
 		},
 		SetKeychainSearchList: func(_ context.Context, paths []string) error {
 			events = append(events, "set")
 			if !reflect.DeepEqual(paths, []string{resolvedKeychainPath}) {
 				t.Fatalf("staged search list = %v", paths)
 			}
+			searchList = append([]string(nil), paths...)
 			return nil
 		},
 		CreateKeychain: func(context.Context, string, []byte) (bool, error) {
@@ -368,8 +370,9 @@ func TestExecuteSigningKeychainInstallKeepsSearchListUnchangedByDefault(t *testi
 			events = append(events, "import")
 			return nil
 		},
-		RemoveKeychainSearchEntry: func(context.Context, string) error {
+		RemoveKeychainSearchEntry: func(_ context.Context, path string) error {
 			events = append(events, "remove-search-entry")
+			searchList = slices.DeleteFunc(searchList, func(entry string) bool { return entry == path })
 			return nil
 		},
 		DeleteKeychain: func(context.Context, string) error { events = append(events, "delete"); return nil },
@@ -377,11 +380,11 @@ func TestExecuteSigningKeychainInstallKeepsSearchListUnchangedByDefault(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(events, []string{"list", "create", "set", "import", "remove-search-entry"}) {
+	if !reflect.DeepEqual(events, []string{"list", "create", "set", "import", "remove-search-entry", "list"}) {
 		t.Fatalf("events = %v", events)
 	}
-	if result.SearchListUpdated {
-		t.Fatalf("result = %+v, want unchanged search list", result)
+	if result.SearchListUpdated || len(searchList) != 0 {
+		t.Fatalf("result = %+v, search list = %v, want unchanged empty search list", result, searchList)
 	}
 }
 
@@ -396,6 +399,7 @@ func TestExecuteSigningKeychainInstallRemovesPreexistingSearchEntryByDefault(t *
 	keychainPath := filepath.Join(t.TempDir(), "release.keychain-db")
 	resolvedKeychainPath := canonicalSigningKeychainTestPath(t, keychainPath)
 	originalSearchList := []string{"login.keychain-db", resolvedKeychainPath, "system.keychain"}
+	searchList := append([]string(nil), originalSearchList...)
 
 	var events []string
 	result, err := executeSigningKeychainInstallWith(context.Background(), signingKeychainInstallOptions{
@@ -408,7 +412,7 @@ func TestExecuteSigningKeychainInstallRemovesPreexistingSearchEntryByDefault(t *
 		AcquireLock:       acquireSigningKeychainTestLock,
 		KeychainSearchList: func(context.Context) ([]string, error) {
 			events = append(events, "list")
-			return append([]string(nil), originalSearchList...), nil
+			return append([]string(nil), searchList...), nil
 		},
 		SetKeychainSearchList: func(_ context.Context, paths []string) error {
 			events = append(events, "set")
@@ -416,6 +420,7 @@ func TestExecuteSigningKeychainInstallRemovesPreexistingSearchEntryByDefault(t *
 			if !reflect.DeepEqual(paths, want) {
 				t.Fatalf("staged search list = %v, want %v", paths, want)
 			}
+			searchList = append([]string(nil), paths...)
 			return nil
 		},
 		CreateKeychain: func(context.Context, string, []byte) (bool, error) {
@@ -426,8 +431,9 @@ func TestExecuteSigningKeychainInstallRemovesPreexistingSearchEntryByDefault(t *
 			events = append(events, "import")
 			return nil
 		},
-		RemoveKeychainSearchEntry: func(context.Context, string) error {
+		RemoveKeychainSearchEntry: func(_ context.Context, path string) error {
 			events = append(events, "remove-search-entry")
+			searchList = slices.DeleteFunc(searchList, func(entry string) bool { return entry == path })
 			return nil
 		},
 		DeleteKeychain: func(context.Context, string) error { events = append(events, "delete"); return nil },
@@ -435,11 +441,99 @@ func TestExecuteSigningKeychainInstallRemovesPreexistingSearchEntryByDefault(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(events, []string{"list", "create", "remove-search-entry", "set", "import", "remove-search-entry"}) {
+	if !reflect.DeepEqual(events, []string{"list", "create", "remove-search-entry", "set", "import", "remove-search-entry", "list"}) {
 		t.Fatalf("events = %v", events)
 	}
-	if result.SearchListUpdated {
-		t.Fatalf("result = %+v, want unchanged search list", result)
+	if result.SearchListUpdated || !slices.Equal(searchList, []string{"login.keychain-db", "system.keychain"}) {
+		t.Fatalf("result = %+v, search list = %v, want only the destination removed", result, searchList)
+	}
+}
+
+func TestExecuteSigningKeychainInstallVerifiesSearchListChanges(t *testing.T) {
+	fixture := newSigningRunFixture(t, signingRunFixtureOptions{})
+	identityPath := filepath.Join(t.TempDir(), "App.p12")
+	identityPasswordPath := filepath.Join(t.TempDir(), "identity-password")
+	keychainPasswordPath := filepath.Join(t.TempDir(), "keychain-password")
+	writePrivateTestFile(t, identityPath, fixture.identity)
+	writePrivateTestFile(t, identityPasswordPath, []byte(fixture.password))
+	writePrivateTestFile(t, keychainPasswordPath, []byte("keychain-secret"))
+	importErr := errors.New("import failed")
+	readErr := errors.New("search list unavailable")
+	deleteErr := errors.New("delete failed")
+	tests := []struct {
+		name             string
+		importErr        error
+		isolationReadErr error
+		rollbackReadErr  error
+		deleteErr        error
+		rollbackMismatch bool
+		wantText         string
+		wantCauses       []error
+	}{
+		{name: "isolation silently leaves keychain searchable", wantText: "keychain remains in user search list"},
+		{name: "isolation read fails", isolationReadErr: readErr, wantText: "verify keychain isolation", wantCauses: []error{readErr}},
+		{name: "rollback silently keeps a changed list", importErr: importErr, rollbackMismatch: true, wantText: "keychain search list does not match original", wantCauses: []error{importErr}},
+		{name: "rollback read fails", importErr: importErr, rollbackReadErr: readErr, wantText: "verify restored keychain search list", wantCauses: []error{importErr, readErr}},
+		{name: "rollback deletion fails", importErr: importErr, deleteErr: deleteErr, wantText: "delete keychain", wantCauses: []error{importErr, deleteErr}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			keychainPath := filepath.Join(t.TempDir(), "release.keychain-db")
+			var searchList []string
+			var exists, deleteCalled, restoreCalled, rollbackVerified bool
+			result, err := executeSigningKeychainInstallWith(context.Background(), signingKeychainInstallOptions{
+				IdentityPath: identityPath, IdentityPasswordPath: identityPasswordPath,
+				KeychainPath: keychainPath, KeychainPasswordPath: keychainPasswordPath,
+			}, signingKeychainInstallDeps{
+				GOOS: "darwin", SecurityAvailable: true,
+				Now: func() time.Time { return fixture.now }, AcquireLock: acquireSigningKeychainTestLock,
+				CreateKeychain: func(context.Context, string, []byte) (bool, error) { exists = true; return true, nil },
+				ImportIdentity: func(context.Context, string, []byte, []byte, []byte, string) error { return test.importErr },
+				KeychainSearchList: func(context.Context) ([]string, error) {
+					if deleteCalled {
+						rollbackVerified = true
+						return append([]string(nil), searchList...), test.rollbackReadErr
+					}
+					if exists && test.isolationReadErr != nil {
+						return nil, test.isolationReadErr
+					}
+					return append([]string(nil), searchList...), nil
+				},
+				SetKeychainSearchList: func(_ context.Context, paths []string) error {
+					searchList = append([]string(nil), paths...)
+					if deleteCalled {
+						restoreCalled = true
+						if test.rollbackMismatch {
+							searchList = []string{"unexpected.keychain-db"}
+						}
+					}
+					return nil
+				},
+				RemoveKeychainSearchEntry: func(context.Context, string) error { return nil },
+				DeleteKeychain: func(context.Context, string) error {
+					deleteCalled = true
+					if test.deleteErr == nil {
+						exists = false
+						searchList = nil
+					}
+					return test.deleteErr
+				},
+			})
+			if result != nil || err == nil || !strings.Contains(err.Error(), test.wantText) {
+				t.Fatalf("result=%+v error=%v, want no receipt and %q", result, err, test.wantText)
+			}
+			for _, cause := range test.wantCauses {
+				if !errors.Is(err, cause) {
+					t.Errorf("error=%v does not preserve %v", err, cause)
+				}
+			}
+			if !deleteCalled || !restoreCalled || !rollbackVerified || exists != (test.deleteErr != nil) {
+				t.Fatalf("rollback: deleted=%v restored=%v verified=%v keychainExists=%v", deleteCalled, restoreCalled, rollbackVerified, exists)
+			}
+			if test.importErr == nil && !strings.Contains(err.Error(), "new keychain removed and original user search list restored") {
+				t.Fatalf("error=%v, want verified rollback outcome", err)
+			}
+		})
 	}
 }
 
