@@ -283,6 +283,8 @@ func TestBuildAliasReadsItsValueByShape(t *testing.T) {
 			same("--build <uuid>", invoke(test.byID, "--build", aliasBuildID), invoke(test.byID, "--build-id", aliasBuildID))
 			same("--build 42", invoke(test.byNumber, "--build", "42"), invoke(test.byNumber, "--build-number", "42"))
 			same("--build 1.2.3", invoke(test.byNumber, "--build", "1.2.3"), invoke(test.byNumber, "--build-number", "1.2.3"))
+			t.Setenv("ALIAS_TEST_BUILD_ID", aliasBuildID)
+			same("--build @env:<uuid>", invoke(test.byID, "--build", "@env:ALIAS_TEST_BUILD_ID"), invoke(test.byID, "--build-id", aliasBuildID))
 
 			for _, conflict := range [][]string{
 				{"--build", aliasBuildID, "--build-id", aliasOtherBuildID},
