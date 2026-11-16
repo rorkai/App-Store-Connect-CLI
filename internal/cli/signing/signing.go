@@ -31,7 +31,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			newSigningFetchCommand(d),
 			newSigningKeychainCommand(d),
-			SigningReconcileCommand(),
+			newSigningReconcileCommand(d),
 			SigningResignCommand(),
 			newSigningRunCommand(d),
 			SigningSyncCommand(),
