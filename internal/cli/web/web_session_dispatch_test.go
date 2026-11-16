@@ -29,6 +29,7 @@ func TestCallResolveAppCreateSessionFnPassesTwoFactorCommand(t *testing.T) {
 }
 
 func TestCallResolveSessionFnRejectsDroppedTwoFactorCommand(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = origResolveSession })
 
@@ -37,7 +38,7 @@ func TestCallResolveSessionFnRejectsDroppedTwoFactorCommand(t *testing.T) {
 		return nil, "", nil
 	}
 
-	_, _, err := callResolveSessionFn(context.Background(), "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
+	_, _, err := callResolveSessionFn(context.Background(), d, "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
 	if err == nil {
 		t.Fatal("expected callResolveSessionFn to reject silently dropping the two-factor command")
 	}

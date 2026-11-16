@@ -30,7 +30,7 @@ func stubWebProgressLabels(t *testing.T) *[]string {
 }
 
 func TestResolveSessionUsesProgressLabels(t *testing.T) {
-	labels := stubWebProgressLabels(t)
+	d, _, stderr := newWebSpinnerTestDeps(t)
 
 	origTryResumeSession := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
@@ -45,45 +45,49 @@ func TestResolveSessionUsesProgressLabels(t *testing.T) {
 
 	t.Setenv("ASC_WEB_SESSION_CACHE", "0")
 
-	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
-		if username != "user@example.com" {
-			t.Fatalf("expected username user@example.com, got %q", username)
+	synctest.Test(t, func(t *testing.T) {
+		tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+			synctest.Wait()
+			if username != "user@example.com" {
+				t.Fatalf("expected username user@example.com, got %q", username)
+			}
+			return nil, false, nil
 		}
-		return nil, false, nil
-	}
-	tryResumeLastFn = func(context.Context) (*webcore.AuthSession, bool, error) {
-		t.Fatal("did not expect last-session cache lookup")
-		return nil, false, nil
-	}
-	promptPasswordFn = func(ctx context.Context) (string, error) {
-		return "secret", nil
-	}
-	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
-		return &webcore.AuthSession{UserEmail: creds.Username}, nil
-	}
+		tryResumeLastFn = func(context.Context) (*webcore.AuthSession, bool, error) {
+			t.Fatal("did not expect last-session cache lookup")
+			return nil, false, nil
+		}
+		promptPasswordFn = func(ctx context.Context) (string, error) {
+			return "secret", nil
+		}
+		webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+			synctest.Wait()
+			return &webcore.AuthSession{UserEmail: creds.Username}, nil
+		}
 
-	session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
-	if err != nil {
-		t.Fatalf("resolveSession() error = %v", err)
-	}
-	if session == nil {
-		t.Fatal("expected non-nil session")
-	}
-	if source != "fresh" {
-		t.Fatalf("expected source fresh, got %q", source)
-	}
+		session, source, err := resolveSession(context.Background(), d, "user@example.com", "", "")
+		if err != nil {
+			t.Fatalf("resolveSession() error = %v", err)
+		}
+		if session == nil {
+			t.Fatal("expected non-nil session")
+		}
+		if source != "fresh" {
+			t.Fatalf("expected source fresh, got %q", source)
+		}
+	})
 
 	want := []string{
 		"Checking cached web session",
 		"Signing in to Apple web session",
 	}
-	if !reflect.DeepEqual(*labels, want) {
-		t.Fatalf("expected labels %v, got %v", want, *labels)
+	if labels := spinnerLabels(stderr.String()); !reflect.DeepEqual(labels, want) {
+		t.Fatalf("expected labels %v, got %v", want, labels)
 	}
 }
 
 func TestLoginWithOptionalTwoFactorUsesProgressLabels(t *testing.T) {
-	labels := stubWebProgressLabels(t)
+	d, _, stderr := newWebSpinnerTestDeps(t)
 
 	origLogin := webLoginFn
 	origPrepare := prepareTwoFactorChallengeFn
@@ -94,29 +98,33 @@ func TestLoginWithOptionalTwoFactorUsesProgressLabels(t *testing.T) {
 		submitTwoFactorCodeFn = origSubmit
 	})
 
-	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
-		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
-	}
-	prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
-		return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
-	}
-	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
-		if code != "654321" {
-			t.Fatalf("expected code 654321, got %q", code)
+	synctest.Test(t, func(t *testing.T) {
+		webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+			synctest.Wait()
+			return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
 		}
-		return nil
-	}
+		prepareTwoFactorChallengeFn = func(ctx context.Context, session *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+			return &webcore.TwoFactorChallenge{Method: "trusted-device"}, nil
+		}
+		submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
+			synctest.Wait()
+			if code != "654321" {
+				t.Fatalf("expected code 654321, got %q", code)
+			}
+			return nil
+		}
 
-	if _, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "654321", nil, nil); err != nil {
-		t.Fatalf("loginWithOptionalTwoFactor() error = %v", err)
-	}
+		if _, err := loginWithOptionalTwoFactor(context.Background(), d, "user@example.com", "secret", "654321", nil, nil); err != nil {
+			t.Fatalf("loginWithOptionalTwoFactor() error = %v", err)
+		}
+	})
 
 	want := []string{
 		"Signing in to Apple web session",
 		"Verifying two-factor code",
 	}
-	if !reflect.DeepEqual(*labels, want) {
-		t.Fatalf("expected labels %v, got %v", want, *labels)
+	if labels := spinnerLabels(stderr.String()); !reflect.DeepEqual(labels, want) {
+		t.Fatalf("expected labels %v, got %v", want, labels)
 	}
 }
 
