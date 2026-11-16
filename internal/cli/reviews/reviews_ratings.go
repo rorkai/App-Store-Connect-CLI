@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -84,6 +85,7 @@ Examples:
 
 func executeRatings(ctx context.Context, d *shared.Deps, appID, country string, all bool, workers int, output string, pretty bool) error {
 	client := itunes.NewClient()
+	client.HTTPClient = &http.Client{Transport: d.HTTPTransport()}
 	return executeRatingsWithClient(ctx, d, client, appID, country, all, workers, output, pretty)
 }
 

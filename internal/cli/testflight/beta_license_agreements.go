@@ -28,7 +28,7 @@ Examples:
   asc testflight beta-license-agreements view --app "APP_ID"
   asc testflight beta-license-agreements update --id "AGREEMENT_ID" --agreement-text "Updated terms"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaLicenseAgreementsListCommand(d),
 			newBetaLicenseAgreementsGetCommand(d),
@@ -102,7 +102,7 @@ Examples:
   asc testflight beta-license-agreements view --id "AGREEMENT_ID"
   asc testflight beta-license-agreements view --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appValue := ""

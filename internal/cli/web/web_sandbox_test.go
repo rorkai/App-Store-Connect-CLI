@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -678,5 +679,49 @@ func TestWebSandboxDeleteReportsVerifiedStatusWhenOutputFails(t *testing.T) {
 	}
 	if listCalls != 2 {
 		t.Fatalf("list calls = %d, want 2 for postcondition verification", listCalls)
+	}
+}
+
+func TestWebSandboxCreateTableOutputWritesToDepsStdout(t *testing.T) {
+	origResolveSession := resolveSessionFn
+	origNewWebClient := newWebClientFn
+	origCreate := createWebSandboxTesterFn
+	t.Cleanup(func() {
+		resolveSessionFn = origResolveSession
+		newWebClientFn = origNewWebClient
+		createWebSandboxTesterFn = origCreate
+	})
+
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client { return &webcore.Client{} }
+	createWebSandboxTesterFn = func(ctx context.Context, client *webcore.Client, attrs webcore.SandboxAccountCreateAttributes) error {
+		return nil
+	}
+
+	d, stdout, stderr := newWebTestDeps()
+	cmd := newWebSandboxCreateCommand(d)
+	if err := cmd.FlagSet.Parse([]string{
+		"--first-name", "Jane",
+		"--last-name", "Tester",
+		"--email", "jane@example.com",
+		"--password", "Passwordtest1",
+		"--territory", "USA",
+		"--output", "table",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := cmd.Exec(context.Background(), nil); err != nil {
+		t.Fatalf("Exec() error: %v", err)
+	}
+
+	var want bytes.Buffer
+	asc.RenderTableTo(&want, []string{"First Name", "Last Name", "Email", "Territory", "Submitted"}, [][]string{{"Jane", "Tester", "jane@example.com", "USA", "true"}})
+	if stdout.String() != want.String() {
+		t.Fatalf("stdout = %q, want %q", stdout.String(), want.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
 	}
 }

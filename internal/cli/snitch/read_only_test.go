@@ -25,10 +25,10 @@ func TestReadOnlyModeRefusesGitHubIssueWrites(t *testing.T) {
 	defer func() { setGitHubAPIBase(origBase) }()
 	setGitHubAPIBase(server.URL)
 
-	if _, err := createIssue(t.Context(), "test-token", LogEntry{Description: "x", Severity: "bug"}); !errors.Is(err, readonly.ErrRefused) {
+	if _, err := createIssue(t.Context(), newSnitchTestDeps(), "test-token", LogEntry{Description: "x", Severity: "bug"}); !errors.Is(err, readonly.ErrRefused) {
 		t.Fatalf("createIssue() error = %v, want readonly.ErrRefused", err)
 	}
-	if err := addIssueLabels(t.Context(), "test-token", 42, []string{"bug"}); !errors.Is(err, readonly.ErrRefused) {
+	if err := addIssueLabels(t.Context(), newSnitchTestDeps(), "test-token", 42, []string{"bug"}); !errors.Is(err, readonly.ErrRefused) {
 		t.Fatalf("addIssueLabels() error = %v, want readonly.ErrRefused", err)
 	}
 	if got := sent.Load(); got != 0 {

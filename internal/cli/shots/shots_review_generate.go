@@ -17,14 +17,14 @@ const (
 	defaultShotsReviewOutputDir = "./screenshots/review"
 )
 
-// ShotsReviewGenerateCommand returns screenshots review-generate subcommand.
-func ShotsReviewGenerateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-generate", flag.ExitOnError)
+// NewShotsReviewGenerateCommand returns screenshots review-generate subcommand.
+func NewShotsReviewGenerateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review-generate", flag.ExitOnError)
 	rawDir := fs.String("raw-dir", defaultShotsReviewRawDir, "Directory containing raw screenshots (optional)")
 	framedDir := fs.String("framed-dir", defaultShotsReviewFramedDir, "Directory containing framed screenshots (required)")
 	outputDir := fs.String("output-dir", defaultShotsReviewOutputDir, "Directory to write HTML and JSON review artifacts")
 	approvalPath := fs.String("approval-path", "", "Optional approvals file path (default: <output-dir>/approved.json)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "review-generate",
@@ -35,23 +35,23 @@ func ShotsReviewGenerateCommand() *ffcli.Command {
 - HTML report for visual QA (raw vs framed side-by-side)
 - JSON manifest for agent checks (size, locale/device grouping, approval state)`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			framed := *framedDir
 			if strings.TrimSpace(framed) == "" {
-				return shared.RequiredFlag("--framed-dir")
+				return d.RequiredFlag("--framed-dir")
 			}
 
 			result, err := screenshots.GenerateReview(ctx, screenshots.ReviewRequest{
-				RawDir:       *rawDir,
-				FramedDir:    framed,
-				OutputDir:    *outputDir,
+				RawDir:       userPath(d, *rawDir),
+				FramedDir:    userPath(d, framed),
+				OutputDir:    userPath(d, *outputDir),
 				ApprovalPath: *approvalPath,
 			})
 			if err != nil {
 				return fmt.Errorf("screenshots review-generate: %w", err)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

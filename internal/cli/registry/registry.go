@@ -168,7 +168,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("ads", "Manage Apple Ads API resources.", func() *ffcli.Command {
 			return ads.NewAdsCommand(d)
 		}),
-		commandFactory("optimize", "Build cross-API optimization plans.", optimize.OptimizeCommand),
+		commandFactory("optimize", "Build cross-API optimization plans.", func() *ffcli.Command { return optimize.NewOptimizeCommand(d) }),
 		commandFactory("performance", "Access performance metrics and diagnostic logs.", func() *ffcli.Command {
 			return performance.NewPerformanceCommand(d)
 		}),
@@ -236,8 +236,12 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return release.NewReleaseCommand(d)
 		}),
 		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
-		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", xcode.XcodeCommand),
-		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", distribute.DistributeCommand),
+		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", func() *ffcli.Command {
+			return xcode.NewXcodeCommand(d)
+		}),
+		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", func() *ffcli.Command {
+			return distribute.NewDistributeCommand(d)
+		}),
 		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", func() *ffcli.Command {
 			return artifacts.NewIPAInfoCommand(d)
 		}),
@@ -271,8 +275,12 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", func() *ffcli.Command {
 			return metadata.NewMetadataCommand(d)
 		}),
-		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),
-		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
+		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", func() *ffcli.Command {
+			return screenshots.NewScreenshotsCommand(d)
+		}),
+		commandFactory("video-previews", "Manage App Store app preview videos.", func() *ffcli.Command {
+			return videopreviews.NewVideoPreviewsCommand(d)
+		}),
 		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", func() *ffcli.Command {
 			return assetlibrary.NewCommand(d)
 		}),
@@ -285,8 +293,10 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", func() *ffcli.Command {
 			return sandbox.NewSandboxCommand(d)
 		}),
-		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
-		commandFactory("notarization", "Manage macOS notarization submissions.", notarization.NotarizationCommand),
+		commandFactory("signing", "Manage signing certificates and profiles.", func() *ffcli.Command { return signing.NewSigningCommand(d) }),
+		commandFactory("notarization", "Manage macOS notarization submissions.", func() *ffcli.Command {
+			return notarization.NewNotarizationCommand(d)
+		}),
 		commandFactory("iap", "Manage in-app purchases in App Store Connect.", func() *ffcli.Command {
 			return iap.NewIAPCommand(d)
 		}),
@@ -321,7 +331,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", func() *ffcli.Command {
 			return migrate.NewMigrateCommand(d)
 		}),
-		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
+		commandFactory("notify", "Send notifications to external services.", func() *ffcli.Command { return notify.NewNotifyCommand(d) }),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", func() *ffcli.Command {
 			return gamecenter.NewGameCenterCommand(d)
 		}),
@@ -341,7 +351,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return searchcmd.NewSearchCommand(d, catalog.All)
 		}),
 		commandFactory("snitch", "Report CLI friction as a GitHub issue.", func() *ffcli.Command {
-			return snitch.SnitchCommand(version)
+			return snitch.NewSnitchCommand(d, version)
 		}),
 		commandFactory("version", "Print version information and exit.", func() *ffcli.Command {
 			return VersionCommand(version)

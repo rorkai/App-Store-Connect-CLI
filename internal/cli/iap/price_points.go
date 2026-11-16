@@ -26,7 +26,7 @@ Examples:
   asc iap pricing price-points list --iap-id "IAP_ID"
   asc iap pricing price-points equalizations --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPPricePointsListCommand(d),
 			newIAPPricePointsEqualizationsCommand(d),
@@ -75,7 +75,7 @@ Examples:
   asc iap pricing price-points list --iap-id "IAP_ID" --territory "FR" --paginate --price "4.99"
   asc iap pricing price-points list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "iap pricing price-points list", 200, "territory", "include"); err != nil {
 				return err

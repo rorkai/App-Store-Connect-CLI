@@ -89,15 +89,14 @@ func TestReviewsRatingsAppNotInStorefrontExitsNotFound(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				return jsonHTTPResponse(http.StatusOK, `{"resultCount":0,"results":[]}`), nil
-			}))
-
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitNotFound {
-					t.Fatalf("exit code = %d, want %d", code, cmd.ExitNotFound)
-				}
 			})
+
+			stdout, stderr, code := runWithHTTPTransport(t, nil, transport, test.args...)
+			if code != cmd.ExitNotFound {
+				t.Fatalf("exit code = %d, want %d", code, cmd.ExitNotFound)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

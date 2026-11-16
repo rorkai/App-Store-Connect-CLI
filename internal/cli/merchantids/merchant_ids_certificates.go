@@ -28,7 +28,7 @@ Examples:
   asc merchant-ids certificates view --merchant-id "MERCHANT_ID"
   asc merchant-ids certificates create --merchant-id "MERCHANT_ID" --certificate-type APPLE_PAY_MERCHANT_IDENTITY --csr "./merchant.csr"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newMerchantIDsCertificatesListCommand(d),
 			newMerchantIDsCertificatesGetCommand(d),

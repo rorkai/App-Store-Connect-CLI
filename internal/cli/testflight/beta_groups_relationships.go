@@ -35,7 +35,7 @@ Examples:
   asc testflight beta-groups relationships view --group-id "GROUP_ID" --type "betaTesters"
   asc testflight beta-groups relationships view --group-id "GROUP_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaGroupsRelationshipsGetCommand(d),
 		},
@@ -67,7 +67,7 @@ Examples:
   asc testflight beta-groups relationships view --group-id "GROUP_ID" --type "betaTesters"
   asc testflight beta-groups relationships view --group-id "GROUP_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-groups relationships view", 200); err != nil {
 				return err

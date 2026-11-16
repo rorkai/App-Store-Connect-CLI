@@ -178,8 +178,6 @@ func TestWebAppsCreateUsesProgressLabels(t *testing.T) {
 }
 
 func TestWebReviewListUsesProgressLabel(t *testing.T) {
-	labels := stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
@@ -188,7 +186,7 @@ func TestWebReviewListUsesProgressLabel(t *testing.T) {
 	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
 		return &webcore.AuthSession{
 			Client: &http.Client{
-				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				Transport: spinnerShownTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
 					if req.URL.Path != "/iris/v1/apps/app-1/reviewSubmissions" {
 						t.Fatalf("unexpected path: %s", req.URL.Path)
 					}
@@ -209,31 +207,30 @@ func TestWebReviewListUsesProgressLabel(t *testing.T) {
 						Body:       io.NopCloser(strings.NewReader(body)),
 						Request:    req,
 					}, nil
-				}),
+				})),
 			},
 		}, "cache", nil
 	}
 
-	cmd := WebReviewListCommand()
+	d, _, stderr := newWebSpinnerTestDeps(t)
+	cmd := newWebReviewListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, _ = captureOutput(t, func() {
+	synctest.Test(t, func(t *testing.T) {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
 	})
 
 	want := []string{"Loading review submissions"}
-	if !reflect.DeepEqual(*labels, want) {
-		t.Fatalf("expected labels %v, got %v", want, *labels)
+	if labels := spinnerLabels(stderr.String()); !reflect.DeepEqual(labels, want) {
+		t.Fatalf("expected labels %v, got %v", want, labels)
 	}
 }
 
 func TestWebXcodeCloudUsageSummaryUsesProgressLabel(t *testing.T) {
-	labels := stubWebProgressLabels(t)
-
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
@@ -243,7 +240,7 @@ func TestWebXcodeCloudUsageSummaryUsesProgressLabel(t *testing.T) {
 		return &webcore.AuthSession{
 			PublicProviderID: "team-1",
 			Client: &http.Client{
-				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				Transport: spinnerShownTransport(roundTripFunc(func(req *http.Request) (*http.Response, error) {
 					if req.URL.Path != "/ci/api/teams/team-1/usage/summary" {
 						t.Fatalf("unexpected path: %s", req.URL.Path)
 					}
@@ -254,24 +251,25 @@ func TestWebXcodeCloudUsageSummaryUsesProgressLabel(t *testing.T) {
 						Body:       io.NopCloser(strings.NewReader(body)),
 						Request:    req,
 					}, nil
-				}),
+				})),
 			},
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudUsageSummaryCommand()
+	d, _, stderr := newWebSpinnerTestDeps(t)
+	cmd := webXcodeCloudUsageSummaryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, _ = captureOutput(t, func() {
+	synctest.Test(t, func(t *testing.T) {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
 	})
 
 	want := []string{"Loading Xcode Cloud usage summary"}
-	if !reflect.DeepEqual(*labels, want) {
-		t.Fatalf("expected labels %v, got %v", want, *labels)
+	if labels := spinnerLabels(stderr.String()); !reflect.DeepEqual(labels, want) {
+		t.Fatalf("expected labels %v, got %v", want, labels)
 	}
 }

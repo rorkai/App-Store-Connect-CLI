@@ -45,7 +45,7 @@ Examples:
   asc pricing availability platforms --app "123456789"
   asc pricing availability remove-from-sale --app "123456789" --confirm
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPricingCurrentCommand(d),
 			newPricingTerritoriesCommand(d),
@@ -71,7 +71,7 @@ func newPricingTerritoriesCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc pricing territories list`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPricingTerritoriesListCommand(d),
 		},
@@ -100,7 +100,7 @@ Examples:
   asc pricing territories list
   asc pricing territories list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "pricing territories list", 200); err != nil {
 				return err
@@ -176,7 +176,7 @@ Examples:
   asc pricing price-points view --price-point "PRICE_POINT_ID"
   asc pricing price-points equalizations --price-point "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPricingPricePointsGetCommand(d),
 			newPricingPricePointsEqualizationsCommand(d),
@@ -266,7 +266,7 @@ func newPricingPricePointsGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc pricing price-points view --price-point "PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedPricePointID := strings.TrimSpace(*pricePointID)
 			if trimmedPricePointID == "" {
@@ -332,7 +332,7 @@ Examples:
   asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "YYYY-MM-DD"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPricingScheduleGetCommand(d),
 			newPricingScheduleCreateCommand(d),
@@ -363,7 +363,7 @@ Examples:
   asc pricing schedule view --app "123456789"
   asc pricing schedule view --id "SCHEDULE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
@@ -461,7 +461,7 @@ Examples:
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID" --paginate
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID" --resolved`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "pricing schedule manual-prices", 200); err != nil {
 				return err
@@ -546,7 +546,7 @@ Examples:
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID" --paginate
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID" --resolved`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "pricing schedule automatic-prices", 200); err != nil {
 				return err
@@ -627,7 +627,7 @@ Examples:
   asc pricing availability platforms --app "123456789"
   asc pricing availability remove-from-sale --app "123456789" --confirm
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPricingAvailabilityGetCommand(d),
 			newPricingAvailabilityCreateCommand(d),
@@ -660,7 +660,7 @@ Examples:
   asc pricing availability view --app "123456789"
   asc pricing availability view --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
@@ -868,7 +868,7 @@ availableInNewTerritories, so on update that flag is only verified against the
 existing policy. Any other 409, including Apple's rejection of public-API
 bootstrap, keeps failing.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -1073,7 +1073,7 @@ before "asc pricing availability remove-from-sale".
 Examples:
   asc pricing availability platforms --app "123456789"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

@@ -49,7 +49,7 @@ Examples:
   asc insights weekly --app "123456789" --source sales --week "2026-02-16" --vendor "12345678"
   asc insights daily --app "123456789" --vendor "12345678" --date "2026-02-20"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newInsightsWeeklyCommand(d),
 			newInsightsDailyCommand(d),
@@ -85,7 +85,7 @@ Examples:
   asc insights weekly --app "123456789" --source sales --week "2026-02-16" --vendor "12345678"
   asc insights weekly --app "123456789" --source sales --week "2026-02-16" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -158,7 +158,7 @@ Examples:
   asc insights daily --app "123456789" --vendor "12345678" --date "2026-02-20"
   asc insights daily --app "123456789" --vendor "12345678" --date "2026-02-20" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
