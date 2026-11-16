@@ -36,9 +36,9 @@ var (
 	}
 )
 
-// WebSubscriptionsPricingCommand returns the web subscription pricing command group.
-func WebSubscriptionsPricingCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web subscriptions pricing", flag.ExitOnError)
+// newWebSubscriptionsPricingCommand returns the web subscription pricing command group.
+func newWebSubscriptionsPricingCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web subscriptions pricing", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "pricing",
@@ -50,10 +50,10 @@ Manage subscription pricing through Apple's internal web API.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebSubscriptionsPricingAdjustedEqualizationsCommand(),
-			WebSubscriptionsPricingMonthlyCommitmentCommand(),
+			newWebSubscriptionsPricingAdjustedEqualizationsCommand(d),
+			newWebSubscriptionsPricingMonthlyCommitmentCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -61,9 +61,9 @@ Manage subscription pricing through Apple's internal web API.
 	}
 }
 
-// WebSubscriptionsPricingMonthlyCommitmentCommand returns the monthly commitment group.
-func WebSubscriptionsPricingMonthlyCommitmentCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web subscriptions pricing monthly-commitment", flag.ExitOnError)
+// newWebSubscriptionsPricingMonthlyCommitmentCommand returns the monthly commitment group.
+func newWebSubscriptionsPricingMonthlyCommitmentCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web subscriptions pricing monthly-commitment", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "monthly-commitment",
@@ -75,9 +75,9 @@ Bootstrap monthly-with-12-month-commitment pricing through Apple's internal web 
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebSubscriptionsPricingMonthlyCommitmentBootstrapCommand(),
+			newWebSubscriptionsPricingMonthlyCommitmentBootstrapCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -85,9 +85,9 @@ Bootstrap monthly-with-12-month-commitment pricing through Apple's internal web 
 	}
 }
 
-// WebSubscriptionsPricingMonthlyCommitmentBootstrapCommand creates availability and prices.
-func WebSubscriptionsPricingMonthlyCommitmentBootstrapCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web subscriptions pricing monthly-commitment bootstrap", flag.ExitOnError)
+// newWebSubscriptionsPricingMonthlyCommitmentBootstrapCommand creates availability and prices.
+func newWebSubscriptionsPricingMonthlyCommitmentBootstrapCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web subscriptions pricing monthly-commitment bootstrap", flag.ExitOnError)
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	territory := fs.String("territory", "", "Three-letter territory ID, for example NOR")
@@ -100,7 +100,7 @@ func WebSubscriptionsPricingMonthlyCommitmentBootstrapCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Resolve and print the plan without creating or changing resources")
 	confirm := fs.Bool("confirm", false, "Confirm creating monthly availability and paired prices")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "bootstrap",
@@ -122,7 +122,7 @@ resolution but does not mutate App Store Connect.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			territoryID := strings.ToUpper(strings.TrimSpace(*territory))
@@ -133,27 +133,27 @@ resolution but does not mutate App Store Connect.
 			scheduledDate := strings.TrimSpace(*startDate)
 			switch {
 			case id == "":
-				return shared.UsageError("--subscription-id is required")
+				return d.UsageError("--subscription-id is required")
 			case len(territoryID) != 3:
-				return shared.UsageError("--territory must be a three-letter territory ID")
+				return d.UsageError("--territory must be a three-letter territory ID")
 			case territoryID == "USA":
-				return shared.UsageError("--territory cannot be USA for monthly-commitment pricing")
+				return d.UsageError("--territory cannot be USA for monthly-commitment pricing")
 			case (upfrontID == "") == (upfrontAmount == ""):
-				return shared.UsageError("exactly one of --upfront-price or --upfront-price-point-id is required")
+				return d.UsageError("exactly one of --upfront-price or --upfront-price-point-id is required")
 			case (monthlyID == "") == (monthlyAmount == ""):
-				return shared.UsageError("exactly one of --monthly-price or --monthly-price-point-id is required")
+				return d.UsageError("exactly one of --monthly-price or --monthly-price-point-id is required")
 			case *preserveCurrentPrice && scheduledDate == "":
-				return shared.UsageError("--preserve-current-price requires --start-date")
+				return d.UsageError("--preserve-current-price requires --start-date")
 			case !*dryRun && !*confirm:
-				return shared.RequireConfirmUnlessDryRun(*dryRun, *confirm)
+				return d.RequireConfirmUnlessDryRun(*dryRun, *confirm)
 			}
 			if scheduledDate != "" {
 				if _, err := time.Parse("2006-01-02", scheduledDate); err != nil {
-					return shared.UsageError("--start-date must use YYYY-MM-DD")
+					return d.UsageError("--start-date must use YYYY-MM-DD")
 				}
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -198,7 +198,7 @@ resolution but does not mutate App Store Connect.
 					DryRun: true, StartDate: scheduledDate,
 					PreserveCurrentPrice: *preserveCurrentPrice,
 				}
-				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+				return d.PrintOutput(&result, *output.Output, *output.Pretty)
 			}
 			if !found {
 				monthlyAvailability, err = dereferencePlanAvailability(createWebSubscriptionPlanAvailabilityFn(requestCtx, client, id, "MONTHLY", []string{territoryID}, false))
@@ -230,57 +230,57 @@ resolution but does not mutate App Store Connect.
 			if err != nil {
 				runErr := fmt.Errorf("monthly availability ready, but paired price creation failed: %w", err)
 				result.Failure = runErr.Error()
-				return printMonthlyCommitmentBootstrapReceipt(result, *output.Output, *output.Pretty, runErr)
+				return printMonthlyCommitmentBootstrapReceipt(d, result, *output.Output, *output.Pretty, runErr)
 			}
 			result.PricesCreated = true
 			result.CompletedStage = asc.WebMonthlyCommitmentStagePrices
-			verifyCtx, verifyCancel := shared.ContextWithTimeout(ctx)
+			verifyCtx, verifyCancel := d.Timeout(ctx)
 			defer verifyCancel()
-			if verifyErr := verifyMonthlyCommitmentBootstrap(verifyCtx, client, result); verifyErr != nil {
+			if verifyErr := verifyMonthlyCommitmentBootstrap(verifyCtx, d, client, result); verifyErr != nil {
 				result.Failure = verifyErr.Error()
-				return printMonthlyCommitmentBootstrapReceipt(result, *output.Output, *output.Pretty, verifyErr)
+				return printMonthlyCommitmentBootstrapReceipt(d, result, *output.Output, *output.Pretty, verifyErr)
 			}
 			result.Verified = true
 			result.CompletedStage = asc.WebMonthlyCommitmentStageVerified
-			return printMonthlyCommitmentBootstrapReceipt(result, *output.Output, *output.Pretty, nil)
+			return printMonthlyCommitmentBootstrapReceipt(d, result, *output.Output, *output.Pretty, nil)
 		},
 	}
 }
 
-// WebSubscriptionsPricingAdjustedEqualizationsCommand returns the adjusted equalizations group.
-func WebSubscriptionsPricingAdjustedEqualizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web subscriptions pricing adjusted-equalizations", flag.ExitOnError)
+// newWebSubscriptionsPricingAdjustedEqualizationsCommand returns the adjusted equalizations group.
+func newWebSubscriptionsPricingAdjustedEqualizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web subscriptions pricing adjusted-equalizations", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "adjusted-equalizations", ShortUsage: "asc web subscriptions pricing adjusted-equalizations view [flags]",
 		ShortHelp: "Inspect Apple's adjusted subscription price matrix.",
-		FlagSet:   fs, UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebSubscriptionsPricingAdjustedEqualizationsViewCommand()},
+		FlagSet:   fs, UsageFunc: d.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{newWebSubscriptionsPricingAdjustedEqualizationsViewCommand(d)},
 		Exec:        func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
 
-// WebSubscriptionsPricingAdjustedEqualizationsViewCommand inspects one price point.
-func WebSubscriptionsPricingAdjustedEqualizationsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web subscriptions pricing adjusted-equalizations view", flag.ExitOnError)
+// newWebSubscriptionsPricingAdjustedEqualizationsViewCommand inspects one price point.
+func newWebSubscriptionsPricingAdjustedEqualizationsViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web subscriptions pricing adjusted-equalizations view", flag.ExitOnError)
 	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
 	planType := fs.String("plan-type", "MONTHLY", "Plan type (MONTHLY only)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "view",
 		ShortUsage: "asc web subscriptions pricing adjusted-equalizations view --price-point-id PRICE_POINT_ID [--plan-type MONTHLY] [flags]",
 		ShortHelp:  "View a generated MONTHLY subscription price matrix.",
-		FlagSet:    fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet:    fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*pricePointID)
 			normalizedPlanType := strings.ToUpper(strings.TrimSpace(*planType))
 			if id == "" {
-				return shared.UsageError("--price-point-id is required")
+				return d.UsageError("--price-point-id is required")
 			}
 			if normalizedPlanType != "MONTHLY" {
-				return shared.UsageError(`--plan-type only supports "MONTHLY"; Apple's endpoint rejects UPFRONT`)
+				return d.UsageError(`--plan-type only supports "MONTHLY"; Apple's endpoint rejects UPFRONT`)
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -291,13 +291,13 @@ func WebSubscriptionsPricingAdjustedEqualizationsViewCommand() *ffcli.Command {
 			}
 			if !result.Available {
 				row := []string{result.PricePointID, "false", result.Code, result.Detail, strings.Join(result.MissingTerritories, ", ")}
-				return shared.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"Price Point ID", "Available", "Code", "Detail", "Missing Territories"}, [][]string{row})
+				return d.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"Price Point ID", "Available", "Code", "Detail", "Missing Territories"}, [][]string{row})
 			}
 			rows := make([][]string, 0, len(result.Equalizations))
 			for _, eq := range result.Equalizations {
 				rows = append(rows, []string{eq.ID, eq.Territory, eq.CustomerPrice, eq.Currency})
 			}
-			return shared.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"ID", "Territory", "Customer Price", "Currency"}, rows)
+			return d.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"ID", "Territory", "Customer Price", "Currency"}, rows)
 		},
 	}
 }
@@ -336,8 +336,8 @@ func dereferencePlanAvailability(availability *webcore.SubscriptionPlanAvailabil
 	return *availability, nil
 }
 
-func printMonthlyCommitmentBootstrapReceipt(result asc.WebSubscriptionMonthlyCommitmentBootstrapResult, format string, pretty bool, runErr error) error {
-	if err := shared.PrintOutput(&result, format, pretty); err != nil {
+func printMonthlyCommitmentBootstrapReceipt(d *shared.Deps, result asc.WebSubscriptionMonthlyCommitmentBootstrapResult, format string, pretty bool, runErr error) error {
+	if err := d.PrintOutput(&result, format, pretty); err != nil {
 		if runErr != nil {
 			return errors.Join(err, runErr)
 		}
@@ -349,7 +349,7 @@ func printMonthlyCommitmentBootstrapReceipt(result asc.WebSubscriptionMonthlyCom
 	return nil
 }
 
-func verifyMonthlyCommitmentBootstrap(ctx context.Context, client *webcore.Client, result asc.WebSubscriptionMonthlyCommitmentBootstrapResult) error {
+func verifyMonthlyCommitmentBootstrap(ctx context.Context, d *shared.Deps, client *webcore.Client, result asc.WebSubscriptionMonthlyCommitmentBootstrapResult) error {
 	availabilities, err := listWebSubscriptionPlanAvailabilitiesFn(ctx, client, result.SubscriptionID)
 	if err != nil {
 		return fmt.Errorf("read back MONTHLY plan availability: %w", err)
@@ -370,7 +370,7 @@ func verifyMonthlyCommitmentBootstrap(ctx context.Context, client *webcore.Clien
 		return fmt.Errorf("read back subscription prices: %w", err)
 	}
 	startDate := webcore.NormalizeSubscriptionPriceStartDate(result.StartDate)
-	now := time.Now().UTC()
+	now := d.Now().UTC()
 	if _, ok := webcore.FindSubscriptionPrice(prices, "UPFRONT", result.Territory, result.UpfrontPricePointID, startDate, now); !ok {
 		return fmt.Errorf("UPFRONT price record for %s did not match price point %s", result.Territory, result.UpfrontPricePointID)
 	}

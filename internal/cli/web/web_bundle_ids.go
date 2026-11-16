@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 
@@ -38,9 +37,9 @@ var getDeveloperBundleIDFn = func(ctx context.Context, client *webcore.Client, b
 	return client.GetDeveloperBundleID(ctx, bundleID)
 }
 
-// WebBundleIDsCommand returns the Bundle ID command group.
-func WebBundleIDsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web bundle-ids", flag.ExitOnError)
+// newWebBundleIDsCommand returns the Bundle ID command group.
+func newWebBundleIDsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web bundle-ids", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "bundle-ids",
@@ -52,11 +51,11 @@ Manage Bundle ID operations that are only available through Apple web-session en
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebBundleIDsListCommand(),
-			WebBundleIDsViewCommand(),
-			WebBundleIDCapabilitiesCommand(),
+			newWebBundleIDsListCommand(d),
+			newWebBundleIDsViewCommand(d),
+			newWebBundleIDCapabilitiesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -64,14 +63,14 @@ Manage Bundle ID operations that are only available through Apple web-session en
 	}
 }
 
-// WebBundleIDsListCommand lists Bundle IDs visible to the selected Developer
+// newWebBundleIDsListCommand lists Bundle IDs visible to the selected Developer
 // Portal team. It intentionally exposes the first web collection only; the
 // endpoint's captured 1000-resource request is not a pagination guarantee.
-func WebBundleIDsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web bundle-ids list", flag.ExitOnError)
+func newWebBundleIDsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web bundle-ids list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -95,23 +94,23 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web bundle-ids list")
 			}
 
 			var result *webcore.DeveloperBundleIDsListResult
-			err = withWebSpinner("Loading Developer Portal Bundle IDs", func() error {
+			err = withWebSpinnerWith(d, "Loading Developer Portal Bundle IDs", func() error {
 				var listErr error
 				result, listErr = listDeveloperBundleIDsFn(requestCtx, newDeveloperPortalClient(session, portalFlags))
 				return listErr
@@ -122,31 +121,27 @@ Examples:
 			if result == nil {
 				return fmt.Errorf("web bundle-ids list failed: missing list result")
 			}
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperBundleIDsTable(result) },
-				func() error { return renderDeveloperBundleIDsMarkdown(result) },
+				func() error { return renderDeveloperBundleIDsTable(d, result) },
+				func() error { return renderDeveloperBundleIDsMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebBundleIDsViewCommand reads one opaque Developer Portal Bundle ID resource
+// newWebBundleIDsViewCommand reads one opaque Developer Portal Bundle ID resource
 // and the capability graph returned by Apple's detail endpoint.
-func WebBundleIDsViewCommand() *ffcli.Command {
-	return newWebBundleIDsViewCommand(flag.ExitOnError)
-}
-
-func newWebBundleIDsViewCommand(errorHandling flag.ErrorHandling) *ffcli.Command {
-	fs := flag.NewFlagSet("web bundle-ids view", errorHandling)
+func newWebBundleIDsViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web bundle-ids view", flag.ExitOnError)
 	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -166,27 +161,27 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			if resolvedBundleID == "" {
-				return shared.UsageError("--bundle-id is required")
+				return d.UsageError("--bundle-id is required")
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web bundle-ids view")
 			}
 
 			var result *webcore.DeveloperBundleIDGetResult
-			err = withWebSpinner("Loading Developer Portal Bundle ID", func() error {
+			err = withWebSpinnerWith(d, "Loading Developer Portal Bundle ID", func() error {
 				var getErr error
 				result, getErr = getDeveloperBundleIDFn(requestCtx, newDeveloperPortalClient(session, portalFlags), resolvedBundleID)
 				return getErr
@@ -197,22 +192,22 @@ Examples:
 			if result == nil {
 				return fmt.Errorf("web bundle-ids view failed: missing view result")
 			}
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperBundleIDTable(result) },
-				func() error { return renderDeveloperBundleIDMarkdown(result) },
+				func() error { return renderDeveloperBundleIDTable(d, result) },
+				func() error { return renderDeveloperBundleIDMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebBundleIDCapabilitiesCommand returns the Bundle ID capabilities group.
-func WebBundleIDCapabilitiesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web bundle-ids capabilities", flag.ExitOnError)
+// newWebBundleIDCapabilitiesCommand returns the Bundle ID capabilities group.
+func newWebBundleIDCapabilitiesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web bundle-ids capabilities", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "capabilities",
@@ -225,11 +220,11 @@ Portal web-session endpoints.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebBundleIDCapabilitiesEnableCommand(),
-			WebBundleIDCapabilitiesDisableCommand(),
-			WebBundleIDCapabilitiesSyncAppClipCommand(),
+			newWebBundleIDCapabilitiesEnableCommand(d),
+			newWebBundleIDCapabilitiesDisableCommand(d),
+			newWebBundleIDCapabilitiesSyncAppClipCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -237,17 +232,17 @@ Portal web-session endpoints.
 	}
 }
 
-// WebBundleIDCapabilitiesDisableCommand disables a Developer Portal-only
+// newWebBundleIDCapabilitiesDisableCommand disables a Developer Portal-only
 // Bundle ID capability while preserving all existing capability relationships.
-func WebBundleIDCapabilitiesDisableCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web bundle-ids capabilities disable", flag.ExitOnError)
+func newWebBundleIDCapabilitiesDisableCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web bundle-ids capabilities disable", flag.ExitOnError)
 
 	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
 	capability := fs.String("capability", "", "Developer Portal capability ID (supported: PRIVATE_CLOUD_COMPUTE)")
 	confirm := fs.Bool("confirm", false, "Confirm disabling this Bundle ID capability")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "disable",
@@ -283,25 +278,25 @@ Authentication:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			resolvedCapability := strings.ToUpper(strings.TrimSpace(*capability))
 			switch {
 			case resolvedBundleID == "":
-				return shared.UsageError("--bundle-id is required")
+				return d.UsageError("--bundle-id is required")
 			case resolvedCapability == "":
-				return shared.UsageError("--capability is required")
+				return d.UsageError("--capability is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			case resolvedCapability != "PRIVATE_CLOUD_COMPUTE":
-				return shared.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
+				return d.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -309,7 +304,7 @@ Authentication:
 			client := newDeveloperPortalClient(session, portalFlags)
 
 			var result *asc.DeveloperBundleIDCapabilityDisableResult
-			err = withWebSpinner("Disabling Developer Portal Bundle ID capability", func() error {
+			err = withWebSpinnerWith(d, "Disabling Developer Portal Bundle ID capability", func() error {
 				var disableErr error
 				result, disableErr = disableDeveloperBundleIDCapabilityFn(requestCtx, client, webcore.DeveloperBundleIDCapabilityDisableRequest{
 					BundleID:   resolvedBundleID,
@@ -319,11 +314,11 @@ Authentication:
 			})
 			// Persist after every PATCH attempt so a later inspection uses any
 			// refreshed cookies and the same selected Developer Portal team.
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
 				var unverified *webcore.DeveloperBundleIDCapabilityUnverifiedError
 				if errors.As(err, &unverified) {
-					fmt.Fprintf(os.Stderr, "Warning: disabling %s on Bundle ID %s may have changed the App ID, which can invalidate existing provisioning profiles. Inspect the Bundle ID before retrying.\n", resolvedCapability, resolvedBundleID)
+					fmt.Fprintf(d.IO.ErrOut, "Warning: disabling %s on Bundle ID %s may have changed the App ID, which can invalidate existing provisioning profiles. Inspect the Bundle ID before retrying.\n", resolvedCapability, resolvedBundleID)
 				}
 				return withWebAuthHint(err, "web bundle-ids capabilities disable")
 			}
@@ -331,25 +326,25 @@ Authentication:
 				return fmt.Errorf("web bundle-ids capabilities disable failed: missing disable result")
 			}
 			if result.Changed {
-				fmt.Fprintf(os.Stderr, "Warning: disabling %s on Bundle ID %s changed the App ID, which invalidates existing provisioning profiles that contain it. Regenerate affected profiles before the next signed build.\n", result.Capability, result.BundleID)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: disabling %s on Bundle ID %s changed the App ID, which invalidates existing provisioning profiles that contain it. Regenerate affected profiles before the next signed build.\n", result.Capability, result.BundleID)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebBundleIDCapabilitiesEnableCommand enables a Developer Portal-only Bundle
+// newWebBundleIDCapabilitiesEnableCommand enables a Developer Portal-only Bundle
 // ID capability while preserving all existing capability relationships.
-func WebBundleIDCapabilitiesEnableCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web bundle-ids capabilities enable", flag.ExitOnError)
+func newWebBundleIDCapabilitiesEnableCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web bundle-ids capabilities enable", flag.ExitOnError)
 
 	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
 	capability := fs.String("capability", "", "Developer Portal capability ID (supported: PRIVATE_CLOUD_COMPUTE)")
 	confirm := fs.Bool("confirm", false, "Confirm enabling this Bundle ID capability")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "enable",
@@ -380,25 +375,25 @@ Authentication:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			resolvedCapability := strings.ToUpper(strings.TrimSpace(*capability))
 			switch {
 			case resolvedBundleID == "":
-				return shared.UsageError("--bundle-id is required")
+				return d.UsageError("--bundle-id is required")
 			case resolvedCapability == "":
-				return shared.UsageError("--capability is required")
+				return d.UsageError("--capability is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			case resolvedCapability != "PRIVATE_CLOUD_COMPUTE":
-				return shared.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
+				return d.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -406,7 +401,7 @@ Authentication:
 			client := newDeveloperPortalClient(session, portalFlags)
 
 			var result *webcore.DeveloperBundleIDCapabilityEnableResult
-			err = withWebSpinner("Enabling Developer Portal Bundle ID capability", func() error {
+			err = withWebSpinnerWith(d, "Enabling Developer Portal Bundle ID capability", func() error {
 				var enableErr error
 				result, enableErr = enableDeveloperBundleIDCapabilityFn(requestCtx, client, webcore.DeveloperBundleIDCapabilityEnableRequest{
 					BundleID:   resolvedBundleID,
@@ -417,7 +412,7 @@ Authentication:
 			// Persist after the PATCH attempt so a later retry without
 			// --developer-team still targets the team that may have enabled
 			// the capability even when Apple's response body is unreadable.
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
 				return withWebAuthHint(err, "web bundle-ids capabilities enable")
 			}
@@ -425,12 +420,12 @@ Authentication:
 				return fmt.Errorf("web bundle-ids capabilities enable failed: missing enable result")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperBundleIDCapabilityEnableTable(result) },
-				func() error { return renderDeveloperBundleIDCapabilityEnableMarkdown(result) },
+				func() error { return renderDeveloperBundleIDCapabilityEnableTable(d, result) },
+				func() error { return renderDeveloperBundleIDCapabilityEnableMarkdown(d, result) },
 			)
 		},
 	}
@@ -440,9 +435,9 @@ Authentication:
 // requirement to callers still using the pre-confirm invocation shape.
 const webBundleIDSyncAppClipConfirmMigrationWarning = "Warning: web bundle-ids capabilities sync-app-clip now requires --confirm because syncing rewrites the App Clip Bundle ID capability graph and invalidates existing provisioning profiles; re-run with --confirm to acknowledge. No request was sent."
 
-// WebBundleIDCapabilitiesSyncAppClipCommand syncs one App Clip capability relationship.
-func WebBundleIDCapabilitiesSyncAppClipCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web bundle-ids capabilities sync-app-clip", flag.ExitOnError)
+// newWebBundleIDCapabilitiesSyncAppClipCommand syncs one App Clip capability relationship.
+func newWebBundleIDCapabilitiesSyncAppClipCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web bundle-ids capabilities sync-app-clip", flag.ExitOnError)
 
 	bundleID := fs.String("bundle-id", "", "Opaque App Clip Bundle ID resource ID")
 	parentBundleID := fs.String("parent-bundle-id", "", "Opaque parent app Bundle ID resource ID")
@@ -450,7 +445,7 @@ func WebBundleIDCapabilitiesSyncAppClipCommand() *ffcli.Command {
 	settingsJSON := fs.String("settings-json", "", "Optional JSON array of capability settings")
 	confirm := fs.Bool("confirm", false, "Confirm the sync; a changed App ID invalidates existing provisioning profiles")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "sync-app-clip",
@@ -480,31 +475,31 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			resolvedParentBundleID := strings.TrimSpace(*parentBundleID)
 			resolvedCapability := strings.ToUpper(strings.TrimSpace(*capability))
 			if resolvedBundleID == "" {
-				return shared.UsageError("--bundle-id is required")
+				return d.UsageError("--bundle-id is required")
 			}
 			if resolvedParentBundleID == "" {
-				return shared.UsageError("--parent-bundle-id is required")
+				return d.UsageError("--parent-bundle-id is required")
 			}
 			if resolvedCapability == "" {
-				return shared.UsageError("--capability is required")
+				return d.UsageError("--capability is required")
 			}
 
 			settings, err := parseWebBundleIDCapabilitySettings(*settingsJSON)
 			if err != nil {
-				return shared.UsageErrorf("--settings-json must be a JSON array of capability settings: %v", err)
+				return d.UsageErrorf("--settings-json must be a JSON array of capability settings: %v", err)
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, webBundleIDSyncAppClipConfirmMigrationWarning)
-				return shared.RequireConfirm(*confirm)
+				fmt.Fprintln(d.IO.ErrOut, webBundleIDSyncAppClipConfirmMigrationWarning)
+				return d.RequireConfirm(*confirm)
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -512,7 +507,7 @@ Examples:
 
 			client := newWebClientFn(session)
 			var result *webcore.AppClipBundleIDCapabilitySyncResult
-			err = withWebSpinner("Syncing App Clip Bundle ID capability", func() error {
+			err = withWebSpinnerWith(d, "Syncing App Clip Bundle ID capability", func() error {
 				var err error
 				result, err = syncAppClipBundleIDCapabilityFn(requestCtx, client, webcore.AppClipBundleIDCapabilitySyncRequest{
 					BundleID:         resolvedBundleID,
@@ -533,18 +528,18 @@ Examples:
 			// Apple may rotate session cookies on the read or the write; cache
 			// them so the next command reuses the refreshed session.
 			if err := persistWebSessionFn(session); err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: failed to persist refreshed web session: %v\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: failed to persist refreshed web session: %v\n", err)
 			}
 			if result.Changed {
-				fmt.Fprintf(os.Stderr, "Warning: syncing %s on Bundle ID %s changed the App ID, which invalidates existing provisioning profiles that contain it. Regenerate affected profiles before the next signed build.\n", result.Capability, result.BundleID)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: syncing %s on Bundle ID %s changed the App ID, which invalidates existing provisioning profiles that contain it. Regenerate affected profiles before the next signed build.\n", result.Capability, result.BundleID)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWebBundleIDCapabilitySyncTable(result) },
-				func() error { return renderWebBundleIDCapabilitySyncMarkdown(result) },
+				func() error { return renderWebBundleIDCapabilitySyncTable(d, result) },
+				func() error { return renderWebBundleIDCapabilitySyncMarkdown(d, result) },
 			)
 		},
 	}
@@ -585,18 +580,18 @@ func webBundleIDCapabilitySyncRows(result *webcore.AppClipBundleIDCapabilitySync
 	}}
 }
 
-func renderWebBundleIDCapabilitySyncTable(result *webcore.AppClipBundleIDCapabilitySyncResult) error {
-	asc.RenderTable(webBundleIDCapabilitySyncHeaders(), webBundleIDCapabilitySyncRows(result))
+func renderWebBundleIDCapabilitySyncTable(d *shared.Deps, result *webcore.AppClipBundleIDCapabilitySyncResult) error {
+	asc.RenderTableTo(d.IO.Out, webBundleIDCapabilitySyncHeaders(), webBundleIDCapabilitySyncRows(result))
 	return nil
 }
 
-func renderWebBundleIDCapabilitySyncMarkdown(result *webcore.AppClipBundleIDCapabilitySyncResult) error {
-	asc.RenderMarkdown(webBundleIDCapabilitySyncHeaders(), webBundleIDCapabilitySyncRows(result))
+func renderWebBundleIDCapabilitySyncMarkdown(d *shared.Deps, result *webcore.AppClipBundleIDCapabilitySyncResult) error {
+	asc.RenderMarkdownTo(d.IO.Out, webBundleIDCapabilitySyncHeaders(), webBundleIDCapabilitySyncRows(result))
 	return nil
 }
 
-func renderDeveloperBundleIDCapabilityEnableTable(result *webcore.DeveloperBundleIDCapabilityEnableResult) error {
-	asc.RenderTable(
+func renderDeveloperBundleIDCapabilityEnableTable(d *shared.Deps, result *webcore.DeveloperBundleIDCapabilityEnableResult) error {
+	asc.RenderTableTo(d.IO.Out,
 		[]string{"Bundle ID", "Capability", "Enabled", "Changed", "Status"},
 		[][]string{{
 			result.BundleID,
@@ -609,8 +604,8 @@ func renderDeveloperBundleIDCapabilityEnableTable(result *webcore.DeveloperBundl
 	return nil
 }
 
-func renderDeveloperBundleIDCapabilityEnableMarkdown(result *webcore.DeveloperBundleIDCapabilityEnableResult) error {
-	asc.RenderMarkdown(
+func renderDeveloperBundleIDCapabilityEnableMarkdown(d *shared.Deps, result *webcore.DeveloperBundleIDCapabilityEnableResult) error {
+	asc.RenderMarkdownTo(d.IO.Out,
 		[]string{"Bundle ID", "Capability", "Enabled", "Changed", "Status"},
 		[][]string{{
 			result.BundleID,
@@ -685,51 +680,51 @@ func developerBundleIDDetailRows(resource webcore.DeveloperBundleID) [][]string 
 	}}
 }
 
-func renderDeveloperBundleIDsTable(result *webcore.DeveloperBundleIDsListResult) error {
+func renderDeveloperBundleIDsTable(d *shared.Deps, result *webcore.DeveloperBundleIDsListResult) error {
 	if result == nil {
-		asc.RenderTable(developerBundleIDHeaders(), nil)
+		asc.RenderTableTo(d.IO.Out, developerBundleIDHeaders(), nil)
 		return nil
 	}
-	asc.RenderTable(developerBundleIDHeaders(), developerBundleIDRows(result.Data))
+	asc.RenderTableTo(d.IO.Out, developerBundleIDHeaders(), developerBundleIDRows(result.Data))
 	return nil
 }
 
-func renderDeveloperBundleIDsMarkdown(result *webcore.DeveloperBundleIDsListResult) error {
+func renderDeveloperBundleIDsMarkdown(d *shared.Deps, result *webcore.DeveloperBundleIDsListResult) error {
 	if result == nil {
-		asc.RenderMarkdown(developerBundleIDHeaders(), nil)
+		asc.RenderMarkdownTo(d.IO.Out, developerBundleIDHeaders(), nil)
 		return nil
 	}
-	asc.RenderMarkdown(developerBundleIDHeaders(), developerBundleIDRows(result.Data))
+	asc.RenderMarkdownTo(d.IO.Out, developerBundleIDHeaders(), developerBundleIDRows(result.Data))
 	return nil
 }
 
-func renderDeveloperBundleIDTable(result *webcore.DeveloperBundleIDGetResult) error {
+func renderDeveloperBundleIDTable(d *shared.Deps, result *webcore.DeveloperBundleIDGetResult) error {
 	if result == nil {
-		asc.RenderTable(developerBundleIDDetailHeaders(), nil)
+		asc.RenderTableTo(d.IO.Out, developerBundleIDDetailHeaders(), nil)
 		return nil
 	}
-	warnDeveloperBundleIDIncludedOutput(result)
-	asc.RenderTable(developerBundleIDDetailHeaders(), developerBundleIDDetailRows(result.Data))
+	warnDeveloperBundleIDIncludedOutput(d, result)
+	asc.RenderTableTo(d.IO.Out, developerBundleIDDetailHeaders(), developerBundleIDDetailRows(result.Data))
 	return nil
 }
 
-func renderDeveloperBundleIDMarkdown(result *webcore.DeveloperBundleIDGetResult) error {
+func renderDeveloperBundleIDMarkdown(d *shared.Deps, result *webcore.DeveloperBundleIDGetResult) error {
 	if result == nil {
-		asc.RenderMarkdown(developerBundleIDDetailHeaders(), nil)
+		asc.RenderMarkdownTo(d.IO.Out, developerBundleIDDetailHeaders(), nil)
 		return nil
 	}
-	warnDeveloperBundleIDIncludedOutput(result)
-	asc.RenderMarkdown(developerBundleIDDetailHeaders(), developerBundleIDDetailRows(result.Data))
+	warnDeveloperBundleIDIncludedOutput(d, result)
+	asc.RenderMarkdownTo(d.IO.Out, developerBundleIDDetailHeaders(), developerBundleIDDetailRows(result.Data))
 	return nil
 }
 
 const developerBundleIDIncludedOutputWarning = "Warning: table or Markdown output omits included Bundle ID resources; use --output json to inspect the complete capability graph."
 
-func warnDeveloperBundleIDIncludedOutput(result *webcore.DeveloperBundleIDGetResult) {
+func warnDeveloperBundleIDIncludedOutput(d *shared.Deps, result *webcore.DeveloperBundleIDGetResult) {
 	if result == nil || len(result.Included) == 0 {
 		return
 	}
-	fmt.Fprintln(os.Stderr, developerBundleIDIncludedOutputWarning)
+	fmt.Fprintln(d.IO.ErrOut, developerBundleIDIncludedOutputWarning)
 }
 
 func developerBundleIDStringAttribute(attributes map[string]any, key string) string {

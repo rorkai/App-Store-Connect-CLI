@@ -10,11 +10,13 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 func TestWebBundleIDsCommandHierarchyIncludesReadLeavesFirst(t *testing.T) {
-	command := WebBundleIDsCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebBundleIDsCommand(d)
 	want := []string{"list", "view", "capabilities"}
 	if len(command.Subcommands) != len(want) {
 		t.Fatalf("subcommands = %d, want %d", len(command.Subcommands), len(want))
@@ -29,20 +31,21 @@ func TestWebBundleIDsCommandHierarchyIncludesReadLeavesFirst(t *testing.T) {
 func TestWebBundleIDsReadValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 		wantErr string
 	}{
-		{name: "view missing bundle id", command: WebBundleIDsViewCommand, args: nil, wantErr: "--bundle-id is required"},
+		{name: "view missing bundle id", command: newWebBundleIDsViewCommand, args: nil, wantErr: "--bundle-id is required"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			command := tc.command()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := tc.command(d)
 			if err := command.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := command.Exec(context.Background(), command.FlagSet.Args())
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected usage error, got %v", err)
@@ -78,11 +81,12 @@ func TestWebBundleIDsListPrintsJSON(t *testing.T) {
 		}, nil
 	}
 
-	command := WebBundleIDsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebBundleIDsListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -132,11 +136,12 @@ func TestWebBundleIDsListWarnsWhenNextLinkExists(t *testing.T) {
 				}, nil
 			}
 
-			command := WebBundleIDsListCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebBundleIDsListCommand(d)
 			if err := command.FlagSet.Parse([]string{"--output", output}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
@@ -173,11 +178,12 @@ func TestWebBundleIDsViewPrintsTable(t *testing.T) {
 		}}, nil
 	}
 
-	command := WebBundleIDsViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebBundleIDsViewCommand(d)
 	if err := command.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -211,11 +217,12 @@ func TestWebBundleIDsViewWarnsWhenFormattedOutputOmitsIncludedResources(t *testi
 				}, nil
 			}
 
-			command := WebBundleIDsViewCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebBundleIDsViewCommand(d)
 			if err := command.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--output", output}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureWebCommandOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
@@ -247,11 +254,12 @@ func TestWebBundleIDsViewPrintsRawJSONEnvelope(t *testing.T) {
 		}, nil
 	}
 
-	command := WebBundleIDsViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebBundleIDsViewCommand(d)
 	if err := command.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

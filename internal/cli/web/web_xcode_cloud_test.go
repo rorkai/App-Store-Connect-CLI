@@ -1423,7 +1423,9 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-func captureOutput(t *testing.T, fn func()) (string, string) {
+// captureOutput runs fn with the process stdout and stderr captured and
+// returns what it wrote to stderr.
+func captureOutput(t *testing.T, fn func()) string {
 	t.Helper()
 
 	oldStdout := os.Stdout
@@ -1470,11 +1472,11 @@ func captureOutput(t *testing.T, fn func()) (string, string) {
 	_ = wOut.Close()
 	_ = wErr.Close()
 
-	stdout := <-outC
+	<-outC
 	stderr := <-errC
 
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
 
-	return stdout, stderr
+	return stderr
 }

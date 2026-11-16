@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"strings"
 	"testing"
 
@@ -20,15 +19,7 @@ func TestWebBundleIDsViewMissingIDFailsBeforeSession(t *testing.T) {
 	})
 	defer restoreSession()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "bundle-ids", "view"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "web", "bundle-ids", "view")
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected usage error, got %v", runErr)
 	}
@@ -62,15 +53,7 @@ func TestWebBundleIDsListRootOutputsJSON(t *testing.T) {
 	restorePersist := webcmd.SetPersistWebSession(func(*webcore.AuthSession) error { return nil })
 	defer restorePersist()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "bundle-ids", "list", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "web", "bundle-ids", "list", "--output", "json")
 	if runErr != nil {
 		t.Fatalf("unexpected run error: %v", runErr)
 	}

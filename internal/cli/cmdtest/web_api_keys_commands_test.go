@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"strings"
 	"testing"
 )
@@ -33,16 +31,7 @@ func TestWebAPIKeysListCommandRegistration(t *testing.T) {
 }
 
 func TestWebAPIKeysViewMissingKeyIDFailsBeforeHTTP(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "api-keys", "view"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, stderr, runErr := runRootWithDeps(t, nil, "web", "api-keys", "view")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)

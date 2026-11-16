@@ -25,19 +25,17 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleRunWithAppSelector(t *testing
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "subscriptions", "availability", "remove-from-sale",
-			"--output", "json",
-			"--app", "app-1",
-			"--subscription-id", "availability",
-			"--confirm",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "subscriptions", "availability", "remove-from-sale",
+		"--output", "json",
+		"--app", "app-1",
+		"--subscription-id", "availability",
+		"--confirm",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -78,19 +76,17 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleRunRejectsUnownedPlanAvailabi
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "subscriptions", "availability", "remove-from-sale",
-			"--app", "app-1",
-			"--subscription-id", "availability",
-			"--plan-availability-id", "plan-other",
-			"--confirm",
-		}, "1.0.0")
-		if code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "subscriptions", "availability", "remove-from-sale",
+		"--app", "app-1",
+		"--subscription-id", "availability",
+		"--plan-availability-id", "plan-other",
+		"--confirm",
+	)
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
@@ -117,20 +113,18 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleRunUsesOwnedPlanAvailabilityI
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "subscriptions", "availability", "remove-from-sale",
-			"--output", "json",
-			"--app", "app-1",
-			"--subscription-id", "availability",
-			"--plan-availability-id", "plan-1",
-			"--confirm",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "subscriptions", "availability", "remove-from-sale",
+		"--output", "json",
+		"--app", "app-1",
+		"--subscription-id", "availability",
+		"--plan-availability-id", "plan-1",
+		"--confirm",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -165,19 +159,17 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleRunFailsWhenReadbackStillOnSa
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"--profile", "test-web",
-			"web", "subscriptions", "availability", "remove-from-sale",
-			"--output", "json",
-			"--app", "app-1",
-			"--subscription-id", "availability",
-			"--confirm",
-		}, "1.0.0")
-		if code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--profile", "test-web",
+		"web", "subscriptions", "availability", "remove-from-sale",
+		"--output", "json",
+		"--app", "app-1",
+		"--subscription-id", "availability",
+		"--confirm",
+	)
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
@@ -249,20 +241,18 @@ func TestWebSubscriptionsPricingMonthlyCommitmentBootstrapRunCreatesAvailability
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
-			"--subscription-id", "sub-1",
-			"--territory", "NOR",
-			"--upfront-price-point-id", "upfront-point",
-			"--monthly-price-point-id", "monthly-point",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
+		"--subscription-id", "sub-1",
+		"--territory", "NOR",
+		"--upfront-price-point-id", "upfront-point",
+		"--monthly-price-point-id", "monthly-point",
+		"--confirm",
+		"--output", "json",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -282,20 +272,18 @@ func TestWebSubscriptionsPricingMonthlyCommitmentBootstrapExitsWhenReadbackPrice
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, _ := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
-			"--subscription-id", "sub-1",
-			"--territory", "NOR",
-			"--upfront-price-point-id", "upfront-point",
-			"--monthly-price-point-id", "monthly-point",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code == cmd.ExitSuccess {
-			t.Fatal("expected non-zero exit when readback prices do not match")
-		}
-	})
+	stdout, _, code := runWithDeps(t, nil,
+		"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
+		"--subscription-id", "sub-1",
+		"--territory", "NOR",
+		"--upfront-price-point-id", "upfront-point",
+		"--monthly-price-point-id", "monthly-point",
+		"--confirm",
+		"--output", "json",
+	)
+	if code == cmd.ExitSuccess {
+		t.Fatal("expected non-zero exit when readback prices do not match")
+	}
 	payload := decodeMonthlyCommitmentBootstrapReceipt(t, stdout)
 	if payload.Verified || payload.CompletedStage != "prices" {
 		t.Fatalf("expected unverified prices stage, got %+v stdout=%q", payload, stdout)
@@ -316,20 +304,18 @@ func TestWebSubscriptionsPricingMonthlyCommitmentBootstrapReportsPlanAvailabilit
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, _ := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
-			"--subscription-id", "sub-1",
-			"--territory", "NOR",
-			"--upfront-price-point-id", "upfront-point",
-			"--monthly-price-point-id", "monthly-point",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code == cmd.ExitSuccess {
-			t.Fatal("expected non-zero exit when paired price creation fails")
-		}
-	})
+	stdout, _, code := runWithDeps(t, nil,
+		"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
+		"--subscription-id", "sub-1",
+		"--territory", "NOR",
+		"--upfront-price-point-id", "upfront-point",
+		"--monthly-price-point-id", "monthly-point",
+		"--confirm",
+		"--output", "json",
+	)
+	if code == cmd.ExitSuccess {
+		t.Fatal("expected non-zero exit when paired price creation fails")
+	}
 	payload := decodeMonthlyCommitmentBootstrapReceipt(t, stdout)
 	if payload.Verified || payload.CompletedStage != "plan_availability" {
 		t.Fatalf("expected completed plan_availability stage, got %+v stdout=%q", payload, stdout)
@@ -352,20 +338,18 @@ func TestWebSubscriptionsPricingMonthlyCommitmentBootstrapExitsWhenReadbackPrice
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, _ := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
-			"--subscription-id", "sub-1",
-			"--territory", "NOR",
-			"--upfront-price-point-id", "upfront-point",
-			"--monthly-price-point-id", "monthly-point",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code == cmd.ExitSuccess {
-			t.Fatal("expected non-zero exit when readback prices are missing")
-		}
-	})
+	stdout, _, code := runWithDeps(t, nil,
+		"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
+		"--subscription-id", "sub-1",
+		"--territory", "NOR",
+		"--upfront-price-point-id", "upfront-point",
+		"--monthly-price-point-id", "monthly-point",
+		"--confirm",
+		"--output", "json",
+	)
+	if code == cmd.ExitSuccess {
+		t.Fatal("expected non-zero exit when readback prices are missing")
+	}
 	payload := decodeMonthlyCommitmentBootstrapReceipt(t, stdout)
 	if payload.Verified || payload.CompletedStage != "prices" || !payload.PricesCreated {
 		t.Fatalf("expected unverified prices stage, got %+v stdout=%q", payload, stdout)
@@ -382,21 +366,19 @@ func TestWebSubscriptionsPricingMonthlyCommitmentBootstrapVerifiesScheduledStart
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
-			"--subscription-id", "sub-1",
-			"--territory", "NOR",
-			"--upfront-price-point-id", "upfront-point",
-			"--monthly-price-point-id", "monthly-point",
-			"--start-date", "2026-07-01",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
+		"--subscription-id", "sub-1",
+		"--territory", "NOR",
+		"--upfront-price-point-id", "upfront-point",
+		"--monthly-price-point-id", "monthly-point",
+		"--start-date", "2026-07-01",
+		"--confirm",
+		"--output", "json",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -421,20 +403,18 @@ func TestWebSubscriptionsPricingMonthlyCommitmentBootstrapDryRunReportsPreviewWi
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
-			"--subscription-id", "sub-1",
-			"--territory", "NOR",
-			"--upfront-price-point-id", "upfront-point",
-			"--monthly-price-point-id", "monthly-point",
-			"--dry-run",
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
+		"--subscription-id", "sub-1",
+		"--territory", "NOR",
+		"--upfront-price-point-id", "upfront-point",
+		"--monthly-price-point-id", "monthly-point",
+		"--dry-run",
+		"--output", "json",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -546,17 +526,15 @@ func TestWebSubscriptionsPricingAdjustedEqualizationsViewRun(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"web", "subscriptions", "pricing", "adjusted-equalizations", "view",
-			"--price-point-id", "monthly-point",
-			"--plan-type", "MONTHLY",
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"web", "subscriptions", "pricing", "adjusted-equalizations", "view",
+		"--price-point-id", "monthly-point",
+		"--plan-type", "MONTHLY",
+		"--output", "json",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -814,20 +792,18 @@ func TestWebSubscriptionsPricingMonthlyCommitmentBootstrapPointsAtPlanAvailabili
 	})
 	t.Cleanup(restoreSession)
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
-			"--subscription-id", "sub-1",
-			"--territory", "NOR",
-			"--upfront-price-point-id", "upfront-point",
-			"--monthly-price-point-id", "monthly-point",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-		if code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"web", "subscriptions", "pricing", "monthly-commitment", "bootstrap",
+		"--subscription-id", "sub-1",
+		"--territory", "NOR",
+		"--upfront-price-point-id", "upfront-point",
+		"--monthly-price-point-id", "monthly-point",
+		"--confirm",
+		"--output", "json",
+	)
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}

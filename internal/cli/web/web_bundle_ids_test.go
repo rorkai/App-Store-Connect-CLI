@@ -36,11 +36,12 @@ func TestWebBundleIDCapabilitiesSyncAppClipValidationErrors(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := WebBundleIDCapabilitiesSyncAppClipCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebBundleIDCapabilitiesSyncAppClipCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -89,7 +90,8 @@ func TestWebBundleIDCapabilitiesSyncAppClipWithoutConfirmFailsBeforeAnyRequest(t
 		return nil
 	}
 
-	cmd := WebBundleIDCapabilitiesSyncAppClipCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesSyncAppClipCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--bundle-id", "clip-1",
 		"--parent-bundle-id", "parent-1",
@@ -99,7 +101,7 @@ func TestWebBundleIDCapabilitiesSyncAppClipWithoutConfirmFailsBeforeAnyRequest(t
 		t.Fatalf("legacy invocation without --confirm must still parse, got %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp usage error, got %v", err)
@@ -152,7 +154,8 @@ func TestWebBundleIDCapabilitiesSyncAppClipCallsPrivateSync(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebBundleIDCapabilitiesSyncAppClipCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesSyncAppClipCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--bundle-id", "clip-1",
 		"--parent-bundle-id", "parent-1",
@@ -164,7 +167,7 @@ func TestWebBundleIDCapabilitiesSyncAppClipCallsPrivateSync(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -227,11 +230,12 @@ func TestWebBundleIDCapabilitiesSyncAppClipAlreadySyncedReceiptHasNoInvalidation
 
 	for _, output := range []string{"json", "table", "markdown"} {
 		t.Run(output, func(t *testing.T) {
-			cmd := WebBundleIDCapabilitiesSyncAppClipCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebBundleIDCapabilitiesSyncAppClipCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--bundle-id", "clip-1", "--parent-bundle-id", "parent-1", "--capability", "PUSH_NOTIFICATIONS", "--confirm", "--output", output}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := cmd.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
@@ -304,11 +308,12 @@ func TestWebBundleIDCapabilitiesSyncAppClipPersistsRefreshedSession(t *testing.T
 		return nil
 	}
 
-	cmd := WebBundleIDCapabilitiesSyncAppClipCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesSyncAppClipCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--bundle-id", "clip-1", "--parent-bundle-id", "parent-1", "--capability", "PUSH_NOTIFICATIONS", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -354,11 +359,12 @@ func TestWebBundleIDCapabilitiesSyncAppClipWarnsWhenSessionPersistFails(t *testi
 	}
 	persistWebSessionFn = func(session *webcore.AuthSession) error { return errors.New("disk full") }
 
-	cmd := WebBundleIDCapabilitiesSyncAppClipCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesSyncAppClipCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--bundle-id", "clip-1", "--parent-bundle-id", "parent-1", "--capability", "PUSH_NOTIFICATIONS", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("persist failure must not fail the command, got %v", err)
 		}
@@ -395,11 +401,12 @@ func TestWebBundleIDCapabilitiesSyncAppClipDoesNotPersistSessionWhenSyncFails(t 
 		return nil
 	}
 
-	cmd := WebBundleIDCapabilitiesSyncAppClipCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesSyncAppClipCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--bundle-id", "clip-1", "--parent-bundle-id", "parent-1", "--capability", "PUSH_NOTIFICATIONS", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	_, _ = captureWebCommandOutput(t, func() {
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if err == nil || !strings.Contains(err.Error(), "boom") {
 			t.Fatalf("expected sync error, got %v", err)
@@ -421,11 +428,12 @@ func TestWebBundleIDCapabilitiesEnableValidationErrors(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := WebBundleIDCapabilitiesEnableCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebBundleIDCapabilitiesEnableCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -443,7 +451,8 @@ func TestWebBundleIDCapabilitiesEnableValidationErrors(t *testing.T) {
 
 func TestWebBundleIDCapabilitiesRegistersDisableWithSharedFlags(t *testing.T) {
 	var disable *ffcli.Command
-	for _, subcommand := range WebBundleIDCapabilitiesCommand().Subcommands {
+	d, _, _ := newWebTestDeps()
+	for _, subcommand := range newWebBundleIDCapabilitiesCommand(d).Subcommands {
 		if subcommand.Name == "disable" {
 			disable = subcommand
 			break
@@ -479,11 +488,12 @@ func TestWebBundleIDCapabilitiesDisableValidatesBeforeSession(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := WebBundleIDCapabilitiesDisableCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebBundleIDCapabilitiesDisableCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected usage error, got %v", err)
@@ -519,11 +529,12 @@ func TestWebBundleIDCapabilitiesDisablePrintsReceiptAndWarning(t *testing.T) {
 		return &asc.DeveloperBundleIDCapabilityDisableResult{BundleID: req.BundleID, Capability: req.Capability, Changed: true, Status: "disabled"}, nil
 	}
 
-	cmd := WebBundleIDCapabilitiesDisableCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesDisableCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--capability", "private_cloud_compute", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -560,12 +571,13 @@ func TestWebBundleIDCapabilitiesDisableUnverifiedPersistsAndPrintsNoReceipt(t *t
 		return nil
 	}
 
-	cmd := WebBundleIDCapabilitiesDisableCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesDisableCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--capability", "PRIVATE_CLOUD_COMPUTE", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureWebCommandOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !strings.Contains(runErr.Error(), "no automatic retry was sent") {
 		t.Fatalf("error = %v, want unverified diagnostic", runErr)
 	}
@@ -607,12 +619,13 @@ func TestWebBundleIDCapabilitiesEnablePersistsTeamWhenPortalResponseIsAmbiguous(
 		return nil
 	}
 
-	cmd := WebBundleIDCapabilitiesEnableCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesEnableCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--bundle-id", "bundle-1", "--capability", "PRIVATE_CLOUD_COMPUTE", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	_, _ = captureWebCommandOutput(t, func() {
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr == nil || !strings.Contains(runErr.Error(), "failed to read Developer Portal capability response") {
@@ -657,7 +670,8 @@ func TestWebBundleIDCapabilitiesEnableCallsDeveloperPortalClient(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebBundleIDCapabilitiesEnableCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebBundleIDCapabilitiesEnableCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--bundle-id", "bundle-1",
 		"--capability", "private_cloud_compute",
@@ -667,7 +681,7 @@ func TestWebBundleIDCapabilitiesEnableCallsDeveloperPortalClient(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
