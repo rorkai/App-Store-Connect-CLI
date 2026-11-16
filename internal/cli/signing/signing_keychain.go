@@ -270,10 +270,16 @@ func executeSigningKeychainInstallWith(ctx context.Context, options signingKeych
 		if err := deps.SetKeychainSearchList(cleanupCtx, originalSearchList); err != nil {
 			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("restore keychain search list: %w", err))
 		}
+		restoredSearchList, err := deps.KeychainSearchList(cleanupCtx)
+		if err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("verify restored keychain search list: %w", err))
+		} else if !slices.Equal(restoredSearchList, originalSearchList) {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("restored keychain search list does not match original"))
+		}
 		if cleanupErr != nil {
 			return errors.Join(primary, fmt.Errorf("signing keychain install: rollback new keychain: %w", cleanupErr))
 		}
-		return primary
+		return fmt.Errorf("%w; new keychain removed and original user search list restored", primary)
 	}
 	created, err = deps.CreateKeychain(ctx, resolvedKeychainPath, keychainPassword)
 	if err != nil {
@@ -319,6 +325,13 @@ func executeSigningKeychainInstallWith(ctx context.Context, options signingKeych
 	if !options.AddToSearchList {
 		if err := deps.RemoveKeychainSearchEntry(ctx, resolvedKeychainPath); err != nil {
 			return nil, rollback(fmt.Errorf("signing keychain install: isolate keychain: %w", err))
+		}
+		searchList, err := deps.KeychainSearchList(ctx)
+		if err != nil {
+			return nil, rollback(fmt.Errorf("signing keychain install: verify keychain isolation: %w", err))
+		}
+		if slices.Contains(searchList, resolvedKeychainPath) {
+			return nil, rollback(fmt.Errorf("signing keychain install: isolate keychain: keychain remains in user search list after removal"))
 		}
 	}
 	if err := ctx.Err(); err != nil {
