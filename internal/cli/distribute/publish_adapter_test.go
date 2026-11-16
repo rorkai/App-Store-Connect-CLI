@@ -126,7 +126,9 @@ func TestReverifyPrivatePublishIsReadOnly(t *testing.T) {
 	})
 
 	bundleDir, bundle := privatePublishTestBundle(t)
-	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) { return bundle(), nil }
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
+		return bundle(), nil
+	}
 	newObjectStore = func(context.Context, distribution.S3StoreConfig) (distribution.ObjectStore, time.Time, error) {
 		t.Fatal("read-only verification constructed an object store")
 		return nil, time.Time{}, nil
@@ -248,7 +250,9 @@ func TestReverifyPrivatePublishReadsCaseDistinctArtifactsFromReadOnlyDirectory(t
 	originalLoad, originalReverify := loadPreparedBundle, reverifyPublication
 	t.Cleanup(func() { loadPreparedBundle, reverifyPublication = originalLoad, originalReverify })
 	bundleDir, bundle := privatePublishTestBundle(t)
-	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) { return bundle(), nil }
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
+		return bundle(), nil
+	}
 	reverifyPublication = func(context.Context, distribution.Verifier, distribution.PublishReceipt, distribution.SensitiveLinks, func() time.Time) error {
 		return nil
 	}
@@ -323,7 +327,9 @@ func TestReverifyPrivatePublishTrimsArtifactPathsBeforeContainmentCheck(t *testi
 	originalLoad, originalReverify := loadPreparedBundle, reverifyPublication
 	t.Cleanup(func() { loadPreparedBundle, reverifyPublication = originalLoad, originalReverify })
 	bundleDir, bundle := privatePublishTestBundle(t)
-	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) { return bundle(), nil }
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
+		return bundle(), nil
+	}
 	reverifyPublication = func(context.Context, distribution.Verifier, distribution.PublishReceipt, distribution.SensitiveLinks, func() time.Time) error {
 		return nil
 	}
@@ -400,7 +406,9 @@ func TestReverifyPrivatePublishRejectsPublicStateWithoutNetwork(t *testing.T) {
 	originalLoad, originalReverify := loadPreparedBundle, reverifyPublication
 	t.Cleanup(func() { loadPreparedBundle, reverifyPublication = originalLoad, originalReverify })
 	bundleDir, bundle := privatePublishTestBundle(t)
-	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) { return bundle(), nil }
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
+		return bundle(), nil
+	}
 	networkCalled := false
 	reverifyPublication = func(context.Context, distribution.Verifier, distribution.PublishReceipt, distribution.SensitiveLinks, func() time.Time) error {
 		networkCalled = true
@@ -436,7 +444,9 @@ func TestReverifyPrivatePublishDoesNotRefreshExpiredLinks(t *testing.T) {
 		loadPreparedBundle, newObjectStore, runPublish, reverifyPublication = originalLoad, originalStore, originalPublish, originalReverify
 	})
 	bundleDir, bundle := privatePublishTestBundle(t)
-	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) { return bundle(), nil }
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
+		return bundle(), nil
+	}
 	newObjectStore = func(context.Context, distribution.S3StoreConfig) (distribution.ObjectStore, time.Time, error) {
 		t.Fatal("expired-link verification constructed an object store")
 		return nil, time.Time{}, nil
@@ -488,7 +498,9 @@ func TestPublishCommandRecoveryRejectsHardLinkedArtifacts(t *testing.T) {
 				loadPreparedBundle, newObjectStore, runPublish, reverifyPublication = originalLoad, originalStore, originalPublish, originalReverify
 			})
 			bundleDir, bundle := privatePublishTestBundle(t)
-			loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) { return bundle(), nil }
+			loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
+				return bundle(), nil
+			}
 			storeCalls := 0
 			newObjectStore = func(context.Context, distribution.S3StoreConfig) (distribution.ObjectStore, time.Time, error) {
 				storeCalls++
@@ -537,7 +549,9 @@ func TestReverifyPrivatePublishRejectsHardLinkedArtifacts(t *testing.T) {
 			originalLoad, originalReverify := loadPreparedBundle, reverifyPublication
 			t.Cleanup(func() { loadPreparedBundle, reverifyPublication = originalLoad, originalReverify })
 			bundleDir, bundle := privatePublishTestBundle(t)
-			loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) { return bundle(), nil }
+			loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
+				return bundle(), nil
+			}
 			networkCalled := false
 			reverifyPublication = func(context.Context, distribution.Verifier, distribution.PublishReceipt, distribution.SensitiveLinks, func() time.Time) error {
 				networkCalled = true
