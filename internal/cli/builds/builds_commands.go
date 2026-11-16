@@ -588,6 +588,7 @@ func newBuildsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
+	shared.BindFlagAlias(fs, "app-id", "app")
 	output := d.BindOutputFlags(fs)
 	sort := fs.String("sort", "", "Sort by "+strings.Join(buildsListSortValues, ", "))
 	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")

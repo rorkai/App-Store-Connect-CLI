@@ -343,6 +343,7 @@ func newXcodeCloudStatusCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("status", flag.ExitOnError)
 
 	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to check")
+	shared.BindFlagAlias(fs, "id", "run-id")
 	wait := fs.Bool("wait", false, "Wait for build to complete")
 	pollInterval := fs.Duration("poll-interval", 10*time.Second, "Poll interval when waiting")
 	timeout := fs.Duration("timeout", 0, "Timeout for Xcode Cloud requests (0 = use ASC_TIMEOUT or 30m default)")

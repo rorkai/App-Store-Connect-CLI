@@ -92,6 +92,7 @@ func newBetaTestersListCommand(d *shared.Deps) *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to filter")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	group := shared.BindResourceIDFlag(fs, "group", "betaGroups", "Beta group name or ID to filter")
 	email := fs.String("email", "", "Filter by tester email")
 	firstName := fs.String("first-name", "", "Filter by tester first name (exact match)")
@@ -693,6 +694,7 @@ func newBetaTestersAddBuildsCommand(d *shared.Deps) *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
 	buildIDs := fs.String("build-id", "", "Comma-separated build IDs")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -751,6 +753,7 @@ func newBetaTestersRemoveBuildsCommand(d *shared.Deps) *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
 	buildIDs := fs.String("build-id", "", "Comma-separated build IDs")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := d.BindOutputFlags(fs)
 

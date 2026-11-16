@@ -83,6 +83,7 @@ func newAppsPublicViewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("apps public view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "Public App Store app ID")
+	shared.BindFlagAlias(fs, "id", "app")
 	country := fs.String("country", "us", "Storefront country code (ISO alpha-2, e.g. us, gb, de)")
 	output := d.BindOutputFlags(fs)
 
@@ -202,6 +203,7 @@ func newAppsPublicPricesCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("apps public prices", flag.ExitOnError)
 
 	appID := fs.String("app", "", "Public App Store app ID")
+	shared.BindFlagAlias(fs, "id", "app")
 	country := fs.String("country", "us", "Storefront country code (ISO alpha-2, e.g. us, gb, de)")
 	output := d.BindOutputFlags(fs)
 
@@ -268,6 +270,7 @@ func newAppsPublicDescriptionsCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("apps public descriptions", flag.ExitOnError)
 
 	appID := fs.String("app", "", "Public App Store app ID")
+	shared.BindFlagAlias(fs, "id", "app")
 	country := fs.String("country", "us", "Storefront country code (ISO alpha-2, e.g. us, gb, de)")
 	output := d.BindOutputFlags(fs)
 

@@ -42,6 +42,7 @@ func newPerformanceDiagnosticsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("diagnostics list", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to list diagnostics for")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	diagnosticType := fs.String("diagnostic-type", "", "Diagnostic type filter (comma-separated: "+strings.Join(diagnosticSignatureTypeList(), ", ")+")")
 	fields := fs.String("fields", "", "Fields to return (comma-separated: "+strings.Join(diagnosticSignatureFieldList(), ", ")+")")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))

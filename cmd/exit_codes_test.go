@@ -802,11 +802,6 @@ func TestRemovedBuildSelectorAliasesExitUsage(t *testing.T) {
 		flag string
 	}{
 		{name: "builds wait --build", args: []string{"builds", "wait", "--build", "BUILD_123"}, flag: "--build"},
-		{name: "builds wait --newest", args: []string{"builds", "wait", "--app", "APP_123", "--newest"}, flag: "--newest"},
-		{name: "builds list --app-id", args: []string{"builds", "list", "--app-id", "APP_123"}, flag: "--app-id"},
-		{name: "builds test-notes view --id", args: []string{"builds", "test-notes", "view", "--id", "loc-1"}, flag: "--id"},
-		{name: "testflight groups view --group-id", args: []string{"testflight", "groups", "view", "--group-id", "group-1"}, flag: "--group-id"},
-		{name: "testflight testers list --build", args: []string{"testflight", "testers", "list", "--build", "BUILD_123"}, flag: "--build"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			resetReportFlags(t)

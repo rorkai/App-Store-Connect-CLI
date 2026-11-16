@@ -1099,7 +1099,7 @@ func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {
 
 // newBetaGroupsGetCommand returns the beta groups get subcommand built on d.
 func newBetaGroupsGetCommand(d *shared.Deps) *ffcli.Command {
-	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+	command := shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc testflight beta-groups view [flags]",
@@ -1116,6 +1116,8 @@ Examples:
 			return client.GetBetaGroup(ctx, id)
 		},
 	})
+	shared.BindFlagAlias(command.FlagSet, "group-id", "id")
+	return command
 }
 
 // newBetaGroupsUpdateCommand returns the beta groups update subcommand built on d.

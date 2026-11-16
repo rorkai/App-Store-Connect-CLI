@@ -61,6 +61,7 @@ func newLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version", "appStoreVersions", "App Store version ID, or a version string such as 1.2.3 with --app; defaults to the --app's active editable version, then a developer-removed version, else its live version")
+	shared.BindFlagAlias(fs, "version-id", "version")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info", "appInfos", "App Info ID (optional override)")
 	platform := fs.String("platform", "", "Platform used to pick the version when --version is omitted or is a version string with --app: IOS, MAC_OS, TV_OS, or VISION_OS")

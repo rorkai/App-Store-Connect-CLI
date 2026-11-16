@@ -106,6 +106,7 @@ Examples:
 		Flags: func(fs *flag.FlagSet) func() error {
 			next := fs.Lookup("next").Value
 			builds = fs.String("build-id", "", "Filter by build IDs (comma-separated)")
+			shared.BindFlagAlias(fs, "build", "build-id")
 			fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDeclarationFieldList(), ", "))
 			documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
 			include := fs.String("include", "", "Include relationships: "+strings.Join(encryptionDeclarationIncludeList(), ", "))
@@ -488,6 +489,7 @@ func newEncryptionDeclarationsAssignBuildsCommand(d *shared.Deps) *ffcli.Command
 
 	declarationID := shared.BindResourceIDFlag(fs, "id", "appEncryptionDeclarations", "Encryption declaration ID (required)")
 	builds := shared.BindOnceCSVFlag(fs, "build-id", "Build IDs to assign (comma-separated)")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

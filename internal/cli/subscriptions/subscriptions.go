@@ -353,6 +353,7 @@ func newSubscriptionsListCommand(d *shared.Deps) *ffcli.Command {
 	relatedFields := bindSubscriptionRelatedFieldFlags(fs)
 	include := fs.String("include", "", "Include relationships (comma-separated): "+strings.Join(subscriptionIncludeList(), ", "))
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
+	shared.BindFlagAlias(fs, "version-limit", "versions-limit")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
@@ -629,11 +630,13 @@ Examples:
 		RequiredDiagnostic: true,
 		Deps:               d,
 		Flags: func(fs *flag.FlagSet) func() error {
+			shared.BindFlagAlias(fs, "subscription-id", "id")
 			fields := fs.String("fields", "", "Sparse fields for subscriptions")
 			versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
 			relatedFields := bindSubscriptionRelatedFieldFlags(fs)
 			include := fs.String("include", "", "Include relationships (comma-separated): "+strings.Join(subscriptionIncludeList(), ", "))
 			versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
+			shared.BindFlagAlias(fs, "version-limit", "versions-limit")
 			return func() error {
 				if err := validateRelationshipLimit(d, "--versions-limit", *versionsLimit); err != nil {
 					return err

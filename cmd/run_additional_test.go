@@ -1508,40 +1508,6 @@ func TestRun_MetadataValidateBareVersionPreservesGlobalFlagRecovery(t *testing.T
 	}
 }
 
-func TestRun_XcodeCloudStatusHelpOmitsRemovedIDAlias(t *testing.T) {
-	resetReportFlags(t)
-
-	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{"xcode-cloud", "status", "--help"}, "1.0.0"); code != ExitSuccess {
-			t.Fatalf("help exit code = %d, want %d", code, ExitSuccess)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("help stderr = %q, want empty", stderr)
-	}
-	if !strings.Contains(stdout, "--run-id") {
-		t.Fatalf("help does not document --run-id: %q", stdout)
-	}
-	if strings.Contains(stdout, "--id ") || strings.Contains(stdout, "DEPRECATED") {
-		t.Fatalf("help still documents the removed --id alias: %q", stdout)
-	}
-
-	stdout, stderr = captureCommandOutput(t, func() {
-		if code := Run([]string{"xcode-cloud", "status", "--id", "run-1"}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("removed alias exit code = %d, want %d", code, ExitUsage)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("removed alias stdout = %q, want empty", stdout)
-	}
-	want := "Error: `--id` was removed in 5.0.0; use `--run-id` (see migrate-to-5-0)\n" +
-		"For help:\n" +
-		"  asc xcode-cloud status --help\n"
-	if stderr != want {
-		t.Fatalf("removed alias stderr = %q, want %q", stderr, want)
-	}
-}
-
 func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")

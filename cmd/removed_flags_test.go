@@ -79,13 +79,8 @@ func TestLookupRemovedFlagIsExactPerCommand(t *testing.T) {
 		want    string
 		found   bool
 	}{
-		{command: "localizations list", flag: "version-id", want: "use `--version`", found: true},
-		{command: "versions view", flag: "id", want: "use `--version-id`", found: true},
-		{command: "apps view", flag: "app", want: "use `--id`", found: true},
-		{command: "builds test-notes view", flag: "id", want: "use `--localization-id`", found: true},
 		{command: "builds test-notes view", flag: "build", want: "use `--build-id` or `--build-number`", found: true},
 		{command: "builds individual-testers add", flag: "build", want: "use `--build-id` or `--build-number`", found: true},
-		{command: "apps info relationships primary-category", flag: "id", want: "use `--info-id`", found: true},
 		{command: "web auth login", flag: "two-factor-code", want: "use `--two-factor-code-command` or `ASC_WEB_2FA_CODE_COMMAND`", found: true},
 		// `web auth logout` never bound the 2FA flags, so the historical rule
 		// must not claim the alias there.
@@ -137,19 +132,19 @@ func TestRun_RemovedFlagHintKeepsUnknownFlagTelemetry(t *testing.T) {
 	}
 
 	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{"localizations", "list", "--version-id=PRIVATE_VALUE"}, "5.3.2"); code != ExitUsage {
+		if code := Run([]string{"builds", "info", "--build=PRIVATE_VALUE"}, "5.3.2"); code != ExitUsage {
 			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 		}
 	})
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	want := "Error: `--version-id` was removed in 5.0.0; use `--version` (see migrate-to-5-0)\nFor help:\n  asc localizations list --help\n"
+	want := "Error: `--build` was removed in 5.0.0; use `--build-id` or `--build-number` (see migrate-to-5-0)\nFor help:\n  asc builds info --help\n"
 	if stderr != want {
 		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}
-	if gotCommand != "asc localizations list" || gotExitCode != ExitUsage {
-		t.Fatalf("telemetry command/exit = %q/%d, want asc localizations list/%d", gotCommand, gotExitCode, ExitUsage)
+	if gotCommand != "asc builds info" || gotExitCode != ExitUsage {
+		t.Fatalf("telemetry command/exit = %q/%d, want asc builds info/%d", gotCommand, gotExitCode, ExitUsage)
 	}
 	if gotContext.InvocationShape != telemetry.InvocationShapeLeaf ||
 		gotContext.ErrorKind != telemetry.ErrorKindUnknownFlag ||
@@ -157,7 +152,7 @@ func TestRun_RemovedFlagHintKeepsUnknownFlagTelemetry(t *testing.T) {
 		gotContext.OutcomeKind != telemetry.OutcomeUsageError {
 		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
-	if gotContext.FailureParameter != "--version-id=PRIVATE_VALUE" {
+	if gotContext.FailureParameter != "--build=PRIVATE_VALUE" {
 		t.Fatalf("FailureParameter = %q, want the raw token", gotContext.FailureParameter)
 	}
 }

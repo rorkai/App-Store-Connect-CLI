@@ -455,7 +455,6 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 		{"versions", "info", "--version-id", "VERSION_ID", "--include", "unknown"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include", "build", "--include-build"},
 		{"versions", "info", "--version-id", "ONE", "--id", "TWO"},
-		{"versions", "info", "--id", "VERSION_ID"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--output", "yaml"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include-build", "maybe"},
 		{"versions", "info", "--version-id", "VERSION_ID", "localizations"},
@@ -663,15 +662,27 @@ func TestCommonCommandPathRecoveryOmitsConsumedReportFlags(t *testing.T) {
 func TestCommonCommandPathRecoveryRendersSuffixForSafeShellCopy(t *testing.T) {
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
-	_, suggested, ok := commonCommandPathRecovery(root, analysis, []string{
-		"versions", "info", "--version-id", "VERSION ID; $(not-a-command)",
-	})
-	if !ok {
-		t.Fatal("commonCommandPathRecovery() did not recognize exact command path")
+	tests := []struct {
+		args []string
+		want string
+	}{
+		{
+			args: []string{"versions", "info", "--version-id", "VERSION ID; $(not-a-command)"},
+			want: "asc versions view --version-id 'VERSION ID; $(not-a-command)'",
+		},
+		{
+			args: []string{"versions", "info", "--id", "VERSION_ID"},
+			want: "asc versions view --version-id VERSION_ID",
+		},
 	}
-	want := "asc versions view --version-id 'VERSION ID; $(not-a-command)'"
-	if suggested != want {
-		t.Fatalf("suggested command = %q, want %q", suggested, want)
+	for _, test := range tests {
+		_, suggested, ok := commonCommandPathRecovery(root, analysis, test.args)
+		if !ok {
+			t.Fatalf("commonCommandPathRecovery(%q) did not recognize exact command path", test.args)
+		}
+		if suggested != test.want {
+			t.Fatalf("suggested command = %q, want %q", suggested, test.want)
+		}
 	}
 }
 

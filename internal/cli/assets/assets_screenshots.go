@@ -334,6 +334,7 @@ func NewAssetsScreenshotsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "version-localization", "appStoreVersionLocalizations", "App Store version localization ID")
+	shared.BindFlagAlias(fs, "localization-id", "version-localization")
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
 	version := fs.String("version", "", "App Store version ID or numeric version string (strings require --app or ASC_APP_ID)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")

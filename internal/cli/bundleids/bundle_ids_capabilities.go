@@ -50,6 +50,7 @@ func newBundleIDsCapabilitiesListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	bundleID := shared.BindResourceIDFlag(fs, "bundle", "bundleIds", "Bundle ID")
+	shared.BindFlagAlias(fs, "bundle-id", "bundle")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)

@@ -21,22 +21,7 @@ func TestRemovedFlagAliasesAreUnknownFlags(t *testing.T) {
 		args      []string
 		deps      bool // the command is built on shared.Deps: run it on test deps
 	}{
-		{path: []string{"versions", "update"}, alias: "id", canonical: "version-id", args: []string{"--id", "version-1", "--copyright", "2026 Example"}, deps: true},
 		{path: []string{"versions", "attach-build"}, alias: "build", canonical: "build-id", args: []string{"--version-id", "version-1", "--build", "build-1"}, deps: true},
-		{path: []string{"apps", "app-encryption-declarations", "list"}, alias: "build", canonical: "build-id", args: []string{"--id", "app-1", "--build", "build-1"}},
-		{path: []string{"encryption", "declarations", "list"}, alias: "build", canonical: "build-id", args: []string{"--app", "app-1", "--build", "build-1"}, deps: true},
-		{path: []string{"encryption", "declarations", "assign-builds"}, alias: "build", canonical: "build-id", args: []string{"--id", "decl-1", "--build", "build-1"}, deps: true},
-		{path: []string{"bundle-ids", "capabilities", "list"}, alias: "bundle-id", canonical: "bundle", args: []string{"--bundle-id", "bundle-1"}},
-		{path: []string{"localizations", "update"}, alias: "version-id", canonical: "version", args: []string{"--version-id", "version-1", "--locale", "en-US", "--description", "Updated"}, deps: true},
-		{path: []string{"screenshots", "list"}, alias: "localization-id", canonical: "version-localization", args: []string{"--localization-id", "loc-1"}, deps: true},
-		{path: []string{"apps", "info", "view"}, alias: "app-info", canonical: "info-id", args: []string{"--app-info", "info-1"}},
-		{path: []string{"apps", "info", "relationships", "primary-category"}, alias: "id", canonical: "info-id", args: []string{"--id", "info-1"}},
-		{path: []string{"apps", "info", "relationships", "primary-subcategory-one"}, alias: "id", canonical: "info-id", args: []string{"--id", "info-1"}},
-		{path: []string{"apps", "info", "relationships", "primary-subcategory-two"}, alias: "id", canonical: "info-id", args: []string{"--id", "info-1"}},
-		{path: []string{"apps", "info", "relationships", "secondary-category"}, alias: "id", canonical: "info-id", args: []string{"--id", "info-1"}},
-		{path: []string{"apps", "info", "relationships", "secondary-subcategory-one"}, alias: "id", canonical: "info-id", args: []string{"--id", "info-1"}},
-		{path: []string{"apps", "info", "relationships", "secondary-subcategory-two"}, alias: "id", canonical: "info-id", args: []string{"--id", "info-1"}},
-		{path: []string{"apps", "info", "territory-age-ratings", "list"}, alias: "id", canonical: "info-id", args: []string{"--id", "info-1"}},
 	}
 
 	asctest.NewRegistry(t).Install()

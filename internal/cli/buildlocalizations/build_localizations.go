@@ -55,6 +55,7 @@ func newBuildLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
@@ -177,6 +178,7 @@ func newBuildLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	whatsNew := fs.String("whats-new", "", "Release notes (whats new), up to 4000 characters")
 	output := d.BindOutputFlags(fs)

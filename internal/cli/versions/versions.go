@@ -345,6 +345,7 @@ func newVersionsViewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("versions view", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
+	shared.BindFlagAlias(fs, "id", "version-id")
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID)")
 	versionString := fs.String("version", "", "Version string used with --app")
 	platform := fs.String("platform", "IOS", "Platform used with --app and --version: IOS, MAC_OS, TV_OS, VISION_OS")
@@ -815,6 +816,7 @@ func newVersionsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("versions update", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
+	shared.BindFlagAlias(fs, "id", "version-id")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
 	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")

@@ -230,7 +230,7 @@ Examples:
 
 // newSubscriptionsReviewScreenshotsDeleteCommand returns the review screenshots delete subcommand.
 func newSubscriptionsReviewScreenshotsDeleteCommand(d *shared.Deps) *ffcli.Command {
-	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+	command := shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Deps:        d,
 		FlagSetName: "review-screenshots delete",
 		Name:        "delete",
@@ -251,6 +251,8 @@ Examples:
 			return &asc.AssetDeleteResult{ID: id, Deleted: true}
 		},
 	})
+	shared.BindFlagAlias(command.FlagSet, "id", "screenshot-id")
+	return command
 }
 
 // waitForSubscriptionReviewScreenshotDelivery polls until the screenshot reaches

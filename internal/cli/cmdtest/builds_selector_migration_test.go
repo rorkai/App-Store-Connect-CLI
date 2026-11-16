@@ -43,11 +43,6 @@ func TestBuildsRemovedSelectorAliasesHaveGuidance(t *testing.T) {
 			flag: "--build",
 		},
 		{
-			name: "wait newest alias",
-			args: []string{"builds", "wait", "--app", "APP_123", "--newest"},
-			flag: "--newest",
-		},
-		{
 			name: "info build alias",
 			args: []string{"builds", "info", "--build", "BUILD_123"},
 			flag: "--build",
@@ -61,31 +56,6 @@ func TestBuildsRemovedSelectorAliasesHaveGuidance(t *testing.T) {
 			name: "expire build alias",
 			args: []string{"builds", "expire", "--build", "BUILD_123", "--confirm"},
 			flag: "--build",
-		},
-		{
-			name: "list app-id alias",
-			args: []string{"builds", "list", "--app-id", "123456789"},
-			flag: "--app-id",
-		},
-		{
-			name: "app view id alias",
-			args: []string{"builds", "app", "view", "--id", "BUILD_123"},
-			flag: "--id",
-		},
-		{
-			name: "pre-release-version view id alias",
-			args: []string{"builds", "pre-release-version", "view", "--id", "BUILD_123"},
-			flag: "--id",
-		},
-		{
-			name: "beta-app-review-submission view id alias",
-			args: []string{"builds", "beta-app-review-submission", "view", "--id", "BUILD_123"},
-			flag: "--id",
-		},
-		{
-			name: "app-encryption-declaration view id alias",
-			args: []string{"builds", "app-encryption-declaration", "view", "--id", "BUILD_123"},
-			flag: "--id",
 		},
 	}
 

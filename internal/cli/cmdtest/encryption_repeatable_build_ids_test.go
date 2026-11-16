@@ -103,30 +103,3 @@ func TestEncryptionAssignBuildsExplicitEmptyValueKeepsRequiredValidation(t *test
 		t.Fatalf("empty --build-id made %d HTTP requests, want 0", requestCount)
 	}
 }
-
-func TestEncryptionAssignBuildsLegacyBuildFlagIsUnknownBeforeRequest(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	reg := asctest.NewRegistry(t)
-
-	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
-		"encryption", "declarations", "assign-builds", "--id", "DECL_ID", "--build", "BUILD_B",
-	)
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-	}
-
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: `--build` was removed in 5.0.0; use `--build-id`") {
-		t.Fatalf("stderr = %q, want removed-flag guidance", stderr)
-	}
-	if strings.Contains(stderr, "deprecated") {
-		t.Fatalf("stderr = %q, want no deprecation guidance for the removed alias", stderr)
-	}
-	if requestCount := len(reg.Requests()); requestCount != 0 {
-		t.Fatalf("removed --build alias made %d HTTP requests, want 0", requestCount)
-	}
-}

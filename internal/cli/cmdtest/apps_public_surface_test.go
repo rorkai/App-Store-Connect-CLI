@@ -470,30 +470,6 @@ func TestAppsPublicRejectsSignedAppIDsBeforeRequest(t *testing.T) {
 	}
 }
 
-func TestAppsPublicLegacyIDFlagIsUnknown(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-
-	asctest.NewRegistry(t).Install()
-
-	root := RootCommand("1.2.3")
-	for _, name := range []string{"view", "prices", "descriptions"} {
-		t.Run(name, func(t *testing.T) {
-			command := findSubcommand(root, "apps", "public", name)
-			if command == nil {
-				t.Fatalf("apps public %s not found", name)
-			}
-			if command.FlagSet.Lookup("app") == nil {
-				t.Fatalf("apps public %s: canonical --app flag not found", name)
-			}
-			if command.FlagSet.Lookup("id") != nil {
-				t.Fatalf("apps public %s: removed --id alias is still registered", name)
-			}
-
-			assertUsageExit(t, []string{"apps", "public", name, "--id", "123", "--output", "json"}, "Error: `--id` was removed in 5.0.0; use `--app`")
-		})
-	}
-}
-
 func TestAppsPublicViewAcceptsZeroPaddedAppIDAndUnlistedCountry(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 

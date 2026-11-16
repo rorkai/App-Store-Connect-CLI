@@ -118,6 +118,7 @@ func newTestFlightSyncPullCommand(d *shared.Deps) *ffcli.Command {
 	includeTesters := fs.Bool("include-testers", false, "Include testers and group memberships")
 	groupFilter := shared.BindResourceIDFlag(fs, "group", "betaGroups", "Filter to a specific beta group (name or ID)")
 	buildFilter := fs.String("build-id", "", "Filter to build ID(s), comma-separated")
+	shared.BindFlagAlias(fs, "build", "build-id")
 	testerFilter := fs.String("tester", "", "Filter to tester ID(s) or emails, comma-separated")
 	pretty := shared.BindPrettyJSONFlag(fs)
 
