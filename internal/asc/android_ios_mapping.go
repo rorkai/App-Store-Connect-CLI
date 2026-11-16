@@ -2,18 +2,6 @@ package asc
 
 import "encoding/json"
 
-// AndroidToIosAppMappingDetailAttributes describes an android-to-iOS mapping resource.
-type AndroidToIosAppMappingDetailAttributes struct {
-	PackageName                                      string   `json:"packageName,omitempty"`
-	AppSigningKeyPublicCertificateSHA256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints,omitempty"`
-}
-
-// AndroidToIosAppMappingDetailCreateAttributes describes attributes for creating a mapping.
-type AndroidToIosAppMappingDetailCreateAttributes struct {
-	PackageName                                      string   `json:"packageName"`
-	AppSigningKeyPublicCertificateSHA256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints"`
-}
-
 // NullableStringSlice represents a nullable string array for update requests.
 type NullableStringSlice struct {
 	Value []string

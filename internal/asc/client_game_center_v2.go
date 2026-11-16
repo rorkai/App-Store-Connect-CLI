@@ -297,23 +297,6 @@ func (c *Client) CreateGameCenterLeaderboardSetV2(ctx context.Context, gcDetailI
 	})
 }
 
-// UpdateGameCenterLeaderboardSetMembersV2 replaces all leaderboard members in a v2 leaderboard set.
-func (c *Client) UpdateGameCenterLeaderboardSetMembersV2(ctx context.Context, setID string, leaderboardIDs []string) error {
-	leaderboardIDs = normalizeList(leaderboardIDs)
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(leaderboardIDs)),
-	}
-	for _, leaderboardID := range leaderboardIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeGameCenterLeaderboards,
-			ID:   leaderboardID,
-		})
-	}
-
-	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v2/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", strings.TrimSpace(setID)), payload)
-}
-
 // SetGameCenterLeaderboardSetMembersV2 sets leaderboard members for a v2 leaderboard set.
 func (c *Client) SetGameCenterLeaderboardSetMembersV2(ctx context.Context, setID string, leaderboardIDs []string) error {
 	return setGameCenterLeaderboardSetMembers(ctx, setID, leaderboardIDs, leaderboardSetMembersOperations{

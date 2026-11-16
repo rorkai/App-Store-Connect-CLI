@@ -9,6 +9,18 @@ import (
 	"strings"
 )
 
+// AndroidToIosAppMappingDetailAttributes is the attributes object of the AndroidToIosAppMappingDetail schema.
+type AndroidToIosAppMappingDetailAttributes struct {
+	PackageName                                      string   `json:"packageName,omitempty"`
+	AppSigningKeyPublicCertificateSHA256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints,omitempty"`
+}
+
+// AndroidToIosAppMappingDetailCreateAttributes is the data.attributes object of the AndroidToIosAppMappingDetailCreateRequest schema.
+type AndroidToIosAppMappingDetailCreateAttributes struct {
+	PackageName                                      string   `json:"packageName"`
+	AppSigningKeyPublicCertificateSHA256Fingerprints []string `json:"appSigningKeyPublicCertificateSha256Fingerprints"`
+}
+
 // AndroidToIosAppMappingDetailCreateData is the data object of the AndroidToIosAppMappingDetailCreateRequest schema.
 type AndroidToIosAppMappingDetailCreateData struct {
 	Type          ResourceType                                    `json:"type"`
@@ -34,6 +46,33 @@ type AndroidToIosAppMappingDetailUpdateData struct {
 // AndroidToIosAppMappingDetailUpdateRequest is the AndroidToIosAppMappingDetailUpdateRequest schema.
 type AndroidToIosAppMappingDetailUpdateRequest struct {
 	Data AndroidToIosAppMappingDetailUpdateData `json:"data"`
+}
+
+// CreateAndroidToIosAppMappingDetail sends POST /v1/androidToIosAppMappingDetails (androidToIosAppMappingDetails_createInstance).
+func (c *Client) CreateAndroidToIosAppMappingDetail(ctx context.Context, appID string, attrs AndroidToIosAppMappingDetailCreateAttributes) (*AndroidToIosAppMappingDetailResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+	payload := AndroidToIosAppMappingDetailCreateRequest{
+		Data: AndroidToIosAppMappingDetailCreateData{
+			Type:       ResourceTypeAndroidToIosAppMappingDetails,
+			Attributes: attrs,
+			Relationships: AndroidToIosAppMappingDetailCreateRelationships{
+				App: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/androidToIosAppMappingDetails",
+		Payload: payload,
+	})
 }
 
 // DeleteAndroidToIosAppMappingDetail sends DELETE /v1/androidToIosAppMappingDetails/{id} (androidToIosAppMappingDetails_deleteInstance).

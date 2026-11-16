@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// BetaRecruitmentCriterionAttributes is the attributes object of the BetaRecruitmentCriterion schema.
+type BetaRecruitmentCriterionAttributes struct {
+	LastModifiedDate             string                        `json:"lastModifiedDate,omitempty"`
+	DeviceFamilyOSVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters,omitempty"`
+}
+
 // DeleteBetaRecruitmentCriteria sends DELETE /v1/betaRecruitmentCriteria/{id} (betaRecruitmentCriteria_deleteInstance).
 func (c *Client) DeleteBetaRecruitmentCriteria(ctx context.Context, criteriaID string) error {
 	criteriaID = strings.TrimSpace(criteriaID)

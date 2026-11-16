@@ -6,12 +6,6 @@ import (
 	"fmt"
 )
 
-// BetaRecruitmentCriterionAttributes describes beta recruitment criteria metadata.
-type BetaRecruitmentCriterionAttributes struct {
-	LastModifiedDate             string                        `json:"lastModifiedDate,omitempty"`
-	DeviceFamilyOSVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters,omitempty"`
-}
-
 // BetaRecruitmentCriteriaCreateAttributes describes create attributes.
 type BetaRecruitmentCriteriaCreateAttributes struct {
 	DeviceFamilyOSVersionFilters []DeviceFamilyOsVersionFilter `json:"deviceFamilyOsVersionFilters"`

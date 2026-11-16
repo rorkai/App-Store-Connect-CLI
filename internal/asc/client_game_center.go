@@ -59,23 +59,6 @@ func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID 
 	return sendJSON[GameCenterLeaderboardSetResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSets", Payload: payload})
 }
 
-// UpdateGameCenterLeaderboardSetMembers replaces all leaderboard members in a leaderboard set.
-func (c *Client) UpdateGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
-	leaderboardIDs = normalizeList(leaderboardIDs)
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(leaderboardIDs)),
-	}
-	for _, leaderboardID := range leaderboardIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypeGameCenterLeaderboards,
-			ID:   leaderboardID,
-		})
-	}
-
-	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", strings.TrimSpace(setID)), payload)
-}
-
 // SetGameCenterLeaderboardSetMembers sets leaderboard members for a leaderboard set.
 func (c *Client) SetGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
 	return setGameCenterLeaderboardSetMembers(ctx, setID, leaderboardIDs, leaderboardSetMembersOperations{
