@@ -113,6 +113,8 @@ func TestExecuteSigningReconcilePlanIsReadOnlyAndPlansAdditiveActions(t *testing
 	})
 	d, _, _ := newSigningTestDeps()
 	d.Client = func() (*asc.Client, error) { return client, nil }
+	planTime := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+	d.Now = func() time.Time { return planTime }
 
 	plan, err := executeSigningReconcilePlan(context.Background(), d, signingReconcilePlanOptions{
 		ArchivePath: "App.xcarchive", DevicesFile: devicesPath, MinimumValidityDays: 7,
@@ -120,6 +122,9 @@ func TestExecuteSigningReconcilePlanIsReadOnlyAndPlansAdditiveActions(t *testing
 	})
 	if err != nil {
 		t.Fatalf("executeSigningReconcilePlan() error = %v", err)
+	}
+	if plan.GeneratedAt != "2030-01-02T03:04:05Z" {
+		t.Fatalf("plan generatedAt = %q, want the deps clock", plan.GeneratedAt)
 	}
 	if !plan.Ready || plan.MutationCount != 3 {
 		t.Fatalf("plan ready=%v mutations=%d blockers=%v", plan.Ready, plan.MutationCount, plan.Blockers)
@@ -289,7 +294,7 @@ func TestPlanSigningTargetBlocksMismatchedAppIDSeedBeforeProfileCreation(t *test
 		}
 	})
 	_, actions, blockers, err := planSigningTarget(
-		context.Background(),
+		context.Background(), time.Now,
 		client,
 		signingTarget{
 			BundleID:    "com.example.app",
@@ -303,7 +308,7 @@ func TestPlanSigningTargetBlocksMismatchedAppIDSeedBeforeProfileCreation(t *test
 		7,
 	)
 	if err != nil {
-		t.Fatalf("planSigningTarget() error=%v", err)
+		t.Fatalf("planSigningTarget(time.Now) error=%v", err)
 	}
 	if !strings.Contains(strings.Join(blockers, "\n"), "seed ID OTHERTEAM") {
 		t.Fatalf("blockers=%#v, want seed-prefix mismatch", blockers)
@@ -330,7 +335,7 @@ func TestEnsureReconcileProfileRechecksAppIDSeedBeforeMutation(t *testing.T) {
 	})
 
 	_, _, err := ensureReconcileProfile(
-		context.Background(),
+		context.Background(), time.Now,
 		client,
 		signingReconcilePlanArtifact{},
 		signingDevicesFile{},
@@ -338,10 +343,10 @@ func TestEnsureReconcileProfileRechecksAppIDSeedBeforeMutation(t *testing.T) {
 		signingTarget{BundleID: "com.example.app", AppIDPrefix: "TEAM1"},
 	)
 	if err == nil || !strings.Contains(err.Error(), "seed ID OTHERTEAM") {
-		t.Fatalf("ensureReconcileProfile() error=%v, want seed-prefix mismatch", err)
+		t.Fatalf("ensureReconcileProfile(time.Now) error=%v, want seed-prefix mismatch", err)
 	}
 	if mutations != 0 {
-		t.Fatalf("ensureReconcileProfile() made %d mutations despite seed-prefix mismatch", mutations)
+		t.Fatalf("ensureReconcileProfile(time.Now) made %d mutations despite seed-prefix mismatch", mutations)
 	}
 }
 
@@ -360,7 +365,7 @@ func TestPlanSigningTargetBlocksUnverifiableCapabilityValues(t *testing.T) {
 	})
 
 	_, _, blockers, err := planSigningTarget(
-		context.Background(),
+		context.Background(), time.Now,
 		client,
 		signingTarget{
 			BundleID:    "com.example.app",
@@ -377,7 +382,7 @@ func TestPlanSigningTargetBlocksUnverifiableCapabilityValues(t *testing.T) {
 		7,
 	)
 	if err != nil {
-		t.Fatalf("planSigningTarget() error = %v", err)
+		t.Fatalf("planSigningTarget(time.Now) error = %v", err)
 	}
 	got := strings.Join(blockers, "\n")
 	if !strings.Contains(got, "com.apple.security.application-groups") || !strings.Contains(got, "cannot be verified safely") {
@@ -580,14 +585,14 @@ func TestGetProfileCandidatesPaginatesAndRejectsExtraDevices(t *testing.T) {
 		}
 	})
 	candidates, err := getProfileCandidates(
-		context.Background(), client,
+		context.Background(), time.Now, client,
 		asc.Resource[asc.BundleIDAttributes]{ID: "bundle-1", Attributes: asc.BundleIDAttributes{Identifier: "com.example.app", Platform: asc.BundleIDPlatformIOS}},
 		signingTarget{BundleID: "com.example.app", Entitlements: map[string]any{"com.apple.developer.team-identifier": "TEAM1"}},
 		[]signingDesiredDevice{{Fingerprint: fingerprintDevice(normalizeReconcileUDID("SECRET-UDID")), ResourceID: "device-1", Status: "ENABLED"}},
 		signingCertificateRef{ID: "cert-1", SHA256: reconcileTestCertificateFingerprint(distributionCertificate)}, 7,
 	)
 	if err != nil {
-		t.Fatalf("getProfileCandidates() error=%v", err)
+		t.Fatalf("getProfileCandidates(time.Now) error=%v", err)
 	}
 	if len(candidates) != 2 || !candidates[0].Suitable || candidates[0].Profile.ID != "p-exact" || candidates[0].ExtraDevices != 0 {
 		t.Fatalf("candidates=%#v", candidates)
@@ -685,9 +690,9 @@ func TestPreflightSigningApplyFindsLaterTargetBlockerBeforeMutation(t *testing.T
 			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
 		}
 	})
-	err = preflightSigningApply(context.Background(), client, plan, devices)
+	err = preflightSigningApply(context.Background(), time.Now, client, plan, devices)
 	if err == nil || !strings.Contains(err.Error(), "incompatible platform") {
-		t.Fatalf("preflightSigningApply() error = %v", err)
+		t.Fatalf("preflightSigningApply(time.Now) error = %v", err)
 	}
 	for _, method := range methods {
 		if method != http.MethodGet {
@@ -773,7 +778,7 @@ func TestApplyRejectsConcurrentBundleSeedMismatchBeforeProfilePOST(t *testing.T)
 	}
 
 	_, _, err := applySigningAction(
-		context.Background(),
+		context.Background(), time.Now,
 		client,
 		plan,
 		signingDevicesFile{},
@@ -831,9 +836,9 @@ func TestEnsureReconcileProfileConvergesAfterAmbiguousPOSTOnlyWhenExact(t *testi
 			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
 		}
 	})
-	profile, gotContent, err := ensureReconcileProfile(context.Background(), client, plan, devices, action, target)
+	profile, gotContent, err := ensureReconcileProfile(context.Background(), time.Now, client, plan, devices, action, target)
 	if err != nil || profile.ID != "profile-1" || string(gotContent) != string(profileBytes) {
-		t.Fatalf("ensureReconcileProfile() profile=%#v content=%d error=%v", profile, len(gotContent), err)
+		t.Fatalf("ensureReconcileProfile(time.Now) profile=%#v content=%d error=%v", profile, len(gotContent), err)
 	}
 }
 
@@ -1238,9 +1243,9 @@ func TestPreflightSigningApplySanitizesRemoteDeviceErrors(t *testing.T) {
 		return signingFetchJSONResponse(http.StatusBadRequest, `{"errors":[{"detail":"Rudrank Phone Rudrank+Phone Rudrank%20Phone SECRET-UDID SECRETUDID"}]}`)
 	})
 
-	err = preflightSigningApplySanitized(context.Background(), client, signingReconcilePlanArtifact{}, devices)
+	err = preflightSigningApplySanitized(context.Background(), time.Now, client, signingReconcilePlanArtifact{}, devices)
 	if err == nil {
-		t.Fatal("preflightSigningApplySanitized() error = nil")
+		t.Fatal("preflightSigningApplySanitized(time.Now) error = nil")
 	}
 	for _, secret := range []string{"Rudrank Phone", "Rudrank+Phone", "Rudrank%20Phone", "SECRET-UDID", "SECRETUDID"} {
 		if strings.Contains(err.Error(), secret) {
@@ -1388,7 +1393,7 @@ func TestLoadSigningReceiptRejectsPathsOutsidePlan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := loadOrStartSigningReceiptWithUsage(plan, shared.UsageError); err == nil {
+	if _, err := loadOrStartSigningReceiptWithUsage(time.Now, plan, shared.UsageError); err == nil {
 		t.Fatal("loadOrStartSigningReceipt() error = nil, want path-binding rejection")
 	}
 	outside, err := os.ReadFile(outsideReceipt)
