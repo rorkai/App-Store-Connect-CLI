@@ -192,7 +192,7 @@ Examples:
 }
 
 func executeScreenshotReviewPlan(ctx context.Context, d *shared.Deps, opts screenshotReviewPlanOptions) (*screenshotReviewPlanResult, error) {
-	resolvedAppID := shared.ResolveAppID(opts.AppID)
+	resolvedAppID := d.ResolveAppID(opts.AppID)
 	if strings.TrimSpace(resolvedAppID) == "" {
 		fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 		return nil, shared.MissingRequiredUsageError("--app")

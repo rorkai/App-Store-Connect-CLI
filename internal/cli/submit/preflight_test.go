@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -61,7 +62,7 @@ func TestSubmissionLocalizationPreflightReadinessFailuresExposeValidationDiagnos
 			stderr := captureSubmitStderr(t, func(w io.Writer) {
 				err := runSubmissionLocalizationPreflight(
 					context.Background(),
-					&shared.Deps{IO: &shared.IO{ErrOut: w}, Timeout: shared.ContextWithTimeout},
+					&shared.Deps{IO: &shared.IO{ErrOut: w}, Timeout: shared.ContextWithTimeout, LookupEnv: os.LookupEnv},
 					client,
 					"app-1",
 					"version-1",

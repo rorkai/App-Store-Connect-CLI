@@ -223,7 +223,7 @@ func validateWebReviewDraftOutput(d *shared.Deps, output shared.OutputFlags) err
 }
 
 func validateWebReviewDraftIDs(d *shared.Deps, appID, threadID string) (string, string, error) {
-	app := strings.TrimSpace(shared.ResolveAppID(appID))
+	app := strings.TrimSpace(d.ResolveAppID(appID))
 	if app == "" {
 		return "", "", d.UsageError("--app is required (or set ASC_APP_ID)")
 	}

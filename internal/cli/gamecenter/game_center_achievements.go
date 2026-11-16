@@ -86,7 +86,7 @@ Examples:
 				return err
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
@@ -219,7 +219,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if group == "" && resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -779,7 +779,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")

@@ -2047,10 +2047,11 @@ func newSubmitTestDeps(t *testing.T, transport http.RoundTripper) (*shared.Deps,
 	client := newSubmitTestClient(t, transport)
 	stdout := &bytes.Buffer{}
 	return &shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		IO:      &shared.IO{In: strings.NewReader(""), Out: stdout, ErrOut: io.Discard},
-		Timeout: shared.ContextWithTimeout,
-		After:   time.After,
+		Client:    func() (*asc.Client, error) { return client, nil },
+		IO:        &shared.IO{In: strings.NewReader(""), Out: stdout, ErrOut: io.Discard},
+		Timeout:   shared.ContextWithTimeout,
+		After:     time.After,
+		LookupEnv: os.LookupEnv,
 	}, stdout
 }
 

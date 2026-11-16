@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"strings"
 	"testing"
 
@@ -14,7 +15,7 @@ import (
 
 func newTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
-	return &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &stderr}}, &stdout, &stderr
+	return &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &stderr}, LookupEnv: os.LookupEnv}, &stdout, &stderr
 }
 
 func TestAgeRatingCommandShape(t *testing.T) {

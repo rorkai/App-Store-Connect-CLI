@@ -76,7 +76,7 @@ Examples:
 			}
 
 			if *v2 {
-				if shared.ResolveAppID(*appID) == "" && strings.TrimSpace(*next) == "" {
+				if d.ResolveAppID(*appID) == "" && strings.TrimSpace(*next) == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 					return shared.MissingRequiredUsageError("--app")
 				}
@@ -91,7 +91,7 @@ Examples:
 			}
 
 			if *v2 {
-				resolvedAppID := shared.ResolveAppID(*appID)
+				resolvedAppID := d.ResolveAppID(*appID)
 
 				client, err := d.Client()
 				if err != nil {
@@ -244,7 +244,7 @@ Examples:
 			}
 
 			if *v2 {
-				resolvedAppID := shared.ResolveAppID(*appID)
+				resolvedAppID := d.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 					return shared.MissingRequiredUsageError("--app")
