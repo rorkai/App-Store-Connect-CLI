@@ -58,6 +58,22 @@ func (c *Client) GetPassTypeIDCertificates(ctx context.Context, passTypeID strin
 	})
 }
 
+// GetPassTypeIDCertificatesRelationships sends GET /v1/passTypeIds/{id}/relationships/certificates (passTypeIds_certificates_getToManyRelationship).
+func (c *Client) GetPassTypeIDCertificatesRelationships(ctx context.Context, passTypeID string, opts ...LinkagesOption) (*PassTypeIDCertificatesLinkagesResponse, error) {
+	query := applyOptions(opts)
+	passTypeID = strings.TrimSpace(passTypeID)
+	if query.nextURL == "" && passTypeID == "" {
+		return nil, fmt.Errorf("pass type ID is required")
+	}
+	return getJSON[PassTypeIDCertificatesLinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/passTypeIds/%s/relationships/certificates", passTypeID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "passTypeIdCertificatesRelationships",
+		ParseErr:    "failed to parse certificates relationship response",
+	})
+}
+
 // CreatePassTypeID sends POST /v1/passTypeIds (passTypeIds_createInstance).
 func (c *Client) CreatePassTypeID(ctx context.Context, attrs PassTypeIDCreateAttributes) (*PassTypeIDResponse, error) {
 	payload := PassTypeIDCreateRequest{
