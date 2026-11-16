@@ -18,6 +18,7 @@ func newLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Localization resource ID (skips parent and locale lookup)")
+	shared.BindFlagAlias(fs, "localization-id", "id")
 	versionID := shared.BindResourceIDFlag(fs, "version", "appStoreVersions", "App Store version ID, or a version string with --app (for version localizations)")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	platform := fs.String("platform", "", "Platform for version strings: IOS, MAC_OS, TV_OS, VISION_OS")

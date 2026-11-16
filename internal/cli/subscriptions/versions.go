@@ -219,6 +219,7 @@ Examples:
   asc subscriptions versions view --id "VERSION_ID" --include images,localizations --images-limit 10 --localizations-limit 10`,
 		IDUsage: "Subscription version ID", IDType: "subscriptionVersions", RequiredDiagnostic: true,
 		Flags: func(fs *flag.FlagSet) func() error {
+			shared.BindFlagAlias(fs, "version-id", "id")
 			fields := fs.String("fields", "", "Sparse fields for subscriptionVersions")
 			subscriptionFields := fs.String("subscription-fields", "", "Sparse fields for included subscriptions")
 			imageFields := fs.String("image-fields", "", "Sparse fields for included subscriptionImages")

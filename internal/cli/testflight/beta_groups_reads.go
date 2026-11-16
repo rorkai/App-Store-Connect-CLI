@@ -81,6 +81,7 @@ func betaGroupReadListCommand(d *shared.Deps, config betaGroupReadConfig) *ffcli
 	fs := d.NewFlagSet(config.resource+" list", flag.ExitOnError)
 
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "betaGroups", "Beta group ID")
+	shared.BindFlagAlias(fs, "group", "group-id")
 	fields := fs.String("fields", "", config.fieldsUsage+": "+strings.Join(config.fieldValues, ", "))
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)

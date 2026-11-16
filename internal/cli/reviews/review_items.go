@@ -79,6 +79,7 @@ func reviewItemsListCommand(d *shared.Deps, name, errorPrefix, shortUsage, examp
 	fs := d.NewFlagSet(name, flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "submission", "reviewSubmissions", "Review submission ID (required)")
+	shared.BindFlagAlias(fs, "submission-id", "submission")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	fields := fs.String("fields", "", "Review item fields: "+strings.Join(reviewSubmissionItemFields, ", "))

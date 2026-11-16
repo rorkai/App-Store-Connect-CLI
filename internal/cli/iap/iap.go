@@ -319,6 +319,7 @@ Examples:
 		RequiredDiagnostic: true,
 		Deps:               d,
 		Flags: func(fs *flag.FlagSet) func() error {
+			shared.BindFlagAlias(fs, "iap-id", "id")
 			legacy = fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
 			include := fs.String("include", "", "Include relationships (comma-separated, v2 only): "+strings.Join(iapViewIncludes, ", "))
 			includedResources := maps.Clone(iapIncludedResources)
