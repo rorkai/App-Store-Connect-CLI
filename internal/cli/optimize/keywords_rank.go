@@ -16,15 +16,15 @@ import (
 
 const keywordRankSchemaVersion = "1"
 
-// KeywordsRankCommand returns the public keyword ranking command.
-func KeywordsRankCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rank", flag.ExitOnError)
+// newKeywordsRankCommand returns the public keyword ranking command.
+func newKeywordsRankCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rank", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store app ID (required, or ASC_APP_ID env)")
 	keywords := shared.BindOnceCSVFlag(fs, "keywords", "Comma-separated keyword candidates to rank (required)")
 	country := fs.String("country", "us", "ISO alpha-2 App Store storefront country or region")
 	platform := fs.String("platform", "IOS", "Public App Store platform: IOS or TV_OS")
 	workers := fs.Int("workers", 10, "Number of parallel keyword lookups")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "rank",
@@ -52,45 +52,45 @@ Examples:
   asc optimize keywords rank --app "1234567890" --keywords "focus timer" --country gb --output table
   asc optimize keywords rank --app "1234567890" --keywords "focus timer,meditation" --platform TV_OS --workers 4`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, err := normalizeKeywordAppID(*appID)
+			resolvedAppID, err := normalizeKeywordAppID(d, *appID)
 			if err != nil {
 				return err
 			}
 			if strings.TrimSpace(keywords.String()) == "" {
-				return shared.UsageError("--keywords is required")
+				return d.UsageError("--keywords is required")
 			}
-			normalizedKeywords, err := normalizeKeywordList(keywords.String())
+			normalizedKeywords, err := normalizeKeywordList(d, keywords.String())
 			if err != nil {
 				return err
 			}
 			if *workers < 1 {
-				return shared.UsageError("--workers must be at least 1")
+				return d.UsageError("--workers must be at least 1")
 			}
 			effectiveWorkers := *workers
 			if effectiveWorkers > len(normalizedKeywords) {
 				effectiveWorkers = len(normalizedKeywords)
 			}
-			normalizedCountry, err := normalizeKeywordCountry(*country)
+			normalizedCountry, err := normalizeKeywordCountry(d, *country)
 			if err != nil {
 				return err
 			}
-			normalizedPlatform, err := normalizeKeywordRankPlatform(*platform)
+			normalizedPlatform, err := normalizeKeywordRankPlatform(d, *platform)
 			if err != nil {
 				return err
 			}
 			if normalizedPlatform == itunes.PublicSearchPlatformTVOS &&
 				strings.TrimSpace(itunes.Storefronts[normalizedCountry]) == "" {
-				return shared.UsageErrorf(
+				return d.UsageErrorf(
 					"TV_OS ranking is unavailable for storefront %s",
 					strings.ToUpper(normalizedCountry),
 				)
 			}
 
-			client := newKeywordsItunesClient()
+			client := newKeywordsItunesClient(d)
 			results := fanOutKeywords(ctx, normalizedKeywords, effectiveWorkers, func(ctx context.Context, keyword string) (itunes.PublicRankResult, error) {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 				return client.RankApp(requestCtx, resolvedAppID, keyword, normalizedCountry, normalizedPlatform)
 			})
@@ -99,7 +99,7 @@ Examples:
 			}
 
 			report := buildKeywordRankReport(keywordRankBuildInput{
-				GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+				GeneratedAt: d.Now().UTC().Format(time.RFC3339),
 				AppID:       resolvedAppID,
 				Country:     strings.ToUpper(normalizedCountry),
 				Platform:    string(normalizedPlatform),
@@ -114,7 +114,7 @@ Examples:
 				return fmt.Errorf("optimize keywords rank: %w", representativeKeywordError(failures))
 			}
 
-			return shared.PrintOutput(&report, *output.Output, *output.Pretty)
+			return d.PrintOutput(&report, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -166,12 +166,12 @@ func buildKeywordRankReport(input keywordRankBuildInput) asc.KeywordRankReport {
 	}
 }
 
-func normalizeKeywordRankPlatform(value string) (itunes.PublicSearchPlatform, error) {
+func normalizeKeywordRankPlatform(d *shared.Deps, value string) (itunes.PublicSearchPlatform, error) {
 	normalized := itunes.PublicSearchPlatform(strings.ToUpper(strings.TrimSpace(value)))
 	switch normalized {
 	case itunes.PublicSearchPlatformIOS, itunes.PublicSearchPlatformTVOS:
 		return normalized, nil
 	default:
-		return "", shared.UsageError("--platform must be one of: IOS, TV_OS")
+		return "", d.UsageError("--platform must be one of: IOS, TV_OS")
 	}
 }

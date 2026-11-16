@@ -14,6 +14,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -229,13 +230,15 @@ func jsonStringForTest(value string) string {
 	return string(encoded)
 }
 
-func runSandboxEntitlementsCommand(t *testing.T, command *ffcli.Command, args ...string) (string, error) {
+func runSandboxEntitlementsCommand(t *testing.T, newCommand func(*shared.Deps) *ffcli.Command, args ...string) (string, error) {
 	t.Helper()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newCommand(d)
 	if err := command.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = command.Exec(context.Background(), command.FlagSet.Args())
 	})
 	if stderr != "" {
@@ -277,7 +280,7 @@ func TestWebReviewSandboxEntitlementsSetWritesOnlyWhatChanged(t *testing.T) {
 			for id, row := range tc.existing {
 				fixture.usages[id] = row
 			}
-			stdout, err := runSandboxEntitlementsCommand(t, WebReviewSandboxEntitlementsSetCommand(),
+			stdout, err := runSandboxEntitlementsCommand(t, newWebReviewSandboxEntitlementsSetCommand,
 				"--version-id", "version-1",
 				"--entitlement", "com.apple.security.network.server",
 				"--justification", "  Listens for paired devices.\n",
@@ -334,7 +337,7 @@ func TestWebReviewSandboxEntitlementsDeleteRemovesOnlyAnExistingRow(t *testing.T
 			for id, row := range tc.existing {
 				fixture.usages[id] = row
 			}
-			stdout, err := runSandboxEntitlementsCommand(t, WebReviewSandboxEntitlementsDeleteCommand(),
+			stdout, err := runSandboxEntitlementsCommand(t, newWebReviewSandboxEntitlementsDeleteCommand,
 				"--version-id", "version-1", "--entitlement", "com.apple.security.network.server", "--confirm", "--output", "json")
 			if err != nil {
 				t.Fatalf("delete: %v", err)
@@ -407,7 +410,7 @@ func TestWebReviewSandboxEntitlementsRefusesBeforeWriting(t *testing.T) {
 			if key == "" {
 				key = "com.apple.security.network.server"
 			}
-			stdout, err := runSandboxEntitlementsCommand(t, WebReviewSandboxEntitlementsSetCommand(),
+			stdout, err := runSandboxEntitlementsCommand(t, newWebReviewSandboxEntitlementsSetCommand,
 				"--version-id", "version-1", "--entitlement", key, "--justification", "Text", "--confirm", "--output", "json")
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Fatalf("error = %v, want it to mention %q", err, tc.wantErr)
@@ -423,14 +426,14 @@ func TestWebReviewSandboxEntitlementsReportsAWriteAppleDidNotKeep(t *testing.T) 
 	for _, tc := range []struct {
 		name      string
 		existing  map[string]sandboxUsageRow
-		command   func() *ffcli.Command
+		command   func(*shared.Deps) *ffcli.Command
 		args      []string
 		wantWrite string
 		wantErr   string
 	}{
 		{
 			name:      "set creating a row",
-			command:   WebReviewSandboxEntitlementsSetCommand,
+			command:   newWebReviewSandboxEntitlementsSetCommand,
 			args:      []string{"--justification", "Text"},
 			wantWrite: "POST /appSandboxEntitlementUsages",
 			wantErr:   "rerun the command to reconcile",
@@ -438,7 +441,7 @@ func TestWebReviewSandboxEntitlementsReportsAWriteAppleDidNotKeep(t *testing.T) 
 		{
 			name:      "set updating a row",
 			existing:  map[string]sandboxUsageRow{"usage-1": {entitlement: "com.apple.security.network.server", justification: "Old text"}},
-			command:   WebReviewSandboxEntitlementsSetCommand,
+			command:   newWebReviewSandboxEntitlementsSetCommand,
 			args:      []string{"--justification", "Text"},
 			wantWrite: "PATCH /appSandboxEntitlementUsages/usage-1",
 			wantErr:   "rerun the command to reconcile",
@@ -446,7 +449,7 @@ func TestWebReviewSandboxEntitlementsReportsAWriteAppleDidNotKeep(t *testing.T) 
 		{
 			name:      "delete",
 			existing:  map[string]sandboxUsageRow{"usage-1": {entitlement: "com.apple.security.network.server", justification: "Text"}},
-			command:   WebReviewSandboxEntitlementsDeleteCommand,
+			command:   newWebReviewSandboxEntitlementsDeleteCommand,
 			wantWrite: "DELETE /appSandboxEntitlementUsages/usage-1",
 			wantErr:   "still present",
 		},
@@ -458,7 +461,7 @@ func TestWebReviewSandboxEntitlementsReportsAWriteAppleDidNotKeep(t *testing.T) 
 				fixture.usages[id] = row
 			}
 			args := append([]string{"--version-id", "version-1", "--entitlement", "com.apple.security.network.server", "--confirm", "--output", "json"}, tc.args...)
-			stdout, err := runSandboxEntitlementsCommand(t, tc.command(), args...)
+			stdout, err := runSandboxEntitlementsCommand(t, tc.command, args...)
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Fatalf("error = %v, want it to mention %q", err, tc.wantErr)
 			}
@@ -485,19 +488,19 @@ func assertSandboxReceiptJSON(t *testing.T, stdout string, want map[string]any) 
 func TestWebReviewSandboxEntitlementsReadsPreserveAppleEnvelope(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
-		command   func() *ffcli.Command
+		command   func(*shared.Deps) *ffcli.Command
 		args      []string
 		tableWant []string
 	}{
 		{
 			name:      "list",
-			command:   WebReviewSandboxEntitlementsListCommand,
+			command:   newWebReviewSandboxEntitlementsListCommand,
 			args:      []string{"--version-id", "version-1"},
 			tableWant: []string{"Entitlement", "Justification", "Usage ID", "com.apple.security.network.server", "Listens for paired devices.", "usage-1"},
 		},
 		{
 			name:      "catalog",
-			command:   WebReviewSandboxEntitlementsCatalogCommand,
+			command:   newWebReviewSandboxEntitlementsCatalogCommand,
 			tableWant: []string{"Entitlement", "Optional", "com.apple.security.network.client", "true"},
 		},
 	} {
@@ -505,7 +508,7 @@ func TestWebReviewSandboxEntitlementsReadsPreserveAppleEnvelope(t *testing.T) {
 			fixture := newSandboxEntitlementsFixture(t)
 			fixture.usages["usage-1"] = sandboxUsageRow{entitlement: "com.apple.security.network.server", justification: "Listens for paired devices."}
 
-			stdout, err := runSandboxEntitlementsCommand(t, tc.command(), append(tc.args, "--output", "json")...)
+			stdout, err := runSandboxEntitlementsCommand(t, tc.command, append(tc.args, "--output", "json")...)
 			if err != nil {
 				t.Fatalf("json read: %v", err)
 			}
@@ -517,7 +520,7 @@ func TestWebReviewSandboxEntitlementsReadsPreserveAppleEnvelope(t *testing.T) {
 				t.Fatalf("json output does not preserve Apple's envelope: %q (%v)", stdout, err)
 			}
 
-			stdout, err = runSandboxEntitlementsCommand(t, tc.command(), append(tc.args, "--output", "table")...)
+			stdout, err = runSandboxEntitlementsCommand(t, tc.command, append(tc.args, "--output", "table")...)
 			if err != nil {
 				t.Fatalf("table read: %v", err)
 			}

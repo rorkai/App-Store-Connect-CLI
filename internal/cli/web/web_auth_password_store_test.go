@@ -634,12 +634,13 @@ func TestWebAuthStatusReportsStoredPasswordForExpiredSession(t *testing.T) {
 		return appleID == "user@example.com", nil
 	}
 
-	cmd := WebAuthStatusCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAuthStatusCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--output", "json"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {
@@ -666,12 +667,13 @@ func TestWebAuthStatusReportsPersistedDeveloperTeamWhenExpired(t *testing.T) {
 	}
 	storedWebPasswordExistsFn = func(string) (bool, error) { return false, nil }
 
-	cmd := WebAuthStatusCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAuthStatusCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--output", "json"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {
@@ -693,12 +695,13 @@ func TestWebAuthLogoutForgetPasswordRequiresConfirmation(t *testing.T) {
 		return nil
 	}
 
-	cmd := WebAuthLogoutCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAuthLogoutCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--forget-password"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(stderr, "--confirm") {
@@ -718,12 +721,13 @@ func TestWebAuthLogoutCanForgetPasswordWithSession(t *testing.T) {
 		return nil
 	}
 
-	cmd := WebAuthLogoutCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAuthLogoutCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--forget-password", "--confirm"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {
@@ -745,7 +749,8 @@ func TestWebAuthLogoutForgetPasswordFailsBeforeDeletingSession(t *testing.T) {
 		return nil
 	}
 
-	cmd := WebAuthLogoutCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAuthLogoutCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--forget-password", "--confirm"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -766,12 +771,13 @@ func TestWebAuthLogoutAllForgetPasswordRequiresConfirmationWithoutDeletingAnythi
 		return nil
 	}
 
-	cmd := WebAuthLogoutCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAuthLogoutCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--all", "--forget-password"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(stderr, "--confirm") {
@@ -791,12 +797,13 @@ func TestWebAuthLogoutAllCanForgetPasswordsWithSessions(t *testing.T) {
 		return nil
 	}
 
-	cmd := WebAuthLogoutCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAuthLogoutCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--all", "--forget-password", "--confirm"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr != nil {

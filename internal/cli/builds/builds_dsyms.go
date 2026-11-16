@@ -20,12 +20,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
-// dsymHTTPClient is the HTTP client used for dSYM downloads.
-// No client-level timeout — the request context (from ContextWithDownloadTimeout /
-// ASC_UPLOAD_TIMEOUT) controls cancellation so the CLI timeout contract is honored.
-// Tests can replace this via SetDSYMHTTPClient.
-var dsymHTTPClient = &http.Client{}
-
 type dsymBundleInfo struct {
 	BundleID string
 	DSYMURL  *string
@@ -191,7 +185,7 @@ func downloadDSYMSelection(ctx context.Context, d *shared.Deps, client *asc.Clie
 			}
 			continue
 		}
-		if err := os.MkdirAll(dirValue, 0o755); err != nil {
+		if err := os.MkdirAll(d.OSPath(dirValue), 0o755); err != nil {
 			return fmt.Errorf("builds dsyms: failed to create output directory: %w", err)
 		}
 		saved, err := saveDSYMBundles(ctx, d, downloadable, target, dirValue, selection.Multi)
@@ -348,14 +342,14 @@ func uniqueDSYMFileName(name, buildID string, used map[string]struct{}) string {
 }
 
 func saveOneDSYM(ctx context.Context, d *shared.Deps, rawURL, destPath string) (int64, string, bool, error) {
-	size, sum, exists, err := hashRegularFile(destPath)
+	size, sum, exists, err := hashRegularFile(d.OSPath(destPath))
 	if err != nil {
 		return 0, "", false, err
 	}
 	downloadCtx, cancel := d.DownloadTimeout(ctx)
 	defer cancel()
 	if exists {
-		length, remoteSum, err := hashRemoteDSYM(downloadCtx, rawURL)
+		length, remoteSum, err := hashRemoteDSYM(downloadCtx, d.HTTPTransport(), rawURL)
 		if err != nil {
 			return 0, "", false, err
 		}
@@ -364,29 +358,23 @@ func saveOneDSYM(ctx context.Context, d *shared.Deps, rawURL, destPath string) (
 		}
 		return 0, "", false, fmt.Errorf("output file already exists with different content")
 	}
-	written, err := downloadDSYM(downloadCtx, rawURL, destPath)
+	written, err := downloadDSYM(downloadCtx, d, rawURL, destPath)
 	if err != nil {
 		return 0, "", false, err
 	}
-	_, sum, _, err = hashRegularFile(destPath)
+	_, sum, _, err = hashRegularFile(d.OSPath(destPath))
 	if err != nil {
 		return written, "", false, err
 	}
 	return written, sum, false, nil
 }
 
-func hashRemoteDSYM(ctx context.Context, rawURL string) (int64, string, error) {
+func hashRemoteDSYM(ctx context.Context, transport http.RoundTripper, rawURL string) (int64, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return 0, "", urlsanitize.NewTransportError("create dSYM content request", urlsanitize.RedactURLHostForError(rawURL), err)
 	}
-	client := dsymHTTPClient
-	if client == nil {
-		client = &http.Client{}
-	}
-	safeClient := *client
-	safeClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	resp, err := safeClient.Do(req)
+	resp, err := dsymHTTPClient(transport).Do(req)
 	if err != nil {
 		return 0, "", urlsanitize.NewTransportError("dSYM content request", urlsanitize.RedactURLHostForError(rawURL), err)
 	}
@@ -437,7 +425,7 @@ func displayBundleID(bundleID string, index int) string {
 	return fmt.Sprintf("bundle %d", index)
 }
 
-func downloadDSYM(ctx context.Context, rawURL, destPath string) (int64, error) {
+func downloadDSYM(ctx context.Context, d *shared.Deps, rawURL, destPath string) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return 0, urlsanitize.NewTransportError(
@@ -447,15 +435,7 @@ func downloadDSYM(ctx context.Context, rawURL, destPath string) (int64, error) {
 		)
 	}
 
-	client := dsymHTTPClient
-	if client == nil {
-		client = &http.Client{}
-	}
-	safeClient := *client
-	safeClient.CheckRedirect = func(*http.Request, []*http.Request) error {
-		return http.ErrUseLastResponse
-	}
-	resp, err := safeClient.Do(req)
+	resp, err := dsymHTTPClient(d.HTTPTransport()).Do(req)
 	if err != nil {
 		return 0, urlsanitize.NewTransportError(
 			"dSYM download request",
@@ -469,14 +449,19 @@ func downloadDSYM(ctx context.Context, rawURL, destPath string) (int64, error) {
 		return 0, fmt.Errorf("download returned HTTP %d", resp.StatusCode)
 	}
 
-	return shared.WriteStreamToFile(destPath, resp.Body)
+	return d.WriteStreamToFile(destPath, resp.Body)
 }
 
-// SetDSYMHTTPClient replaces the HTTP client for tests.
-func SetDSYMHTTPClient(c *http.Client) func() {
-	prev := dsymHTTPClient
-	dsymHTTPClient = c
-	return func() { dsymHTTPClient = prev }
+// dsymHTTPClient returns the client for dSYM downloads. It has no timeout of
+// its own: the download context (ContextWithDownloadTimeout, ASC_UPLOAD_TIMEOUT)
+// bounds each request. It does not follow redirects.
+func dsymHTTPClient(transport http.RoundTripper) *http.Client {
+	return &http.Client{
+		Transport: transport,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 }
 
 func printDSYMResultTable(d *shared.Deps, result asc.DSYMDownloadResult) error {

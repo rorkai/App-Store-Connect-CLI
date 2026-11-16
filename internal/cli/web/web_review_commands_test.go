@@ -95,7 +95,8 @@ func TestWebReviewShowPreservesRawDownloadDirectoryError(t *testing.T) {
 		t.Fatalf("failed to create blocker file: %v", err)
 	}
 
-	cmd := WebReviewShowCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewShowCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--out", filepath.Join(blocker, "downloads"),
@@ -104,7 +105,7 @@ func TestWebReviewShowPreservesRawDownloadDirectoryError(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, _ = captureOutput(t, func() {
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if err == nil {
 			t.Fatal("expected review show error")

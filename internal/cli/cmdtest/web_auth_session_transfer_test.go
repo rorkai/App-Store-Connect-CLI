@@ -594,10 +594,7 @@ func TestWebAuthSessionTransferRequiresPathFlags(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var code int
-			_, stderr := captureOutput(t, func() {
-				code = cmd.Run(tc.args, "1.0.0")
-			})
+			_, stderr, code := runWithDeps(t, nil, tc.args...)
 			if code != cmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitUsage, stderr)
 			}

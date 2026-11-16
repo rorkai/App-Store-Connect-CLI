@@ -92,12 +92,27 @@ func runWithDeps(t *testing.T, client func() (*asc.Client, error), args ...strin
 	return stdout.String(), stderr.String(), code
 }
 
+// runWithHTTPTransport is runWithDeps whose clients for services other than
+// App Store Connect send every request to rt.
+func runWithHTTPTransport(t *testing.T, client func() (*asc.Client, error), rt http.RoundTripper, args ...string) (string, string, int) {
+	t.Helper()
+
+	d, stdout, stderr := newTestDeps(t, client)
+	d.HTTPTransport = func() http.RoundTripper { return rt }
+	code := rootcmd.RunWithDeps(args, "1.2.3", d)
+	return stdout.String(), stderr.String(), code
+}
+
 func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 
 	resetCmdtestState()
 	t.Cleanup(resetCmdtestState)
 
+	var clientWithTimeout func(time.Duration) (*asc.Client, error)
+	if client != nil {
+		clientWithTimeout = func(time.Duration) (*asc.Client, error) { return client() }
+	}
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
 		Client:         client,
@@ -110,6 +125,8 @@ func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps
 		Getwd:          os.Getwd,
 		LookupEnv:      os.LookupEnv,
 		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
+
+		ClientWithTimeout: clientWithTimeout,
 	}, &stdout, &stderr
 }
 

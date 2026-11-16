@@ -44,7 +44,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAuthCommand(),
+			newWebAuthCommand(d),
 			WebAgreementsCommand(),
 			WebBusinessCommand(),
 			WebFinanceCommand(),
@@ -61,11 +61,11 @@ Examples:
 			WebWebsitePushIDsCommand(),
 			WebICloudContainersCommand(),
 			WebAppGroupsCommand(),
-			WebPrivacyCommand(),
-			WebReviewCommand(),
+			newWebPrivacyCommand(d),
+			newWebReviewCommand(d),
 			WebSubscriptionsCommand(),
 			WebAnalyticsCommand(),
-			WebXcodeCloudCommand(),
+			newWebXcodeCloudCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {

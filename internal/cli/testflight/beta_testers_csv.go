@@ -207,7 +207,7 @@ Examples:
 				rows = append(rows, row)
 			}
 
-			if err := writeCSVFileAtomicNoSymlink(outputValue, header, rows); err != nil {
+			if err := writeCSVFileAtomicNoSymlink(d.OSPath(outputValue), header, rows); err != nil {
 				return fmt.Errorf("beta-testers export: %w", err)
 			}
 
@@ -870,7 +870,7 @@ func fetchTesterGroupMemberships(ctx context.Context, d *shared.Deps, client *as
 }
 
 func readBetaTestersCSV(d *shared.Deps, path string) ([]betaTestersCSVRow, error) {
-	file, err := shared.OpenExistingNoFollow(path)
+	file, err := shared.OpenExistingNoFollow(d.OSPath(path))
 	if err != nil {
 		return nil, err
 	}

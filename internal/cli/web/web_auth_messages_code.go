@@ -57,10 +57,10 @@ var (
 	typedstreamNSStringMarker     = []byte("NSString")
 )
 
-// WebAuthMessagesCodeCommand reads a fresh Apple verification code from the
+// newWebAuthMessagesCodeCommand reads a fresh Apple verification code from the
 // local macOS Messages database so it can serve as a 2FA code command.
-func WebAuthMessagesCodeCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web auth messages-code", flag.ExitOnError)
+func newWebAuthMessagesCodeCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web auth messages-code", flag.ExitOnError)
 
 	dbPath := fs.String("db", "", "Path to the Messages database (default ~/Library/Messages/chat.db)")
 	since := fs.Duration("since", messagesCodeDefaultSince, "Only accept messages received within this lookback from when the command starts (at most 10m)")
@@ -108,16 +108,16 @@ Examples:
   asc web auth login --apple-id "user@example.com" --two-factor-method sms --two-factor-code-command "asc web auth messages-code"
   asc web auth messages-code --since 2m --timeout 45s`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *since <= 0 {
-				return shared.UsageError("--since must be a positive duration")
+				return d.UsageError("--since must be a positive duration")
 			}
 			if *since > messagesCodeMaxSince {
-				return shared.UsageErrorf("--since must be at most %s", messagesCodeMaxSince)
+				return d.UsageErrorf("--since must be at most %s", messagesCodeMaxSince)
 			}
 			if *timeout <= 0 {
-				return shared.UsageError("--timeout must be a positive duration")
+				return d.UsageError("--timeout must be a positive duration")
 			}
 			dbFlagSet := false
 			fs.Visit(func(f *flag.Flag) {
@@ -126,14 +126,14 @@ Examples:
 				}
 			})
 			if dbFlagSet && strings.TrimSpace(*dbPath) == "" {
-				return shared.UsageError("--db must not be empty")
+				return d.UsageError("--db must not be empty")
 			}
 
 			if goos := messagesCodeGOOSFn(); goos != "darwin" {
 				return fmt.Errorf("web auth messages-code: only supported on macOS (current OS: %s)", goos)
 			}
 
-			resolvedDB, err := resolveMessagesDBPath(*dbPath)
+			resolvedDB, err := resolveMessagesDBPath(d, *dbPath)
 			if err != nil {
 				return fmt.Errorf("web auth messages-code: %w", err)
 			}
@@ -144,7 +144,7 @@ Examples:
 					sinceSet = true
 				}
 			})
-			start := time.Now()
+			start := d.Now()
 			cutoff := start.Add(-*since)
 			window := fmt.Sprintf("received up to %s before start", *since)
 			// Run by "asc web auth login", accept only codes sent after the
@@ -160,17 +160,17 @@ Examples:
 				}
 				window = "received since asc requested the code"
 			}
-			code, err := waitForAppleMessagesCode(ctx, resolvedDB, cutoff, window, *timeout)
+			code, err := waitForAppleMessagesCode(ctx, d, resolvedDB, cutoff, window, *timeout)
 			if err != nil {
 				return fmt.Errorf("web auth messages-code: %w", err)
 			}
-			_, _ = fmt.Fprintln(os.Stdout, code)
+			_, _ = fmt.Fprintln(d.IO.Out, code)
 			return nil
 		},
 	}
 }
 
-func resolveMessagesDBPath(raw string) (string, error) {
+func resolveMessagesDBPath(d *shared.Deps, raw string) (string, error) {
 	path := strings.TrimSpace(raw)
 	if path == "" {
 		home, err := os.UserHomeDir()
@@ -185,7 +185,7 @@ func resolveMessagesDBPath(raw string) (string, error) {
 		}
 		path = filepath.Join(home, strings.TrimPrefix(path, "~"))
 	}
-	abs, err := filepath.Abs(path)
+	abs, err := d.Abs(path)
 	if err != nil {
 		return "", fmt.Errorf("resolve Messages database path %q: %w", path, err)
 	}
@@ -204,7 +204,7 @@ func resolveMessagesDBPath(raw string) (string, error) {
 	return abs, nil
 }
 
-func waitForAppleMessagesCode(ctx context.Context, dbPath string, cutoff time.Time, window string, timeout time.Duration) (string, error) {
+func waitForAppleMessagesCode(ctx context.Context, d *shared.Deps, dbPath string, cutoff time.Time, window string, timeout time.Duration) (string, error) {
 	pollCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -238,7 +238,7 @@ func waitForAppleMessagesCode(ctx context.Context, dbPath string, cutoff time.Ti
 			return "", ctx.Err()
 		case <-pollCtx.Done():
 			return "", timeoutErr
-		case <-time.After(messagesCodePollInterval):
+		case <-d.After(messagesCodePollInterval):
 		}
 	}
 }

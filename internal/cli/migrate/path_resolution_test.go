@@ -524,3 +524,30 @@ func TestResolveImportInputsPreservesWhitespaceInDeliverfilePathValue(t *testing
 		t.Fatalf("MetadataDir = %q, want exact whitespace path %q", inputs.MetadataDir, filepath.Join(workDir, metadataName))
 	}
 }
+
+func TestNewMigrateContentRootAnchorsAtDepsWorkingDirectory(t *testing.T) {
+	processDir, depsDir := t.TempDir(), t.TempDir()
+	t.Chdir(processDir)
+	if err := os.MkdirAll(filepath.Join(depsDir, "fastlane", "metadata"), 0o755); err != nil {
+		t.Fatalf("create metadata directory: %v", err)
+	}
+	d := migrateTestDeps()
+	d.Getwd = func() (string, error) { return depsDir, nil }
+
+	root, prefix, err := newMigrateContentRoot(d, filepath.Join("fastlane", "metadata"))
+	if err != nil {
+		t.Fatalf("newMigrateContentRoot() error = %v", err)
+	}
+	defer root.Close()
+	wantRoot, err := filepath.EvalSymlinks(depsDir)
+	if err != nil {
+		t.Fatalf("resolve deps directory: %v", err)
+	}
+	gotRoot, err := filepath.EvalSymlinks(root.Path())
+	if err != nil {
+		t.Fatalf("resolve root: %v", err)
+	}
+	if gotRoot != wantRoot || prefix != filepath.Join("fastlane", "metadata") {
+		t.Fatalf("newMigrateContentRoot() = (%q, %q), want (%q, %q)", gotRoot, prefix, wantRoot, filepath.Join("fastlane", "metadata"))
+	}
+}

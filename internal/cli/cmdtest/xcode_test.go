@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,26 +18,19 @@ import (
 )
 
 func TestXcodeBuildRejectsBlankPassthroughValue(t *testing.T) {
-	assertUsageExit(
+	assertUsageExitWithDeps(
 		t,
+		nil,
 		[]string{"xcode", "build", "--project", "Demo.xcodeproj", "--scheme", "Demo", "--xcodebuild-flag="},
 		`invalid value "" for flag --xcodebuild-flag: value cannot be empty`,
 	)
 }
 
 func TestXcodeVersionHelpShowsCanonicalSubcommands(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode", "version"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "xcode", "version")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -56,18 +48,9 @@ func TestXcodeVersionHelpShowsCanonicalSubcommands(t *testing.T) {
 }
 
 func TestXcodeVersionSettingsLookupInvalidValueReturnsUsageExitCode(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"xcode", "version", "view", "--xcodebuild-settings-lookup", "sometimes",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil,
+		"xcode", "version", "view", "--xcodebuild-settings-lookup", "sometimes",
+	)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -115,7 +98,7 @@ func TestXcodeInjectInvalidFlagValuesExitUsage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantStderr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantStderr)
 		})
 	}
 }
@@ -126,36 +109,43 @@ func TestXcodeUsageErrors(t *testing.T) {
 			name:    "ArchiveRequiresWorkspaceOrProject",
 			args:    []string{"xcode", "archive", "--scheme", "Demo", "--archive-path", "Demo.xcarchive"},
 			wantErr: "Error: exactly one of --workspace or --project is required",
+			deps:    true,
 		},
 		{
 			name:    "ArchiveRequiresScheme",
 			args:    []string{"xcode", "archive", "--project", "Demo.xcodeproj", "--archive-path", "Demo.xcarchive"},
 			wantErr: "Error: --scheme is required",
+			deps:    true,
 		},
 		{
 			name:    "ArchiveRequiresArchivePath",
 			args:    []string{"xcode", "archive", "--project", "Demo.xcodeproj", "--scheme", "Demo"},
 			wantErr: "Error: --archive-path is required",
+			deps:    true,
 		},
 		{
 			name:    "ExportRequiresArchivePath",
 			args:    []string{"xcode", "export", "--export-options", "ExportOptions.plist", "--ipa-path", "Demo.ipa"},
 			wantErr: "Error: --archive-path is required",
+			deps:    true,
 		},
 		{
 			name:    "ValidateRequiresArtifact",
 			args:    []string{"xcode", "validate"},
 			wantErr: "Error: --ipa or --pkg is required",
+			deps:    true,
 		},
 		{
 			name:    "ExportRequiresArtifactPath",
 			args:    []string{"xcode", "export", "--archive-path", "Demo.xcarchive", "--export-options", "ExportOptions.plist"},
 			wantErr: "Error: --ipa-path or --pkg-path is required for a local export",
+			deps:    true,
 		},
 		{
 			name:    "ArchiveRejectsWorkspaceAndProjectTogether",
 			args:    []string{"xcode", "archive", "--workspace", "Demo.xcworkspace", "--project", "Demo.xcodeproj", "--scheme", "Demo", "--archive-path", "Demo.xcarchive"},
 			wantErr: "Error: exactly one of --workspace or --project is required",
+			deps:    true,
 		},
 	})
 }
@@ -187,19 +177,10 @@ func TestXcodeExportWithoutExportOptionsPreflightsBeforeGeneration(t *testing.T)
 		t.Setenv("DEVELOPER_DIR", developerDir)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode", "export", "--archive-path", "Demo.xcarchive", "--ipa-path", "Demo.ipa"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-		if runErr == nil || errors.Is(runErr, flag.ErrHelp) {
-			t.Fatalf("expected archive generation error, got %v", runErr)
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "xcode", "export", "--archive-path", "Demo.xcarchive", "--ipa-path", "Demo.ipa")
+	if runErr == nil || errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected archive generation error, got %v", runErr)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -242,16 +223,7 @@ func TestXcodeExportRejectsInvalidImplicitDestinationAsUsage(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"xcode", "export", "--archive-path", "Demo.xcarchive", "--ipa-path", tc.ipaPath(t)}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, "xcode", "export", "--archive-path", "Demo.xcarchive", "--ipa-path", tc.ipaPath(t))
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected usage error, got %v", runErr)
 			}
@@ -295,17 +267,8 @@ func TestXcodeTestJUnitExitsNonZeroWhenBundleHasFailedTests(t *testing.T) {
 				return test.summary, nil
 			}))
 			reportFile := filepath.Join(t.TempDir(), "junit.xml")
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append([]string{"xcode", "test", "junit", "--xcresult", "Test.xcresult", "--report-file", reportFile, "--output", "json"}, test.extraArgs...)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, args...)
 
 			if got := rootcmd.ExitCodeFromError(runErr); got != test.wantExit {
 				t.Fatalf("exit code = %d, want %d (err %v)", got, test.wantExit, runErr)
@@ -411,15 +374,7 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 			args := append([]string{"xcode", "test", "--action", action, "--destination", "platform=macOS", "--result-bundle-path", resultBundlePath, "--output", "json"}, selector...)
 			args = append(args, test.args...)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, args...)
 			recorded, readErr := os.ReadFile(recordPath)
 			if test.wantErr != "" {
 				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {

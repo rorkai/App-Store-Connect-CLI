@@ -118,7 +118,7 @@ func TestShotsFrameOutputDirSwappedForSymlinkMidRunStaysAnchored(t *testing.T) {
 				} else {
 					args = append(args, "--input-dir", inputDir)
 				}
-				stdout, stderr, runErr := runCommand(t, args)
+				stdout, stderr, runErr := runRootWithDeps(t, nil, args...)
 
 				if info, err := os.Lstat(swapPath); err != nil || info.Mode()&os.ModeSymlink == 0 {
 					t.Fatalf("fake Koubou did not swap %s for a symlink (err %v)", swapPath, err)
@@ -186,7 +186,7 @@ func TestShotsFrameCreatesMissingOutputDirOnFirstPublish(t *testing.T) {
 			} else {
 				args = append(args, "--input-dir", inputDir)
 			}
-			stdout, stderr, err := runCommand(t, args)
+			stdout, stderr, err := runRootWithDeps(t, nil, args...)
 			if err != nil {
 				t.Fatalf("run error = %v (stdout %q, stderr %q)", err, stdout, stderr)
 			}
