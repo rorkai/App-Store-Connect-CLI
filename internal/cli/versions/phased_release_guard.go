@@ -173,7 +173,7 @@ func (g *phasedReleaseGuard) run(ctx context.Context) error {
 			return struct{}{}, true, nil
 		}
 		return struct{}{}, false, nil
-	}, asc.PollOptions{Tolerate: g.tolerateFetchError})
+	}, asc.PollOptions{Tolerate: g.tolerateFetchError, Stderr: g.d.IO.ErrOut})
 	return err
 }
 
@@ -254,7 +254,7 @@ func (g *phasedReleaseGuard) step(ctx context.Context, resp *asc.AppStoreVersion
 			current, err := g.fetch(ctx)
 			retryAt = g.d.Now().Add(asc.GetRetryAfter(err))
 			return current, err == nil, err
-		}, asc.PollOptions{Tolerate: asc.IsTransientWaitError})
+		}, asc.PollOptions{Tolerate: asc.IsTransientWaitError, Stderr: g.d.IO.ErrOut})
 		if err != nil {
 			return true, fmt.Errorf("recheck phased release before %s: %w", action, err)
 		}

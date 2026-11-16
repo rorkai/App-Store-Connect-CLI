@@ -42,7 +42,7 @@ func TestFindOrCreatePublishAppStoreVersionUsesFreshCreateDeadline(t *testing.T)
 	var result *asc.AppStoreVersionResponse
 	var err error
 	synctest.Test(t, func(*testing.T) {
-		result, err = findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
+		result, err = findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, "app-1", "1.2.3", asc.PlatformIOS)
 	})
 	if err != nil || result.Data.ID != "version-1" {
 		t.Fatalf("unexpected version result: result=%+v err=%v", result, err)
@@ -77,7 +77,7 @@ func TestFindOrCreatePublishAppStoreVersionReadsTwiceBeforeReplay(t *testing.T) 
 	}))
 	client := newPublishCommandTestClient(t)
 
-	result, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	result, err := findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, "app-1", "1.2.3", asc.PlatformIOS)
 	if err != nil || result.Data.ID != "version-1" {
 		t.Fatalf("unexpected version result: result=%+v err=%v", result, err)
 	}
@@ -114,7 +114,7 @@ func TestFindOrCreatePublishAppStoreVersionReconcilesAmbiguousCreate(t *testing.
 	}))
 	client := newPublishCommandTestClient(t)
 
-	result, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	result, err := findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, "app-1", "1.2.3", asc.PlatformIOS)
 	if err != nil || result.Data.ID != "version-1" || reads != 2 || creates != 1 {
 		t.Fatalf("unexpected reconcile result: result=%+v reads=%d creates=%d err=%v", result, reads, creates, err)
 	}
@@ -137,7 +137,7 @@ func TestFindOrCreatePublishAppStoreVersionReturnsNormalizedExistingMatch(t *tes
 	}))
 	client := newPublishCommandTestClient(t)
 
-	result, err := findOrCreatePublishAppStoreVersion(context.Background(), client, " app-1 ", " 1.2.3 ", asc.Platform(" ios "))
+	result, err := findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, " app-1 ", " 1.2.3 ", asc.Platform(" ios "))
 	if err != nil || result.Data.ID != "version-existing" || requests != 1 {
 		t.Fatalf("unexpected existing result: result=%+v requests=%d err=%v", result, requests, err)
 	}
@@ -152,7 +152,7 @@ func TestFindOrCreatePublishAppStoreVersionRejectsMultipleExactMatches(t *testin
 	}))
 	client := newPublishCommandTestClient(t)
 
-	_, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	_, err := findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, "app-1", "1.2.3", asc.PlatformIOS)
 	if err == nil || !strings.Contains(err.Error(), `2 app store versions match version "1.2.3" on platform "IOS":`) {
 		t.Fatalf("expected multiple-match error, got %v", err)
 	}
@@ -169,7 +169,7 @@ func TestFindOrCreatePublishAppStoreVersionRejectsSingleIncompleteMatch(t *testi
 	}))
 	client := newPublishCommandTestClient(t)
 
-	_, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	_, err := findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, "app-1", "1.2.3", asc.PlatformIOS)
 	if err == nil || !strings.Contains(err.Error(), "sample matches") {
 		t.Fatalf("expected incomplete-page ambiguity, got %v", err)
 	}
@@ -195,7 +195,7 @@ func TestFindOrCreatePublishAppStoreVersionPreservesNonTransientCreateError(t *t
 	}))
 	client := newPublishCommandTestClient(t)
 
-	_, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	_, err := findOrCreatePublishAppStoreVersion(context.Background(), newPublishTestDeps(), client, "app-1", "1.2.3", asc.PlatformIOS)
 	var apiErr *asc.APIError
 	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusUnprocessableEntity {
 		t.Fatalf("expected typed 422 error, got %T %v", err, err)

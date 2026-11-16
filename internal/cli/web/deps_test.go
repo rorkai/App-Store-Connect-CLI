@@ -92,3 +92,12 @@ func captureWebTestDeps(d *shared.Deps, fn func()) (string, string) {
 	fn()
 	return stdout.String(), stderr.String()
 }
+
+// runWithWebSpinnerTestDeps runs fn in a synctest bubble on deps from
+// newWebSpinnerTestDeps and returns stdout and stderr without the spinner's
+// drawing.
+func runWithWebSpinnerTestDeps(t *testing.T, stdout, stderr *bytes.Buffer, fn func(t *testing.T)) (string, string) {
+	t.Helper()
+	synctest.Test(t, fn)
+	return stdout.String(), withoutSpinner(stderr.String())
+}

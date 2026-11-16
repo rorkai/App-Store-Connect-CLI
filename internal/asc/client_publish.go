@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 )
@@ -26,6 +27,12 @@ func IsBuildProcessingFailure(err error) bool {
 
 // WaitForBuildProcessing polls a build until processing completes.
 func (c *Client) WaitForBuildProcessing(ctx context.Context, buildID string, pollInterval time.Duration) (*BuildResponse, error) {
+	return c.WaitForBuildProcessingTo(ctx, nil, buildID, pollInterval)
+}
+
+// WaitForBuildProcessingTo is WaitForBuildProcessing with transient-error
+// notices written to stderr; nil means the process stderr.
+func (c *Client) WaitForBuildProcessingTo(ctx context.Context, stderr io.Writer, buildID string, pollInterval time.Duration) (*BuildResponse, error) {
 	buildID = strings.TrimSpace(buildID)
 	if buildID == "" {
 		return nil, fmt.Errorf("build ID is required")
@@ -50,7 +57,7 @@ func (c *Client) WaitForBuildProcessing(ctx context.Context, buildID string, pol
 			return nil, false, &buildProcessingFailure{build: build, state: state}
 		}
 		return nil, false, nil
-	}, PollOptions{Tolerate: IsTransientWaitError})
+	}, PollOptions{Tolerate: IsTransientWaitError, Stderr: stderr})
 	var processingFailure *buildProcessingFailure
 	if errors.As(err, &processingFailure) {
 		return processingFailure.build, err

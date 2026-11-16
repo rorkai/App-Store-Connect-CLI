@@ -52,7 +52,8 @@ func TestPublishTestFlightNormalizesTestNotesAndRecoveryPayload(t *testing.T) {
 		}
 	}))
 
-	cmd := PublishTestFlightCommand()
+	d := newPublishTestDeps()
+	cmd := newPublishTestFlightCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-123",
@@ -68,7 +69,7 @@ func TestPublishTestFlightNormalizesTestNotesAndRecoveryPayload(t *testing.T) {
 	}
 
 	var runErr error
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		runErr = cmd.Exec(context.Background(), nil)
 		return runErr
 	})
