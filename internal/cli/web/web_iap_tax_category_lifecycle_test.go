@@ -78,11 +78,12 @@ func TestWebIAPTaxCategorySetLifecycleUsesOneWriteAndReadback(t *testing.T) {
 			}
 			setupIAPTaxCategoryCLIHTTP(t, fixture)
 
-			command := WebIAPTaxCategorySetCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebIAPTaxCategorySetCommand(d)
 			if err := command.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse command: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("execute command: %v", err)
 				}
@@ -137,11 +138,12 @@ func TestWebIAPTaxCategoryResetLifecycleDeletesConfiguredRecordAndVerifiesNull(t
 	}
 	setupIAPTaxCategoryCLIHTTP(t, fixture)
 
-	command := WebIAPTaxCategoryResetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebIAPTaxCategoryResetCommand(d)
 	if err := command.FlagSet.Parse([]string{"--iap", "iap-1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("execute command: %v", err)
 		}
@@ -180,11 +182,12 @@ func TestWebIAPTaxCategoryViewRendersInheritedStateWithoutInferringCategory(t *t
 
 	for _, output := range []string{"json", "table", "markdown"} {
 		t.Run(output, func(t *testing.T) {
-			command := WebIAPTaxCategoryViewCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebIAPTaxCategoryViewCommand(d)
 			if err := command.FlagSet.Parse([]string{"--iap", "iap-1", "--output", output}); err != nil {
 				t.Fatalf("parse command: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("execute command: %v", err)
 				}
@@ -245,12 +248,13 @@ func TestWebIAPTaxCategorySetRejectsInvalidCatalogSelectionBeforeMutation(t *tes
 			args := []string{"--iap", "iap-1", "--category", "C003"}
 			args = append(args, tc.conditionArgs...)
 			args = append(args, "--confirm", "--output", "json")
-			command := WebIAPTaxCategorySetCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebIAPTaxCategorySetCommand(d)
 			if err := command.FlagSet.Parse(args); err != nil {
 				t.Fatalf("parse command: %v", err)
 			}
 			var commandErr error
-			_, stderr := captureWebCommandOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				commandErr = command.Exec(context.Background(), nil)
 			})
 			if commandErr == nil {
@@ -275,12 +279,13 @@ func TestWebIAPTaxCategorySetDoesNotRetryMismatchedPostRead(t *testing.T) {
 	}
 	setupIAPTaxCategoryCLIHTTP(t, fixture)
 
-	command := WebIAPTaxCategorySetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebIAPTaxCategorySetCommand(d)
 	if err := command.FlagSet.Parse([]string{"--iap", "iap-1", "--category", "C003", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}
 	var commandErr error
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		commandErr = command.Exec(context.Background(), nil)
 	})
 	if commandErr == nil || !strings.Contains(commandErr.Error(), "do not retry automatically") {

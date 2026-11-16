@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -17,7 +18,8 @@ import (
 // It establishes the command's destructive-operation gate for the manager's
 // bounded RED/GREEN loop.
 func TestWebServiceIDsCreateRequiresConfirm(t *testing.T) {
-	command := WebServiceIDsCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebServiceIDsCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--identifier", "com.example.service",
 		"--name", "Example Service",
@@ -25,7 +27,7 @@ func TestWebServiceIDsCreateRequiresConfirm(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := command.Exec(context.Background(), command.FlagSet.Args())
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected usage error, got %v", err)
@@ -40,7 +42,8 @@ func TestWebServiceIDsCreateRequiresConfirm(t *testing.T) {
 }
 
 func TestWebServiceIDsCommandHierarchy(t *testing.T) {
-	command := WebServiceIDsCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebServiceIDsCommand(d)
 	want := []string{"list", "view", "create", "rename", "delete", "domains"}
 	if len(command.Subcommands) != len(want) {
 		t.Fatalf("subcommands = %d, want %d", len(command.Subcommands), len(want))
@@ -93,34 +96,35 @@ func TestWebServiceIDMutationsRejectPrettyTableBeforeSession(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
 		{
 			name:    "create",
-			command: WebServiceIDsCreateCommand,
+			command: newWebServiceIDsCreateCommand,
 			args:    []string{"--identifier", "com.example.service", "--name", "Example Service", "--confirm", "--output", "table", "--pretty"},
 		},
 		{
 			name:    "rename",
-			command: WebServiceIDsRenameCommand,
+			command: newWebServiceIDsRenameCommand,
 			args:    []string{"--service-id", "service-1", "--name", "New Name", "--confirm", "--output", "table", "--pretty"},
 		},
 		{
 			name:    "delete",
-			command: WebServiceIDsDeleteCommand,
+			command: newWebServiceIDsDeleteCommand,
 			args:    []string{"--service-id", "service-1", "--confirm", "--output", "table", "--pretty"},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			command := tc.command()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := tc.command(d)
 			if err := command.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 			var gotErr error
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				gotErr = command.Exec(context.Background(), command.FlagSet.Args())
 			})
 			if gotErr == nil || !errors.Is(gotErr, flag.ErrHelp) || !strings.Contains(gotErr.Error(), "--pretty is only valid with JSON output") {
@@ -165,7 +169,8 @@ func TestWebServiceIDsCreatePrintsVerifiedReceipt(t *testing.T) {
 		}, nil
 	}
 
-	command := WebServiceIDsCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebServiceIDsCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--identifier", "com.example.service",
 		"--name", "Example Service",
@@ -174,7 +179,7 @@ func TestWebServiceIDsCreatePrintsVerifiedReceipt(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected create error: %v", err)
 		}

@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -47,9 +46,9 @@ const developerAppGroupProfileWarning = "Warning: this change invalidates existi
 const developerAppGroupProfileHelp = `When this command changes the App ID, it invalidates existing provisioning profiles
 that contain that App ID. Regenerate affected profiles before the next signed build.`
 
-// WebAppGroupsCommand returns the Developer Portal App Groups command group.
-func WebAppGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-groups", flag.ExitOnError)
+// newWebAppGroupsCommand returns the Developer Portal App Groups command group.
+func newWebAppGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-groups", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "app-groups",
 		ShortUsage: "asc web app-groups <subcommand> [flags]",
@@ -68,14 +67,14 @@ Examples:
   asc web app-groups set --bundle-id "BUNDLE_RESOURCE_ID" --group "GROUP_RESOURCE_ID" --group "OTHER_GROUP_ID" --confirm
   asc web app-groups delete --group-id "GROUP_RESOURCE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppGroupsListCommand(),
-			WebAppGroupsCreateCommand(),
-			WebAppGroupsAssignCommand(),
-			WebAppGroupsUnassignCommand(),
-			WebAppGroupsSetCommand(),
-			WebAppGroupsDeleteCommand(),
+			newWebAppGroupsListCommand(d),
+			newWebAppGroupsCreateCommand(d),
+			newWebAppGroupsAssignCommand(d),
+			newWebAppGroupsUnassignCommand(d),
+			newWebAppGroupsSetCommand(d),
+			newWebAppGroupsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -83,13 +82,13 @@ Examples:
 	}
 }
 
-// WebAppGroupsListCommand lists App Groups for the selected Developer Portal team.
-func WebAppGroupsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-groups list", flag.ExitOnError)
+// newWebAppGroupsListCommand lists App Groups for the selected Developer Portal team.
+func newWebAppGroupsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-groups list", flag.ExitOnError)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web app-groups list [flags]",
@@ -106,12 +105,12 @@ The ID column is Apple's opaque App Group resource ID. Pass that value to
 Example:
   asc web app-groups list --apple-id "user@example.com" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return developerAppGroupError(err, "web app-groups list")
@@ -120,27 +119,27 @@ Example:
 			if err != nil {
 				return developerAppGroupError(err, "web app-groups list")
 			}
-			persistDeveloperPortalSession(session)
-			return shared.PrintOutputWithRenderers(
+			persistDeveloperPortalSessionWith(d, session)
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperAppGroupsTable(result) },
-				func() error { return renderDeveloperAppGroupsMarkdown(result) },
+				func() error { return renderDeveloperAppGroupsTable(d, result) },
+				func() error { return renderDeveloperAppGroupsMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAppGroupsCreateCommand registers an App Group identifier.
-func WebAppGroupsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-groups create", flag.ExitOnError)
+// newWebAppGroupsCreateCommand registers an App Group identifier.
+func newWebAppGroupsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-groups create", flag.ExitOnError)
 	name := fs.String("name", "", "Human-readable App Group name")
 	identifier := fs.String("identifier", "", "App Group identifier beginning with group.")
 	confirm := fs.Bool("confirm", false, "Confirm registering this App Group")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc web app-groups create --name NAME --identifier GROUP_ID --confirm [flags]",
@@ -150,27 +149,27 @@ func WebAppGroupsCreateCommand() *ffcli.Command {
 Example:
   asc web app-groups create --name "Example Shared" --identifier "group.com.example.shared" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedName := strings.TrimSpace(*name)
 			resolvedIdentifier := strings.TrimSpace(*identifier)
 			if resolvedName == "" {
-				return shared.UsageError("--name is required")
+				return d.UsageError("--name is required")
 			}
 			if resolvedIdentifier == "" {
-				return shared.UsageError("--identifier is required")
+				return d.UsageError("--identifier is required")
 			}
 			if err := webcore.ValidateDeveloperAppGroupIdentifier(resolvedIdentifier); err != nil {
-				return shared.UsageError("--" + err.Error())
+				return d.UsageError("--" + err.Error())
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return developerAppGroupError(err, "web app-groups create")
@@ -179,33 +178,33 @@ Example:
 			// Persist after the create attempt so a later command without
 			// --developer-team still targets the team that may have registered
 			// the group even when Apple's 2xx body is malformed.
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
 				return developerAppGroupError(err, "web app-groups create")
 			}
 			if result == nil {
 				return developerAppGroupMissingResultError("web app-groups create", "create")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperAppGroupTable(result) },
-				func() error { return renderDeveloperAppGroupMarkdown(result) },
+				func() error { return renderDeveloperAppGroupTable(d, result) },
+				func() error { return renderDeveloperAppGroupMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAppGroupsAssignCommand assigns an App Group to a Bundle ID.
-func WebAppGroupsAssignCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-groups assign", flag.ExitOnError)
+// newWebAppGroupsAssignCommand assigns an App Group to a Bundle ID.
+func newWebAppGroupsAssignCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-groups assign", flag.ExitOnError)
 	groupID := fs.String("group", "", "Opaque App Group resource ID from app-groups list")
 	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
 	confirm := fs.Bool("confirm", false, "Confirm assignment; a changed App ID invalidates existing provisioning profiles")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "assign",
 		ShortUsage: "asc web app-groups assign --group GROUP_RESOURCE_ID --bundle-id BUNDLE_RESOURCE_ID --confirm [flags]",
@@ -223,56 +222,56 @@ Use opaque resource IDs returned by "asc web app-groups list" and
 Example:
   asc web app-groups assign --group "GROUP_RESOURCE_ID" --bundle-id "BUNDLE_RESOURCE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedGroupID := strings.TrimSpace(*groupID)
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			switch {
 			case resolvedGroupID == "":
-				return shared.UsageError("--group is required")
+				return d.UsageError("--group is required")
 			case resolvedBundleID == "":
-				return shared.UsageError("--bundle-id is required")
+				return d.UsageError("--bundle-id is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return developerAppGroupError(err, "web app-groups assign")
 			}
 			result, err := assignDeveloperAppGroupFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupAssignRequest{BundleID: resolvedBundleID, GroupID: resolvedGroupID})
 			if err != nil {
-				return developerAppGroupMutationError(session, err, "web app-groups assign")
+				return developerAppGroupMutationError(d, session, err, "web app-groups assign")
 			}
 			if result == nil {
 				return developerAppGroupMissingResultError("web app-groups assign", "assign")
 			}
-			persistDeveloperPortalSession(session)
-			warnDeveloperAppGroupProfileInvalidation(result.Changed)
-			return shared.PrintOutputWithRenderers(
+			persistDeveloperPortalSessionWith(d, session)
+			warnDeveloperAppGroupProfileInvalidation(d, result.Changed)
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperAppGroupAssignTable(result) },
-				func() error { return renderDeveloperAppGroupAssignMarkdown(result) },
+				func() error { return renderDeveloperAppGroupAssignTable(d, result) },
+				func() error { return renderDeveloperAppGroupAssignMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAppGroupsUnassignCommand removes an App Group from a Bundle ID.
-func WebAppGroupsUnassignCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-groups unassign", flag.ExitOnError)
+// newWebAppGroupsUnassignCommand removes an App Group from a Bundle ID.
+func newWebAppGroupsUnassignCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-groups unassign", flag.ExitOnError)
 	groupID := fs.String("group-id", "", "Opaque App Group resource ID from app-groups list")
 	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
 	confirm := fs.Bool("confirm", false, "Confirm removal; a changed App ID invalidates existing provisioning profiles")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "unassign",
 		ShortUsage: "asc web app-groups unassign --group-id GROUP_RESOURCE_ID --bundle-id BUNDLE_RESOURCE_ID --confirm [flags]",
@@ -290,51 +289,51 @@ Use opaque resource IDs returned by "asc web app-groups list" and
 Example:
   asc web app-groups unassign --group-id "GROUP_RESOURCE_ID" --bundle-id "BUNDLE_RESOURCE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedGroupID := strings.TrimSpace(*groupID)
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			switch {
 			case resolvedGroupID == "":
-				return shared.UsageError("--group-id is required")
+				return d.UsageError("--group-id is required")
 			case resolvedBundleID == "":
-				return shared.UsageError("--bundle-id is required")
+				return d.UsageError("--bundle-id is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return developerAppGroupError(err, "web app-groups unassign")
 			}
 			result, err := unassignDeveloperAppGroupFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupUnassignRequest{BundleID: resolvedBundleID, GroupID: resolvedGroupID})
 			if err != nil {
-				return developerAppGroupMutationError(session, err, "web app-groups unassign")
+				return developerAppGroupMutationError(d, session, err, "web app-groups unassign")
 			}
 			if result == nil {
 				return developerAppGroupMissingResultError("web app-groups unassign", "unassign")
 			}
-			persistDeveloperPortalSession(session)
-			warnDeveloperAppGroupProfileInvalidation(result.Changed)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			persistDeveloperPortalSessionWith(d, session)
+			warnDeveloperAppGroupProfileInvalidation(d, result.Changed)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAppGroupsSetCommand converges a Bundle ID on a complete App Group set.
-func WebAppGroupsSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-groups set", flag.ExitOnError)
+// newWebAppGroupsSetCommand converges a Bundle ID on a complete App Group set.
+func newWebAppGroupsSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-groups set", flag.ExitOnError)
 	var groupIDs shared.MultiStringFlag
 	fs.Var(&groupIDs, "group", "Opaque App Group resource ID to keep assigned (repeatable)")
 	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
 	confirm := fs.Bool("confirm", false, "Confirm reconciliation; a changed App ID invalidates existing provisioning profiles")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "set",
 		ShortUsage: "asc web app-groups set --bundle-id BUNDLE_RESOURCE_ID --group GROUP_RESOURCE_ID [--group GROUP_RESOURCE_ID ...] --confirm [flags]",
@@ -354,48 +353,48 @@ Use opaque resource IDs returned by "asc web app-groups list" and
 Example:
   asc web app-groups set --bundle-id "BUNDLE_RESOURCE_ID" --group "GROUP_RESOURCE_ID" --group "OTHER_GROUP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedBundleID := strings.TrimSpace(*bundleID)
 			switch {
 			case resolvedBundleID == "":
-				return shared.UsageError("--bundle-id is required")
+				return d.UsageError("--bundle-id is required")
 			case len(groupIDs) == 0:
-				return shared.UsageError("at least one --group is required")
+				return d.UsageError("at least one --group is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return developerAppGroupError(err, "web app-groups set")
 			}
 			result, err := setDeveloperAppGroupsFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupSetRequest{BundleID: resolvedBundleID, GroupIDs: []string(groupIDs)})
 			if err != nil {
-				return developerAppGroupMutationError(session, err, "web app-groups set")
+				return developerAppGroupMutationError(d, session, err, "web app-groups set")
 			}
 			if result == nil {
 				return developerAppGroupMissingResultError("web app-groups set", "set")
 			}
-			persistDeveloperPortalSession(session)
-			warnDeveloperAppGroupProfileInvalidation(result.Changed)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			persistDeveloperPortalSessionWith(d, session)
+			warnDeveloperAppGroupProfileInvalidation(d, result.Changed)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebAppGroupsDeleteCommand deletes an App Group registration.
-func WebAppGroupsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-groups delete", flag.ExitOnError)
+// newWebAppGroupsDeleteCommand deletes an App Group registration.
+func newWebAppGroupsDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-groups delete", flag.ExitOnError)
 	groupID := fs.String("group-id", "", "Opaque App Group resource ID from app-groups list")
 	confirm := fs.Bool("confirm", false, "Confirm deletion; deleting a group invalidates existing provisioning profiles for App IDs that referenced it")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc web app-groups delete --group-id GROUP_RESOURCE_ID --confirm [flags]",
@@ -414,34 +413,34 @@ referenced it. Regenerate affected profiles before the next signed build.
 Example:
   asc web app-groups delete --group-id "GROUP_RESOURCE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedGroupID := strings.TrimSpace(*groupID)
 			switch {
 			case resolvedGroupID == "":
-				return shared.UsageError("--group-id is required")
+				return d.UsageError("--group-id is required")
 			case !*confirm:
-				return shared.RequireConfirm(*confirm)
+				return d.RequireConfirm(*confirm)
 			}
 
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return developerAppGroupError(err, "web app-groups delete")
 			}
 			result, err := deleteDeveloperAppGroupFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupDeleteRequest{GroupID: resolvedGroupID})
 			if err != nil {
-				return developerAppGroupMutationError(session, err, "web app-groups delete")
+				return developerAppGroupMutationError(d, session, err, "web app-groups delete")
 			}
 			if result == nil {
 				return developerAppGroupMissingResultError("web app-groups delete", "delete")
 			}
-			persistDeveloperPortalSession(session)
-			warnDeveloperAppGroupProfileInvalidation(result.Deleted)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			persistDeveloperPortalSessionWith(d, session)
+			warnDeveloperAppGroupProfileInvalidation(d, result.Deleted)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -452,12 +451,12 @@ Example:
 // not be verified, because the App ID may already have changed. Every returned
 // failure carries a diagnostic code so no App Group failure is reported as an
 // unclassified internal error.
-func developerAppGroupMutationError(session *webcore.AuthSession, err error, command string) error {
+func developerAppGroupMutationError(d *shared.Deps, session *webcore.AuthSession, err error, command string) error {
 	var identifier *webcore.DeveloperAppGroupIdentifierError
 	if errors.As(err, &identifier) {
 		parameter := developerAppGroupIDParameter(command)
 		return shared.WithDiagnostic(
-			shared.UsageErrorf("%s is invalid: %s", parameter, identifier.Error()),
+			d.UsageErrorf("%s is invalid: %s", parameter, identifier.Error()),
 			shared.DiagnosticInvalidInput,
 			parameter,
 		)
@@ -466,9 +465,9 @@ func developerAppGroupMutationError(session *webcore.AuthSession, err error, com
 	if errors.As(err, &unverified) {
 		// Persist before returning so a later command without --developer-team
 		// still targets the team that accepted the write.
-		persistDeveloperPortalSession(session)
-		_, _ = fmt.Fprintln(os.Stderr, "Warning: the Developer Portal accepted the change but it could not be verified; assume it was applied.")
-		warnDeveloperAppGroupProfileInvalidation(true)
+		persistDeveloperPortalSessionWith(d, session)
+		_, _ = fmt.Fprintln(d.IO.ErrOut, "Warning: the Developer Portal accepted the change but it could not be verified; assume it was applied.")
+		warnDeveloperAppGroupProfileInvalidation(d, true)
 	}
 	return developerAppGroupError(err, command)
 }
@@ -571,11 +570,11 @@ func developerAppGroupDiagnosticCode(err error) shared.DiagnosticCode {
 	}
 }
 
-func warnDeveloperAppGroupProfileInvalidation(changed bool) {
+func warnDeveloperAppGroupProfileInvalidation(d *shared.Deps, changed bool) {
 	if !changed {
 		return
 	}
-	_, _ = fmt.Fprintln(os.Stderr, developerAppGroupProfileWarning)
+	_, _ = fmt.Fprintln(d.IO.ErrOut, developerAppGroupProfileWarning)
 }
 
 func developerAppGroupsHeaders() []string {
@@ -590,31 +589,31 @@ func developerAppGroupsRows(groups []webcore.DeveloperAppGroup) [][]string {
 	return rows
 }
 
-func renderDeveloperAppGroupsTable(result *webcore.DeveloperAppGroupsListResult) error {
+func renderDeveloperAppGroupsTable(d *shared.Deps, result *webcore.DeveloperAppGroupsListResult) error {
 	if result == nil {
-		asc.RenderTable(developerAppGroupsHeaders(), nil)
+		asc.RenderTableTo(d.IO.Out, developerAppGroupsHeaders(), nil)
 		return nil
 	}
-	asc.RenderTable(developerAppGroupsHeaders(), developerAppGroupsRows(result.Data))
+	asc.RenderTableTo(d.IO.Out, developerAppGroupsHeaders(), developerAppGroupsRows(result.Data))
 	return nil
 }
 
-func renderDeveloperAppGroupsMarkdown(result *webcore.DeveloperAppGroupsListResult) error {
+func renderDeveloperAppGroupsMarkdown(d *shared.Deps, result *webcore.DeveloperAppGroupsListResult) error {
 	if result == nil {
-		asc.RenderMarkdown(developerAppGroupsHeaders(), nil)
+		asc.RenderMarkdownTo(d.IO.Out, developerAppGroupsHeaders(), nil)
 		return nil
 	}
-	asc.RenderMarkdown(developerAppGroupsHeaders(), developerAppGroupsRows(result.Data))
+	asc.RenderMarkdownTo(d.IO.Out, developerAppGroupsHeaders(), developerAppGroupsRows(result.Data))
 	return nil
 }
 
-func renderDeveloperAppGroupTable(result *webcore.DeveloperAppGroup) error {
-	asc.RenderTable(developerAppGroupsHeaders(), developerAppGroupsRows([]webcore.DeveloperAppGroup{*result}))
+func renderDeveloperAppGroupTable(d *shared.Deps, result *webcore.DeveloperAppGroup) error {
+	asc.RenderTableTo(d.IO.Out, developerAppGroupsHeaders(), developerAppGroupsRows([]webcore.DeveloperAppGroup{*result}))
 	return nil
 }
 
-func renderDeveloperAppGroupMarkdown(result *webcore.DeveloperAppGroup) error {
-	asc.RenderMarkdown(developerAppGroupsHeaders(), developerAppGroupsRows([]webcore.DeveloperAppGroup{*result}))
+func renderDeveloperAppGroupMarkdown(d *shared.Deps, result *webcore.DeveloperAppGroup) error {
+	asc.RenderMarkdownTo(d.IO.Out, developerAppGroupsHeaders(), developerAppGroupsRows([]webcore.DeveloperAppGroup{*result}))
 	return nil
 }
 
@@ -622,12 +621,12 @@ func developerAppGroupAssignRows(result *webcore.DeveloperAppGroupAssignResult) 
 	return [][]string{{result.BundleID, result.GroupID, fmt.Sprintf("%t", result.Changed), result.Status}}
 }
 
-func renderDeveloperAppGroupAssignTable(result *webcore.DeveloperAppGroupAssignResult) error {
-	asc.RenderTable([]string{"Bundle ID", "Group ID", "Changed", "Status"}, developerAppGroupAssignRows(result))
+func renderDeveloperAppGroupAssignTable(d *shared.Deps, result *webcore.DeveloperAppGroupAssignResult) error {
+	asc.RenderTableTo(d.IO.Out, []string{"Bundle ID", "Group ID", "Changed", "Status"}, developerAppGroupAssignRows(result))
 	return nil
 }
 
-func renderDeveloperAppGroupAssignMarkdown(result *webcore.DeveloperAppGroupAssignResult) error {
-	asc.RenderMarkdown([]string{"Bundle ID", "Group ID", "Changed", "Status"}, developerAppGroupAssignRows(result))
+func renderDeveloperAppGroupAssignMarkdown(d *shared.Deps, result *webcore.DeveloperAppGroupAssignResult) error {
+	asc.RenderMarkdownTo(d.IO.Out, []string{"Bundle ID", "Group ID", "Changed", "Status"}, developerAppGroupAssignRows(result))
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -31,9 +30,9 @@ var deleteDeveloperWebsitePushIDFn = func(ctx context.Context, client *webcore.C
 	return client.DeleteDeveloperWebsitePushID(ctx, request)
 }
 
-// WebWebsitePushIDsCommand returns the Website Push ID command group.
-func WebWebsitePushIDsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web website-push-ids", flag.ExitOnError)
+// newWebWebsitePushIDsCommand returns the Website Push ID command group.
+func newWebWebsitePushIDsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web website-push-ids", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "website-push-ids",
@@ -48,12 +47,12 @@ rename because the current UI has no captured rename control.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebWebsitePushIDsListCommand(),
-			WebWebsitePushIDsViewCommand(),
-			WebWebsitePushIDsCreateCommand(),
-			WebWebsitePushIDsDeleteCommand(),
+			newWebWebsitePushIDsListCommand(d),
+			newWebWebsitePushIDsViewCommand(d),
+			newWebWebsitePushIDsCreateCommand(d),
+			newWebWebsitePushIDsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -61,14 +60,14 @@ rename because the current UI has no captured rename control.
 	}
 }
 
-// WebWebsitePushIDsViewCommand reads one opaque modern Website Push ID
+// newWebWebsitePushIDsViewCommand reads one opaque modern Website Push ID
 // resource and its captured capability relationship.
-func WebWebsitePushIDsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web website-push-ids view", flag.ExitOnError)
+func newWebWebsitePushIDsViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web website-push-ids view", flag.ExitOnError)
 	websitePushID := fs.String("website-push-id", "", "Opaque Developer Portal Website Push ID resource ID")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -88,27 +87,27 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedWebsitePushID := strings.TrimSpace(*websitePushID)
 			if resolvedWebsitePushID == "" {
-				return shared.UsageError("--website-push-id is required")
+				return d.UsageError("--website-push-id is required")
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web website-push-ids view")
 			}
 
 			var result *webcore.DeveloperWebsitePushIDGetResult
-			err = withWebSpinner("Loading Developer Portal Website Push ID", func() error {
+			err = withWebSpinnerWith(d, "Loading Developer Portal Website Push ID", func() error {
 				var getErr error
 				result, getErr = getDeveloperWebsitePushIDFn(requestCtx, newDeveloperPortalClient(session, portalFlags), resolvedWebsitePushID)
 				return getErr
@@ -119,30 +118,30 @@ Examples:
 			if result == nil {
 				return fmt.Errorf("web website-push-ids view failed: missing view result")
 			}
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperWebsitePushIDTable(result) },
-				func() error { return renderDeveloperWebsitePushIDMarkdown(result) },
+				func() error { return renderDeveloperWebsitePushIDTable(d, result) },
+				func() error { return renderDeveloperWebsitePushIDMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebWebsitePushIDsCreateCommand registers a Website Push ID through the
+// newWebWebsitePushIDsCreateCommand registers a Website Push ID through the
 // captured modern JSON:API endpoint. Capability configuration is intentionally
 // omitted until its writable contract is captured.
-func WebWebsitePushIDsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web website-push-ids create", flag.ExitOnError)
+func newWebWebsitePushIDsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web website-push-ids create", flag.ExitOnError)
 	name := fs.String("name", "", "Human-readable Website Push ID name")
 	identifier := fs.String("identifier", "", "Website Push ID identifier")
 	confirm := fs.Bool("confirm", false, "Confirm registering this Website Push ID")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -161,50 +160,50 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			request := webcore.DeveloperWebsitePushIDCreateRequest{Name: *name, Identifier: *identifier}
 			if err := request.Validate(); err != nil {
-				return shared.UsageError(websitePushIDCreateUsageError(err))
+				return d.UsageError(websitePushIDCreateUsageError(err))
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web website-push-ids create")
 			}
 			var result *asc.WebWebsitePushIDMutationResult
-			err = withWebSpinner("Registering Developer Portal Website Push ID", func() error {
+			err = withWebSpinnerWith(d, "Registering Developer Portal Website Push ID", func() error {
 				var createErr error
 				result, createErr = createDeveloperWebsitePushIDFn(requestCtx, newDeveloperPortalClient(session, portalFlags), request)
 				return createErr
 			})
 			if err != nil {
-				return developerWebsitePushIDMutationError(session, err, "web website-push-ids create")
+				return developerWebsitePushIDMutationError(d, session, err, "web website-push-ids create")
 			}
 			if result == nil {
 				return fmt.Errorf("web website-push-ids create failed: missing create result")
 			}
-			persistDeveloperPortalSession(session)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			persistDeveloperPortalSessionWith(d, session)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebWebsitePushIDsDeleteCommand deletes a Website Push ID after proving that
+// newWebWebsitePushIDsDeleteCommand deletes a Website Push ID after proving that
 // it is deletable and has no attached capability references.
-func WebWebsitePushIDsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web website-push-ids delete", flag.ExitOnError)
+func newWebWebsitePushIDsDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web website-push-ids delete", flag.ExitOnError)
 	websitePushID := fs.String("website-push-id", "", "Opaque Developer Portal Website Push ID resource ID")
 	confirm := fs.Bool("confirm", false, "Confirm deleting this Website Push ID")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -224,46 +223,46 @@ Example:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			request := webcore.DeveloperWebsitePushIDDeleteRequest{WebsitePushID: *websitePushID}
 			if err := request.Validate(); err != nil {
-				return shared.UsageError("--website-push-id is required")
+				return d.UsageError("--website-push-id is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web website-push-ids delete")
 			}
 			var result *asc.WebWebsitePushIDMutationResult
-			err = withWebSpinner("Deleting Developer Portal Website Push ID", func() error {
+			err = withWebSpinnerWith(d, "Deleting Developer Portal Website Push ID", func() error {
 				var deleteErr error
 				result, deleteErr = deleteDeveloperWebsitePushIDFn(requestCtx, newDeveloperPortalClient(session, portalFlags), request)
 				return deleteErr
 			})
 			if err != nil {
-				return developerWebsitePushIDMutationError(session, err, "web website-push-ids delete")
+				return developerWebsitePushIDMutationError(d, session, err, "web website-push-ids delete")
 			}
 			if result == nil {
 				return fmt.Errorf("web website-push-ids delete failed: missing delete result")
 			}
-			persistDeveloperPortalSession(session)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			persistDeveloperPortalSessionWith(d, session)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func developerWebsitePushIDMutationError(session *webcore.AuthSession, err error, command string) error {
+func developerWebsitePushIDMutationError(d *shared.Deps, session *webcore.AuthSession, err error, command string) error {
 	var unverified *webcore.DeveloperWebsitePushIDUnverifiedError
 	if errors.As(err, &unverified) {
 		// Keep subsequent inspection on the team whose write is uncertain.
-		persistDeveloperPortalSession(session)
+		persistDeveloperPortalSessionWith(d, session)
 	}
 	return withWebAuthHint(err, command)
 }
@@ -282,14 +281,14 @@ func websitePushIDCreateUsageError(err error) string {
 	return message
 }
 
-// WebWebsitePushIDsListCommand lists Website Push IDs visible to the selected
+// newWebWebsitePushIDsListCommand lists Website Push IDs visible to the selected
 // Developer Portal team. Apple’s legacy endpoint has no captured continuation
 // contract, so this command requests its fixed first page only.
-func WebWebsitePushIDsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web website-push-ids list", flag.ExitOnError)
+func newWebWebsitePushIDsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web website-push-ids list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -309,23 +308,23 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web website-push-ids list")
 			}
 
 			var result *webcore.DeveloperWebsitePushIDsListResult
-			err = withWebSpinner("Loading Developer Portal Website Push IDs", func() error {
+			err = withWebSpinnerWith(d, "Loading Developer Portal Website Push IDs", func() error {
 				var listErr error
 				result, listErr = listDeveloperWebsitePushIDsFn(requestCtx, newDeveloperPortalClient(session, portalFlags))
 				return listErr
@@ -336,14 +335,14 @@ Examples:
 			if result == nil {
 				return fmt.Errorf("web website-push-ids list failed: missing list result")
 			}
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperWebsitePushIDsTable(result) },
-				func() error { return renderDeveloperWebsitePushIDsMarkdown(result) },
+				func() error { return renderDeveloperWebsitePushIDsTable(d, result) },
+				func() error { return renderDeveloperWebsitePushIDsMarkdown(d, result) },
 			)
 		},
 	}
@@ -382,21 +381,21 @@ func developerWebsitePushIDValue(entry webcore.DeveloperWebsitePushID, keys ...s
 	return ""
 }
 
-func renderDeveloperWebsitePushIDsTable(result *webcore.DeveloperWebsitePushIDsListResult) error {
+func renderDeveloperWebsitePushIDsTable(d *shared.Deps, result *webcore.DeveloperWebsitePushIDsListResult) error {
 	var rows [][]string
 	if result != nil {
 		rows = developerWebsitePushIDsRows(result)
 	}
-	asc.RenderTable(developerWebsitePushIDsHeaders(), rows)
+	asc.RenderTableTo(d.IO.Out, developerWebsitePushIDsHeaders(), rows)
 	return nil
 }
 
-func renderDeveloperWebsitePushIDsMarkdown(result *webcore.DeveloperWebsitePushIDsListResult) error {
+func renderDeveloperWebsitePushIDsMarkdown(d *shared.Deps, result *webcore.DeveloperWebsitePushIDsListResult) error {
 	var rows [][]string
 	if result != nil {
 		rows = developerWebsitePushIDsRows(result)
 	}
-	asc.RenderMarkdown(developerWebsitePushIDsHeaders(), rows)
+	asc.RenderMarkdownTo(d.IO.Out, developerWebsitePushIDsHeaders(), rows)
 	return nil
 }
 
@@ -414,31 +413,31 @@ func developerWebsitePushIDDetailRows(resource webcore.DeveloperWebsitePushIDRes
 	}}
 }
 
-func renderDeveloperWebsitePushIDTable(result *webcore.DeveloperWebsitePushIDGetResult) error {
+func renderDeveloperWebsitePushIDTable(d *shared.Deps, result *webcore.DeveloperWebsitePushIDGetResult) error {
 	if result == nil {
-		asc.RenderTable(developerWebsitePushIDDetailHeaders(), nil)
+		asc.RenderTableTo(d.IO.Out, developerWebsitePushIDDetailHeaders(), nil)
 		return nil
 	}
-	warnDeveloperWebsitePushIDIncludedOutput(result)
-	asc.RenderTable(developerWebsitePushIDDetailHeaders(), developerWebsitePushIDDetailRows(result.Data))
+	warnDeveloperWebsitePushIDIncludedOutput(d, result)
+	asc.RenderTableTo(d.IO.Out, developerWebsitePushIDDetailHeaders(), developerWebsitePushIDDetailRows(result.Data))
 	return nil
 }
 
-func renderDeveloperWebsitePushIDMarkdown(result *webcore.DeveloperWebsitePushIDGetResult) error {
+func renderDeveloperWebsitePushIDMarkdown(d *shared.Deps, result *webcore.DeveloperWebsitePushIDGetResult) error {
 	if result == nil {
-		asc.RenderMarkdown(developerWebsitePushIDDetailHeaders(), nil)
+		asc.RenderMarkdownTo(d.IO.Out, developerWebsitePushIDDetailHeaders(), nil)
 		return nil
 	}
-	warnDeveloperWebsitePushIDIncludedOutput(result)
-	asc.RenderMarkdown(developerWebsitePushIDDetailHeaders(), developerWebsitePushIDDetailRows(result.Data))
+	warnDeveloperWebsitePushIDIncludedOutput(d, result)
+	asc.RenderMarkdownTo(d.IO.Out, developerWebsitePushIDDetailHeaders(), developerWebsitePushIDDetailRows(result.Data))
 	return nil
 }
 
-func warnDeveloperWebsitePushIDIncludedOutput(result *webcore.DeveloperWebsitePushIDGetResult) {
+func warnDeveloperWebsitePushIDIncludedOutput(d *shared.Deps, result *webcore.DeveloperWebsitePushIDGetResult) {
 	if result == nil || len(result.Included) == 0 {
 		return
 	}
-	fmt.Fprintln(os.Stderr, "Warning: table or Markdown output omits included Website Push ID resources; use --output json to inspect the complete capability graph.")
+	fmt.Fprintln(d.IO.ErrOut, "Warning: table or Markdown output omits included Website Push ID resources; use --output json to inspect the complete capability graph.")
 }
 
 func websitePushIDResourceStringAttribute(attributes map[string]any, key string) string {

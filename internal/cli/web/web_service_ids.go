@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -38,11 +37,11 @@ var setDeveloperServiceIDDomainsFn = func(ctx context.Context, client *webcore.C
 	return client.SetDeveloperServiceIDDomains(ctx, request)
 }
 
-// WebServiceIDsCommand returns the private Developer Portal Services ID
+// newWebServiceIDsCommand returns the private Developer Portal Services ID
 // command group. Services IDs use Apple's private bundleIds endpoint with the
 // SERVICES platform and are distinct from public App Store Connect Bundle IDs.
-func WebServiceIDsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web service-ids", flag.ExitOnError)
+func newWebServiceIDsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web service-ids", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "service-ids",
 		ShortUsage: "asc web service-ids <subcommand> [flags]",
@@ -60,14 +59,14 @@ configured Sign in with Apple Services ID and verifies the saved values.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebServiceIDsListCommand(),
-			WebServiceIDsViewCommand(),
-			WebServiceIDsCreateCommand(),
-			WebServiceIDsRenameCommand(),
-			WebServiceIDsDeleteCommand(),
-			WebServiceIDsDomainsCommand(),
+			newWebServiceIDsListCommand(d),
+			newWebServiceIDsViewCommand(d),
+			newWebServiceIDsCreateCommand(d),
+			newWebServiceIDsRenameCommand(d),
+			newWebServiceIDsDeleteCommand(d),
+			newWebServiceIDsDomainsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -75,12 +74,12 @@ configured Sign in with Apple Services ID and verifies the saved values.
 	}
 }
 
-// WebServiceIDsListCommand lists private Services IDs for the selected team.
-func WebServiceIDsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web service-ids list", flag.ExitOnError)
+// newWebServiceIDsListCommand lists private Services IDs for the selected team.
+func newWebServiceIDsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web service-ids list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web service-ids list [flags]",
@@ -95,22 +94,22 @@ Example:
   asc web service-ids list --output json
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids list")
 			}
 			var result *webcore.DeveloperServiceIDsListResult
-			err = withWebSpinner("Loading Developer Portal Services IDs", func() error {
+			err = withWebSpinnerWith(d, "Loading Developer Portal Services IDs", func() error {
 				var listErr error
 				result, listErr = listDeveloperServiceIDsFn(requestCtx, newDeveloperPortalClient(session, portalFlags))
 				return listErr
@@ -121,26 +120,26 @@ Example:
 			if result == nil {
 				return fmt.Errorf("web service-ids list failed: missing list result")
 			}
-			persistDeveloperPortalSession(session)
-			return shared.PrintOutputWithRenderers(
+			persistDeveloperPortalSessionWith(d, session)
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperServiceIDsTable(result) },
-				func() error { return renderDeveloperServiceIDsMarkdown(result) },
+				func() error { return renderDeveloperServiceIDsTable(d, result) },
+				func() error { return renderDeveloperServiceIDsMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebServiceIDsViewCommand reads one private Services ID and its capability
+// newWebServiceIDsViewCommand reads one private Services ID and its capability
 // graph without changing it.
-func WebServiceIDsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web service-ids view", flag.ExitOnError)
+func newWebServiceIDsViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web service-ids view", flag.ExitOnError)
 	serviceID := fs.String("service-id", "", "Opaque Developer Portal Services ID resource ID")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "view",
 		ShortUsage: "asc web service-ids view --service-id SERVICE_RESOURCE_ID [flags]",
@@ -153,26 +152,26 @@ Example:
   asc web service-ids view --service-id "SERVICE_RESOURCE_ID" --output json
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedID := strings.TrimSpace(*serviceID)
 			if resolvedID == "" {
-				return shared.UsageError("--service-id is required")
+				return d.UsageError("--service-id is required")
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids view")
 			}
 			var result *webcore.DeveloperServiceIDGetResult
-			err = withWebSpinner("Loading Developer Portal Services ID", func() error {
+			err = withWebSpinnerWith(d, "Loading Developer Portal Services ID", func() error {
 				var getErr error
 				result, getErr = getDeveloperServiceIDFn(requestCtx, newDeveloperPortalClient(session, portalFlags), resolvedID)
 				return getErr
@@ -183,27 +182,27 @@ Example:
 			if result == nil {
 				return fmt.Errorf("web service-ids view failed: missing view result")
 			}
-			persistDeveloperPortalSession(session)
-			return shared.PrintOutputWithRenderers(
+			persistDeveloperPortalSessionWith(d, session)
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperServiceIDTable(result) },
-				func() error { return renderDeveloperServiceIDMarkdown(result) },
+				func() error { return renderDeveloperServiceIDTable(d, result) },
+				func() error { return renderDeveloperServiceIDMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebServiceIDsCreateCommand registers a minimal Services ID.
-func WebServiceIDsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web service-ids create", flag.ExitOnError)
+// newWebServiceIDsCreateCommand registers a minimal Services ID.
+func newWebServiceIDsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web service-ids create", flag.ExitOnError)
 	identifier := fs.String("identifier", "", "Services ID identifier")
 	name := fs.String("name", "", "Human-readable Services ID name")
 	confirm := fs.Bool("confirm", false, "Confirm registering this Services ID")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc web service-ids create --identifier IDENTIFIER --name NAME --confirm [flags]",
@@ -221,33 +220,33 @@ Example:
   asc web service-ids create --identifier "com.example.service" --name "Example Service" --confirm
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedIdentifier := strings.TrimSpace(*identifier)
 			resolvedName := strings.TrimSpace(*name)
 			if resolvedIdentifier == "" {
-				return shared.UsageError("--identifier is required")
+				return d.UsageError("--identifier is required")
 			}
 			if resolvedName == "" {
-				return shared.UsageError("--name is required")
+				return d.UsageError("--name is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids create")
 			}
 			var result *asc.WebServiceIDMutationResult
-			err = withWebSpinner("Registering Developer Portal Services ID", func() error {
+			err = withWebSpinnerWith(d, "Registering Developer Portal Services ID", func() error {
 				var createErr error
 				result, createErr = createDeveloperServiceIDFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperServiceIDCreateRequest{
 					Identifier: resolvedIdentifier,
@@ -255,34 +254,34 @@ Example:
 				})
 				return createErr
 			})
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids create")
 			}
 			if result == nil {
 				return fmt.Errorf("web service-ids create failed: missing create result")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperServiceIDMutationTable(result) },
-				func() error { return renderDeveloperServiceIDMutationMarkdown(result) },
+				func() error { return renderDeveloperServiceIDMutationTable(d, result) },
+				func() error { return renderDeveloperServiceIDMutationMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebServiceIDsRenameCommand renames a Services ID while preserving its
+// newWebServiceIDsRenameCommand renames a Services ID while preserving its
 // capability graph.
-func WebServiceIDsRenameCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web service-ids rename", flag.ExitOnError)
+func newWebServiceIDsRenameCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web service-ids rename", flag.ExitOnError)
 	serviceID := fs.String("service-id", "", "Opaque Developer Portal Services ID resource ID")
 	name := fs.String("name", "", "New human-readable Services ID name")
 	confirm := fs.Bool("confirm", false, "Confirm renaming this Services ID")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "rename",
 		ShortUsage: "asc web service-ids rename --service-id SERVICE_RESOURCE_ID --name NAME --confirm [flags]",
@@ -298,33 +297,33 @@ Example:
   asc web service-ids rename --service-id "SERVICE_RESOURCE_ID" --name "New Name" --confirm
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedID := strings.TrimSpace(*serviceID)
 			resolvedName := strings.TrimSpace(*name)
 			if resolvedID == "" {
-				return shared.UsageError("--service-id is required")
+				return d.UsageError("--service-id is required")
 			}
 			if resolvedName == "" {
-				return shared.UsageError("--name is required")
+				return d.UsageError("--name is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids rename")
 			}
 			var result *asc.WebServiceIDMutationResult
-			err = withWebSpinner("Renaming Developer Portal Services ID", func() error {
+			err = withWebSpinnerWith(d, "Renaming Developer Portal Services ID", func() error {
 				var renameErr error
 				result, renameErr = renameDeveloperServiceIDFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperServiceIDRenameRequest{
 					ServiceID: resolvedID,
@@ -332,33 +331,33 @@ Example:
 				})
 				return renameErr
 			})
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids rename")
 			}
 			if result == nil {
 				return fmt.Errorf("web service-ids rename failed: missing rename result")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperServiceIDMutationTable(result) },
-				func() error { return renderDeveloperServiceIDMutationMarkdown(result) },
+				func() error { return renderDeveloperServiceIDMutationTable(d, result) },
+				func() error { return renderDeveloperServiceIDMutationMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebServiceIDsDeleteCommand deletes a Services ID after a platform-checked
+// newWebServiceIDsDeleteCommand deletes a Services ID after a platform-checked
 // preflight and post-delete detail read.
-func WebServiceIDsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web service-ids delete", flag.ExitOnError)
+func newWebServiceIDsDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web service-ids delete", flag.ExitOnError)
 	serviceID := fs.String("service-id", "", "Opaque Developer Portal Services ID resource ID")
 	confirm := fs.Bool("confirm", false, "Confirm deleting this Services ID")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc web service-ids delete --service-id SERVICE_RESOURCE_ID --confirm [flags]",
@@ -374,114 +373,114 @@ Example:
   asc web service-ids delete --service-id "SERVICE_RESOURCE_ID" --confirm
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedID := strings.TrimSpace(*serviceID)
 			if resolvedID == "" {
-				return shared.UsageError("--service-id is required")
+				return d.UsageError("--service-id is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids delete")
 			}
 			var result *asc.WebServiceIDMutationResult
-			err = withWebSpinner("Deleting Developer Portal Services ID", func() error {
+			err = withWebSpinnerWith(d, "Deleting Developer Portal Services ID", func() error {
 				var deleteErr error
 				result, deleteErr = deleteDeveloperServiceIDFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperServiceIDDeleteRequest{ServiceID: resolvedID})
 				return deleteErr
 			})
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids delete")
 			}
 			if result == nil {
 				return fmt.Errorf("web service-ids delete failed: missing delete result")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderDeveloperServiceIDMutationTable(result) },
-				func() error { return renderDeveloperServiceIDMutationMarkdown(result) },
+				func() error { return renderDeveloperServiceIDMutationTable(d, result) },
+				func() error { return renderDeveloperServiceIDMutationMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func renderDeveloperServiceIDsTable(result *webcore.DeveloperServiceIDsListResult) error {
+func renderDeveloperServiceIDsTable(d *shared.Deps, result *webcore.DeveloperServiceIDsListResult) error {
 	headers := developerBundleIDHeaders()
 	headers[0] = "Service ID"
 	if result == nil {
-		asc.RenderTable(headers, nil)
+		asc.RenderTableTo(d.IO.Out, headers, nil)
 		return nil
 	}
-	asc.RenderTable(headers, developerBundleIDRows(result.Data))
+	asc.RenderTableTo(d.IO.Out, headers, developerBundleIDRows(result.Data))
 	return nil
 }
 
-func renderDeveloperServiceIDsMarkdown(result *webcore.DeveloperServiceIDsListResult) error {
+func renderDeveloperServiceIDsMarkdown(d *shared.Deps, result *webcore.DeveloperServiceIDsListResult) error {
 	headers := developerBundleIDHeaders()
 	headers[0] = "Service ID"
 	if result == nil {
-		asc.RenderMarkdown(headers, nil)
+		asc.RenderMarkdownTo(d.IO.Out, headers, nil)
 		return nil
 	}
-	asc.RenderMarkdown(headers, developerBundleIDRows(result.Data))
+	asc.RenderMarkdownTo(d.IO.Out, headers, developerBundleIDRows(result.Data))
 	return nil
 }
 
-func renderDeveloperServiceIDTable(result *webcore.DeveloperServiceIDGetResult) error {
+func renderDeveloperServiceIDTable(d *shared.Deps, result *webcore.DeveloperServiceIDGetResult) error {
 	headers := developerBundleIDDetailHeaders()
 	headers[0] = "Service ID"
 	if result == nil {
-		asc.RenderTable(headers, nil)
+		asc.RenderTableTo(d.IO.Out, headers, nil)
 		return nil
 	}
 	if len(result.Included) > 0 {
-		fmt.Fprintln(os.Stderr, "Warning: table or Markdown output omits included Services ID resources; use --output json to inspect the complete capability graph.")
+		fmt.Fprintln(d.IO.ErrOut, "Warning: table or Markdown output omits included Services ID resources; use --output json to inspect the complete capability graph.")
 	}
-	asc.RenderTable(headers, developerBundleIDDetailRows(result.Data))
+	asc.RenderTableTo(d.IO.Out, headers, developerBundleIDDetailRows(result.Data))
 	return nil
 }
 
-func renderDeveloperServiceIDMarkdown(result *webcore.DeveloperServiceIDGetResult) error {
+func renderDeveloperServiceIDMarkdown(d *shared.Deps, result *webcore.DeveloperServiceIDGetResult) error {
 	headers := developerBundleIDDetailHeaders()
 	headers[0] = "Service ID"
 	if result == nil {
-		asc.RenderMarkdown(headers, nil)
+		asc.RenderMarkdownTo(d.IO.Out, headers, nil)
 		return nil
 	}
 	if len(result.Included) > 0 {
-		fmt.Fprintln(os.Stderr, "Warning: table or Markdown output omits included Services ID resources; use --output json to inspect the complete capability graph.")
+		fmt.Fprintln(d.IO.ErrOut, "Warning: table or Markdown output omits included Services ID resources; use --output json to inspect the complete capability graph.")
 	}
-	asc.RenderMarkdown(headers, developerBundleIDDetailRows(result.Data))
+	asc.RenderMarkdownTo(d.IO.Out, headers, developerBundleIDDetailRows(result.Data))
 	return nil
 }
 
-func renderDeveloperServiceIDMutationTable(result *asc.WebServiceIDMutationResult) error {
-	asc.RenderTable(webServiceIDMutationHeaders(), webServiceIDMutationRows(result))
+func renderDeveloperServiceIDMutationTable(d *shared.Deps, result *asc.WebServiceIDMutationResult) error {
+	asc.RenderTableTo(d.IO.Out, webServiceIDMutationHeaders(), webServiceIDMutationRows(result))
 	return nil
 }
 
-func renderDeveloperServiceIDMutationMarkdown(result *asc.WebServiceIDMutationResult) error {
-	asc.RenderMarkdown(webServiceIDMutationHeaders(), webServiceIDMutationRows(result))
+func renderDeveloperServiceIDMutationMarkdown(d *shared.Deps, result *asc.WebServiceIDMutationResult) error {
+	asc.RenderMarkdownTo(d.IO.Out, webServiceIDMutationHeaders(), webServiceIDMutationRows(result))
 	return nil
 }
 
-// WebServiceIDsDomainsCommand groups Sign in with Apple domain configuration.
-func WebServiceIDsDomainsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web service-ids domains", flag.ExitOnError)
+// newWebServiceIDsDomainsCommand groups Sign in with Apple domain configuration.
+func newWebServiceIDsDomainsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web service-ids domains", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "domains",
 		ShortUsage: "asc web service-ids domains <subcommand> [flags]",
@@ -492,9 +491,9 @@ The set command replaces complete domain and return URL lists while preserving
 the existing primary App ID and Sign in with Apple enabled state.
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebServiceIDsDomainsSetCommand(),
+			newWebServiceIDsDomainsSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -502,16 +501,16 @@ the existing primary App ID and Sign in with Apple enabled state.
 	}
 }
 
-// WebServiceIDsDomainsSetCommand updates and verifies configured Services ID domains.
-func WebServiceIDsDomainsSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web service-ids domains set", flag.ExitOnError)
+// newWebServiceIDsDomainsSetCommand updates and verifies configured Services ID domains.
+func newWebServiceIDsDomainsSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web service-ids domains set", flag.ExitOnError)
 	serviceID := fs.String("service-id", "", "Services ID resource ID")
 	domain := fs.String("domain", "", "Complete comma-separated list of DNS hostnames")
 	returnURL := fs.String("return-url", "", "Complete comma-separated list of HTTPS return URLs")
 	confirm := fs.Bool("confirm", false, "Confirm replacing the domain and return URL lists")
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "set",
 		ShortUsage: "asc web service-ids domains set --service-id ID --domain DOMAIN --return-url URL --confirm [flags]",
@@ -532,45 +531,45 @@ Example:
   asc web service-ids domains set --service-id "SERVICE_ID" --domain "example.com" --return-url "https://example.com/callback" --confirm
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			request, err := webcore.NormalizeDeveloperServiceIDDomainsSetRequest(webcore.DeveloperServiceIDDomainsSetRequest{
 				ServiceID: *serviceID, Domains: strings.Split(*domain, ","), ReturnURLs: strings.Split(*returnURL, ","),
 			})
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			if err = shared.RequireConfirm(*confirm); err != nil {
+			if err = d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			if err = validateDeveloperPortalFlags(portalFlags); err != nil {
+			if err = validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 				return err
 			}
 			if _, err = shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids domains set")
 			}
 			var result *asc.WebServiceIDMutationResult
-			err = withWebSpinner("Updating Services ID domains", func() error {
+			err = withWebSpinnerWith(d, "Updating Services ID domains", func() error {
 				var writeErr error
 				result, writeErr = setDeveloperServiceIDDomainsFn(requestCtx, newDeveloperPortalClient(session, portalFlags), request)
 				return writeErr
 			})
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 			if err != nil {
 				return withWebAuthHint(err, "web service-ids domains set")
 			}
 			if result == nil {
 				return fmt.Errorf("web service-ids domains set failed: missing update result")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result, *output.Output, *output.Pretty,
-				func() error { return renderDeveloperServiceIDMutationTable(result) },
-				func() error { return renderDeveloperServiceIDMutationMarkdown(result) },
+				func() error { return renderDeveloperServiceIDMutationTable(d, result) },
+				func() error { return renderDeveloperServiceIDMutationMarkdown(d, result) },
 			)
 		},
 	}

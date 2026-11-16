@@ -12,6 +12,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -63,11 +64,12 @@ func TestWebAppBundlesViewPrintsAppsInOrder(t *testing.T) {
 		}},
 	} {
 		t.Run(test.output, func(t *testing.T) {
-			cmd := WebAppBundlesViewCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAppBundlesViewCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--id", "1501593771", "--output", test.output}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := cmd.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("Exec: %v", err)
 				}
@@ -90,11 +92,12 @@ func TestWebAppBundlesListPrintsStatus(t *testing.T) {
 		}}}, nil
 	}
 
-	cmd := WebAppBundlesListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAppBundlesListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "table"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec: %v", err)
 		}
@@ -109,33 +112,41 @@ func TestWebAppBundlesListPrintsStatus(t *testing.T) {
 func TestWebAppBundlesRejectsBadUsage(t *testing.T) {
 	tests := []struct {
 		name string
-		cmd  *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 		args []string
 		want string
 	}{
-		{"view needs id", WebAppBundlesViewCommand(), nil, "--id is required"},
-		{"set needs id", WebAppBundlesAppsSetCommand(), []string{"--apps", "1,2", "--confirm"}, "--id is required"},
-		{"set needs apps", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--confirm"}, "--apps is required"},
-		{"set needs confirm", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2"}, "--confirm is required"},
-		{"set rejects duplicates", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,2,1", "--confirm"}, "lists app 1 twice"},
-		{"set rejects names", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,two", "--confirm"}, "numeric app IDs"},
-		{"set rejects leading zeros", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,01", "--confirm"}, "numeric app IDs"},
-		{"set rejects an empty entry", WebAppBundlesAppsSetCommand(), []string{"--id", "1", "--apps", "1,,2", "--confirm"}, "numeric app IDs"},
-		{"create needs name", WebAppBundlesCreateCommand(), []string{"--sku", "S", "--apps", "1,2", "--confirm"}, "--name is required"},
-		{"create needs sku", WebAppBundlesCreateCommand(), []string{"--name", "N", "--apps", "1,2", "--confirm"}, "--sku is required"},
-		{"create needs confirm", WebAppBundlesCreateCommand(), []string{"--name", "N", "--sku", "S", "--apps", "1,2"}, "--confirm is required"},
-		{"submit needs id", webAppBundleReviewCommand("submit", "", "", submitWebAppBundleFn), []string{"--confirm"}, "--id is required"},
-		{"submit needs confirm", webAppBundleReviewCommand("submit", "", "", submitWebAppBundleFn), []string{"--id", "1"}, "--confirm is required"},
-		{"remove needs confirm", webAppBundleReviewCommand("remove-from-review", "", "", removeWebAppBundleFromReviewFn), []string{"--id", "1"}, "--confirm is required"},
+		{"view needs id", newWebAppBundlesViewCommand, nil, "--id is required"},
+		{"set needs id", newWebAppBundlesAppsSetCommand, []string{"--apps", "1,2", "--confirm"}, "--id is required"},
+		{"set needs apps", newWebAppBundlesAppsSetCommand, []string{"--id", "1", "--confirm"}, "--apps is required"},
+		{"set needs confirm", newWebAppBundlesAppsSetCommand, []string{"--id", "1", "--apps", "1,2"}, "--confirm is required"},
+		{"set rejects duplicates", newWebAppBundlesAppsSetCommand, []string{"--id", "1", "--apps", "1,2,1", "--confirm"}, "lists app 1 twice"},
+		{"set rejects names", newWebAppBundlesAppsSetCommand, []string{"--id", "1", "--apps", "1,two", "--confirm"}, "numeric app IDs"},
+		{"set rejects leading zeros", newWebAppBundlesAppsSetCommand, []string{"--id", "1", "--apps", "1,01", "--confirm"}, "numeric app IDs"},
+		{"set rejects an empty entry", newWebAppBundlesAppsSetCommand, []string{"--id", "1", "--apps", "1,,2", "--confirm"}, "numeric app IDs"},
+		{"create needs name", newWebAppBundlesCreateCommand, []string{"--sku", "S", "--apps", "1,2", "--confirm"}, "--name is required"},
+		{"create needs sku", newWebAppBundlesCreateCommand, []string{"--name", "N", "--apps", "1,2", "--confirm"}, "--sku is required"},
+		{"create needs confirm", newWebAppBundlesCreateCommand, []string{"--name", "N", "--sku", "S", "--apps", "1,2"}, "--confirm is required"},
+		{"submit needs id", func(d *shared.Deps) *ffcli.Command {
+			return webAppBundleReviewCommand(d, "submit", "", "", submitWebAppBundleFn)
+		}, []string{"--confirm"}, "--id is required"},
+		{"submit needs confirm", func(d *shared.Deps) *ffcli.Command {
+			return webAppBundleReviewCommand(d, "submit", "", "", submitWebAppBundleFn)
+		}, []string{"--id", "1"}, "--confirm is required"},
+		{"remove needs confirm", func(d *shared.Deps) *ffcli.Command {
+			return webAppBundleReviewCommand(d, "remove-from-review", "", "", removeWebAppBundleFromReviewFn)
+		}, []string{"--id", "1"}, "--confirm is required"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if err := test.cmd.FlagSet.Parse(test.args); err != nil {
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := test.cmd(d)
+			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var err error
-			_, stderr := captureWebCommandOutput(t, func() {
-				err = test.cmd.Exec(context.Background(), nil)
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				err = cmd.Exec(context.Background(), nil)
 			})
 			if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, test.want) {
 				t.Fatalf("error = %v, stderr = %q, want usage error %q", err, stderr, test.want)
@@ -155,11 +166,12 @@ func TestWebAppBundlesAppsSetPrintsReceipt(t *testing.T) {
 		return &asc.WebAppBundleAppsResult{BundleID: bundleID, PreviousApps: []string{"1", "2"}, Apps: appIDs, Changed: true}, nil
 	}
 
-	cmd := WebAppBundlesAppsSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAppBundlesAppsSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--id", "1501593771", "--apps", " 2, 1 ", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec: %v", err)
 		}
@@ -181,11 +193,12 @@ func TestWebAppBundlesAppsEligiblePrintsApps(t *testing.T) {
 		return &webcore.AppBundleEligibleAppsResponse{Data: []webcore.AppBundleEligibleApp{{ID: "3", Name: "Three"}}}, nil
 	}
 
-	cmd := WebAppBundlesAppsEligibleCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAppBundlesAppsEligibleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "table"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec: %v", err)
 		}

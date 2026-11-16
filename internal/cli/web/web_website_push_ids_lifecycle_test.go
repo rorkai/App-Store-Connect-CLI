@@ -10,6 +10,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -49,17 +50,18 @@ func TestWebWebsitePushIDsUnverifiedWritesPersistSelectedTeam(t *testing.T) {
 				mutate()
 				return nil, unverified
 			}
-			command := WebWebsitePushIDsCreateCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebWebsitePushIDsCreateCommand(d)
 			args := []string{"--name", "Example", "--identifier", "web.example.com"}
 			if operation == "delete" {
-				command = WebWebsitePushIDsDeleteCommand()
+				command = newWebWebsitePushIDsDeleteCommand(d)
 				args = []string{"--website-push-id", "RESOURCE1"}
 			}
 			args = append(args, "--developer-team", "NEWTEAM456", "--confirm", "--output", "json")
 			if err := command.FlagSet.Parse(args); err != nil {
 				t.Fatal(err)
 			}
-			stdout, _ := captureWebCommandOutput(t, func() {
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); !errors.Is(err, cause) {
 					t.Errorf("Exec() error = %v, want preserved uncertainty cause", err)
 				}
@@ -72,7 +74,8 @@ func TestWebWebsitePushIDsUnverifiedWritesPersistSelectedTeam(t *testing.T) {
 }
 
 func TestWebWebsitePushIDsCommandHierarchyIncludesCapturedLifecycle(t *testing.T) {
-	command := WebWebsitePushIDsCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebWebsitePushIDsCommand(d)
 	want := []string{"list", "view", "create", "delete"}
 	if len(command.Subcommands) != len(want) {
 		t.Fatalf("subcommands = %+v, want %v", command.Subcommands, want)
@@ -87,25 +90,26 @@ func TestWebWebsitePushIDsCommandHierarchyIncludesCapturedLifecycle(t *testing.T
 func TestWebWebsitePushIDsLifecycleValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 		wantErr string
 	}{
-		{name: "view missing id", command: WebWebsitePushIDsViewCommand, wantErr: "--website-push-id is required"},
-		{name: "create missing name", command: WebWebsitePushIDsCreateCommand, args: []string{"--identifier", "web.example.com", "--confirm"}, wantErr: "--name is required"},
-		{name: "create missing identifier", command: WebWebsitePushIDsCreateCommand, args: []string{"--name", "Example", "--confirm"}, wantErr: "--identifier is required"},
-		{name: "create invalid identifier", command: WebWebsitePushIDsCreateCommand, args: []string{"--name", "Example", "--identifier", "web/example", "--confirm"}, wantErr: "--identifier"},
-		{name: "create missing confirm", command: WebWebsitePushIDsCreateCommand, args: []string{"--name", "Example", "--identifier", "web.example.com"}, wantErr: "--confirm is required"},
-		{name: "delete missing id", command: WebWebsitePushIDsDeleteCommand, args: []string{"--confirm"}, wantErr: "--website-push-id is required"},
-		{name: "delete missing confirm", command: WebWebsitePushIDsDeleteCommand, args: []string{"--website-push-id", "resource-1"}, wantErr: "--confirm is required"},
+		{name: "view missing id", command: newWebWebsitePushIDsViewCommand, wantErr: "--website-push-id is required"},
+		{name: "create missing name", command: newWebWebsitePushIDsCreateCommand, args: []string{"--identifier", "web.example.com", "--confirm"}, wantErr: "--name is required"},
+		{name: "create missing identifier", command: newWebWebsitePushIDsCreateCommand, args: []string{"--name", "Example", "--confirm"}, wantErr: "--identifier is required"},
+		{name: "create invalid identifier", command: newWebWebsitePushIDsCreateCommand, args: []string{"--name", "Example", "--identifier", "web/example", "--confirm"}, wantErr: "--identifier"},
+		{name: "create missing confirm", command: newWebWebsitePushIDsCreateCommand, args: []string{"--name", "Example", "--identifier", "web.example.com"}, wantErr: "--confirm is required"},
+		{name: "delete missing id", command: newWebWebsitePushIDsDeleteCommand, args: []string{"--confirm"}, wantErr: "--website-push-id is required"},
+		{name: "delete missing confirm", command: newWebWebsitePushIDsDeleteCommand, args: []string{"--website-push-id", "resource-1"}, wantErr: "--confirm is required"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := test.command()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := test.command(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureWebCommandOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := command.Exec(context.Background(), command.FlagSet.Args())
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected usage error, got %v", err)

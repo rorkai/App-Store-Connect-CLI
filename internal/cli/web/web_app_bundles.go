@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"slices"
 	"strconv"
 	"strings"
@@ -44,9 +45,9 @@ var removeWebAppBundleFromReviewFn = func(ctx context.Context, client *webcore.C
 	return client.RemoveAppBundleFromReview(ctx, bundleID)
 }
 
-// WebAppBundlesCommand returns the app bundles command group.
-func WebAppBundlesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-bundles", flag.ExitOnError)
+// newWebAppBundlesCommand returns the app bundles command group.
+func newWebAppBundlesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-bundles", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app-bundles",
@@ -66,14 +67,14 @@ Examples:
   asc web app-bundles submit --id "BUNDLE_ID" --confirm
   asc web app-bundles remove-from-review --id "BUNDLE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppBundlesListCommand(),
-			WebAppBundlesViewCommand(),
-			WebAppBundlesCreateCommand(),
-			WebAppBundlesAppsCommand(),
-			webAppBundleReviewCommand("submit", "Submit an app bundle for App Review.", "Submit an app bundle for App Review. Apple must offer this: canSubmit in\nasc web app-bundles view has to be true. Reading the bundle back confirms the\nnew state.", submitWebAppBundleFn),
-			webAppBundleReviewCommand("remove-from-review", "Remove an app bundle from App Review.", "Remove a submitted app bundle from App Review so it can be edited. Apple must\noffer this: canRemoveFromReview in asc web app-bundles view has to be true.\nReading the bundle back confirms the new state.", removeWebAppBundleFromReviewFn),
+			newWebAppBundlesListCommand(d),
+			newWebAppBundlesViewCommand(d),
+			newWebAppBundlesCreateCommand(d),
+			newWebAppBundlesAppsCommand(d),
+			webAppBundleReviewCommand(d, "submit", "Submit an app bundle for App Review.", "Submit an app bundle for App Review. Apple must offer this: canSubmit in\nasc web app-bundles view has to be true. Reading the bundle back confirms the\nnew state.", submitWebAppBundleFn),
+			webAppBundleReviewCommand(d, "remove-from-review", "Remove an app bundle from App Review.", "Remove a submitted app bundle from App Review so it can be edited. Apple must\noffer this: canRemoveFromReview in asc web app-bundles view has to be true.\nReading the bundle back confirms the new state.", removeWebAppBundleFromReviewFn),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -81,11 +82,11 @@ Examples:
 	}
 }
 
-// WebAppBundlesListCommand lists app bundles using the internal web API.
-func WebAppBundlesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-bundles list", flag.ExitOnError)
+// newWebAppBundlesListCommand lists app bundles using the internal web API.
+func newWebAppBundlesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-bundles list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -98,13 +99,13 @@ Examples:
   asc web app-bundles list
   asc web app-bundles list --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web app-bundles list")
@@ -115,23 +116,23 @@ Examples:
 				return withWebAuthHint(err, "web app-bundles list")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAppBundles(result, asc.RenderTable) },
-				func() error { return renderAppBundles(result, asc.RenderMarkdown) },
+				func() error { return renderAppBundles(d.IO.Out, result, asc.RenderTableTo) },
+				func() error { return renderAppBundles(d.IO.Out, result, asc.RenderMarkdownTo) },
 			)
 		},
 	}
 }
 
-// WebAppBundlesViewCommand shows one bundle and its member apps.
-func WebAppBundlesViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-bundles view", flag.ExitOnError)
+// newWebAppBundlesViewCommand shows one bundle and its member apps.
+func newWebAppBundlesViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-bundles view", flag.ExitOnError)
 	id := fs.String("id", "", "App bundle ID")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -143,17 +144,17 @@ Examples:
   asc web app-bundles view --id "BUNDLE_ID"
   asc web app-bundles view --id "BUNDLE_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			bundleID := strings.TrimSpace(*id)
 			if bundleID == "" {
-				return shared.UsageError("--id is required")
+				return d.UsageError("--id is required")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web app-bundles view")
@@ -164,27 +165,27 @@ Examples:
 				return withWebAuthHint(err, "web app-bundles view")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAppBundleDetail(result, asc.RenderTable) },
-				func() error { return renderAppBundleDetail(result, asc.RenderMarkdown) },
+				func() error { return renderAppBundleDetail(d.IO.Out, result, asc.RenderTableTo) },
+				func() error { return renderAppBundleDetail(d.IO.Out, result, asc.RenderMarkdownTo) },
 			)
 		},
 	}
 }
 
-// WebAppBundlesCreateCommand creates an app bundle.
-func WebAppBundlesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-bundles create", flag.ExitOnError)
+// newWebAppBundlesCreateCommand creates an app bundle.
+func newWebAppBundlesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-bundles create", flag.ExitOnError)
 	name := fs.String("name", "", "Bundle name in the primary locale")
 	sku := fs.String("sku", "", "Bundle SKU, unique in your account")
 	apps := fs.String("apps", "", "Comma-separated app IDs, in the order they should appear")
 	priceTier := fs.String("price-tier", "", "Price tier stem (default: the first tier Apple marks compatible with the apps)")
 	confirm := fs.Bool("confirm", false, "Confirm creating the bundle (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -199,26 +200,26 @@ Examples:
   asc web app-bundles apps eligible --output table
   asc web app-bundles create --name "My Bundle" --sku "MY_BUNDLE" --apps "APP_ID_1,APP_ID_2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*name) == "" {
-				return shared.UsageError("--name is required")
+				return d.UsageError("--name is required")
 			}
 			if strings.TrimSpace(*sku) == "" {
-				return shared.UsageError("--sku is required")
+				return d.UsageError("--sku is required")
 			}
 			appIDs, err := parseAppBundleAppIDs(*apps)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web app-bundles create")
@@ -228,20 +229,20 @@ Examples:
 			if err != nil {
 				return withWebAuthHint(fmt.Errorf("web app-bundles create failed: %w", err), "web app-bundles create")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAppBundleDetail(result, asc.RenderTable) },
-				func() error { return renderAppBundleDetail(result, asc.RenderMarkdown) },
+				func() error { return renderAppBundleDetail(d.IO.Out, result, asc.RenderTableTo) },
+				func() error { return renderAppBundleDetail(d.IO.Out, result, asc.RenderMarkdownTo) },
 			)
 		},
 	}
 }
 
-// WebAppBundlesAppsCommand returns the bundle membership command group.
-func WebAppBundlesAppsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-bundles apps", flag.ExitOnError)
+// newWebAppBundlesAppsCommand returns the bundle membership command group.
+func newWebAppBundlesAppsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-bundles apps", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "apps",
@@ -253,10 +254,10 @@ Examples:
   asc web app-bundles apps eligible
   asc web app-bundles apps set --id "BUNDLE_ID" --apps "APP_ID_1,APP_ID_2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppBundlesAppsEligibleCommand(),
-			WebAppBundlesAppsSetCommand(),
+			newWebAppBundlesAppsEligibleCommand(d),
+			newWebAppBundlesAppsSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -264,11 +265,11 @@ Examples:
 	}
 }
 
-// WebAppBundlesAppsEligibleCommand lists apps Apple offers for bundles.
-func WebAppBundlesAppsEligibleCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-bundles apps eligible", flag.ExitOnError)
+// newWebAppBundlesAppsEligibleCommand lists apps Apple offers for bundles.
+func newWebAppBundlesAppsEligibleCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-bundles apps eligible", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "eligible",
@@ -280,13 +281,13 @@ Examples:
   asc web app-bundles apps eligible
   asc web app-bundles apps eligible --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web app-bundles apps eligible")
@@ -297,25 +298,25 @@ Examples:
 				return withWebAuthHint(err, "web app-bundles apps eligible")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAppBundleEligibleApps(result, asc.RenderTable) },
-				func() error { return renderAppBundleEligibleApps(result, asc.RenderMarkdown) },
+				func() error { return renderAppBundleEligibleApps(d.IO.Out, result, asc.RenderTableTo) },
+				func() error { return renderAppBundleEligibleApps(d.IO.Out, result, asc.RenderMarkdownTo) },
 			)
 		},
 	}
 }
 
-// WebAppBundlesAppsSetCommand replaces a bundle's member apps.
-func WebAppBundlesAppsSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web app-bundles apps set", flag.ExitOnError)
+// newWebAppBundlesAppsSetCommand replaces a bundle's member apps.
+func newWebAppBundlesAppsSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web app-bundles apps set", flag.ExitOnError)
 	id := fs.String("id", "", "App bundle ID")
 	apps := fs.String("apps", "", "Comma-separated app IDs, in the order they should appear")
 	confirm := fs.Bool("confirm", false, "Confirm changing the bundle's apps (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -333,24 +334,24 @@ that the order can still change. Remove a bundle from review before editing it.
 Examples:
   asc web app-bundles apps set --id "BUNDLE_ID" --apps "APP_ID_2,APP_ID_1" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			bundleID := strings.TrimSpace(*id)
 			if bundleID == "" {
-				return shared.UsageError("--id is required")
+				return d.UsageError("--id is required")
 			}
 			appIDs, err := parseAppBundleAppIDs(*apps)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web app-bundles apps set")
@@ -360,18 +361,18 @@ Examples:
 			if err != nil {
 				return withWebAuthHint(fmt.Errorf("web app-bundles apps set failed: %w", err), "web app-bundles apps set")
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func webAppBundleReviewCommand(name, shortHelp, longHelp string, run func(context.Context, *webcore.Client, string) (*asc.WebAppBundleReviewResult, error)) *ffcli.Command {
+func webAppBundleReviewCommand(d *shared.Deps, name, shortHelp, longHelp string, run func(context.Context, *webcore.Client, string) (*asc.WebAppBundleReviewResult, error)) *ffcli.Command {
 	commandName := "web app-bundles " + name
-	fs := flag.NewFlagSet(commandName, flag.ExitOnError)
+	fs := d.NewFlagSet(commandName, flag.ExitOnError)
 	id := fs.String("id", "", "App bundle ID")
 	confirm := fs.Bool("confirm", false, "Confirm this review change (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
@@ -379,20 +380,20 @@ func webAppBundleReviewCommand(name, shortHelp, longHelp string, run func(contex
 		ShortHelp:  shortHelp,
 		LongHelp:   longHelp + "\n\nExamples:\n  asc " + commandName + ` --id "BUNDLE_ID" --confirm`,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			bundleID := strings.TrimSpace(*id)
 			if bundleID == "" {
-				return shared.UsageError("--id is required")
+				return d.UsageError("--id is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, commandName)
@@ -402,7 +403,7 @@ func webAppBundleReviewCommand(name, shortHelp, longHelp string, run func(contex
 			if err != nil {
 				return withWebAuthHint(fmt.Errorf("%s failed: %w", commandName, err), commandName)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -426,7 +427,7 @@ func parseAppBundleAppIDs(raw string) ([]string, error) {
 	return ids, nil
 }
 
-func renderAppBundles(result *webcore.AppBundlesListResponse, render func([]string, [][]string)) error {
+func renderAppBundles(w io.Writer, result *webcore.AppBundlesListResponse, render func(io.Writer, []string, [][]string)) error {
 	rows := make([][]string, 0, len(result.Data))
 	for _, bundle := range result.Data {
 		rows = append(rows, []string{
@@ -436,21 +437,22 @@ func renderAppBundles(result *webcore.AppBundlesListResponse, render func([]stri
 			shared.OrNA(bundle.Status),
 		})
 	}
-	render([]string{"ID", "Name", "Platforms", "Status"}, rows)
+	render(w, []string{"ID", "Name", "Platforms", "Status"}, rows)
 	return nil
 }
 
-func renderAppBundleEligibleApps(result *webcore.AppBundleEligibleAppsResponse, render func([]string, [][]string)) error {
+func renderAppBundleEligibleApps(w io.Writer, result *webcore.AppBundleEligibleAppsResponse, render func(io.Writer, []string, [][]string)) error {
 	rows := make([][]string, 0, len(result.Data))
 	for _, app := range result.Data {
 		rows = append(rows, []string{shared.OrNA(app.ID), shared.OrNA(app.Name)})
 	}
-	render([]string{"ID", "Name"}, rows)
+	render(w, []string{"ID", "Name"}, rows)
 	return nil
 }
 
-func renderAppBundleDetail(result *webcore.AppBundleDetail, render func([]string, [][]string)) error {
+func renderAppBundleDetail(w io.Writer, result *webcore.AppBundleDetail, render func(io.Writer, []string, [][]string)) error {
 	render(
+		w,
 		[]string{"ID", "State", "Cleared For Sale", "Can Submit", "Can Remove From Review"},
 		[][]string{{
 			shared.OrNA(result.ID),
@@ -470,6 +472,6 @@ func renderAppBundleDetail(result *webcore.AppBundleDetail, render func([]string
 			shared.OrNA(app.PriceTier),
 		})
 	}
-	render([]string{"Position", "App ID", "Name", "Type", "Price Tier"}, rows)
+	render(w, []string{"Position", "App ID", "Name", "Type", "Price Tier"}, rows)
 	return nil
 }
