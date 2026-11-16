@@ -23,7 +23,7 @@ func newCertificatesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc certificates links pass-type-id --id "CERT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCertificatesRelationshipsPassTypeIDCommand(d),
 		},
@@ -49,7 +49,7 @@ func newCertificatesRelationshipsPassTypeIDCommand(d *shared.Deps) *ffcli.Comman
 Examples:
   asc certificates links pass-type-id --id "CERT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

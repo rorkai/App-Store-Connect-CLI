@@ -24,7 +24,7 @@ Examples:
   asc iap pricing availabilities view --id "AVAILABILITY_ID"
   asc iap pricing availabilities available-territories --id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPAvailabilitiesGetCommand(d),
 			newIAPAvailabilitiesAvailableTerritoriesCommand(d),

@@ -239,12 +239,18 @@ func TestMetadataValidateCommandPrintsWarningsAndExitsSuccessfully(t *testing.T)
 			StatusCode: 200,
 		},
 	}}
+	transport := &http.Transport{}
+	var checkerTransport http.RoundTripper
 	originalFactory := newMetadataURLChecker
-	newMetadataURLChecker = func() metadataurl.Checker { return checker }
+	newMetadataURLChecker = func(rt http.RoundTripper) metadataurl.Checker {
+		checkerTransport = rt
+		return checker
+	}
 	t.Cleanup(func() { newMetadataURLChecker = originalFactory })
 
 	var runErr error
 	stdout := captureStdout(t, func(d *shared.Deps) {
+		d.HTTPTransport = func() http.RoundTripper { return transport }
 		runErr = newMetadataValidateCommand(d).ParseAndRun(context.Background(), []string{
 			"--dir", dir,
 			"--check-urls",
@@ -260,6 +266,9 @@ func TestMetadataValidateCommandPrintsWarningsAndExitsSuccessfully(t *testing.T)
 	}
 	if !result.Valid || result.ErrorCount != 0 || result.WarningCount != 1 {
 		t.Fatalf("expected warning-only successful output, got %+v", result)
+	}
+	if checkerTransport != transport {
+		t.Fatalf("URL checker transport = %v, want the deps transport", checkerTransport)
 	}
 }
 

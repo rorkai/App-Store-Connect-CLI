@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -32,8 +31,8 @@ func flagProvided(fs *flag.FlagSet, name string) bool {
 	return provided
 }
 
-func webXcodeCloudWorkflowOptionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows options", flag.ExitOnError)
+func webXcodeCloudWorkflowOptionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows options", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "options",
@@ -55,15 +54,15 @@ Examples:
   asc web xcode-cloud workflows options test-destinations --xcode-version "latest:stable" --apple-id "user@example.com"
   asc web xcode-cloud workflows options slack-channels --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			webXcodeCloudWorkflowOptionsTeamConfigCommand(),
-			webXcodeCloudWorkflowOptionsBuildVersionsCommand(),
-			webXcodeCloudWorkflowOptionsProductConfigCommand(),
-			webXcodeCloudWorkflowOptionsSchemesCommand(),
-			webXcodeCloudWorkflowOptionsTestDestinationsCommand(),
-			webXcodeCloudWorkflowOptionsSlackProviderCommand(),
-			webXcodeCloudWorkflowOptionsSlackChannelsCommand(),
+			webXcodeCloudWorkflowOptionsTeamConfigCommand(d),
+			webXcodeCloudWorkflowOptionsBuildVersionsCommand(d),
+			webXcodeCloudWorkflowOptionsProductConfigCommand(d),
+			webXcodeCloudWorkflowOptionsSchemesCommand(d),
+			webXcodeCloudWorkflowOptionsTestDestinationsCommand(d),
+			webXcodeCloudWorkflowOptionsSlackProviderCommand(d),
+			webXcodeCloudWorkflowOptionsSlackChannelsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -71,8 +70,8 @@ Examples:
 	}
 }
 
-func webXcodeCloudWorkflowOptionsTeamConfigCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows options team-config", flag.ExitOnError)
+func webXcodeCloudWorkflowOptionsTeamConfigCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows options team-config", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
 	output := bindJSONOnlyOutputFlags(fs)
 
@@ -87,10 +86,11 @@ and default timezone settings. JSON output only.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return executeWorkflowOptionsFetch(
 				ctx,
+				d,
 				sessionFlags,
 				&output,
 				"Loading Xcode Cloud workflow team configuration",
@@ -103,8 +103,8 @@ and default timezone settings. JSON output only.
 	}
 }
 
-func webXcodeCloudWorkflowOptionsBuildVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows options build-versions", flag.ExitOnError)
+func webXcodeCloudWorkflowOptionsBuildVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows options build-versions", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
 	output := bindJSONOnlyOutputFlags(fs)
 
@@ -119,10 +119,11 @@ JSON output only.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return executeWorkflowOptionsFetch(
 				ctx,
+				d,
 				sessionFlags,
 				&output,
 				"Loading Xcode Cloud workflow build versions",
@@ -135,8 +136,8 @@ JSON output only.
 	}
 }
 
-func webXcodeCloudWorkflowOptionsProductConfigCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows options product-config", flag.ExitOnError)
+func webXcodeCloudWorkflowOptionsProductConfigCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows options product-config", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
 	output := bindJSONOnlyOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
@@ -152,15 +153,16 @@ and container file path recommendations. JSON output only.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 
 			return executeWorkflowOptionsFetch(
 				ctx,
+				d,
 				sessionFlags,
 				&output,
 				"Loading Xcode Cloud product workflow configuration",
@@ -173,8 +175,8 @@ and container file path recommendations. JSON output only.
 	}
 }
 
-func webXcodeCloudWorkflowOptionsSchemesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows options schemes", flag.ExitOnError)
+func webXcodeCloudWorkflowOptionsSchemesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows options schemes", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
 	output := bindJSONOnlyOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
@@ -193,19 +195,20 @@ JSON output only.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			if flagProvided(fs, "limit") && *limit <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --limit must be greater than 0 when provided")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit must be greater than 0 when provided")
 				return flag.ErrHelp
 			}
 
 			return executeWorkflowOptionsFetch(
 				ctx,
+				d,
 				sessionFlags,
 				&output,
 				"Loading Xcode Cloud workflow schemes",
@@ -218,8 +221,8 @@ JSON output only.
 	}
 }
 
-func webXcodeCloudWorkflowOptionsTestDestinationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows options test-destinations", flag.ExitOnError)
+func webXcodeCloudWorkflowOptionsTestDestinationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows options test-destinations", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
 	output := bindJSONOnlyOutputFlags(fs)
 	xcodeVersion := fs.String("xcode-version", "", "Xcode version selector (required)")
@@ -234,15 +237,16 @@ Show workflow test destination options for a given Xcode version. JSON output on
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*xcodeVersion)
 			if version == "" {
-				return shared.RequiredFlag("--xcode-version")
+				return d.RequiredFlag("--xcode-version")
 			}
 
 			return executeWorkflowOptionsFetch(
 				ctx,
+				d,
 				sessionFlags,
 				&output,
 				"Loading Xcode Cloud workflow test destinations",
@@ -255,8 +259,8 @@ Show workflow test destination options for a given Xcode version. JSON output on
 	}
 }
 
-func webXcodeCloudWorkflowOptionsSlackProviderCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows options slack-provider", flag.ExitOnError)
+func webXcodeCloudWorkflowOptionsSlackProviderCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows options slack-provider", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
 	output := bindJSONOnlyOutputFlags(fs)
 
@@ -271,10 +275,11 @@ JSON output only.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return executeWorkflowOptionsFetch(
 				ctx,
+				d,
 				sessionFlags,
 				&output,
 				"Loading Xcode Cloud Slack provider configuration",
@@ -287,8 +292,8 @@ JSON output only.
 	}
 }
 
-func webXcodeCloudWorkflowOptionsSlackChannelsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud workflows options slack-channels", flag.ExitOnError)
+func webXcodeCloudWorkflowOptionsSlackChannelsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud workflows options slack-channels", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
 	output := bindJSONOnlyOutputFlags(fs)
 
@@ -303,10 +308,11 @@ JSON output only.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return executeWorkflowOptionsFetch(
 				ctx,
+				d,
 				sessionFlags,
 				&output,
 				"Loading Xcode Cloud Slack channel options",
@@ -321,16 +327,17 @@ JSON output only.
 
 func executeWorkflowOptionsFetch(
 	ctx context.Context,
+	d *shared.Deps,
 	sessionFlags webSessionFlags,
 	output *shared.OutputFlags,
 	spinnerLabel, errorPrefix string,
 	fetch func(context.Context, *webcore.Client, string) (json.RawMessage, error),
 ) error {
-	if err := printWorkflowOptionsOutput(nil, *output.Output, *output.Pretty, true); err != nil {
+	if err := printWorkflowOptionsOutput(d, nil, *output.Output, *output.Pretty, true); err != nil {
 		return err
 	}
 
-	session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+	session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 	defer cancel()
 	if err != nil {
 		return err
@@ -342,7 +349,7 @@ func executeWorkflowOptionsFetch(
 
 	client := newCIClientFn(session)
 	var raw json.RawMessage
-	err = withWebSpinner(spinnerLabel, func() error {
+	err = withWebSpinnerWith(d, spinnerLabel, func() error {
 		var err error
 		raw, err = fetch(requestCtx, client, teamID)
 		return err
@@ -351,10 +358,10 @@ func executeWorkflowOptionsFetch(
 		return withWebAuthHint(err, errorPrefix)
 	}
 
-	return printWorkflowOptionsOutput(raw, *output.Output, *output.Pretty, false)
+	return printWorkflowOptionsOutput(d, raw, *output.Output, *output.Pretty, false)
 }
 
-func printWorkflowOptionsOutput(data json.RawMessage, format string, pretty, validateOnly bool) error {
+func printWorkflowOptionsOutput(d *shared.Deps, data json.RawMessage, format string, pretty, validateOnly bool) error {
 	normalized := shared.NormalizeOutputFormat(format)
 	if normalized == "" {
 		normalized = "json"
@@ -366,7 +373,7 @@ func printWorkflowOptionsOutput(data json.RawMessage, format string, pretty, val
 		return nil
 	}
 	if pretty {
-		return asc.PrintPrettyJSON(data)
+		return asc.PrintPrettyJSONTo(d.IO.Out, data)
 	}
-	return asc.PrintJSON(data)
+	return asc.PrintJSONTo(d.IO.Out, data)
 }

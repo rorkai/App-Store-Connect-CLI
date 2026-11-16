@@ -67,15 +67,15 @@ type xcodeInjectOutputPlan struct {
 	DisplaySource string
 }
 
-func XcodeInjectCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode inject", flag.ExitOnError)
+func newXcodeInjectCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode inject", flag.ExitOnError)
 
 	manifestPath := fs.String("manifest", "", "Path to deployment metadata manifest JSON (required)")
 	overwrite := fs.Bool("overwrite", false, "Replace existing output files")
 	dryRun := fs.Bool("dry-run", false, "Validate and print the files that would be generated without writing")
 	var setValues shared.MultiStringFlag
 	fs.Var(&setValues, "set", "Override a manifest value as key=value (repeatable)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "inject",
@@ -128,10 +128,10 @@ Examples:
   asc xcode inject --manifest .asc/deployment.json --dry-run --output json
   asc xcode inject --manifest .asc/deployment.json --set version=1.2.4 --set build_number=43 --overwrite`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			result, err := runXcodeInject(xcodeInjectOptions{
-				ManifestPath: strings.TrimSpace(*manifestPath),
+				ManifestPath: osPath(d, strings.TrimSpace(*manifestPath)),
 				SetValues:    []string(setValues),
 				Overwrite:    *overwrite,
 				DryRun:       *dryRun,
@@ -139,21 +139,21 @@ Examples:
 			if err != nil {
 				var usageErr xcodeInjectUsageError
 				if errors.As(err, &usageErr) {
-					return shared.UsageError(usageErr.Error())
+					return d.UsageError(usageErr.Error())
 				}
 				return fmt.Errorf("xcode inject: %w", err)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable([]string{"type", "action", "path", "source"}, xcodeInjectResultRows(result))
+					asc.RenderTableTo(d.IO.Out, []string{"type", "action", "path", "source"}, xcodeInjectResultRows(result))
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown([]string{"type", "action", "path", "source"}, xcodeInjectResultRows(result))
+					asc.RenderMarkdownTo(d.IO.Out, []string{"type", "action", "path", "source"}, xcodeInjectResultRows(result))
 					return nil
 				},
 			)

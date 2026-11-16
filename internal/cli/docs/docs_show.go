@@ -25,7 +25,7 @@ Examples:
   asc docs show reference
   asc docs show third-party-notices`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
 			if len(args) == 0 {

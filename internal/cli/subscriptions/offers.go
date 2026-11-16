@@ -27,7 +27,7 @@ Examples:
   asc subscriptions offers win-back list --subscription-id "SUB_ID"
   asc subscriptions offers retention list --subscription-id "SUB_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			wrapSubscriptionsCommand(
 				newSubscriptionsIntroductoryOffersCommand(d),

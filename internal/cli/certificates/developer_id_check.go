@@ -68,7 +68,7 @@ Examples:
   asc certificates developer-id-check --output table
   asc certificates developer-id-check --strict --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return d.UsageError(err.Error())

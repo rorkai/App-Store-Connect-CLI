@@ -24,7 +24,7 @@ func newSubscriptionsAppStoreReviewScreenshotCommand(d *shared.Deps) *ffcli.Comm
 Examples:
   asc subscriptions app-store-review-screenshot view --subscription-id "SUBSCRIPTION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsAppStoreReviewScreenshotGetCommand(d),
 		},
@@ -52,7 +52,7 @@ func newSubscriptionsAppStoreReviewScreenshotGetCommand(d *shared.Deps) *ffcli.C
 Examples:
   asc subscriptions app-store-review-screenshot view --subscription-id "SUBSCRIPTION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(d, fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -66,14 +65,7 @@ func TestXcodeCommandsWithJSONProject(t *testing.T) {
 				}
 				args = append(args, "--settings-file", settingsPath, "--state-dir", filepath.Join(rootDir, "state"))
 			}
-			command := RootCommand("test")
-			var runErr error
-			stdout, _ := captureOutput(t, func() {
-				if err := command.Parse(args); err != nil {
-					t.Fatal(err)
-				}
-				runErr = command.Run(context.Background())
-			})
+			stdout, _, runErr := runRootWithDeps(t, nil, args...)
 			if runErr != nil {
 				t.Fatal(runErr)
 			}
