@@ -92,10 +92,8 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadCreatesSet
 	})
 
 	client := newCustomPageTestClientWithTimeout(t, 0)
-	d := &shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		Timeout: shared.ContextWithTimeout,
-	}
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false, false)
 	if err != nil {
@@ -161,10 +159,8 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_CanonicalizesAli
 	})
 
 	client := newCustomPageTestClient(t)
-	d := &shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		Timeout: shared.ContextWithTimeout,
-	}
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_69", false, false)
 	if err != nil {
@@ -244,10 +240,8 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadPreservesE
 	})
 
 	client := newCustomPageTestClient(t)
-	d := &shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		Timeout: shared.ContextWithTimeout,
-	}
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false, false)
 	if err != nil {
@@ -332,10 +326,8 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_SyncDeletesExist
 	})
 
 	client := newCustomPageTestClient(t)
-	d := &shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		Timeout: shared.ContextWithTimeout,
-	}
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", true, true)
 	if err != nil {
@@ -400,10 +392,8 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UsesRequestTimeo
 	})
 
 	client := newCustomPageTestClient(t)
-	d := &shared.Deps{
-		Client:  func() (*asc.Client, error) { return client, nil },
-		Timeout: shared.ContextWithTimeout,
-	}
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	if _, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false, false); err != nil {
 		t.Fatalf("executeExperimentTreatmentLocalizationScreenshotUpload() error: %v", err)

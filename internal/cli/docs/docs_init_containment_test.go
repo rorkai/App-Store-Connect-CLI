@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestInitReference_RefusesSymlinkedASCReference(t *testing.T) {
@@ -17,7 +19,7 @@ func TestInitReference_RefusesSymlinkedASCReference(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	_, err := InitReference(InitOptions{Path: repo, Force: true, Link: false})
+	_, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: true, Link: false})
 	if err == nil {
 		t.Fatal("InitReference() error = nil, want symlink rejection")
 	}
@@ -39,7 +41,7 @@ func TestInitReference_AllowsASCReferenceSymlinkToContainedRegularFile(t *testin
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	result, err := InitReference(InitOptions{Path: repo, Force: true, Link: false})
+	result, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: true, Link: false})
 	if err != nil {
 		t.Fatalf("InitReference() error = %v", err)
 	}
@@ -69,7 +71,7 @@ func TestInitReference_AllowsNestedASCReferenceSymlinkToRepositoryRoot(t *testin
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	result, err := InitReference(InitOptions{Path: linkPath, Force: true, Link: false})
+	result, err := initReference(shared.DefaultDeps(), InitOptions{Path: linkPath, Force: true, Link: false})
 	if err != nil {
 		t.Fatalf("InitReference() error = %v", err)
 	}
@@ -94,7 +96,7 @@ func TestInitReference_RejectsASCReferenceSymlinkToRepositoryMetadata(t *testing
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	if _, err := InitReference(InitOptions{Path: repo, Force: true}); err == nil {
+	if _, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: true}); err == nil {
 		t.Fatal("InitReference() error = nil, want repository-metadata rejection")
 	}
 	if got := readDocsContainmentFile(t, configPath); got != "[core]\n" {
@@ -110,7 +112,7 @@ func TestInitReference_RejectsDestinationAliasCollisionBeforeWriting(t *testing.
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	if _, err := InitReference(InitOptions{Path: repo, Force: true, Link: true}); err == nil {
+	if _, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: true, Link: true}); err == nil {
 		t.Fatal("InitReference() error = nil, want alias collision rejection")
 	}
 	if got := readDocsContainmentFile(t, agentsPath); got != "# Agents\n" {
@@ -131,7 +133,7 @@ func TestInitReference_AllowsAgentsSymlinkToContainedMarkdownFile(t *testing.T) 
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	result, err := InitReference(InitOptions{Path: repo, Link: true})
+	result, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Link: true})
 	if err != nil {
 		t.Fatalf("InitReference() error = %v", err)
 	}
@@ -156,7 +158,7 @@ func TestInitReference_RejectsAgentsSymlinkToRepositoryMetadata(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	if _, err := InitReference(InitOptions{Path: repo, Link: true}); err == nil {
+	if _, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Link: true}); err == nil {
 		t.Fatal("InitReference() error = nil, want repository-metadata rejection")
 	}
 	if got := readDocsContainmentFile(t, targetPath); got != "# Repository metadata\n" {
@@ -176,7 +178,7 @@ func TestInitReference_AllowsClaudeSymlinkToContainedAgentsFile(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	result, err := InitReference(InitOptions{Path: repo, Link: true})
+	result, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Link: true})
 	if err != nil {
 		t.Fatalf("InitReference() error = %v", err)
 	}
@@ -203,7 +205,7 @@ func TestInitReference_RefusesLowercaseSymlinkedAgentsFile(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	_, err := InitReference(InitOptions{Path: repo, Force: true, Link: true})
+	_, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: true, Link: true})
 	if err == nil {
 		t.Fatal("InitReference() error = nil, want symlink rejection")
 	}
@@ -234,7 +236,7 @@ func TestInitReference_WritesNothingWhenAgentFileIsSymlinked(t *testing.T) {
 				t.Fatalf("Symlink() error = %v", err)
 			}
 
-			_, err := InitReference(InitOptions{Path: repo, Force: true, Link: true})
+			_, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: true, Link: true})
 			if err == nil {
 				t.Fatal("InitReference() error = nil, want symlink rejection")
 			}
@@ -262,7 +264,7 @@ func TestInitReference_PreflightsHardlinkedAgentFileBeforeWritingASC(t *testing.
 		t.Skipf("hard links unavailable: %v", err)
 	}
 
-	if _, err := InitReference(InitOptions{Path: repo, Link: true}); err == nil {
+	if _, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Link: true}); err == nil {
 		t.Fatal("InitReference() error = nil, want hard-link preflight rejection")
 	}
 	if _, err := os.Lstat(filepath.Join(repo, ascReferenceFile)); !os.IsNotExist(err) {
@@ -278,7 +280,7 @@ func TestInitReference_WritesOrdinaryRepositoryFiles(t *testing.T) {
 	writeDocsContainmentFile(t, filepath.Join(repo, "AGENTS.md"), "# Agents\n")
 	writeDocsContainmentFile(t, filepath.Join(repo, "CLAUDE.md"), "# Claude\n")
 
-	result, err := InitReference(InitOptions{Path: repo, Force: false, Link: true})
+	result, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: false, Link: true})
 	if err != nil {
 		t.Fatalf("InitReference() error = %v", err)
 	}
@@ -299,7 +301,7 @@ func TestInitReference_WritesOrdinaryRepositoryFiles(t *testing.T) {
 	}
 
 	// A rerun with --force must still overwrite the ordinary file in place.
-	rerun, err := InitReference(InitOptions{Path: repo, Force: true, Link: true})
+	rerun, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: true, Link: true})
 	if err != nil {
 		t.Fatalf("InitReference() rerun error = %v", err)
 	}
@@ -324,7 +326,7 @@ func TestInitReference_PreservesExistingFilePermissions(t *testing.T) {
 		t.Fatalf("Chmod() error = %v", err)
 	}
 
-	if _, err := InitReference(InitOptions{Path: repo, Force: true, Link: true}); err != nil {
+	if _, err := initReference(shared.DefaultDeps(), InitOptions{Path: repo, Force: true, Link: true}); err != nil {
 		t.Fatalf("InitReference() error = %v", err)
 	}
 

@@ -107,6 +107,17 @@ func (s *IO) stdinTerminal() bool {
 	return s.StdinTTY
 }
 
+// ChildStderr returns the stream a child process writes its stderr to: the
+// process stderr file itself when s.ErrOut writes to it, so a terminal stays a
+// terminal for the commands the child runs, and s.ErrOut otherwise, which then
+// receives the child's output through a pipe.
+func (s *IO) ChildStderr() io.Writer {
+	if _, ok := s.ErrOut.(processStderr); ok {
+		return os.Stderr
+	}
+	return s.ErrOut
+}
+
 // The process streams are resolved on each call, so a command built before
 // os.Stdin, os.Stdout or os.Stderr is replaced uses the replacement.
 type (

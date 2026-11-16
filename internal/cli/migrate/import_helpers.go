@@ -688,7 +688,7 @@ func uploadScreenshots(ctx context.Context, d *shared.Deps, client *asc.Client, 
 			// Each asset reserves, transfers, and commits under its own
 			// upload budget; a shared request deadline would truncate the
 			// transfer of the first large screenshot.
-			uploaded, failedFile, err := assets.UploadScreenshotAssetsConcurrently(ctx, client, setID, uploadFiles, uploadContext, func(filePath string) (*os.File, error) {
+			uploaded, failedFile, err := assets.UploadScreenshotAssetsConcurrently(ctx, d, client, setID, uploadFiles, uploadContext, func(filePath string) (*os.File, error) {
 				opened, _, err := plan.openedFile(filePath)
 				return opened, err
 			})

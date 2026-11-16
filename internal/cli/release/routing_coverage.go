@@ -72,7 +72,7 @@ func applyPreparedRoutingCoverageStep(ctx context.Context, d *shared.Deps, clien
 			}
 		}
 		if sameChecksum && details.DeliveryState == "COMPLETE" {
-			if err := routingcoveragecli.RevalidatePreparedRoutingCoverageFile(prepared); err != nil {
+			if err := routingcoveragecli.RevalidatePreparedRoutingCoverageFile(d, prepared); err != nil {
 				return stepOutcome{Details: details}, err
 			}
 			details.Action = "reuse"
@@ -85,7 +85,7 @@ func applyPreparedRoutingCoverageStep(ctx context.Context, d *shared.Deps, clien
 			return stepOutcome{Status: status, Message: message, Details: details, Persist: !dryRun}, nil
 		}
 		if sameChecksum && details.DeliveryState != "AWAITING_UPLOAD" && details.DeliveryState != "FAILED" {
-			if err := routingcoveragecli.RevalidatePreparedRoutingCoverageFile(prepared); err != nil {
+			if err := routingcoveragecli.RevalidatePreparedRoutingCoverageFile(d, prepared); err != nil {
 				return stepOutcome{Details: details}, err
 			}
 			details.Action = "wait"
@@ -101,7 +101,7 @@ func applyPreparedRoutingCoverageStep(ctx context.Context, d *shared.Deps, clien
 			if waitErr != nil {
 				return stepOutcome{Details: details}, waitErr
 			}
-			if err := routingcoveragecli.RevalidatePreparedRoutingCoverageFile(prepared); err != nil {
+			if err := routingcoveragecli.RevalidatePreparedRoutingCoverageFile(d, prepared); err != nil {
 				return stepOutcome{Details: details}, err
 			}
 			details.Action = "reuse"
