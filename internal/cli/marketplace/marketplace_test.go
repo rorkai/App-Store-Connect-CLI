@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -24,7 +25,8 @@ func assertMarketplaceUsageError(t *testing.T, newCommand func(*shared.Deps) *ff
 		Client: func() (*asc.Client, error) {
 			return nil, errors.New("unexpected client request")
 		},
-		IO: &shared.IO{Out: &stdout, ErrOut: &stderr},
+		IO:        &shared.IO{Out: &stdout, ErrOut: &stderr},
+		LookupEnv: os.LookupEnv,
 	})
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -75,7 +76,7 @@ func TestResolveSigningAssetsAvoidsProfileNamesHeldInTheAccount(t *testing.T) {
 	resolve := func(t *testing.T, client *asc.Client, resourceID, identifier string) {
 		t.Helper()
 		profile, _, created, err := resolveSigningAssets(context.Background(), client, signingAssetsOptions{
-			Now:                signingFetchNowFn,
+			Now:                time.Now,
 			BundleIDResourceID: resourceID,
 			BundleIdentifier:   identifier,
 			ProfileType:        "IOS_APP_STORE",
@@ -122,7 +123,7 @@ func TestResolveSigningAssetsAvoidsProfileNamesHeldInTheAccount(t *testing.T) {
 			account := &accountProfiles{t: t, profiles: []accountProfile{{
 				id:     "profile-elsewhere",
 				bundle: "bundle-elsewhere",
-				name:   profileCreateNameForTarget("IOS_APP_STORE", identifier, signingFetchNowFn()),
+				name:   profileCreateNameForTarget("IOS_APP_STORE", identifier, time.Now()),
 				state:  string(asc.ProfileStateActive),
 			}}}
 			client := newSigningFetchTestClient(t, account.roundTrip)

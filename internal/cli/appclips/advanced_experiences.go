@@ -347,7 +347,7 @@ Examples:
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app-clip-id or --bundle-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
-			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
+			appValue := strings.TrimSpace(d.ResolveAppID(*appID))
 			if appClipValue == "" && appValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required with --bundle-id")
 				return shared.MissingRequiredUsageError("--app")

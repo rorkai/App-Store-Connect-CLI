@@ -131,7 +131,7 @@ default observed in App Store Connect.
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return d.UsageError(err.Error())
 			}
-			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			resolvedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if resolvedAppID == "" {
 				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
@@ -218,7 +218,7 @@ Examples:
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return d.UsageError(err.Error())
 			}
-			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
+			resolvedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
 			if resolvedAppID == "" {
 				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}

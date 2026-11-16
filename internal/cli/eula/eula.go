@@ -69,7 +69,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			appValue := ""
 			if idValue == "" {
-				appValue = shared.ResolveAppID(*appID)
+				appValue = d.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --app is required (or set ASC_APP_ID)")
@@ -121,7 +121,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appValue := shared.ResolveAppID(*appID)
+			appValue := d.ResolveAppID(*appID)
 			if appValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -165,7 +165,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appValue := shared.ResolveAppID(*appID)
+			appValue := d.ResolveAppID(*appID)
 			if appValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")

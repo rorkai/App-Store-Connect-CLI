@@ -33,7 +33,7 @@ func newIAPPricingPPPCommand(d *shared.Deps) *ffcli.Command {
 					if strings.TrimSpace(*iapID) == "" {
 						return d.RequiredFlag("--iap-id")
 					}
-					return d.RequireAppForStableSelector(shared.ResolveAppID(*appID), strings.TrimSpace(*iapID), "--iap-id")
+					return d.RequireAppForStableSelector(d.ResolveAppID(*appID), strings.TrimSpace(*iapID), "--iap-id")
 				},
 				Resolve: func(ctx context.Context, client *asc.Client) (shared.PriceSchedulePPPSurface, error) {
 					id, err := resolveIAPLookupIDWithTimeout(ctx, d, client, *appID, strings.TrimSpace(*iapID))
