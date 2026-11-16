@@ -327,3 +327,17 @@ func (store *intentTestStore) Ensure(_ context.Context, input PutObject) (Stored
 	}
 	return StoredObject{Key: input.Key, SHA256: input.SHA256, SizeBytes: input.SizeBytes, ContentType: input.ContentType, Status: "ensured"}, nil
 }
+
+func TestPreparePrivatePublishIntentChecksProfileExpiryOnItsClock(t *testing.T) {
+	injected := time.Date(2019, 6, 1, 0, 0, 0, 0, time.UTC)
+	descriptor := minimalDescriptor([]byte("ipa"))
+	descriptor.Signing.ExpiresAt = "2020-01-01T00:00:00Z"
+	_, err := PreparePrivatePublishIntent(context.Background(), descriptor, PublishOptions{
+		Store: &intentTestStore{now: func() time.Time { return injected }}, Verifier: &recordingVerifier{}, Bucket: "bucket", Prefix: "team/app", Access: AccessPrivate,
+		URLTTL: time.Hour, DownloadGrace: 10 * time.Minute, CredentialLimit: injected.Add(24 * time.Hour),
+		Now: func() time.Time { return injected }, RandomID: func() (string, error) { return "stable-link", nil },
+	})
+	if err != nil {
+		t.Fatalf("PreparePrivatePublishIntent() at %s with a profile that expires on %s: %v", injected.Format(time.RFC3339), descriptor.Signing.ExpiresAt, err)
+	}
+}

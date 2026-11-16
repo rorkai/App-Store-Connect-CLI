@@ -39,7 +39,7 @@ func TestLoadPreparedBundleValidatesArtifact(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := LoadPreparedBundle(dir)
+	got, err := LoadPreparedBundle(dir, time.Now())
 	if err != nil {
 		t.Fatalf("LoadPreparedBundle() error = %v", err)
 	}
@@ -51,7 +51,7 @@ func TestLoadPreparedBundleValidatesArtifact(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "payload", "app.ipa"), []byte("changed"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadPreparedBundle(dir); err == nil || !strings.Contains(err.Error(), "size") {
+	if _, err := LoadPreparedBundle(dir, time.Now()); err == nil || !strings.Contains(err.Error(), "size") {
 		t.Fatalf("error = %v, want early size mismatch", err)
 	}
 }
@@ -78,7 +78,7 @@ func TestLoadPreparedBundleContextPinsSelectedRoot(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		bundle, err := LoadPreparedBundleContext(context.Background(), root)
+		bundle, err := LoadPreparedBundleContext(context.Background(), root, time.Now())
 		if err != nil {
 			t.Fatalf("LoadPreparedBundleContext() error = %v", err)
 		}
@@ -117,7 +117,7 @@ func TestLoadPreparedBundleContextPinsSelectedRoot(t *testing.T) {
 		}
 		writePreparedBundleFixture(t, selected, []byte("replacement"), "Replacement")
 
-		if bundle, err := LoadPreparedBundleContext(context.Background(), root); err == nil {
+		if bundle, err := LoadPreparedBundleContext(context.Background(), root, time.Now()); err == nil {
 			_ = bundle.IPA.Close()
 			t.Fatal("LoadPreparedBundleContext() accepted replacement directory")
 		}
@@ -157,7 +157,7 @@ func TestPreparedSigningRejectsConflictingFingerprintAlias(t *testing.T) {
 func TestValidateDescriptorRejectsUnsafePresentationText(t *testing.T) {
 	descriptor := minimalDescriptor([]byte("ipa"))
 	descriptor.App.Title = "Trusted\u202eexe"
-	if err := validateDescriptor(descriptor); err == nil || !strings.Contains(err.Error(), "bidi") {
+	if err := validateDescriptor(descriptor, time.Now()); err == nil || !strings.Contains(err.Error(), "bidi") {
 		t.Fatalf("error = %v, want bidi rejection", err)
 	}
 }
@@ -176,7 +176,7 @@ func TestValidateDescriptorRequiresAllVerificationsAndExactFullScope(t *testing.
 			case "scope":
 				descriptor.Signing.CodeSignatureVerification.Scope = "main-executable-and-profile-certificate-binding"
 			}
-			if err := validateDescriptor(descriptor); err == nil || (!strings.Contains(err.Error(), "must be verified") && !strings.Contains(err.Error(), "scope must be")) {
+			if err := validateDescriptor(descriptor, time.Now()); err == nil || (!strings.Contains(err.Error(), "must be verified") && !strings.Contains(err.Error(), "scope must be")) {
 				t.Fatalf("error = %v", err)
 			}
 		})
@@ -198,7 +198,7 @@ func TestValidateDescriptorRequiresSignerFingerprintBoundToProfile(t *testing.T)
 		t.Run(name, func(t *testing.T) {
 			descriptor := minimalDescriptor([]byte("ipa"))
 			mutate(&descriptor)
-			if err := validateDescriptor(descriptor); err == nil {
+			if err := validateDescriptor(descriptor, time.Now()); err == nil {
 				t.Fatal("expected signer fingerprint validation error")
 			}
 		})
@@ -622,7 +622,7 @@ func TestReverifyRejectsTamperedSensitiveLinkBinding(t *testing.T) {
 	receipt.DirectInstallURL = redactDirectInstallURL(links.DirectInstallURL)
 	markRecoveryFixtureVerified(&receipt)
 	links.ManifestURL = "https://evil.example/other.plist?secret=tampered"
-	if err := Reverify(context.Background(), &recordingVerifier{}, receipt, links, time.Now()); err == nil || !strings.Contains(err.Error(), "does not reference") {
+	if err := Reverify(context.Background(), &recordingVerifier{}, receipt, links, time.Now); err == nil || !strings.Contains(err.Error(), "does not reference") {
 		t.Fatalf("error = %v", err)
 	}
 }
@@ -646,7 +646,7 @@ func TestReverifyRejectsDifferentPrivateOriginWithExpectedObjectPath(t *testing.
 	receipt.InstallURL = redactBearerURL(links.InstallURL)
 	receipt.DirectInstallURL = redactDirectInstallURL(links.DirectInstallURL)
 	markRecoveryFixtureVerified(&receipt)
-	if err := Reverify(context.Background(), &recordingVerifier{}, receipt, links, time.Now()); err == nil || !strings.Contains(err.Error(), "download endpoint") {
+	if err := Reverify(context.Background(), &recordingVerifier{}, receipt, links, time.Now); err == nil || !strings.Contains(err.Error(), "download endpoint") {
 		t.Fatalf("error = %v", err)
 	}
 }
@@ -674,7 +674,7 @@ func TestReverifyAcceptsBoundPrivatePathStyleLinks(t *testing.T) {
 	receipt.Signing.ProfileExpiresAt = expires.Add(time.Hour).Format(time.RFC3339)
 	bindGeneratedRecoveryObjects(t, &receipt, links)
 	verifier := &recordingVerifier{}
-	if err := Reverify(context.Background(), verifier, receipt, links, signedAt.Add(time.Minute)); err != nil {
+	if err := Reverify(context.Background(), verifier, receipt, links, func() time.Time { return signedAt.Add(time.Minute) }); err != nil {
 		t.Fatalf("Reverify() error = %v", err)
 	}
 	if len(verifier.urls) != 3 {
@@ -730,7 +730,7 @@ func TestReverifyRequiresPrivateSignaturesToMatchReceiptDeadlines(t *testing.T) 
 				bindGeneratedRecoveryObjects(t, &receipt, links)
 
 				verifier := &recordingVerifier{}
-				err := Reverify(context.Background(), verifier, receipt, links, signedAt.Add(time.Minute))
+				err := Reverify(context.Background(), verifier, receipt, links, func() time.Time { return signedAt.Add(time.Minute) })
 				if test.wantError {
 					if err == nil || !strings.Contains(err.Error(), "signed expiry does not match") {
 						t.Fatalf("Reverify() error = %v, want signed deadline mismatch", err)
@@ -789,7 +789,7 @@ func TestReverifyNormalizesAndValidatesStoredContentTypes(t *testing.T) {
 	equivalent.Manifest.ContentType = " APPLICATION/XML "
 	equivalent.Page.ContentType = " Text/HTML;charset=UTF-8 "
 	verifier := &recordingVerifier{}
-	if err := Reverify(context.Background(), verifier, equivalent, links, time.Now()); err != nil {
+	if err := Reverify(context.Background(), verifier, equivalent, links, time.Now); err != nil {
 		t.Fatalf("Reverify() rejected equivalent MIME spellings: %v", err)
 	}
 	if len(verifier.urls) != 3 {
@@ -808,7 +808,7 @@ func TestReverifyNormalizesAndValidatesStoredContentTypes(t *testing.T) {
 			invalid := receipt
 			test.mutate(&invalid)
 			verifier := &recordingVerifier{}
-			if err := Reverify(context.Background(), verifier, invalid, links, time.Now()); err == nil || !strings.Contains(err.Error(), "content type") {
+			if err := Reverify(context.Background(), verifier, invalid, links, time.Now); err == nil || !strings.Contains(err.Error(), "content type") {
 				t.Fatalf("Reverify() error = %v, want content-type rejection", err)
 			}
 			if len(verifier.urls) != 0 {
@@ -835,7 +835,7 @@ func TestReverifyRequiresExactPublicBaseURL(t *testing.T) {
 	receipt.InstallURL = links.InstallURL
 	receipt.DirectInstallURL = redactDirectInstallURL(links.DirectInstallURL)
 	markRecoveryFixtureVerified(&receipt)
-	if err := Reverify(context.Background(), &recordingVerifier{}, receipt, links, time.Now()); err == nil || !strings.Contains(err.Error(), "public base") {
+	if err := Reverify(context.Background(), &recordingVerifier{}, receipt, links, time.Now); err == nil || !strings.Contains(err.Error(), "public base") {
 		t.Fatalf("error = %v", err)
 	}
 }
@@ -1253,4 +1253,18 @@ type publishVerifyRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f publishVerifyRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
 	return f(request)
+}
+
+func TestPublishChecksProfileExpiryOnItsClock(t *testing.T) {
+	descriptor := minimalDescriptor([]byte("ipa"))
+	descriptor.Signing.ExpiresAt = "2020-01-01T00:00:00Z"
+	injected := time.Date(2019, 6, 1, 0, 0, 0, 0, time.UTC)
+	_, _, err := Publish(context.Background(), bytes.NewReader([]byte("ipa")), descriptor, PublishOptions{
+		Store: &fakeObjectStore{}, Verifier: &recordingVerifier{}, Bucket: "bucket", Prefix: "team/app", Access: AccessPrivate,
+		URLTTL: time.Hour, DownloadGrace: 10 * time.Minute, Now: func() time.Time { return injected },
+		RandomID: func() (string, error) { return "link-id", nil },
+	})
+	if err != nil {
+		t.Fatalf("Publish() at %s with a profile that expires on %s: %v", injected.Format(time.RFC3339), descriptor.Signing.ExpiresAt, err)
+	}
 }

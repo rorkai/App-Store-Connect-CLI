@@ -137,7 +137,7 @@ type PreparedBundle struct {
 	IPASize          int64
 }
 
-func LoadPreparedBundle(bundleDir string) (*PreparedBundle, error) {
+func LoadPreparedBundle(bundleDir string, now time.Time) (*PreparedBundle, error) {
 	trimmed := strings.TrimSpace(bundleDir)
 	if trimmed == "" {
 		return nil, fmt.Errorf("bundle directory is required")
@@ -147,13 +147,14 @@ func LoadPreparedBundle(bundleDir string) (*PreparedBundle, error) {
 		return nil, fmt.Errorf("open prepared bundle: %w", err)
 	}
 	defer root.Close()
-	return LoadPreparedBundleContext(context.Background(), root)
+	return LoadPreparedBundleContext(context.Background(), root, now)
 }
 
 // LoadPreparedBundleContext reads a prepared bundle through an already-pinned
-// root. The caller owns root and must retain it for the complete publication
-// workflow so a lexical path replacement cannot select a different bundle.
-func LoadPreparedBundleContext(ctx context.Context, root rootfs.Root) (*PreparedBundle, error) {
+// root and checks its signing profile has not expired at now. The caller owns
+// root and must retain it for the complete publication workflow so a lexical
+// path replacement cannot select a different bundle.
+func LoadPreparedBundleContext(ctx context.Context, root rootfs.Root, now time.Time) (*PreparedBundle, error) {
 	if err := contextError(ctx); err != nil {
 		return nil, err
 	}
@@ -194,7 +195,7 @@ func LoadPreparedBundleContext(ctx context.Context, root rootfs.Root) (*Prepared
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return nil, fmt.Errorf("decode bundle.json: trailing content")
 	}
-	if err := validateDescriptor(descriptor); err != nil {
+	if err := validateDescriptor(descriptor, now); err != nil {
 		return nil, err
 	}
 	artifactPath := descriptor.Artifact.RelativePath
@@ -250,7 +251,7 @@ func LoadPreparedBundleContext(ctx context.Context, root rootfs.Root) (*Prepared
 	}, nil
 }
 
-func validateDescriptor(descriptor PreparedDescriptor) error {
+func validateDescriptor(descriptor PreparedDescriptor, now time.Time) error {
 	if descriptor.SchemaVersion != "1" {
 		return fmt.Errorf("bundle.json schemaVersion %q is not supported", descriptor.SchemaVersion)
 	}
@@ -327,7 +328,7 @@ func validateDescriptor(descriptor PreparedDescriptor) error {
 	if err != nil {
 		return fmt.Errorf("bundle.json signing.expiresAt must be RFC3339: %w", err)
 	}
-	if !expiresAt.After(time.Now()) {
+	if !expiresAt.After(now) {
 		return fmt.Errorf("bundle.json signing profile is expired")
 	}
 	if descriptor.Artifact.RelativePath != "payload/app.ipa" {
@@ -473,7 +474,8 @@ func Publish(ctx context.Context, ipa io.ReadSeeker, descriptor PreparedDescript
 	if options.Store == nil || options.Verifier == nil {
 		return PublishReceipt{}, SensitiveLinks{}, fmt.Errorf("object store and verifier are required")
 	}
-	if err := validateDescriptor(descriptor); err != nil {
+	clock := publishClock(options)
+	if err := validateDescriptor(descriptor, clock()); err != nil {
 		return PublishReceipt{}, SensitiveLinks{}, err
 	}
 	prefix, err := NormalizePrefix(options.Prefix)
@@ -493,10 +495,6 @@ func Publish(ctx context.Context, ipa io.ReadSeeker, descriptor PreparedDescript
 		if _, err := ValidatePublicBaseURL(options.PublicBaseURL); err != nil {
 			return PublishReceipt{}, SensitiveLinks{}, err
 		}
-	}
-	clock := func() time.Time { return time.Now().UTC() }
-	if options.Now != nil {
-		clock = func() time.Time { return options.Now().UTC() }
 	}
 	now := clock()
 	profileExpiry, _ := time.Parse(time.RFC3339, descriptor.Signing.ExpiresAt)
@@ -644,8 +642,10 @@ func Publish(ctx context.Context, ipa io.ReadSeeker, descriptor PreparedDescript
 	return receipt, sensitive, nil
 }
 
-func Reverify(ctx context.Context, verifier Verifier, receipt PublishReceipt, links SensitiveLinks, now time.Time) error {
-	return reverifyWithClock(ctx, verifier, receipt, links, now, func() time.Time { return time.Now().UTC() })
+// Reverify checks a stored publication against clock: the saved profile and
+// links when it starts, and the profile again after the remote checks.
+func Reverify(ctx context.Context, verifier Verifier, receipt PublishReceipt, links SensitiveLinks, clock func() time.Time) error {
+	return reverifyWithClock(ctx, verifier, receipt, links, clock(), clock)
 }
 
 func reverifyWithClock(ctx context.Context, verifier Verifier, receipt PublishReceipt, links SensitiveLinks, now time.Time, clock func() time.Time) error {

@@ -78,7 +78,7 @@ func reverifyPrivatePublish(ctx context.Context, d *shared.Deps, request private
 	if !found {
 		return publishExecutionResult{}, fmt.Errorf("sensitive publication state does not exist")
 	}
-	bundle, err := loadPreparedBundle(ctx, bundleRoot)
+	bundle, err := loadPreparedBundle(ctx, bundleRoot, d.Now())
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("load prepared bundle: %w", err)
 	}
@@ -93,7 +93,7 @@ func reverifyPrivatePublish(ctx context.Context, d *shared.Deps, request private
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("configure publication verifier: %w", err)
 	}
-	if err := reverifyPublication(ctx, verifier, state.Receipt, state.Links, time.Now().UTC()); err != nil {
+	if err := reverifyPublication(ctx, verifier, state.Receipt, state.Links, d.Now); err != nil {
 		return publishExecutionResult{}, fmt.Errorf("reverify publication: %w", err)
 	}
 	return publishExecutionResult{Receipt: state.Receipt, Recovered: true}, nil
