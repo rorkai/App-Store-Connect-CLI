@@ -209,7 +209,7 @@ func TestExecutePrivatePublishIntentPersistsBeforeExecutionAndRecoversWithoutPre
 	}
 
 	bundleDir, bundle := privatePublishIntentTestBundle(t)
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*core.PreparedBundle, error) { return bundle(), nil }
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*core.PreparedBundle, error) { return bundle(), nil }
 	storeCalls := 0
 	newObjectStore = func(ctx context.Context, config core.S3StoreConfig) (core.ObjectStore, time.Time, error) {
 		storeCalls++
@@ -319,7 +319,7 @@ func TestExecutePrivatePublishIntentRejectsChangedDestinationBeforeRemoteExecuti
 		newPrivatePublicationVerifier, afterPrivatePublicationIntentPersisted = originalVerifier, originalAfterPersist
 	})
 	bundleDir, bundle := privatePublishIntentTestBundle(t)
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*core.PreparedBundle, error) { return bundle(), nil }
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*core.PreparedBundle, error) { return bundle(), nil }
 	newObjectStore = func(context.Context, core.S3StoreConfig) (core.ObjectStore, time.Time, error) {
 		return noOpStore{}, time.Time{}, nil
 	}
@@ -361,7 +361,7 @@ func TestExecutePrivatePublishIntentRejectsCredentialClampedLifetimeBeforePersis
 		newPrivatePublicationVerifier = originalVerifier
 	})
 	bundleDir, bundle := privatePublishIntentTestBundle(t)
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*core.PreparedBundle, error) { return bundle(), nil }
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*core.PreparedBundle, error) { return bundle(), nil }
 	newObjectStore = func(context.Context, core.S3StoreConfig) (core.ObjectStore, time.Time, error) {
 		return noOpStore{}, time.Now().Add(2 * time.Hour), nil
 	}
@@ -396,7 +396,7 @@ func TestExecutePrivatePublishIntentRejectsCredentialClampedLifetimeBeforePersis
 func TestExecutePrivatePublishIntentRejectsSwappedPreparedBundleBeforePresignOrPut(t *testing.T) {
 	bundleDir := t.TempDir()
 	writePrivatePublishPreparedBundle(t, bundleDir, []byte("authorized ipa"), "authorized-profile")
-	loaded, err := core.LoadPreparedBundle(bundleDir)
+	loaded, err := core.LoadPreparedBundle(bundleDir, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -76,7 +76,7 @@ func PreparePrivatePublishIntent(ctx context.Context, descriptor PreparedDescrip
 	if options.Access != AccessPrivate {
 		return PrivatePublishIntent{}, fmt.Errorf("private publication intent requires private access")
 	}
-	if err := validateDescriptor(descriptor); err != nil {
+	if err := validateDescriptor(descriptor, publishClock(options)()); err != nil {
 		return PrivatePublishIntent{}, err
 	}
 	prefix, err := NormalizePrefix(options.Prefix)
@@ -233,7 +233,7 @@ func validatePrivatePublishIntent(descriptor PreparedDescriptor, options Publish
 	if options.Access != AccessPrivate {
 		return fmt.Errorf("private publication intent requires private access")
 	}
-	if err := validateDescriptor(descriptor); err != nil {
+	if err := validateDescriptor(descriptor, now); err != nil {
 		return err
 	}
 	prefix, err := NormalizePrefix(options.Prefix)

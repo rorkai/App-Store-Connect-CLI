@@ -122,7 +122,7 @@ func executePrivatePublishIntent(ctx context.Context, d *shared.Deps, request pr
 	}
 	defer artifacts.close()
 
-	bundle, err := loadPreparedBundle(ctx, bundleRoot)
+	bundle, err := loadPreparedBundle(ctx, bundleRoot, d.Now())
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("distribute private publish intent: %w", err)
 	}
@@ -165,7 +165,7 @@ func executePrivatePublishIntent(ctx context.Context, d *shared.Deps, request pr
 			if err != nil {
 				return publishExecutionResult{}, fmt.Errorf("configure publication verifier: %w", err)
 			}
-			if err := reverifyPublication(ctx, verifier, receipt, state.Intent.Links, time.Now().UTC()); err != nil {
+			if err := reverifyPublication(ctx, verifier, receipt, state.Intent.Links, d.Now); err != nil {
 				return publishExecutionResult{}, fmt.Errorf("reverify recovered private publication: %w", err)
 			}
 			return publishExecutionResult{Receipt: receipt, Recovered: true}, nil
@@ -190,7 +190,7 @@ func executePrivatePublishIntent(ctx context.Context, d *shared.Deps, request pr
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("configure publication verifier: %w", err)
 	}
-	publicationNow := time.Now().UTC()
+	publicationNow := d.Now().UTC()
 	options := core.PublishOptions{
 		Store: publicationStore{delegate: store, uploadTimeout: d.UploadTimeout}, Verifier: verifier, Bucket: request.Bucket, Prefix: normalizedPrefix, Access: core.AccessPrivate,
 		URLTTL: request.URLTTL, DownloadGrace: request.DownloadGrace, CredentialLimit: credentialLimit,
@@ -283,7 +283,7 @@ func reverifyPrivatePublishIntent(ctx context.Context, d *shared.Deps, request p
 	if !found {
 		return publishExecutionResult{}, fmt.Errorf("private publication intent does not exist")
 	}
-	bundle, err := loadPreparedBundle(ctx, bundleRoot)
+	bundle, err := loadPreparedBundle(ctx, bundleRoot, d.Now())
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("load prepared bundle: %w", err)
 	}
@@ -305,7 +305,7 @@ func reverifyPrivatePublishIntent(ctx context.Context, d *shared.Deps, request p
 	if err != nil {
 		return publishExecutionResult{}, fmt.Errorf("configure publication verifier: %w", err)
 	}
-	if err := reverifyPublication(ctx, verifier, receipt, state.Intent.Links, time.Now().UTC()); err != nil {
+	if err := reverifyPublication(ctx, verifier, receipt, state.Intent.Links, d.Now); err != nil {
 		return publishExecutionResult{}, fmt.Errorf("reverify private publication intent: %w", err)
 	}
 	return publishExecutionResult{Receipt: receipt, Recovered: true}, nil
