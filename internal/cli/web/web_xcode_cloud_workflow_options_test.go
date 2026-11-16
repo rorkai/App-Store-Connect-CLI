@@ -12,6 +12,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -27,7 +28,8 @@ func TestBindJSONOnlyOutputFlagsDefaultsToJSON(t *testing.T) {
 }
 
 func TestWorkflowsOptionsCommandHierarchy(t *testing.T) {
-	cmd := webXcodeCloudWorkflowsCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowsCommand(d)
 	optionsCmd := findSub(cmd, "options")
 	if optionsCmd == nil {
 		t.Fatal("expected 'options' subcommand")
@@ -57,7 +59,8 @@ func TestWorkflowsOptionsCommandHierarchy(t *testing.T) {
 }
 
 func TestWorkflowsOptionsGroupReturnsErrHelp(t *testing.T) {
-	cmd := webXcodeCloudWorkflowOptionsCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := webXcodeCloudWorkflowOptionsCommand(d)
 	err := cmd.Exec(context.Background(), nil)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -70,7 +73,7 @@ func TestWorkflowsOptionsCommandsSuccess(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		build     func() *ffcli.Command
+		build     func(*shared.Deps) *ffcli.Command
 		args      []string
 		wantPath  string
 		wantQuery map[string]string
@@ -240,12 +243,14 @@ func TestWorkflowsOptionsCommandsSuccess(t *testing.T) {
 				}, "cache", nil
 			}
 
-			cmd := tt.build()
+			d, depsStdout, depsStderr := newWebTestDeps()
+
+			cmd := tt.build(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 
-			stdout, _ := captureOutput(t, func() {
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := cmd.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("exec error: %v", err)
 				}
@@ -259,7 +264,7 @@ func TestWorkflowsOptionsCommandsSuccess(t *testing.T) {
 func TestWorkflowsOptionsMissingFlags(t *testing.T) {
 	tests := []struct {
 		name    string
-		build   func() *ffcli.Command
+		build   func(*shared.Deps) *ffcli.Command
 		args    []string
 		wantErr string
 	}{
@@ -285,12 +290,13 @@ func TestWorkflowsOptionsMissingFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := tt.build()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := tt.build(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
 
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -306,7 +312,7 @@ func TestWorkflowsOptionsMissingFlags(t *testing.T) {
 func TestWorkflowsOptionsRejectUnsupportedOutput(t *testing.T) {
 	tests := []struct {
 		name  string
-		build func() *ffcli.Command
+		build func(*shared.Deps) *ffcli.Command
 		args  []string
 	}{
 		{
@@ -348,7 +354,8 @@ func TestWorkflowsOptionsRejectUnsupportedOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := tt.build()
+			d, _, _ := newWebTestDeps()
+			cmd := tt.build(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
@@ -393,7 +400,8 @@ func TestWorkflowsOptionsSchemesRejectsExplicitNonPositiveLimit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webXcodeCloudWorkflowOptionsSchemesCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webXcodeCloudWorkflowOptionsSchemesCommand(d)
 			if err := cmd.FlagSet.Parse([]string{
 				"--apple-id", "user@example.com",
 				"--product-id", "prod-1",
@@ -402,7 +410,7 @@ func TestWorkflowsOptionsSchemesRejectsExplicitNonPositiveLimit(t *testing.T) {
 				t.Fatalf("parse error: %v", err)
 			}
 
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)

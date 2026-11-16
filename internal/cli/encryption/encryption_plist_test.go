@@ -16,7 +16,7 @@ func TestUpdatePlistExemption_ExistingTrueSetsFalse(t *testing.T) {
 		"ITSAppUsesNonExemptEncryption": true,
 	})
 
-	if err := updatePlistExemption(io.Discard, plistPath); err != nil {
+	if err := updatePlistExemption(io.Discard, filepath.Abs, plistPath); err != nil {
 		t.Fatalf("updatePlistExemption(io.Discard, ) error: %v", err)
 	}
 
@@ -39,7 +39,7 @@ func TestUpdatePlistExemption_UpdatesBinaryPlist(t *testing.T) {
 		"CFBundleIdentifier": "com.example.binary",
 	})
 
-	if err := updatePlistExemption(io.Discard, plistPath); err != nil {
+	if err := updatePlistExemption(io.Discard, filepath.Abs, plistPath); err != nil {
 		t.Fatalf("updatePlistExemption(io.Discard, ) error: %v", err)
 	}
 
@@ -67,7 +67,7 @@ func TestUpdatePlistExemption_RejectsSymlink(t *testing.T) {
 		t.Skipf("symlink not supported: %v", err)
 	}
 
-	err := updatePlistExemption(io.Discard, link)
+	err := updatePlistExemption(io.Discard, filepath.Abs, link)
 	if err == nil {
 		t.Fatal("expected symlink rejection error, got nil")
 	}
@@ -106,7 +106,7 @@ func TestUpdatePlistExemption_RejectsSymlinkedParentDirectory(t *testing.T) {
 		t.Skipf("symlink not supported: %v", err)
 	}
 
-	err = updatePlistExemption(io.Discard, filepath.Join(linkDir, "Info.plist"))
+	err = updatePlistExemption(io.Discard, filepath.Abs, filepath.Join(linkDir, "Info.plist"))
 	if err == nil {
 		t.Fatal("expected symlink component rejection error, got nil")
 	}

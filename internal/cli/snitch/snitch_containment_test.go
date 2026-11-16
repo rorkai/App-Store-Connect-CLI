@@ -23,7 +23,7 @@ func TestWriteLocalLogRefusesSymlinkedLogAndLeavesModeIntact(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	err := writeLocalLog(LogEntry{Description: "friction", Severity: "bug", Timestamp: time.Now().UTC()})
+	err := writeLocalLog(newSnitchTestDeps(), LogEntry{Description: "friction", Severity: "bug", Timestamp: time.Now().UTC()})
 	if err == nil {
 		t.Fatal("writeLocalLog() error = nil, want symlink rejection")
 	}
@@ -56,7 +56,7 @@ func TestWriteLocalLogRefusesSymlinkedASCDirectory(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	err := writeLocalLog(LogEntry{Description: "friction", Severity: "bug", Timestamp: time.Now().UTC()})
+	err := writeLocalLog(newSnitchTestDeps(), LogEntry{Description: "friction", Severity: "bug", Timestamp: time.Now().UTC()})
 	if err == nil {
 		t.Fatal("writeLocalLog() error = nil, want symlink rejection")
 	}
@@ -74,10 +74,10 @@ func TestWriteLocalLogAppendsEntriesWithSecureMode(t *testing.T) {
 
 	first := LogEntry{Description: "first", Severity: "bug", Timestamp: time.Now().UTC()}
 	second := LogEntry{Description: "second", Severity: "friction", Timestamp: time.Now().UTC()}
-	if err := writeLocalLog(first); err != nil {
+	if err := writeLocalLog(newSnitchTestDeps(), first); err != nil {
 		t.Fatalf("writeLocalLog() error = %v", err)
 	}
-	if err := writeLocalLog(second); err != nil {
+	if err := writeLocalLog(newSnitchTestDeps(), second); err != nil {
 		t.Fatalf("writeLocalLog() error = %v", err)
 	}
 
@@ -90,7 +90,7 @@ func TestWriteLocalLogAppendsEntriesWithSecureMode(t *testing.T) {
 		t.Fatalf("log mode = %v, want 0600", info.Mode().Perm())
 	}
 
-	entries, err := readLocalLog(logPath)
+	entries, err := readLocalLog(newSnitchTestDeps(), logPath)
 	if err != nil {
 		t.Fatalf("readLocalLog() error = %v", err)
 	}
@@ -110,7 +110,7 @@ func TestReadLocalLogRefusesSymlinkedLog(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	entries, err := readLocalLog(logPath)
+	entries, err := readLocalLog(newSnitchTestDeps(), logPath)
 	if err == nil {
 		t.Fatalf("readLocalLog() error = nil, want symlink rejection (got %#v)", entries)
 	}
@@ -134,7 +134,7 @@ func TestReadLocalLogPreservesWhitespaceInPath(t *testing.T) {
 	writeLogEntry(exactPath, "exact whitespace path")
 	writeLogEntry(trimmedPath, "trimmed sibling")
 
-	entries, err := readLocalLog(exactPath)
+	entries, err := readLocalLog(newSnitchTestDeps(), exactPath)
 	if err != nil {
 		t.Fatalf("readLocalLog(%q) error = %v", exactPath, err)
 	}

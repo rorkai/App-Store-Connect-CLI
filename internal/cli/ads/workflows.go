@@ -46,7 +46,7 @@ func platformCampaignStatusWorkflowCommand(d *shared.Deps, name, status, shortHe
 		ShortHelp:  shortHelp,
 		LongHelp:   platformCampaignStatusWorkflowHelp(name, status, shortHelp),
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			return executePlatformCampaignStatusWorkflow(ctx, d, name, status, flags)
 		},

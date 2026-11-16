@@ -26,7 +26,7 @@ func TestSaveCheckpointDoesNotWriteThroughPredictableTemporarySymlink(t *testing
 	if got := readContainmentFile(t, sentinelPath); got != "original" {
 		t.Fatalf("sentinel content = %q, want %q", got, "original")
 	}
-	loaded, err := loadCheckpoint(checkpointPath)
+	loaded, err := loadCheckpoint(releaseTestDeps(), checkpointPath)
 	if err != nil {
 		t.Fatalf("loadCheckpoint() error = %v", err)
 	}
@@ -120,7 +120,7 @@ func TestLoadCheckpointRefusesSymlinkedCheckpoint(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	loaded, err := loadCheckpoint(checkpointPath)
+	loaded, err := loadCheckpoint(releaseTestDeps(), checkpointPath)
 	if err == nil {
 		t.Fatalf("loadCheckpoint() error = nil, want symlink rejection (got %#v)", loaded)
 	}
@@ -147,7 +147,7 @@ func TestSaveAndLoadCheckpointRoundTripsOrdinaryFile(t *testing.T) {
 		t.Fatalf("saveCheckpoint(d, ) overwrite error = %v", err)
 	}
 
-	loaded, err := loadCheckpoint(checkpointPath)
+	loaded, err := loadCheckpoint(releaseTestDeps(), checkpointPath)
 	if err != nil {
 		t.Fatalf("loadCheckpoint() error = %v", err)
 	}

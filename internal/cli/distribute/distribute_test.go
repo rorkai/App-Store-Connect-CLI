@@ -1,9 +1,9 @@
 package distribute
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,7 +18,7 @@ func TestInspectCommandPropagatesCancellation(t *testing.T) {
 	if err := os.WriteFile(ipaPath, []byte("not a zip"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	command := inspectCommand()
+	command := inspectCommand(newDistributeTestDeps())
 	if err := command.Parse([]string{"--ipa", ipaPath, "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
@@ -136,22 +136,22 @@ func TestRenderInspectionDeviceDisclosure(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			output := captureStdout(t, func() {
-				if err := renderInspection(result, test.markdown); err != nil {
-					t.Fatal(err)
-				}
-			})
+			var out bytes.Buffer
+			if err := renderInspection(&out, result, test.markdown); err != nil {
+				t.Fatal(err)
+			}
+			output := out.String()
 			if output != test.wantPublic {
 				t.Fatalf("public %s renderer output:\n%s\nwant:\n%s", test.name, output, test.wantPublic)
 			}
 
 			privateResult := result
 			privateResult.Signing.Devices = nil
-			output = captureStdout(t, func() {
-				if err := renderInspection(privateResult, test.markdown); err != nil {
-					t.Fatal(err)
-				}
-			})
+			out.Reset()
+			if err := renderInspection(&out, privateResult, test.markdown); err != nil {
+				t.Fatal(err)
+			}
+			output = out.String()
 			if output != test.wantPrivate {
 				t.Fatalf("private %s renderer output:\n%s\nwant:\n%s", test.name, output, test.wantPrivate)
 			}
@@ -166,8 +166,8 @@ func TestDistributionCommandsHonorAlreadyCanceledContext(t *testing.T) {
 		name string
 		cmd  *ffcli.Command
 	}{
-		{name: "inspect", cmd: inspectCommand()},
-		{name: "prepare", cmd: prepareCommand()},
+		{name: "inspect", cmd: inspectCommand(newDistributeTestDeps())},
+		{name: "prepare", cmd: prepareCommand(newDistributeTestDeps())},
 	} {
 		t.Run(command.name, func(t *testing.T) {
 			if err := command.cmd.Exec(ctx, nil); !errors.Is(err, context.Canceled) {
@@ -175,29 +175,4 @@ func TestDistributionCommandsHonorAlreadyCanceledContext(t *testing.T) {
 			}
 		})
 	}
-}
-
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	original := os.Stdout
-	os.Stdout = writer
-	t.Cleanup(func() { os.Stdout = original })
-
-	fn()
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = original
-	output, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return string(output)
 }

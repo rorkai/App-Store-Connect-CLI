@@ -12,7 +12,8 @@ import (
 )
 
 func TestWebNextBuildNumberHierarchy(t *testing.T) {
-	settings := findSub(WebXcodeCloudCommand(), "settings")
+	d, _, _ := newWebTestDeps()
+	settings := findSub(newWebXcodeCloudCommand(d), "settings")
 	if settings == nil {
 		t.Fatal("expected settings subcommand")
 	}
@@ -38,11 +39,12 @@ func TestWebNextBuildNumberShowOmitsSensitiveURL(t *testing.T) {
 		return nextBuildNumberResponse(req, http.StatusOK, `{"next_build_number":102,"testflight_url":"https://example.invalid/sensitive?token=secret"}`), nil
 	})
 
-	cmd := webNextBuildNumberShow()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webNextBuildNumberShow(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -95,11 +97,12 @@ func TestWebNextBuildNumberSetReadsWritesAndVerifies(t *testing.T) {
 		}
 	})
 
-	cmd := webNextBuildNumberSet()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webNextBuildNumberSet(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--value", "102", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -126,7 +129,8 @@ func TestWebNextBuildNumberSetRejectsNonIncreasingValue(t *testing.T) {
 		}
 		return nextBuildNumberResponse(req, http.StatusOK, `{"next_build_number":102}`), nil
 	})
-	cmd := webNextBuildNumberSet()
+	d, _, _ := newWebTestDeps()
+	cmd := webNextBuildNumberSet(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--value", "102", "--confirm"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -158,12 +162,13 @@ func TestWebNextBuildNumberSetValidatesBeforeSession(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webNextBuildNumberSet()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webNextBuildNumberSet(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var execErr error
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				execErr = cmd.Exec(context.Background(), nil)
 			})
 			if execErr == nil || (!strings.Contains(execErr.Error(), tt.want) && !strings.Contains(stderr, tt.want)) {
@@ -185,7 +190,8 @@ func TestWebNextBuildNumberSetReportsVerificationMismatch(t *testing.T) {
 		getCount++
 		return nextBuildNumberResponse(req, http.StatusOK, `{"next_build_number":101}`), nil
 	})
-	cmd := webNextBuildNumberSet()
+	d, _, _ := newWebTestDeps()
+	cmd := webNextBuildNumberSet(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--value", "102", "--confirm"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -222,11 +228,12 @@ func TestWebNextBuildNumberSetReconcilesAmbiguousWrite(t *testing.T) {
 		}
 	})
 
-	cmd := webNextBuildNumberSet()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webNextBuildNumberSet(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--value", "102", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -284,7 +291,8 @@ func TestWebNextBuildNumberSetReportsAmbiguousWriteOutcomes(t *testing.T) {
 				}
 			})
 
-			cmd := webNextBuildNumberSet()
+			d, _, _ := newWebTestDeps()
+			cmd := webNextBuildNumberSet(d)
 			if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--value", "102", "--confirm"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
@@ -303,7 +311,8 @@ func TestWebNextBuildNumberSetReportsRequiredRole(t *testing.T) {
 		return nextBuildNumberResponse(req, http.StatusForbidden, `{"errors":[{"status":"403"}]}`), nil
 	})
 
-	cmd := webNextBuildNumberSet()
+	d, _, _ := newWebTestDeps()
+	cmd := webNextBuildNumberSet(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--value", "102", "--confirm"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}

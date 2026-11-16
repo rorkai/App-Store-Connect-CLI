@@ -53,7 +53,7 @@ Examples:
   asc validate subscriptions --app "APP_ID" --output table
   asc validate subscriptions --app "APP_ID" --strict`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

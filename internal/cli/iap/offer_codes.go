@@ -34,7 +34,7 @@ Examples:
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"
   asc iap offer-codes update --offer-code-id "CODE_ID" --active true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPOfferCodesListCommand(d),
 			newIAPOfferCodesGetCommand(d),
@@ -71,7 +71,7 @@ Examples:
   asc iap offer-codes list --iap-id "IAP_ID"
   asc iap offer-codes list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "iap offer-codes list", 200); err != nil {
 				return err
@@ -173,7 +173,7 @@ Examples:
   asc iap offer-codes create --iap-id "IAP_ID" --name "GIFT" --prices "US:FREE,CA:FREE"
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --eligibilities "NON_SPENDER" --prices "France:PRICE_POINT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -248,7 +248,7 @@ func newIAPOfferCodesUpdateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc iap offer-codes update --offer-code-id "CODE_ID" --active true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			offerCodeValue := strings.TrimSpace(*offerCodeID)
 			if offerCodeValue == "" {

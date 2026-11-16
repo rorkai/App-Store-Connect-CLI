@@ -1,22 +1,22 @@
 package optimize
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestKeywordsRankCommandValidatesInputBeforeRequests(t *testing.T) {
@@ -90,8 +90,8 @@ func TestKeywordsRankCommandValidatesInputBeforeRequests(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
-			failKeywordsClient(t)
-			err := KeywordsRankCommand().ParseAndRun(context.Background(), test.args)
+			d := failKeywordsClient(t)
+			err := newKeywordsRankCommand(d).ParseAndRun(context.Background(), test.args)
 			if err == nil || err.Error() != test.want {
 				t.Fatalf("error = %v, want %q", err, test.want)
 			}
@@ -126,10 +126,10 @@ func TestKeywordsRankReportsRanksAbsencesAndPerKeywordFailures(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	stubKeywordsClient(t, server.URL)
+	d := stubKeywordsClient(t, server.URL)
 
-	stdout := captureSearchPlanStdout(t, func() error {
-		return KeywordsRankCommand().ParseAndRun(context.Background(), []string{
+	stdout := captureSearchPlanStdout(t, d, func() error {
+		return newKeywordsRankCommand(d).ParseAndRun(context.Background(), []string{
 			"--app", "1234567890",
 			"--keywords", "Focus Timer,habit tracker,broken keyword",
 			"--country", "US",
@@ -199,9 +199,9 @@ func TestKeywordsRankFailsWhenEveryKeywordFails(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	stubKeywordsClient(t, server.URL)
+	d := stubKeywordsClient(t, server.URL)
 
-	err := KeywordsRankCommand().ParseAndRun(context.Background(), []string{
+	err := newKeywordsRankCommand(d).ParseAndRun(context.Background(), []string{
 		"--app", "1234567890",
 		"--keywords", "alpha,bravo",
 		"--output", "json",
@@ -235,27 +235,15 @@ func TestKeywordsRankReturnsParentCancellationAfterPartialSuccess(t *testing.T) 
 		<-r.Context().Done()
 	}))
 	defer server.Close()
-	stubKeywordsClient(t, server.URL)
+	d := stubKeywordsClient(t, server.URL)
 
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	previous := os.Stdout
-	os.Stdout = writer
-	runErr := KeywordsRankCommand().ParseAndRun(ctx, []string{
+	runErr := newKeywordsRankCommand(d).ParseAndRun(ctx, []string{
 		"--app", "1234567890",
 		"--keywords", "focus timer,habit tracker",
 		"--workers", "1",
 		"--output", "json",
 	})
-	_ = writer.Close()
-	os.Stdout = previous
-	stdout, readErr := io.ReadAll(reader)
-	_ = reader.Close()
-	if readErr != nil {
-		t.Fatal(readErr)
-	}
+	stdout := d.IO.Out.(*bytes.Buffer).Bytes()
 	if !errors.Is(runErr, context.Canceled) {
 		t.Fatalf("error = %v, want context cancellation", runErr)
 	}
@@ -284,11 +272,11 @@ func TestKeywordsRankBoundsConcurrentRequestsWithWorkers(t *testing.T) {
 		writeSearchResults(w, 1234567890)
 	}))
 	defer server.Close()
-	stubKeywordsClient(t, server.URL)
+	d := stubKeywordsClient(t, server.URL)
 
 	keywords := manyKeywords(8)
-	stdout := captureSearchPlanStdout(t, func() error {
-		return KeywordsRankCommand().ParseAndRun(context.Background(), []string{
+	stdout := captureSearchPlanStdout(t, d, func() error {
+		return newKeywordsRankCommand(d).ParseAndRun(context.Background(), []string{
 			"--app", "1234567890",
 			"--keywords", strings.Join(keywords, ","),
 			"--workers", "2",
@@ -319,10 +307,10 @@ func TestKeywordsRankReportsEffectiveWorkerCount(t *testing.T) {
 		writeSearchResults(w, 1234567890)
 	}))
 	defer server.Close()
-	stubKeywordsClient(t, server.URL)
+	d := stubKeywordsClient(t, server.URL)
 
-	stdout := captureSearchPlanStdout(t, func() error {
-		return KeywordsRankCommand().ParseAndRun(context.Background(), []string{
+	stdout := captureSearchPlanStdout(t, d, func() error {
+		return newKeywordsRankCommand(d).ParseAndRun(context.Background(), []string{
 			"--app", "1234567890",
 			"--keywords", "focus timer,habit tracker",
 			"--workers", "10",
@@ -348,12 +336,12 @@ func TestKeywordsRankRendersTableAndMarkdown(t *testing.T) {
 		writeSearchResults(w, 111)
 	}))
 	defer server.Close()
-	stubKeywordsClient(t, server.URL)
+	d := stubKeywordsClient(t, server.URL)
 
 	for _, format := range []string{"table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
-			stdout := captureSearchPlanStdout(t, func() error {
-				return KeywordsRankCommand().ParseAndRun(context.Background(), []string{
+			stdout := captureSearchPlanStdout(t, d, func() error {
+				return newKeywordsRankCommand(d).ParseAndRun(context.Background(), []string{
 					"--app", "1234567890",
 					"--keywords", "focus timer,habit tracker",
 					"--output", format,
@@ -377,26 +365,32 @@ func writeSearchResults(w http.ResponseWriter, appIDs ...int64) {
 	fmt.Fprintf(w, `{"resultCount":%d,"results":[%s]}`, len(results), strings.Join(results, ","))
 }
 
-func stubKeywordsClient(t *testing.T, baseURL string) {
+// stubKeywordsClient returns deps whose public App Store requests are sent to
+// the server at baseURL.
+func stubKeywordsClient(t *testing.T, baseURL string) *shared.Deps {
 	t.Helper()
 	t.Setenv("ASC_BASE_DELAY", "1ms")
-	previous := newKeywordsItunesClient
-	t.Cleanup(func() { newKeywordsItunesClient = previous })
-	newKeywordsItunesClient = func() *itunes.Client {
-		return &itunes.Client{
-			HTTPClient:              http.DefaultClient,
-			BaseURL:                 baseURL,
-			StorefrontSearchBaseURL: baseURL,
-		}
+	target, err := url.Parse(baseURL)
+	if err != nil {
+		t.Fatal(err)
 	}
+	return newOptimizeTestDeps(searchMetadataRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		redirected := request.Clone(request.Context())
+		redirected.URL.Scheme = target.Scheme
+		redirected.URL.Host = target.Host
+		redirected.Host = ""
+		return http.DefaultTransport.RoundTrip(redirected)
+	}))
 }
 
-func failKeywordsClient(t *testing.T) {
+// failKeywordsClient returns deps that fail the test when a public App Store
+// client is built.
+func failKeywordsClient(t *testing.T) *shared.Deps {
 	t.Helper()
-	previous := newKeywordsItunesClient
-	t.Cleanup(func() { newKeywordsItunesClient = previous })
-	newKeywordsItunesClient = func() *itunes.Client {
+	d := newOptimizeTestDeps(nil)
+	d.HTTPTransport = func() http.RoundTripper {
 		t.Fatal("iTunes client built before input validation")
 		return nil
 	}
+	return d
 }

@@ -28,7 +28,7 @@ Examples:
   asc analytics instances links --instance-id "INSTANCE_ID"
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAnalyticsSalesCommand(d),
 			newAnalyticsRequestCommand(d),

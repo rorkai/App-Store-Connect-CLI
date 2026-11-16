@@ -26,7 +26,7 @@ Examples:
   asc analytics instances links --instance-id "INSTANCE_ID"
   asc analytics instances links --instance-id "INSTANCE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAnalyticsInstancesGetCommand(d),
 			newAnalyticsInstancesRelationshipsCommand(d),
