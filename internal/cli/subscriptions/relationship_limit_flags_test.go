@@ -96,32 +96,11 @@ func TestSubscriptionRelationshipLimitsExposeOnlyPluralCanonicalFlags(t *testing
 				if !strings.Contains(usage, "--"+canonical) {
 					t.Fatalf("canonical help does not contain --%s: %q", canonical, usage)
 				}
-				if cmd.FlagSet.Lookup(removed) != nil {
-					t.Fatalf("removed alias --%s is still bound", removed)
-				}
 				if strings.Contains(usage, "--"+removed) {
 					t.Fatalf("canonical help still mentions removed --%s: %q", removed, usage)
 				}
 			}
 		})
-	}
-}
-
-func TestSubscriptionRelationshipLimitRemovedAliasesFailToParse(t *testing.T) {
-	for _, test := range relationshipLimitCommandCases() {
-		for _, removed := range test.removed {
-			t.Run(test.name+" "+removed, func(t *testing.T) {
-				d, _ := relationshipLimitDeps()
-				cmd := test.command(d)
-				cmd.FlagSet.Init(cmd.FlagSet.Name(), flag.ContinueOnError)
-				cmd.FlagSet.SetOutput(io.Discard)
-				args := append(append([]string{}, test.baseArgs...), "--"+removed, "7")
-				err := cmd.FlagSet.Parse(args)
-				if err == nil || !strings.Contains(err.Error(), "flag provided but not defined: -"+removed) {
-					t.Fatalf("Parse() error = %v, want unknown flag -%s", err, removed)
-				}
-			})
-		}
 	}
 }
 

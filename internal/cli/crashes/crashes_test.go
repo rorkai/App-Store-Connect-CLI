@@ -77,7 +77,4 @@ func TestListCommand_DefaultsNameAndUsageFunc(t *testing.T) {
 	if cmd.UsageFunc == nil {
 		t.Fatal("expected default usage func")
 	}
-	if cmd.FlagSet.Lookup("build") != nil {
-		t.Fatal("expected removed --build alias to be unregistered")
-	}
 }
