@@ -14,8 +14,8 @@ type AppStoreVersionPromotionAttributes struct {
 
 // AppStoreVersionPromotionRelationships describes promotion relationships.
 type AppStoreVersionPromotionRelationships struct {
-	AppStoreVersion                    *Relationship `json:"appStoreVersion,omitempty"`
-	AppStoreVersionExperimentTreatment *Relationship `json:"appStoreVersionExperimentTreatment,omitempty"`
+	AppStoreVersion                    Relationship `json:"appStoreVersion"`
+	AppStoreVersionExperimentTreatment Relationship `json:"appStoreVersionExperimentTreatment"`
 }
 
 // AppStoreVersionPromotionResponse is the response from promotion create endpoints.
@@ -39,13 +39,13 @@ func (c *Client) CreateAppStoreVersionPromotion(ctx context.Context, versionID, 
 		Data: AppStoreVersionPromotionCreateData{
 			Type: ResourceTypeAppStoreVersionPromotions,
 			Relationships: AppStoreVersionPromotionRelationships{
-				AppStoreVersion: &Relationship{
+				AppStoreVersion: Relationship{
 					Data: ResourceData{
 						Type: ResourceTypeAppStoreVersions,
 						ID:   versionID,
 					},
 				},
-				AppStoreVersionExperimentTreatment: &Relationship{
+				AppStoreVersionExperimentTreatment: Relationship{
 					Data: ResourceData{
 						Type: ResourceTypeAppStoreVersionExperimentTreatments,
 						ID:   treatmentID,

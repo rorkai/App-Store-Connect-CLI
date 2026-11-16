@@ -9235,7 +9235,7 @@ func TestCreateAndroidToIosAppMappingDetail(t *testing.T) {
 		if len(payload.Data.Attributes.AppSigningKeyPublicCertificateSHA256Fingerprints) != 2 {
 			t.Fatalf("expected 2 fingerprints, got %d", len(payload.Data.Attributes.AppSigningKeyPublicCertificateSHA256Fingerprints))
 		}
-		if payload.Data.Relationships.App == nil || payload.Data.Relationships.App.Data.ID != "app-1" {
+		if payload.Data.Relationships.App.Data.ID != "app-1" {
 			t.Fatalf("unexpected app relationship: %+v", payload.Data.Relationships.App)
 		}
 		assertAuthorized(t, req)

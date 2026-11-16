@@ -49,7 +49,7 @@ type AndroidToIosAppMappingDetailUpdateAttributes struct {
 
 // AndroidToIosAppMappingDetailCreateRelationships describes relationships for creating a mapping.
 type AndroidToIosAppMappingDetailCreateRelationships struct {
-	App *Relationship `json:"app"`
+	App Relationship `json:"app"`
 }
 
 // AndroidToIosAppMappingDetailsResponse is the response from the mapping list endpoint.

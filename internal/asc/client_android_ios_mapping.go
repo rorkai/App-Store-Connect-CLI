@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -13,12 +14,12 @@ func (c *Client) CreateAndroidToIosAppMappingDetail(ctx context.Context, appID s
 		return nil, fmt.Errorf("app ID is required")
 	}
 
-	request := AndroidToIosAppMappingDetailCreateRequest{
+	payload := AndroidToIosAppMappingDetailCreateRequest{
 		Data: AndroidToIosAppMappingDetailCreateData{
 			Type:       ResourceTypeAndroidToIosAppMappingDetails,
 			Attributes: attrs,
 			Relationships: AndroidToIosAppMappingDetailCreateRelationships{
-				App: &Relationship{
+				App: Relationship{
 					Data: ResourceData{
 						Type: ResourceTypeApps,
 						ID:   appID,
@@ -28,5 +29,5 @@ func (c *Client) CreateAndroidToIosAppMappingDetail(ctx context.Context, appID s
 		},
 	}
 
-	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/androidToIosAppMappingDetails", Payload: request})
+	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/androidToIosAppMappingDetails", Payload: payload})
 }
