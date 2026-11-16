@@ -21,9 +21,12 @@ func NewTelemetryCommand(d *shared.Deps) *ffcli.Command {
 
 Telemetry is enabled by default and sends command-level usage events to help
 improve asc. Local events include a random installation ID so activity from one
-installation can be grouped over time. It does not collect raw arguments, Apple
-account identifiers, app identifiers, bundle identifiers, usernames, hostnames,
-repo names, or paths. Use "asc telemetry disable" to opt out.
+installation can be grouped over time. For "asc api" it also sends the HTTP
+method, the request path with every identifier replaced by {id} (or "other"),
+and the names of the query parameters; never their values, identifiers,
+headers, or bodies. It does not collect raw arguments, Apple account
+identifiers, app identifiers, bundle identifiers, usernames, hostnames, repo
+names, or file paths. Use "asc telemetry disable" to opt out.
 
 Examples:
   asc telemetry status

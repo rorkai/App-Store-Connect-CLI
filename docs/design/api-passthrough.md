@@ -120,8 +120,11 @@ positional argument, so it is `asc api` regardless of method and path. Failure
 parameters are limited to the shared allowlist: the missing-`--confirm` error
 carries `--confirm`, and the unknown-operation error carries an `invalid_input`
 diagnostic with no parameter so the `--allow-unknown-path` hint in its message
-is never scanned as the failing flag. The method, path, query, and body never
-reach telemetry.
+is never scanned as the failing flag. Since schema v6 the event also carries
+the method, the path matched against the embedded schema's templates (every
+path parameter written `{id}`, or `other`), and the schema names of the query
+parameters (`cursor` and `other` for the rest). Query values, identifiers,
+headers, and bodies never reach telemetry.
 
 ## Compatibility
 

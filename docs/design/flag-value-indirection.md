@@ -133,7 +133,9 @@ check are the containment the precedent applies.
 
 ## Telemetry
 
-Telemetry never receives flag values. `EventContext.FailureParameter` carries a
+Telemetry never receives flag values. The one part of a flag value it sees is
+the key of an `asc api --query key=value` pair, sent only as a name from the
+embedded API schema, `cursor`, or `other`. `EventContext.FailureParameter` carries a
 flag name that `telemetry.sanitizeFailureParameter` restricts to a known
 allow-list, and the event schema has no field for values. The pre-parse
 error path reports `ErrorKindInvalidValue` with the flag name only;

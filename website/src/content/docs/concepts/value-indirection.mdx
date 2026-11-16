@@ -65,4 +65,4 @@ All indirection failures exit with code 2 and write nothing to stdout, so a miss
 
 ## Telemetry
 
-Resolved values are never recorded. Anonymous usage telemetry carries command paths and, on failure, a flag name from a fixed allow-list; it has no field for flag values. See [Error Handling](/concepts/error-handling) for exit codes.
+Resolved values are never recorded. Pseudonymous usage telemetry carries command paths and, on failure, a flag name from a fixed allow-list; it has no field for flag values. For `asc api` it also carries the HTTP method, the path with every identifier replaced by `{id}`, and the names of the query parameters, never their values. See [Error Handling](/concepts/error-handling) for exit codes.

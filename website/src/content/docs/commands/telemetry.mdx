@@ -28,7 +28,10 @@ bundle IDs, usernames, hostnames, repository names, IP addresses, user-agent
 strings, or file paths. Failed usage events may include the public flag name
 that caused the failure, such as `--app`, but never the value passed to that
 flag. Failed API requests may include the numeric HTTP status, but never the
-response body. As with any HTTPS service, the collector's edge provider sees the
+response body. For `asc api`, the payload also includes the HTTP method, the
+request path with every identifier replaced by `{id}` (or `other` when the path
+is not in the CLI's embedded API schema), and the names of the query
+parameters; never their values, identifiers, headers, or bodies. As with any HTTPS service, the collector's edge provider sees the
 connection address; the Rork collector may use it transiently for abuse
 throttling but does not persist it in telemetry events or analytics storage.
 
@@ -96,7 +99,7 @@ The CLI sends a single best-effort JSON event after command completion:
 ```json
 {
   "event_id": "2d2f86dd-6d75-4a6f-b97f-a6ce15d4bc79",
-  "schema_version": 5,
+  "schema_version": 6,
   "asc_version": "1.13.0",
   "os": "darwin",
   "arch": "arm64",
@@ -117,11 +120,14 @@ The CLI sends a single best-effort JSON event after command completion:
   "diagnostic_code": null,
   "outcome_kind": "success",
   "http_status": null,
-  "attempted_child": null
+  "attempted_child": null,
+  "api_method": null,
+  "api_path_template": null,
+  "api_query_params": null
 }
 ```
 
-Raw command arguments never enter event construction. `command_path` comes only
+Raw command arguments never become event fields. `command_path` comes only
 from the CLI's registered command tree, so flag values and positional values
 cannot become telemetry dimensions. Schema v5 adds `attempted_child` only for
 `unknown_child` events: the lowercased token is recorded when it is one of
@@ -131,6 +137,21 @@ cannot become telemetry dimensions. Schema v5 adds `attempted_child` only for
 Every other token, including IDs, paths, and flags, is recorded as `other`.
 Leaf and group events set `attempted_child` to `null`. `session_id` is reused only within one CLI
 process and changes the next time `asc` starts.
+
+Schema v6 adds three fields that only `asc api` sets; every other command sends
+them as `null`. `api_method` is `GET`, `POST`, `PATCH`, or `DELETE`.
+`api_path_template` is the request path matched against the path templates of
+the App Store Connect API schema embedded in the CLI, with every path parameter
+written `{id}` (for example `/v1/apps/{id}/builds`), or `other` when no template
+matches; it never contains the path as given. `api_query_params` lists the names
+of the query parameters the request sends (from `--query` and from a query
+string in the path), each a name the schema defines, `cursor`, or `other`,
+sorted and at most 64 long. Query values, identifiers, headers, and request
+and response bodies are never sent. For example, `asc api GET
+/v1/apps/123456789/builds --query limit=5 --query "filter[version]=1.2.3"`
+records `"api_method": "GET"`, `"api_path_template": "/v1/apps/{id}/builds"`,
+and `"api_query_params": ["filter[version]", "limit"]`. All three are `null`
+when the command fails before its METHOD and PATH are read.
 
 `invocation_shape` is one of `leaf`, `bare_group`, `group_with_flags`, or
 `unknown_child`. Failed schema-v4 events also include an allowlisted

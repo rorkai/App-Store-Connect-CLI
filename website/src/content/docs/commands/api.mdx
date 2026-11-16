@@ -116,8 +116,11 @@ merged the way other paginated commands merge them: `data` is concatenated,
 `meta` come from the first page with `links.next` removed. Every `links.next`
 URL must stay on `api.appstoreconnect.apple.com`.
 
-Telemetry records only that `asc api` ran and its outcome; the method, path,
-query, and body are never sent.
+Telemetry records that `asc api` ran, its outcome, the HTTP method, the path
+with every identifier replaced by `{id}` (or `other` when the path is not in
+the embedded schema), and the names of the query parameters. Query values,
+identifiers, headers, and the request and response bodies are never sent. See
+[telemetry](/commands/telemetry) for the exact fields.
 
 ## Related
 
