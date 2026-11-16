@@ -1901,7 +1901,7 @@ func TestAppScreenshotCreateRequest_JSON(t *testing.T) {
 	req := AppScreenshotCreateRequest{
 		Data: AppScreenshotCreateData{
 			Type: ResourceTypeAppScreenshots,
-			Attributes: AppScreenshotAttributes{
+			Attributes: AppScreenshotCreateAttributes{
 				FileName: "shot.png",
 				FileSize: 1024,
 			},
@@ -2077,13 +2077,14 @@ func TestAppPreviewSetCreateRequest_JSON(t *testing.T) {
 }
 
 func TestAppPreviewCreateRequest_JSON(t *testing.T) {
+	mimeType := "video/quicktime"
 	req := AppPreviewCreateRequest{
 		Data: AppPreviewCreateData{
 			Type: ResourceTypeAppPreviews,
-			Attributes: AppPreviewAttributes{
+			Attributes: AppPreviewCreateAttributes{
 				FileName: "preview.mov",
 				FileSize: 2048,
-				MimeType: "video/quicktime",
+				MimeType: &mimeType,
 			},
 			Relationships: &AppPreviewRelationships{
 				AppPreviewSet: &Relationship{

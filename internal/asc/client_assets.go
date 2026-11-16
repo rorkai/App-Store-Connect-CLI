@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -14,11 +15,17 @@ type AppScreenshotSetCreateData struct {
 	Relationships *AppScreenshotSetRelationships `json:"relationships"`
 }
 
+// AppScreenshotCreateAttributes is the data.attributes object of the AppScreenshotCreateRequest schema.
+type AppScreenshotCreateAttributes struct {
+	FileSize int64  `json:"fileSize"`
+	FileName string `json:"fileName"`
+}
+
 // AppScreenshotCreateData is the data portion of a screenshot create request.
 type AppScreenshotCreateData struct {
-	Type          ResourceType                `json:"type"`
-	Attributes    AppScreenshotAttributes     `json:"attributes"`
-	Relationships *AppScreenshotRelationships `json:"relationships"`
+	Type          ResourceType                  `json:"type"`
+	Attributes    AppScreenshotCreateAttributes `json:"attributes"`
+	Relationships *AppScreenshotRelationships   `json:"relationships"`
 }
 
 // AppPreviewSetCreateData is the data portion of a preview set create request.
@@ -28,11 +35,19 @@ type AppPreviewSetCreateData struct {
 	Relationships *AppPreviewSetRelationships `json:"relationships"`
 }
 
+// AppPreviewCreateAttributes is the data.attributes object of the AppPreviewCreateRequest schema.
+type AppPreviewCreateAttributes struct {
+	FileSize             int64   `json:"fileSize"`
+	FileName             string  `json:"fileName"`
+	PreviewFrameTimeCode *string `json:"previewFrameTimeCode,omitempty"`
+	MimeType             *string `json:"mimeType,omitempty"`
+}
+
 // AppPreviewCreateData is the data portion of a preview create request.
 type AppPreviewCreateData struct {
-	Type          ResourceType             `json:"type"`
-	Attributes    AppPreviewAttributes     `json:"attributes"`
-	Relationships *AppPreviewRelationships `json:"relationships"`
+	Type          ResourceType               `json:"type"`
+	Attributes    AppPreviewCreateAttributes `json:"attributes"`
+	Relationships *AppPreviewRelationships   `json:"relationships"`
 }
 
 // AppPreviewUpdateAttributes describes preview update attributes.
@@ -125,7 +140,7 @@ func (c *Client) CreateAppScreenshot(ctx context.Context, setID string, fileName
 	payload := AppScreenshotCreateRequest{
 		Data: AppScreenshotCreateData{
 			Type: ResourceTypeAppScreenshots,
-			Attributes: AppScreenshotAttributes{
+			Attributes: AppScreenshotCreateAttributes{
 				FileName: fileName,
 				FileSize: fileSize,
 			},
@@ -140,7 +155,11 @@ func (c *Client) CreateAppScreenshot(ctx context.Context, setID string, fileName
 		},
 	}
 
-	return sendJSON[AppScreenshotResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appScreenshots", Payload: payload})
+	return sendJSON[AppScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appScreenshots",
+		Payload: payload,
+	})
 }
 
 // UpdateAppScreenshot updates a screenshot (used to commit upload).
@@ -258,10 +277,10 @@ func (c *Client) CreateAppPreview(ctx context.Context, setID string, fileName st
 	payload := AppPreviewCreateRequest{
 		Data: AppPreviewCreateData{
 			Type: ResourceTypeAppPreviews,
-			Attributes: AppPreviewAttributes{
+			Attributes: AppPreviewCreateAttributes{
 				FileName: fileName,
 				FileSize: fileSize,
-				MimeType: mimeType,
+				MimeType: &mimeType,
 			},
 			Relationships: &AppPreviewRelationships{
 				AppPreviewSet: &Relationship{
@@ -274,5 +293,9 @@ func (c *Client) CreateAppPreview(ctx context.Context, setID string, fileName st
 		},
 	}
 
-	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appPreviews", Payload: payload})
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appPreviews",
+		Payload: payload,
+	})
 }
