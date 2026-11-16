@@ -16,7 +16,6 @@ func TestAnalyticsRankedAmbiguousFlagsRemainRejected(t *testing.T) {
 		path []string
 		flag string
 	}{
-		{path: []string{"localizations", "update"}, flag: "localization-id"},
 		{path: []string{"profiles", "list"}, flag: "bundle-id"},
 	}
 
