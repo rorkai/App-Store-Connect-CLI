@@ -100,7 +100,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appIDValue, err := d.AppIDFlagValue(shared.ResolveAppID(*appID))
+			appIDValue, err := d.AppIDFlagValue(d.ResolveAppID(*appID))
 			if err != nil {
 				return err
 			}
@@ -487,7 +487,7 @@ Examples:
 				}
 				return nil
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := shared.ResolveAppID(*appID)
+				resolvedAppID := d.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 					return shared.MissingRequiredUsageError("--app")

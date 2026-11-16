@@ -386,7 +386,7 @@ func xcodeCloudProductsList(ctx context.Context, d *shared.Deps, flags ciProduct
 		appFields = addCiProductsValue(appFields, "bundleId")
 	}
 
-	resolvedAppID := shared.ResolveAppID(*flags.appID)
+	resolvedAppID := d.ResolveAppID(*flags.appID)
 	buildOptions := func(appID string) []asc.CiProductsOption {
 		opts := []asc.CiProductsOption{
 			asc.WithCiProductsProductTypes(productTypes),
@@ -415,7 +415,7 @@ func xcodeCloudProductsList(ctx context.Context, d *shared.Deps, flags ciProduct
 	defer cancel()
 
 	if next == "" && resolvedAppID != "" {
-		resolvedAppID, err = resolveXcodeCloudAppID(requestCtx, client, resolvedAppID)
+		resolvedAppID, err = resolveXcodeCloudAppID(requestCtx, d, client, resolvedAppID)
 		if err != nil {
 			return fmt.Errorf("xcode-cloud products: %w", err)
 		}

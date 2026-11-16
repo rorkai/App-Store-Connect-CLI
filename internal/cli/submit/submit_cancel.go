@@ -93,7 +93,7 @@ Examples:
 					return fmt.Errorf("submit cancel: version %q belongs to app %q, not %q", resolvedVersionID, resolvedAppID, explicitAppID)
 				}
 				if resolvedAppID == "" {
-					resolvedAppID = shared.ResolveAppID(*appID)
+					resolvedAppID = d.ResolveAppID(*appID)
 				}
 
 				if resolvedAppID != "" {

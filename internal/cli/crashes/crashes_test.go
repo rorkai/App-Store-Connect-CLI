@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -12,7 +13,7 @@ import (
 
 func newTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
-	return &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &stderr}}, &stdout, &stderr
+	return &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &stderr}, LookupEnv: os.LookupEnv}, &stdout, &stderr
 }
 
 func assertStreams(t *testing.T, stdout, stderr *bytes.Buffer, wantStderr string) {

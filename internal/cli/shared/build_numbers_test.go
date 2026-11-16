@@ -391,7 +391,7 @@ func TestResolveLatestBuildSelectionCarriesEveryEquivalentUploadVersion(t *testi
 				}
 			})
 
-			selection, err := resolveLatestBuildSelection(context.Background(), os.Stderr, client, LatestBuildSelectionOptions{
+			selection, err := resolveLatestBuildSelection(context.Background(), os.Stderr, ResolveAppID, client, LatestBuildSelectionOptions{
 				AppID:    "123456789",
 				Version:  "1.2.0",
 				Platform: "IOS",

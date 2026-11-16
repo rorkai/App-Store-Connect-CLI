@@ -69,7 +69,7 @@ Examples:
 			}
 			infoIDValue := strings.TrimSpace(*infoID)
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" && infoIDValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")

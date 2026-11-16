@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"strings"
 	"testing"
 
@@ -161,7 +162,7 @@ func runAnalyticsCommand(t *testing.T, args []string) (string, string, error) {
 // newAnalyticsTestDeps returns deps whose streams are stdout and stderr. The
 // tests using it fail before a client is built.
 func newAnalyticsTestDeps(stdout, stderr *bytes.Buffer) *shared.Deps {
-	return &shared.Deps{IO: &shared.IO{Out: stdout, ErrOut: stderr}}
+	return &shared.Deps{IO: &shared.IO{Out: stdout, ErrOut: stderr}, LookupEnv: os.LookupEnv}
 }
 
 func TestAnalyticsSalesValidationErrors(t *testing.T) {

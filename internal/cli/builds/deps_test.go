@@ -21,6 +21,7 @@ func newBuildsTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes
 		Now:           time.Now,
 		Timeout:       shared.ContextWithTimeout,
 		UploadTimeout: shared.ContextWithUploadTimeout,
+		LookupEnv:     os.LookupEnv,
 		HTTPTransport: func() http.RoundTripper { return http.DefaultTransport },
 		Getwd:         os.Getwd,
 	}, &stderr
