@@ -130,7 +130,7 @@ Examples:
 			client := newWebClientFn(session)
 
 			if trimmedAppID != "" {
-				subscriptions, err := loadReviewSubscriptionsWithLabel(requestCtx, client, trimmedAppID, "Loading subscriptions")
+				subscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Loading subscriptions")
 				if err != nil {
 					return withWebAuthHint(err, "web subscriptions availability remove-from-sale")
 				}
