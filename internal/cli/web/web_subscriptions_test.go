@@ -99,7 +99,6 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommand(t *testing.T) {
 }
 
 func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandUsesDirectPlanAvailabilityID(t *testing.T) {
-	_ = stubWebProgressLabels(t)
 	stubWebSubscriptionsSession(t)
 	resetWebSubscriptionAvailabilityStubs(t)
 
@@ -138,7 +137,6 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandUsesDirectPlanAvailabi
 }
 
 func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandRejectsMismatchedDirectPlanAvailabilityID(t *testing.T) {
-	_ = stubWebProgressLabels(t)
 	stubWebSubscriptionsSession(t)
 	resetWebSubscriptionAvailabilityStubs(t)
 
@@ -170,7 +168,6 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandRejectsMismatchedDirec
 }
 
 func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandFailsWhenReadbackStillOnSale(t *testing.T) {
-	_ = stubWebProgressLabels(t)
 	stubWebSubscriptionsSession(t)
 	resetWebSubscriptionAvailabilityStubs(t)
 
@@ -231,7 +228,6 @@ func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandRequiresFlags(t *testi
 }
 
 func TestWebSubscriptionsAvailabilityRemoveFromSaleCommandAccountHolderError(t *testing.T) {
-	_ = stubWebProgressLabels(t)
 	stubWebSubscriptionsSession(t)
 	resetWebSubscriptionAvailabilityStubs(t)
 

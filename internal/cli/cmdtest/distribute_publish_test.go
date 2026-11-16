@@ -20,8 +20,9 @@ func TestDistributePublishCommandSurfaceIsAgentDiscoverable(t *testing.T) {
 }
 
 func TestDistributePublishInvalidValueIsUsageExit(t *testing.T) {
-	assertUsageExit(
+	assertUsageExitWithDeps(
 		t,
+		nil,
 		[]string{"distribute", "publish", "--bundle-dir", "bundle", "--endpoint", "http://insecure.example", "--region", "auto", "--bucket", "bucket", "--prefix", "app"},
 		"--endpoint: endpoint must be an HTTPS origin",
 	)
@@ -49,7 +50,7 @@ func TestDistributePublishRejectsOverflowingPrivateLifetimes(t *testing.T) {
 				"--url-ttl", "1h", "--download-grace", "1h",
 			}
 			arguments = append(arguments, test.values...)
-			assertUsageExit(t, arguments, test.want)
+			assertUsageExitWithDeps(t, nil, arguments, test.want)
 		})
 	}
 }
@@ -80,7 +81,7 @@ func TestDistributePublishBoundaryValidationIsActionable(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, append(append([]string(nil), base...), test.args...), test.want)
+			assertUsageExitWithDeps(t, nil, append(append([]string(nil), base...), test.args...), test.want)
 		})
 	}
 }

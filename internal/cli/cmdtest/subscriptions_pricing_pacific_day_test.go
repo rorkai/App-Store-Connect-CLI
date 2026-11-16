@@ -42,7 +42,7 @@ func TestSubscriptionsPricingPricesListResolvedUsesUSPacificDay(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
-			t.Cleanup(shared.SetPricingNowForTesting(func() time.Time { return test.now }))
+			t.Cleanup(setRootNow(func() time.Time { return test.now }))
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/prices" {
 					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -84,7 +84,7 @@ func TestSubscriptionsPricingEqualize_ReconcilesAutoScheduledPriceOnItsStartDate
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "0")
 	// 17:30 PDT on 2026-09-30: the auto-scheduled start date is 2026-10-01.
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+	t.Cleanup(setRootNow(func() time.Time {
 		return time.Date(2026, time.October, 1, 0, 30, 0, 0, time.UTC)
 	}))
 
@@ -209,7 +209,7 @@ func runEqualizeOnEarliestStartDateAppleAccepts(t *testing.T, baseAlreadyPriced 
 	t.Setenv("ASC_MAX_RETRIES", "0")
 	// 11:01 PST on 2026-11-12: the Pacific next day is 2026-11-13, but App
 	// Store Connect only accepts 2026-11-14 (observed 2026-11-12).
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+	t.Cleanup(setRootNow(func() time.Time {
 		return time.Date(2026, time.November, 12, 19, 1, 0, 0, time.UTC)
 	}))
 
