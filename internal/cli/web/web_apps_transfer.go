@@ -48,7 +48,7 @@ Examples:
   asc web apps transfer status --app 6759231657 --output json`,
 		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolved := strings.TrimSpace(shared.ResolveAppID(*appID))
+			resolved := strings.TrimSpace(d.ResolveAppID(*appID))
 			if resolved == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
