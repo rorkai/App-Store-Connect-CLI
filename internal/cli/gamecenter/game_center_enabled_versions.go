@@ -24,7 +24,7 @@ Examples:
   asc game-center enabled-versions list --app "APP_ID"
   asc game-center enabled-versions compatible-versions --id "ENABLED_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterEnabledVersionsListCommand(d),
 			newGameCenterEnabledVersionsCompatibleVersionsCommand(d),

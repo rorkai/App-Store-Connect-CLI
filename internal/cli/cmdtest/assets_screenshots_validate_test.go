@@ -8,7 +8,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,21 +52,12 @@ func TestAssetsScreenshotsValidateOutputReportsOrderingHiddenFilesAndDimensionEr
 	writeScreenshotValidatePNG(t, filepath.Join(dir, ".hidden.png"), 1242, 2688, color.RGBA{R: 30, A: 255}, png.DefaultCompression)
 	writePNG(t, filepath.Join(dir, "03-bad.png"), 100, 100)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"screenshots", "validate",
-			"--path", dir,
-			"--device-type", "IPHONE_65",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(t.Context())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
+		"screenshots", "validate",
+		"--path", dir,
+		"--device-type", "IPHONE_65",
+		"--output", "json",
+	}...)
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -144,12 +134,12 @@ func TestAssetsScreenshotsValidateReportsDecodedPixelDuplicates(t *testing.T) {
 		t.Fatal("expected differently encoded PNG files")
 	}
 
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
 		"screenshots", "validate",
 		"--path", dir,
 		"--device-type", "APP_WATCH_SERIES_3",
 		"--output", "json",
-	})
+	}...)
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -202,12 +192,12 @@ func TestAssetsScreenshotsValidateReportsFormatExtensionMismatch(t *testing.T) {
 	writeScreenshotValidatePNG(t, filepath.Join(dir, "01-home.png"), 1242, 2688, color.RGBA{R: 10, A: 255}, png.DefaultCompression)
 	writeCmdtestScreenshotJPEG(t, dir, "02-details.png")
 
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
 		"screenshots", "validate",
 		"--path", dir,
 		"--device-type", "IPHONE_65",
 		"--output", "json",
-	})
+	}...)
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -284,12 +274,12 @@ func TestAssetsScreenshotsValidateReportsUnreadableHiddenDotfiles(t *testing.T) 
 		t.Fatalf("write dotfile: %v", err)
 	}
 
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
 		"screenshots", "validate",
 		"--path", dir,
 		"--device-type", "IPHONE_65",
 		"--output", "json",
-	})
+	}...)
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -314,11 +304,11 @@ func TestAssetsScreenshotsValidateReportsUnreadableHiddenDotfiles(t *testing.T) 
 func TestAssetsScreenshotsValidateRejectsInvalidDeviceTypeAsUsageError(t *testing.T) {
 	dir := t.TempDir()
 
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
 		"screenshots", "validate",
 		"--path", dir,
 		"--device-type", "not-a-device",
-	})
+	}...)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -336,12 +326,12 @@ func TestAssetsScreenshotsValidatePreservesRawPathSemanticsForFileWithTrailingSe
 	path := filepath.Join(dir, "shot.png")
 	writePNG(t, path, 1242, 2688)
 
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, nil, []string{
 		"screenshots", "validate",
 		"--path", path + string(filepath.Separator),
 		"--device-type", "IPHONE_65",
 		"--output", "json",
-	})
+	}...)
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -368,14 +358,13 @@ func TestScreenshotsUploadRunsValidateChecksBeforeNetwork(t *testing.T) {
 	writeScreenshotValidatePNG(t, filepath.Join(dir, "02-duplicate.png"), 312, 390, marker, png.BestCompression)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
-	_, stderr, err := runRootCommand(t, []string{
+	_, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"screenshots", "upload",
 		"--version-localization", "LOC",
 		"--path", dir,
 		"--device-type", "APP_WATCH_SERIES_3",
-	})
+	}...)
 	if err == nil || !strings.Contains(err.Error(), `screenshot "02-duplicate.png" has decoded pixels identical to "01-original.png"`) {
 		t.Fatalf("expected the duplicate-pixel validate error, got %v; stderr=%s", err, stderr)
 	}

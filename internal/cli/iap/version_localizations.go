@@ -15,7 +15,7 @@ import (
 func newIAPVersionLocalizationsCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("versions localizations", flag.ExitOnError)
 	return &ffcli.Command{
-		Name: "localizations", ShortUsage: "asc iap versions localizations <subcommand> [flags]", ShortHelp: "Manage version-scoped IAP localizations.", LongHelp: "Manage version-scoped IAP localizations.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "localizations", ShortUsage: "asc iap versions localizations <subcommand> [flags]", ShortHelp: "Manage version-scoped IAP localizations.", LongHelp: "Manage version-scoped IAP localizations.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{newIAPVersionLocalizationsListCommand(d), newIAPVersionLocalizationsCreateCommand(d), newIAPVersionLocalizationsViewCommand(d), newIAPVersionLocalizationsUpdateCommand(d), newIAPVersionLocalizationsDeleteCommand(d), newIAPVersionLocalizationsImportCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
@@ -31,7 +31,7 @@ func newIAPVersionLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "list", ShortUsage: `asc iap versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for an IAP version.", LongHelp: "List localizations for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "list", ShortUsage: `asc iap versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for an IAP version.", LongHelp: "List localizations for an IAP version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "iap versions localizations list", 200, "limit", "include", "localization-fields", "version-fields"); err != nil {
 				return err
@@ -95,7 +95,7 @@ func newIAPVersionLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	description := fs.String("description", "", "Description")
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "create", ShortUsage: `asc iap versions localizations create --version-id "VERSION_ID" --name "Name" --locale "en-US"`, ShortHelp: "Create a localization for an IAP version.", LongHelp: "Create a localization for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "create", ShortUsage: `asc iap versions localizations create --version-id "VERSION_ID" --name "Name" --locale "en-US"`, ShortHelp: "Create a localization for an IAP version.", LongHelp: "Create a localization for an IAP version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
@@ -192,7 +192,7 @@ func newIAPVersionLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	clearDescription := fs.Bool("clear-description", false, "Clear the description")
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "update", ShortUsage: `asc iap versions localizations update --localization-id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped IAP localization.", LongHelp: "Update a version-scoped IAP localization.\n\nExamples:\n  asc iap versions localizations update --localization-id \"LOCALIZATION_ID\" --name \"New Name\"\n  asc iap versions localizations update --localization-id \"LOCALIZATION_ID\" --clear-description", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "update", ShortUsage: `asc iap versions localizations update --localization-id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped IAP localization.", LongHelp: "Update a version-scoped IAP localization.\n\nExamples:\n  asc iap versions localizations update --localization-id \"LOCALIZATION_ID\" --name \"New Name\"\n  asc iap versions localizations update --localization-id \"LOCALIZATION_ID\" --clear-description", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {

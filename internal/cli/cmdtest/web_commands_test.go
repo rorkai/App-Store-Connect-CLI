@@ -110,16 +110,19 @@ func TestWebCommandsUsageErrors(t *testing.T) {
 			name:    "XcodeCloudWorkflowsListMissingRequiredFlags",
 			args:    []string{"web", "xcode-cloud", "workflows", "list"},
 			wantErr: "Error: --product-id is required",
+			deps:    true,
 		},
 		{
 			name:    "XcodeCloudWorkflowsListRejectsPositionalArguments",
 			args:    []string{"web", "xcode-cloud", "workflows", "list", "--product-id", "prod-1", "extra"},
 			wantErr: `unexpected argument "extra"`,
+			deps:    true,
 		},
 		{
 			name:    "XcodeCloudWorkflowsListRejectsPaginate",
 			args:    []string{"web", "xcode-cloud", "workflows", "list", "--product-id", "prod-1", "--paginate"},
 			wantErr: "unknown flag `--paginate`",
+			deps:    true,
 		},
 		{
 			name:    "APIKeysLegacyGetIsNotRegistered",
@@ -143,6 +146,7 @@ func TestWebCommandsUsageErrors(t *testing.T) {
 			name:    "XcodeCloudWorkflowsCreateMissingRequiredFlags",
 			args:    []string{"web", "xcode-cloud", "workflows", "create"},
 			wantErr: "Error: --product-id is required",
+			deps:    true,
 		},
 	})
 }

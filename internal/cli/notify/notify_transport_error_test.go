@@ -36,27 +36,19 @@ func runSlackWithSecretWebhook(t *testing.T, transport http.RoundTripper) (strin
 	t.Setenv(slackWebhookEnvVar, "")
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	original := slackHTTPClient
-	t.Cleanup(func() {
-		slackHTTPClient = original
-	})
-	slackHTTPClient = func() *http.Client {
-		return &http.Client{Transport: transport}
-	}
-
-	root := SlackCommand()
+	d, stderrBuffer := newNotifyTestDeps(transport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
-	stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"--webhook", slackWebhookWithSecret(),
-			"--message", "Build uploaded",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	if err := root.Parse([]string{
+		"--webhook", slackWebhookWithSecret(),
+		"--message", "Build uploaded",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr = root.Run(context.Background())
+	stderr := stderrBuffer.String()
 	return stderr, runErr
 }
 

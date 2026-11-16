@@ -30,13 +30,13 @@ func TestShotsFrame_WarnsWhenInputAspectMismatchesDeviceScreen(t *testing.T) {
 	outputDir := filepath.Join(dir, "framed")
 	calls := installAspectMockFrame(t)
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", outputDir,
 		"--device", "watch-ultra-3",
 		"--output", "json",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error = %v (stderr %q)", err, stderr)
 	}
@@ -68,13 +68,13 @@ func TestShotsFrame_NoAspectWarningForNativeCapture(t *testing.T) {
 			writeFramePNG(t, rawPath, makeRawImage(test.width, test.height))
 			installAspectMockFrame(t)
 
-			_, stderr, err := runCommand(t, []string{
+			_, stderr, err := runRootWithDeps(t, nil, []string{
 				"screenshots", "frame",
 				"--input", rawPath,
 				"--output-dir", filepath.Join(dir, "framed"),
 				"--device", test.device,
 				"--output", "json",
-			})
+			}...)
 			if err != nil {
 				t.Fatalf("run error = %v (stderr %q)", err, stderr)
 			}
@@ -102,7 +102,7 @@ func TestShotsFrame_ResumeWarnsWhenInputAspectMismatchesDeviceScreen(t *testing.
 		"--resume",
 		"--output", "json",
 	}
-	_, stderr, err := runCommand(t, args)
+	_, stderr, err := runRootWithDeps(t, nil, args...)
 	if err != nil {
 		t.Fatalf("run error = %v (stderr %q)", err, stderr)
 	}
@@ -110,7 +110,7 @@ func TestShotsFrame_ResumeWarnsWhenInputAspectMismatchesDeviceScreen(t *testing.
 		t.Fatalf("stderr = %q, want aspect warning", stderr)
 	}
 	// A resumed skip renders nothing, so it does not repeat the warning.
-	_, stderr, err = runCommand(t, args)
+	_, stderr, err = runRootWithDeps(t, nil, args...)
 	if err != nil {
 		t.Fatalf("resume run error = %v (stderr %q)", err, stderr)
 	}
@@ -134,13 +134,13 @@ func TestShotsFrame_InputDirWarnsOnlyForMismatchedInputs(t *testing.T) {
 	writeFramePNG(t, native, makeRawImage(416, 496))
 	calls := installAspectMockFrame(t)
 
-	_, stderr, err := runCommand(t, []string{
+	_, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input-dir", inputDir,
 		"--output-dir", filepath.Join(dir, "framed"),
 		"--device", "watch-series-11",
 		"--output", "json",
-	})
+	}...)
 	if err != nil {
 		t.Fatalf("run error = %v (stderr %q)", err, stderr)
 	}

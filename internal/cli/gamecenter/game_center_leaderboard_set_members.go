@@ -26,7 +26,7 @@ Examples:
   asc game-center leaderboard-sets members list --set-id "SET_ID"
   asc game-center leaderboard-sets members set --set-id "SET_ID" --leaderboard-ids "id1,id2,id3" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetMembersListCommand(d),
 			newGameCenterLeaderboardSetMembersSetCommand(d),
@@ -85,7 +85,7 @@ Examples:
   asc game-center leaderboard-sets members set --set-id "SET_ID" --leaderboard-ids "id1,id2,id3" --confirm
   asc game-center leaderboard-sets members set --set-id "SET_ID" --leaderboard-ids "" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {

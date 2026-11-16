@@ -26,6 +26,7 @@ func migrateTestDeps() *shared.Deps {
 		UploadTimeout:  shared.ContextWithUploadTimeout,
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
+		Getwd:          os.Getwd,
 	}
 }
 
@@ -280,7 +281,7 @@ func TestReadFastlaneMetadata_ValidStructure(t *testing.T) {
 		t.Fatalf("failed to write localized description: %v", err)
 	}
 
-	locs, err := readFastlaneMetadata(dir)
+	locs, err := readFastlaneMetadata(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -361,7 +362,7 @@ func TestReadFastlaneMetadata_SkipsSpecialDirectories(t *testing.T) {
 		t.Fatalf("failed to write locale name: %v", err)
 	}
 
-	locs, err := readFastlaneMetadata(dir)
+	locs, err := readFastlaneMetadata(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -385,7 +386,7 @@ func TestReadFastlaneMetadata_SkipsSpecialDirectories(t *testing.T) {
 		t.Errorf("versionLocalizationFiles() = %#v, want %#v", got, want)
 	}
 
-	appInfo, err := readFastlaneAppInfoMetadata(dir)
+	appInfo, err := readFastlaneAppInfoMetadata(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -408,7 +409,7 @@ func TestScanMetadataLocaleDirsReportsUnusedDefaultDirectory(t *testing.T) {
 		t.Fatalf("failed to write default description: %v", err)
 	}
 
-	_, skipped, err := scanFastlaneMetadataLocaleDirs(dir)
+	_, skipped, err := scanFastlaneMetadataLocaleDirs(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -435,7 +436,7 @@ func TestReadFastlaneMetadata_SkipsFiles(t *testing.T) {
 		t.Fatalf("failed to write locale description: %v", err)
 	}
 
-	locs, err := readFastlaneMetadata(dir)
+	locs, err := readFastlaneMetadata(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -583,7 +584,7 @@ func TestSelectBestAppInfoID_UsesStateWhenAppStoreStateMissing(t *testing.T) {
 func TestReadFastlaneMetadata_EmptyDirectory(t *testing.T) {
 	dir := t.TempDir()
 
-	locs, err := readFastlaneMetadata(dir)
+	locs, err := readFastlaneMetadata(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -813,7 +814,7 @@ func TestReadFastlaneMetadata_SkipsNonLocaleDirectories(t *testing.T) {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
-	locs, err := readFastlaneMetadata(dir)
+	locs, err := readFastlaneMetadata(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -845,7 +846,7 @@ func TestReadFastlaneAppInfoMetadata_SkipsNonLocaleDirectories(t *testing.T) {
 		t.Fatalf("failed to write file: %v", err)
 	}
 
-	locs, err := readFastlaneAppInfoMetadata(dir)
+	locs, err := readFastlaneAppInfoMetadata(migrateTestDeps(), dir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
