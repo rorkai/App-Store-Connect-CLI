@@ -904,6 +904,17 @@ type localizationUploadFailureArtifact struct {
 // versioned retry artifact for failed locales. Artifact failures are retained
 // in the result so callers can print the batch before returning an error.
 func FinalizeLocalizationUploadResult(result *asc.LocalizationUploadResult, command string) {
+	finalizeLocalizationUploadResult(result, command, time.Now, WriteStreamToFile)
+}
+
+// FinalizeLocalizationUploadResult is FinalizeLocalizationUploadResult with
+// the retry artifact written relative to d's working directory and stamped
+// with d's clock.
+func (d *Deps) FinalizeLocalizationUploadResult(result *asc.LocalizationUploadResult, command string) {
+	finalizeLocalizationUploadResult(result, command, d.Now, d.WriteStreamToFile)
+}
+
+func finalizeLocalizationUploadResult(result *asc.LocalizationUploadResult, command string, now func() time.Time, write func(string, io.Reader) (int64, error)) {
 	if result == nil {
 		return
 	}
@@ -920,7 +931,7 @@ func FinalizeLocalizationUploadResult(result *asc.LocalizationUploadResult, comm
 	if result.Failed == 0 {
 		return
 	}
-	path, err := writeLocalizationUploadFailureArtifact(result, command)
+	path, err := writeLocalizationUploadFailureArtifact(result, command, now, write)
 	if err != nil {
 		result.FailureArtifactError = err.Error()
 		return
@@ -964,7 +975,7 @@ func renderLocalizationUploadResultTo(w io.Writer, result *asc.LocalizationUploa
 	return nil
 }
 
-func writeLocalizationUploadFailureArtifact(result *asc.LocalizationUploadResult, command string) (string, error) {
+func writeLocalizationUploadFailureArtifact(result *asc.LocalizationUploadResult, command string, now func() time.Time, write func(string, io.Reader) (int64, error)) (string, error) {
 	failures := make([]asc.LocalizationUploadLocaleResult, 0, result.Failed)
 	for _, item := range result.Results {
 		if item.Status == "failed" || item.Error != "" {
@@ -980,15 +991,15 @@ func writeLocalizationUploadFailureArtifact(result *asc.LocalizationUploadResult
 		AppInfoID:     result.AppInfoID,
 		InputPath:     result.InputPath,
 		Failed:        result.Failed,
-		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt:   now().UTC().Format(time.RFC3339),
 		Results:       failures,
 	}
 	data, err := json.MarshalIndent(artifact, "", "  ")
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(".asc", "reports", "localizations-upload", fmt.Sprintf("failures-%d.json", time.Now().UTC().UnixNano()))
-	if _, err := WriteStreamToFile(path, bytes.NewReader(data)); err != nil {
+	path := filepath.Join(".asc", "reports", "localizations-upload", fmt.Sprintf("failures-%d.json", now().UTC().UnixNano()))
+	if _, err := write(path, bytes.NewReader(data)); err != nil {
 		return "", err
 	}
 	return path, nil

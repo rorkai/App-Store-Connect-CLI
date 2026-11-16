@@ -47,7 +47,7 @@ func TestUploadPKGBuildAndWaitForIDUsesPKGUTI(t *testing.T) {
 		}
 	}))
 
-	_, err = uploadPKGBuildAndWaitForID(context.Background(), newPublishCommandTestClient(t), "app-1", path, fileInfo, "1.2.3", "42", asc.PlatformMacOS, time.Second, time.Second, true)
+	_, err = uploadPKGBuildAndWaitForID(context.Background(), newPublishTestDeps(), newPublishCommandTestClient(t), "app-1", path, fileInfo, "1.2.3", "42", asc.PlatformMacOS, time.Second, time.Second, true)
 	if err == nil || !strings.Contains(err.Error(), "no upload operations returned") {
 		t.Fatalf("expected upload-operation sentinel after reservation, got %v", err)
 	}
@@ -66,11 +66,11 @@ func TestResolveLocalBuildConfigUsesPKGForMacOS(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
-	if err := validatePublishExportOptionsFlags(values, collectSetFlags(fs)); err != nil {
+	if err := validatePublishExportOptionsFlags(newPublishTestDeps(), values, collectSetFlags(fs)); err != nil {
 		t.Fatalf("validate export options flags: %v", err)
 	}
 
-	config, err := resolveLocalBuildConfig(values, "MAC_OS", "1.2.3", "42")
+	config, err := resolveLocalBuildConfig(newPublishTestDeps(), values, "MAC_OS", "1.2.3", "42")
 	if err != nil {
 		t.Fatalf("resolveLocalBuildConfig() error: %v", err)
 	}
@@ -93,11 +93,11 @@ func TestResolveLocalBuildConfigRejectsInvalidPKGDestination(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
-	if err := validatePublishExportOptionsFlags(values, collectSetFlags(fs)); err != nil {
+	if err := validatePublishExportOptionsFlags(newPublishTestDeps(), values, collectSetFlags(fs)); err != nil {
 		t.Fatalf("validate export options flags: %v", err)
 	}
 
-	_, err := resolveLocalBuildConfig(values, "MAC_OS", "1.2.3", "42")
+	_, err := resolveLocalBuildConfig(newPublishTestDeps(), values, "MAC_OS", "1.2.3", "42")
 	if err == nil || !strings.Contains(err.Error(), "--pkg-path must end with .pkg") {
 		t.Fatalf("expected invalid PKG destination error, got %v", err)
 	}
@@ -142,7 +142,7 @@ func TestValidateLocalBuildArtifactFlagsMatchPlatform(t *testing.T) {
 			if err := fs.Parse(args); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}
-			err := validateLocalBuildArtifactFlags(values, collectSetFlags(fs), tc.platform)
+			err := validateLocalBuildArtifactFlags(newPublishTestDeps(), values, collectSetFlags(fs), tc.platform)
 			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 				t.Fatalf("expected error containing %q, got %v", tc.wantErr, err)
 			}
@@ -161,11 +161,11 @@ func TestResolveLocalBuildConfigRejectsGeneratedManualSigningForMacOS(t *testing
 	}); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
-	if err := validatePublishExportOptionsFlags(values, collectSetFlags(fs)); err != nil {
+	if err := validatePublishExportOptionsFlags(newPublishTestDeps(), values, collectSetFlags(fs)); err != nil {
 		t.Fatalf("validate export options flags: %v", err)
 	}
 
-	_, err := resolveLocalBuildConfig(values, "MAC_OS", "1.2.3", "42")
+	_, err := resolveLocalBuildConfig(newPublishTestDeps(), values, "MAC_OS", "1.2.3", "42")
 	if err == nil || !strings.Contains(err.Error(), "manual signing for a macOS local build requires an explicit --export-options plist") {
 		t.Fatalf("expected macOS manual-signing usage error, got %v", err)
 	}
@@ -210,7 +210,7 @@ func TestRunPublishLocalBuildExportsAndUploadsPKGForMacOS(t *testing.T) {
 		}
 		return newPublishTestFileInfo(t)
 	}
-	uploadPKGBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, appID, path string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadPKGBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, appID, path string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		if appID != "app-123" || path != pkgPath || platform != asc.PlatformMacOS {
 			t.Fatalf("unexpected PKG upload: app=%q path=%q platform=%q", appID, path, platform)
 		}
@@ -221,7 +221,7 @@ func TestRunPublishLocalBuildExportsAndUploadsPKGForMacOS(t *testing.T) {
 	}
 
 	result, err := runPublishLocalBuild(
-		context.Background(), nil, "app-123", "MAC_OS", "1.2.3", "42",
+		context.Background(), newPublishTestDeps(), nil, "app-123", "MAC_OS", "1.2.3", "42",
 		shared.PublishDefaultPollInterval, time.Minute, false,
 		publishLocalBuildConfig{
 			ProjectPath: "Demo.xcodeproj", Scheme: "Demo", Configuration: "Release",

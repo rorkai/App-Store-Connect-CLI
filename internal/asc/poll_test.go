@@ -1,9 +1,11 @@
 package asc
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -361,6 +363,51 @@ func TestIsTransientWaitError(t *testing.T) {
 
 			if got := IsTransientWaitError(test.ctx, test.err); got != test.want {
 				t.Fatalf("IsTransientWaitError(%v) = %v, want %v", test.err, got, test.want)
+			}
+		})
+	}
+}
+
+func TestPollUntilTolerantReportsToleratedFailuresOnStderrOption(t *testing.T) {
+	transient := &RetryableError{Err: errors.New("service unavailable")}
+	poll := func(stderr io.Writer) error {
+		calls := 0
+		_, err := PollUntilTolerant(context.Background(), time.Millisecond, func(context.Context) (string, bool, error) {
+			calls++
+			if calls <= 2 {
+				return "", false, transient
+			}
+			return "done", true, nil
+		}, PollOptions{Tolerate: IsTransientWaitError, Stderr: stderr})
+		return err
+	}
+	want := fmt.Sprintf("transient App Store Connect error while waiting (1/%[1]d): %[2]s\ntransient App Store Connect error while waiting (2/%[1]d): %[2]s\n",
+		DefaultMaxConsecutivePollFailures, transient.Error())
+
+	tests := []struct {
+		name        string
+		stderr      *bytes.Buffer
+		wantProcess string
+	}{
+		{name: "nil Stderr reports on the process stderr", wantProcess: want},
+		{name: "Stderr receives the report", stderr: &bytes.Buffer{}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var writer io.Writer
+			if test.stderr != nil {
+				writer = test.stderr
+			}
+			var err error
+			process := captureWaitStderr(t, func() { err = poll(writer) })
+			if err != nil {
+				t.Fatalf("PollUntilTolerant() error = %v", err)
+			}
+			if process != test.wantProcess {
+				t.Fatalf("process stderr = %q, want %q", process, test.wantProcess)
+			}
+			if test.stderr != nil && test.stderr.String() != want {
+				t.Fatalf("Stderr = %q, want %q", test.stderr.String(), want)
 			}
 		})
 	}
