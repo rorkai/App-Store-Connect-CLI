@@ -68,7 +68,15 @@ existed before the destination file did. A host-created automatic or stale
 destination entry is isolated while import and verification run, then removed
 when `--add-to-search-list` is absent; explicit activation keeps the staged
 entry after verification. If both the primary operation and rollback fail,
-both errors are returned. Rollback
+both errors are returned. Without `--add-to-search-list`, a fresh user search-list
+read must confirm that the destination is absent before emitting a success
+receipt. macOS can report successful removal while retaining the entry when
+the requested list is empty; this triggers rollback instead of success.
+Rollback reads back the exact original list after deletion and restoration,
+reports successful cleanup only when those operations and verification succeed,
+and preserves the original failure alongside any cleanup or readback error.
+The focused regression is `TestExecuteSigningKeychainInstallVerifiesSearchListChanges`.
+Rollback
 uses an independent bounded context, so cancellation of the initiating command
 does not prevent keychain deletion or search-list restoration. The same rule
 applies when cancellation interrupts initial keychain configuration before the
