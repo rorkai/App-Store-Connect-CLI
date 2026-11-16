@@ -8,10 +8,11 @@ import (
 )
 
 func TestWriteWebSessionBundleUsesPrivateFilePolicy(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	path := filepath.Join(t.TempDir(), "session.json")
 	const payload = "{\"kind\":\"asc-web-session\"}\n"
 
-	overwritten, err := writeWebSessionBundle(path, []byte(payload), false)
+	overwritten, err := writeWebSessionBundle(d, path, []byte(payload), false)
 	if err != nil {
 		t.Fatalf("writeWebSessionBundle() error = %v", err)
 	}

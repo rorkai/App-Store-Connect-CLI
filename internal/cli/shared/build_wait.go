@@ -104,7 +104,7 @@ func waitForBuildByNumberOrUploadFailureTo(ctx context.Context, stderr io.Writer
 			return build, true, nil
 		}
 		return nil, false, nil
-	}, asc.PollOptions{Tolerate: isTransientBuildWaitError})
+	}, asc.PollOptions{Tolerate: isTransientBuildWaitError, Stderr: stderr})
 }
 
 // getBuildUploadWithLinkedBuild reads a build upload including its build
@@ -580,7 +580,17 @@ type BuildProcessingFailureContext struct {
 // INVALID. appID may be empty; it is then resolved from the build. The state
 // error is returned unchanged when no details can be resolved.
 func WaitForBuildProcessingWithDetails(ctx context.Context, client *asc.Client, appID, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-	build, err := client.WaitForBuildProcessing(ctx, buildID, pollInterval)
+	return waitForBuildProcessingWithDetailsTo(ctx, nil, client, appID, buildID, pollInterval)
+}
+
+// WaitForBuildProcessingWithDetails is WaitForBuildProcessingWithDetails with
+// its transient-error notices written to d's stderr.
+func (d *Deps) WaitForBuildProcessingWithDetails(ctx context.Context, client *asc.Client, appID, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
+	return waitForBuildProcessingWithDetailsTo(ctx, d.IO.ErrOut, client, appID, buildID, pollInterval)
+}
+
+func waitForBuildProcessingWithDetailsTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
+	build, err := client.WaitForBuildProcessingTo(ctx, stderr, buildID, pollInterval)
 	if err == nil || !asc.IsBuildProcessingFailure(err) {
 		return build, err
 	}

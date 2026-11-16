@@ -44,7 +44,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAuthCommand(),
+			newWebAuthCommand(d),
 			newWebAgreementsCommand(d),
 			newWebBusinessCommand(d),
 			newWebFinanceCommand(d),

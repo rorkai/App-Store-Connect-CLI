@@ -17,10 +17,7 @@ func TestRunReportedErrorPrintsOneStderrErrorLine(t *testing.T) {
 	t.Run("reported on stdout only", func(t *testing.T) {
 		path := writeWorkflowJSON(t, t.TempDir(), `{"workflows": {"beta": {"steps": []}}}`)
 
-		var code int
-		stdout, stderr := captureOutput(t, func() {
-			code = rootcmd.Run([]string{"workflow", "validate", "--file", path, "--output", "json"}, "1.2.3")
-		})
+		stdout, stderr, code := runWithDeps(t, nil, "workflow", "validate", "--file", path, "--output", "json")
 
 		if code != rootcmd.ExitError {
 			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitError)

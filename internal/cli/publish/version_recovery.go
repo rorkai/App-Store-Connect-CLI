@@ -9,7 +9,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func findOrCreatePublishAppStoreVersion(ctx context.Context, client *asc.Client, appID, version string, platform asc.Platform) (*asc.AppStoreVersionResponse, error) {
+func findOrCreatePublishAppStoreVersion(ctx context.Context, d *shared.Deps, client *asc.Client, appID, version string, platform asc.Platform) (*asc.AppStoreVersionResponse, error) {
 	appID = strings.TrimSpace(appID)
 	version = strings.TrimSpace(version)
 	platformValue := strings.ToUpper(strings.TrimSpace(string(platform)))
@@ -18,7 +18,7 @@ func findOrCreatePublishAppStoreVersion(ctx context.Context, client *asc.Client,
 	}
 
 	readVersion := func(parent context.Context) (*asc.AppStoreVersionResponse, bool, error) {
-		versions, err := shared.RetryReadWithFreshTimeout(parent, func(requestCtx context.Context) (*asc.AppStoreVersionsResponse, error) {
+		versions, err := shared.RetryReadWithFreshTimeoutWith(parent, d, func(requestCtx context.Context) (*asc.AppStoreVersionsResponse, error) {
 			return client.GetAppStoreVersions(
 				requestCtx,
 				appID,
@@ -59,8 +59,9 @@ func findOrCreatePublishAppStoreVersion(ctx context.Context, client *asc.Client,
 		return existing, err
 	}
 
-	created, _, err := shared.RunReconciledMutation(
+	created, _, err := shared.RunReconciledMutationWith(
 		ctx,
+		d,
 		func(requestCtx context.Context) (*asc.AppStoreVersionResponse, error) {
 			return client.CreateAppStoreVersion(requestCtx, appID, asc.AppStoreVersionCreateAttributes{
 				Platform:      asc.Platform(platformValue),
