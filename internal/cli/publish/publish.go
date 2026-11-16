@@ -429,7 +429,7 @@ Examples:
 			}
 
 			if *wait || testNotesValue != "" || (*submit && !isPublishBuildProcessed(buildResp)) {
-				processedBuildResp, waitErr := waitForPublishBuildProcessingFn(requestCtx, client, buildResp.Data.ID, *pollInterval)
+				processedBuildResp, waitErr := waitForPublishBuildProcessingFn(d, requestCtx, client, "", buildResp.Data.ID, *pollInterval)
 				if processedBuildResp != nil && strings.TrimSpace(processedBuildResp.Data.ID) == strings.TrimSpace(buildResp.Data.ID) {
 					buildResp = processedBuildResp
 					result.ProcessingState = buildResp.Data.Attributes.ProcessingState
@@ -780,7 +780,7 @@ Examples:
 				cancel()
 				requestCtx, cancel = newPublishRequestCtx()
 				defer cancel()
-				buildResp, err = waitForPublishBuildProcessingFn(requestCtx, client, buildResp.Data.ID, *pollInterval)
+				buildResp, err = waitForPublishBuildProcessingFn(d, requestCtx, client, "", buildResp.Data.ID, *pollInterval)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
