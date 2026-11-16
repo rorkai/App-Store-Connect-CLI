@@ -490,7 +490,7 @@ func TestRun_ToleratedTimeoutStaysRecoverableAndIsNotRepeatedOnResume(t *testing
 		"env": {"COUNTER": %q, "ALLOW": %q},
 		"workflows": {"main": {"steps": [
 			{"name": "prepare", "run": "true"},
-			{"name": "notify", "run": "printf x >> \"$COUNTER\"; sleep 10", "timeout": "250ms", "continue_on_error": true},
+			{"name": "notify", "run": "if [ -f \"$ALLOW\" ]; then printf x >> \"$COUNTER\"; fi; sleep 10", "timeout": "250ms", "continue_on_error": true},
 			{"name": "gate", "run": "test -f \"$ALLOW\""}
 		]}}
 	}`, counterPath, allowPath))
@@ -523,7 +523,7 @@ func TestRun_ToleratedTimeoutStaysRecoverableAndIsNotRepeatedOnResume(t *testing
 	if got, want := len(resumeResult.Steps[1].Attempts), len(result.Steps[1].Attempts); want == 0 || got != want {
 		t.Fatalf("resume kept %d of the tolerated step's %d attempts", got, want)
 	}
-	if got := readFileOrEmpty(t, counterPath); got != "x" {
+	if got := readFileOrEmpty(t, counterPath); got != "" {
 		t.Fatalf("resume repeated the tolerated step: %q", got)
 	}
 }

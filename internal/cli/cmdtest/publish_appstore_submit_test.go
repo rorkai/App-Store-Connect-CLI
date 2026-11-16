@@ -152,17 +152,22 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	})
 	installDefaultTransport(t, rt)
 
-	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, rt), []string{
-		"publish", "appstore",
-		"--app", "app-1",
-		"--ipa", ipaPath,
-		"--version", "1.2.3",
-		"--build-number", "42",
-		"--submit",
-		"--confirm",
-		"--timeout", "1s",
-		"--poll-interval", "1ms",
-	}...)
+	client := stubClient(t, rt)
+	var stdout, stderr string
+	var runErr error
+	synctest.Test(t, func(t *testing.T) {
+		stdout, stderr, runErr = runRootWithDeps(t, client, []string{
+			"publish", "appstore",
+			"--app", "app-1",
+			"--ipa", ipaPath,
+			"--version", "1.2.3",
+			"--build-number", "42",
+			"--submit",
+			"--confirm",
+			"--timeout", "1s",
+			"--poll-interval", "1ms",
+		}...)
+	})
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -431,17 +436,22 @@ func runPublishAppStoreSubmitPreflightFailure(t *testing.T, localizations, appIn
 	})
 	installDefaultTransport(t, rt)
 
-	_, stderr, runErr := runRootWithDeps(t, stubClient(t, rt), []string{
-		"publish", "appstore",
-		"--app", "app-1",
-		"--ipa", ipaPath,
-		"--version", "1.2.3",
-		"--build-number", "42",
-		"--submit",
-		"--confirm",
-		"--timeout", "1s",
-		"--poll-interval", "1ms",
-	}...)
+	client := stubClient(t, rt)
+	var stderr string
+	var runErr error
+	synctest.Test(t, func(t *testing.T) {
+		_, stderr, runErr = runRootWithDeps(t, client, []string{
+			"publish", "appstore",
+			"--app", "app-1",
+			"--ipa", ipaPath,
+			"--version", "1.2.3",
+			"--build-number", "42",
+			"--submit",
+			"--confirm",
+			"--timeout", "1s",
+			"--poll-interval", "1ms",
+		}...)
+	})
 	if runErr == nil {
 		t.Fatal("expected submit preflight error, got nil")
 	}
