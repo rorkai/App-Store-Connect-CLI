@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -100,12 +101,12 @@ func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAtt
 			ID:   appID,
 		},
 	}
-	if attrs != (AppUpdateAttributes{}) {
+	if attrs.AccessibilityURL != nil || attrs.BundleID != nil || attrs.PrimaryLocale != nil || attrs.SubscriptionStatusURL != nil || attrs.SubscriptionStatusURLVersion != nil || attrs.SubscriptionStatusURLForSandbox != nil || attrs.SubscriptionStatusURLVersionForSandbox != nil || attrs.ContentRightsDeclaration != nil || attrs.StreamlinedPurchasingEnabled != nil {
 		payload.Data.Attributes = &attrs
 	}
 
 	return sendJSON[AppResponse](ctx, c, writeRequest{
-		Method:  "PATCH",
+		Method:  http.MethodPatch,
 		Path:    fmt.Sprintf("/v1/apps/%s", appID),
 		Payload: payload,
 	})

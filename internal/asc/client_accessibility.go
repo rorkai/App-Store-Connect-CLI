@@ -16,11 +16,15 @@ func (c *Client) UpdateAccessibilityDeclaration(ctx context.Context, declaration
 			ID:   declarationID,
 		},
 	}
-	if HasAccessibilityDeclarationUpdates(attrs) {
+	if attrs.Publish != nil || attrs.SupportsAudioDescriptions != nil || attrs.SupportsCaptions != nil || attrs.SupportsDarkInterface != nil || attrs.SupportsDifferentiateWithoutColorAlone != nil || attrs.SupportsLargerText != nil || attrs.SupportsReducedMotion != nil || attrs.SupportsSufficientContrast != nil || attrs.SupportsVoiceControl != nil || attrs.SupportsVoiceover != nil {
 		payload.Data.Attributes = &attrs
 	}
 
-	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID), Payload: payload})
+	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID),
+		Payload: payload,
+	})
 }
 
 // HasAccessibilityDeclarationUpdates reports whether any update attributes are set.
