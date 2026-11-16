@@ -36,7 +36,6 @@ func BindFlagAlias(fs *flag.FlagSet, alias, canonical string) {
 		panic(fmt.Sprintf("shared: flag alias --%s names undefined flag --%s", alias, canonical))
 	}
 	fs.Var(&flagAlias{canonical: target}, alias, "Alias of --"+canonical)
-	HideFlagFromHelp(fs.Lookup(alias))
 }
 
 // FlagAliasTarget returns the name of the flag that f is an alias of.
