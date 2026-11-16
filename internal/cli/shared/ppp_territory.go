@@ -75,14 +75,15 @@ func pppPriceAt(prices []ResolvedPriceRow, territory string, at time.Time) (Reso
 }
 
 // ValidatePPPScheduleSnapshot fails closed before reconstructing a schedule.
-func ValidatePPPScheduleSnapshot(snapshot PPPScheduleSnapshot) error {
+// now is the clock that decides today's pricing date.
+func ValidatePPPScheduleSnapshot(snapshot PPPScheduleSnapshot, now func() time.Time) error {
 	if snapshot.BaseTerritory == "" {
 		return fmt.Errorf("price schedule is missing its base territory")
 	}
 	forward := append([]ResolvedPriceRow(nil), snapshot.Prices...)
 	SortResolvedPrices(forward)
 	ends := make(map[string]string)
-	today := PricingDate(PricingNow()).Format("2006-01-02")
+	today := PricingDate(now()).Format("2006-01-02")
 	for _, row := range forward {
 		if row.Territory == "" || row.PricePointID == "" || row.Manual == nil {
 			return fmt.Errorf("cannot resolve complete schedule price %q", row.PriceID)
@@ -106,7 +107,7 @@ func ValidatePPPScheduleSnapshot(snapshot PPPScheduleSnapshot) error {
 		}
 		ends[mode] = row.EndDate
 	}
-	if _, ok := pppPriceAt(snapshot.Prices, snapshot.BaseTerritory, PricingNow()); !ok {
+	if _, ok := pppPriceAt(snapshot.Prices, snapshot.BaseTerritory, now()); !ok {
 		return fmt.Errorf("price schedule has no current base price")
 	}
 	return nil
@@ -122,7 +123,7 @@ func scopedPPPPrices(snapshot PPPScheduleSnapshot, rows []asc.SubscriptionPricin
 	if _, changesBase := changed[snapshot.BaseTerritory]; changesBase {
 		return nil, fmt.Errorf("cannot change the schedule base timeline with --territory; omit --territory for a global base change")
 	}
-	today := PricingDate(PricingNow()).Format("2006-01-02")
+	today := PricingDate(run.now()).Format("2006-01-02")
 	effective := run.startDate
 	if effective == "" {
 		effective = today
@@ -160,8 +161,8 @@ func scopedPPPPrices(snapshot PPPScheduleSnapshot, rows []asc.SubscriptionPricin
 	return prices, nil
 }
 
-func pppSnapshotKeys(snapshot PPPScheduleSnapshot, key func(string) string, retain func(ResolvedPriceRow) bool) []string {
-	today := PricingDate(PricingNow()).Format("2006-01-02")
+func pppSnapshotKeys(snapshot PPPScheduleSnapshot, key func(string) string, retain func(ResolvedPriceRow) bool, now func() time.Time) []string {
+	today := PricingDate(now()).Format("2006-01-02")
 	keys := []string{snapshot.BaseTerritory}
 	for _, row := range snapshot.Prices {
 		if (row.EndDate != "" && row.EndDate <= today) || !retain(row) {
@@ -183,12 +184,12 @@ func pppSnapshotKeys(snapshot PPPScheduleSnapshot, key func(string) string, reta
 	return keys
 }
 
-func samePPPSnapshot(a, b PPPScheduleSnapshot, key func(string) string) bool {
+func samePPPSnapshot(a, b PPPScheduleSnapshot, key func(string) string, now func() time.Time) bool {
 	all := func(ResolvedPriceRow) bool { return true }
-	return slices.Equal(pppSnapshotKeys(a, key, all), pppSnapshotKeys(b, key, all))
+	return slices.Equal(pppSnapshotKeys(a, key, all, now), pppSnapshotKeys(b, key, all, now))
 }
 
-func verifyScopedPPPSchedule(ctx context.Context, surface PriceSchedulePPPSurface, before PPPScheduleSnapshot, rows []asc.SubscriptionPricingDeriveRow, prices []ScheduledPricePoint, ladders map[string][]PriceLadderCandidate, effective string, key func(string) string) error {
+func verifyScopedPPPSchedule(ctx context.Context, surface PriceSchedulePPPSurface, before PPPScheduleSnapshot, rows []asc.SubscriptionPricingDeriveRow, prices []ScheduledPricePoint, ladders map[string][]PriceLadderCandidate, effective string, key func(string) string, now func() time.Time) error {
 	after, err := surface.ReadSchedule(ctx)
 	if err != nil {
 		return fmt.Errorf("preservation verification readback failed: %w", err)
@@ -200,7 +201,7 @@ func verifyScopedPPPSchedule(ctx context.Context, surface PriceSchedulePPPSurfac
 		}
 	}
 	if effective == "" {
-		effective = PricingDate(PricingNow()).Format("2006-01-02")
+		effective = PricingDate(now()).Format("2006-01-02")
 	}
 	clipAutomatic := func(row ResolvedPriceRow) (ResolvedPriceRow, bool) {
 		if *row.Manual || !changed[row.Territory] {
@@ -239,9 +240,9 @@ func verifyScopedPPPSchedule(ctx context.Context, surface PriceSchedulePPPSurfac
 		}
 	}
 	retain := func(ResolvedPriceRow) bool { return true }
-	if !slices.Equal(pppSnapshotKeys(expected, key, retain), pppSnapshotKeys(normalizedAfter, key, retain)) {
+	if !slices.Equal(pppSnapshotKeys(expected, key, retain, now), pppSnapshotKeys(normalizedAfter, key, retain, now)) {
 		manualOnly := func(row ResolvedPriceRow) bool { return *row.Manual }
-		if slices.Equal(pppSnapshotKeys(expected, key, manualOnly), pppSnapshotKeys(normalizedAfter, key, manualOnly)) {
+		if slices.Equal(pppSnapshotKeys(expected, key, manualOnly, now), pppSnapshotKeys(normalizedAfter, key, manualOnly, now)) {
 			return fmt.Errorf("preservation verification failed: observed automatic pricing readback drift (price, timeline, or mode)")
 		}
 		return fmt.Errorf("preservation verification failed: manual timelines or schedule base differ")

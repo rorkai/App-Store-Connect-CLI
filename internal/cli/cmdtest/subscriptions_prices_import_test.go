@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestSubscriptionsPricesImport_InvalidBooleanReturnsUsageError(t *testing.T) {
@@ -375,7 +374,7 @@ func TestSubscriptionsPricesImport_ReconcilesAmbiguousCreateWithoutReplay(t *tes
 func TestSubscriptionsPricesImport_SkipsImmediatePriceWithConcreteEffectiveDate(t *testing.T) {
 	setupAuth(t)
 	// 17:30 PDT on 2026-09-30: an immediate price carries the Pacific date.
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+	t.Cleanup(setRootNow(func() time.Time {
 		return time.Date(2026, time.October, 1, 0, 30, 0, 0, time.UTC)
 	}))
 

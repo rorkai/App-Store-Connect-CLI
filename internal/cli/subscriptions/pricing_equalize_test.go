@@ -45,9 +45,10 @@ func TestNormalizeEqualizeStartDateUsesUSPacificDay(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Cleanup(shared.SetPricingNowForTesting(func() time.Time { return test.now }))
+			d := shared.DefaultDeps()
+			d.Now = func() time.Time { return test.now }
 
-			normalized, date, err := normalizeEqualizeStartDate(shared.DefaultDeps(), test.startDate)
+			normalized, date, err := normalizeEqualizeStartDate(d, test.startDate)
 			if test.wantErr {
 				if err == nil {
 					t.Fatalf("expected --start-date %q to be rejected, got date %s", test.startDate, date)

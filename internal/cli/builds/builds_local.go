@@ -109,7 +109,7 @@ Examples:
 			return d.UsageError(err.Error())
 		}
 		// The child tool logs to the process stderr so it keeps the terminal.
-		result, err := signing.PackageIOSApp(ctx, signing.IOSPackageOptions{AppPath: *appPath, IPAPath: *ipaPath, AdHoc: *adHoc, IdentityPath: *identity, PasswordPath: *password, ProfilePath: *profile, EntitlementsPath: *entitlements, LogWriter: os.Stderr})
+		result, err := signing.PackageIOSApp(ctx, d, signing.IOSPackageOptions{AppPath: *appPath, IPAPath: *ipaPath, AdHoc: *adHoc, IdentityPath: *identity, PasswordPath: *password, ProfilePath: *profile, EntitlementsPath: *entitlements, LogWriter: os.Stderr})
 		if err != nil {
 			return fmt.Errorf("builds package: %w", err)
 		}
