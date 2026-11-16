@@ -224,7 +224,6 @@ func ptrTo(value string) *string {
 }
 
 func TestWebCommandOperationSurvivesSlowInteractiveAuthentication(t *testing.T) {
-	_ = stubWebProgressLabels(t)
 	t.Setenv("ASC_TIMEOUT", "150ms")
 
 	origResolveSession := resolveSessionFn
