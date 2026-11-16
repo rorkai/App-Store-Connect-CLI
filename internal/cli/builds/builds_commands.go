@@ -385,7 +385,7 @@ Examples:
 
 					if *wait {
 						fmt.Fprintf(d.IO.ErrOut, "Build %s discovered; waiting for processing...\n", buildResp.Data.ID)
-						if _, err := shared.WaitForBuildProcessingWithDetails(waitCtx, client, resolvedAppID, buildResp.Data.ID, *pollInterval); err != nil {
+						if _, err := d.WaitForBuildProcessingWithDetails(waitCtx, client, resolvedAppID, buildResp.Data.ID, *pollInterval); err != nil {
 							return fmt.Errorf("builds upload: %w", err)
 						}
 					}

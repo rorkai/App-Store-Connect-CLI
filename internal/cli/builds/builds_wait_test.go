@@ -126,9 +126,16 @@ func TestWaitForBuildProcessingStateToleratesTransientLookupFailures(t *testing.
 
 	var buildResp *asc.BuildResponse
 	var err error
-	stderr := captureBuildsWaitStderr(t, func() {
-		buildResp, err = waitForBuildProcessingState(context.Background(), shared.DefaultDeps(), client, "build-1", time.Millisecond, false, shared.BuildProcessingFailureContext{}, nil)
+	d := shared.DefaultDeps()
+	var depsStderr bytes.Buffer
+	d.IO.ErrOut = &depsStderr
+	processStderr := captureBuildsWaitStderr(t, func() {
+		buildResp, err = waitForBuildProcessingState(context.Background(), d, client, "build-1", time.Millisecond, false, shared.BuildProcessingFailureContext{}, nil)
 	})
+	if processStderr != "" {
+		t.Fatalf("process stderr = %q, want empty", processStderr)
+	}
+	stderr := depsStderr.String()
 	if err != nil {
 		t.Fatalf("waitForBuildProcessingState() error: %v", err)
 	}
@@ -1042,9 +1049,16 @@ func TestWaitForBuildDiscoveryToleratesTransientLookupFailures(t *testing.T) {
 
 	var buildResp *asc.BuildResponse
 	var err error
-	stderr := captureBuildsWaitStderr(t, func() {
-		buildResp, err = waitForBuildDiscovery(context.Background(), shared.DefaultDeps(), client, selector, time.Millisecond, nil)
+	d := shared.DefaultDeps()
+	var depsStderr bytes.Buffer
+	d.IO.ErrOut = &depsStderr
+	processStderr := captureBuildsWaitStderr(t, func() {
+		buildResp, err = waitForBuildDiscovery(context.Background(), d, client, selector, time.Millisecond, nil)
 	})
+	if processStderr != "" {
+		t.Fatalf("process stderr = %q, want empty", processStderr)
+	}
+	stderr := depsStderr.String()
 	if err != nil {
 		t.Fatalf("waitForBuildDiscovery() error: %v", err)
 	}

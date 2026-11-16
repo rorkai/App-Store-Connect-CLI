@@ -139,6 +139,7 @@ func TestResolveSigningAssetsForceForNewDevicesIsNoOpWhenDeviceSetUnchanged(t *t
 	beforeCreateCalls := 0
 
 	profile, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -183,6 +184,7 @@ func TestResolveSigningAssetsForceForNewDevicesRecreatesProfileWithSameName(t *t
 	progress := &signingAssetsProgress{}
 	var events []string
 	options := signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -242,6 +244,7 @@ func TestResolveSigningAssetsForceForNewDevicesUsesExplicitDevices(t *testing.T)
 
 	progress := &signingAssetsProgress{}
 	_, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -273,6 +276,7 @@ func TestResolveSigningAssetsIncludeMacAddsOnlyAppleSiliconMacs(t *testing.T) {
 	)
 	progress := &signingAssetsProgress{}
 	_, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -296,6 +300,7 @@ func TestResolveSigningAssetsForceForNewDevicesFailsBeforeMutationWithoutEnabled
 	api.bundleProfiles = activeDevelopmentProfile
 	api.devices = lifecycleDevicesJSON([4]string{"device-tv", "UDIDTV", "APPLE_TV", "ENABLED"})
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -318,6 +323,7 @@ func TestResolveSigningAssetsForceForNewDevicesDeleteFailureStopsBeforeCreate(t 
 	api.deleteStatus = http.StatusInternalServerError
 	progress := &signingAssetsProgress{}
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -358,6 +364,7 @@ func TestResolveSigningAssetsRenewExpiredRecreatesLatestExpiredProfile(t *testin
 	progress := &signingAssetsProgress{}
 
 	profile, certificates, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_STORE",
@@ -406,6 +413,7 @@ func TestResolveSigningAssetsRenewExpiredIsNoOpWhenActiveProfileExists(t *testin
 	]}`
 	progress := &signingAssetsProgress{}
 	profile, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_STORE",
@@ -427,6 +435,7 @@ func TestResolveSigningAssetsRenewExpiredWithoutProfilesKeepsMissingProfileError
 	api := newLifecycleAPI(t)
 	api.bundleProfiles = `{"data":[]}`
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_STORE",
@@ -452,6 +461,7 @@ func TestResolveSigningAssetsRenewExpiredDevelopmentReusesEnabledDevices(t *test
 	)
 	progress := &signingAssetsProgress{}
 	_, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -575,6 +585,7 @@ func TestResolveSigningAssetsRenewExpiredKeepsCertificateMismatchErrorWhenActive
 		{"type":"profiles","id":"profile-current","attributes":{"name":"Store","profileType":"IOS_APP_STORE","profileState":"ACTIVE","expirationDate":"2027-01-01T00:00:00Z"}}
 	]}`
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_STORE",
@@ -600,6 +611,7 @@ func TestResolveSigningAssetsReplacementCreateFailureNamesRecovery(t *testing.T)
 	api.createStatus = http.StatusConflict
 	progress := &signingAssetsProgress{}
 	_, _, _, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
@@ -621,6 +633,7 @@ func TestResolveSigningAssetsReplacementUsesSeparateRequestContexts(t *testing.T
 	api.profileDevices["profile-old"] = lifecycleDevicesJSON([4]string{"device-1", "UDID1", "IPHONE", "ENABLED"})
 	contexts := 0
 	_, _, created, err := resolveSigningAssets(context.Background(), api.client(), signingAssetsOptions{
+		Now:                signingFetchNowFn,
 		BundleIDResourceID: "bundle-1",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_DEVELOPMENT",
