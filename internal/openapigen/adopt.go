@@ -34,6 +34,7 @@ type pkg struct {
 	files   []*pkgFile
 	methods map[string][]*decl // by HTTP method and path literal, such as "GET /v1/apps/%s"
 	types   map[string]*decl
+	funcs   map[string]*decl // functions and Client methods, by funcKey
 }
 
 type decl struct {
@@ -42,6 +43,18 @@ type decl struct {
 	name    string
 	src     []byte // from the func or type keyword to the end, without the doc comment
 	adopted bool
+	// fn is the method with the helpers in via inlined, and src its source,
+	// when the method only returns a helper's result.
+	fn  *ast.FuncDecl
+	via []*decl
+}
+
+// funcDecl is the method as adoption compares it.
+func (d *decl) funcDecl() *ast.FuncDecl {
+	if d.fn != nil {
+		return d.fn
+	}
+	return d.node.(*ast.FuncDecl)
 }
 
 func (d *decl) adopt() {
@@ -190,6 +203,9 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			adopted = append(adopted, fam)
 		}
 	}
+	if err := p.removeUnusedHelpers(dir, report); err != nil {
+		return nil, nil, err
+	}
 	edits, err := p.edits()
 	return edits, adopted, err
 }
@@ -209,7 +225,7 @@ func dropDefaultResponses(spec *Spec, fam *Family, report io.Writer) bool {
 }
 
 func loadPackage(dir string) (*pkg, error) {
-	p := &pkg{fset: token.NewFileSet(), methods: map[string][]*decl{}, types: map[string]*decl{}}
+	p := &pkg{fset: token.NewFileSet(), methods: map[string][]*decl{}, types: map[string]*decl{}, funcs: map[string]*decl{}}
 	paths, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
 		return nil, err
@@ -232,6 +248,13 @@ func loadPackage(dir string) (*pkg, error) {
 		pf := &pkgFile{path: path, src: src, ast: f}
 		p.files = append(p.files, pf)
 		for _, node := range f.Decls {
+			if fn, ok := node.(*ast.FuncDecl); ok && funcKey(fn) != "" {
+				p.funcs[funcKey(fn)] = &decl{file: pf, node: fn, name: fn.Name.Name, src: p.slice(pf, fn.Pos(), fn.End())}
+			}
+		}
+	}
+	for _, pf := range p.files {
+		for _, node := range pf.ast.Decls {
 			p.index(pf, node)
 		}
 	}
@@ -248,9 +271,12 @@ func (p *pkg) index(pf *pkgFile, node ast.Decl) {
 		if n.Recv == nil || len(n.Recv.List) != 1 || exprString(n.Recv.List[0].Type) != "*Client" {
 			return
 		}
-		d := &decl{file: pf, node: n, name: n.Name.Name, src: p.slice(pf, n.Pos(), n.End())}
+		d := p.funcs[funcKey(n)]
+		if fn, src, via := p.inline(d); fn != nil {
+			d.fn, d.src, d.via = fn, src, via
+		}
 		var paths, verbs []string
-		ast.Inspect(n.Body, func(x ast.Node) bool {
+		ast.Inspect(d.funcDecl().Body, func(x ast.Node) bool {
 			switch x := x.(type) {
 			case *ast.BasicLit:
 				if v := stringLit(x); strings.HasPrefix(v, "/v") {
@@ -314,7 +340,7 @@ func pathFormat(template string) string {
 // the method from them, and accepts the binding only when the two are the
 // same tokens.
 func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind, string) {
-	fn := d.node.(*ast.FuncDecl)
+	fn := d.funcDecl()
 	b := &OpBind{Operation: op.ID, Name: fn.Name.Name}
 	argFields := attributeArgs(fn.Body)
 	for i, field := range fn.Type.Params.List {

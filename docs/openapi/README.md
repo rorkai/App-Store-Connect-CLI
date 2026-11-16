@@ -73,9 +73,12 @@ by hand.
   `cd internal/asc && go run ../openapigen -adopt <Tag>[,<Tag>...]`. For each
   operation of a tag it renders the method from the spec and the choices read
   out of the existing method, and replaces the existing method only when both
-  are the same Go tokens; types are handled the same way. It writes only the
-  bindings files of the tags it adopted code from. It prints what it
-  generated, why it kept the rest, and the name the rule in
+  are the same Go tokens; types are handled the same way. A method that only
+  returns the result of an unexported helper is compared with the helper's
+  body in its place, the helper's parameters bound to the call's identifiers
+  and string literals, and a helper no remaining code calls is removed with
+  it. It writes only the bindings files of the tags it adopted code from. It
+  prints what it generated, why it kept the rest, and the name the rule in
   `internal/openapigen/names.go` gives each operation that has no method yet.
   Add `-dry-run` to only print the report.
 - A tag's `"queries"` bind the query of a read: its option type, query
