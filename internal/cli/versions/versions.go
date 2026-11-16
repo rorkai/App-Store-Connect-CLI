@@ -52,7 +52,7 @@ Examples:
 			newVersionsAttachBuildCommand(d),
 			newVersionsReleaseCommand(d),
 			newPhasedReleaseCommand(d),
-			webcli.VersionRatingResetCommand(),
+			webcli.NewVersionRatingResetCommand(d),
 			newVersionsPromotionsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {

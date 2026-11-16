@@ -16,9 +16,9 @@ var listDeveloperTeamsFn = func(ctx context.Context, client *webcore.Client) (*a
 	return client.ListDeveloperPortalTeams(ctx)
 }
 
-// WebTeamsCommand returns the Developer Portal teams command group.
-func WebTeamsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web teams", flag.ExitOnError)
+// newWebTeamsCommand returns the Developer Portal teams command group.
+func newWebTeamsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web teams", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "teams",
 		ShortUsage: "asc web teams <subcommand> [flags]",
@@ -29,9 +29,9 @@ Examples:
   asc web teams list
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebTeamsListCommand(),
+			newWebTeamsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -39,11 +39,11 @@ Examples:
 	}
 }
 
-// WebTeamsListCommand lists every Developer Portal team on the web session.
-func WebTeamsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web teams list", flag.ExitOnError)
+// newWebTeamsListCommand lists every Developer Portal team on the web session.
+func newWebTeamsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web teams list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -60,20 +60,20 @@ Examples:
   asc web teams list --output json
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web teams list")
 			}
 
 			var result *asc.WebDeveloperTeamsResult
-			err = withWebSpinner("Loading Developer Portal teams", func() error {
+			err = withWebSpinnerWith(d, "Loading Developer Portal teams", func() error {
 				var listErr error
 				result, listErr = listDeveloperTeamsFn(requestCtx, newWebClientFn(session))
 				return listErr
@@ -84,9 +84,9 @@ Examples:
 			if result == nil {
 				return fmt.Errorf("web teams list failed: missing list result")
 			}
-			persistDeveloperPortalSession(session)
+			persistDeveloperPortalSessionWith(d, session)
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

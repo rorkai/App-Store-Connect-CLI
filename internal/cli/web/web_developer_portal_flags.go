@@ -36,10 +36,6 @@ func (flags developerPortalFlags) developerTeamWasSet() bool {
 	return set
 }
 
-func validateDeveloperPortalFlags(flags developerPortalFlags) error {
-	return validateDeveloperPortalFlagsWith(shared.DefaultDeps(), flags)
-}
-
 func validateDeveloperPortalFlagsWith(d *shared.Deps, flags developerPortalFlags) error {
 	if !flags.developerTeamWasSet() {
 		return nil
@@ -59,10 +55,6 @@ func newDeveloperPortalClient(session *webcore.AuthSession, flags developerPorta
 		client.SetDeveloperTeamSelector(strings.TrimSpace(*flags.developerTeam))
 	}
 	return client
-}
-
-func persistDeveloperPortalSession(session *webcore.AuthSession) {
-	persistDeveloperPortalSessionWith(shared.DefaultDeps(), session)
 }
 
 func persistDeveloperPortalSessionWith(d *shared.Deps, session *webcore.AuthSession) {

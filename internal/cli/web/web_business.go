@@ -11,40 +11,40 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// WebBusinessCommand returns App Store Connect Business web-session workflows.
-func WebBusinessCommand() *ffcli.Command {
+// newWebBusinessCommand returns App Store Connect Business web-session workflows.
+func newWebBusinessCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:        "business",
 		ShortUsage:  "asc web business <subcommand> [flags]",
 		ShortHelp:   "Manage App Store Connect Business agreements.",
-		FlagSet:     flag.NewFlagSet("web business", flag.ExitOnError),
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebBusinessAgreementsCommand()},
+		FlagSet:     d.NewFlagSet("web business", flag.ExitOnError),
+		UsageFunc:   d.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{newWebBusinessAgreementsCommand(d)},
 		Exec:        func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-// WebBusinessAgreementsCommand returns Business contract workflows, separate
+// newWebBusinessAgreementsCommand returns Business contract workflows, separate
 // from Apple Developer Program licenses under web agreements.
-func WebBusinessAgreementsCommand() *ffcli.Command {
+func newWebBusinessAgreementsCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:        "agreements",
 		ShortUsage:  "asc web business agreements <subcommand> [flags]",
 		ShortHelp:   "Inspect and accept App Store Connect Business agreements.",
-		FlagSet:     flag.NewFlagSet("web business agreements", flag.ExitOnError),
-		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebBusinessAgreementsListCommand(), WebBusinessAgreementsAcceptCommand()},
+		FlagSet:     d.NewFlagSet("web business agreements", flag.ExitOnError),
+		UsageFunc:   d.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{newWebBusinessAgreementsListCommand(d), newWebBusinessAgreementsAcceptCommand(d)},
 		Exec:        func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-// WebBusinessAgreementsAcceptCommand accepts one explicitly selected update.
-func WebBusinessAgreementsAcceptCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web business agreements accept", flag.ExitOnError)
+// newWebBusinessAgreementsAcceptCommand accepts one explicitly selected update.
+func newWebBusinessAgreementsAcceptCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web business agreements accept", flag.ExitOnError)
 	configID := fs.String("contract-config-id", "", "Outstanding configuration ID from availableNewContractConfigId in agreements list")
 	confirm := fs.Bool("confirm", false, "Confirm agreeing to the terms and the Business form's Family Sharing consent")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "accept",
 		ShortUsage: "asc web business agreements accept --contract-config-id ID --confirm [flags]",
@@ -75,19 +75,19 @@ Example:
   asc web business agreements accept --contract-config-id CONFIG_ID --confirm
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*configID)
 			if id == "" {
-				return shared.UsageError("--contract-config-id is required")
+				return d.UsageError("--contract-config-id is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web business agreements accept")
@@ -96,16 +96,16 @@ Example:
 			if err != nil {
 				return withWebAuthHint(err, "web business agreements accept")
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebBusinessAgreementsListCommand lists contracts without losing Apple's envelope.
-func WebBusinessAgreementsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web business agreements list", flag.ExitOnError)
+// newWebBusinessAgreementsListCommand lists contracts without losing Apple's envelope.
+func newWebBusinessAgreementsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web business agreements list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web business agreements list [flags]",
@@ -120,12 +120,12 @@ Example:
   asc web business agreements list --output json
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return withWebAuthHint(err, "web business agreements list")
@@ -145,7 +145,7 @@ Example:
 				}
 				rows = append(rows, []string{agreement.ContractID, agreement.ContractDisplayName, agreement.Status, version, outstandingID})
 			}
-			return shared.PrintOutputRows(response.Raw, *output.Output, *output.Pretty,
+			return d.PrintOutputRows(response.Raw, *output.Output, *output.Pretty,
 				[]string{"Contract ID", "Agreement", "Status", "Current Version", "New Configuration ID"}, rows)
 		},
 	}

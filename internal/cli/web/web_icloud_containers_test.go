@@ -14,7 +14,8 @@ import (
 )
 
 func TestWebICloudContainersCommandHierarchy(t *testing.T) {
-	command := WebICloudContainersCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebICloudContainersCommand(d)
 	if command.Name != "icloud-containers" || command.UsageFunc == nil {
 		t.Fatalf("unexpected command: %+v", command)
 	}
@@ -28,7 +29,7 @@ func TestWebICloudContainersCommandHierarchy(t *testing.T) {
 		t.Fatal("iCloud container list must not advertise --paginate")
 	}
 
-	d, _, _ := newWebTestDeps()
+	d, _, _ = newWebTestDeps()
 	root := NewWebCommand(d)
 	var found bool
 	for _, subcommand := range root.Subcommands {
@@ -82,7 +83,8 @@ func TestWebICloudContainersCreatePrintsVerifiedPermanentReceipt(t *testing.T) {
 		}, nil
 	}
 
-	command := WebICloudContainersCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebICloudContainersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--identifier", " iCloud.com.example.app ",
 		"--name", " Example Container ",
@@ -91,7 +93,7 @@ func TestWebICloudContainersCreatePrintsVerifiedPermanentReceipt(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), command.FlagSet.Args()); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -124,11 +126,12 @@ func TestWebICloudContainersCreateRejectsInvalidIdentifierBeforeSession(t *testi
 		{"iCloud.", "reverse-DNS string"},
 	} {
 		t.Run(tc.identifier, func(t *testing.T) {
-			command := WebICloudContainersCreateCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebICloudContainersCreateCommand(d)
 			if err := command.FlagSet.Parse([]string{"--identifier", tc.identifier, "--name", "Example", "--confirm"}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), command.FlagSet.Args()); !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected usage error, got %v", err)
 				}
@@ -148,11 +151,12 @@ func TestWebICloudContainersCreateReportsUnverifiedOutcome(t *testing.T) {
 	createDeveloperICloudContainerFn = func(context.Context, *webcore.Client, webcore.DeveloperICloudContainerCreateRequest) (*asc.WebICloudContainerCreateResult, error) {
 		return nil, &webcore.DeveloperICloudContainerUnverifiedError{Err: errors.New("developer portal accepted the iCloud container create but the read-back failed; run asc web icloud-containers list before retrying")}
 	}
-	command := WebICloudContainersCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebICloudContainersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--identifier", "iCloud.com.example.app", "--name", "Example", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := command.Exec(context.Background(), command.FlagSet.Args())
 		if err == nil || errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "run asc web icloud-containers list before retrying") {
 			t.Fatalf("error = %v, want unverified outcome", err)
@@ -167,14 +171,15 @@ func TestWebICloudContainersCreateReportsUnverifiedOutcome(t *testing.T) {
 }
 
 func TestWebICloudContainersCreateRequiresConfirm(t *testing.T) {
-	command := WebICloudContainersCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebICloudContainersCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--identifier", "iCloud.com.example.app",
 		"--name", "Example",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := command.Exec(context.Background(), command.FlagSet.Args())
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected usage error, got %v", err)
@@ -211,11 +216,12 @@ func TestWebICloudContainersListPrintsJSONAndPassesHidden(t *testing.T) {
 		}, nil
 	}
 
-	command := WebICloudContainersListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebICloudContainersListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--hidden", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -258,11 +264,12 @@ func TestWebICloudContainersListPrintsMeaningfulTable(t *testing.T) {
 		}}}, nil
 	}
 
-	command := WebICloudContainersListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebICloudContainersListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -314,11 +321,12 @@ func TestWebICloudContainersListWarnsAboutIncompletePages(t *testing.T) {
 						Links: links, Meta: map[string]any{"paging": map[string]any{"total": 1001, "limit": 1000}},
 					}, nil
 				}
-				command := WebICloudContainersListCommand()
+				d, depsStdout, depsStderr := newWebTestDeps()
+				command := newWebICloudContainersListCommand(d)
 				if err := command.FlagSet.Parse([]string{"--output", format}); err != nil {
 					t.Fatal(err)
 				}
-				_, stderr := captureWebCommandOutput(t, func() {
+				_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 					if err := command.Exec(context.Background(), nil); err != nil {
 						t.Fatal(err)
 					}

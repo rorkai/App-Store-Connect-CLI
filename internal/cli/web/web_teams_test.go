@@ -36,11 +36,12 @@ func TestWebTeamsListPrintsTeamFieldsAsJSON(t *testing.T) {
 		}}, nil
 	}
 
-	command := WebTeamsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebTeamsListCommand(d)
 	if err := command.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

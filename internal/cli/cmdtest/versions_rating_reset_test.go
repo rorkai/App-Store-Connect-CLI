@@ -56,17 +56,15 @@ func TestVersionsRatingResetCreateRootIntegration(t *testing.T) {
 		}`)
 	})
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"versions", "rating-reset", "create",
-			"--output", "json",
-			"--version-id", "version-1",
-			"--confirm",
-		}, "test")
-		if code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"versions", "rating-reset", "create",
+		"--output", "json",
+		"--version-id", "version-1",
+		"--confirm",
+	)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -98,16 +96,14 @@ func TestVersionsRatingResetViewRootIntegration(t *testing.T) {
 		}`)
 	})
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"versions", "rating-reset", "view",
-			"--version-id", "version-1",
-			"--output", "table",
-		}, "test")
-		if code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"versions", "rating-reset", "view",
+		"--version-id", "version-1",
+		"--output", "table",
+	)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -130,17 +126,15 @@ func TestVersionsRatingResetDeleteRootIntegration(t *testing.T) {
 		}, nil
 	})
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"versions", "rating-reset", "delete",
-			"--confirm",
-			"--id", "reset-1",
-			"--output", "json",
-		}, "test")
-		if code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"versions", "rating-reset", "delete",
+		"--confirm",
+		"--id", "reset-1",
+		"--output", "json",
+	)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -179,11 +173,10 @@ func TestVersionsRatingResetValidationBeforeSessionResolution(t *testing.T) {
 			})
 			t.Cleanup(restore)
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "test"); code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
