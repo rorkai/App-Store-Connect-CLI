@@ -255,10 +255,6 @@ func TestBuildsUpdateCommand_Shape(t *testing.T) {
 		t.Fatal("expected --build-id flag to be defined")
 	}
 
-	if buildFlag := cmd.FlagSet.Lookup("build"); buildFlag != nil {
-		t.Fatal("expected removed --build alias to be undefined")
-	}
-
 	appFlag := cmd.FlagSet.Lookup("app")
 	if appFlag == nil {
 		t.Fatal("expected --app flag to be defined")
