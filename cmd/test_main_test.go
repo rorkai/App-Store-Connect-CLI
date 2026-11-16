@@ -8,12 +8,18 @@ import (
 
 var testTempDir string
 
+// testTempDirVariable names the folder of the test binary that started this
+// one. Helper processes re-run the binary and exit from inside a test, which
+// skips the cleanup at the end of TestMain, so their folder goes inside it.
+const testTempDirVariable = "ASC_CMD_TEST_TEMP_DIR"
+
 func TestMain(m *testing.M) {
-	tempDir, err := os.MkdirTemp("", "asc-cmd-*")
+	tempDir, err := os.MkdirTemp(os.Getenv(testTempDirVariable), "asc-cmd-*")
 	if err != nil {
 		panic(err)
 	}
 	testTempDir = tempDir
+	_ = os.Setenv(testTempDirVariable, tempDir)
 
 	// The asc binary that the built-binary tests run is not a test binary, so
 	// internal/testguard does not hide the developer's credentials from it.
