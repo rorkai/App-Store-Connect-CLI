@@ -123,7 +123,7 @@ func TestDefaultOutputFormat_UnsetReturnsJSON(t *testing.T) {
 	setTerminalDetection(t, func(int) bool { return false })
 	t.Setenv("ASC_DEFAULT_OUTPUT", "")
 	os.Unsetenv("ASC_DEFAULT_OUTPUT")
-	if got := DefaultOutputFormat(); got != "json" {
+	if got := DefaultDeps().DefaultOutputFormat(); got != "json" {
 		t.Fatalf("expected json, got %q", got)
 	}
 }
@@ -135,7 +135,7 @@ func TestDefaultOutputFormat_UnsetReturnsTableWhenStdoutTTY(t *testing.T) {
 	t.Setenv("ASC_DEFAULT_OUTPUT", "")
 	os.Unsetenv("ASC_DEFAULT_OUTPUT")
 
-	if got := DefaultOutputFormat(); got != "table" {
+	if got := DefaultDeps().DefaultOutputFormat(); got != "table" {
 		t.Fatalf("expected table, got %q", got)
 	}
 }
@@ -168,8 +168,8 @@ func TestDefaultOutputFormat_UnsetReturnsJSONWhenStdoutTTYInCI(t *testing.T) {
 			os.Unsetenv("ASC_DEFAULT_OUTPUT")
 			t.Setenv(tt.key, tt.value)
 
-			if got := DefaultOutputFormat(); got != "json" {
-				t.Fatalf("DefaultOutputFormat() = %q, want json", got)
+			if got := DefaultDeps().DefaultOutputFormat(); got != "json" {
+				t.Fatalf("DefaultDeps().DefaultOutputFormat() = %q, want json", got)
 			}
 		})
 	}
@@ -184,8 +184,8 @@ func TestDefaultOutputFormat_FalseCIMarkersKeepTTYTableDefault(t *testing.T) {
 	t.Setenv("CI", "false")
 	t.Setenv("GITHUB_ACTIONS", "0")
 
-	if got := DefaultOutputFormat(); got != "table" {
-		t.Fatalf("DefaultOutputFormat() = %q, want table", got)
+	if got := DefaultDeps().DefaultOutputFormat(); got != "table" {
+		t.Fatalf("DefaultDeps().DefaultOutputFormat() = %q, want table", got)
 	}
 }
 
@@ -196,8 +196,8 @@ func TestDefaultOutputFormat_ExplicitEnvOverridesCI(t *testing.T) {
 	t.Setenv("CI", "true")
 	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
 
-	if got := DefaultOutputFormat(); got != "table" {
-		t.Fatalf("DefaultOutputFormat() = %q, want explicit table", got)
+	if got := DefaultDeps().DefaultOutputFormat(); got != "table" {
+		t.Fatalf("DefaultDeps().DefaultOutputFormat() = %q, want explicit table", got)
 	}
 }
 
@@ -295,7 +295,7 @@ func TestParseASCTerritoryValueCSVPropagatesTerritoryNormalizationErrors(t *test
 func TestDefaultOutputFormat_MD(t *testing.T) {
 	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "md")
-	if got := DefaultOutputFormat(); got != "md" {
+	if got := DefaultDeps().DefaultOutputFormat(); got != "md" {
 		t.Fatalf("expected md, got %q", got)
 	}
 }
@@ -304,7 +304,7 @@ func TestDefaultOutputFormat_JSON(t *testing.T) {
 	resetDefaultOutput(t)
 	setTerminalDetection(t, func(int) bool { return true })
 	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
-	if got := DefaultOutputFormat(); got != "json" {
+	if got := DefaultDeps().DefaultOutputFormat(); got != "json" {
 		t.Fatalf("expected json, got %q", got)
 	}
 }
@@ -314,7 +314,7 @@ func TestDefaultOutputFormat_CaseInsensitive(t *testing.T) {
 		t.Run(value, func(t *testing.T) {
 			resetDefaultOutput(t)
 			t.Setenv("ASC_DEFAULT_OUTPUT", value)
-			got := DefaultOutputFormat()
+			got := DefaultDeps().DefaultOutputFormat()
 			expected := strings.ToLower(value)
 			if got != expected {
 				t.Fatalf("expected %q, got %q", expected, got)
@@ -326,7 +326,7 @@ func TestDefaultOutputFormat_CaseInsensitive(t *testing.T) {
 func TestDefaultOutputFormat_WhitespaceHandled(t *testing.T) {
 	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "  table  ")
-	if got := DefaultOutputFormat(); got != "table" {
+	if got := DefaultDeps().DefaultOutputFormat(); got != "table" {
 		t.Fatalf("expected table, got %q", got)
 	}
 }
@@ -336,7 +336,7 @@ func TestDefaultOutputFormat_InvalidFallsBackToJSON(t *testing.T) {
 	setTerminalDetection(t, func(int) bool { return true })
 	t.Setenv("ASC_DEFAULT_OUTPUT", "xml")
 	stdout, stderr := captureOutput(t, func() {
-		got := DefaultOutputFormat()
+		got := DefaultDeps().DefaultOutputFormat()
 		if got != "json" {
 			t.Fatalf("expected json fallback, got %q", got)
 		}
@@ -354,7 +354,7 @@ func TestBindOutputFlagsUsesDefaultOutputFormat(t *testing.T) {
 	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
 
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	output := BindOutputFlags(fs)
+	output := DefaultDeps().BindOutputFlags(fs)
 	if output.Output == nil || output.Pretty == nil {
 		t.Fatal("expected output flag pointers to be set")
 	}
@@ -374,7 +374,7 @@ func TestBindOutputFlagsUsesTTYAwareDefaultWhenEnvUnset(t *testing.T) {
 	os.Unsetenv("ASC_DEFAULT_OUTPUT")
 
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	output := BindOutputFlags(fs)
+	output := DefaultDeps().BindOutputFlags(fs)
 	if output.Output == nil {
 		t.Fatal("expected output flag pointer to be set")
 	}
@@ -388,7 +388,7 @@ func TestBindOutputFlagsParsesValues(t *testing.T) {
 	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
 
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	output := BindOutputFlags(fs)
+	output := DefaultDeps().BindOutputFlags(fs)
 	if err := fs.Parse([]string{"--output", "markdown", "--pretty"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -556,14 +556,14 @@ func TestValidateOutputFormatAllowed_EmptyAllowedFallsBackToDefaultSet(t *testin
 
 func TestPrintOutputWithRenderers_JSONPath(t *testing.T) {
 	stdout, _ := captureOutput(t, func() {
-		if err := PrintOutputWithRenderers(
+		if err := DefaultDeps().PrintOutputWithRenderers(
 			map[string]string{"status": "ok"},
 			"json",
 			false,
 			func() error { t.Fatal("table renderer should not run"); return nil },
 			func() error { t.Fatal("markdown renderer should not run"); return nil },
 		); err != nil {
-			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
+			t.Fatalf("DefaultDeps().PrintOutputWithRenderers() error = %v", err)
 		}
 	})
 	if !strings.Contains(stdout, `"status":"ok"`) {
@@ -573,14 +573,14 @@ func TestPrintOutputWithRenderers_JSONPath(t *testing.T) {
 
 func TestPrintOutputWithRenderers_JSONPrettyPath(t *testing.T) {
 	stdout, _ := captureOutput(t, func() {
-		if err := PrintOutputWithRenderers(
+		if err := DefaultDeps().PrintOutputWithRenderers(
 			map[string]string{"status": "ok"},
 			"json",
 			true,
 			func() error { t.Fatal("table renderer should not run"); return nil },
 			func() error { t.Fatal("markdown renderer should not run"); return nil },
 		); err != nil {
-			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
+			t.Fatalf("DefaultDeps().PrintOutputWithRenderers() error = %v", err)
 		}
 	})
 	if !strings.Contains(stdout, `"status": "ok"`) {
@@ -590,14 +590,14 @@ func TestPrintOutputWithRenderers_JSONPrettyPath(t *testing.T) {
 
 func TestPrintOutputWithRenderers_EmptyFormatDefaultsJSON(t *testing.T) {
 	stdout, _ := captureOutput(t, func() {
-		if err := PrintOutputWithRenderers(
+		if err := DefaultDeps().PrintOutputWithRenderers(
 			map[string]string{"status": "ok"},
 			"",
 			false,
 			func() error { t.Fatal("table renderer should not run"); return nil },
 			func() error { t.Fatal("markdown renderer should not run"); return nil },
 		); err != nil {
-			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
+			t.Fatalf("DefaultDeps().PrintOutputWithRenderers() error = %v", err)
 		}
 	})
 	if !strings.Contains(stdout, `"status":"ok"`) {
@@ -609,7 +609,7 @@ func TestPrintOutputWithRenderers_TableAndMarkdownPaths(t *testing.T) {
 	tableCalls := 0
 	markdownCalls := 0
 
-	if err := PrintOutputWithRenderers(
+	if err := DefaultDeps().PrintOutputWithRenderers(
 		struct{}{},
 		"table",
 		false,
@@ -622,7 +622,7 @@ func TestPrintOutputWithRenderers_TableAndMarkdownPaths(t *testing.T) {
 		t.Fatalf("expected table=1 markdown=0, got table=%d markdown=%d", tableCalls, markdownCalls)
 	}
 
-	if err := PrintOutputWithRenderers(
+	if err := DefaultDeps().PrintOutputWithRenderers(
 		struct{}{},
 		"md",
 		false,
@@ -637,21 +637,21 @@ func TestPrintOutputWithRenderers_TableAndMarkdownPaths(t *testing.T) {
 }
 
 func TestPrintOutputWithRenderers_RejectsPrettyForNonJSON(t *testing.T) {
-	err := PrintOutputWithRenderers(struct{}{}, "table", true, func() error { return nil }, func() error { return nil })
+	err := DefaultDeps().PrintOutputWithRenderers(struct{}{}, "table", true, func() error { return nil }, func() error { return nil })
 	if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") {
 		t.Fatalf("expected pretty validation error, got %v", err)
 	}
 }
 
 func TestPrintOutputWithRenderers_RequiresTableRenderer(t *testing.T) {
-	err := PrintOutputWithRenderers(struct{}{}, "table", false, nil, func() error { return nil })
+	err := DefaultDeps().PrintOutputWithRenderers(struct{}{}, "table", false, nil, func() error { return nil })
 	if err == nil || !strings.Contains(err.Error(), "table renderer is required") {
 		t.Fatalf("expected table renderer required error, got %v", err)
 	}
 }
 
 func TestPrintOutputWithRenderers_RequiresMarkdownRenderer(t *testing.T) {
-	err := PrintOutputWithRenderers(struct{}{}, "markdown", false, func() error { return nil }, nil)
+	err := DefaultDeps().PrintOutputWithRenderers(struct{}{}, "markdown", false, func() error { return nil }, nil)
 	if err == nil || !strings.Contains(err.Error(), "markdown renderer is required") {
 		t.Fatalf("expected markdown renderer required error, got %v", err)
 	}
@@ -722,8 +722,8 @@ func TestPrintOutputTruncationWarning(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			stdout, stderr := captureOutput(t, func() {
-				if err := PrintOutput(tt.data, "json", false); err != nil {
-					t.Errorf("PrintOutput() error = %v", err)
+				if err := DefaultDeps().PrintOutput(tt.data, "json", false); err != nil {
+					t.Errorf("DefaultDeps().PrintOutput() error = %v", err)
 				}
 			})
 
@@ -746,14 +746,14 @@ func TestPrintOutputWithRenderers_WarnsAfterTableRender(t *testing.T) {
 	page := makeTruncatedTestPage(1, "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc", `{"paging":{"total":9,"limit":1}}`)
 
 	_, stderr := captureOutput(t, func() {
-		if err := PrintOutputWithRenderers(
+		if err := DefaultDeps().PrintOutputWithRenderers(
 			page,
 			"table",
 			false,
 			func() error { return nil },
 			func() error { t.Error("markdown renderer should not run"); return nil },
 		); err != nil {
-			t.Errorf("PrintOutputWithRenderers() error = %v", err)
+			t.Errorf("DefaultDeps().PrintOutputWithRenderers() error = %v", err)
 		}
 	})
 
@@ -767,7 +767,7 @@ func TestPrintOutputWithRenderers_NoWarningWhenRendererFails(t *testing.T) {
 	page := makeTruncatedTestPage(1, "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc", "")
 
 	_, stderr := captureOutput(t, func() {
-		err := PrintOutputWithRenderers(
+		err := DefaultDeps().PrintOutputWithRenderers(
 			page,
 			"table",
 			false,
@@ -854,7 +854,7 @@ func TestProgressEnabled_RespectsNoProgressFlag(t *testing.T) {
 	isTerminal = func(int) bool { return true }
 	SetNoProgress(true)
 
-	if ProgressEnabled() {
+	if DefaultDeps().ProgressEnabled() {
 		t.Fatal("expected progress to be disabled when --no-progress is set")
 	}
 }
@@ -870,7 +870,7 @@ func TestProgressEnabled_DisabledWhenStderrNotTTY(t *testing.T) {
 	isTerminal = func(int) bool { return false }
 	SetNoProgress(false)
 
-	if ProgressEnabled() {
+	if DefaultDeps().ProgressEnabled() {
 		t.Fatal("expected progress to be disabled when stderr is not a TTY")
 	}
 }
@@ -886,7 +886,7 @@ func TestProgressEnabled_EnabledWhenTTYAndNotDisabled(t *testing.T) {
 	isTerminal = func(int) bool { return true }
 	SetNoProgress(false)
 
-	if !ProgressEnabled() {
+	if !DefaultDeps().ProgressEnabled() {
 		t.Fatal("expected progress to be enabled when stderr is a TTY and --no-progress is not set")
 	}
 }

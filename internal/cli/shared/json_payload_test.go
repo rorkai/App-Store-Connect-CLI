@@ -15,7 +15,7 @@ func TestReadJSONFilePayload(t *testing.T) {
 			t.Fatalf("write payload: %v", err)
 		}
 
-		payload, err := ReadJSONFilePayload(path)
+		payload, err := DefaultDeps().ReadJSONFilePayload(path)
 		if err != nil {
 			t.Fatalf("ReadJSONFilePayload unexpected error: %v", err)
 		}
@@ -35,7 +35,7 @@ func TestReadJSONFilePayload(t *testing.T) {
 			t.Skipf("symlink not available in this environment: %v", err)
 		}
 
-		payload, err := ReadJSONFilePayload(linkPath)
+		payload, err := DefaultDeps().ReadJSONFilePayload(linkPath)
 		if err != nil {
 			t.Fatalf("ReadJSONFilePayload unexpected error for symlink: %v", err)
 		}
@@ -46,7 +46,7 @@ func TestReadJSONFilePayload(t *testing.T) {
 
 	t.Run("directory path", func(t *testing.T) {
 		dir := t.TempDir()
-		_, err := ReadJSONFilePayload(dir)
+		_, err := DefaultDeps().ReadJSONFilePayload(dir)
 		if err == nil {
 			t.Fatal("expected error for directory payload path")
 		}
@@ -62,7 +62,7 @@ func TestReadJSONFilePayload(t *testing.T) {
 			t.Fatalf("write payload: %v", err)
 		}
 
-		_, err := ReadJSONFilePayload(path)
+		_, err := DefaultDeps().ReadJSONFilePayload(path)
 		if err == nil {
 			t.Fatal("expected error for empty payload")
 		}
@@ -78,7 +78,7 @@ func TestReadJSONFilePayload(t *testing.T) {
 			t.Fatalf("write payload: %v", err)
 		}
 
-		_, err := ReadJSONFilePayload(path)
+		_, err := DefaultDeps().ReadJSONFilePayload(path)
 		if err == nil {
 			t.Fatal("expected error for invalid payload")
 		}
@@ -94,7 +94,7 @@ func TestReadJSONFilePayload(t *testing.T) {
 			t.Fatalf("write payload: %v", err)
 		}
 
-		_, err := ReadJSONFilePayload(path)
+		_, err := DefaultDeps().ReadJSONFilePayload(path)
 		if err == nil {
 			t.Fatal("expected object payload error")
 		}
@@ -112,7 +112,7 @@ func TestReadJSONFilePayloadKind(t *testing.T) {
 			t.Fatalf("write payload: %v", err)
 		}
 
-		payload, err := ReadJSONFilePayloadKind(path, JSONPayloadArray)
+		payload, err := DefaultDeps().ReadJSONFilePayloadKind(path, JSONPayloadArray)
 		if err != nil {
 			t.Fatalf("ReadJSONFilePayloadKind unexpected error: %v", err)
 		}
@@ -128,7 +128,7 @@ func TestReadJSONFilePayloadKind(t *testing.T) {
 			t.Fatalf("write payload: %v", err)
 		}
 
-		_, err := ReadJSONFilePayloadKind(path, JSONPayloadArray)
+		_, err := DefaultDeps().ReadJSONFilePayloadKind(path, JSONPayloadArray)
 		if err == nil {
 			t.Fatal("expected array payload error")
 		}
@@ -144,7 +144,7 @@ func TestReadJSONFilePayloadKind(t *testing.T) {
 			t.Fatalf("write payload: %v", err)
 		}
 
-		payload, err := ReadJSONFilePayloadKind(path, JSONPayloadAny)
+		payload, err := DefaultDeps().ReadJSONFilePayloadKind(path, JSONPayloadAny)
 		if err != nil {
 			t.Fatalf("ReadJSONFilePayloadKind unexpected error: %v", err)
 		}
@@ -160,7 +160,7 @@ func TestReadJSONFilePayloadKind(t *testing.T) {
 			t.Fatalf("write payload: %v", err)
 		}
 
-		_, err := ReadJSONFilePayloadKind(path, JSONPayloadKind("document"))
+		_, err := DefaultDeps().ReadJSONFilePayloadKind(path, JSONPayloadKind("document"))
 		if err == nil {
 			t.Fatal("expected unsupported kind error")
 		}
@@ -192,7 +192,7 @@ func TestReadJSONFilePayloadKindReadsStdin(t *testing.T) {
 	t.Run("object payload", func(t *testing.T) {
 		setStdinPayload(t, `{"name":"demo"}`)
 
-		payload, err := ReadJSONFilePayloadKind("-", JSONPayloadObject)
+		payload, err := DefaultDeps().ReadJSONFilePayloadKind("-", JSONPayloadObject)
 		if err != nil {
 			t.Fatalf("ReadJSONFilePayloadKind unexpected error: %v", err)
 		}
@@ -204,7 +204,7 @@ func TestReadJSONFilePayloadKindReadsStdin(t *testing.T) {
 	t.Run("array payload", func(t *testing.T) {
 		setStdinPayload(t, `[{"id":"1"}]`)
 
-		payload, err := ReadJSONFilePayloadKind("-", JSONPayloadArray)
+		payload, err := DefaultDeps().ReadJSONFilePayloadKind("-", JSONPayloadArray)
 		if err != nil {
 			t.Fatalf("ReadJSONFilePayloadKind unexpected error: %v", err)
 		}
@@ -216,7 +216,7 @@ func TestReadJSONFilePayloadKindReadsStdin(t *testing.T) {
 	t.Run("invalid json", func(t *testing.T) {
 		setStdinPayload(t, `{"name"`)
 
-		_, err := ReadJSONFilePayloadKind("-", JSONPayloadObject)
+		_, err := DefaultDeps().ReadJSONFilePayloadKind("-", JSONPayloadObject)
 		if err == nil {
 			t.Fatal("expected error for invalid stdin payload")
 		}
@@ -228,7 +228,7 @@ func TestReadJSONFilePayloadKindReadsStdin(t *testing.T) {
 	t.Run("empty stdin", func(t *testing.T) {
 		setStdinPayload(t, " \n")
 
-		_, err := ReadJSONFilePayloadKind("-", JSONPayloadObject)
+		_, err := DefaultDeps().ReadJSONFilePayloadKind("-", JSONPayloadObject)
 		if err == nil {
 			t.Fatal("expected error for empty stdin payload")
 		}
@@ -240,7 +240,7 @@ func TestReadJSONFilePayloadKindReadsStdin(t *testing.T) {
 	t.Run("kind mismatch", func(t *testing.T) {
 		setStdinPayload(t, `[1,2,3]`)
 
-		_, err := ReadJSONFilePayloadKind("-", JSONPayloadObject)
+		_, err := DefaultDeps().ReadJSONFilePayloadKind("-", JSONPayloadObject)
 		if err == nil {
 			t.Fatal("expected object payload error")
 		}
@@ -256,7 +256,7 @@ func TestReadJSONFilePayloadKindReadsStdin(t *testing.T) {
 			isTerminal = previous
 		})
 
-		_, err := ReadJSONFilePayloadKind("-", JSONPayloadObject)
+		_, err := DefaultDeps().ReadJSONFilePayloadKind("-", JSONPayloadObject)
 		if err == nil {
 			t.Fatal("expected error for terminal stdin")
 		}

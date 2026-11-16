@@ -17,13 +17,8 @@ import (
 
 var placementLocalizationID = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
-// CreativePlacementsCommand manages reusable library placements for a localization.
-func CreativePlacementsCommand(resource, prefix, label string) *ffcli.Command {
-	return DefaultDeps().CreativePlacementsCommand(resource, prefix, label)
-}
-
-// CreativePlacementsCommand is CreativePlacementsCommand with every
-// subcommand built on d.
+// CreativePlacementsCommand manages reusable library placements for a
+// localization, with every subcommand built on d.
 func (d *Deps) CreativePlacementsCommand(resource, prefix, label string) *ffcli.Command {
 	subcommands := []*ffcli.Command{creativePlacementsListCommand(d, resource, prefix, label), creativePlacementViewCommand(d, prefix), creativePlacementCreateCommand(d, resource, prefix, label)}
 	// Official ordering requests accept version, CPP, and PPO parents only.

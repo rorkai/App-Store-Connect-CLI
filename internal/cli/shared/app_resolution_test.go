@@ -156,7 +156,7 @@ func TestResolveAppStoreVersionIDAndState_EmptyCollectionIsNotFound(t *testing.T
 }
 
 func TestResolveAppInfoID_ExplicitOverride(t *testing.T) {
-	id, err := ResolveAppInfoID(context.Background(), nil, "app-1", "explicit-id")
+	id, err := DefaultDeps().ResolveAppInfoID(context.Background(), nil, "app-1", "explicit-id")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestResolveAppInfoID_SingleAppInfo(t *testing.T) {
 		return appResolutionJSONResponse(`{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}}]}`)
 	})
 
-	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	id, err := DefaultDeps().ResolveAppInfoID(context.Background(), client, "app-1", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestResolveAppInfoIDRejectsSingleSample(t *testing.T) {
 		return appResolutionJSONResponse(`{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=next"}}`)
 	})
 
-	_, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	_, err := DefaultDeps().ResolveAppInfoID(context.Background(), client, "app-1", "")
 	if err == nil || !strings.Contains(err.Error(), "sample matches") {
 		t.Fatalf("expected incomplete-page ambiguity, got %v", err)
 	}
@@ -195,7 +195,7 @@ func TestResolveAppInfoIDRejectsEmptySample(t *testing.T) {
 		return appResolutionJSONResponse(`{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=next"}}`)
 	})
 
-	_, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	_, err := DefaultDeps().ResolveAppInfoID(context.Background(), client, "app-1", "")
 	if err == nil || !strings.Contains(err.Error(), "sample matches") {
 		t.Fatalf("expected incomplete-page ambiguity, got %v", err)
 	}
@@ -214,7 +214,7 @@ func TestResolveAppInfoID_AutoSelectsEditableFromMultiple(t *testing.T) {
 		err error
 	)
 	stderr := captureAppResolutionStderr(t, func() {
-		id, err = ResolveAppInfoID(context.Background(), client, "app-1", "")
+		id, err = DefaultDeps().ResolveAppInfoID(context.Background(), client, "app-1", "")
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -235,9 +235,9 @@ func TestResolveAppInfoID_SkipsReplacedAppInfo(t *testing.T) {
 		]}`)
 	})
 
-	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	id, err := DefaultDeps().ResolveAppInfoID(context.Background(), client, "app-1", "")
 	if err != nil || id != "info-live" {
-		t.Fatalf("ResolveAppInfoID() = %q, %v; want info-live", id, err)
+		t.Fatalf("DefaultDeps().ResolveAppInfoID() = %q, %v; want info-live", id, err)
 	}
 }
 
@@ -279,7 +279,7 @@ func TestResolveAppInfoID_ReturnsErrorWhenMultipleRemainAmbiguous(t *testing.T) 
 				return appResolutionJSONResponse(tc.responseBody)
 			})
 
-			_, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+			_, err := DefaultDeps().ResolveAppInfoID(context.Background(), client, "app-1", "")
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
@@ -297,7 +297,7 @@ func TestResolveAppInfoID_NoAppInfos(t *testing.T) {
 		return appResolutionJSONResponse(`{"data":[]}`)
 	})
 
-	_, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	_, err := DefaultDeps().ResolveAppInfoID(context.Background(), client, "app-1", "")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

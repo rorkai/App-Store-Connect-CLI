@@ -55,12 +55,6 @@ func ContextWithResolvedTimeout(ctx context.Context, defaultTimeout time.Duratio
 	return withTimeoutContext(ctx, ResolveTimeoutSetting(RequestTimeoutSetting, defaultTimeout))
 }
 
-// ContextWithResolvedUploadTimeout returns a context bounded by
-// ASC_UPLOAD_TIMEOUT when configured, or by defaultTimeout otherwise.
-func ContextWithResolvedUploadTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
-	return withTimeoutContext(ctx, ResolveTimeoutSetting(UploadTimeoutSetting, defaultTimeout))
-}
-
 // The default media upload deadline grows with the files it covers, from the
 // base for no recorded work up to the maximum. ASC_UPLOAD_TIMEOUT replaces it.
 const (
@@ -78,10 +72,4 @@ func MediaUploadTimeoutForWork(files int, bytes int64) time.Duration {
 		time.Duration(files)*mediaUploadTimeoutPerFile +
 		time.Duration(mib)*mediaUploadTimeoutPerMiB
 	return min(timeout, mediaUploadMaxTimeout)
-}
-
-// ContextWithMediaUploadTimeout bounds one media file's upload and processing
-// wait by ASC_UPLOAD_TIMEOUT, or by MediaUploadTimeoutForWork when it is unset.
-func ContextWithMediaUploadTimeout(ctx context.Context, bytes int64) (context.Context, context.CancelFunc) {
-	return ContextWithResolvedUploadTimeout(ctx, MediaUploadTimeoutForWork(1, bytes))
 }

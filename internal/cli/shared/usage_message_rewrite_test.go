@@ -122,7 +122,7 @@ func TestUsageErrorCtxAppliesRewritesBeforeReporting(t *testing.T) {
 
 	var err error
 	stderr := captureUsageRewriteStderr(t, func() {
-		err = UsageErrorfCtx(ctx, "beta-groups list: --limit must be between 1 and %d", 200)
+		err = DefaultDeps().UsageErrorfCtx(ctx, "beta-groups list: --limit must be between 1 and %d", 200)
 	})
 
 	const want = "groups list: --limit must be between 1 and 200"

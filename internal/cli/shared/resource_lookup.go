@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"strings"
 
@@ -140,13 +139,8 @@ func SelectorNeedsLookup(value string) bool {
 	return !isNumericSelectorID(value)
 }
 
-// RequireAppForStableSelector returns a usage error when a non-numeric selector needs app context.
-func RequireAppForStableSelector(appID, selector, flagName string) error {
-	return requireAppForStableSelectorTo(os.Stderr, appID, selector, flagName)
-}
-
-// RequireAppForStableSelector is RequireAppForStableSelector with the
-// "Error:" line written to d's stderr.
+// RequireAppForStableSelector returns a usage error, with its "Error:" line on
+// d's stderr, when a non-numeric selector needs app context.
 func (d *Deps) RequireAppForStableSelector(appID, selector, flagName string) error {
 	return requireAppForStableSelectorTo(d.IO.ErrOut, appID, selector, flagName)
 }

@@ -68,18 +68,8 @@ func (d *Deps) WriteStreamToFile(path string, reader io.Reader) (int64, error) {
 	return createNewOutputFile(d.Abs, d.Getwd, path, reader)
 }
 
-// DecompressGzipFile inflates a gzip file to the destination path.
-func DecompressGzipFile(sourcePath, destPath string) (int64, error) {
-	in, err := rootfs.OpenFile(sourcePath)
-	if err != nil {
-		return 0, err
-	}
-	defer in.Close()
-	return decompressGzipTo(filepath.Abs, os.Getwd, in, destPath)
-}
-
-// DecompressGzipFile is DecompressGzipFile with relative paths resolved
-// against d's working directory.
+// DecompressGzipFile inflates a gzip file to the destination path, with
+// relative paths resolved against d's working directory.
 func (d *Deps) DecompressGzipFile(sourcePath, destPath string) (int64, error) {
 	workingDir, _ := d.Getwd()
 	in, err := rootfs.OpenFileIn(workingDir, d.OSPath(sourcePath))

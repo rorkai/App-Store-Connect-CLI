@@ -48,8 +48,8 @@ func TestOnceCSVValue_ProvidedAfterRecoveryParse(t *testing.T) {
 		t.Fatal("Go flag parse should stop at the spaced boolean and leave --territories unvisited")
 	}
 
-	if err := RecoverBoolFlagTailArgs(original, original.Args(), availableInNew); err != nil {
-		t.Fatalf("RecoverBoolFlagTailArgs() error: %v", err)
+	if err := DefaultDeps().RecoverBoolFlagTailArgs(original, original.Args(), availableInNew); err != nil {
+		t.Fatalf("DefaultDeps().RecoverBoolFlagTailArgs() error: %v", err)
 	}
 	if !value.Provided() || value.String() != "USA" {
 		t.Fatalf("recovered --territories, Provided()=%t String()=%q", value.Provided(), value.String())

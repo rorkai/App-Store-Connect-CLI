@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"os"
 	"slices"
 	"sort"
 	"time"
@@ -19,13 +18,8 @@ type PPPScheduleSnapshot struct {
 	Prices        []ResolvedPriceRow
 }
 
-// PPPTerritorySelection validates an optional, explicitly supplied mutation scope.
-func PPPTerritorySelection(value *OnceCSVValue) ([]string, error) {
-	return pppTerritorySelectionTo(os.Stderr, value)
-}
-
-// PPPTerritorySelection is PPPTerritorySelection with the "Error:" line
-// written to d's stderr.
+// PPPTerritorySelection validates an optional, explicitly supplied mutation
+// scope, writing an invalid value's "Error:" line to d's stderr.
 func (d *Deps) PPPTerritorySelection(value *OnceCSVValue) ([]string, error) {
 	return pppTerritorySelectionTo(d.IO.ErrOut, value)
 }

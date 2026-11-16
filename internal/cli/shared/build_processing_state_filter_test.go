@@ -65,7 +65,7 @@ func TestNormalizeBuildProcessingStateFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NormalizeBuildProcessingStateFilter(tt.input, tt.options)
+			got, err := DefaultDeps().NormalizeBuildProcessingStateFilter(tt.input, tt.options)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -79,7 +79,7 @@ func TestNormalizeBuildProcessingStateFilter(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("NormalizeBuildProcessingStateFilter() = %v, want %v", got, tt.want)
+				t.Fatalf("DefaultDeps().NormalizeBuildProcessingStateFilter() = %v, want %v", got, tt.want)
 			}
 		})
 	}

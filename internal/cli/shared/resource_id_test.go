@@ -179,19 +179,19 @@ func TestAppIDFlagValue(t *testing.T) {
 		{value: "com.example.app", want: "com.example.app"},
 		{value: "https://api.appstoreconnect.apple.com/v1/apps/123456789", want: "123456789"},
 	} {
-		got, err := AppIDFlagValue(test.value)
+		got, err := DefaultDeps().AppIDFlagValue(test.value)
 		if err != nil {
-			t.Fatalf("AppIDFlagValue(%q) error: %v", test.value, err)
+			t.Fatalf("DefaultDeps().AppIDFlagValue(%q) error: %v", test.value, err)
 		}
 		if got != test.want {
-			t.Fatalf("AppIDFlagValue(%q) = %q, want %q", test.value, got, test.want)
+			t.Fatalf("DefaultDeps().AppIDFlagValue(%q) = %q, want %q", test.value, got, test.want)
 		}
 	}
 
 	wrong := "https://api.appstoreconnect.apple.com/v1/builds/abc"
 	var err error
 	stderr := captureStderr(t, func() {
-		_, err = AppIDFlagValue(wrong)
+		_, err = DefaultDeps().AppIDFlagValue(wrong)
 	})
 	if err == nil || !IsReportedUsageError(err) {
 		t.Fatalf("error = %v, want reported usage error", err)

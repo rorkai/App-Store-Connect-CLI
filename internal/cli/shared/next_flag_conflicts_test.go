@@ -16,7 +16,7 @@ func TestRejectNextFlagConflictsDetectsExplicitDefaultValue(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RejectNextFlagConflicts(
+		err = DefaultDeps().RejectNextFlagConflicts(
 			fs,
 			"https://api.appstoreconnect.apple.com/v1/resources?cursor=next",
 			"resources list",
@@ -24,16 +24,16 @@ func TestRejectNextFlagConflictsDetectsExplicitDefaultValue(t *testing.T) {
 		)
 	})
 	if err == nil {
-		t.Fatal("RejectNextFlagConflicts() error = nil, want conflict")
+		t.Fatal("DefaultDeps().RejectNextFlagConflicts() error = nil, want conflict")
 	}
 	if !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("RejectNextFlagConflicts() error = %v, want usage error", err)
+		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() error = %v, want usage error", err)
 	}
 	if got, want := err.Error(), "resources list: --next cannot be combined with --limit"; got != want {
-		t.Fatalf("RejectNextFlagConflicts() error = %q, want %q", got, want)
+		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() error = %q, want %q", got, want)
 	}
 	if stderr != "Error: resources list: --next cannot be combined with --limit\n" {
-		t.Fatalf("RejectNextFlagConflicts() stderr = %q", stderr)
+		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() stderr = %q", stderr)
 	}
 	diagnostic, ok := DiagnosticFromError(err)
 	if !ok || diagnostic.Code != DiagnosticConflictingInput || diagnostic.Parameter != "--limit" {
@@ -49,13 +49,13 @@ func TestRejectNextFlagConflictsAllowsUnrelatedFlags(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := RejectNextFlagConflicts(
+	if err := DefaultDeps().RejectNextFlagConflicts(
 		fs,
 		"https://api.appstoreconnect.apple.com/v1/resources?cursor=next",
 		"resources list",
 		"limit",
 	); err != nil {
-		t.Fatalf("RejectNextFlagConflicts() error = %v", err)
+		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() error = %v", err)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestRejectNextFlagConflictsAllowsQueryFlagsWithoutNext(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := RejectNextFlagConflicts(fs, "", "resources list", "limit"); err != nil {
-		t.Fatalf("RejectNextFlagConflicts() error = %v", err)
+	if err := DefaultDeps().RejectNextFlagConflicts(fs, "", "resources list", "limit"); err != nil {
+		t.Fatalf("DefaultDeps().RejectNextFlagConflicts() error = %v", err)
 	}
 }

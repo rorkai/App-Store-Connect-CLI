@@ -376,7 +376,7 @@ func fetchAgeRatingDeclaration(ctx context.Context, d *shared.Deps, client *asc.
 }
 
 // While a new version is being prepared, an app has a live and an editable app
-// info; like shared.ResolveAppInfoIDWithFlag, select the editable one. Unlike it,
+// info; like Deps.ResolveAppInfoIDWithFlag, select the editable one. Unlike it,
 // read every page.
 func resolveAppInfoIDForApp(ctx context.Context, d *shared.Deps, client *asc.Client, appID string) (string, error) {
 	candidates, err := client.ListAppInfoCandidatesForApp(ctx, appID)

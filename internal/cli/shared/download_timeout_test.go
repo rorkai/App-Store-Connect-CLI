@@ -10,7 +10,7 @@ func TestContextWithDownloadTimeoutUsesUploadBudget(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "30s")
 	t.Setenv("ASC_UPLOAD_TIMEOUT", "5m")
 
-	downloadCtx, cancel := ContextWithDownloadTimeout(context.Background())
+	downloadCtx, cancel := DefaultDeps().DownloadTimeout(context.Background())
 	defer cancel()
 	deadline, ok := downloadCtx.Deadline()
 	if !ok {
@@ -32,7 +32,7 @@ func TestContextWithDownloadTimeoutPreservesParent(t *testing.T) {
 	t.Setenv("ASC_UPLOAD_TIMEOUT", "5m")
 	parent, parentCancel := context.WithTimeout(context.Background(), time.Second)
 	defer parentCancel()
-	download, cancel := ContextWithDownloadTimeout(parent)
+	download, cancel := DefaultDeps().DownloadTimeout(parent)
 	defer cancel()
 	want, _ := parent.Deadline()
 	got, _ := download.Deadline()

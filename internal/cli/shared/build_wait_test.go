@@ -162,7 +162,7 @@ func TestWaitForBuildByNumberOrUploadFailureRejectsStaleBuildFromDifferentUpload
 		}
 	})
 
-	_, err := WaitForBuildByNumberOrUploadFailure(ctx, client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	_, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(ctx, client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context cancellation after rejecting stale build, got %v", err)
 	}
@@ -217,9 +217,9 @@ func TestWaitForBuildByNumberOrUploadFailureReturnsBuildLinkedFromUpload(t *test
 		}
 	})
 
-	buildResp, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	buildResp, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if err != nil {
-		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil {
 		t.Fatal("expected linked build response")
@@ -262,7 +262,7 @@ func TestWaitForBuildByNumberOrUploadFailureIncludesProcessingDiagnostics(t *tes
 		}`)
 	})
 
-	_, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	_, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if err == nil {
 		t.Fatal("expected build upload failure, got nil")
 	}
@@ -643,9 +643,9 @@ func TestWaitForBuildByNumberOrUploadFailureFallsBackWhenUploadLookupFails(t *te
 		}
 	})
 
-	buildResp, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	buildResp, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if err != nil {
-		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil {
 		t.Fatal("expected build response after falling back to build discovery")
@@ -689,7 +689,7 @@ func TestWaitForBuildByNumberOrUploadFailureStopsAfterExhaustedBuildUploadNotFou
 	synctest.Test(t, func(*testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 80*time.Millisecond)
 		defer cancel()
-		_, err = WaitForBuildByNumberOrUploadFailure(ctx, client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+		_, err = DefaultDeps().WaitForBuildByNumberOrUploadFailure(ctx, client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	})
 	if err == nil {
 		t.Fatal("expected exhausted build-upload lookup error")
@@ -785,9 +785,9 @@ func TestWaitForBuildByNumberOrUploadFailureFallsBackWhenLinkedBuildLookupFails(
 		}
 	})
 
-	buildResp, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	buildResp, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if err != nil {
-		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil {
 		t.Fatal("expected build response after falling back from linked build lookup")
@@ -822,7 +822,7 @@ func TestWaitForBuildByNumberOrUploadFailureReturnsUploadLookupErrors(t *testing
 		}
 	})
 
-	_, err := WaitForBuildByNumberOrUploadFailure(ctx, client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	_, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(ctx, client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if err == nil {
 		t.Fatal("expected upload lookup error, got nil")
 	}
@@ -867,7 +867,7 @@ func TestWaitForBuildByNumberOrUploadFailureReturnsMalformedUploadRelationships(
 		}
 	})
 
-	_, err := WaitForBuildByNumberOrUploadFailure(ctx, client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	_, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(ctx, client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if err == nil {
 		t.Fatal("expected malformed relationship error, got nil")
 	}
@@ -930,10 +930,10 @@ func TestWaitForBuildByNumberOrUploadFailureToleratesTransientLookupFailures(t *
 	var buildResp *asc.BuildResponse
 	var err error
 	stderr := captureStderr(t, func() {
-		buildResp, err = WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.3", "42", "IOS", time.Millisecond)
+		buildResp, err = DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.3", "42", "IOS", time.Millisecond)
 	})
 	if err != nil {
-		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil {
 		t.Fatal("expected build response after tolerating transient failures")
@@ -990,7 +990,7 @@ func TestWaitForBuildByNumberOrUploadFailureFailsAfterConsecutiveTransientLimit(
 
 	var err error
 	captureStderr(t, func() {
-		_, err = WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.3", "42", "IOS", time.Millisecond)
+		_, err = DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.3", "42", "IOS", time.Millisecond)
 	})
 	if err == nil {
 		t.Fatal("expected error once transient failures exceed the ceiling, got nil")
@@ -1054,10 +1054,10 @@ func TestWaitForBuildByNumberOrUploadFailureMatchesEquivalentVersionFormat(t *te
 	var buildResp *asc.BuildResponse
 	var err error
 	stderr := captureStderr(t, func() {
-		buildResp, err = WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.0", "42", "IOS", time.Millisecond)
+		buildResp, err = DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.0", "42", "IOS", time.Millisecond)
 	})
 	if err != nil {
-		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil {
 		t.Fatal("expected build response for equivalent version format")
@@ -1134,9 +1134,9 @@ func TestWaitForBuildByNumberOrUploadFailureFiltersNearMatchesAcrossPages(t *tes
 	t.Cleanup(server.Close)
 	client := newBuildWaitServerTestClient(t, server)
 
-	buildResp, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.0", "42", "IOS", time.Millisecond)
+	buildResp, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.0", "42", "IOS", time.Millisecond)
 	if err != nil {
-		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil || buildResp.Data.ID != "build-exact" {
 		t.Fatalf("expected build-exact, got %#v", buildResp)
@@ -1197,10 +1197,10 @@ func TestWaitForBuildByNumberOrUploadFailurePrefersRequestedVersionFormat(t *tes
 	var buildResp *asc.BuildResponse
 	var err error
 	stderr := captureStderr(t, func() {
-		buildResp, err = WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.0", "42", "IOS", time.Millisecond)
+		buildResp, err = DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.0", "42", "IOS", time.Millisecond)
 	})
 	if err != nil {
-		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil || buildResp.Data.ID != "build-123" {
 		t.Fatalf("expected build-123, got %#v", buildResp)
@@ -1489,9 +1489,9 @@ func TestWaitForBuildByNumberOrUploadFailureResolvesPreReleaseVersionOnce(t *tes
 		}
 	})
 
-	buildResp, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.3", "42", "IOS", time.Millisecond)
+	buildResp, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "", "1.2.3", "42", "IOS", time.Millisecond)
 	if err != nil {
-		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
+		t.Fatalf("DefaultDeps().WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}
 	if buildResp == nil || buildResp.Data.ID != "build-123" {
 		t.Fatalf("expected build-123, got %+v", buildResp)
