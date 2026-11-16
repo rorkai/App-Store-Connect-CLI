@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -62,7 +63,15 @@ type contractOpBinding struct {
 		Name      string `json:"name"`
 		Attribute string `json:"attribute"`
 	} `json:"args"`
-	Deviations []struct {
+	// Optional are the to-one links set from ID arguments after the
+	// attributes only when the ID is not blank; RelationshipsWhenSet sends no
+	// relationships until one is set.
+	Optional []struct {
+		Param string `json:"param"`
+		Link  string `json:"link"`
+	} `json:"optional"`
+	RelationshipsWhenSet bool `json:"relationshipsWhenSet"`
+	Deviations           []struct {
 		Problem string `json:"problem"`
 		Reason  string `json:"reason"`
 	} `json:"deviations"`
@@ -410,11 +419,12 @@ type contractCall struct {
 	args     []reflect.Value
 	pathArgs []string
 	ids      []string
-	links    []string     // relationships set from the last len(links) string arguments
-	attrs    []byte       // JSON of the attributes argument, if any
-	attrsArg reflect.Type // type of the attributes argument, if any
-	attrsAt  int          // index of the attributes argument in args
-	query    reflect.Type // the options' func type; nil without options
+	links    []string       // relationships set from the last len(links) string arguments
+	optional map[string]int // optional link to the index of its ID argument in args
+	attrs    []byte         // JSON of the attributes argument, if any
+	attrsArg reflect.Type   // type of the attributes argument, if any
+	attrsAt  int            // index of the attributes argument in args
+	query    reflect.Type   // the options' func type; nil without options
 }
 
 // newContractCall builds arguments from the method's parameter types: path
@@ -424,7 +434,7 @@ type contractCall struct {
 // as args follow the path parameters; each gets its own value, and together
 // they are the attributes the body must send.
 func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*contractCall, error) {
-	c := &contractCall{name: name, links: b.Links}
+	c := &contractCall{name: name, links: b.Links, optional: map[string]int{}}
 	if typ.NumIn() == 0 || typ.In(0) != reflect.TypeFor[context.Context]() {
 		return nil, fmt.Errorf("first parameter is not a context.Context")
 	}
@@ -451,6 +461,9 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 			}
 			argAttrs[cmp.Or(arg.Attribute, arg.Name)] = value.Interface()
 			c.args = append(c.args, value)
+		case in.Kind() == reflect.String && len(c.pathArgs) == len(b.Params) && nArgs == len(b.Args) && len(c.optional) < len(b.Optional):
+			c.optional[b.Optional[len(c.optional)].Link] = len(c.args)
+			c.args = append(c.args, reflect.ValueOf(fmt.Sprintf("optional-%d", len(c.optional))).Convert(in))
 		case in.Kind() == reflect.String:
 			value := fmt.Sprintf("path-%d", len(c.pathArgs)+1)
 			c.pathArgs = append(c.pathArgs, value)
@@ -478,6 +491,9 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 	}
 	if nArgs != len(b.Args) {
 		return nil, fmt.Errorf("%d args, bindings name %d", nArgs, len(b.Args))
+	}
+	if len(c.optional) != len(b.Optional) {
+		return nil, fmt.Errorf("%d optional link IDs, bindings name %d", len(c.optional), len(b.Optional))
 	}
 	if nArgs > 0 {
 		attrs, err := json.Marshal(argAttrs)
@@ -638,9 +654,45 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 		problems = append(problems, checkContractParseErr(call, args, response, b.ParseErr)...)
 	}
 	problems = append(problems, checkContractBody(spec, op, req.body, call)...)
+	if len(call.optional) > 0 {
+		problems = append(problems, checkContractBlankOptionalLinks(call, response, b.RelationshipsWhenSet)...)
+	}
 	if call.attrsArg != nil {
 		attrs := spec.property(spec.property(op.RequestBody.schema(spec), "data"), "attributes")
 		problems = append(problems, checkContractAttributeFields(call, response, attrs)...)
+	}
+	return problems
+}
+
+// checkContractBlankOptionalLinks calls the method with every optional link
+// ID blank and checks that no optional link is sent, and that the
+// relationships are left out exactly when the binding says they are only sent
+// once a link is set.
+func checkContractBlankOptionalLinks(call *contractCall, response contractResponse, whenSet bool) []string {
+	args := slices.Clone(call.args)
+	for _, at := range call.optional {
+		args[at] = reflect.Zero(args[at].Type())
+	}
+	requests, _, err := call.invoke(args, response)
+	if err != nil || len(requests) != 1 {
+		return []string{fmt.Sprintf("with blank optional link IDs sent %v (error: %v)", requests, err)}
+	}
+	var body struct {
+		Data struct {
+			Relationships map[string]json.RawMessage `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(requests[0].body, &body); err != nil {
+		return []string{fmt.Sprintf("with blank optional link IDs the body is not JSON: %v", err)}
+	}
+	var problems []string
+	if sent := body.Data.Relationships != nil; sent == whenSet {
+		problems = append(problems, fmt.Sprintf("with blank optional link IDs data.relationships is %v, want it sent %v", body.Data.Relationships, !whenSet))
+	}
+	for name := range call.optional {
+		if _, ok := body.Data.Relationships[name]; ok {
+			problems = append(problems, fmt.Sprintf("with a blank ID data.relationships.%s is still sent", name))
+		}
 	}
 	return problems
 }
@@ -996,8 +1048,15 @@ func checkContractLinks(spec *contractSpec, schema *contractSchema, sent []byte,
 	}
 	_ = json.Unmarshal(sent, &relationships)
 	var problems []string
+	links := map[string]string{}
 	for i, name := range call.links {
-		id := call.pathArgs[len(call.pathArgs)-len(call.links)+i]
+		links[name] = call.pathArgs[len(call.pathArgs)-len(call.links)+i]
+	}
+	for name, at := range call.optional {
+		links[name] = call.args[at].String()
+	}
+	for _, name := range slices.Sorted(maps.Keys(links)) {
+		id := links[name]
 		var linkage struct {
 			Type string `json:"type"`
 			ID   string `json:"id"`

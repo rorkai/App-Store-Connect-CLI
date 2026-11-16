@@ -39,6 +39,23 @@ type GameCenterDetailUpdateAttributes struct {
 	ChallengeEnabled *bool `json:"challengeEnabled,omitempty"`
 }
 
+// GameCenterDetailUpdateData is the data object of the GameCenterDetailUpdateRequest schema.
+type GameCenterDetailUpdateData struct {
+	Type          ResourceType                         `json:"type"`
+	ID            string                               `json:"id"`
+	Attributes    *GameCenterDetailUpdateAttributes    `json:"attributes,omitempty"`
+	Relationships *GameCenterDetailUpdateRelationships `json:"relationships,omitempty"`
+}
+
+// GameCenterDetailUpdateRelationships is the data.relationships object of the GameCenterDetailUpdateRequest schema.
+type GameCenterDetailUpdateRelationships struct {
+	GameCenterGroup           *Relationship `json:"gameCenterGroup,omitempty"`
+	DefaultLeaderboard        *Relationship `json:"defaultLeaderboard,omitempty"`
+	DefaultLeaderboardV2      *Relationship `json:"defaultLeaderboardV2,omitempty"`
+	DefaultGroupLeaderboard   *Relationship `json:"defaultGroupLeaderboard,omitempty"`
+	DefaultGroupLeaderboardV2 *Relationship `json:"defaultGroupLeaderboardV2,omitempty"`
+}
+
 // GameCenterDetailUpdateRequest is the GameCenterDetailUpdateRequest schema.
 type GameCenterDetailUpdateRequest struct {
 	Data GameCenterDetailUpdateData `json:"data"`

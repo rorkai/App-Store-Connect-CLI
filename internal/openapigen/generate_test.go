@@ -171,6 +171,12 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"named arg type for an attribute that is no enum", wristband(ArgBind{Name: "label", Type: "WristbandLabel"})},
 		{"named arg type that is not a type name", wristband(ArgBind{Name: "color", Type: "*WristbandColor"})},
 		{"decode error text on a delete", &Family{Operations: []*OpBind{{Operation: "widgets_deleteInstance", Name: "X", Params: []string{"id"}, ParseErr: "failed to parse widget"}}}},
+		{"optional link to a required relationship", &Family{Relationships: yokeRels, Operations: []*OpBind{{Operation: "yokes_createInstance", Name: "X", Optional: []OptionalLink{{Param: "widgetID", Link: "widget"}}}}}},
+		{"optional link that is also linked", &Family{Relationships: yokeRels, Operations: []*OpBind{{Operation: "yokes_createInstance", Name: "X", Params: []string{"widgetID"}, Links: []string{"widget"}, Optional: []OptionalLink{{Param: "widgetID2", Link: "widget"}}}}}},
+		{"optional link the schema does not define", &Family{Relationships: yokeRels, Operations: []*OpBind{{Operation: "yokes_updateInstance", Name: "X", Params: []string{"id"}, Optional: []OptionalLink{{Param: "ownerID", Link: "owner"}}}}}},
+		{"relationships when set with a required link", &Family{Relationships: yokeRels, Operations: []*OpBind{{Operation: "yokes_createInstance", Name: "X", Params: []string{"widgetID"}, Links: []string{"widget"}, Optional: []OptionalLink{{Param: "gadgetID", Link: "gadget"}}, RelationshipsWhenSet: true}}}},
+		{"relationships when set without optional links", &Family{Relationships: yokeRels, Operations: []*OpBind{{Operation: "yokes_updateInstance", Name: "X", Params: []string{"id"}, RelationshipsWhenSet: true}}}},
+		{"optional links on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, Optional: []OptionalLink{{Param: "gadgetID", Link: "gadget"}}}}}},
 		{"positive check on a string arg", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Args: []ArgBind{{Name: "fileName", Positive: "fileName is required"}}}}}},
 		{"positive check on a param arg", &Family{Operations: []*OpBind{{Operation: "wrenches_createInstance", Name: "X", Check: checkRequire, Args: []ArgBind{{Name: "fileName", Param: true, Positive: "fileName is required"}}}}}},
 		{"decode error text on a relationship change", &Family{Operations: []*OpBind{{Operation: "widgets_gadgets_replaceToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", ParseErr: "failed to parse gadgets"}}}},
@@ -187,6 +193,8 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		})
 	}
 }
+
+var yokeRels = []*RelBind{{Data: "YokeCreateData", Type: "*YokeCreateRelationships"}, {Data: "YokeUpdateData", Type: "*YokeUpdateRelationships", OmitEmpty: true}}
 
 // wristband binds the wristband create, which links a widget, with args.
 func wristband(args ...ArgBind) *Family {

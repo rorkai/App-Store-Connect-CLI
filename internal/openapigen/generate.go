@@ -385,6 +385,9 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 	if (b.Attrs != "" || b.SkipEmptyAttributes) && !write {
 		return "", fmt.Errorf("attributes bindings need a create or update request")
 	}
+	if (len(b.Optional) > 0 && !write) || (b.RelationshipsWhenSet && len(b.Optional) == 0) {
+		return "", fmt.Errorf("optional links need a create or update, and relationshipsWhenSet needs optional links")
+	}
 	if b.ParseErr != "" && op.Method != "GET" && !write {
 		return "", fmt.Errorf("parseErr needs a read, create or update that decodes its response")
 	}
@@ -588,12 +591,14 @@ func (m *method) payload(spec *Spec) (string, error) {
 	if typ == nil || len(typ.Enum) != 1 {
 		return "", fmt.Errorf("%s has no single type", m.op.Request)
 	}
-	var relationships string
-	if rels := data.Properties.Get("relationships"); rels != nil {
-		if relationships, err = m.relationships(rels); err != nil {
+	var relationships, linkSteps string
+	rels := data.Properties.Get("relationships")
+	switch {
+	case rels != nil && len(m.b.Links)+len(m.b.Optional)+len(rels.Required) > 0:
+		if relationships, linkSteps, err = m.relationships(rels); err != nil {
 			return "", err
 		}
-	} else if len(m.b.Links) > 0 {
+	case rels == nil && len(m.b.Links)+len(m.b.Optional) > 0:
 		return "", fmt.Errorf("%s has no relationships to link", m.op.Request)
 	}
 	fields := []string{"Type: " + resourceTypeConst(typ.Enum[0])}
@@ -631,6 +636,13 @@ func (m *method) payload(spec *Spec) (string, error) {
 			fields = append(fields, "Attributes: &attrs")
 		}
 	}
+	if len(m.b.Optional) > 0 {
+		var names []string
+		for _, o := range m.b.Optional {
+			names = append(names, o.Param)
+		}
+		m.params = append(m.params, strings.Join(names, ", ")+" string")
+	}
 	if relationships != "" {
 		fields = append(fields, "Relationships: "+relationships)
 	}
@@ -640,7 +652,7 @@ func (m *method) payload(spec *Spec) (string, error) {
 			m.pre = append(m.pre, fmt.Sprintf("if %s <= 0 {\nreturn nil, fmt.Errorf(%s)\n}", arg.Name, strconv.Quote(arg.Positive)))
 		}
 	}
-	return fmt.Sprintf("payload := %s{\nData: %s{\n%s,\n},\n}", m.fam.goType(m.op.Request), m.fam.goType(base+"Data"), strings.Join(fields, ",\n")) + step, nil
+	return linkSteps + fmt.Sprintf("payload := %s{\nData: %s{\n%s,\n},\n}", m.fam.goType(m.op.Request), m.fam.goType(base+"Data"), strings.Join(fields, ",\n")) + step, nil
 }
 
 // checkAttrs rejects attributes bindings the request data cannot take.
@@ -674,37 +686,91 @@ func attributesIfSet(attrs *Schema) string {
 }
 
 // relationships renders the relationships of a create, one to-one link for
-// each of the last len(Links) parameters.
-func (m *method) relationships(rels *Schema) (string, error) {
-	if m.op.Method != "POST" || len(m.b.Links) == 0 {
-		return "", fmt.Errorf("relationships in %s need a create with links", m.op.Request)
+// each of the last len(Links) parameters, and with optional links the steps
+// that build them into a variable.
+func (m *method) relationships(rels *Schema) (string, string, error) {
+	if m.op.Method != "POST" && len(m.b.Links) > 0 {
+		return "", "", fmt.Errorf("links in %s need a create", m.op.Request)
 	}
 	rel, err := m.fam.relationshipsOf(strings.TrimSuffix(m.op.Request, "Request") + "Data")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	for _, name := range rels.Required {
 		if !slices.Contains(m.b.Links, name) {
-			return "", fmt.Errorf("required relationship %q is not linked", name)
+			return "", "", fmt.Errorf("required relationship %q is not linked", name)
 		}
 	}
 	first := len(m.b.Params) - len(m.b.Links)
 	var links []string
 	for i, name := range m.b.Links {
-		typ, err := linkType(rel, rels, name)
+		typ, resource, err := toOneLink(m.op.Request, rel, rels, name)
+		if err != nil {
+			return "", "", err
+		}
+		if slices.Contains(m.b.Links[:i], name) {
+			return "", "", fmt.Errorf("relationship %q is linked twice", name)
+		}
+		links = append(links, fmt.Sprintf("%s: %s", goName(name), linkLiteral(typ, resource, m.arg(first+i))))
+	}
+	lit := addressOf(rel.Type) + "{}"
+	if len(links) > 0 {
+		lit = fmt.Sprintf("%s{\n%s,\n}", addressOf(rel.Type), strings.Join(links, ",\n"))
+	}
+	if len(m.b.Optional) == 0 {
+		return lit, "", nil
+	}
+	steps, err := m.optionalLinks(rel, rels, lit)
+	return "relationships", steps, err
+}
+
+// toOneLink is the Go type and resource type of a to-one relationship.
+func toOneLink(request string, rel *RelBind, rels *Schema, name string) (string, string, error) {
+	typ, err := linkType(rel, rels, name)
+	if err != nil {
+		return "", "", err
+	}
+	resource := rels.Properties.Get(name).Properties.Get("data").Properties.Get("type")
+	if strings.HasSuffix(typ, "List") || resource == nil || len(resource.Enum) != 1 {
+		return "", "", fmt.Errorf("%s has no to-one relationship %q of one type", request, name)
+	}
+	return typ, resource.Enum[0], nil
+}
+
+func linkLiteral(typ, resource, id string) string {
+	return fmt.Sprintf("%s{\nData: ResourceData{\nType: %s,\nID: %s,\n},\n}", addressOf(typ), resourceTypeConst(resource), id)
+}
+
+// optionalLinks declares the relationships, allocated with the required
+// links or, with RelationshipsWhenSet, nil until a link is set, and sets
+// each optional link whose ID is not blank.
+func (m *method) optionalLinks(rel *RelBind, rels *Schema, lit string) (string, error) {
+	if m.b.RelationshipsWhenSet && (len(m.b.Links) > 0 || !strings.HasPrefix(rel.Type, "*")) {
+		return "", fmt.Errorf("relationshipsWhenSet needs a relationships pointer and no required links")
+	}
+	steps := []string{"relationships := " + lit}
+	if m.b.RelationshipsWhenSet {
+		steps = []string{"var relationships " + rel.Type}
+	}
+	for i, o := range m.b.Optional {
+		if slices.Contains(m.b.Links, o.Link) || slices.ContainsFunc(m.b.Optional[:i], func(p OptionalLink) bool { return p.Link == o.Link }) {
+			return "", fmt.Errorf("relationship %q is linked twice", o.Link)
+		}
+		typ, resource, err := toOneLink(m.op.Request, rel, rels, o.Link)
 		if err != nil {
 			return "", err
 		}
-		resource := rels.Properties.Get(name).Properties.Get("data").Properties.Get("type")
-		if strings.HasSuffix(typ, "List") || resource == nil || len(resource.Enum) != 1 {
-			return "", fmt.Errorf("%s has no to-one relationship %q of one type", m.op.Request, name)
+		id, cond := "id", fmt.Sprintf("id := strings.TrimSpace(%s); id != \"\"", o.Param)
+		if m.b.Check == checkRaw {
+			id, cond = o.Param, o.Param+` != ""`
 		}
-		if slices.Contains(m.b.Links[:i], name) {
-			return "", fmt.Errorf("relationship %q is linked twice", name)
+		set := fmt.Sprintf("relationships.%s = %s", goName(o.Link), linkLiteral(typ, resource, id))
+		if m.b.RelationshipsWhenSet {
+			set = fmt.Sprintf("if relationships == nil {\nrelationships = %s{}\n}\n", addressOf(rel.Type)) + set
 		}
-		links = append(links, fmt.Sprintf("%s: %s{\nData: ResourceData{\nType: %s,\nID: %s,\n},\n}", goName(name), addressOf(typ), resourceTypeConst(resource.Enum[0]), m.arg(first+i)))
+		steps = append(steps, fmt.Sprintf("if %s {\n%s\n}", cond, set))
 	}
-	return fmt.Sprintf("%s{\n%s,\n}", addressOf(rel.Type), strings.Join(links, ",\n")), nil
+	return strings.Join(steps, "\n") + "\n", nil
 }
 
 // addressOf turns a type such as "*T" into the start of a literal, "&T".
