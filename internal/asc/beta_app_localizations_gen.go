@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+// BetaAppLocalizationCreateData is the data object of the BetaAppLocalizationCreateRequest schema.
+type BetaAppLocalizationCreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    BetaAppLocalizationCreateAttributes `json:"attributes"`
+	Relationships *BetaAppLocalizationRelationships   `json:"relationships"`
+}
+
 // BetaAppLocalizationCreateRequest is the BetaAppLocalizationCreateRequest schema.
 type BetaAppLocalizationCreateRequest struct {
 	Data BetaAppLocalizationCreateData `json:"data"`
@@ -55,6 +62,33 @@ func (c *Client) GetBetaAppLocalizationApp(ctx context.Context, localizationID s
 	}
 	return getJSON[AppResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/betaAppLocalizations/%s/app", localizationID),
+	})
+}
+
+// CreateBetaAppLocalization sends POST /v1/betaAppLocalizations (betaAppLocalizations_createInstance).
+func (c *Client) CreateBetaAppLocalization(ctx context.Context, appID string, attrs BetaAppLocalizationCreateAttributes) (*BetaAppLocalizationResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+	payload := BetaAppLocalizationCreateRequest{
+		Data: BetaAppLocalizationCreateData{
+			Type:       ResourceTypeBetaAppLocalizations,
+			Attributes: attrs,
+			Relationships: &BetaAppLocalizationRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[BetaAppLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/betaAppLocalizations",
+		Payload: payload,
 	})
 }
 

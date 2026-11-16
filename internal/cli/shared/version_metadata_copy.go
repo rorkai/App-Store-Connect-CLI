@@ -130,7 +130,7 @@ func CopyVersionMetadataFromSource(
 		}
 
 		if !opts.DryRun {
-			if _, err := client.UpdateAppStoreVersionLocalization(ctx, destinationLocalizationID, attributes); err != nil {
+			if _, err := client.UpdateAppStoreVersionLocalization(ctx, destinationLocalizationID, attributes.UpdateAttributes()); err != nil {
 				return nil, fmt.Errorf("failed to copy metadata for locale %q: %w", locale, err)
 			}
 		}

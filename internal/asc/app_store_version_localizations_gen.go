@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+// AppStoreVersionLocalizationCreateData is the data object of the AppStoreVersionLocalizationCreateRequest schema.
+type AppStoreVersionLocalizationCreateData struct {
+	Type          ResourceType                                `json:"type"`
+	Attributes    AppStoreVersionLocalizationCreateAttributes `json:"attributes"`
+	Relationships *AppStoreVersionLocalizationRelationships   `json:"relationships"`
+}
+
 // AppStoreVersionLocalizationCreateRequest is the AppStoreVersionLocalizationCreateRequest schema.
 type AppStoreVersionLocalizationCreateRequest struct {
 	Data AppStoreVersionLocalizationCreateData `json:"data"`
@@ -82,6 +89,29 @@ func (c *Client) GetAppStoreVersionLocalizationScreenshotSetsRelationships(ctx c
 	})
 }
 
+// CreateAppStoreVersionLocalization sends POST /v1/appStoreVersionLocalizations (appStoreVersionLocalizations_createInstance).
+func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionID string, attrs AppStoreVersionLocalizationCreateAttributes) (*AppStoreVersionLocalizationResponse, error) {
+	payload := AppStoreVersionLocalizationCreateRequest{
+		Data: AppStoreVersionLocalizationCreateData{
+			Type:       ResourceTypeAppStoreVersionLocalizations,
+			Attributes: attrs,
+			Relationships: &AppStoreVersionLocalizationRelationships{
+				AppStoreVersion: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppStoreVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appStoreVersionLocalizations",
+		Payload: payload,
+	})
+}
+
 // DeleteAppStoreVersionLocalization sends DELETE /v1/appStoreVersionLocalizations/{id} (appStoreVersionLocalizations_deleteInstance).
 func (c *Client) DeleteAppStoreVersionLocalization(ctx context.Context, localizationID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID), nil)
@@ -146,5 +176,21 @@ func (c *Client) GetAppStoreVersionLocalizationSearchKeywords(ctx context.Contex
 	}
 	return getJSON[AppKeywordsResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/searchKeywords", localizationID),
+	})
+}
+
+// UpdateAppStoreVersionLocalization sends PATCH /v1/appStoreVersionLocalizations/{id} (appStoreVersionLocalizations_updateInstance).
+func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localizationID string, attrs AppStoreVersionLocalizationUpdateAttributes) (*AppStoreVersionLocalizationResponse, error) {
+	payload := AppStoreVersionLocalizationUpdateRequest{
+		Data: AppStoreVersionLocalizationUpdateData{
+			Type:       ResourceTypeAppStoreVersionLocalizations,
+			ID:         localizationID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID),
+		Payload: payload,
 	})
 }

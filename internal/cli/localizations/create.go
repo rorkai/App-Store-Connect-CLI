@@ -123,7 +123,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 				}
 			}
 
-			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, vid, attrs)
+			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, vid, attrs.CreateAttributes())
 			created := err == nil
 			if err != nil {
 				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, localizationsCreateExistsCodes, func() (*asc.AppStoreVersionLocalizationResponse, bool, error) {
@@ -137,7 +137,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 				}
 				outcome := "left unchanged"
 				if ifExistsMode == shared.IfExistsUpdate && hasUpdatableVersionLocalizationFields(attrs) {
-					updated, updateErr := client.UpdateAppStoreVersionLocalization(requestCtx, existing.Data.ID, attrs)
+					updated, updateErr := client.UpdateAppStoreVersionLocalization(requestCtx, existing.Data.ID, attrs.UpdateAttributes())
 					if updateErr != nil {
 						return fmt.Errorf("localizations create: update existing localization %s: %w", existing.Data.ID, updateErr)
 					}
