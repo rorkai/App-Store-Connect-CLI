@@ -5,6 +5,8 @@
     "AnalyticsReportResponse"
   ],
   "operations": [
+    {"operation":"analyticsReports_getInstance","name":"GetAnalyticsReport","params":["reportID"],"check":"path","pathErr":"analytics report"},
+    {"operation":"analyticsReports_instances_getToManyRelated","name":"GetAnalyticsReportInstances","params":["reportID"],"check":"path","pathErr":"analytics report instances","options":"AnalyticsReportInstancesOption","query":"buildAnalyticsReportInstancesQuery","nextContext":"analyticsReportInstances"},
     {"operation":"analyticsReports_instances_getToManyRelationship","name":"GetAnalyticsReportInstancesRelationships","params":["reportID"],"check":"require","messages":["report ID is required"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"analyticsReportInstancesRelationships","parseErr":"failed to parse instances relationship response"}
   ]
 }

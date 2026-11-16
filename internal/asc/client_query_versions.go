@@ -136,12 +136,7 @@ type appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery struct {
 	requestContext RequestContextFunc
 }
 
-func buildReviewQuery(opts []ReviewOption) string {
-	query := &reviewQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+func buildReviewQuery(query *reviewQuery) string {
 	values := url.Values{}
 	if query.territory != "" {
 		values.Set("filter[territory]", query.territory)
@@ -170,12 +165,7 @@ func buildReviewQuery(opts []ReviewOption) string {
 
 // buildCustomerReviewQuery builds the query for GET /v1/customerReviews/{id},
 // which accepts only the include and fields parameters.
-func buildCustomerReviewQuery(opts []ReviewOption) string {
-	query := &reviewQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+func buildCustomerReviewQuery(query *reviewQuery) string {
 	values := url.Values{}
 	addReviewSelection(values, query)
 	return values.Encode()

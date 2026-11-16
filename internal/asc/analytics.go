@@ -291,82 +291,6 @@ func (c *Client) GetAnalyticsReportRequests(ctx context.Context, appID string, o
 	})
 }
 
-// GetAnalyticsReportRequest retrieves a specific analytics report request by ID.
-func (c *Client) GetAnalyticsReportRequest(ctx context.Context, requestID string) (*AnalyticsReportRequestResponse, error) {
-	path, err := resourcePath("/v1/analyticsReportRequests/%s", requestID)
-	if err != nil {
-		return nil, fmt.Errorf("analytics report request: %w", err)
-	}
-	return getJSON[AnalyticsReportRequestResponse](ctx, c, readRequest{Path: path})
-}
-
-// DeleteAnalyticsReportRequest deletes an analytics report request by ID.
-func (c *Client) DeleteAnalyticsReportRequest(ctx context.Context, requestID string) error {
-	path, err := resourcePath("/v1/analyticsReportRequests/%s", requestID)
-	if err != nil {
-		return fmt.Errorf("analytics report request: %w", err)
-	}
-	return sendNoContent(ctx, c, "DELETE", path, nil)
-}
-
-// GetAnalyticsReport retrieves a specific analytics report by ID.
-func (c *Client) GetAnalyticsReport(ctx context.Context, reportID string) (*AnalyticsReportResponse, error) {
-	path, err := resourcePath("/v1/analyticsReports/%s", reportID)
-	if err != nil {
-		return nil, fmt.Errorf("analytics report: %w", err)
-	}
-	return getJSON[AnalyticsReportResponse](ctx, c, readRequest{Path: path})
-}
-
-// GetAnalyticsReports retrieves analytics reports for a request.
-func (c *Client) GetAnalyticsReports(ctx context.Context, requestID string, opts ...AnalyticsReportsOption) (*AnalyticsReportsResponse, error) {
-	query := applyOptions(opts)
-
-	var path string
-	if query.nextURL == "" {
-		var err error
-		path, err = resourcePath("/v1/analyticsReportRequests/%s/reports", requestID)
-		if err != nil {
-			return nil, fmt.Errorf("analytics reports: %w", err)
-		}
-	}
-	return getJSON[AnalyticsReportsResponse](ctx, c, readRequest{
-		Path:        path,
-		Query:       buildAnalyticsReportsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "analyticsReports",
-	})
-}
-
-// GetAnalyticsReportInstances retrieves report instances for a report.
-func (c *Client) GetAnalyticsReportInstances(ctx context.Context, reportID string, opts ...AnalyticsReportInstancesOption) (*AnalyticsReportInstancesResponse, error) {
-	query := applyOptions(opts)
-
-	var path string
-	if query.nextURL == "" {
-		var err error
-		path, err = resourcePath("/v1/analyticsReports/%s/instances", reportID)
-		if err != nil {
-			return nil, fmt.Errorf("analytics report instances: %w", err)
-		}
-	}
-	return getJSON[AnalyticsReportInstancesResponse](ctx, c, readRequest{
-		Path:        path,
-		Query:       buildAnalyticsReportInstancesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "analyticsReportInstances",
-	})
-}
-
-// GetAnalyticsReportInstance retrieves a specific report instance by ID.
-func (c *Client) GetAnalyticsReportInstance(ctx context.Context, instanceID string) (*AnalyticsReportInstanceResponse, error) {
-	path, err := resourcePath("/v1/analyticsReportInstances/%s", instanceID)
-	if err != nil {
-		return nil, fmt.Errorf("analytics report instance: %w", err)
-	}
-	return getJSON[AnalyticsReportInstanceResponse](ctx, c, readRequest{Path: path})
-}
-
 // GetAnalyticsReportInstanceSegmentsRelationships retrieves segment linkages for a report instance.
 func (c *Client) GetAnalyticsReportInstanceSegmentsRelationships(ctx context.Context, instanceID string, opts ...LinkagesOption) (*AnalyticsReportInstanceSegmentsLinkagesResponse, error) {
 	if strings.TrimSpace(instanceID) != "" {
@@ -386,35 +310,6 @@ func (c *Client) GetAnalyticsReportInstanceSegmentsRelationships(ctx context.Con
 		"analyticsReportInstanceSegmentsRelationships",
 		opts...,
 	)
-}
-
-// GetAnalyticsReportSegments retrieves report segments for an instance.
-func (c *Client) GetAnalyticsReportSegments(ctx context.Context, instanceID string, opts ...AnalyticsReportSegmentsOption) (*AnalyticsReportSegmentsResponse, error) {
-	query := applyOptions(opts)
-
-	var path string
-	if query.nextURL == "" {
-		var err error
-		path, err = resourcePath("/v1/analyticsReportInstances/%s/segments", instanceID)
-		if err != nil {
-			return nil, fmt.Errorf("analytics report segments: %w", err)
-		}
-	}
-	return getJSON[AnalyticsReportSegmentsResponse](ctx, c, readRequest{
-		Path:        path,
-		Query:       buildAnalyticsReportSegmentsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "analyticsReportSegments",
-	})
-}
-
-// GetAnalyticsReportSegment retrieves a specific report segment by ID.
-func (c *Client) GetAnalyticsReportSegment(ctx context.Context, segmentID string) (*AnalyticsReportSegmentResponse, error) {
-	path, err := resourcePath("/v1/analyticsReportSegments/%s", segmentID)
-	if err != nil {
-		return nil, fmt.Errorf("analytics report segment: %w", err)
-	}
-	return getJSON[AnalyticsReportSegmentResponse](ctx, c, readRequest{Path: path})
 }
 
 // DownloadAnalyticsReport downloads an analytics report from a presigned URL.

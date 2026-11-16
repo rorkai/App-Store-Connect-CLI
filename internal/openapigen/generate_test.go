@@ -172,6 +172,10 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"named arg type that is not a type name", wristband(ArgBind{Name: "color", Type: "*WristbandColor"})},
 		{"decode error text on a delete", &Family{Operations: []*OpBind{{Operation: "widgets_deleteInstance", Name: "X", Params: []string{"id"}, ParseErr: "failed to parse widget"}}}},
 		{"decode error text on a relationship change", &Family{Operations: []*OpBind{{Operation: "widgets_gadgets_replaceToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", ParseErr: "failed to parse gadgets"}}}},
+		{"path check without an error context", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkPath}}}},
+		{"path error context without the path check", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkRequire, PathErr: "yarn"}}}},
+		{"path check on a write", &Family{Operations: []*OpBind{{Operation: "widgets_updateInstance", Name: "X", Params: []string{"id"}, Check: checkPath, PathErr: "widget"}}}},
+		{"path check with messages", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkPath, PathErr: "yarn", Messages: []string{"yarn ID is required"}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

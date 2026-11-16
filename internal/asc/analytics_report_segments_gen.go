@@ -2,5 +2,21 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+)
+
 // AnalyticsReportSegmentResponse is the AnalyticsReportSegmentResponse schema.
 type AnalyticsReportSegmentResponse = SingleResponse[AnalyticsReportSegmentAttributes]
+
+// GetAnalyticsReportSegment sends GET /v1/analyticsReportSegments/{id} (analyticsReportSegments_getInstance).
+func (c *Client) GetAnalyticsReportSegment(ctx context.Context, segmentID string) (*AnalyticsReportSegmentResponse, error) {
+	path, err := resourcePath("/v1/analyticsReportSegments/%s", segmentID)
+	if err != nil {
+		return nil, fmt.Errorf("analytics report segment: %w", err)
+	}
+	return getJSON[AnalyticsReportSegmentResponse](ctx, c, readRequest{
+		Path: path,
+	})
+}

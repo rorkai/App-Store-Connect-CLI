@@ -13,7 +13,7 @@ import (
 )
 
 func TestBuildReviewQuery(t *testing.T) {
-	query := buildReviewQuery([]ReviewOption{
+	query := buildReviewQuery(applyOptions([]ReviewOption{
 		WithRatings([]int{5}),
 		WithTerritory("us"),
 		Limit[ReviewOption](25),
@@ -21,7 +21,7 @@ func TestBuildReviewQuery(t *testing.T) {
 		WithPublishedResponseExists(false),
 		WithReviewIncludeResponse(),
 		WithReviewResponseFields([]string{"responseBody", "state"}),
-	})
+	}))
 
 	values, err := url.ParseQuery(query)
 	if err != nil {
@@ -58,9 +58,9 @@ func TestBuildReviewQuery(t *testing.T) {
 }
 
 func TestBuildReviewQuery_InvalidRating(t *testing.T) {
-	query := buildReviewQuery([]ReviewOption{
+	query := buildReviewQuery(applyOptions([]ReviewOption{
 		WithRatings([]int{9}),
-	})
+	}))
 
 	values, err := url.ParseQuery(query)
 	if err != nil {

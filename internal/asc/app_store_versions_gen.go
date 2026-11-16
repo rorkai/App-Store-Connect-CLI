@@ -230,6 +230,21 @@ func (c *Client) GetAppStoreVersionBuildRelationship(ctx context.Context, versio
 	})
 }
 
+// GetAppStoreVersionCustomerReviews sends GET /v1/appStoreVersions/{id}/customerReviews (appStoreVersions_customerReviews_getToManyRelated).
+func (c *Client) GetAppStoreVersionCustomerReviews(ctx context.Context, versionID string, opts ...ReviewOption) (*ReviewsResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[ReviewsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/customerReviews", versionID),
+		Query:       buildReviewQuery(query),
+		Next:        query.nextURL,
+		NextContext: "customerReviews",
+	})
+}
+
 // GetAppStoreVersionCustomerReviewsRelationships sends GET /v1/appStoreVersions/{id}/relationships/customerReviews (appStoreVersions_customerReviews_getToManyRelationship).
 func (c *Client) GetAppStoreVersionCustomerReviewsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)
