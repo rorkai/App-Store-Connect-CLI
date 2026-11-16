@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"testing/synctest"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -248,11 +247,9 @@ func TestStatusUntilTimeoutEndsPending(t *testing.T) {
 		"/v1/apps/123456789/appStoreVersions": {statusUntilVersionsBody("IN_REVIEW")},
 	})
 
-	var stdout, stderr string
-	var code int
-	synctest.Test(t, func(t *testing.T) {
-		stdout, stderr, code = runStatusUntil(t, client, "--include", "appstore", "--until", "review-done", "--timeout", "50ms", "--output", "json")
-	})
+	d, stdoutBuf, stderrBuf := newTestDeps(t, client)
+	code := runWithDepsOnFakeClock(t, d, "1.2.3", "status", "--app", "123456789", "--poll-interval", "1ms", "--include", "appstore", "--until", "review-done", "--timeout", "50ms", "--output", "json")
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 	if code != cmd.ExitPending {
 		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitPending, stdout, stderr)

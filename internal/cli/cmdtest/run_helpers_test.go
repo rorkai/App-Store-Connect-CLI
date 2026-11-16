@@ -7,9 +7,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -90,6 +93,29 @@ func runWithDeps(t *testing.T, client func() (*asc.Client, error), args ...strin
 	d, stdout, stderr := newTestDeps(t, client)
 	code := rootcmd.RunWithDeps(args, "1.2.3", d)
 	return stdout.String(), stderr.String(), code
+}
+
+var registerSignalsOutsideBubbles sync.Once
+
+// runWithDepsOnFakeClock runs rootcmd.RunWithDeps in a synctest bubble, so the
+// command's deadlines and poll intervals use the bubble's fake clock.
+//
+// RunWithDeps registers for os.Interrupt. The runtime sets up its signal
+// handling on the first registration in the process and makes the channels it
+// keeps for good in the caller's bubble, which crashes the process ("select on
+// synctest channel from outside bubble"). The first registration is therefore
+// made here, outside any bubble.
+func runWithDepsOnFakeClock(t *testing.T, d *shared.Deps, version string, args ...string) int {
+	t.Helper()
+
+	registerSignalsOutsideBubbles.Do(func() {
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, os.Interrupt)
+		signal.Stop(signals)
+	})
+	var code int
+	synctest.Test(t, func(*testing.T) { code = rootcmd.RunWithDeps(args, version, d) })
+	return code
 }
 
 // runWithHTTPTransport is runWithDeps whose clients for services other than
