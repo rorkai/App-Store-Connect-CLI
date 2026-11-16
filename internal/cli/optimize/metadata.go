@@ -17,27 +17,27 @@ type resolvedSearchMetadata struct {
 	Metadata  searchMetadataSnapshot
 }
 
-func resolveSearchMetadata(ctx context.Context, appSelector, version, platform, appInfoOverride, locale string) (resolvedSearchMetadata, error) {
-	client, err := shared.GetASCClient()
+func resolveSearchMetadata(ctx context.Context, d *shared.Deps, appSelector, version, platform, appInfoOverride, locale string) (resolvedSearchMetadata, error) {
+	client, err := d.Client()
 	if err != nil {
 		return resolvedSearchMetadata{}, err
 	}
 
-	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+	lookupCtx, cancel := d.Timeout(ctx)
 	appID, err := shared.ResolveAppIDWithLookup(lookupCtx, client, appSelector)
 	cancel()
 	if err != nil {
 		return resolvedSearchMetadata{}, fmt.Errorf("resolve app: %w", err)
 	}
 
-	versionCtx, cancel := shared.ContextWithTimeout(ctx)
+	versionCtx, cancel := d.Timeout(ctx)
 	versionID, versionState, err := shared.ResolveAppStoreVersionIDAndState(versionCtx, client, appID, version, platform)
 	cancel()
 	if err != nil {
 		return resolvedSearchMetadata{}, fmt.Errorf("resolve version: %w", err)
 	}
 
-	versionLocalizationCtx, cancel := shared.ContextWithTimeout(ctx)
+	versionLocalizationCtx, cancel := d.Timeout(ctx)
 	versionLocalizations, err := client.GetAppStoreVersionLocalizations(
 		versionLocalizationCtx,
 		versionID,
@@ -62,14 +62,14 @@ func resolveSearchMetadata(ctx context.Context, appSelector, version, platform, 
 		return resolvedSearchMetadata{}, ambiguous
 	}
 
-	appInfoCtx, cancel := shared.ContextWithTimeout(ctx)
-	appInfoID, err := resolveSearchAppInfoID(appInfoCtx, client, appID, appInfoOverride, versionState)
+	appInfoCtx, cancel := d.Timeout(ctx)
+	appInfoID, err := resolveSearchAppInfoID(appInfoCtx, d, client, appID, appInfoOverride, versionState)
 	cancel()
 	if err != nil {
 		return resolvedSearchMetadata{}, fmt.Errorf("resolve app info: %w", err)
 	}
 
-	appInfoLocalizationCtx, cancel := shared.ContextWithTimeout(ctx)
+	appInfoLocalizationCtx, cancel := d.Timeout(ctx)
 	appInfoLocalizations, err := client.GetAppInfoLocalizations(
 		appInfoLocalizationCtx,
 		appInfoID,
@@ -107,9 +107,9 @@ func resolveSearchMetadata(ctx context.Context, appSelector, version, platform, 
 	}, nil
 }
 
-func resolveSearchAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoOverride, versionState string) (string, error) {
+func resolveSearchAppInfoID(ctx context.Context, d *shared.Deps, client *asc.Client, appID, appInfoOverride, versionState string) (string, error) {
 	if strings.TrimSpace(appInfoOverride) != "" {
-		return shared.ResolveOwnedAppInfoID(ctx, client, appID, appInfoOverride)
+		return d.ResolveOwnedAppInfoID(ctx, client, appID, appInfoOverride)
 	}
 
 	appInfos, err := client.GetAppInfos(ctx, appID)

@@ -88,7 +88,7 @@ func newCertificatesExportCommand(d *shared.Deps) *ffcli.Command {
 			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\" --force --confirm\n" +
 			"  asc certificates export --certificate \"./push/push.cer\" --private-key \"./push/push.key\" --password-file \"./secrets/push.p12.password\" --p12-out \"./push/push.p12\" --p12-encoding legacy",
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			certificateValue := *certificatePath
 			if strings.TrimSpace(certificateValue) == "" {

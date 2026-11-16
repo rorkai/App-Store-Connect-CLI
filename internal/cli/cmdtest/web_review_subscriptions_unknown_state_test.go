@@ -39,18 +39,16 @@ func TestWebReviewSubscriptionsMutationReportsUnknownAttachmentState(t *testing.
 			})
 			t.Cleanup(restore)
 
-			stdout, stderr := captureOutput(t, func() {
-				code := cmd.Run([]string{
-					"web", "review", "subscriptions", operation,
-					"--app", "app-1",
-					"--subscription-id", "sub-1",
-					"--confirm",
-					"--output", "json",
-				}, "1.0.0")
-				if code != cmd.ExitError {
-					t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil,
+				"web", "review", "subscriptions", operation,
+				"--app", "app-1",
+				"--subscription-id", "sub-1",
+				"--confirm",
+				"--output", "json",
+			)
+			if code != cmd.ExitError {
+				t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

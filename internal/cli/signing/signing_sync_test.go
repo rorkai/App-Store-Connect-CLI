@@ -315,7 +315,8 @@ func TestSanitizeRepoURLForOutputRedactsCredentials(t *testing.T) {
 }
 
 func TestSigningCommandLongHelpUsesOutputDirForSyncPull(t *testing.T) {
-	cmd := SigningCommand()
+	d, _, _ := newSigningTestDeps()
+	cmd := NewSigningCommand(d)
 	if !strings.Contains(cmd.LongHelp, "asc signing sync pull --repo git@github.com:team/certs.git --output-dir ./signing") {
 		t.Fatalf("expected top-level help to use --output-dir for sync pull, got %q", cmd.LongHelp)
 	}

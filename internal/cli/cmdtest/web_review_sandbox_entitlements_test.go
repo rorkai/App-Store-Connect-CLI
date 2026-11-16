@@ -27,6 +27,6 @@ func TestWebReviewSandboxEntitlementsValidatesBeforeSession(t *testing.T) {
 		{append(append([]string{"set"}, setArgs...), "--output", "yaml"), `(got "yaml")`},
 		{[]string{"delete", "--version-id", "version-1", "--entitlement", "com.apple.security.network.server"}, "--confirm is required"},
 	} {
-		assertUsageExit(t, append([]string{"web", "review", "sandbox-entitlements"}, tc.args...), tc.message)
+		assertUsageExitWithDeps(t, nil, append([]string{"web", "review", "sandbox-entitlements"}, tc.args...), tc.message)
 	}
 }

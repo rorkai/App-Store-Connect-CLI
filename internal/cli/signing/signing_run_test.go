@@ -31,7 +31,8 @@ import (
 
 func TestSigningCommandRegistersSubcommands(t *testing.T) {
 	for _, path := range [][]string{{"keychain", "install"}, {"resign"}, {"run"}, {"sync", "rotate-password"}} {
-		command := SigningCommand()
+		d, _, _ := newSigningTestDeps()
+		command := NewSigningCommand(d)
 		for _, name := range path {
 			found := false
 			for _, subcommand := range command.Subcommands {

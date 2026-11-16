@@ -20,7 +20,7 @@ func TestReadFastlaneMetadataRefusesSymlinkedVersionMetadataFile(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	locs, err := readFastlaneMetadata(metadataDir)
+	locs, err := readFastlaneMetadata(migrateTestDeps(), metadataDir)
 	if err == nil {
 		t.Fatalf("readFastlaneMetadata() error = nil, want symlink rejection (got %#v)", locs)
 	}
@@ -45,7 +45,7 @@ func TestReadFastlaneAppInfoMetadataRefusesSymlinkedFile(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	locs, err := readFastlaneAppInfoMetadata(metadataDir)
+	locs, err := readFastlaneAppInfoMetadata(migrateTestDeps(), metadataDir)
 	if err == nil {
 		t.Fatalf("readFastlaneAppInfoMetadata() error = nil, want symlink rejection (got %#v)", locs)
 	}
@@ -67,7 +67,7 @@ func TestReadFastlaneReviewInformationRefusesSymlinkedFile(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	info, err := readFastlaneReviewInformation(metadataDir)
+	info, err := readFastlaneReviewInformation(migrateTestDeps(), metadataDir)
 	if err == nil {
 		t.Fatalf("readFastlaneReviewInformation() error = nil, want symlink rejection (got %#v)", info)
 	}
@@ -85,7 +85,7 @@ func TestScanFastlaneMetadataLocaleDirsReportsSymlinkedLocaleDirectory(t *testin
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	dirs, skipped, err := scanFastlaneMetadataLocaleDirs(metadataDir)
+	dirs, skipped, err := scanFastlaneMetadataLocaleDirs(migrateTestDeps(), metadataDir)
 	if err != nil {
 		t.Fatalf("scanFastlaneMetadataLocaleDirs() error = %v", err)
 	}
@@ -112,7 +112,7 @@ func TestReadFastlaneMetadataReadsOrdinaryFiles(t *testing.T) {
 	writeMigrateContainmentFile(t, filepath.Join(localeDir, "description.txt"), "English description\n")
 	writeMigrateContainmentFile(t, filepath.Join(localeDir, "name.txt"), "App Name\n")
 
-	locs, err := readFastlaneMetadata(metadataDir)
+	locs, err := readFastlaneMetadata(migrateTestDeps(), metadataDir)
 	if err != nil {
 		t.Fatalf("readFastlaneMetadata() error = %v", err)
 	}
@@ -120,7 +120,7 @@ func TestReadFastlaneMetadataReadsOrdinaryFiles(t *testing.T) {
 		t.Fatalf("readFastlaneMetadata() = %#v", locs)
 	}
 
-	appInfo, err := readFastlaneAppInfoMetadata(metadataDir)
+	appInfo, err := readFastlaneAppInfoMetadata(migrateTestDeps(), metadataDir)
 	if err != nil {
 		t.Fatalf("readFastlaneAppInfoMetadata() error = %v", err)
 	}
@@ -447,7 +447,7 @@ func TestScanFastlaneMetadataLocaleDirsRefusesSymlinkedInTreeMetadataDirectory(t
 
 	// The default fastlane/metadata layout ships with the checkout, so a
 	// symlinked metadata directory must be refused, not silently followed.
-	_, _, err = scanFastlaneMetadataLocaleDirs(filepath.Join(workDir, "fastlane", "metadata"))
+	_, _, err = scanFastlaneMetadataLocaleDirs(migrateTestDeps(), filepath.Join(workDir, "fastlane", "metadata"))
 	if err == nil {
 		t.Fatal("scanFastlaneMetadataLocaleDirs() error = nil, want symlink rejection")
 	}
@@ -499,7 +499,7 @@ func TestDiscoverScreenshotPlanRefusesSymlinkedInTreeScreenshotsDirectory(t *tes
 
 	// The default fastlane/screenshots layout ships with the checkout, so a
 	// symlinked screenshots directory must be refused before any traversal.
-	_, _, err = discoverScreenshotPlanWithOpenFiles(filepath.Join(workDir, "fastlane", "screenshots"), false)
+	_, _, err = discoverScreenshotPlanWithOpenFiles(migrateTestDeps(), filepath.Join(workDir, "fastlane", "screenshots"), false)
 	if err == nil {
 		t.Fatal("discoverScreenshotPlan() error = nil, want symlink rejection")
 	}
@@ -544,7 +544,7 @@ func TestDiscoverScreenshotPlanSkipsAndReportsSymlinkedLocaleDirectory(t *testin
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(screenshotsDir, false)
+	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(migrateTestDeps(), screenshotsDir, false)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlan() error = %v, want symlinked locale skipped", err)
 	}

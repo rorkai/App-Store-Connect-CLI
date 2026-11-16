@@ -30,7 +30,7 @@ Examples:
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"
   asc game-center app-versions app-store-version view --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAppVersionsListCommand(d),
 			newGameCenterAppVersionsGetCommand(d),
@@ -129,7 +129,7 @@ Examples:
   asc game-center app-versions update --id "GC_APP_VERSION_ID" --enabled true
   asc game-center app-versions update --id "GC_APP_VERSION_ID" --enabled false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
@@ -185,7 +185,7 @@ func newGameCenterAppVersionCompatibilityCommand(d *shared.Deps) *ffcli.Command 
 Examples:
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAppVersionCompatibilityListCommand(d),
 		},
@@ -233,7 +233,7 @@ func newGameCenterAppVersionAppStoreVersionCommand(d *shared.Deps) *ffcli.Comman
 Examples:
   asc game-center app-versions app-store-version view --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAppVersionAppStoreVersionGetCommand(d),
 		},

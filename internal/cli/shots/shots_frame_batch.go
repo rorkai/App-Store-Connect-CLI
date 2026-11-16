@@ -38,11 +38,12 @@ type frameBatchJob struct {
 // command then exits 1. With --resume, each completed input is recorded as
 // soon as it is published so a rerun skips it.
 func runFrameBatch(ctx context.Context, opts frameBatchOptions) error {
-	absInputDir, err := filepath.Abs(opts.inputDir)
+	d := opts.settings.deps
+	absInputDir, err := d.Abs(opts.inputDir)
 	if err != nil {
 		return fmt.Errorf("screenshots frame: resolve --input-dir: %w", err)
 	}
-	absOutputDir, err := filepath.Abs(defaultIfBlank(opts.outputDir, defaultShotsFrameOutputDir))
+	absOutputDir, err := d.Abs(defaultIfBlank(opts.outputDir, defaultShotsFrameOutputDir))
 	if err != nil {
 		return fmt.Errorf("screenshots frame: resolve --output-dir: %w", err)
 	}
@@ -57,7 +58,7 @@ func runFrameBatch(ctx context.Context, opts frameBatchOptions) error {
 	}
 	if same {
 		// A later run would pick up framed outputs as new inputs.
-		return shared.WithDiagnostic(shared.UsageError("--output-dir must differ from --input-dir"), shared.DiagnosticConflictingInput, "--output-dir")
+		return shared.WithDiagnostic(d.UsageError("--output-dir must differ from --input-dir"), shared.DiagnosticConflictingInput, "--output-dir")
 	}
 	// Anchor --output-dir once, before any render, so replacing it or a
 	// parent with a symlink mid-batch cannot redirect later outputs. A
@@ -72,7 +73,7 @@ func runFrameBatch(ctx context.Context, opts frameBatchOptions) error {
 		return fmt.Errorf("screenshots frame: read --input-dir: %w", err)
 	}
 	if len(inputs) == 0 {
-		return shared.WithDiagnostic(shared.UsageError("--input-dir contains no PNG files: "+absInputDir), shared.DiagnosticInvalidInput, "--input-dir")
+		return shared.WithDiagnostic(d.UsageError("--input-dir contains no PNG files: "+absInputDir), shared.DiagnosticInvalidInput, "--input-dir")
 	}
 
 	// Resolve every output and overlay before rendering anything so usage
@@ -85,7 +86,7 @@ func runFrameBatch(ctx context.Context, opts frameBatchOptions) error {
 	foldCase := frameOutputFoldsCaseFn(absOutputDir)
 	anyText := false
 	for _, input := range inputs {
-		outPath, err := resolveOutputPath("", opts.outputDir, "", input, device)
+		outPath, err := resolveOutputPath(d, "", opts.outputDir, "", input, device)
 		if err != nil {
 			return fmt.Errorf("screenshots frame: %w", err)
 		}
@@ -94,7 +95,7 @@ func runFrameBatch(ctx context.Context, opts frameBatchOptions) error {
 			key = strings.ToLower(outPath)
 		}
 		if previous, ok := claimed[key]; ok {
-			return shared.WithDiagnostic(shared.UsageError(fmt.Sprintf(
+			return shared.WithDiagnostic(d.UsageError(fmt.Sprintf(
 				"--input-dir inputs %s and %s map to the same output %s",
 				filepath.Base(previous), filepath.Base(input), outPath,
 			)), shared.DiagnosticConflictingInput, "--input-dir")
@@ -127,14 +128,14 @@ func runFrameBatch(ctx context.Context, opts frameBatchOptions) error {
 		receipt.Files = renderFrameBatch(ctx, inputRoot, outputRoot, jobs, opts.settings, store, opts.workers)
 	}
 	if opts.resume {
-		root, err := frameResumeRoot()
+		root, err := frameResumeRoot(d)
 		if err != nil {
 			return err
 		}
 		defer root.Close()
 		// Bound only the wait for another run's lock; each input below gets
 		// its own render timeout.
-		lockCtx, cancelLock := shared.ContextWithTimeout(ctx)
+		lockCtx, cancelLock := d.Timeout(ctx)
 		defer cancelLock()
 		err = screenshots.WithFrameResumeLock(lockCtx, root, func() error {
 			state, loadErr := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
@@ -161,7 +162,7 @@ func runFrameBatch(ctx context.Context, opts frameBatchOptions) error {
 			receipt.Failed++
 		}
 	}
-	if err := shared.PrintOutput(&receipt, opts.output, opts.pretty); err != nil {
+	if err := d.PrintOutput(&receipt, opts.output, opts.pretty); err != nil {
 		return err
 	}
 	if receipt.Failed == 0 {
@@ -171,7 +172,7 @@ func runFrameBatch(ctx context.Context, opts frameBatchOptions) error {
 	if opts.resume {
 		message += "; rerun the same command to retry only the failed inputs"
 	}
-	fmt.Fprintf(os.Stderr, "Error: %s\n", message)
+	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
 	return shared.NewStderrReportedError(errors.New(message))
 }
 
@@ -213,7 +214,7 @@ func frameBatchFile(ctx context.Context, inputRoot, outputRoot rootfs.Root, job 
 		file.Error = err.Error()
 		return file
 	}
-	fileCtx, cancel := shared.ContextWithTimeout(ctx)
+	fileCtx, cancel := settings.deps.Timeout(ctx)
 	defer cancel()
 
 	request := screenshots.FrameRequest{

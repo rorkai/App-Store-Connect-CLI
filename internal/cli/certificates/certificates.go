@@ -39,7 +39,7 @@ Examples:
   asc certificates revoke --id "CERT_ID" --confirm
   asc certificates links pass-type-id --id "CERT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCertificatesListCommand(d),
 			newCertificatesGetCommand(d),
@@ -303,7 +303,7 @@ func newCertificateCreateCommand(d *shared.Deps, spec certificateCreateSpec) *ff
 		ShortHelp:  spec.shortHelp,
 		LongHelp:   spec.longHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if spec.requireMerchant && merchantIDValue == "" {
@@ -448,7 +448,7 @@ Examples:
   asc certificates update --id "CERT_ID" --activated true
   asc certificates update --id "CERT_ID" --activated false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -500,7 +500,7 @@ func newCertificatesRevokeCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc certificates revoke --id "CERT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
