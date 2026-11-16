@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -71,10 +72,75 @@ func (c *Client) GetPreReleaseVersionBuildsRelationships(ctx context.Context, ve
 	})
 }
 
+// GetPreReleaseVersions sends GET /v1/preReleaseVersions (preReleaseVersions_getCollection).
+func (c *Client) GetPreReleaseVersions(ctx context.Context, opts ...PreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[PreReleaseVersionsResponse](ctx, c, readRequest{
+		Path:        "/v1/preReleaseVersions",
+		Query:       buildPreReleaseVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "preReleaseVersions",
+	})
+}
+
 // GetPreReleaseVersion sends GET /v1/preReleaseVersions/{id} (preReleaseVersions_getInstance).
 func (c *Client) GetPreReleaseVersion(ctx context.Context, id string) (*PreReleaseVersionResponse, error) {
 	id = strings.TrimSpace(id)
 	return getJSON[PreReleaseVersionResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/preReleaseVersions/%s", id),
 	})
+}
+
+// PreReleaseVersionsOption sets the query of GET /v1/preReleaseVersions (preReleaseVersions_getCollection).
+type PreReleaseVersionsOption func(*preReleaseVersionsQuery)
+
+type preReleaseVersionsQuery struct {
+	listQuery
+	appID    string
+	platform string
+	version  string
+}
+
+// WithPreReleaseVersionsAppID sets filter[app].
+func WithPreReleaseVersionsAppID(appID string) PreReleaseVersionsOption {
+	return func(q *preReleaseVersionsQuery) {
+		if strings.TrimSpace(appID) != "" {
+			q.appID = strings.TrimSpace(appID)
+		}
+	}
+}
+
+// WithPreReleaseVersionsPlatform sets filter[platform].
+func WithPreReleaseVersionsPlatform(platform string) PreReleaseVersionsOption {
+	return func(q *preReleaseVersionsQuery) {
+		normalized := normalizeUpperCSVString(platform)
+		if normalized != "" {
+			q.platform = normalized
+		}
+	}
+}
+
+// WithPreReleaseVersionsVersion sets filter[version].
+func WithPreReleaseVersionsVersion(version string) PreReleaseVersionsOption {
+	return func(q *preReleaseVersionsQuery) {
+		normalized := normalizeCSVString(version)
+		if normalized != "" {
+			q.version = normalized
+		}
+	}
+}
+
+func buildPreReleaseVersionsQuery(query *preReleaseVersionsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.appID) != "" {
+		values.Set("filter[app]", strings.TrimSpace(query.appID))
+	}
+	if strings.TrimSpace(query.platform) != "" {
+		values.Set("filter[platform]", strings.TrimSpace(query.platform))
+	}
+	if strings.TrimSpace(query.version) != "" {
+		values.Set("filter[version]", strings.TrimSpace(query.version))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

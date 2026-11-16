@@ -35,6 +35,7 @@ func TestBindWebSessionFlagsOmitsRemovedTwoFactorCodeAlias(t *testing.T) {
 }
 
 func TestResolveWebSessionForCommandPassesTwoFactorCodeCommand(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	restoreResolve := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
 		if appleID != "user@example.com" {
 			t.Fatalf("appleID = %q, want %q", appleID, "user@example.com")
@@ -54,10 +55,10 @@ func TestResolveWebSessionForCommandPassesTwoFactorCodeCommand(t *testing.T) {
 		twoFactorCodeCommand: ptrTo("osascript /tmp/get-apple-2fa-code.scpt"),
 	}
 
-	session, _, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
+	session, _, cancel, err := resolveWebSessionForCommandWith(context.Background(), d, flags)
 	defer cancel()
 	if err != nil {
-		t.Fatalf("resolveWebSessionForCommand() error = %v", err)
+		t.Fatalf("resolveWebSessionForCommandWith() error = %v", err)
 	}
 	if session == nil {
 		t.Fatal("expected session")
@@ -65,6 +66,7 @@ func TestResolveWebSessionForCommandPassesTwoFactorCodeCommand(t *testing.T) {
 }
 
 func TestResolveWebSessionForCommandSelectsProvider(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	expected := &webcore.AuthSession{UserEmail: "user@example.com"}
 	restoreResolve := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
 		return expected, "cache", nil
@@ -111,10 +113,10 @@ func TestResolveWebSessionForCommandSelectsProvider(t *testing.T) {
 		publicProviderID:     ptrTo("TEAM123"),
 	}
 
-	session, _, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
+	session, _, cancel, err := resolveWebSessionForCommandWith(context.Background(), d, flags)
 	defer cancel()
 	if err != nil {
-		t.Fatalf("resolveWebSessionForCommand() error = %v", err)
+		t.Fatalf("resolveWebSessionForCommandWith() error = %v", err)
 	}
 	if session != expected {
 		t.Fatal("expected selected session")
@@ -128,6 +130,7 @@ func TestResolveWebSessionForCommandSelectsProvider(t *testing.T) {
 }
 
 func TestResolveWebSessionForCommandDoesNotPersistBeforeProviderSelection(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origLoadCachedSession := loadCachedSessionFn
@@ -181,7 +184,7 @@ func TestResolveWebSessionForCommandDoesNotPersistBeforeProviderSelection(t *tes
 			return &webcore.AuthSession{UserEmail: creds.Username}, nil
 		}
 
-		_, _, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
+		_, _, cancel, err := resolveWebSessionForCommandWith(context.Background(), d, flags)
 		defer cancel()
 		if !errors.Is(err, selectErr) {
 			t.Fatalf("expected provider selection error, got %v", err)
@@ -211,7 +214,7 @@ func TestResolveWebSessionForCommandDoesNotPersistBeforeProviderSelection(t *tes
 			return &webcore.AuthSession{Client: client, UserEmail: creds.Username}, nil
 		}
 
-		_, _, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
+		_, _, cancel, err := resolveWebSessionForCommandWith(context.Background(), d, flags)
 		defer cancel()
 		if !errors.Is(err, selectErr) {
 			t.Fatalf("expected provider selection error, got %v", err)
@@ -272,6 +275,7 @@ func TestWebCommandOperationSurvivesSlowInteractiveAuthentication(t *testing.T) 
 }
 
 func TestResolveWebSessionForCommandStartsRequestBudgetAfterAuthentication(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	t.Setenv("ASC_TIMEOUT", "150ms")
 
 	restoreResolve := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
@@ -289,10 +293,10 @@ func TestResolveWebSessionForCommandStartsRequestBudgetAfterAuthentication(t *te
 	}
 
 	synctest.Test(t, func(t *testing.T) {
-		session, requestCtx, cancel, err := resolveWebSessionForCommand(context.Background(), flags)
+		session, requestCtx, cancel, err := resolveWebSessionForCommandWith(context.Background(), d, flags)
 		defer cancel()
 		if err != nil {
-			t.Fatalf("resolveWebSessionForCommand() error = %v", err)
+			t.Fatalf("resolveWebSessionForCommandWith() error = %v", err)
 		}
 		if session == nil {
 			t.Fatal("expected session")
@@ -311,6 +315,7 @@ func TestResolveWebSessionForCommandStartsRequestBudgetAfterAuthentication(t *te
 }
 
 func TestResolveWebSessionForCommandSelectsProviderOnRefreshedContext(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	t.Setenv("ASC_TIMEOUT", "150ms")
 
 	expected := &webcore.AuthSession{UserEmail: "user@example.com"}
@@ -344,11 +349,11 @@ func TestResolveWebSessionForCommandSelectsProviderOnRefreshedContext(t *testing
 	var err error
 	synctest.Test(t, func(*testing.T) {
 		var cancel context.CancelFunc
-		_, _, cancel, err = resolveWebSessionForCommand(context.Background(), flags)
+		_, _, cancel, err = resolveWebSessionForCommandWith(context.Background(), d, flags)
 		cancel()
 	})
 	if err != nil {
-		t.Fatalf("resolveWebSessionForCommand() error = %v", err)
+		t.Fatalf("resolveWebSessionForCommandWith() error = %v", err)
 	}
 	if selectionCtxErr != nil {
 		t.Fatalf("provider selection ran on an expired context: %v", selectionCtxErr)
@@ -356,6 +361,7 @@ func TestResolveWebSessionForCommandSelectsProviderOnRefreshedContext(t *testing
 }
 
 func TestResolveWebSessionForCommandRequestContextFollowsParentCancellation(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	restoreResolve := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
 		return &webcore.AuthSession{}, "cache", nil
 	})
@@ -367,10 +373,10 @@ func TestResolveWebSessionForCommandRequestContextFollowsParentCancellation(t *t
 		twoFactorCodeCommand: ptrTo(""),
 	}
 
-	_, requestCtx, cancel, err := resolveWebSessionForCommand(parent, flags)
+	_, requestCtx, cancel, err := resolveWebSessionForCommandWith(parent, d, flags)
 	defer cancel()
 	if err != nil {
-		t.Fatalf("resolveWebSessionForCommand() error = %v", err)
+		t.Fatalf("resolveWebSessionForCommandWith() error = %v", err)
 	}
 
 	cancelParent()

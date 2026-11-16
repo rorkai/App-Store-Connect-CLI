@@ -6,18 +6,14 @@
     "GameCenterChallengeCreateData",
     "GameCenterChallengeResponse",
     "GameCenterChallengeUpdateAttributes",
-    "GameCenterChallengeUpdateData",
-    "GameCenterChallengeUpdateRelationships",
     "GameCenterChallengeUpdateRequest"
   ],
   "relationships": [
-    {"data":"GameCenterChallengeCreateData","type":"*GameCenterChallengeRelationships","omitempty":true},
-    {"data":"GameCenterChallengeUpdateData","type":"*GameCenterChallengeUpdateRelationships","omitempty":true}
+    {"data":"GameCenterChallengeCreateData","type":"*GameCenterChallengeRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterChallenges_deleteInstance","name":"DeleteGameCenterChallenge","params":["challengeID"]},
     {"operation":"gameCenterChallenges_getInstance","name":"GetGameCenterChallenge","params":["challengeID"]},
-    {"operation":"gameCenterChallenges_updateInstance","name":"UpdateGameCenterChallenge","params":["challengeID"],"optional":[{"param":"leaderboardID","link":"leaderboard"}],"relationshipsWhenSet":true},
     {"operation":"gameCenterChallenges_versions_getToManyRelated","name":"GetGameCenterChallengeVersions","params":["challengeID"],"options":"GCChallengeVersionsOption","query":"buildGCChallengeVersionsQuery","nextContext":"game-center-challenge-versions"}
   ],
   "queries": [

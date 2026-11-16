@@ -18,6 +18,14 @@ type GameCenterMatchmakingQueueRelationships struct {
 	ExperimentRuleSet *Relationship `json:"experimentRuleSet,omitempty"`
 }
 
+// GameCenterMatchmakingQueueUpdateData is the data portion of a queue update request.
+type GameCenterMatchmakingQueueUpdateData struct {
+	Type          ResourceType                                `json:"type"`
+	ID            string                                      `json:"id"`
+	Attributes    *GameCenterMatchmakingQueueUpdateAttributes `json:"attributes,omitempty"`
+	Relationships *GameCenterMatchmakingQueueRelationships    `json:"relationships,omitempty"`
+}
+
 // GameCenterMatchmakingRuleSetAttributes represents a matchmaking rule set resource.
 type GameCenterMatchmakingRuleSetAttributes struct {
 	ReferenceName       string `json:"referenceName"`

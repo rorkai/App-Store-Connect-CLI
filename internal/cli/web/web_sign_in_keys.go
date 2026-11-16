@@ -20,26 +20,26 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-func WebSignInKeysCommand() *ffcli.Command {
+func newWebSignInKeysCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
-		Name: "sign-in-keys", ShortUsage: "asc web sign-in-keys <subcommand> [flags]", ShortHelp: "Create and download Sign in with Apple keys through Developer Portal.", FlagSet: flag.NewFlagSet("web sign-in-keys", flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{WebSignInKeysListCommand(), WebSignInKeysViewCommand(), WebSignInKeysCreateCommand(), WebSignInKeysDownloadCommand()}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
+		Name: "sign-in-keys", ShortUsage: "asc web sign-in-keys <subcommand> [flags]", ShortHelp: "Create and download Sign in with Apple keys through Developer Portal.", FlagSet: d.NewFlagSet("web sign-in-keys", flag.ExitOnError), UsageFunc: d.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{newWebSignInKeysListCommand(d), newWebSignInKeysViewCommand(d), newWebSignInKeysCreateCommand(d), newWebSignInKeysDownloadCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func WebSignInKeysListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web sign-in-keys list", flag.ExitOnError)
+func newWebSignInKeysListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web sign-in-keys list", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{Name: "list", ShortUsage: "asc web sign-in-keys list [flags]", ShortHelp: "List Developer Portal authentication keys and download availability.", LongHelp: "Lists up to 1000 authentication keys, including other services, to inspect existing keys before creating one. JSON preserves Apple's response envelope. This does not download private keys.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
-		if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+	output := d.BindOutputFlags(fs)
+	return &ffcli.Command{Name: "list", ShortUsage: "asc web sign-in-keys list [flags]", ShortHelp: "List Developer Portal authentication keys and download availability.", LongHelp: "Lists up to 1000 authentication keys, including other services, to inspect existing keys before creating one. JSON preserves Apple's response envelope. This does not download private keys.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+		if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 			return err
 		}
 		if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
-		session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+		session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 		defer cancel()
 		if err != nil {
 			return err
@@ -48,36 +48,36 @@ func WebSignInKeysListCommand() *ffcli.Command {
 		if err != nil {
 			return withWebAuthHint(err, "web sign-in-keys list")
 		}
-		persistDeveloperPortalSession(session)
+		persistDeveloperPortalSessionWith(d, session)
 		rows := [][]string{}
 		for _, key := range result.Keys {
 			rows = append(rows, []string{key.KeyID, key.KeyName, fmt.Sprint(key.CanDownload)})
 		}
 		headers := []string{"Key ID", "Name", "Can Download"}
-		return shared.PrintOutputWithRenderers(result, *output.Output, *output.Pretty, func() error { asc.RenderTable(headers, rows); return nil }, func() error { asc.RenderMarkdown(headers, rows); return nil })
+		return d.PrintOutputWithRenderers(result, *output.Output, *output.Pretty, func() error { asc.RenderTableTo(d.IO.Out, headers, rows); return nil }, func() error { asc.RenderMarkdownTo(d.IO.Out, headers, rows); return nil })
 	}}
 }
 
-func WebSignInKeysViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web sign-in-keys view", flag.ExitOnError)
+func newWebSignInKeysViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web sign-in-keys view", flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	keyID := fs.String("key-id", "", "Developer Portal authentication key ID")
-	return &ffcli.Command{Name: "view", ShortUsage: "asc web sign-in-keys view --key-id ID [flags]", ShortHelp: "Inspect authentication key services and configured bundle IDs.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+	return &ffcli.Command{Name: "view", ShortUsage: "asc web sign-in-keys view --key-id ID [flags]", ShortHelp: "Inspect authentication key services and configured bundle IDs.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		if strings.TrimSpace(*keyID) == "" {
-			return shared.UsageError("--key-id is required")
+			return d.UsageError("--key-id is required")
 		}
 		if !regexp.MustCompile(`^[A-Za-z0-9]{1,32}$`).MatchString(*keyID) {
-			return shared.UsageError("invalid --key-id")
+			return d.UsageError("invalid --key-id")
 		}
-		if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+		if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 			return err
 		}
 		if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
-		session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+		session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 		defer cancel()
 		if err != nil {
 			return err
@@ -86,10 +86,10 @@ func WebSignInKeysViewCommand() *ffcli.Command {
 		if err != nil {
 			return err
 		}
-		persistDeveloperPortalSession(session)
+		persistDeveloperPortalSessionWith(d, session)
 		headers := []string{"Key ID", "Name", "Can Download"}
 		rows := [][]string{{key.KeyID, key.KeyName, fmt.Sprint(key.CanDownload)}}
-		return shared.PrintOutputWithRenderers(json.RawMessage(key.Raw), *output.Output, *output.Pretty, func() error { asc.RenderTable(headers, rows); return nil }, func() error { asc.RenderMarkdown(headers, rows); return nil })
+		return d.PrintOutputWithRenderers(json.RawMessage(key.Raw), *output.Output, *output.Pretty, func() error { asc.RenderTableTo(d.IO.Out, headers, rows); return nil }, func() error { asc.RenderMarkdownTo(d.IO.Out, headers, rows); return nil })
 	}}
 }
 
@@ -106,20 +106,25 @@ type signInKeyDownloadRecovery interface {
 	RecoveryBody() []byte
 }
 
-func WebSignInKeysCreateCommand() *ffcli.Command   { return webSignInKeySaveCommand(true) }
-func WebSignInKeysDownloadCommand() *ffcli.Command { return webSignInKeySaveCommand(false) }
+func newWebSignInKeysCreateCommand(d *shared.Deps) *ffcli.Command {
+	return webSignInKeySaveCommand(d, true)
+}
 
-func webSignInKeySaveCommand(create bool) *ffcli.Command {
+func newWebSignInKeysDownloadCommand(d *shared.Deps) *ffcli.Command {
+	return webSignInKeySaveCommand(d, false)
+}
+
+func webSignInKeySaveCommand(d *shared.Deps, create bool) *ffcli.Command {
 	operation := "download"
 	if create {
 		operation = "create"
 	}
 	shortUsage := "asc web sign-in-keys download --key-id ID --output-dir DIR --confirm [flags]"
 	longHelp := "Requires an authenticated Developer Portal session and macOS or Linux for private file publication. Uses the existing --developer-team selection. Saves AuthKey_<KEY_ID>.p8 with mode 0600; private bytes are never printed. An uncertain create or download is never automatically retried. Inspect list before retrying a failed create."
-	fs := flag.NewFlagSet("web sign-in-keys "+operation, flag.ExitOnError)
+	fs := d.NewFlagSet("web sign-in-keys "+operation, flag.ExitOnError)
 	authFlags := bindWebSessionFlags(fs)
 	portalFlags := bindDeveloperPortalFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	outputDir := fs.String("output-dir", "", "Directory for the private P8 file (mode 0600; never overwrite)")
 	var name, bundleID, keyID string
 	var confirm bool
@@ -138,39 +143,39 @@ func webSignInKeySaveCommand(create bool) *ffcli.Command {
 		longHelp += " Consuming this one-time key download requires --confirm."
 	}
 	fs.BoolVar(&confirm, "confirm", false, confirmHelp)
-	return &ffcli.Command{Name: operation, ShortUsage: shortUsage, ShortHelp: strings.ToUpper(operation[:1]) + operation[1:] + " a Sign in with Apple key and save its one-time P8 privately.", LongHelp: longHelp, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+	return &ffcli.Command{Name: operation, ShortUsage: shortUsage, ShortHelp: strings.ToUpper(operation[:1]) + operation[1:] + " a Sign in with Apple key and save its one-time P8 privately.", LongHelp: longHelp, FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		name = strings.TrimSpace(name)
 		bundleID = strings.TrimSpace(bundleID)
 		keyID = strings.TrimSpace(keyID)
 		if create && name == "" {
-			return shared.UsageError("--name is required")
+			return d.UsageError("--name is required")
 		}
 		if create && bundleID == "" {
-			return shared.UsageError("--bundle-id is required")
+			return d.UsageError("--bundle-id is required")
 		}
 		if !create && keyID == "" {
-			return shared.UsageError("--key-id is required")
+			return d.UsageError("--key-id is required")
 		}
 		idPattern := regexp.MustCompile(`^[A-Za-z0-9]{1,32}$`)
 		if create && !idPattern.MatchString(bundleID) {
-			return shared.UsageError("--bundle-id must be an opaque Bundle ID resource ID")
+			return d.UsageError("--bundle-id must be an opaque Bundle ID resource ID")
 		}
 		if !create && !idPattern.MatchString(keyID) {
-			return shared.UsageError("invalid --key-id")
+			return d.UsageError("invalid --key-id")
 		}
 		if strings.TrimSpace(*outputDir) == "" {
-			return shared.UsageError("--output-dir is required")
+			return d.UsageError("--output-dir is required")
 		}
-		if err := shared.RequireConfirm(confirm); err != nil {
+		if err := d.RequireConfirm(confirm); err != nil {
 			return err
 		}
-		if err := validateDeveloperPortalFlags(portalFlags); err != nil {
+		if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
 			return err
 		}
 		if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
-		root, err := rootfs.New(strings.TrimSpace(*outputDir))
+		root, err := rootfs.New(d.OSPath(strings.TrimSpace(*outputDir)))
 		if err != nil {
 			return err
 		}
@@ -227,7 +232,7 @@ func webSignInKeySaveCommand(create bool) *ffcli.Command {
 			}
 		}()
 
-		session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+		session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 		defer cancel()
 		if err != nil {
 			return err
@@ -240,7 +245,7 @@ func webSignInKeySaveCommand(create bool) *ffcli.Command {
 			}
 			keyID = key.KeyID
 		}
-		persistDeveloperPortalSession(session)
+		persistDeveloperPortalSessionWith(d, session)
 		fileName := "AuthKey_" + keyID + ".p8"
 		reservation, err := root.CreateNewFileAtomicWithIdentity(fileName, nil, 0o600)
 		if err != nil {
@@ -302,8 +307,8 @@ func webSignInKeySaveCommand(create bool) *ffcli.Command {
 		if err = syncSignInKeyDirectory(opened); err != nil {
 			return fmt.Errorf("key %s saved at %s but directory durability could not be confirmed; preserve this file and do not retry the one-time download: %w", keyID, filepath.Join(root.Path(), fileName), err)
 		}
-		persistDeveloperPortalSession(session)
-		return shared.PrintOutput(&asc.WebSignInKeyReceipt{KeyID: keyID, Name: name, BundleID: bundleID, P8Path: filepath.Join(root.Path(), fileName)}, *output.Output, *output.Pretty)
+		persistDeveloperPortalSessionWith(d, session)
+		return d.PrintOutput(&asc.WebSignInKeyReceipt{KeyID: keyID, Name: name, BundleID: bundleID, P8Path: filepath.Join(root.Path(), fileName)}, *output.Output, *output.Pretty)
 	}}
 }
 

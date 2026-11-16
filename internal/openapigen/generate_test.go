@@ -178,6 +178,10 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"relationships when set without optional links", &Family{Relationships: yokeRels, Operations: []*OpBind{{Operation: "yokes_updateInstance", Name: "X", Params: []string{"id"}, RelationshipsWhenSet: true}}}},
 		{"optional links on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, Optional: []OptionalLink{{Param: "gadgetID", Link: "gadget"}}}}}},
 		{"decode error text on a relationship change", &Family{Operations: []*OpBind{{Operation: "widgets_gadgets_replaceToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", ParseErr: "failed to parse gadgets"}}}},
+		{"path check without an error context", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkPath}}}},
+		{"path error context without the path check", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkRequire, PathErr: "yarn"}}}},
+		{"path check on a write", &Family{Operations: []*OpBind{{Operation: "widgets_updateInstance", Name: "X", Params: []string{"id"}, Check: checkPath, PathErr: "widget"}}}},
+		{"path check with messages", &Family{Operations: []*OpBind{{Operation: "yarns_getInstance", Name: "X", Params: []string{"id"}, Check: checkPath, PathErr: "yarn", Messages: []string{"yarn ID is required"}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

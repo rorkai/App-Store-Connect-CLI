@@ -5,12 +5,10 @@
     "SubscriptionPromotionalOfferAttributes",
     "SubscriptionPromotionalOfferCreateData",
     "SubscriptionPromotionalOfferRelationships",
-    "SubscriptionPromotionalOfferUpdateData",
     "SubscriptionPromotionalOfferUpdateRequest"
   ],
   "relationships": [
-    {"data":"SubscriptionPromotionalOfferCreateData","type":"SubscriptionPromotionalOfferRelationships"},
-    {"data":"SubscriptionPromotionalOfferUpdateData","type":"*SubscriptionPromotionalOfferUpdateRelationships","omitempty":true}
+    {"data":"SubscriptionPromotionalOfferCreateData","type":"SubscriptionPromotionalOfferRelationships"}
   ],
   "operations": [
     {"operation":"subscriptionPromotionalOffers_deleteInstance","name":"DeleteSubscriptionPromotionalOffer","params":["offerID"]}

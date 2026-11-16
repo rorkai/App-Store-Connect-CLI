@@ -28,6 +28,23 @@ func (c *Client) GetSubscriptionGroup(ctx context.Context, groupID string, opts 
 	})
 }
 
+// UpdateSubscription updates a subscription.
+func (c *Client) UpdateSubscription(ctx context.Context, subID string, attrs SubscriptionUpdateAttributes) (*SubscriptionResponse, error) {
+	payload := SubscriptionUpdateRequest{
+		Data: SubscriptionUpdateData{
+			Type:       ResourceTypeSubscriptions,
+			ID:         strings.TrimSpace(subID),
+			Attributes: attrs,
+		},
+	}
+
+	return sendJSON[SubscriptionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptions/%s", strings.TrimSpace(subID)),
+		Payload: payload,
+	})
+}
+
 // SetSubscriptionPriceMatrix atomically sets an initial subscription price
 // matrix using inline SubscriptionPriceInlineCreate resources.
 func (c *Client) SetSubscriptionPriceMatrix(ctx context.Context, subID string, entries []SubscriptionInlinePrice) (*SubscriptionResponse, error) {

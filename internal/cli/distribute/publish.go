@@ -233,7 +233,7 @@ Examples:
 					return d.UsageErrorf("publish artifacts: %v", err)
 				}
 			}
-			bundle, err := loadPreparedBundle(ctx, bundleRoot)
+			bundle, err := loadPreparedBundle(ctx, bundleRoot, d.Now())
 			if err != nil {
 				return fmt.Errorf("distribute publish: %w", err)
 			}
@@ -247,7 +247,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("configure publication verifier: %w", err)
 				}
-				if err := reverifyPublication(ctx, verifier, recoveredState.Receipt, recoveredState.Links, time.Now().UTC()); err != nil {
+				if err := reverifyPublication(ctx, verifier, recoveredState.Receipt, recoveredState.Links, d.Now); err != nil {
 					return fmt.Errorf("reverify recovered publication: %w", err)
 				}
 				if artifacts.receiptExists {
@@ -286,7 +286,7 @@ Examples:
 			}
 			receipt, links, err := runPublish(ctx, bundle.IPA, bundle.Descriptor, core.PublishOptions{
 				Store: store, Verifier: verifier, Bucket: *bucket, Prefix: *prefix, Access: accessMode,
-				PublicBaseURL: *publicBaseURL, URLTTL: *urlTTL, DownloadGrace: *downloadGrace, CredentialLimit: credentialLimit,
+				PublicBaseURL: *publicBaseURL, URLTTL: *urlTTL, DownloadGrace: *downloadGrace, CredentialLimit: credentialLimit, Now: d.Now,
 			})
 			if err != nil {
 				return fmt.Errorf("distribute publish: %w", err)

@@ -4,13 +4,8 @@
   "types": [
     "UserResponse",
     "UserUpdateAttributes",
-    "UserUpdateData",
-    "UserUpdateRelationships",
     "UserUpdateRequest",
     "UsersResponse"
-  ],
-  "relationships": [
-    {"data":"UserUpdateData","type":"*UserUpdateRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"users_deleteInstance","name":"DeleteUser","params":["userID"],"check":"trim"},

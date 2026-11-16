@@ -35,20 +35,6 @@ type GameCenterChallengeUpdateAttributes struct {
 	Repeatable    *bool   `json:"repeatable,omitempty"`
 }
 
-// GameCenterChallengeUpdateData is the data object of the GameCenterChallengeUpdateRequest schema.
-type GameCenterChallengeUpdateData struct {
-	Type          ResourceType                            `json:"type"`
-	ID            string                                  `json:"id"`
-	Attributes    *GameCenterChallengeUpdateAttributes    `json:"attributes,omitempty"`
-	Relationships *GameCenterChallengeUpdateRelationships `json:"relationships,omitempty"`
-}
-
-// GameCenterChallengeUpdateRelationships is the data.relationships object of the GameCenterChallengeUpdateRequest schema.
-type GameCenterChallengeUpdateRelationships struct {
-	Leaderboard   *Relationship `json:"leaderboard,omitempty"`
-	LeaderboardV2 *Relationship `json:"leaderboardV2,omitempty"`
-}
-
 // GameCenterChallengeUpdateRequest is the GameCenterChallengeUpdateRequest schema.
 type GameCenterChallengeUpdateRequest struct {
 	Data GameCenterChallengeUpdateData `json:"data"`
@@ -63,35 +49,6 @@ func (c *Client) DeleteGameCenterChallenge(ctx context.Context, challengeID stri
 func (c *Client) GetGameCenterChallenge(ctx context.Context, challengeID string) (*GameCenterChallengeResponse, error) {
 	return getJSON[GameCenterChallengeResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)),
-	})
-}
-
-// UpdateGameCenterChallenge sends PATCH /v1/gameCenterChallenges/{id} (gameCenterChallenges_updateInstance).
-func (c *Client) UpdateGameCenterChallenge(ctx context.Context, challengeID string, attrs GameCenterChallengeUpdateAttributes, leaderboardID string) (*GameCenterChallengeResponse, error) {
-	var relationships *GameCenterChallengeUpdateRelationships
-	if id := strings.TrimSpace(leaderboardID); id != "" {
-		if relationships == nil {
-			relationships = &GameCenterChallengeUpdateRelationships{}
-		}
-		relationships.Leaderboard = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeGameCenterLeaderboards,
-				ID:   id,
-			},
-		}
-	}
-	payload := GameCenterChallengeUpdateRequest{
-		Data: GameCenterChallengeUpdateData{
-			Type:          ResourceTypeGameCenterChallenges,
-			ID:            strings.TrimSpace(challengeID),
-			Attributes:    &attrs,
-			Relationships: relationships,
-		},
-	}
-	return sendJSON[GameCenterChallengeResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)),
-		Payload: payload,
 	})
 }
 

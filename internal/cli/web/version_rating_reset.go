@@ -25,11 +25,11 @@ var (
 	}
 )
 
-// VersionRatingResetCommand returns the version overview-rating reset command group.
+// NewVersionRatingResetCommand returns the version overview-rating reset command group.
 // It lives in the web command package so it can share the existing web-session
 // authentication and provider-selection implementation while remaining mounted
 // at "asc versions rating-reset".
-func VersionRatingResetCommand() *ffcli.Command {
+func NewVersionRatingResetCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "rating-reset",
 		ShortUsage: "asc versions rating-reset <subcommand> [flags]",
@@ -49,11 +49,11 @@ Examples:
   asc versions rating-reset view --version-id "VERSION_ID"
   asc versions rating-reset create --version-id "VERSION_ID" --confirm
   asc versions rating-reset delete --id "RESET_REQUEST_ID" --confirm`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			VersionRatingResetViewCommand(),
-			VersionRatingResetCreateCommand(),
-			VersionRatingResetDeleteCommand(),
+			newVersionRatingResetViewCommand(d),
+			newVersionRatingResetCreateCommand(d),
+			newVersionRatingResetDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -61,12 +61,12 @@ Examples:
 	}
 }
 
-// VersionRatingResetViewCommand returns the rating-reset view subcommand.
-func VersionRatingResetViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rating-reset view", flag.ExitOnError)
+// newVersionRatingResetViewCommand returns the rating-reset view subcommand.
+func newVersionRatingResetViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rating-reset view", flag.ExitOnError)
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -80,21 +80,21 @@ Examples:
   asc versions rating-reset view --version-id "VERSION_ID"
   asc versions rating-reset view --version-id "VERSION_ID" --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var response *webcore.RatingResetRequestResponse
-			err = withWebSpinner("Loading rating reset request", func() error {
+			err = withWebSpinnerWith(d, "Loading rating reset request", func() error {
 				var requestErr error
 				response, requestErr = getVersionRatingResetFn(requestCtx, newWebClientFn(session), version)
 				return requestErr
@@ -109,24 +109,24 @@ Examples:
 				return fmt.Errorf("rating-reset view failed: rating reset request ID missing from response")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				response,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderVersionRatingResetTable(response) },
-				func() error { return renderVersionRatingResetMarkdown(response) },
+				func() error { return renderVersionRatingResetTable(d, response) },
+				func() error { return renderVersionRatingResetMarkdown(d, response) },
 			)
 		},
 	}
 }
 
-// VersionRatingResetCreateCommand returns the rating-reset create subcommand.
-func VersionRatingResetCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rating-reset create", flag.ExitOnError)
+// newVersionRatingResetCreateCommand returns the rating-reset create subcommand.
+func newVersionRatingResetCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rating-reset create", flag.ExitOnError)
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm scheduling the rating reset (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -144,24 +144,24 @@ Examples:
   asc versions rating-reset create --version-id "VERSION_ID" --confirm
   asc versions rating-reset create --version-id "VERSION_ID" --confirm --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var response *webcore.RatingResetRequestResponse
-			err = withWebSpinner("Scheduling rating reset", func() error {
+			err = withWebSpinnerWith(d, "Scheduling rating reset", func() error {
 				var requestErr error
 				response, requestErr = createVersionRatingResetFn(requestCtx, newWebClientFn(session), version)
 				return requestErr
@@ -178,18 +178,18 @@ Examples:
 				VersionID:            version,
 				Scheduled:            true,
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// VersionRatingResetDeleteCommand returns the rating-reset delete subcommand.
-func VersionRatingResetDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rating-reset delete", flag.ExitOnError)
+// newVersionRatingResetDeleteCommand returns the rating-reset delete subcommand.
+func newVersionRatingResetDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rating-reset delete", flag.ExitOnError)
 	requestID := fs.String("id", "", "Rating reset request ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm cancellation (required)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -204,23 +204,23 @@ Examples:
   asc versions rating-reset delete --id "RESET_REQUEST_ID" --confirm
   asc versions rating-reset delete --id "RESET_REQUEST_ID" --confirm --apple-id "user@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*requestID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
-			err = withWebSpinner("Cancelling rating reset", func() error {
+			err = withWebSpinnerWith(d, "Cancelling rating reset", func() error {
 				return deleteVersionRatingResetFn(requestCtx, newWebClientFn(session), id)
 			})
 			if err != nil {
@@ -231,7 +231,7 @@ Examples:
 				RatingResetRequestID: id,
 				Cancelled:            true,
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -248,14 +248,14 @@ func versionRatingResetRows(response *webcore.RatingResetRequestResponse) ([]str
 	return headers, [][]string{{response.Data.ID, resetDate, "true"}}
 }
 
-func renderVersionRatingResetTable(response *webcore.RatingResetRequestResponse) error {
+func renderVersionRatingResetTable(d *shared.Deps, response *webcore.RatingResetRequestResponse) error {
 	headers, rows := versionRatingResetRows(response)
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }
 
-func renderVersionRatingResetMarkdown(response *webcore.RatingResetRequestResponse) error {
+func renderVersionRatingResetMarkdown(d *shared.Deps, response *webcore.RatingResetRequestResponse) error {
 	headers, rows := versionRatingResetRows(response)
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 	return nil
 }

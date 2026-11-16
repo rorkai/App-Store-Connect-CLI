@@ -26,6 +26,19 @@ type EndUserLicenseAgreementResponse struct {
 	Links Links                           `json:"links"`
 }
 
+// EndUserLicenseAgreementUpdateRelationships describes relationships for updating an EULA.
+type EndUserLicenseAgreementUpdateRelationships struct {
+	Territories *RelationshipList `json:"territories,omitempty"`
+}
+
+// EndUserLicenseAgreementUpdateData is the data portion of an EULA update request.
+type EndUserLicenseAgreementUpdateData struct {
+	Type          ResourceType                                `json:"type"`
+	ID            string                                      `json:"id"`
+	Attributes    *EndUserLicenseAgreementUpdateAttributes    `json:"attributes,omitempty"`
+	Relationships *EndUserLicenseAgreementUpdateRelationships `json:"relationships,omitempty"`
+}
+
 func buildTerritoryRelationship(ids []string) *RelationshipList {
 	normalized := normalizeList(ids)
 	if len(normalized) == 0 {

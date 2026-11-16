@@ -24,14 +24,6 @@ type NominationCreateRequest struct {
 // NominationResponse is the NominationResponse schema.
 type NominationResponse = SingleResponse[NominationAttributes]
 
-// NominationUpdateData is the data object of the NominationUpdateRequest schema.
-type NominationUpdateData struct {
-	Type          ResourceType                `json:"type"`
-	ID            string                      `json:"id"`
-	Attributes    *NominationUpdateAttributes `json:"attributes,omitempty"`
-	Relationships *NominationRelationships    `json:"relationships,omitempty"`
-}
-
 // NominationUpdateRequest is the NominationUpdateRequest schema.
 type NominationUpdateRequest struct {
 	Data NominationUpdateData `json:"data"`

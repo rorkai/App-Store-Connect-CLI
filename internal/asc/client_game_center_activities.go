@@ -179,34 +179,6 @@ func (c *Client) RemoveGameCenterActivityLeaderboards(ctx context.Context, activ
 	return err
 }
 
-// CreateGameCenterActivityVersion creates a new activity version.
-func (c *Client) CreateGameCenterActivityVersion(ctx context.Context, activityID string, fallbackURL string) (*GameCenterActivityVersionResponse, error) {
-	var attrs *GameCenterActivityVersionCreateAttributes
-	if strings.TrimSpace(fallbackURL) != "" {
-		value := strings.TrimSpace(fallbackURL)
-		attrs = &GameCenterActivityVersionCreateAttributes{
-			FallbackURL: &value,
-		}
-	}
-
-	payload := GameCenterActivityVersionCreateRequest{
-		Data: GameCenterActivityVersionCreateData{
-			Type:       ResourceTypeGameCenterActivityVersions,
-			Attributes: attrs,
-			Relationships: &GameCenterActivityVersionRelationships{
-				Activity: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterActivities,
-						ID:   strings.TrimSpace(activityID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterActivityVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterActivityVersions", Payload: payload})
-}
-
 // UpdateGameCenterActivityVersion updates an activity version.
 func (c *Client) UpdateGameCenterActivityVersion(ctx context.Context, versionID string, fallbackURL *string) (*GameCenterActivityVersionResponse, error) {
 	var attrs *GameCenterActivityVersionUpdateAttributes
@@ -225,6 +197,43 @@ func (c *Client) UpdateGameCenterActivityVersion(ctx context.Context, versionID 
 	}
 
 	return sendJSON[GameCenterActivityVersionResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterActivityVersions/%s", strings.TrimSpace(versionID)), Payload: payload})
+}
+
+// CreateGameCenterActivityImage reserves an activity image upload.
+// Pass exactly one of localizationID or versionID; a version target sets the version's default image.
+func (c *Client) CreateGameCenterActivityImage(ctx context.Context, fileName string, fileSize int64, localizationID, versionID string) (*GameCenterActivityImageResponse, error) {
+	relationships := &GameCenterActivityImageRelationships{}
+	if id := strings.TrimSpace(localizationID); id != "" {
+		relationships.Localization = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterActivityLocalizations,
+				ID:   id,
+			},
+		}
+	}
+	if id := strings.TrimSpace(versionID); id != "" {
+		relationships.Version = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterActivityVersions,
+				ID:   id,
+			},
+		}
+	}
+	payload := GameCenterActivityImageCreateRequest{
+		Data: GameCenterActivityImageCreateData{
+			Type: ResourceTypeGameCenterActivityImages,
+			Attributes: GameCenterActivityImageCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[GameCenterActivityImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterActivityImages",
+		Payload: payload,
+	})
 }
 
 // UploadGameCenterActivityImage performs the full upload flow for an activity image.

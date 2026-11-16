@@ -21,9 +21,10 @@ func TestDownloadRootRefusesSymlinkedRepositoryASCDirectory(t *testing.T) {
 	// The default --out location is repository-controlled, so a symlinked .asc
 	// component must be refused before any directory or file is created.
 	outDir := resolveShowOutDir("app", "submission", "")
-	root, prefix, err := newDownloadRoot(outDir)
+	d, _, _ := newWebTestDeps()
+	root, prefix, err := newDownloadRootWith(d, outDir)
 	if err != nil {
-		t.Fatalf("newDownloadRoot() error = %v", err)
+		t.Fatalf("newDownloadRootWith() error = %v", err)
 	}
 	if mkdirErr := root.MkdirAll(prefix, 0o755); mkdirErr == nil {
 		t.Fatal("MkdirAll() error = nil, want symlink rejection")
@@ -49,9 +50,10 @@ func TestWriteAttachmentRefusesSymlinkedDestination(t *testing.T) {
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	root, prefix, err := newDownloadRoot(outDir)
+	d, _, _ := newWebTestDeps()
+	root, prefix, err := newDownloadRootWith(d, outDir)
 	if err != nil {
-		t.Fatalf("newDownloadRoot() error = %v", err)
+		t.Fatalf("newDownloadRootWith() error = %v", err)
 	}
 	_, err = resolveDownloadPath(root, prefix, "screenshot.png", true)
 	if err == nil {
@@ -74,9 +76,10 @@ func TestWriteAttachmentRefusesSymlinkedParentDirectory(t *testing.T) {
 
 	// The output directory itself is operator-selected, so a symlinked --out is
 	// still honoured; a symlinked directory *inside* it is not.
-	root, prefix, err := newDownloadRoot(outDir)
+	d, _, _ := newWebTestDeps()
+	root, prefix, err := newDownloadRootWith(d, outDir)
 	if err != nil {
-		t.Fatalf("newDownloadRoot() error = %v", err)
+		t.Fatalf("newDownloadRootWith() error = %v", err)
 	}
 	nestedExternal := t.TempDir()
 	if err := os.Symlink(nestedExternal, filepath.Join(external, "nested")); err != nil {
@@ -95,9 +98,10 @@ func TestWriteAttachmentRefusesSymlinkedParentDirectory(t *testing.T) {
 
 func TestResolveDownloadPathRejectsTraversingFileName(t *testing.T) {
 	outDir := t.TempDir()
-	root, prefix, err := newDownloadRoot(outDir)
+	d, _, _ := newWebTestDeps()
+	root, prefix, err := newDownloadRootWith(d, outDir)
 	if err != nil {
-		t.Fatalf("newDownloadRoot() error = %v", err)
+		t.Fatalf("newDownloadRootWith() error = %v", err)
 	}
 
 	if _, err := resolveDownloadPath(root, prefix, filepath.Join("..", "outside.txt"), true); err == nil {
@@ -107,9 +111,10 @@ func TestResolveDownloadPathRejectsTraversingFileName(t *testing.T) {
 
 func TestWriteDownloadedAttachmentWritesOrdinaryFile(t *testing.T) {
 	outDir := filepath.Join(t.TempDir(), "downloads")
-	root, prefix, err := newDownloadRoot(outDir)
+	d, _, _ := newWebTestDeps()
+	root, prefix, err := newDownloadRootWith(d, outDir)
 	if err != nil {
-		t.Fatalf("newDownloadRoot() error = %v", err)
+		t.Fatalf("newDownloadRootWith() error = %v", err)
 	}
 
 	name, err := resolveDownloadPath(root, prefix, "screenshot.png", false)
@@ -262,9 +267,10 @@ func TestDownloadRootPreservesWhitespacePathBytes(t *testing.T) {
 	outDir := filepath.Join(t.TempDir(), " downloads ")
 	trimmedDir := filepath.Join(filepath.Dir(outDir), "downloads")
 
-	root, prefix, err := newDownloadRoot(outDir)
+	d, _, _ := newWebTestDeps()
+	root, prefix, err := newDownloadRootWith(d, outDir)
 	if err != nil {
-		t.Fatalf("newDownloadRoot() error = %v", err)
+		t.Fatalf("newDownloadRootWith() error = %v", err)
 	}
 	name, err := resolveDownloadPath(root, prefix, "screenshot.png", false)
 	if err != nil {

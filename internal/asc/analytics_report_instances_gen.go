@@ -3,11 +3,43 @@
 package asc
 
 import (
+	"context"
+	"fmt"
 	"net/url"
 )
 
 // AnalyticsReportInstanceResponse is the AnalyticsReportInstanceResponse schema.
 type AnalyticsReportInstanceResponse = SingleResponse[AnalyticsReportInstanceAttributes]
+
+// GetAnalyticsReportInstance sends GET /v1/analyticsReportInstances/{id} (analyticsReportInstances_getInstance).
+func (c *Client) GetAnalyticsReportInstance(ctx context.Context, instanceID string) (*AnalyticsReportInstanceResponse, error) {
+	path, err := resourcePath("/v1/analyticsReportInstances/%s", instanceID)
+	if err != nil {
+		return nil, fmt.Errorf("analytics report instance: %w", err)
+	}
+	return getJSON[AnalyticsReportInstanceResponse](ctx, c, readRequest{
+		Path: path,
+	})
+}
+
+// GetAnalyticsReportSegments sends GET /v1/analyticsReportInstances/{id}/segments (analyticsReportInstances_segments_getToManyRelated).
+func (c *Client) GetAnalyticsReportSegments(ctx context.Context, instanceID string, opts ...AnalyticsReportSegmentsOption) (*AnalyticsReportSegmentsResponse, error) {
+	query := applyOptions(opts)
+	var path string
+	if query.nextURL == "" {
+		var err error
+		path, err = resourcePath("/v1/analyticsReportInstances/%s/segments", instanceID)
+		if err != nil {
+			return nil, fmt.Errorf("analytics report segments: %w", err)
+		}
+	}
+	return getJSON[AnalyticsReportSegmentsResponse](ctx, c, readRequest{
+		Path:        path,
+		Query:       buildAnalyticsReportSegmentsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "analyticsReportSegments",
+	})
+}
 
 // AnalyticsReportSegmentsOption sets the query of GET /v1/analyticsReportInstances/{id}/segments (analyticsReportInstances_segments_getToManyRelated).
 type AnalyticsReportSegmentsOption func(*analyticsReportSegmentsQuery)

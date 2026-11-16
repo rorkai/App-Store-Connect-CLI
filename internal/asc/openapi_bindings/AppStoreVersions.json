@@ -8,8 +8,7 @@
     "AppStoreVersionUpdateRequest"
   ],
   "relationships": [
-    {"data":"AppStoreVersionCreateData","type":"*AppStoreVersionCreateRelationships"},
-    {"data":"AppStoreVersionUpdateData","type":"*AppStoreVersionUpdateRelationships","omitempty":true}
+    {"data":"AppStoreVersionCreateData","type":"*AppStoreVersionCreateRelationships"}
   ],
   "operations": [
     {"operation":"appStoreVersions_alternativeDistributionPackage_getToOneRelated","name":"GetAlternativeDistributionPackageForVersion","params":["versionID"],"check":"require","parseErr":"failed to parse alternative distribution package response"},
@@ -29,7 +28,6 @@
     {"operation":"appStoreVersions_appStoreVersionSubmission_getToOneRelationship","name":"GetAppStoreVersionSubmissionRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse appStoreVersionSubmission relationship response"},
     {"operation":"appStoreVersions_build_getToOneRelated","name":"GetAppStoreVersionBuild","params":["versionID"],"check":"raw","response":"BuildResponse"},
     {"operation":"appStoreVersions_build_getToOneRelationship","name":"GetAppStoreVersionBuildRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse build relationship response"},
-    {"operation":"appStoreVersions_createInstance","name":"CreateAppStoreVersionWithBuild","params":["appID"],"links":["app"],"optional":[{"param":"buildID","link":"build"}],"deviations":[{"problem":"AppStoreVersionCreateAttributes has no field that sends [usesIdfa], which the schema defines","reason":"usesIdfa is deprecated in the schema; the client has never sent it and no command offers it (asc versions create)"}]},
     {"operation":"appStoreVersions_customerReviews_getToManyRelated","name":"GetAppStoreVersionCustomerReviews","params":["versionID"],"check":"require","options":"ReviewOption","query":"buildReviewQuery","nextContext":"customerReviews","response":"ReviewsResponse"},
     {"operation":"appStoreVersions_customerReviews_getToManyRelationship","name":"GetAppStoreVersionCustomerReviewsRelationships","params":["versionID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"customerReviewsRelationships","parseErr":"failed to parse customerReviews relationship response","response":"LinkagesResponse"},
     {"operation":"appStoreVersions_deleteInstance","name":"DeleteAppStoreVersion","params":["versionID"]},
@@ -37,8 +35,7 @@
     {"operation":"appStoreVersions_gameCenterAppVersion_getToOneRelationship","name":"GetAppStoreVersionGameCenterAppVersionRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse gameCenterAppVersion relationship response"},
     {"operation":"appStoreVersions_getInstance","name":"GetAppStoreVersion","params":["versionID"],"check":"raw","options":"AppStoreVersionOption","query":"buildAppStoreVersionQuery","single":true},
     {"operation":"appStoreVersions_routingAppCoverage_getToOneRelated","name":"GetRoutingAppCoverageForVersion","params":["versionID"],"check":"require"},
-    {"operation":"appStoreVersions_routingAppCoverage_getToOneRelationship","name":"GetAppStoreVersionRoutingAppCoverageRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse routingAppCoverage relationship response"},
-    {"operation":"appStoreVersions_updateInstance","name":"UpdateAppStoreVersionWithBuild","params":["versionID"],"attrs":"value","optional":[{"param":"buildID","link":"build"}],"relationshipsWhenSet":true,"deviations":[{"problem":"AppStoreVersionUpdateAttributes has no field that sends [usesIdfa], which the schema defines","reason":"usesIdfa is deprecated in the schema; the client has never sent it and no command offers it (asc versions update)"}]}
+    {"operation":"appStoreVersions_routingAppCoverage_getToOneRelationship","name":"GetAppStoreVersionRoutingAppCoverageRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse routingAppCoverage relationship response"}
   ],
   "queries": [
     {"operation":"appStoreVersions_appStoreVersionExperimentsV2_getToManyRelated","also":["apps_appStoreVersionExperimentsV2_getToManyRelated"],"name":"AppStoreVersionExperimentsV2","params":[{"name":"filter[state]","field":"states","with":"WithAppStoreVersionExperimentsV2State","normalize":"upper"}],"deviations":[{"problem":"query parameters [fields[appStoreVersionExperimentTreatments] fields[appStoreVersionExperiments] fields[appStoreVersions] fields[apps] include limit[appStoreVersionExperimentTreatments] limit[controlVersions]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."},{"operation":"apps_appStoreVersionExperimentsV2_getToManyRelated","problem":"query parameters [fields[appStoreVersionExperimentTreatments] fields[appStoreVersionExperiments] fields[appStoreVersions] fields[apps] include limit[appStoreVersionExperimentTreatments] limit[controlVersions]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},

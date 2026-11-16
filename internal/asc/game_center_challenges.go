@@ -22,6 +22,12 @@ type GameCenterChallengeRelationships struct {
 	Versions         *RelationshipList `json:"versions,omitempty"`
 }
 
+// GameCenterChallengeUpdateRelationships describes relationships for challenge updates.
+type GameCenterChallengeUpdateRelationships struct {
+	Leaderboard   *Relationship `json:"leaderboard,omitempty"`
+	LeaderboardV2 *Relationship `json:"leaderboardV2,omitempty"`
+}
+
 // GameCenterChallengeCreateRequest is a request to create a challenge.
 type GameCenterChallengeCreateRequest struct {
 	Data     GameCenterChallengeCreateData            `json:"data"`
@@ -33,6 +39,14 @@ type GameCenterChallengeCreateRequest struct {
 type GameCenterChallengeVersionInlineCreate struct {
 	Type ResourceType `json:"type"`
 	ID   string       `json:"id,omitempty"`
+}
+
+// GameCenterChallengeUpdateData is the data portion of a challenge update request.
+type GameCenterChallengeUpdateData struct {
+	Type          ResourceType                            `json:"type"`
+	ID            string                                  `json:"id"`
+	Attributes    *GameCenterChallengeUpdateAttributes    `json:"attributes,omitempty"`
+	Relationships *GameCenterChallengeUpdateRelationships `json:"relationships,omitempty"`
 }
 
 // GameCenterChallengesResponse is the response from challenge list endpoints.

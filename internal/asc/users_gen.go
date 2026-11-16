@@ -20,19 +20,6 @@ type UserUpdateAttributes struct {
 	ProvisioningAllowed *bool    `json:"provisioningAllowed,omitempty"`
 }
 
-// UserUpdateData is the data object of the UserUpdateRequest schema.
-type UserUpdateData struct {
-	Type          ResourceType             `json:"type"`
-	ID            string                   `json:"id"`
-	Attributes    *UserUpdateAttributes    `json:"attributes,omitempty"`
-	Relationships *UserUpdateRelationships `json:"relationships,omitempty"`
-}
-
-// UserUpdateRelationships is the data.relationships object of the UserUpdateRequest schema.
-type UserUpdateRelationships struct {
-	VisibleApps *RelationshipList `json:"visibleApps,omitempty"`
-}
-
 // UserUpdateRequest is the UserUpdateRequest schema.
 type UserUpdateRequest struct {
 	Data UserUpdateData `json:"data"`

@@ -106,7 +106,10 @@ func TestWebDeveloperTeamFlagAcceptedOnPortalCommands(t *testing.T) {
 			d, _, _ := newWebTestDeps()
 			return newWebAppGroupsCreateCommand(d).FlagSet
 		}},
-		{"agreements status", func() *flag.FlagSet { return WebAgreementsStatusCommand().FlagSet }},
+		{"agreements status", func() *flag.FlagSet {
+			d, _, _ := newWebTestDeps()
+			return newWebAgreementsStatusCommand(d).FlagSet
+		}},
 	}
 	for _, test := range commands {
 		t.Run(test.name, func(t *testing.T) {
@@ -207,8 +210,9 @@ func TestWebDeveloperTeamPersistedAndReusedBySecondCommand(t *testing.T) {
 }
 
 func TestValidateDeveloperPortalFlagsRejectsBlankSelector(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	omitted := bindDeveloperPortalFlags(flag.NewFlagSet("omit", flag.ContinueOnError))
-	if err := validateDeveloperPortalFlags(omitted); err != nil {
+	if err := validateDeveloperPortalFlagsWith(d, omitted); err != nil {
 		t.Fatalf("omitted flag: %v", err)
 	}
 
@@ -216,7 +220,7 @@ func TestValidateDeveloperPortalFlagsRejectsBlankSelector(t *testing.T) {
 	if err := blank.fs.Parse([]string{"--developer-team", ""}); err != nil {
 		t.Fatalf("parse blank: %v", err)
 	}
-	if err := validateDeveloperPortalFlags(blank); err == nil || !strings.Contains(err.Error(), "--developer-team must be") {
+	if err := validateDeveloperPortalFlagsWith(d, blank); err == nil || !strings.Contains(err.Error(), "--developer-team must be") {
 		t.Fatalf("blank selector error = %v", err)
 	}
 
@@ -224,7 +228,7 @@ func TestValidateDeveloperPortalFlagsRejectsBlankSelector(t *testing.T) {
 	if err := spaces.fs.Parse([]string{"--developer-team", "   "}); err != nil {
 		t.Fatalf("parse spaces: %v", err)
 	}
-	if err := validateDeveloperPortalFlags(spaces); err == nil {
+	if err := validateDeveloperPortalFlagsWith(d, spaces); err == nil {
 		t.Fatal("expected whitespace-only --developer-team to fail")
 	}
 }

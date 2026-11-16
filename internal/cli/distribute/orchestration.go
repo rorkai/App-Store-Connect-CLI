@@ -130,7 +130,7 @@ type distributionOrchestrationDependencies struct {
 	validateExportOptions     func(context.Context, localxcode.ManualReleaseTestingExportOptions) (*localxcode.ManualReleaseTestingExportOptionsResult, error)
 	runSigning                func(context.Context, signing.EphemeralRunOptions, func(context.Context) error) error
 	validateSigningEvidence   func(string, persistedDistributionPlan, persistedDistributionRunState, distributionFileArtifact) error
-	validatePreparedBundle    func(string, persistedDistributionPlan, persistedDistributionRunState) error
+	validatePreparedBundle    func(*shared.Deps, string, persistedDistributionPlan, persistedDistributionRunState) error
 	exportIPA                 func(context.Context, localxcode.ReleaseTestingExportOptions) (*localxcode.ExportResult, error)
 	hashFile                  func(string) (distributionSizedFileArtifact, error)
 	pathExists                func(string) (bool, error)
@@ -999,7 +999,7 @@ func continueDistributionRun(ctx context.Context, d *shared.Deps, plan persisted
 			return nil, err
 		}
 	}
-	if err := distributionOrchestrationDeps.validatePreparedBundle(filepath.Join(runDir, state.Artifacts.Bundle.Path), plan, state); err != nil {
+	if err := distributionOrchestrationDeps.validatePreparedBundle(d, filepath.Join(runDir, state.Artifacts.Bundle.Path), plan, state); err != nil {
 		return checkpointDistributionFailure(ctx, d, plan, state, "prepare", "prepared_bundle_changed", false, err)
 	}
 	authorizedDescriptor, descriptorErr := distributionOrchestrationDeps.hashFile(filepath.Join(runDir, state.Artifacts.Bundle.Path, "bundle.json"))
@@ -1309,7 +1309,7 @@ func validatePreparedDistributionBinding(plan persistedDistributionPlan, state p
 	return nil
 }
 
-func validateExistingDistributionPreparedBundle(bundleDir string, plan persistedDistributionPlan, state persistedDistributionRunState) error {
+func validateExistingDistributionPreparedBundle(d *shared.Deps, bundleDir string, plan persistedDistributionPlan, state persistedDistributionRunState) error {
 	descriptorFile, err := hashDistributionFile(filepath.Join(bundleDir, "bundle.json"))
 	if err != nil {
 		return fmt.Errorf("hash prepared descriptor: %w", err)
@@ -1317,7 +1317,7 @@ func validateExistingDistributionPreparedBundle(bundleDir string, plan persisted
 	if state.Artifacts.Bundle == nil || descriptorFile.SHA256 != state.Artifacts.Bundle.DescriptorSHA256 {
 		return fmt.Errorf("prepared descriptor bytes differ from the exact run evidence")
 	}
-	bundle, err := core.LoadPreparedBundle(bundleDir)
+	bundle, err := core.LoadPreparedBundle(bundleDir, d.Now())
 	if err != nil {
 		return err
 	}
@@ -1670,7 +1670,7 @@ func preflightDistributionPublication(ctx context.Context, d *shared.Deps, confi
 	if err != nil {
 		return err
 	}
-	if !credentialLimitCoversDistributionPublication(credentialLimit, time.Now().UTC(), urlTTL, downloadGrace) {
+	if !credentialLimitCoversDistributionPublication(credentialLimit, d.Now().UTC(), urlTTL, downloadGrace) {
 		return errDistributionPublicationCredentialsExpireTooSoon
 	}
 	return nil

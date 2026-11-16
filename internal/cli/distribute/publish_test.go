@@ -22,7 +22,7 @@ func TestPublishCommandRequiresFlagsBeforeSideEffects(t *testing.T) {
 	originalLoad := loadPreparedBundle
 	t.Cleanup(func() { loadPreparedBundle = originalLoad })
 	called := false
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*distribution.PreparedBundle, error) {
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
 		called = true
 		return nil, nil
 	}
@@ -63,7 +63,7 @@ func TestPublishCommandValidatesOutputBeforeLocalOrRemoteSideEffects(t *testing.
 	originalLoad, originalStore := loadPreparedBundle, newObjectStore
 	t.Cleanup(func() { loadPreparedBundle, newObjectStore = originalLoad, originalStore })
 	loadCalled, storeCalled := false, false
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*distribution.PreparedBundle, error) {
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
 		loadCalled = true
 		return nil, nil
 	}
@@ -91,7 +91,7 @@ func TestPublishCommandRejectsUnsafeBucketBeforeSideEffects(t *testing.T) {
 	originalLoad := loadPreparedBundle
 	t.Cleanup(func() { loadPreparedBundle = originalLoad })
 	loadCalled := false
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*distribution.PreparedBundle, error) {
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
 		loadCalled = true
 		return nil, errors.New("unexpected bundle load")
 	}
@@ -112,7 +112,7 @@ func TestPublishCommandRejectsPhysicalArtifactAliasBeforeSideEffects(t *testing.
 	originalLoad, originalStore := loadPreparedBundle, newObjectStore
 	t.Cleanup(func() { loadPreparedBundle, newObjectStore = originalLoad, originalStore })
 	loadCalled, storeCalled := false, false
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*distribution.PreparedBundle, error) {
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
 		loadCalled = true
 		return nil, errors.New("unexpected bundle load")
 	}
@@ -160,7 +160,7 @@ func TestPublishCommandRejectsOverflowingLifetimeBeforeSideEffects(t *testing.T)
 	originalLoad, originalStore := loadPreparedBundle, newObjectStore
 	t.Cleanup(func() { loadPreparedBundle, newObjectStore = originalLoad, originalStore })
 	loadCalled, storeCalled := false, false
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*distribution.PreparedBundle, error) {
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
 		loadCalled = true
 		return nil, errors.New("unexpected bundle load")
 	}
@@ -198,7 +198,7 @@ func TestPublishCommandAcceptsExactlySevenDayPrivateLifetime(t *testing.T) {
 	t.Cleanup(func() { loadPreparedBundle, newObjectStore = originalLoad, originalStore })
 	want := errors.New("accepted lifetime reached bundle load")
 	loadCalled, storeCalled := false, false
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*distribution.PreparedBundle, error) {
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
 		loadCalled = true
 		return nil, want
 	}
@@ -239,7 +239,7 @@ func TestPublishCommandWritesSensitiveLink0600AndRedactedReceipt(t *testing.T) {
 	if err := os.WriteFile(ipaPath, []byte("ipa"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*distribution.PreparedBundle, error) {
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
 		file, err := os.Open(ipaPath)
 		return &distribution.PreparedBundle{IPA: file, IPASHA256: "sha", IPASize: 3, Descriptor: distribution.PreparedDescriptor{App: distribution.PreparedApp{BundleID: "com.example", Version: "1", BuildNumber: "2"}}}, err
 	}
@@ -267,7 +267,7 @@ func TestPublishCommandWritesSensitiveLink0600AndRedactedReceipt(t *testing.T) {
 		return distribution.PublishReceipt{SchemaVersion: "1", Access: distribution.AccessPrivate, Bucket: "bucket", Prefix: "app", Artifact: distribution.StoredObject{SHA256: "sha", SizeBytes: 3}, App: distribution.PreparedApp{BundleID: "com.example", Version: "1", BuildNumber: "2"}, InstallURL: "https://example.com/?X-Amz-Signature=REDACTED", Verified: true},
 			distribution.SensitiveLinks{SchemaVersion: "1", InstallURL: "https://example.com/?X-Amz-Signature=secret"}, nil
 	}
-	reverifyPublication = func(ctx context.Context, _ distribution.Verifier, _ distribution.PublishReceipt, _ distribution.SensitiveLinks, _ time.Time) error {
+	reverifyPublication = func(ctx context.Context, _ distribution.Verifier, _ distribution.PublishReceipt, _ distribution.SensitiveLinks, _ func() time.Time) error {
 		if _, ok := ctx.Deadline(); ok {
 			return errors.New("recovery flow inherited an expiring phase context")
 		}
@@ -358,7 +358,7 @@ func TestPublishCommandPreflightsArtifactCollisionBeforeObjectStore(t *testing.T
 		t.Fatal(err)
 	}
 	loadCalled, storeCalled := false, false
-	loadPreparedBundle = func(context.Context, rootfs.Root) (*distribution.PreparedBundle, error) {
+	loadPreparedBundle = func(context.Context, rootfs.Root, time.Time) (*distribution.PreparedBundle, error) {
 		loadCalled = true
 		return nil, nil
 	}
@@ -1192,4 +1192,48 @@ func (verifier *deadlineRecordingVerifier) Verify(ctx context.Context, request d
 		verifier.documentBudget = budget
 	}
 	return nil
+}
+
+func TestDistributePublishRunsOnTheDepsClock(t *testing.T) {
+	originalStore, originalPublish := newObjectStore, runPublish
+	t.Cleanup(func() { newObjectStore, runPublish = originalStore, originalPublish })
+	bundleDir := t.TempDir()
+	writePrivatePublishPreparedBundle(t, bundleDir, []byte("ipa"), "11111111-2222-3333-4444-555555555555")
+	t.Setenv("ASC_S3_ACCESS_KEY_ID", "AKIDEXAMPLE")
+	t.Setenv("ASC_S3_SECRET_ACCESS_KEY", "secret")
+	t.Setenv("ASC_S3_SESSION_TOKEN", "")
+	t.Setenv("AWS_CA_BUNDLE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	storeOpened := false
+	newObjectStore = func(context.Context, distribution.S3StoreConfig) (distribution.ObjectStore, time.Time, error) {
+		storeOpened = true
+		return nil, time.Time{}, nil
+	}
+	var publishNow func() time.Time
+	runPublish = func(_ context.Context, _ io.ReadSeeker, _ distribution.PreparedDescriptor, options distribution.PublishOptions) (distribution.PublishReceipt, distribution.SensitiveLinks, error) {
+		publishNow = options.Now
+		return distribution.PublishReceipt{}, distribution.SensitiveLinks{}, context.Canceled
+	}
+	run := func(d *shared.Deps) error {
+		stateDir := t.TempDir()
+		return newPublishCommand(d).ParseAndRun(context.Background(), []string{
+			"--bundle-dir", bundleDir, "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket", "--prefix", "app",
+			"--receipt", filepath.Join(stateDir, "receipt.json"), "--link-path", filepath.Join(stateDir, "link.json"), "--output", "json",
+		})
+	}
+
+	afterExpiry := time.Date(2036, 1, 1, 0, 0, 0, 0, time.UTC)
+	if err := run(distributionTestDepsAt(afterExpiry)); err == nil || !strings.Contains(err.Error(), "signing profile is expired") || storeOpened {
+		t.Fatalf("publish at %s with a profile that expires in 2035: error %v, store opened %v; want the expiry error before the store", afterExpiry.Format(time.RFC3339), err, storeOpened)
+	}
+	beforeExpiry := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	if err := run(distributionTestDepsAt(beforeExpiry)); !errors.Is(err, context.Canceled) {
+		t.Fatalf("publish at %s: error %v, want the stubbed publication's", beforeExpiry.Format(time.RFC3339), err)
+	}
+	if publishNow == nil {
+		t.Fatal("publication options carry no clock, want the deps clock")
+	}
+	if got := publishNow(); !got.Equal(beforeExpiry) {
+		t.Fatalf("publication clock = %s, want the deps clock %s", got.Format(time.RFC3339), beforeExpiry.Format(time.RFC3339))
+	}
 }

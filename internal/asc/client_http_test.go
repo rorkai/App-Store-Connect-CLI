@@ -200,7 +200,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetPreReleaseVersions",
 			next: "https://api.appstoreconnect.apple.com/v1/preReleaseVersions?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetPreReleaseVersions(ctx, "123", NextURL[PreReleaseVersionsOption](next))
+				_, err := c.GetPreReleaseVersions(ctx, WithPreReleaseVersionsAppID("123"), NextURL[PreReleaseVersionsOption](next))
 				return err
 			},
 		},
@@ -264,7 +264,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaAppReviewDetails",
 			next: "https://api.appstoreconnect.apple.com/v1/betaAppReviewDetails?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaAppReviewDetails(ctx, "app-1", NextURL[BetaAppReviewDetailsOption](next))
+				_, err := c.GetBetaAppReviewDetails(ctx, WithBetaAppReviewDetailsAppID("app-1"), NextURL[BetaAppReviewDetailsOption](next))
 				return err
 			},
 		},
@@ -998,7 +998,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"filter[app]": "app-1", "limit": "10"},
 			body:  `{"data":[{"type":"betaAppReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaAppReviewDetails(ctx, "app-1", Limit[BetaAppReviewDetailsOption](10)))
+				return discardResult(c.GetBetaAppReviewDetails(ctx, WithBetaAppReviewDetailsAppID("app-1"), Limit[BetaAppReviewDetailsOption](10)))
 			},
 		},
 		{
@@ -2525,7 +2525,7 @@ func TestGetPreReleaseVersions_WithFilters(t *testing.T) {
 
 	result, err := client.GetPreReleaseVersions(
 		context.Background(),
-		"123",
+		WithPreReleaseVersionsAppID("123"),
 		Limit[PreReleaseVersionsOption](5),
 		WithPreReleaseVersionsPlatform("ios"),
 		WithPreReleaseVersionsVersion("1.0.0"),

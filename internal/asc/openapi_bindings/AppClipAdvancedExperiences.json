@@ -4,13 +4,10 @@
   "types": [
     "AppClipAdvancedExperienceCreateData",
     "AppClipAdvancedExperienceCreateRelationships",
-    "AppClipAdvancedExperienceRelationships",
-    "AppClipAdvancedExperienceUpdateData",
     "AppClipAdvancedExperienceUpdateRequest"
   ],
   "relationships": [
-    {"data":"AppClipAdvancedExperienceCreateData","type":"AppClipAdvancedExperienceCreateRelationships"},
-    {"data":"AppClipAdvancedExperienceUpdateData","type":"*AppClipAdvancedExperienceRelationships","omitempty":true}
+    {"data":"AppClipAdvancedExperienceCreateData","type":"AppClipAdvancedExperienceCreateRelationships"}
   ],
   "operations": [
     {"operation":"appClipAdvancedExperiences_getInstance","name":"GetAppClipAdvancedExperience","params":["experienceID"],"check":"require"}

@@ -10,6 +10,10 @@
   ],
   "operations": [
     {"operation":"betaAppReviewDetails_app_getToOneRelated","name":"GetBetaAppReviewDetailApp","params":["detailID"],"check":"require","response":"AppResponse"},
+    {"operation":"betaAppReviewDetails_getCollection","name":"GetBetaAppReviewDetails","options":"BetaAppReviewDetailsOption","query":"buildBetaAppReviewDetailsQuery","nextContext":"betaAppReviewDetails"},
     {"operation":"betaAppReviewDetails_getInstance","name":"GetBetaAppReviewDetail","params":["detailID"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"betaAppReviewDetails_getCollection","name":"BetaAppReviewDetails","params":[{"name":"filter[app]","field":"appID","type":"string"}],"deviations":[{"problem":"query parameters [fields[apps] fields[betaAppReviewDetails] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

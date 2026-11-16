@@ -300,13 +300,13 @@ func TestExistingPreparedBundleRequiresExactDescriptorBytesBeforeReuse(t *testin
 	state.Artifacts.IPA.SHA256 = ipaSHA
 	state.Artifacts.IPA.SizeBytes = int64(len(ipa))
 	state.Artifacts.Bundle.DescriptorSHA256 = digestDistributionBytes(descriptorBytes)
-	if err := validateExistingDistributionPreparedBundle(bundleDir, plan, state); err != nil {
+	if err := validateExistingDistributionPreparedBundle(newDistributeTestDeps(), bundleDir, plan, state); err != nil {
 		t.Fatalf("exact prepared bundle rejected: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(bundleDir, "bundle.json"), append(descriptorBytes, '\n'), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateExistingDistributionPreparedBundle(bundleDir, plan, state); err == nil || !strings.Contains(err.Error(), "descriptor bytes") {
+	if err := validateExistingDistributionPreparedBundle(newDistributeTestDeps(), bundleDir, plan, state); err == nil || !strings.Contains(err.Error(), "descriptor bytes") {
 		t.Fatalf("semantically equivalent descriptor rewrite accepted: %v", err)
 	}
 }
@@ -1962,7 +1962,7 @@ func validDistributionOrchestrationDependencies(t *testing.T) distributionOrches
 		validateSigningEvidence: func(string, persistedDistributionPlan, persistedDistributionRunState, distributionFileArtifact) error {
 			return nil
 		},
-		validatePreparedBundle: func(string, persistedDistributionPlan, persistedDistributionRunState) error { return nil },
+		validatePreparedBundle: func(*shared.Deps, string, persistedDistributionPlan, persistedDistributionRunState) error { return nil },
 		exportIPA: func(context.Context, localxcode.ReleaseTestingExportOptions) (*localxcode.ExportResult, error) {
 			return &localxcode.ExportResult{IPAPath: "/state/run/export/Demo.ipa", BundleID: testDistributionBundleID, Version: "1.2.3", BuildNumber: "42"}, nil
 		},

@@ -8,13 +8,10 @@
     "EndUserLicenseAgreementCreateRelationships",
     "EndUserLicenseAgreementCreateRequest",
     "EndUserLicenseAgreementUpdateAttributes",
-    "EndUserLicenseAgreementUpdateData",
-    "EndUserLicenseAgreementUpdateRelationships",
     "EndUserLicenseAgreementUpdateRequest"
   ],
   "relationships": [
-    {"data":"EndUserLicenseAgreementCreateData","type":"EndUserLicenseAgreementCreateRelationships"},
-    {"data":"EndUserLicenseAgreementUpdateData","type":"*EndUserLicenseAgreementUpdateRelationships","omitempty":true}
+    {"data":"EndUserLicenseAgreementCreateData","type":"EndUserLicenseAgreementCreateRelationships"}
   ],
   "operations": [
     {"operation":"endUserLicenseAgreements_deleteInstance","name":"DeleteEndUserLicenseAgreement","params":["id"],"check":"require"},

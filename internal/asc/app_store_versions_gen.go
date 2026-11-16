@@ -230,38 +230,6 @@ func (c *Client) GetAppStoreVersionBuildRelationship(ctx context.Context, versio
 	})
 }
 
-// CreateAppStoreVersionWithBuild sends POST /v1/appStoreVersions (appStoreVersions_createInstance).
-func (c *Client) CreateAppStoreVersionWithBuild(ctx context.Context, appID string, attrs AppStoreVersionCreateAttributes, buildID string) (*AppStoreVersionResponse, error) {
-	relationships := &AppStoreVersionCreateRelationships{
-		App: &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeApps,
-				ID:   strings.TrimSpace(appID),
-			},
-		},
-	}
-	if id := strings.TrimSpace(buildID); id != "" {
-		relationships.Build = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeBuilds,
-				ID:   id,
-			},
-		}
-	}
-	payload := AppStoreVersionCreateRequest{
-		Data: AppStoreVersionCreateData{
-			Type:          ResourceTypeAppStoreVersions,
-			Attributes:    attrs,
-			Relationships: relationships,
-		},
-	}
-	return sendJSON[AppStoreVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appStoreVersions",
-		Payload: payload,
-	})
-}
-
 // GetAppStoreVersionCustomerReviews sends GET /v1/appStoreVersions/{id}/customerReviews (appStoreVersions_customerReviews_getToManyRelated).
 func (c *Client) GetAppStoreVersionCustomerReviews(ctx context.Context, versionID string, opts ...ReviewOption) (*ReviewsResponse, error) {
 	query := applyOptions(opts)
@@ -346,35 +314,6 @@ func (c *Client) GetAppStoreVersionRoutingAppCoverageRelationship(ctx context.Co
 	return getJSON[AppStoreVersionRoutingAppCoverageLinkageResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/routingAppCoverage", versionID),
 		ParseErr: "failed to parse routingAppCoverage relationship response",
-	})
-}
-
-// UpdateAppStoreVersionWithBuild sends PATCH /v1/appStoreVersions/{id} (appStoreVersions_updateInstance).
-func (c *Client) UpdateAppStoreVersionWithBuild(ctx context.Context, versionID string, attrs AppStoreVersionUpdateAttributes, buildID string) (*AppStoreVersionResponse, error) {
-	var relationships *AppStoreVersionUpdateRelationships
-	if id := strings.TrimSpace(buildID); id != "" {
-		if relationships == nil {
-			relationships = &AppStoreVersionUpdateRelationships{}
-		}
-		relationships.Build = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeBuilds,
-				ID:   id,
-			},
-		}
-	}
-	payload := AppStoreVersionUpdateRequest{
-		Data: AppStoreVersionUpdateData{
-			Type:          ResourceTypeAppStoreVersions,
-			ID:            strings.TrimSpace(versionID),
-			Attributes:    attrs,
-			Relationships: relationships,
-		},
-	}
-	return sendJSON[AppStoreVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID)),
-		Payload: payload,
 	})
 }
 

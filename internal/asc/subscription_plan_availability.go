@@ -39,6 +39,14 @@ type SubscriptionPlanAvailabilityCreateData struct {
 	Relationships *SubscriptionPlanAvailabilityRelationships `json:"relationships"`
 }
 
+// SubscriptionPlanAvailabilityUpdateData is the data portion of plan availability update requests.
+type SubscriptionPlanAvailabilityUpdateData struct {
+	Type          ResourceType                                  `json:"type"`
+	ID            string                                        `json:"id"`
+	Attributes    *SubscriptionPlanAvailabilityUpdateAttributes `json:"attributes,omitempty"`
+	Relationships *SubscriptionPlanAvailabilityRelationships    `json:"relationships,omitempty"`
+}
+
 // SubscriptionPlanAvailabilitiesResponse is the response from plan availability list endpoints.
 type SubscriptionPlanAvailabilitiesResponse = Response[SubscriptionPlanAvailabilityAttributes]
 

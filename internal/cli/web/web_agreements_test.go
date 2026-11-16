@@ -105,11 +105,12 @@ func TestWebAgreementsAcceptValidationErrors(t *testing.T) {
 			stubWebAgreementsSession(t)
 			requests, statusCalls := stubWebAgreementsAccept(t, nil, nil)
 
-			cmd := WebAgreementsAcceptCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAgreementsAcceptCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -129,7 +130,8 @@ func TestWebAgreementsAcceptValidationErrors(t *testing.T) {
 }
 
 func TestWebAgreementsAcceptRejectsEmptyAgreementID(t *testing.T) {
-	cmd := WebAgreementsAcceptCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	cmd.FlagSet.Init(cmd.FlagSet.Name(), flag.ContinueOnError)
 	cmd.FlagSet.SetOutput(io.Discard)
 	err := cmd.FlagSet.Parse([]string{"--agreement-id", "  ", "--confirm"})
@@ -150,12 +152,13 @@ func TestWebAgreementsAcceptRepeatedAgreementIDsSendSingleRequest(t *testing.T) 
 		},
 	}, nil)
 
-	cmd := WebAgreementsAcceptCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	args := []string{"--agreement-id", "XG8DNV4HYY", "--agreement-id", "AB12CD34EF", "--agreement-id", "XG8DNV4HYY", "--confirm", "--output", "json"}
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -212,12 +215,13 @@ func TestWebAgreementsAcceptFailsWhenAgreementStillPendingAfterWrite(t *testing.
 		Agreements: []asc.WebAgreement{acceptedAgreement("XG8DNV4HYY", "5031"), stillPending},
 	}, nil)
 
-	cmd := WebAgreementsAcceptCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--agreement-id", "AB12CD34EF", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr == nil || errors.Is(execErr, flag.ErrHelp) {
@@ -244,12 +248,13 @@ func TestWebAgreementsAcceptFailsWhenReReadOmitsAgreement(t *testing.T) {
 		Agreements: []asc.WebAgreement{acceptedAgreement("XG8DNV4HYY", "5031")},
 	}, nil)
 
-	cmd := WebAgreementsAcceptCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "MISSING0001", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr == nil || !strings.Contains(execErr.Error(), "MISSING0001") || !strings.Contains(execErr.Error(), "not present") {
@@ -281,12 +286,13 @@ func TestWebAgreementsAcceptPersistsTeamWhenAcceptResponseIsAmbiguous(t *testing
 		return nil
 	}
 
-	cmd := WebAgreementsAcceptCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr == nil || !strings.Contains(execErr.Error(), "parse Developer Portal agreement accept response") {
@@ -309,12 +315,13 @@ func TestWebAgreementsAcceptFailsWhenVerificationReadFails(t *testing.T) {
 		return nil
 	}
 
-	cmd := WebAgreementsAcceptCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr == nil || !strings.Contains(execErr.Error(), "portal unavailable") || !strings.Contains(execErr.Error(), "accept request succeeded") {
@@ -352,11 +359,12 @@ func TestWebAgreementsAcceptVerificationGetsFreshTimeout(t *testing.T) {
 		return origHistory(ctx, client)
 	}
 
-	cmd := WebAgreementsAcceptCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	captureWebCommandOutput(t, func() {
+	runWithWebTestDeps(depsStdout, depsStderr, func() {
 		var execErr error
 		synctest.Test(t, func(*testing.T) { execErr = cmd.Exec(context.Background(), nil) })
 		if execErr != nil {
@@ -416,11 +424,12 @@ func TestWebAgreementsDownloadValidationErrors(t *testing.T) {
 			stubWebAgreementsSession(t)
 			requested := stubWebAgreementsDownload(t, sampleAgreementDownload(), nil)
 
-			cmd := WebAgreementsDownloadCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAgreementsDownloadCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -445,11 +454,12 @@ func TestWebAgreementsDownloadWritesFileAndPrintsReceipt(t *testing.T) {
 
 	dir := t.TempDir()
 	outPath := filepath.Join(dir, "nested", "agreement.pdf")
-	cmd := WebAgreementsDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", " XG8DNV4HYY ", "--out", outPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -512,11 +522,12 @@ func TestWebAgreementsDownloadPreservesWhitespaceInOutPath(t *testing.T) {
 		t.Fatalf("seed existing file: %v", err)
 	}
 	outPath := trimmedPath + " "
-	cmd := WebAgreementsDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--out", outPath, "--overwrite", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -548,12 +559,13 @@ func TestWebAgreementsDownloadRefusesOverwriteWithoutFlag(t *testing.T) {
 		t.Fatalf("seed existing file: %v", err)
 	}
 
-	cmd := WebAgreementsDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--out", outPath}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr == nil || errors.Is(execErr, flag.ErrHelp) {
@@ -583,11 +595,12 @@ func TestWebAgreementsDownloadOverwritesWithFlag(t *testing.T) {
 		t.Fatalf("seed existing file: %v", err)
 	}
 
-	cmd := WebAgreementsDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--out", outPath, "--overwrite", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -615,11 +628,12 @@ func TestWebAgreementsDownloadOverwritesReadOnlyFile(t *testing.T) {
 		t.Fatalf("seed read-only file: %v", err)
 	}
 
-	cmd := WebAgreementsDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--out", outPath, "--overwrite", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	captureWebCommandOutput(t, func() {
+	runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v; --overwrite must replace a read-only regular file by rename", err)
 		}
@@ -635,12 +649,13 @@ func TestWebAgreementsDownloadRejectsExistingDirectory(t *testing.T) {
 	requested := stubWebAgreementsDownload(t, sampleAgreementDownload(), nil)
 
 	dir := t.TempDir()
-	cmd := WebAgreementsDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--out", dir, "--overwrite"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	captureWebCommandOutput(t, func() {
+	runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr == nil {
@@ -668,12 +683,13 @@ func TestWebAgreementsDownloadPersistsTeamBeforeSaveFailure(t *testing.T) {
 		return nil
 	}
 
-	cmd := WebAgreementsDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--out", outPath}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr == nil || !strings.Contains(execErr.Error(), "downloaded but saving") {
@@ -692,12 +708,13 @@ func TestWebAgreementsDownloadSurfacesClientErrorWithoutFile(t *testing.T) {
 	stubWebAgreementsDownload(t, nil, errors.New("agreement download was redirected to cdn.example.test instead of the Developer Portal"))
 
 	outPath := filepath.Join(t.TempDir(), "agreement.pdf")
-	cmd := WebAgreementsDownloadCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsDownloadCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--out", outPath}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var execErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr == nil || !strings.Contains(execErr.Error(), "web agreements download failed") || !strings.Contains(execErr.Error(), "redirected") {
@@ -731,11 +748,12 @@ func TestWebAgreementsStatusNonJSONOutputIncludesBannerOnlyPendingState(t *testi
 
 	for _, format := range []string{"table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
-			cmd := WebAgreementsStatusCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAgreementsStatusCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--output", format}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, _ := captureWebCommandOutput(t, func() {
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := cmd.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("Exec() error: %v", err)
 				}
@@ -776,11 +794,12 @@ func TestWebAgreementsStatusPrintsJSON(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAgreementsStatusCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsStatusCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -818,11 +837,12 @@ func TestWebAgreementsAcceptCallsClient(t *testing.T) {
 		Agreements: []asc.WebAgreement{acceptedAgreement("XG8DNV4HYY", "5031")},
 	}, nil)
 
-	cmd := WebAgreementsAcceptCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}
@@ -856,11 +876,12 @@ func TestWebAgreementsAcceptTableOutputShowsVerification(t *testing.T) {
 		Agreements: []asc.WebAgreement{acceptedAgreement("XG8DNV4HYY", "5031"), acceptedAgreement("AB12CD34EF", "12")},
 	}, nil)
 
-	cmd := WebAgreementsAcceptCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAgreementsAcceptCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--agreement-id", "XG8DNV4HYY", "--agreement-id", "AB12CD34EF", "--confirm", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error: %v", err)
 		}

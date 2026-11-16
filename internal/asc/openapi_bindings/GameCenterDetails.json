@@ -8,13 +8,10 @@
     "GameCenterDetailCreateRequest",
     "GameCenterDetailResponse",
     "GameCenterDetailUpdateAttributes",
-    "GameCenterDetailUpdateData",
-    "GameCenterDetailUpdateRelationships",
     "GameCenterDetailUpdateRequest"
   ],
   "relationships": [
-    {"data":"GameCenterDetailCreateData","type":"*GameCenterDetailCreateRelationships"},
-    {"data":"GameCenterDetailUpdateData","type":"*GameCenterDetailUpdateRelationships","omitempty":true}
+    {"data":"GameCenterDetailCreateData","type":"*GameCenterDetailCreateRelationships"}
   ],
   "operations": [
     {"operation":"gameCenterDetails_achievementReleases_getToManyRelated","name":"GetGameCenterDetailsAchievementReleases","params":["gcDetailID"],"options":"GCAchievementReleasesOption","query":"buildGCAchievementReleasesQuery","nextContext":"game-center-details-achievement-releases"},

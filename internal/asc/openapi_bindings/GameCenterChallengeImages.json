@@ -14,7 +14,6 @@
     {"data":"GameCenterChallengeImageCreateData","type":"*GameCenterChallengeImageRelationships"}
   ],
   "operations": [
-    {"operation":"gameCenterChallengeImages_createInstance","name":"CreateGameCenterChallengeImage","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}],"optional":[{"param":"localizationID","link":"localization"},{"param":"versionID","link":"version"}]},
     {"operation":"gameCenterChallengeImages_deleteInstance","name":"DeleteGameCenterChallengeImage","params":["imageID"]},
     {"operation":"gameCenterChallengeImages_getInstance","name":"GetGameCenterChallengeImage","params":["imageID"]},
     {"operation":"gameCenterChallengeImages_updateInstance","name":"UpdateGameCenterChallengeImage","params":["imageID"],"args":[{"name":"uploaded"}]}

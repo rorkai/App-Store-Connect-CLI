@@ -8,12 +8,6 @@ import (
 
 const webSpinnerDelay = 200 * time.Millisecond
 
-var webWithSpinnerDelayedFn = shared.WithSpinnerDelayed
-
-func withWebSpinner(label string, fn func() error) error {
-	return webWithSpinnerDelayedFn(label, webSpinnerDelay, fn)
-}
-
 func withWebSpinnerWith(d *shared.Deps, label string, fn func() error) error {
 	return d.WithSpinnerDelayed(label, webSpinnerDelay, fn)
 }

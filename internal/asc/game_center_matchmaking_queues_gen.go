@@ -36,14 +36,6 @@ type GameCenterMatchmakingQueueUpdateAttributes struct {
 	ClassicMatchmakingBundleIDs []string `json:"classicMatchmakingBundleIds,omitempty"`
 }
 
-// GameCenterMatchmakingQueueUpdateData is the data object of the GameCenterMatchmakingQueueUpdateRequest schema.
-type GameCenterMatchmakingQueueUpdateData struct {
-	Type          ResourceType                                `json:"type"`
-	ID            string                                      `json:"id"`
-	Attributes    *GameCenterMatchmakingQueueUpdateAttributes `json:"attributes,omitempty"`
-	Relationships *GameCenterMatchmakingQueueRelationships    `json:"relationships,omitempty"`
-}
-
 // GameCenterMatchmakingQueueUpdateRequest is the GameCenterMatchmakingQueueUpdateRequest schema.
 type GameCenterMatchmakingQueueUpdateRequest struct {
 	Data GameCenterMatchmakingQueueUpdateData `json:"data"`
@@ -51,38 +43,6 @@ type GameCenterMatchmakingQueueUpdateRequest struct {
 
 // GameCenterMatchmakingQueuesResponse is the GameCenterMatchmakingQueuesResponse schema.
 type GameCenterMatchmakingQueuesResponse = Response[GameCenterMatchmakingQueueAttributes]
-
-// CreateGameCenterMatchmakingQueue sends POST /v1/gameCenterMatchmakingQueues (gameCenterMatchmakingQueues_createInstance).
-func (c *Client) CreateGameCenterMatchmakingQueue(ctx context.Context, ruleSetID string, attrs GameCenterMatchmakingQueueCreateAttributes, experimentRuleSetID string) (*GameCenterMatchmakingQueueResponse, error) {
-	relationships := &GameCenterMatchmakingQueueRelationships{
-		RuleSet: &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeGameCenterMatchmakingRuleSets,
-				ID:   strings.TrimSpace(ruleSetID),
-			},
-		},
-	}
-	if id := strings.TrimSpace(experimentRuleSetID); id != "" {
-		relationships.ExperimentRuleSet = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeGameCenterMatchmakingRuleSets,
-				ID:   id,
-			},
-		}
-	}
-	payload := GameCenterMatchmakingQueueCreateRequest{
-		Data: GameCenterMatchmakingQueueCreateData{
-			Type:          ResourceTypeGameCenterMatchmakingQueues,
-			Attributes:    attrs,
-			Relationships: relationships,
-		},
-	}
-	return sendJSON[GameCenterMatchmakingQueueResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/gameCenterMatchmakingQueues",
-		Payload: payload,
-	})
-}
 
 // DeleteGameCenterMatchmakingQueue sends DELETE /v1/gameCenterMatchmakingQueues/{id} (gameCenterMatchmakingQueues_deleteInstance).
 func (c *Client) DeleteGameCenterMatchmakingQueue(ctx context.Context, queueID string) error {
@@ -159,46 +119,6 @@ func (c *Client) GetGameCenterMatchmakingQueueSessions(ctx context.Context, queu
 		Query:       buildGCMatchmakingQueueSessionsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "game-center-matchmaking-queue-sessions",
-	})
-}
-
-// UpdateGameCenterMatchmakingQueue sends PATCH /v1/gameCenterMatchmakingQueues/{id} (gameCenterMatchmakingQueues_updateInstance).
-func (c *Client) UpdateGameCenterMatchmakingQueue(ctx context.Context, queueID string, attrs GameCenterMatchmakingQueueUpdateAttributes, ruleSetID, experimentRuleSetID string) (*GameCenterMatchmakingQueueResponse, error) {
-	var relationships *GameCenterMatchmakingQueueRelationships
-	if id := strings.TrimSpace(ruleSetID); id != "" {
-		if relationships == nil {
-			relationships = &GameCenterMatchmakingQueueRelationships{}
-		}
-		relationships.RuleSet = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeGameCenterMatchmakingRuleSets,
-				ID:   id,
-			},
-		}
-	}
-	if id := strings.TrimSpace(experimentRuleSetID); id != "" {
-		if relationships == nil {
-			relationships = &GameCenterMatchmakingQueueRelationships{}
-		}
-		relationships.ExperimentRuleSet = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeGameCenterMatchmakingRuleSets,
-				ID:   id,
-			},
-		}
-	}
-	payload := GameCenterMatchmakingQueueUpdateRequest{
-		Data: GameCenterMatchmakingQueueUpdateData{
-			Type:          ResourceTypeGameCenterMatchmakingQueues,
-			ID:            strings.TrimSpace(queueID),
-			Attributes:    &attrs,
-			Relationships: relationships,
-		},
-	}
-	return sendJSON[GameCenterMatchmakingQueueResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/gameCenterMatchmakingQueues/%s", strings.TrimSpace(queueID)),
-		Payload: payload,
 	})
 }
 

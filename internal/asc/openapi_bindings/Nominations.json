@@ -5,13 +5,11 @@
     "NominationCreateData",
     "NominationCreateRequest",
     "NominationResponse",
-    "NominationUpdateData",
     "NominationUpdateRequest",
     "NominationsResponse"
   ],
   "relationships": [
-    {"data":"NominationCreateData","type":"NominationRelationships"},
-    {"data":"NominationUpdateData","type":"*NominationRelationships","omitempty":true}
+    {"data":"NominationCreateData","type":"NominationRelationships"}
   ],
   "operations": [
     {"operation":"nominations_deleteInstance","name":"DeleteNomination","params":["nominationID"],"check":"require"},

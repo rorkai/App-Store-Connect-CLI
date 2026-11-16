@@ -76,6 +76,13 @@ type SubscriptionPromotionalOfferUpdateRelationships struct {
 	Prices RelationshipList `json:"prices"`
 }
 
+// SubscriptionPromotionalOfferUpdateData is the data portion of a promotional offer update request.
+type SubscriptionPromotionalOfferUpdateData struct {
+	Type          ResourceType                                     `json:"type"`
+	ID            string                                           `json:"id"`
+	Relationships *SubscriptionPromotionalOfferUpdateRelationships `json:"relationships,omitempty"`
+}
+
 // SubscriptionPromotionalOfferPriceAttributes describes promotional offer price resources.
 type SubscriptionPromotionalOfferPriceAttributes struct{}
 

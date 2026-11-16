@@ -280,6 +280,7 @@ func TestResolveSessionUsesStoredPasswordAndCachedCookiesForTwoFactorReauth(t *t
 }
 
 func TestResolveAppCreateSessionPersistsStoredPasswordAutoReauth(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	preserveWebPasswordHooks(t)
 	preserveWebLoginHooks(t)
 	t.Setenv(webPasswordEnv, "")
@@ -320,7 +321,7 @@ func TestResolveAppCreateSessionPersistsStoredPasswordAutoReauth(t *testing.T) {
 		return nil
 	}
 
-	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "", "")
+	session, source, err := resolveAppCreateSession(context.Background(), d, "user@example.com", "", "")
 	if err != nil {
 		t.Fatalf("resolveAppCreateSession() error = %v", err)
 	}

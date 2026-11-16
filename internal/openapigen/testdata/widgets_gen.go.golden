@@ -553,6 +553,45 @@ func (c *Client) RegisterWristband(ctx context.Context, widgetID, label string, 
 	})
 }
 
+// DeleteYarn sends DELETE /v1/yarns/{id} (yarns_deleteInstance).
+func (c *Client) DeleteYarn(ctx context.Context, yarnID string) error {
+	path, err := resourcePath("/v1/yarns/%s", yarnID)
+	if err != nil {
+		return fmt.Errorf("yarn: %w", err)
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, path, nil)
+}
+
+// GetYarn sends GET /v1/yarns/{id} (yarns_getInstance).
+func (c *Client) GetYarn(ctx context.Context, yarnID string) (*WidgetResponse, error) {
+	path, err := resourcePath("/v1/yarns/%s", yarnID)
+	if err != nil {
+		return nil, fmt.Errorf("yarn: %w", err)
+	}
+	return getJSON[WidgetResponse](ctx, c, readRequest{
+		Path: path,
+	})
+}
+
+// GetYarnKnots sends GET /v1/yarns/{id}/knots (yarns_knots_getToManyRelated).
+func (c *Client) GetYarnKnots(ctx context.Context, yarnID string, opts ...KnotsOption) (*GadgetListResponse, error) {
+	query := applyOptions(opts)
+	var path string
+	if query.nextURL == "" {
+		var err error
+		path, err = resourcePath("/v1/yarns/%s/knots", yarnID)
+		if err != nil {
+			return nil, fmt.Errorf("yarn knots: %w", err)
+		}
+	}
+	return getJSON[GadgetListResponse](ctx, c, readRequest{
+		Path:        path,
+		Query:       buildKnotsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "yarnKnots",
+	})
+}
+
 // CreateYoke sends POST /v1/yokes (yokes_createInstance).
 func (c *Client) CreateYoke(ctx context.Context, widgetID string, attrs YokeCreateAttributes, gadgetID, ownerID string) (*WidgetResponse, error) {
 	widgetID = strings.TrimSpace(widgetID)

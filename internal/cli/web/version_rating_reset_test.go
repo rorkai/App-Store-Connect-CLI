@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -51,12 +52,13 @@ func TestVersionRatingResetCreate(t *testing.T) {
 		}, nil
 	}
 
-	command := VersionRatingResetCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newVersionRatingResetCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--version-id", " version-1 ", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -97,11 +99,12 @@ func TestVersionRatingResetViewTable(t *testing.T) {
 		}, nil
 	}
 
-	command := VersionRatingResetViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newVersionRatingResetViewCommand(d)
 	if err := command.FlagSet.Parse([]string{"--version-id", "version-1", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -125,11 +128,12 @@ func TestVersionRatingResetViewReportsUnscheduledRelationship(t *testing.T) {
 	}
 
 	t.Run("json preserves null data", func(t *testing.T) {
-		command := VersionRatingResetViewCommand()
+		d, depsStdout, depsStderr := newWebTestDeps()
+		command := newVersionRatingResetViewCommand(d)
 		if err := command.FlagSet.Parse([]string{"--version-id", "version-1", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		stdout, stderr := captureWebCommandOutput(t, func() {
+		stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 			if err := command.Exec(context.Background(), nil); err != nil {
 				t.Fatalf("Exec() error = %v", err)
 			}
@@ -144,11 +148,12 @@ func TestVersionRatingResetViewReportsUnscheduledRelationship(t *testing.T) {
 
 	for _, format := range []string{"table", "markdown"} {
 		t.Run(format+" reports unscheduled", func(t *testing.T) {
-			command := VersionRatingResetViewCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newVersionRatingResetViewCommand(d)
 			if err := command.FlagSet.Parse([]string{"--version-id", "version-1", "--output", format}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); err != nil {
 					t.Fatalf("Exec() error = %v", err)
 				}
@@ -177,11 +182,12 @@ func TestVersionRatingResetDelete(t *testing.T) {
 		return nil
 	}
 
-	command := VersionRatingResetDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newVersionRatingResetDeleteCommand(d)
 	if err := command.FlagSet.Parse([]string{"--id", " reset-1 ", "--confirm", "--output", "markdown"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := command.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -210,24 +216,25 @@ func TestVersionRatingResetValidationRunsBeforeSessionResolution(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 		want    string
 	}{
-		{name: "view missing version", command: VersionRatingResetViewCommand, want: "--version-id is required"},
-		{name: "create missing version", command: VersionRatingResetCreateCommand, args: []string{"--confirm"}, want: "--version-id is required"},
-		{name: "create missing confirmation", command: VersionRatingResetCreateCommand, args: []string{"--version-id", "version-1"}, want: "--confirm is required"},
-		{name: "delete missing id", command: VersionRatingResetDeleteCommand, args: []string{"--confirm"}, want: "--id is required"},
-		{name: "delete missing confirmation", command: VersionRatingResetDeleteCommand, args: []string{"--id", "reset-1"}, want: "--confirm is required"},
+		{name: "view missing version", command: newVersionRatingResetViewCommand, want: "--version-id is required"},
+		{name: "create missing version", command: newVersionRatingResetCreateCommand, args: []string{"--confirm"}, want: "--version-id is required"},
+		{name: "create missing confirmation", command: newVersionRatingResetCreateCommand, args: []string{"--version-id", "version-1"}, want: "--confirm is required"},
+		{name: "delete missing id", command: newVersionRatingResetDeleteCommand, args: []string{"--confirm"}, want: "--id is required"},
+		{name: "delete missing confirmation", command: newVersionRatingResetDeleteCommand, args: []string{"--id", "reset-1"}, want: "--confirm is required"},
 	}
 
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			command := test.command()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := test.command(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				if err := command.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("error = %v, want flag.ErrHelp", err)
 				}
@@ -252,12 +259,12 @@ func TestVersionRatingResetSessionResolutionDoesNotUseRequestTimeout(t *testing.
 
 	cases := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
-		{name: "view", command: VersionRatingResetViewCommand, args: []string{"--version-id", "version-1"}},
-		{name: "create", command: VersionRatingResetCreateCommand, args: []string{"--version-id", "version-1", "--confirm"}},
-		{name: "delete", command: VersionRatingResetDeleteCommand, args: []string{"--id", "reset-1", "--confirm"}},
+		{name: "view", command: newVersionRatingResetViewCommand, args: []string{"--version-id", "version-1"}},
+		{name: "create", command: newVersionRatingResetCreateCommand, args: []string{"--version-id", "version-1", "--confirm"}},
+		{name: "delete", command: newVersionRatingResetDeleteCommand, args: []string{"--id", "reset-1", "--confirm"}},
 	}
 
 	for _, test := range cases {
@@ -268,7 +275,8 @@ func TestVersionRatingResetSessionResolutionDoesNotUseRequestTimeout(t *testing.
 				return nil, "", resolveErr
 			}
 
-			command := test.command()
+			d, _, _ := newWebTestDeps()
+			command := test.command(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
@@ -290,7 +298,8 @@ func TestVersionRatingResetWrapsUnauthorizedSessionError(t *testing.T) {
 		return nil, &webcore.APIError{Status: 401}
 	}
 
-	command := VersionRatingResetViewCommand()
+	d, _, _ := newWebTestDeps()
+	command := newVersionRatingResetViewCommand(d)
 	if err := command.FlagSet.Parse([]string{"--version-id", "version-1"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -308,7 +317,8 @@ func TestVersionRatingResetRejectsSuccessfulResponseWithoutID(t *testing.T) {
 		return &webcore.RatingResetRequestResponse{}, nil
 	}
 
-	command := VersionRatingResetCreateCommand()
+	d, _, _ := newWebTestDeps()
+	command := newVersionRatingResetCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--version-id", "version-1", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -319,10 +329,11 @@ func TestVersionRatingResetRejectsSuccessfulResponseWithoutID(t *testing.T) {
 }
 
 func TestVersionRatingResetSubcommandsAcceptWebSessionFlags(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	for _, subcommand := range []*ffcli.Command{
-		VersionRatingResetViewCommand(),
-		VersionRatingResetCreateCommand(),
-		VersionRatingResetDeleteCommand(),
+		newVersionRatingResetViewCommand(d),
+		newVersionRatingResetCreateCommand(d),
+		newVersionRatingResetDeleteCommand(d),
 	} {
 		for _, flagName := range []string{"apple-id", "provider-id", "public-provider-id", "two-factor-code-command"} {
 			if subcommand.FlagSet.Lookup(flagName) == nil {

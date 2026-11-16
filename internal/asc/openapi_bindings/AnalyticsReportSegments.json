@@ -3,5 +3,8 @@
   "file": "analytics_report_segments_gen.go",
   "types": [
     "AnalyticsReportSegmentResponse"
+  ],
+  "operations": [
+    {"operation":"analyticsReportSegments_getInstance","name":"GetAnalyticsReportSegment","params":["segmentID"],"check":"path","pathErr":"analytics report segment"}
   ]
 }

@@ -162,10 +162,22 @@ type AppClipHeaderImageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// AppClipDefaultExperienceUpdateRelationships describes relationships for default experience update.
+type AppClipDefaultExperienceUpdateRelationships struct {
+	ReleaseWithAppStoreVersion *Relationship `json:"releaseWithAppStoreVersion,omitempty"`
+}
+
 // AppClipDefaultExperienceLocalizationRelationships describes localization relationships.
 type AppClipDefaultExperienceLocalizationRelationships struct {
 	AppClipDefaultExperience *Relationship `json:"appClipDefaultExperience,omitempty"`
 	AppClipHeaderImage       *Relationship `json:"appClipHeaderImage,omitempty"`
+}
+
+// AppClipAdvancedExperienceRelationships describes advanced experience relationships.
+type AppClipAdvancedExperienceRelationships struct {
+	AppClip       *Relationship     `json:"appClip,omitempty"`
+	HeaderImage   *Relationship     `json:"headerImage,omitempty"`
+	Localizations *RelationshipList `json:"localizations,omitempty"`
 }
 
 // AppClipHeaderImageRelationships describes header image relationships.
@@ -176,6 +188,14 @@ type AppClipHeaderImageRelationships struct {
 // AppClipAppStoreReviewDetailRelationships describes review detail relationships.
 type AppClipAppStoreReviewDetailRelationships struct {
 	AppClipDefaultExperience *Relationship `json:"appClipDefaultExperience,omitempty"`
+}
+
+// AppClipDefaultExperienceUpdateData is the payload for updating a default experience.
+type AppClipDefaultExperienceUpdateData struct {
+	Type          ResourceType                                 `json:"type"`
+	ID            string                                       `json:"id"`
+	Attributes    *AppClipDefaultExperienceUpdateAttributes    `json:"attributes,omitempty"`
+	Relationships *AppClipDefaultExperienceUpdateRelationships `json:"relationships,omitempty"`
 }
 
 // AppClipAdvancedExperienceCreateRequest is the create request payload.
@@ -189,6 +209,14 @@ type AppClipAdvancedExperienceLocalizationInlineCreate struct {
 	Type       ResourceType                                          `json:"type"`
 	ID         string                                                `json:"id,omitempty"`
 	Attributes AppClipAdvancedExperienceLocalizationCreateAttributes `json:"attributes"`
+}
+
+// AppClipAdvancedExperienceUpdateData is the payload for updating an advanced experience.
+type AppClipAdvancedExperienceUpdateData struct {
+	Type          ResourceType                               `json:"type"`
+	ID            string                                     `json:"id"`
+	Attributes    *AppClipAdvancedExperienceUpdateAttributes `json:"attributes,omitempty"`
+	Relationships *AppClipAdvancedExperienceRelationships    `json:"relationships,omitempty"`
 }
 
 // BetaAppClipInvocationLocalizationInlineCreate describes an inline localization create payload.
@@ -278,6 +306,83 @@ type AppClipHeaderImageUploadResult struct {
 type AppClipAdvancedExperienceRemoveResult struct {
 	ID      string `json:"id"`
 	Removed bool   `json:"removed"`
+}
+
+// CreateAppClipDefaultExperience creates a default experience for an App Clip.
+func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID string, attrs *AppClipDefaultExperienceCreateAttributes, releaseVersionID, templateID string) (*AppClipDefaultExperienceResponse, error) {
+	appClipID = strings.TrimSpace(appClipID)
+	if appClipID == "" {
+		return nil, fmt.Errorf("appClipID is required")
+	}
+	relationships := &AppClipDefaultExperienceCreateRelationships{
+		AppClip: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeAppClips,
+				ID:   appClipID,
+			},
+		},
+	}
+	if id := strings.TrimSpace(releaseVersionID); id != "" {
+		relationships.ReleaseWithAppStoreVersion = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeAppStoreVersions,
+				ID:   id,
+			},
+		}
+	}
+	if id := strings.TrimSpace(templateID); id != "" {
+		relationships.AppClipDefaultExperienceTemplate = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeAppClipDefaultExperiences,
+				ID:   id,
+			},
+		}
+	}
+	payload := AppClipDefaultExperienceCreateRequest{
+		Data: AppClipDefaultExperienceCreateData{
+			Type:          ResourceTypeAppClipDefaultExperiences,
+			Attributes:    attrs,
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appClipDefaultExperiences",
+		Payload: payload,
+	})
+}
+
+// UpdateAppClipDefaultExperience updates a default experience.
+func (c *Client) UpdateAppClipDefaultExperience(ctx context.Context, experienceID string, attrs *AppClipDefaultExperienceUpdateAttributes, releaseVersionID string) (*AppClipDefaultExperienceResponse, error) {
+	experienceID = strings.TrimSpace(experienceID)
+	if experienceID == "" {
+		return nil, fmt.Errorf("experienceID is required")
+	}
+	var relationships *AppClipDefaultExperienceUpdateRelationships
+	if id := strings.TrimSpace(releaseVersionID); id != "" {
+		if relationships == nil {
+			relationships = &AppClipDefaultExperienceUpdateRelationships{}
+		}
+		relationships.ReleaseWithAppStoreVersion = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeAppStoreVersions,
+				ID:   id,
+			},
+		}
+	}
+	payload := AppClipDefaultExperienceUpdateRequest{
+		Data: AppClipDefaultExperienceUpdateData{
+			Type:          ResourceTypeAppClipDefaultExperiences,
+			ID:            experienceID,
+			Attributes:    attrs,
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID),
+		Payload: payload,
+	})
 }
 
 // CreateAppClipAdvancedExperience creates an advanced experience.

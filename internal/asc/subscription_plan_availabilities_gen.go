@@ -21,14 +21,6 @@ type SubscriptionPlanAvailabilityUpdateAttributes struct {
 	AvailableInNewTerritories *bool `json:"availableInNewTerritories,omitempty"`
 }
 
-// SubscriptionPlanAvailabilityUpdateData is the data object of the SubscriptionPlanAvailabilityUpdateRequest schema.
-type SubscriptionPlanAvailabilityUpdateData struct {
-	Type          ResourceType                                  `json:"type"`
-	ID            string                                        `json:"id"`
-	Attributes    *SubscriptionPlanAvailabilityUpdateAttributes `json:"attributes,omitempty"`
-	Relationships *SubscriptionPlanAvailabilityRelationships    `json:"relationships,omitempty"`
-}
-
 // SubscriptionPlanAvailabilityUpdateRequest is the SubscriptionPlanAvailabilityUpdateRequest schema.
 type SubscriptionPlanAvailabilityUpdateRequest struct {
 	Data SubscriptionPlanAvailabilityUpdateData `json:"data"`

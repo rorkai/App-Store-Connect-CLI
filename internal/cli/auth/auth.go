@@ -318,7 +318,8 @@ func doctorMigrationSuggestionResolver(d *shared.Deps) authsvc.MigrationSuggesti
 			}
 			if versionString != "" {
 				preReleaseResp, err := client.GetPreReleaseVersions(
-					requestCtx, appID,
+					requestCtx,
+					asc.WithPreReleaseVersionsAppID(appID),
 					asc.WithPreReleaseVersionsVersion(versionString),
 					asc.Limit[asc.PreReleaseVersionsOption](1),
 				)

@@ -44,19 +44,6 @@ type AppClipDefaultExperienceUpdateAttributes struct {
 	Action *AppClipAction `json:"action,omitempty"`
 }
 
-// AppClipDefaultExperienceUpdateData is the data object of the AppClipDefaultExperienceUpdateRequest schema.
-type AppClipDefaultExperienceUpdateData struct {
-	Type          ResourceType                                 `json:"type"`
-	ID            string                                       `json:"id"`
-	Attributes    *AppClipDefaultExperienceUpdateAttributes    `json:"attributes,omitempty"`
-	Relationships *AppClipDefaultExperienceUpdateRelationships `json:"relationships,omitempty"`
-}
-
-// AppClipDefaultExperienceUpdateRelationships is the data.relationships object of the AppClipDefaultExperienceUpdateRequest schema.
-type AppClipDefaultExperienceUpdateRelationships struct {
-	ReleaseWithAppStoreVersion *Relationship `json:"releaseWithAppStoreVersion,omitempty"`
-}
-
 // AppClipDefaultExperienceUpdateRequest is the AppClipDefaultExperienceUpdateRequest schema.
 type AppClipDefaultExperienceUpdateRequest struct {
 	Data AppClipDefaultExperienceUpdateData `json:"data"`
@@ -93,50 +80,6 @@ func (c *Client) GetAppClipDefaultExperienceLocalizations(ctx context.Context, e
 		Query:       buildAppClipDefaultExperienceLocalizationsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appClipDefaultExperienceLocalizations",
-	})
-}
-
-// CreateAppClipDefaultExperience sends POST /v1/appClipDefaultExperiences (appClipDefaultExperiences_createInstance).
-func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID string, attrs *AppClipDefaultExperienceCreateAttributes, releaseVersionID, templateID string) (*AppClipDefaultExperienceResponse, error) {
-	appClipID = strings.TrimSpace(appClipID)
-	if appClipID == "" {
-		return nil, fmt.Errorf("appClipID is required")
-	}
-	relationships := &AppClipDefaultExperienceCreateRelationships{
-		AppClip: &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeAppClips,
-				ID:   appClipID,
-			},
-		},
-	}
-	if id := strings.TrimSpace(releaseVersionID); id != "" {
-		relationships.ReleaseWithAppStoreVersion = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeAppStoreVersions,
-				ID:   id,
-			},
-		}
-	}
-	if id := strings.TrimSpace(templateID); id != "" {
-		relationships.AppClipDefaultExperienceTemplate = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeAppClipDefaultExperiences,
-				ID:   id,
-			},
-		}
-	}
-	payload := AppClipDefaultExperienceCreateRequest{
-		Data: AppClipDefaultExperienceCreateData{
-			Type:          ResourceTypeAppClipDefaultExperiences,
-			Attributes:    attrs,
-			Relationships: relationships,
-		},
-	}
-	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appClipDefaultExperiences",
-		Payload: payload,
 	})
 }
 
@@ -178,39 +121,6 @@ func (c *Client) GetAppClipDefaultExperienceReleaseWithAppStoreVersionRelationsh
 	experienceID = strings.TrimSpace(experienceID)
 	return getJSON[AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/releaseWithAppStoreVersion", experienceID),
-	})
-}
-
-// UpdateAppClipDefaultExperience sends PATCH /v1/appClipDefaultExperiences/{id} (appClipDefaultExperiences_updateInstance).
-func (c *Client) UpdateAppClipDefaultExperience(ctx context.Context, experienceID string, attrs *AppClipDefaultExperienceUpdateAttributes, releaseVersionID string) (*AppClipDefaultExperienceResponse, error) {
-	experienceID = strings.TrimSpace(experienceID)
-	if experienceID == "" {
-		return nil, fmt.Errorf("experienceID is required")
-	}
-	var relationships *AppClipDefaultExperienceUpdateRelationships
-	if id := strings.TrimSpace(releaseVersionID); id != "" {
-		if relationships == nil {
-			relationships = &AppClipDefaultExperienceUpdateRelationships{}
-		}
-		relationships.ReleaseWithAppStoreVersion = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeAppStoreVersions,
-				ID:   id,
-			},
-		}
-	}
-	payload := AppClipDefaultExperienceUpdateRequest{
-		Data: AppClipDefaultExperienceUpdateData{
-			Type:          ResourceTypeAppClipDefaultExperiences,
-			ID:            experienceID,
-			Attributes:    attrs,
-			Relationships: relationships,
-		},
-	}
-	return sendJSON[AppClipDefaultExperienceResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID),
-		Payload: payload,
 	})
 }
 

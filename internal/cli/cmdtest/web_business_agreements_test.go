@@ -68,10 +68,7 @@ func TestWebBusinessAgreementsList(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = w.Write([]byte(tc.response))
 			})
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = cmd.Run([]string{"web", "business", "agreements", "list", "--output", tc.output}, "test")
-			})
+			stdout, stderr, code := runWithDeps(t, nil, "web", "business", "agreements", "list", "--output", tc.output)
 			if tc.wantError != "" {
 				if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, tc.wantError) || calls != 1 {
 					t.Fatalf("code=%d stdout=%q stderr=%q calls=%d", code, stdout, stderr, calls)
@@ -113,7 +110,7 @@ func TestWebBusinessAgreementsAcceptValidation(t *testing.T) {
 		{[]string{"--contract-config-id", "config-new"}, "--confirm is required"},
 		{[]string{"--contract-config-id", "config-new", "--confirm", "--pretty", "--output", "table"}, "--pretty"},
 	} {
-		assertUsageExit(t, append([]string{"web", "business", "agreements", "accept"}, tc.args...), tc.want)
+		assertUsageExitWithDeps(t, nil, append([]string{"web", "business", "agreements", "accept"}, tc.args...), tc.want)
 	}
 }
 
@@ -230,14 +227,11 @@ func TestWebBusinessAgreementsAcceptPreflightAndSingleWrite(t *testing.T) {
 					w.WriteHeader(http.StatusInternalServerError)
 				}
 			})
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				args := []string{"web", "business", "agreements", "accept", "--contract-config-id", "config-new", "--confirm", "--output", tc.output}
-				if tc.readOnly {
-					args = append([]string{"--read-only"}, args...)
-				}
-				code = cmd.Run(args, "test")
-			})
+			args := []string{"web", "business", "agreements", "accept", "--contract-config-id", "config-new", "--confirm", "--output", tc.output}
+			if tc.readOnly {
+				args = append([]string{"--read-only"}, args...)
+			}
+			stdout, stderr, code := runWithDeps(t, nil, args...)
 			wantPosts := 0
 			wantCode := cmd.ExitError
 			if tc.postStatus != 0 {

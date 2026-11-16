@@ -47,12 +47,15 @@ const (
 )
 
 var (
-	appCreateAskOneFn                     = survey.AskOne
-	resolveAppCreateSessionFn         any = resolveAppCreateSession
-	appCreateCanPromptInteractivelyFn     = terminalPromptAvailable
+	appCreateAskOneFn                 = survey.AskOne
+	resolveAppCreateSessionFn         any
+	appCreateCanPromptInteractivelyFn = terminalPromptAvailable
 )
 
-func callResolveAppCreateSessionFn(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
+func callResolveAppCreateSessionFn(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
+	if resolveAppCreateSessionFn == nil {
+		return resolveAppCreateSession(ctx, d, appleID, password, twoFactorCode, twoFactorCodeCommand)
+	}
 	return callSessionResolverHook(ctx, resolveAppCreateSessionFn, "app create session resolver", appleID, password, twoFactorCode, twoFactorCodeCommand)
 }
 
@@ -234,7 +237,7 @@ func soleMissingFlag(missingFlags []string) string {
 	return missingFlags[0]
 }
 
-func resolveAppCreatePassword(_ context.Context, password string) (string, error) {
+func resolveAppCreatePassword(d *shared.Deps, password string) (string, error) {
 	if webPasswordProvided(password) {
 		return password, nil
 	}
@@ -251,19 +254,19 @@ func resolveAppCreatePassword(_ context.Context, password string) (string, error
 	if !webPasswordProvided(password) {
 		// The terminal was available and the prompt came back empty: that is
 		// missing input, not a missing session.
-		return "", passwordRequiredUsageError()
+		return "", passwordRequiredUsageErrorWith(d)
 	}
 	return password, nil
 }
 
-func persistFreshAppCreateSession(session *webcore.AuthSession) error {
+func persistFreshAppCreateSession(d *shared.Deps, session *webcore.AuthSession) error {
 	// App creation can proceed with the in-memory session even if cache persistence fails.
-	printSessionCacheWriteWarning(persistWebSessionFn(session))
+	printSessionCacheWriteWarningWith(d, persistWebSessionFn(session))
 	return nil
 }
 
-func persistAutoReauthAppCreateSession(session *webcore.AuthSession) {
-	_ = persistFreshAppCreateSession(session)
+func persistAutoReauthAppCreateSession(d *shared.Deps, session *webcore.AuthSession) {
+	_ = persistFreshAppCreateSession(d, session)
 }
 
 func rollbackCreatedBundleID(ctx context.Context, d *shared.Deps, bundleID string) error {
@@ -278,16 +281,22 @@ func rollbackCreatedBundleID(ctx context.Context, d *shared.Deps, bundleID strin
 	})
 }
 
-func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
+func resolveAppCreateSession(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
 	command := ""
 	if len(twoFactorCodeCommand) > 0 {
 		command = twoFactorCodeCommand[0]
 	}
-	session, source, err := resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
-		promptAppleID:        promptAppsCreateSessionAppleID,
-		resolvePassword:      resolveAppCreatePassword,
-		persistFresh:         persistFreshAppCreateSession,
-		persistAutoReauth:    persistAutoReauthAppCreateSession,
+	session, source, err := resolveWebSessionWith(ctx, d, appleID, password, twoFactorCode, webSessionResolveOptions{
+		promptAppleID: promptAppsCreateSessionAppleID,
+		resolvePassword: func(_ context.Context, password string) (string, error) {
+			return resolveAppCreatePassword(d, password)
+		},
+		persistFresh: func(session *webcore.AuthSession) error {
+			return persistFreshAppCreateSession(d, session)
+		},
+		persistAutoReauth: func(session *webcore.AuthSession) {
+			persistAutoReauthAppCreateSession(d, session)
+		},
 		twoFactorCodeCommand: command,
 	})
 	if err != nil {
@@ -384,6 +393,7 @@ func RunAppsCreate(ctx context.Context, d *shared.Deps, opts AppsCreateRunOption
 
 	session, source, err := callResolveAppCreateSessionFn(
 		ctx,
+		d,
 		opts.AppleID,
 		"",
 		"",
