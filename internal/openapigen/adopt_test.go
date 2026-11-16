@@ -1095,3 +1095,72 @@ func TestAdoptSpellsIdAsIDInTypeNames(t *testing.T) {
 		t.Errorf("zone_ids.go should be deleted once empty, stat err = %v", err)
 	}
 }
+
+func TestAdoptBindsThePathCheck(t *testing.T) {
+	src := `package asc
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// GetYarn reads a yarn.
+func (c *Client) GetYarn(ctx context.Context, yarnID string) (*WidgetResponse, error) {
+	path, err := resourcePath("/v1/yarns/%s", yarnID)
+	if err != nil {
+		return nil, fmt.Errorf("yarn: %w", err)
+	}
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: path})
+}
+
+// GetYarnKnots lists the knots of a yarn.
+func (c *Client) GetYarnKnots(ctx context.Context, yarnID string, opts ...KnotsOption) (*GadgetListResponse, error) {
+	query := applyOptions(opts)
+
+	var path string
+	if query.nextURL == "" {
+		var err error
+		path, err = resourcePath("/v1/yarns/%s/knots", yarnID)
+		if err != nil {
+			return nil, fmt.Errorf("yarn knots: %w", err)
+		}
+	}
+	return getJSON[GadgetListResponse](ctx, c, readRequest{Path: path, Query: buildKnotsQuery(query), Next: query.nextURL, NextContext: "yarnKnots"})
+}
+
+// DeleteYarn trims before it builds the path, so it stays hand-written.
+func (c *Client) DeleteYarn(ctx context.Context, yarnID string) error {
+	path, err := resourcePath("/v1/yarns/%s", strings.TrimSpace(yarnID))
+	if err != nil {
+		return fmt.Errorf("yarn: %w", err)
+	}
+	return sendNoContent(ctx, c, "DELETE", path, nil)
+}
+`
+	dir := writeHandWritten(t, map[string]string{"client.go": src})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	adopted := map[string]*OpBind{}
+	for _, op := range bindings.Families[0].Operations {
+		adopted[op.Name] = op
+	}
+	yarn, knots := adopted["GetYarn"], adopted["GetYarnKnots"]
+	if len(adopted) != 2 || yarn == nil || knots == nil {
+		t.Fatalf("adopted methods = %v", adopted)
+	}
+	if yarn.Check != checkPath || yarn.PathErr != "yarn" || yarn.Messages != nil {
+		t.Errorf("GetYarn binding = %+v", yarn)
+	}
+	if knots.Check != checkPath || knots.PathErr != "yarn knots" || knots.CheckFirst || knots.NextContext != "yarnKnots" {
+		t.Errorf("GetYarnKnots binding = %+v", knots)
+	}
+	if client := readFile(t, filepath.Join(dir, "client.go")); strings.Contains(client, "GetYarn") || !strings.Contains(client, "func (c *Client) DeleteYarn(") {
+		t.Errorf("client.go after adopt:\n%s", client)
+	}
+}

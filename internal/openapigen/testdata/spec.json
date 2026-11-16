@@ -437,6 +437,29 @@
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraV2Response"}}}}
         }
       }
+    },
+    "/v1/yarns/{id}": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "yarns_getInstance",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      },
+      "delete": {
+        "tags": ["Widgets"],
+        "operationId": "yarns_deleteInstance",
+        "responses": {"204": {"description": "Success (no content)"}}
+      }
+    },
+    "/v1/yarns/{id}/knots": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "yarns_knots_getToManyRelated",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/GadgetsResponse"}}}}
+        }
+      }
     }
   },
   "components": {
