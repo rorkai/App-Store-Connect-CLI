@@ -273,12 +273,18 @@ func TestResolveSessionForSignInKeepsUsageErrors(t *testing.T) {
 		{name: "no password", appleID: "user@example.com", want: "password is required: run in a terminal for an interactive prompt or set ASC_WEB_PASSWORD"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, _, err := resolveSession(signInCtx, d, tc.appleID, "", "")
+			var err error
+			_, stderr := captureWebTestDeps(d, func() {
+				_, _, err = resolveSession(signInCtx, d, tc.appleID, "", "")
+			})
 			if !errors.Is(err, flag.ErrHelp) || errors.Is(err, shared.ErrMissingWebSession) {
 				t.Fatalf("expected the sign-in usage error, got %v", err)
 			}
 			if got := err.Error(); got != tc.want {
 				t.Fatalf("error = %q, want %q", got, tc.want)
+			}
+			if want := "Error: " + tc.want + "\n"; stderr != want {
+				t.Fatalf("stderr = %q, want %q", stderr, want)
 			}
 		})
 	}

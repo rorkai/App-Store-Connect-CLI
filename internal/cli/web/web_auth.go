@@ -1496,7 +1496,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 	}
 	if !webPasswordProvided(resolvedPassword.value) {
 		if isWebSignIn(ctx) {
-			return nil, "", passwordRequiredUsageError()
+			return nil, "", passwordRequiredUsageErrorWith(d)
 		}
 		// No usable cached session and no way to sign in here: the command
 		// needs a session it cannot create. Say so with the sign-in hint rather
