@@ -1670,7 +1670,7 @@ func preflightDistributionPublication(ctx context.Context, d *shared.Deps, confi
 	if err != nil {
 		return err
 	}
-	if !credentialLimitCoversDistributionPublication(credentialLimit, d.Now().UTC(), urlTTL, downloadGrace) {
+	if !credentialLimitCoversDistributionPublication(credentialLimit, time.Now().UTC(), urlTTL, downloadGrace) {
 		return errDistributionPublicationCredentialsExpireTooSoon
 	}
 	return nil
