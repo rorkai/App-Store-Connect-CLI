@@ -24,9 +24,9 @@ func (c *Client) CreateBackgroundAssetUploadFile(ctx context.Context, versionID,
 		Data: BackgroundAssetUploadFileCreateData{
 			Type: ResourceTypeBackgroundAssetUploadFiles,
 			Attributes: BackgroundAssetUploadFileCreateAttributes{
-				AssetType: assetType,
 				FileName:  fileName,
 				FileSize:  fileSize,
+				AssetType: assetType,
 			},
 			Relationships: BackgroundAssetUploadFileCreateRelationships{
 				BackgroundAssetVersion: Relationship{
