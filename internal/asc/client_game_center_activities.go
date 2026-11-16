@@ -180,15 +180,7 @@ func (c *Client) RemoveGameCenterActivityLeaderboards(ctx context.Context, activ
 }
 
 // CreateGameCenterActivityVersion creates a new activity version.
-func (c *Client) CreateGameCenterActivityVersion(ctx context.Context, activityID string, fallbackURL string) (*GameCenterActivityVersionResponse, error) {
-	var attrs *GameCenterActivityVersionCreateAttributes
-	if strings.TrimSpace(fallbackURL) != "" {
-		value := strings.TrimSpace(fallbackURL)
-		attrs = &GameCenterActivityVersionCreateAttributes{
-			FallbackURL: &value,
-		}
-	}
-
+func (c *Client) CreateGameCenterActivityVersion(ctx context.Context, activityID string, attrs *GameCenterActivityVersionCreateAttributes) (*GameCenterActivityVersionResponse, error) {
 	payload := GameCenterActivityVersionCreateRequest{
 		Data: GameCenterActivityVersionCreateData{
 			Type:       ResourceTypeGameCenterActivityVersions,
@@ -203,8 +195,11 @@ func (c *Client) CreateGameCenterActivityVersion(ctx context.Context, activityID
 			},
 		},
 	}
-
-	return sendJSON[GameCenterActivityVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterActivityVersions", Payload: payload})
+	return sendJSON[GameCenterActivityVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterActivityVersions",
+		Payload: payload,
+	})
 }
 
 // UpdateGameCenterActivityVersion updates an activity version.
