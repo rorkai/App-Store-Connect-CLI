@@ -72,7 +72,7 @@ func TestWebAppsCompatibilityInvalidBooleanExitCodes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantStderr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantStderr)
 		})
 	}
 }

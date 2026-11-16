@@ -50,7 +50,6 @@ var (
 	appCreateAskOneFn                     = survey.AskOne
 	resolveAppCreateSessionFn         any = resolveAppCreateSession
 	appCreateCanPromptInteractivelyFn     = terminalPromptAvailable
-	appCreateCanPromptForFieldsFn         = appCreateCanPromptForFields
 )
 
 func callResolveAppCreateSessionFn(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
@@ -59,8 +58,11 @@ func callResolveAppCreateSessionFn(ctx context.Context, appleID, password, twoFa
 
 // The field wizard reads stdin and renders to stdout, so a reachable
 // controlling TTY is not enough: piped or captured streams must fail fast.
-func appCreateCanPromptForFields() bool {
-	return termIsTerminalFn(int(os.Stdin.Fd())) && termIsTerminalFn(int(os.Stdout.Fd()))
+// The prompts read and write the process streams, so those must be terminals
+// too, not only d's.
+func appCreateCanPromptForFields(d *shared.Deps) bool {
+	return d.IO.StdinTTY && d.IO.StdoutTTY &&
+		termIsTerminalFn(int(os.Stdin.Fd())) && termIsTerminalFn(int(os.Stdout.Fd()))
 }
 
 func trimAppsCreateRunOptions(opts AppsCreateRunOptions) AppsCreateRunOptions {
@@ -108,17 +110,17 @@ func explainAppsCreateError(err error) error {
 	return fmt.Errorf("web apps create failed: %w", err)
 }
 
-func promptAppsCreateFields(opts *AppsCreateRunOptions) error {
+func promptAppsCreateFields(d *shared.Deps, opts *AppsCreateRunOptions) error {
 	if opts == nil {
 		return fmt.Errorf("app create options are required")
 	}
 	fullWizard := strings.TrimSpace(opts.Name) == "" && strings.TrimSpace(opts.BundleID) == "" && strings.TrimSpace(opts.SKU) == ""
 
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Create a new app in App Store Connect")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Note: App creation uses Apple's web-session create flow.")
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(d.IO.ErrOut)
+	fmt.Fprintln(d.IO.ErrOut, "Create a new app in App Store Connect")
+	fmt.Fprintln(d.IO.ErrOut)
+	fmt.Fprintln(d.IO.ErrOut, "Note: App creation uses Apple's web-session create flow.")
+	fmt.Fprintln(d.IO.ErrOut)
 
 	nameValue := strings.TrimSpace(opts.Name)
 	if nameValue == "" {
@@ -264,15 +266,15 @@ func persistAutoReauthAppCreateSession(session *webcore.AuthSession) {
 	_ = persistFreshAppCreateSession(session)
 }
 
-func rollbackCreatedBundleID(ctx context.Context, bundleID string) error {
+func rollbackCreatedBundleID(ctx context.Context, d *shared.Deps, bundleID string) error {
 	bundleID = strings.TrimSpace(bundleID)
 	if bundleID == "" {
 		return nil
 	}
-	rollbackCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+	rollbackCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
-	return withWebSpinner("Rolling back created Bundle ID", func() error {
-		return deleteBundleIDFn(rollbackCtx, bundleID)
+	return withWebSpinnerWith(d, "Rolling back created Bundle ID", func() error {
+		return deleteBundleIDFn(rollbackCtx, d, bundleID)
 	})
 }
 
@@ -295,25 +297,25 @@ func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCo
 }
 
 // RunAppsCreate executes the canonical web-backed app-create flow.
-func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
+func RunAppsCreate(ctx context.Context, d *shared.Deps, opts AppsCreateRunOptions) error {
 	opts = trimAppsCreateRunOptions(opts)
 
-	access, userIDs, err := normalizeAppCreateAccess(opts.Access, opts.Users)
+	access, userIDs, err := normalizeAppCreateAccess(d, opts.Access, opts.Users)
 	if err != nil {
 		return err
 	}
-	if opts.IfExists, err = shared.ParseOptionalIfExistsMode(string(opts.IfExists), webAppCreateIfExistsModes...); err != nil {
+	if opts.IfExists, err = d.ParseOptionalIfExistsMode(string(opts.IfExists), webAppCreateIfExistsModes...); err != nil {
 		return err
 	}
 	if opts.IfExists == shared.IfExistsSkip && access != "" {
-		return shared.UsageError("--if-exists skip cannot be combined with --access: skip leaves an existing app unchanged, so the access change would not be applied")
+		return d.UsageError("--if-exists skip cannot be combined with --access: skip leaves an existing app unchanged, so the access change would not be applied")
 	}
 
 	missingName := opts.Name == ""
 	missingBundleID := opts.BundleID == ""
 	missingSKU := opts.SKU == ""
 	if missingName || missingBundleID || missingSKU {
-		if !appCreateCanPromptForFieldsFn() {
+		if !appCreateCanPromptForFields(d) {
 			missingFlags := make([]string, 0, 3)
 			if missingName {
 				missingFlags = append(missingFlags, "--name")
@@ -325,12 +327,12 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 				missingFlags = append(missingFlags, "--sku")
 			}
 			return shared.WithDiagnostic(
-				shared.UsageError(fmt.Sprintf("missing required flags: %s", strings.Join(missingFlags, ", "))),
+				d.UsageError(fmt.Sprintf("missing required flags: %s", strings.Join(missingFlags, ", "))),
 				shared.DiagnosticRequiredInputMissing,
 				soleMissingFlag(missingFlags),
 			)
 		}
-		if err := promptAppsCreateFields(&opts); err != nil {
+		if err := promptAppsCreateFields(d, &opts); err != nil {
 			return err
 		}
 	}
@@ -339,7 +341,7 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 
 	var ifExistsClient *asc.Client
 	if opts.IfExists == shared.IfExistsSkip {
-		ifExistsClient, err = shared.GetASCClient()
+		ifExistsClient, err = d.Client()
 		if err != nil {
 			return fmt.Errorf("web apps create failed: --if-exists skip requires official App Store Connect API authentication for the read-back: %w", err)
 		}
@@ -347,22 +349,22 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 
 	var accessClient *asc.Client
 	if access != "" {
-		accessClient, err = shared.GetASCClient()
+		accessClient, err = d.Client()
 		if err != nil {
 			return fmt.Errorf("web apps create failed: --access requires official App Store Connect API authentication: %w", err)
 		}
 		if len(userIDs) > 0 {
-			lookupCtx, lookupCancel := shared.ContextWithTimeout(ctx)
+			lookupCtx, lookupCancel := d.Timeout(ctx)
 			defer lookupCancel()
-			if lookupErr := withWebSpinner("Checking users", func() error {
-				return ensureAppCreateUsersExist(lookupCtx, accessClient, userIDs)
+			if lookupErr := withWebSpinnerWith(d, "Checking users", func() error {
+				return ensureAppCreateUsersExist(lookupCtx, d, accessClient, userIDs)
 			}); lookupErr != nil {
 				return lookupErr
 			}
 		} else {
-			probeCtx, probeCancel := shared.ContextWithTimeout(ctx)
+			probeCtx, probeCancel := d.Timeout(ctx)
 			defer probeCancel()
-			if probeErr := withWebSpinner("Checking App Store Connect API access", func() error {
+			if probeErr := withWebSpinnerWith(d, "Checking App Store Connect API access", func() error {
 				return ensureAppCreateAPIAccess(probeCtx, accessClient)
 			}); probeErr != nil {
 				return fmt.Errorf("web apps create failed: --access requires working App Store Connect API authentication: %w", probeErr)
@@ -370,15 +372,15 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 		}
 	}
 
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "  Name:      %s\n", opts.Name)
-	fmt.Fprintf(os.Stderr, "  Bundle ID: %s\n", opts.BundleID)
-	fmt.Fprintf(os.Stderr, "  SKU:       %s\n", opts.SKU)
-	fmt.Fprintf(os.Stderr, "  Locale:    %s\n", opts.PrimaryLocale)
+	fmt.Fprintln(d.IO.ErrOut)
+	fmt.Fprintf(d.IO.ErrOut, "  Name:      %s\n", opts.Name)
+	fmt.Fprintf(d.IO.ErrOut, "  Bundle ID: %s\n", opts.BundleID)
+	fmt.Fprintf(d.IO.ErrOut, "  SKU:       %s\n", opts.SKU)
+	fmt.Fprintf(d.IO.ErrOut, "  Locale:    %s\n", opts.PrimaryLocale)
 	if opts.Platform != "" {
-		fmt.Fprintf(os.Stderr, "  Platform:  %s\n", opts.Platform)
+		fmt.Fprintf(d.IO.ErrOut, "  Platform:  %s\n", opts.Platform)
 	}
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(d.IO.ErrOut)
 
 	session, source, err := callResolveAppCreateSessionFn(
 		ctx,
@@ -391,13 +393,13 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 		return err
 	}
 
-	requestCtx, cancel := newWebRequestContext(ctx)
+	requestCtx, cancel := newWebRequestContextWith(ctx, d)
 	defer cancel()
 
 	if source == "fresh" {
-		fmt.Fprintln(os.Stderr, "Authenticated via fresh web login.")
+		fmt.Fprintln(d.IO.ErrOut, "Authenticated via fresh web login.")
 	} else {
-		fmt.Fprintln(os.Stderr, "Using cached web session.")
+		fmt.Fprintln(d.IO.ErrOut, "Using cached web session.")
 	}
 
 	client := newWebClientFn(session)
@@ -411,22 +413,22 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 		CompanyName:   opts.CompanyName,
 	}
 
-	createdBundleID, preflightErr := withWebSpinnerValue("Checking or creating Bundle ID", func() (bool, error) {
-		return ensureBundleIDFn(requestCtx, opts.BundleID, opts.Name, opts.Platform)
+	createdBundleID, preflightErr := withWebSpinnerValueWith(d, "Checking or creating Bundle ID", func() (bool, error) {
+		return ensureBundleIDFn(requestCtx, d, opts.BundleID, opts.Name, opts.Platform)
 	})
 	if preflightErr != nil {
 		if errors.Is(preflightErr, shared.ErrMissingAuth) || errors.Is(preflightErr, errBundleIDPreflightAuthUnavailable) {
-			fmt.Fprintln(os.Stderr, "Skipping Bundle ID preflight because official ASC API authentication is unavailable or misconfigured.")
+			fmt.Fprintln(d.IO.ErrOut, "Skipping Bundle ID preflight because official ASC API authentication is unavailable or misconfigured.")
 			createdBundleID = false
 		} else {
 			return fmt.Errorf("web apps create failed: bundle id preflight failed: %w", preflightErr)
 		}
 	}
 	if createdBundleID {
-		fmt.Fprintf(os.Stderr, "Bundle ID %q was missing; created automatically.\n", opts.BundleID)
+		fmt.Fprintf(d.IO.ErrOut, "Bundle ID %q was missing; created automatically.\n", opts.BundleID)
 	}
 
-	app, err := withWebSpinnerValue("Creating app via Apple web API", func() (*webcore.AppResponse, error) {
+	app, err := withWebSpinnerValueWith(d, "Creating app via Apple web API", func() (*webcore.AppResponse, error) {
 		return createWebAppFn(requestCtx, client, attrs)
 	})
 	// --if-exists skip runs before --auto-rename: a 409 for an app this
@@ -435,12 +437,12 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 	// does the historical rename path below run.
 	conflictHandled := false
 	if err != nil && ifExistsClient != nil {
-		existing, handled, resolveErr := resolveWebAppCreateConflict(ctx, ifExistsClient, opts, err)
+		existing, handled, resolveErr := resolveWebAppCreateConflict(ctx, d, ifExistsClient, opts, err)
 		if handled {
 			conflictHandled = true
 			if resolveErr == nil {
-				fmt.Fprintf(os.Stderr, "web apps create: app %s already exists with bundle ID %q; left unchanged (--if-exists skip)\n", existing.ID, existing.BundleID)
-				return shared.PrintOutput(existing, opts.Output, opts.Pretty)
+				fmt.Fprintf(d.IO.ErrOut, "web apps create: app %s already exists with bundle ID %q; left unchanged (--if-exists skip)\n", existing.ID, existing.BundleID)
+				return d.PrintOutput(existing, opts.Output, opts.Pretty)
 			}
 			err = resolveErr
 		}
@@ -453,9 +455,9 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 				if tryName == "" || tryName == attrs.Name {
 					continue
 				}
-				fmt.Fprintf(os.Stderr, "App name in use; retrying with %q...\n", tryName)
+				fmt.Fprintf(d.IO.ErrOut, "App name in use; retrying with %q...\n", tryName)
 				attrs.Name = tryName
-				app, err = withWebSpinnerValue("Creating app via Apple web API", func() (*webcore.AppResponse, error) {
+				app, err = withWebSpinnerValueWith(d, "Creating app via Apple web API", func() (*webcore.AppResponse, error) {
 					return createWebAppFn(requestCtx, client, attrs)
 				})
 				if err == nil || !webcore.IsDuplicateAppNameError(err) {
@@ -466,26 +468,26 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 	}
 	if err != nil {
 		if createdBundleID {
-			if rollbackErr := rollbackCreatedBundleID(ctx, opts.BundleID); rollbackErr != nil {
+			if rollbackErr := rollbackCreatedBundleID(ctx, d, opts.BundleID); rollbackErr != nil {
 				err = errors.Join(err, fmt.Errorf("failed to roll back created bundle id %q: %w", opts.BundleID, rollbackErr))
 			}
 		}
 		return explainAppsCreateError(err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Created app successfully (id=%s)\n", strings.TrimSpace(app.Data.ID))
+	fmt.Fprintf(d.IO.ErrOut, "Created app successfully (id=%s)\n", strings.TrimSpace(app.Data.ID))
 	if access == "" {
 		row := []string{app.Data.ID, attrs.Name, attrs.BundleID, attrs.SKU}
-		return shared.PrintOutputRows(app, opts.Output, opts.Pretty, []string{"ID", "Name", "Bundle ID", "SKU"}, [][]string{row})
+		return d.PrintOutputRows(app, opts.Output, opts.Pretty, []string{"ID", "Name", "Bundle ID", "SKU"}, [][]string{row})
 	}
 
-	accessCtx, accessCancel := shared.ContextWithTimeout(ctx)
+	accessCtx, accessCancel := d.Timeout(ctx)
 	defer accessCancel()
-	receipt, applyErr := withWebSpinnerValue("Applying app access", func() (*asc.WebAppCreateResult, error) {
-		return applyAndReadAppCreateAccess(accessCtx, accessClient, strings.TrimSpace(app.Data.ID), access, userIDs)
+	receipt, applyErr := withWebSpinnerValueWith(d, "Applying app access", func() (*asc.WebAppCreateResult, error) {
+		return applyAndReadAppCreateAccess(accessCtx, d, accessClient, strings.TrimSpace(app.Data.ID), access, userIDs)
 	})
 	if applyErr != nil {
 		return applyErr
 	}
-	return shared.PrintOutput(receipt, opts.Output, opts.Pretty)
+	return d.PrintOutput(receipt, opts.Output, opts.Pretty)
 }

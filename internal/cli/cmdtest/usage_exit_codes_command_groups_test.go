@@ -1076,11 +1076,13 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "web apps compatibility view without app",
 			args:    []string{"web", "apps", "compatibility", "view"},
 			wantErr: "--app is required (or set ASC_APP_ID)",
+			deps:    true,
 		},
 		{
 			name:    "web apps tax-category view without app",
 			args:    []string{"web", "apps", "tax-category", "view"},
 			wantErr: "--app is required (or set ASC_APP_ID)",
+			deps:    true,
 		},
 		{
 			name:    "web service-ids view without service-id",

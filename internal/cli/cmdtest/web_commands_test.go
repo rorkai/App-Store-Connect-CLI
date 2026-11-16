@@ -133,6 +133,7 @@ func TestWebCommandsUsageErrors(t *testing.T) {
 			name:    "AppsCreateMissingRequiredFlags",
 			args:    []string{"web", "apps", "create", "--name", "My App"},
 			wantErr: "Error: missing required flags: --bundle-id, --sku",
+			deps:    true,
 		},
 		{
 			name:    "SandboxCreateMissingRequiredFlags",

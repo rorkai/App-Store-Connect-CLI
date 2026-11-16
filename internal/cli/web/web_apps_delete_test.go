@@ -162,13 +162,14 @@ func TestWebAppsDeleteDryRunSucceedsWhenRemovedFromSaleEverywhere(t *testing.T) 
 		return nil, nil
 	}
 
-	cmd := WebAppsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890", "--dry-run", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if execErr != nil {
@@ -236,13 +237,14 @@ func TestWebAppsDeleteDryRunFailsWhenTerritoryStillAvailable(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := WebAppsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890", "--dry-run"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if stdout != "" {
@@ -297,13 +299,14 @@ func TestWebAppsDeleteDryRunFailsWhenTerritoryAvailabilitiesUnreadable(t *testin
 		return nil, nil
 	}
 
-	cmd := WebAppsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890", "--dry-run"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var execErr error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		execErr = cmd.Exec(context.Background(), nil)
 	})
 	if stdout != "" {
@@ -352,13 +355,14 @@ func TestWebAppsDeleteReviewStateStopsBeforeDelete(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := WebAppsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var err error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err = cmd.Exec(context.Background(), nil)
 	})
 	if stdout != "" {

@@ -126,10 +126,7 @@ func TestWebAppsDeleteRunRejectsIneligibleAppWithoutPatch(t *testing.T) {
 			})
 			t.Cleanup(restoreSession)
 
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = cmd.Run([]string{"web", "apps", "delete", "--app", "1234567890", "--confirm", "--output", "json"}, "1.0.0")
-			})
+			stdout, stderr, code := runWithDeps(t, nil, "web", "apps", "delete", "--app", "1234567890", "--confirm", "--output", "json")
 			if code != cmd.ExitError {
 				t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
 			}
@@ -194,15 +191,7 @@ func TestWebAppsDeleteRunReReadsAndFailsWhenPatchDoesNotRemove(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "web", "apps", "delete", "--app", "1234567890", "--confirm", "--output", "json")
 	if code != cmd.ExitError {
 		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitError, stdout, stderr)
 	}
@@ -267,15 +256,7 @@ func TestWebAppsDeleteRunDryRunReportsEligibleWithoutPatch(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--dry-run",
-			"--output", "json",
-		}, "1.0.0")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "web", "apps", "delete", "--app", "1234567890", "--dry-run", "--output", "json")
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitSuccess, stdout, stderr)
 	}
@@ -356,15 +337,7 @@ func TestWebAppsDeleteRunSuccessReceiptUsesRereadState(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "web", "apps", "delete", "--app", "1234567890", "--confirm", "--output", "json")
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitSuccess, stdout, stderr)
 	}
@@ -399,16 +372,7 @@ func TestWebAppsDeleteRunSuccessReceiptUsesRereadState(t *testing.T) {
 }
 
 func TestWebAppsDeleteRunRequiresConfirmUnlessDryRun(t *testing.T) {
-	root := RootCommand("1.0.0")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "apps", "delete", "--app", "1234567890"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, stderr, runErr := runRootWithDeps(t, nil, "web", "apps", "delete", "--app", "1234567890")
 	if runErr == nil {
 		t.Fatal("expected usage error")
 	}
@@ -453,15 +417,7 @@ func TestWebAppsDeleteRunAlreadyRemovedSkipsEligibilityWithoutPatch(t *testing.T
 	})
 	t.Cleanup(restoreSession)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"web", "apps", "delete",
-			"--app", "1234567890",
-			"--confirm",
-			"--output", "json",
-		}, "1.0.0")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "web", "apps", "delete", "--app", "1234567890", "--confirm", "--output", "json")
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitSuccess, stdout, stderr)
 	}

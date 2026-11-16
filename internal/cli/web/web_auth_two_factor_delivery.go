@@ -32,12 +32,6 @@ func bindTwoFactorDeliveryFlags(fs *flag.FlagSet) twoFactorDeliveryFlags {
 	}
 }
 
-// resolve merges the flags with their environment fallbacks and validates the
-// result before any sign-in side effect.
-func (f twoFactorDeliveryFlags) resolve() (appleauth.TwoFactorPreference, error) {
-	return f.resolveWith(shared.DefaultDeps())
-}
-
 // resolveWith is resolve with its usage errors written to d's stderr.
 func (f twoFactorDeliveryFlags) resolveWith(d *shared.Deps) (appleauth.TwoFactorPreference, error) {
 	method := ""

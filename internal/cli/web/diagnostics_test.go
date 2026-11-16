@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -48,21 +46,17 @@ func TestWebPrivacyPullMissingAppExposesStructuredDiagnostic(t *testing.T) {
 }
 
 func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testing.T) {
-	originalCanPrompt := appCreateCanPromptForFieldsFn
-	t.Cleanup(func() { appCreateCanPromptForFieldsFn = originalCanPrompt })
-	appCreateCanPromptForFieldsFn = func() bool { return false }
-
 	tests := []struct {
 		name       string
-		run        func() error
+		run        func(d *shared.Deps) error
 		wantError  string
 		wantStderr string
 		wantParam  string
 	}{
 		{
 			name: "every create flag missing",
-			run: func() error {
-				return RunAppsCreate(context.Background(), AppsCreateRunOptions{})
+			run: func(d *shared.Deps) error {
+				return RunAppsCreate(context.Background(), d, AppsCreateRunOptions{})
 			},
 			wantError:  "missing required flags: --name, --bundle-id, --sku",
 			wantStderr: "Error: missing required flags: --name, --bundle-id, --sku\n",
@@ -70,8 +64,8 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 		},
 		{
 			name: "only sku missing",
-			run: func() error {
-				return RunAppsCreate(context.Background(), AppsCreateRunOptions{
+			run: func(d *shared.Deps) error {
+				return RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 					Name:     "My App",
 					BundleID: "com.example.app",
 				})
@@ -82,8 +76,8 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 		},
 		{
 			name: "only name missing",
-			run: func() error {
-				return RunAppsCreate(context.Background(), AppsCreateRunOptions{
+			run: func(d *shared.Deps) error {
+				return RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 					BundleID: "com.example.app",
 					SKU:      "MYAPP123",
 				})
@@ -96,9 +90,10 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			d, depsStdout, depsStderr := newWebTestDeps()
 			var err error
-			stderr := captureWebDiagnosticStderr(t, func() {
-				err = test.run()
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				err = test.run(d)
 			})
 			if err == nil {
 				t.Fatal("expected error")
@@ -212,39 +207,6 @@ func TestChooseSubmissionForShowUnknownSubmissionExposesStructuredDiagnostic(t *
 	if diagnostic.Code != shared.DiagnosticResourceNotFound || diagnostic.Parameter != "--submission" {
 		t.Fatalf("diagnostic = %+v, want resource_not_found for --submission", diagnostic)
 	}
-}
-
-func captureWebDiagnosticStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	readResult := make(chan []byte, 1)
-	readError := make(chan error, 1)
-	go func() {
-		data, readErr := io.ReadAll(reader)
-		readResult <- data
-		readError <- readErr
-	}()
-
-	original := os.Stderr
-	os.Stderr = writer
-	defer func() { os.Stderr = original }()
-	fn()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	os.Stderr = original
-	data := <-readResult
-	if err := <-readError; err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return strings.ReplaceAll(string(data), "\r\n", "\n")
 }
 
 func TestWebCommandsRejectNegativeProviderIDBeforeResolvingSession(t *testing.T) {

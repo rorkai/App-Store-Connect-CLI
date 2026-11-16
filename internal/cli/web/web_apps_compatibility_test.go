@@ -39,7 +39,8 @@ func TestWebAppsCompatibilityEditUpdatesSelectedSettings(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAppsCompatibilityEditCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAppsCompatibilityEditCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--ios-app-on-mac=true",
@@ -49,7 +50,7 @@ func TestWebAppsCompatibilityEditUpdatesSelectedSettings(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

@@ -41,14 +41,6 @@ func bindWebSessionFlagsWithSessionFromEnv(fs *flag.FlagSet) webSessionFlags {
 	return flags
 }
 
-// newWebRequestContext returns the bounded context for work that runs after web
-// authentication finished. It is derived from the untimed parent context, so the
-// timeout budget covers the request instead of the human in front of the prompt,
-// while parent cancellation (Ctrl-C) still propagates.
-func newWebRequestContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return newWebRequestContextWith(ctx, shared.DefaultDeps())
-}
-
 func newWebRequestContextWith(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
 	return d.Timeout(shared.ContextWithoutTimeout(ctx))
 }
