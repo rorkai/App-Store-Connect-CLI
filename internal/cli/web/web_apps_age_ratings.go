@@ -17,12 +17,13 @@ func newWebAppsAgeRatingsCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "age-ratings",
 		ShortUsage: "asc web apps age-ratings <subcommand> [flags]",
-		ShortHelp:  "Read app age ratings via a web session.",
+		ShortHelp:  "Read and edit app age ratings via a web session.",
 		FlagSet:    d.NewFlagSet("web apps age-ratings", flag.ExitOnError),
 		UsageFunc:  d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newWebAgeRatingsReadCommand(d, "list", "app", "APP_ID", "List app info records and their age rating declarations.", (*webcore.Client).ListAppAgeRatings),
 			newWebAgeRatingsReadCommand(d, "territories", "app-info", "APP_INFO_ID", "List territory age ratings for an app info record.", (*webcore.Client).ListAppTerritoryAgeRatings),
+			newWebAgeRatingsEditCommand(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}

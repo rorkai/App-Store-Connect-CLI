@@ -2769,6 +2769,58 @@
         ]
       }
     },
+    "/iris/v1/ageRatingDeclarations/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "patch": {
+        "tags": [
+          "AgeRatingDeclarations"
+        ],
+        "operationId": "ageRatingDeclarations_updateInstance",
+        "description": "Updates the supplied age rating declaration attributes. A live single-field advertising update and its restoration both returned HTTP 200. Readback confirmed the requested value and preserved every other declaration attribute.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgeRatingDeclarationUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "Success. The verified partial update returned a JSON:API ageRatingDeclarations resource."
+          },
+          "default": {
+            "description": "Error. The client reads the status code and JSON:API error details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-16",
+          "live": "2026-11-16"
+        },
+        "x-asc-source": [
+          "Client.UpdateAgeRatingDeclaration"
+        ]
+      }
+    },
     "/iris/v1/apiKeys": {
       "get": {
         "tags": [
@@ -9739,6 +9791,230 @@
         },
         "additionalProperties": true,
         "title": "AgeRatingDeclaration"
+      },
+      "AgeRatingDeclarationUpdateRequest": {
+        "type": "object",
+        "title": "AgeRatingDeclarationUpdateRequest",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": [
+              "type",
+              "id",
+              "attributes"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ageRatingDeclarations"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "advertising": {
+                    "type": "boolean"
+                  },
+                  "ageAssurance": {
+                    "type": "boolean"
+                  },
+                  "gambling": {
+                    "type": "boolean"
+                  },
+                  "healthOrWellnessTopics": {
+                    "type": "boolean"
+                  },
+                  "lootBox": {
+                    "type": "boolean"
+                  },
+                  "messagingAndChat": {
+                    "type": "boolean"
+                  },
+                  "parentalControls": {
+                    "type": "boolean"
+                  },
+                  "socialMedia": {
+                    "type": "boolean"
+                  },
+                  "socialMediaAgeRestricted": {
+                    "type": "boolean"
+                  },
+                  "unrestrictedWebAccess": {
+                    "type": "boolean"
+                  },
+                  "userGeneratedContent": {
+                    "type": "boolean"
+                  },
+                  "ageRatingOverrideV2": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "NINE_PLUS",
+                      "THIRTEEN_PLUS",
+                      "SIXTEEN_PLUS",
+                      "EIGHTEEN_PLUS",
+                      "UNRATED"
+                    ]
+                  },
+                  "alcoholTobaccoOrDrugUseOrReferences": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "contests": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "gamblingSimulated": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "gunsOrOtherWeapons": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "horrorOrFearThemes": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "matureOrSuggestiveThemes": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "medicalOrTreatmentInformation": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "profanityOrCrudeHumor": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "sexualContentGraphicAndNudity": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "sexualContentOrNudity": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "violenceCartoonOrFantasy": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "violenceRealistic": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "violenceRealisticProlongedGraphicOrSadistic": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "INFREQUENT_OR_MILD",
+                      "FREQUENT_OR_INTENSE",
+                      "INFREQUENT",
+                      "FREQUENT"
+                    ]
+                  },
+                  "kidsAgeBand": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "FIVE_AND_UNDER",
+                      "SIX_TO_EIGHT",
+                      "NINE_TO_ELEVEN",
+                      null
+                    ]
+                  },
+                  "developerAgeRatingInfoUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "nullable": true
+                  }
+                },
+                "additionalProperties": false,
+                "minProperties": 1
+              }
+            }
+          }
+        }
       },
       "AgreementTermAcceptanceCreateRequest": {
         "type": "object",
