@@ -51,7 +51,7 @@ func executeSigningReconcilePlan(ctx context.Context, d *shared.Deps, options si
 
 	plan := signingReconcilePlanArtifact{
 		SchemaVersion:       signingReconcileSchemaV1,
-		GeneratedAt:         nowRFC3339(),
+		GeneratedAt:         nowRFC3339(d.Now),
 		Command:             "signing reconcile plan",
 		Ready:               true,
 		TeamID:              archive.TeamID,
@@ -75,7 +75,7 @@ func executeSigningReconcilePlan(ctx context.Context, d *shared.Deps, options si
 	if err != nil {
 		return signingReconcilePlanArtifact{}, fmt.Errorf("list certificates: %w", err)
 	}
-	selectedCertificate, certBlockers := selectReconcileCertificateWithFingerprint(certificates, options.CertificateID, options.CertificateSHA256, time.Now(), options.MinimumValidityDays)
+	selectedCertificate, certBlockers := selectReconcileCertificateWithFingerprint(certificates, options.CertificateID, options.CertificateSHA256, d.Now(), options.MinimumValidityDays)
 	plan.Certificate = selectedCertificate
 	plan.Blockers = append(plan.Blockers, certBlockers...)
 	if selectedCertificate != nil && selectedCertificate.TeamID != archive.TeamID {
@@ -83,7 +83,7 @@ func executeSigningReconcilePlan(ctx context.Context, d *shared.Deps, options si
 	}
 
 	for _, target := range plan.Targets {
-		observed, actions, blockers, err := planSigningTarget(requestCtx, client, target, plan.Devices, selectedCertificate, options.MinimumValidityDays)
+		observed, actions, blockers, err := planSigningTarget(requestCtx, d.Now, client, target, plan.Devices, selectedCertificate, options.MinimumValidityDays)
 		if err != nil {
 			return signingReconcilePlanArtifact{}, fmt.Errorf("bundle %s: %w", target.BundleID, err)
 		}
@@ -260,7 +260,7 @@ func selectReconcileCertificateWithFingerprint(certificates []asc.Resource[asc.C
 		}
 		var matches []*signingCertificateRef
 		for _, certificate := range eligible {
-			candidate, err := certificatePlanRef(certificate)
+			candidate, err := certificatePlanRef(certificate, now)
 			if err != nil {
 				continue
 			}
@@ -287,7 +287,7 @@ func selectReconcileCertificateWithFingerprint(certificates []asc.Resource[asc.C
 	if explicitID != "" {
 		for _, certificate := range eligible {
 			if certificate.ID == explicitID {
-				selected, err := certificatePlanRef(certificate)
+				selected, err := certificatePlanRef(certificate, now)
 				if err != nil {
 					return nil, []string{fmt.Sprintf("certificate %s content is missing or invalid: %v", explicitID, err)}
 				}
@@ -307,14 +307,14 @@ func selectReconcileCertificateWithFingerprint(certificates []asc.Resource[asc.C
 			Candidates:  signingCertificateCandidates(eligible),
 		}).Error()}
 	}
-	selected, err := certificatePlanRef(eligible[0])
+	selected, err := certificatePlanRef(eligible[0], now)
 	if err != nil {
 		return nil, []string{fmt.Sprintf("certificate %s content is missing or invalid: %v", eligible[0].ID, err)}
 	}
 	return selected, nil
 }
 
-func certificatePlanRef(certificate asc.Resource[asc.CertificateAttributes]) (*signingCertificateRef, error) {
+func certificatePlanRef(certificate asc.Resource[asc.CertificateAttributes], now time.Time) (*signingCertificateRef, error) {
 	der, err := base64.StdEncoding.DecodeString(strings.TrimSpace(certificate.Attributes.CertificateContent))
 	if err != nil || len(der) == 0 {
 		return nil, fmt.Errorf("decode certificateContent")
@@ -324,7 +324,7 @@ func certificatePlanRef(certificate asc.Resource[asc.CertificateAttributes]) (*s
 		return nil, fmt.Errorf("parse certificateContent DER: %w", err)
 	}
 	apiExpiration, err := time.Parse(time.RFC3339, strings.TrimSpace(certificate.Attributes.ExpirationDate))
-	if err != nil || !parsed.NotAfter.After(time.Now()) || parsed.NotAfter.UTC().Truncate(time.Second) != apiExpiration.UTC().Truncate(time.Second) {
+	if err != nil || !parsed.NotAfter.After(now) || parsed.NotAfter.UTC().Truncate(time.Second) != apiExpiration.UTC().Truncate(time.Second) {
 		return nil, fmt.Errorf("certificateContent validity differs from API expiration")
 	}
 	digest := sha256.Sum256(parsed.Raw)
@@ -340,7 +340,7 @@ func certificatePlanRef(certificate asc.Resource[asc.CertificateAttributes]) (*s
 	}, nil
 }
 
-func planSigningTarget(ctx context.Context, client *asc.Client, target signingTarget, devices []signingDesiredDevice, certificate *signingCertificateRef, minimumValidityDays int) (signingObservedBundle, []signingAction, []string, error) {
+func planSigningTarget(ctx context.Context, clock func() time.Time, client *asc.Client, target signingTarget, devices []signingDesiredDevice, certificate *signingCertificateRef, minimumValidityDays int) (signingObservedBundle, []signingAction, []string, error) {
 	observed := signingObservedBundle{BundleID: target.BundleID}
 	bundle, err := findExactReconcileBundleID(ctx, client, target.BundleID)
 	if err != nil {
@@ -396,7 +396,7 @@ func planSigningTarget(ctx context.Context, client *asc.Client, target signingTa
 	}
 	var selected *profileCandidate
 	if bundle != nil {
-		candidates, err := getProfileCandidates(ctx, client, *bundle, target, devices, *certificate, minimumValidityDays)
+		candidates, err := getProfileCandidates(ctx, clock, client, *bundle, target, devices, *certificate, minimumValidityDays)
 		if err != nil {
 			return observed, nil, nil, err
 		}
@@ -512,13 +512,13 @@ type profileCandidate struct {
 	Suitable       bool
 }
 
-func getProfileCandidates(ctx context.Context, client *asc.Client, bundle asc.Resource[asc.BundleIDAttributes], target signingTarget, desired []signingDesiredDevice, certificate signingCertificateRef, minimumValidityDays int) ([]profileCandidate, error) {
+func getProfileCandidates(ctx context.Context, clock func() time.Time, client *asc.Client, bundle asc.Resource[asc.BundleIDAttributes], target signingTarget, desired []signingDesiredDevice, certificate signingCertificateRef, minimumValidityDays int) ([]profileCandidate, error) {
 	profiles, err := getAllBundleProfiles(ctx, client, bundle.ID)
 	if err != nil {
 		return nil, err
 	}
 	desiredIDs := resolvedDeviceIDs(desired)
-	minimumExpiration := time.Now().Add(time.Duration(minimumValidityDays) * 24 * time.Hour)
+	minimumExpiration := clock().Add(time.Duration(minimumValidityDays) * 24 * time.Hour)
 	var candidates []profileCandidate
 	for _, profile := range profiles {
 		if profile.Attributes.ProfileType != reconcileProfileType || profile.Attributes.ProfileState != asc.ProfileStateActive {

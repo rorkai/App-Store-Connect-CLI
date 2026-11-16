@@ -83,8 +83,8 @@ type AppBasePriceStatus struct {
 // bounds each request with shared.ContextWithTimeout. A schedule that App
 // Store Connect reports as never configured returns Configured=false without
 // an error; every other request or decoding failure is returned so callers can
-// treat the price as unverified.
-func FetchAppBasePriceStatus(ctx context.Context, client *asc.Client, scheduleID string, run AppPriceRequestRunner) (AppBasePriceStatus, error) {
+// treat the price as unverified. now decides today's pricing date.
+func FetchAppBasePriceStatus(ctx context.Context, client *asc.Client, scheduleID string, run AppPriceRequestRunner, now func() time.Time) (AppBasePriceStatus, error) {
 	scheduleID = strings.TrimSpace(scheduleID)
 	if client == nil || scheduleID == "" {
 		return AppBasePriceStatus{}, fmt.Errorf("app price schedule ID is required")
@@ -128,7 +128,7 @@ func FetchAppBasePriceStatus(ctx context.Context, client *asc.Client, scheduleID
 	status := AppBasePriceStatus{
 		Configured:    true,
 		BaseTerritory: baseTerritory,
-		HasPrice:      hasCurrentOrScheduledPrice(entries, baseTerritory, shared.PricingNow()),
+		HasPrice:      hasCurrentOrScheduledPrice(entries, baseTerritory, now()),
 	}
 	if !status.HasPrice && len(entries) < rawPrices {
 		// Some manual prices could not be attributed to a territory, so the base

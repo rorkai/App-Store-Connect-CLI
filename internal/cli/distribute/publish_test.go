@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/distribution"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
@@ -26,7 +27,7 @@ func TestPublishCommandRequiresFlagsBeforeSideEffects(t *testing.T) {
 		return nil, nil
 	}
 
-	command := PublishCommand()
+	command := newPublishCommand(newDistributeTestDeps())
 	if err := command.ParseAndRun(context.Background(), []string{"--endpoint", "https://objects.example.com"}); err == nil {
 		t.Fatal("expected required flag error")
 	}
@@ -41,7 +42,7 @@ func TestPublicationVerifierUsesUploadTimeoutForIPA(t *testing.T) {
 	t.Setenv("ASC_UPLOAD_TIMEOUT_SECONDS", "")
 
 	recorder := &deadlineRecordingVerifier{}
-	verifier := publicationVerifier{delegate: recorder, documentTimeout: 30 * time.Second}
+	verifier := publicationVerifier{delegate: recorder, documentTimeout: 30 * time.Second, uploadTimeout: shared.ContextWithUploadTimeout}
 
 	if err := verifier.Verify(context.Background(), distribution.VerifyRequest{Kind: distribution.VerifyIPA}); err != nil {
 		t.Fatal(err)
@@ -71,7 +72,7 @@ func TestPublishCommandValidatesOutputBeforeLocalOrRemoteSideEffects(t *testing.
 		return noOpStore{}, time.Time{}, nil
 	}
 	stateDir := filepath.Join(t.TempDir(), "not-created")
-	err := PublishCommand().ParseAndRun(context.Background(), []string{
+	err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), []string{
 		"--bundle-dir", t.TempDir(), "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket", "--prefix", "app",
 		"--receipt", filepath.Join(stateDir, "receipt.json"), "--link-path", filepath.Join(stateDir, "link.json"), "--output", "bogus",
 	})
@@ -95,7 +96,7 @@ func TestPublishCommandRejectsUnsafeBucketBeforeSideEffects(t *testing.T) {
 		return nil, errors.New("unexpected bundle load")
 	}
 	stateDir := t.TempDir()
-	err := PublishCommand().ParseAndRun(context.Background(), []string{
+	err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), []string{
 		"--bundle-dir", t.TempDir(), "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket\x1b]0;pwned\x07", "--prefix", "app",
 		"--receipt", filepath.Join(stateDir, "receipt.json"), "--link-path", filepath.Join(stateDir, "link.json"),
 	})
@@ -132,7 +133,7 @@ func TestPublishCommandRejectsPhysicalArtifactAliasBeforeSideEffects(t *testing.
 		}
 	}
 	destination := "publish.json"
-	err := PublishCommand().ParseAndRun(context.Background(), []string{
+	err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), []string{
 		"--bundle-dir", t.TempDir(), "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket", "--prefix", "app",
 		"--receipt", filepath.Join(base, "left", "state", destination), "--link-path", filepath.Join(base, "right", "state", destination),
 	})
@@ -170,7 +171,7 @@ func TestPublishCommandRejectsOverflowingLifetimeBeforeSideEffects(t *testing.T)
 	base := t.TempDir()
 	bundleDir := filepath.Join(base, "missing-bundle")
 	stateDir := filepath.Join(base, "missing-state")
-	err := PublishCommand().ParseAndRun(context.Background(), []string{
+	err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), []string{
 		"--bundle-dir", bundleDir, "--endpoint", "https://objects.example.com", "--region", "auto",
 		"--bucket", "bucket", "--prefix", "app", "--receipt", filepath.Join(stateDir, "receipt.json"),
 		"--link-path", filepath.Join(stateDir, "link.json"), "--url-ttl", "2562047h", "--download-grace", "100h",
@@ -207,7 +208,7 @@ func TestPublishCommandAcceptsExactlySevenDayPrivateLifetime(t *testing.T) {
 	}
 	bundleDir := t.TempDir()
 	stateDir := t.TempDir()
-	err := PublishCommand().ParseAndRun(context.Background(), []string{
+	err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), []string{
 		"--bundle-dir", bundleDir, "--endpoint", "https://objects.example.com", "--region", "auto",
 		"--bucket", "bucket", "--prefix", "app", "--receipt", filepath.Join(stateDir, "receipt.json"),
 		"--link-path", filepath.Join(stateDir, "link.json"), "--url-ttl", "167h", "--download-grace", "1h",
@@ -275,7 +276,7 @@ func TestPublishCommandWritesSensitiveLink0600AndRedactedReceipt(t *testing.T) {
 	stateDir := t.TempDir()
 	receiptPath := filepath.Join(stateDir, "receipt.json")
 	linkPath := filepath.Join(stateDir, "link.json")
-	command := PublishCommand()
+	command := newPublishCommand(newDistributeTestDeps())
 	err := command.ParseAndRun(context.Background(), []string{
 		"--bundle-dir", dir, "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket", "--prefix", "app",
 		"--receipt", receiptPath, "--link-path", linkPath, "--output", "json",
@@ -304,7 +305,7 @@ func TestPublishCommandWritesSensitiveLink0600AndRedactedReceipt(t *testing.T) {
 	if strings.Contains(string(receipt), "Signature=secret") || !strings.Contains(string(receipt), "REDACTED") {
 		t.Fatalf("receipt leaked exact URL: %s", receipt)
 	}
-	if err := PublishCommand().ParseAndRun(context.Background(), []string{
+	if err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), []string{
 		"--bundle-dir", dir, "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket", "--prefix", "app",
 		"--receipt", receiptPath, "--link-path", linkPath, "--output", "json",
 	}); err != nil {
@@ -323,7 +324,7 @@ func TestPublishCommandWritesSensitiveLink0600AndRedactedReceipt(t *testing.T) {
 			"--receipt", receiptPath, "--link-path", linkPath, "--output", "json",
 		}
 		arguments = append(arguments, changed...)
-		if err := PublishCommand().ParseAndRun(context.Background(), arguments); err == nil || !strings.Contains(err.Error(), "conflicts") {
+		if err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), arguments); err == nil || !strings.Contains(err.Error(), "conflicts") {
 			t.Fatalf("changed recovery option %v error = %v, want conflict", changed, err)
 		}
 	}
@@ -339,7 +340,7 @@ func TestPublishCommandWritesSensitiveLink0600AndRedactedReceipt(t *testing.T) {
 	if err := os.WriteFile(linkPath, tamperedData, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := PublishCommand().ParseAndRun(context.Background(), []string{
+	if err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), []string{
 		"--bundle-dir", dir, "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket", "--prefix", "app",
 		"--receipt", receiptPath, "--link-path", linkPath, "--output", "json",
 	}); err == nil || !strings.Contains(err.Error(), "prepared bundle") {
@@ -365,7 +366,7 @@ func TestPublishCommandPreflightsArtifactCollisionBeforeObjectStore(t *testing.T
 		storeCalled = true
 		return noOpStore{}, time.Time{}, nil
 	}
-	err := PublishCommand().ParseAndRun(context.Background(), []string{
+	err := newPublishCommand(newDistributeTestDeps()).ParseAndRun(context.Background(), []string{
 		"--bundle-dir", dir, "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket", "--prefix", "app",
 		"--receipt", receiptPath, "--link-path", filepath.Join(stateDir, "link.json"),
 	})
