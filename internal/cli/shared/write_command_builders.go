@@ -40,8 +40,7 @@ type WriteCommandConfig struct {
 	// Fields are the request's flags, checked in this order after the ID.
 	Fields []AttributeFlag
 
-	// Deps supplies the client, streams and timeout. It defaults to
-	// DefaultDeps().
+	// Deps supplies the client, streams and timeout.
 	Deps *Deps
 
 	// Send makes the request for the ID flag's value once every field has
@@ -112,7 +111,7 @@ func BuildUpdateCommand(config WriteCommandConfig) *ffcli.Command {
 }
 
 func buildWriteCommand(config WriteCommandConfig, verb string) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	fs := d.NewFlagSet(builderDefault(config.FlagSetName, config.Name), flag.ExitOnError)
 
 	idFlagName := builderDefault(config.IDFlag, "id")

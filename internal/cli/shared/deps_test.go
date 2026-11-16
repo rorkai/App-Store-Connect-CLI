@@ -230,10 +230,11 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		}
 		return cmd.Exec(context.Background(), nil)
 	}
-	pricingSet := PricingSetCommandConfig{FlagSetName: "pricing set", CommandName: "set", ErrorPrefix: "pricing set"}
-	availabilitySet := AvailabilitySetCommandConfig{FlagSetName: "pricing availability edit", CommandName: "edit", ErrorPrefix: "pricing availability edit"}
+	pricingSet := PricingSetCommandConfig{FlagSetName: "pricing set", CommandName: "set", ErrorPrefix: "pricing set", Deps: DefaultDeps()}
+	availabilitySet := AvailabilitySetCommandConfig{FlagSetName: "pricing availability edit", CommandName: "edit", ErrorPrefix: "pricing availability edit", Deps: DefaultDeps()}
 	t.Setenv("ASC_APP_ID", "")
 	ppp := PriceSchedulePPPCommandConfig{
+		Deps:        DefaultDeps(),
 		FlagSetName: "pricing ppp",
 		ErrorPrefix: "pricing ppp",
 		BindResource: func(*flag.FlagSet) PriceSchedulePPPResource {
@@ -732,7 +733,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "NewAvailabilityRemoveFromSaleCommand",
 			process: func() (any, error) {
-				return nil, runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{}), "--app", "app-1")
+				return nil, runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{Deps: DefaultDeps()}), "--app", "app-1")
 			},
 			deps: func(d *Deps) (any, error) {
 				return nil, runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{Deps: d}), "--app", "app-1")
@@ -1040,8 +1041,7 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		return nil, errors.New("unexpected next page")
 	}
 	t.Cleanup(SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, nil }))
-	// paginatedList runs a builder list command with --paginate; with nil
-	// deps the builder uses DefaultDeps, the process streams.
+	// paginatedList runs a builder list command with --paginate on d.
 	paginatedList := func(d *Deps) error {
 		cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
 			Name:       "list",
@@ -1154,7 +1154,7 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		{
 			name:    "BuildPaginatedListCommand with --paginate",
 			spinner: true,
-			process: func() (any, error) { return nil, paginatedList(nil) },
+			process: func() (any, error) { return nil, paginatedList(DefaultDeps()) },
 			deps:    func(d *Deps) (any, error) { return nil, paginatedList(d) },
 		},
 	}
@@ -1372,7 +1372,7 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 				{
 					"AvailabilityTimeout for all territories",
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
-						return ContextWithAvailabilityTimeout(ctx, true)
+						return ContextWithResolvedTimeout(ctx, bulkAvailabilityTimeout)
 					},
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
 						return d.AvailabilityTimeout(ctx, true)
@@ -1382,7 +1382,7 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 				{
 					"AvailabilityTimeout for some territories",
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
-						return ContextWithAvailabilityTimeout(ctx, false)
+						return ContextWithTimeout(ctx)
 					},
 					func(ctx context.Context) (context.Context, context.CancelFunc) {
 						return d.AvailabilityTimeout(ctx, false)

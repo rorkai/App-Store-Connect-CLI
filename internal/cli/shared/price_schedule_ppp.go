@@ -87,14 +87,14 @@ type PriceSchedulePPPCommandConfig struct {
 	Examples     string
 	ErrorPrefix  string
 	BindResource func(fs *flag.FlagSet) PriceSchedulePPPResource
-	// Deps supplies the streams. It defaults to DefaultDeps().
+	// Deps supplies the streams.
 	Deps *Deps
 }
 
 // NewPriceSchedulePPPCommand builds a purchasing-power-parity command for
 // resources priced with price schedules.
 func NewPriceSchedulePPPCommand(config PriceSchedulePPPCommandConfig) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	resource := config.BindResource(fs)

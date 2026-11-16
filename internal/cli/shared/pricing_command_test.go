@@ -18,6 +18,7 @@ func TestRequiresExplicitBaseTerritory(t *testing.T) {
 		{
 			name: "schedule create free without base territory still requires explicit territory",
 			config: PricingSetCommandConfig{
+				Deps:                 DefaultDeps(),
 				RequireBaseTerritory: true,
 			},
 			free: true,
@@ -26,6 +27,7 @@ func TestRequiresExplicitBaseTerritory(t *testing.T) {
 		{
 			name: "app setup free without base territory reuses existing schedule territory",
 			config: PricingSetCommandConfig{
+				Deps:                 DefaultDeps(),
 				ResolveBaseTerritory: true,
 			},
 			free: true,
@@ -34,6 +36,7 @@ func TestRequiresExplicitBaseTerritory(t *testing.T) {
 		{
 			name: "app setup explicit base territory never requires another one",
 			config: PricingSetCommandConfig{
+				Deps:                 DefaultDeps(),
 				ResolveBaseTerritory: true,
 			},
 			baseTerritory: "USA",
@@ -43,6 +46,7 @@ func TestRequiresExplicitBaseTerritory(t *testing.T) {
 		{
 			name: "app setup direct price point can omit base territory",
 			config: PricingSetCommandConfig{
+				Deps:                 DefaultDeps(),
 				ResolveBaseTerritory: true,
 			},
 			want: false,
@@ -50,6 +54,7 @@ func TestRequiresExplicitBaseTerritory(t *testing.T) {
 		{
 			name: "tier-based pricing still requires base territory for resolution",
 			config: PricingSetCommandConfig{
+				Deps:                 DefaultDeps(),
 				ResolveBaseTerritory: true,
 			},
 			tier: 1,

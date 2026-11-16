@@ -32,6 +32,7 @@ func (r *testPaginatedResponse) GetData() any {
 
 func TestBuildIDGetCommand_MissingIDReturnsUsageError(t *testing.T) {
 	cmd := BuildIDGetCommand(IDGetCommandConfig{
+		Deps:        DefaultDeps(),
 		FlagSetName: "test-id-get",
 		Name:        "get",
 		ShortUsage:  "test get",
@@ -58,6 +59,7 @@ func TestBuildIDGetCommand_MissingIDReturnsUsageError(t *testing.T) {
 
 func TestBuildPaginatedListCommand_MissingParentIDReturnsUsageError(t *testing.T) {
 	cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+		Deps:        DefaultDeps(),
 		FlagSetName: "test-list",
 		Name:        "list",
 		ShortUsage:  "test list",
@@ -87,6 +89,7 @@ func TestBuildPaginatedListCommand_MissingParentIDReturnsUsageError(t *testing.T
 
 func TestBuildPaginatedListCommand_InvalidLimitReturnsUsageError(t *testing.T) {
 	cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+		Deps:        DefaultDeps(),
 		FlagSetName: "test-list",
 		Name:        "list",
 		ShortUsage:  "test list",
@@ -121,6 +124,7 @@ func TestBuildPaginatedListCommand_InvalidLimitReturnsUsageError(t *testing.T) {
 
 func TestBuildPaginatedListCommand_InvalidNextURLReturnsUsageError(t *testing.T) {
 	cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+		Deps:        DefaultDeps(),
 		FlagSetName: "test-list",
 		Name:        "list",
 		ShortUsage:  "test list",
@@ -154,6 +158,7 @@ func TestBuildPaginatedListCommand_InvalidNextURLReturnsUsageError(t *testing.T)
 
 func TestBuildPricePointEqualizationsCommand_UsesSharedHelpTemplate(t *testing.T) {
 	cmd := BuildPricePointEqualizationsCommand(PricePointEqualizationsCommandConfig{
+		Deps:        DefaultDeps(),
 		FlagSetName: "pricing price-points equalizations",
 		Name:        "equalizations",
 		ShortUsage:  "asc pricing price-points equalizations --price-point PRICE_POINT_ID",
@@ -185,6 +190,7 @@ func TestBuildPricePointEqualizationsCommand_UsesSharedHelpTemplate(t *testing.T
 
 func TestBuildConfirmDeleteCommand_MissingConfirmReturnsUsageError(t *testing.T) {
 	cmd := BuildConfirmDeleteCommand(ConfirmDeleteCommandConfig{
+		Deps:        DefaultDeps(),
 		FlagSetName: "test-delete",
 		Name:        "delete",
 		ShortUsage:  "test delete",
@@ -230,6 +236,7 @@ func TestBuildPaginatedListCommand_PaginateUsesRequestedLimitForFirstPage(t *tes
 	)
 
 	cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+		Deps:        DefaultDeps(),
 		FlagSetName: "test-list",
 		Name:        "list",
 		ShortUsage:  "test list",

@@ -51,15 +51,15 @@ type VersionLocalizationImportConfig struct {
 	ExampleValues string
 	NewClient     func() (*asc.Client, error)
 	Ops           func(*asc.Client) VersionLocalizationImportOps
-	// Deps supplies the streams, the request timeout and the output. It
-	// defaults to DefaultDeps(). The client comes from NewClient.
+	// Deps supplies the streams, the request timeout and the output. The
+	// client comes from NewClient.
 	Deps *Deps
 }
 
 // NewVersionLocalizationImportCommand builds a command that creates missing
 // locales and updates changed ones for a version from one JSON file.
 func NewVersionLocalizationImportCommand(config VersionLocalizationImportConfig) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	fs := d.NewFlagSet(config.CommandPath, flag.ExitOnError)
 	versionID := BindResourceIDFlag(fs, "version-id", config.VersionResourceType, config.VersionFlagUsage)
 	filePath := fs.String("file", "", "Path to a JSON file mapping locales to fields (required)")
