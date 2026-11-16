@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/bitrise-io/go-pkcs12"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-var signingResignPlatformDepsFn = platformSigningRunDeps
+var signingResignPlatformDepsFn = func() signingRunDeps { return platformSigningRunDeps(shared.DefaultDeps()) }
 
 // runSigningResignEnvironment performs the narrow keychain portion of an IPA
 // re-signing run. It intentionally does not install provisioning profiles in

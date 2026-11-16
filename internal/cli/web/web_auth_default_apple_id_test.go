@@ -41,7 +41,7 @@ func writeTestCachedWebSession(t *testing.T, dir, email string) {
 	}
 }
 
-func stubDefaultAppleIDResolverInputs(t *testing.T, cacheDir string) *bytes.Buffer {
+func stubDefaultAppleIDResolverInputs(t *testing.T, d *shared.Deps, cacheDir string) *bytes.Buffer {
 	t.Helper()
 	t.Setenv("ASC_WEB_SESSION_CACHE_BACKEND", "file")
 	t.Setenv("ASC_WEB_SESSION_CACHE_DIR", cacheDir)
@@ -51,20 +51,15 @@ func stubDefaultAppleIDResolverInputs(t *testing.T, cacheDir string) *bytes.Buff
 	origTryResumeFromSource := tryResumeSessionFromSourceFn
 	origTryResumeLast := tryResumeLastFn
 	origLoadCachedFromSource := loadCachedSessionFromSourceFn
-	origNoticeWriter := sessionDefaultNoticeWriter
-	origWarningWriter := sessionCacheWarningWriter
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeSessionFromSourceFn = origTryResumeFromSource
 		tryResumeLastFn = origTryResumeLast
 		loadCachedSessionFromSourceFn = origLoadCachedFromSource
-		sessionDefaultNoticeWriter = origNoticeWriter
-		sessionCacheWarningWriter = origWarningWriter
 	})
 
 	stderr := &bytes.Buffer{}
-	sessionDefaultNoticeWriter = stderr
-	sessionCacheWarningWriter = stderr
+	d.IO.ErrOut = stderr
 	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
 		return nil, false, nil
 	}
@@ -82,8 +77,9 @@ func stubDefaultAppleIDResolverInputs(t *testing.T, cacheDir string) *bytes.Buff
 }
 
 func TestResolveSessionDefaultsToSoleCachedAppleID(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "only@example.com")
 
 	var lookups []string
@@ -92,7 +88,7 @@ func TestResolveSessionDefaultsToSoleCachedAppleID(t *testing.T) {
 		return &webcore.AuthSession{UserEmail: username}, true, nil
 	}
 
-	session, source, err := resolveSession(context.Background(), "", "", "")
+	session, source, err := resolveSession(context.Background(), d, "", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
@@ -111,8 +107,9 @@ func TestResolveSessionDefaultsToSoleCachedAppleID(t *testing.T) {
 }
 
 func TestResolveSessionSanitizesSoleCachedAppleIDNotice(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "attacker@example.com\nINJECTED\x1b[31m\u202e")
 
 	var lookup string
@@ -121,7 +118,7 @@ func TestResolveSessionSanitizesSoleCachedAppleIDNotice(t *testing.T) {
 		return &webcore.AuthSession{UserEmail: username}, true, nil
 	}
 
-	if _, _, err := resolveSession(context.Background(), "", "", ""); err != nil {
+	if _, _, err := resolveSession(context.Background(), d, "", "", ""); err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
 	if got, want := lookup, "attacker@example.com\nINJECTED\x1b[31m\u202e"; got != want {
@@ -133,8 +130,9 @@ func TestResolveSessionSanitizesSoleCachedAppleIDNotice(t *testing.T) {
 }
 
 func TestResolveSessionSoleCachedAppleIDCanAutoReauthenticate(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "only@example.com")
 	t.Setenv(webPasswordEnv, "env-secret")
 
@@ -176,7 +174,7 @@ func TestResolveSessionSoleCachedAppleIDCanAutoReauthenticate(t *testing.T) {
 		return nil
 	}
 
-	session, source, err := resolveSession(context.Background(), "", "", "")
+	session, source, err := resolveSession(context.Background(), d, "", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
@@ -192,10 +190,11 @@ func TestResolveSessionSoleCachedAppleIDCanAutoReauthenticate(t *testing.T) {
 }
 
 func TestResolveSessionWithoutCachedSessionsReportsMissingWebSession(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 
-	_, _, err := resolveSession(context.Background(), "", "", "")
+	_, _, err := resolveSession(context.Background(), d, "", "", "")
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected the missing-session error without the usage page, got %v", err)
 	}
@@ -226,8 +225,9 @@ func TestResolveSessionWithoutCachedSessionsReportsMissingWebSession(t *testing.
 }
 
 func TestResolveSessionForUncachedAccountWithoutPasswordReportsMissingWebSession(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	_ = stubDefaultAppleIDResolverInputs(t, dir)
+	_ = stubDefaultAppleIDResolverInputs(t, d, dir)
 	t.Setenv("ASC_WEB_DONT_STORE_PASSWORD", "1")
 	tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
 		return nil, false, nil
@@ -236,7 +236,7 @@ func TestResolveSessionForUncachedAccountWithoutPasswordReportsMissingWebSession
 	t.Cleanup(func() { promptPasswordFn = origPromptPassword })
 	promptPasswordFn = func(context.Context) (string, error) { return "", nil }
 
-	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	_, _, err := resolveSession(context.Background(), d, "user@example.com", "", "")
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected the missing-session error without the usage page, got %v", err)
 	}
@@ -252,8 +252,9 @@ func TestResolveSessionForUncachedAccountWithoutPasswordReportsMissingWebSession
 // to create the session: `asc web auth login` still treats a missing account or
 // password as a usage error.
 func TestResolveSessionForSignInKeepsUsageErrors(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	_ = stubDefaultAppleIDResolverInputs(t, dir)
+	_ = stubDefaultAppleIDResolverInputs(t, d, dir)
 	t.Setenv("ASC_WEB_DONT_STORE_PASSWORD", "1")
 	tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
 		return nil, false, nil
@@ -273,8 +274,8 @@ func TestResolveSessionForSignInKeepsUsageErrors(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var err error
-			captureOutput(t, func() {
-				_, _, err = resolveSession(signInCtx, tc.appleID, "", "")
+			_, stderr := captureWebTestDeps(d, func() {
+				_, _, err = resolveSession(signInCtx, d, tc.appleID, "", "")
 			})
 			if !errors.Is(err, flag.ErrHelp) || errors.Is(err, shared.ErrMissingWebSession) {
 				t.Fatalf("expected the sign-in usage error, got %v", err)
@@ -282,16 +283,20 @@ func TestResolveSessionForSignInKeepsUsageErrors(t *testing.T) {
 			if got := err.Error(); got != tc.want {
 				t.Fatalf("error = %q, want %q", got, tc.want)
 			}
+			if want := "Error: " + tc.want + "\n"; stderr != want {
+				t.Fatalf("stderr = %q, want %q", stderr, want)
+			}
 		})
 	}
 }
 
 func TestResolveSessionNamesPublicAPIAlternative(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	_ = stubDefaultAppleIDResolverInputs(t, dir)
+	_ = stubDefaultAppleIDResolverInputs(t, d, dir)
 
 	ctx := contextWithPublicAPIAlternative(context.Background(), "Without a web session, use the public API.")
-	_, _, err := resolveSession(ctx, "", "", "")
+	_, _, err := resolveSession(ctx, d, "", "", "")
 	missing, ok := errors.AsType[*shared.MissingWebSessionError](err)
 	if !ok {
 		t.Fatalf("expected *shared.MissingWebSessionError, got %v", err)
@@ -302,12 +307,13 @@ func TestResolveSessionNamesPublicAPIAlternative(t *testing.T) {
 }
 
 func TestResolveSessionWithMultipleCachedSessionsListsAppleIDs(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "zed@example.com")
 	writeTestCachedWebSession(t, dir, "amy@example.com")
 
-	_, _, err := resolveSession(context.Background(), "", "", "")
+	_, _, err := resolveSession(context.Background(), d, "", "", "")
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected usage error, got %v", err)
 	}
@@ -318,14 +324,16 @@ func TestResolveSessionWithMultipleCachedSessionsListsAppleIDs(t *testing.T) {
 	if !ok || diagnostic.Code != shared.DiagnosticRequiredInputMissing || diagnostic.Parameter != "--apple-id" {
 		t.Fatalf("diagnostic = %+v (found=%v), want required_input_missing --apple-id", diagnostic, ok)
 	}
-	if stderr.Len() != 0 {
-		t.Fatalf("stderr = %q, want empty", stderr.String())
+	// The usage error is the only line: no cached-session notice.
+	if got, want := stderr.String(), "Error: --apple-id is required: multiple cached web sessions are available (amy@example.com, zed@example.com); pass --apple-id to choose one\n"; got != want {
+		t.Fatalf("stderr = %q, want %q", got, want)
 	}
 }
 
 func TestResolveSessionExplicitAppleIDSkipsCachedDefault(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "zed@example.com")
 	writeTestCachedWebSession(t, dir, "amy@example.com")
 
@@ -339,7 +347,7 @@ func TestResolveSessionExplicitAppleIDSkipsCachedDefault(t *testing.T) {
 		return &webcore.AuthSession{UserEmail: username}, true, nil
 	}
 
-	session, _, err := resolveSession(context.Background(), " flag@example.com ", "", "")
+	session, _, err := resolveSession(context.Background(), d, " flag@example.com ", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
@@ -355,15 +363,16 @@ func TestResolveSessionExplicitAppleIDSkipsCachedDefault(t *testing.T) {
 }
 
 func TestResolveSessionPrefersLastCachedSessionOverSoleDefault(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "only@example.com")
 
 	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
 		return &webcore.AuthSession{UserEmail: "last@example.com"}, true, nil
 	}
 
-	session, _, err := resolveSession(context.Background(), "", "", "")
+	session, _, err := resolveSession(context.Background(), d, "", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
@@ -376,8 +385,9 @@ func TestResolveSessionPrefersLastCachedSessionOverSoleDefault(t *testing.T) {
 }
 
 func TestResolveSessionDefaultLookupFailureFallsBackToMissingWebSession(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 
 	origDefault := defaultCachedAppleIDFn
 	t.Cleanup(func() { defaultCachedAppleIDFn = origDefault })
@@ -385,7 +395,7 @@ func TestResolveSessionDefaultLookupFailureFallsBackToMissingWebSession(t *testi
 		return "", webcore.CachedSessionSourceUnknown, errors.New("boom")
 	}
 
-	_, _, err := resolveSession(context.Background(), "", "", "")
+	_, _, err := resolveSession(context.Background(), d, "", "", "")
 	missing, ok := errors.AsType[*shared.MissingWebSessionError](err)
 	if !ok {
 		t.Fatalf("expected the missing-session error, got %v", err)
@@ -399,8 +409,9 @@ func TestResolveSessionDefaultLookupFailureFallsBackToMissingWebSession(t *testi
 }
 
 func TestResolveWebSessionEmptyCachePromptsWithoutPrintingUsageError(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stubDefaultAppleIDResolverInputs(t, dir)
+	stubDefaultAppleIDResolverInputs(t, d, dir)
 
 	var prompted bool
 	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
@@ -416,7 +427,7 @@ func TestResolveWebSessionEmptyCachePromptsWithoutPrintingUsageError(t *testing.
 		err     error
 	)
 	_, stderr := captureOutput(t, func() {
-		session, source, err = resolveWebSession(context.Background(), "", "", "", webSessionResolveOptions{
+		session, source, err = resolveWebSessionWith(context.Background(), d, "", "", "", webSessionResolveOptions{
 			promptAppleID: func(appleID *string) error {
 				prompted = true
 				*appleID = "prompted@example.com"
@@ -440,15 +451,16 @@ func TestResolveWebSessionEmptyCachePromptsWithoutPrintingUsageError(t *testing.
 }
 
 func TestResolveWebSessionEmptyCacheNonInteractiveReportsMissingWebSessionWithoutPrinting(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stubDefaultAppleIDResolverInputs(t, dir)
+	stubDefaultAppleIDResolverInputs(t, d, dir)
 	originalCanPrompt := appCreateCanPromptInteractivelyFn
 	appCreateCanPromptInteractivelyFn = func() bool { return false }
 	t.Cleanup(func() { appCreateCanPromptInteractivelyFn = originalCanPrompt })
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		_, _, err = resolveWebSession(context.Background(), "", "", "", webSessionResolveOptions{
+		_, _, err = resolveWebSessionWith(context.Background(), d, "", "", "", webSessionResolveOptions{
 			promptAppleID:   promptAppsCreateSessionAppleID,
 			resolvePassword: resolveSessionPassword,
 		})
@@ -463,8 +475,9 @@ func TestResolveWebSessionEmptyCacheNonInteractiveReportsMissingWebSessionWithou
 }
 
 func TestResolveWebSessionForCommandSessionFromEnvSkipsCachedDefault(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stubDefaultAppleIDResolverInputs(t, dir)
+	stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "only@example.com")
 	t.Setenv(webSessionBundleEnvName, "")
 
@@ -495,22 +508,21 @@ func TestResolveWebSessionForCommandSessionFromEnvSkipsCachedDefault(t *testing.
 func TestWrapWebAuthCapabilitiesSessionErrorPreservesAppleIDUsageErrors(t *testing.T) {
 	for _, tc := range []struct {
 		name string
-		make func() error
+		make func(*shared.Deps) error
 	}{
 		{name: "no cached session", make: missingAppleIDUsageError},
 		{
 			name: "ambiguous cache",
-			make: func() error {
-				return ambiguousAppleIDUsageError([]string{"amy@example.com", "zed@example.com"})
+			make: func(d *shared.Deps) error {
+				return ambiguousAppleIDUsageError(d, []string{"amy@example.com", "zed@example.com"})
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var err, wrapped error
-			captureOutput(t, func() {
-				err = tc.make()
-				wrapped = wrapWebAuthCapabilitiesSessionError(err)
-			})
+			d, _, _ := newWebTestDeps()
+			err = tc.make(d)
+			wrapped = wrapWebAuthCapabilitiesSessionError(err)
 			if got, want := wrapped.Error(), err.Error(); got != want {
 				t.Fatalf("wrapped error = %q, want the original guidance %q", got, want)
 			}

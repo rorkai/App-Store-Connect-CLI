@@ -51,48 +51,45 @@ func webPasswordEnvAssignmentExample() string {
 }
 
 var (
-	openTTYFn                                = openTTY
-	promptTwoFactorCodeFn                    = promptTwoFactorCodeInteractive
-	twoFactorPromptAvailableFn               = terminalPromptAvailable
-	promptPasswordFn                         = promptPasswordInteractive
-	readTwoFactorCodeFromCommandFn           = readTwoFactorCodeFromCommand
-	webLoginFn                               = webcore.Login
-	prepareTwoFactorChallengeFn              = webcore.PrepareTwoFactorChallenge
-	ensureTwoFactorCodeRequestedFn           = webcore.EnsureTwoFactorCodeRequested
-	persistWebSessionFn                      = webcore.PersistSession
-	submitTwoFactorCodeFn                    = webcore.SubmitTwoFactorCode
-	submitSecurityKeyFn                      = webcore.SubmitSecurityKey
-	checkSecurityKeyFn                       = securitykey.Check
-	securityKeyAvailableFn                   = securitykey.Available
-	errSecurityKeyPreflight                  = errors.New("security-key preflight failed")
-	signalProcessInterruptFn                 = signalProcessInterrupt
-	termReadPasswordFn                       = term.ReadPassword
-	termIsTerminalFn                         = term.IsTerminal
-	tryResumeSessionFn                       = webcore.TryResumeSession
-	tryResumeSessionFromSourceFn             = webcore.TryResumeSessionFromSource
-	tryResumeLastFn                          = webcore.TryResumeLastSession
-	loadCachedSessionFn                      = webcore.LoadCachedSession
-	loadCachedSessionFromSourceFn            = webcore.LoadCachedSessionFromSource
-	loadLastCachedSessionFn                  = webcore.LoadLastCachedSession
-	defaultCachedAppleIDFn                   = webcore.DefaultCachedAppleIDWithSource
-	webLoginWithClientFn                     = webcore.LoginWithClient
-	loadStoredWebPasswordFn                  = webcore.LoadPassword
-	storeStoredWebPasswordFn                 = webcore.StorePassword
-	storedWebPasswordExistsFn                = webcore.PasswordStored
-	deleteStoredWebPasswordFn                = webcore.DeletePassword
-	deleteAllStoredWebPasswordsFn            = webcore.DeleteAllPasswords
-	deleteWebSessionFn                       = webcore.DeleteSession
-	deleteStaleWebSessionFn                  = webcore.DeleteSessionIfMatches
-	deleteAllWebSessionsFn                   = webcore.DeleteAllSessions
-	selectWebProviderFn                      = webcore.SelectProvider
-	resolveSessionFn               any       = resolveSession
-	resolveSessionWithoutPersistFn any       = resolveSessionWithoutPersist
-	twoFactorStatusWriter          io.Writer = os.Stderr
-	sessionExpiredWriter           io.Writer = os.Stderr
-	sessionCacheWarningWriter      io.Writer = os.Stderr
-	sessionDefaultNoticeWriter     io.Writer = os.Stderr
-	passwordStoreWarningWriter     io.Writer = os.Stderr
-	signinBackoffNowFn                       = time.Now
+	openTTYFn                      = openTTY
+	promptTwoFactorCodeFn          = promptTwoFactorCodeInteractive
+	twoFactorPromptAvailableFn     = terminalPromptAvailable
+	promptPasswordFn               = promptPasswordInteractive
+	readTwoFactorCodeFromCommandFn = readTwoFactorCodeFromCommand
+	webLoginFn                     = webcore.Login
+	prepareTwoFactorChallengeFn    = webcore.PrepareTwoFactorChallenge
+	ensureTwoFactorCodeRequestedFn = webcore.EnsureTwoFactorCodeRequested
+	persistWebSessionFn            = webcore.PersistSession
+	submitTwoFactorCodeFn          = webcore.SubmitTwoFactorCode
+	submitSecurityKeyFn            = webcore.SubmitSecurityKey
+	checkSecurityKeyFn             = securitykey.Check
+	securityKeyAvailableFn         = securitykey.Available
+	errSecurityKeyPreflight        = errors.New("security-key preflight failed")
+	signalProcessInterruptFn       = signalProcessInterrupt
+	termReadPasswordFn             = term.ReadPassword
+	termIsTerminalFn               = term.IsTerminal
+	tryResumeSessionFn             = webcore.TryResumeSession
+	tryResumeSessionFromSourceFn   = webcore.TryResumeSessionFromSource
+	tryResumeLastFn                = webcore.TryResumeLastSession
+	loadCachedSessionFn            = webcore.LoadCachedSession
+	loadCachedSessionFromSourceFn  = webcore.LoadCachedSessionFromSource
+	loadLastCachedSessionFn        = webcore.LoadLastCachedSession
+	defaultCachedAppleIDFn         = webcore.DefaultCachedAppleIDWithSource
+	webLoginWithClientFn           = webcore.LoginWithClient
+	loadStoredWebPasswordFn        = webcore.LoadPassword
+	storeStoredWebPasswordFn       = webcore.StorePassword
+	storedWebPasswordExistsFn      = webcore.PasswordStored
+	deleteStoredWebPasswordFn      = webcore.DeletePassword
+	deleteAllStoredWebPasswordsFn  = webcore.DeleteAllPasswords
+	deleteWebSessionFn             = webcore.DeleteSession
+	deleteStaleWebSessionFn        = webcore.DeleteSessionIfMatches
+	deleteAllWebSessionsFn         = webcore.DeleteAllSessions
+	selectWebProviderFn            = webcore.SelectProvider
+	// resolveSessionFn and resolveSessionWithoutPersistFn replace the session
+	// resolvers in tests; nil runs the real resolver on the command's d.
+	resolveSessionFn               any
+	resolveSessionWithoutPersistFn any
+	signinBackoffNowFn             = time.Now
 	invalidWebPasswordOptOutMu     sync.Mutex
 	invalidWebPasswordOptOutValues = map[string]struct{}{}
 )
@@ -117,14 +114,14 @@ func webPasswordProvided(password string) bool {
 	return strings.TrimSpace(password) != ""
 }
 
-func webPasswordStorageDisabled() bool {
-	if webPasswordStorageOptedOut() {
+func webPasswordStorageDisabled(d *shared.Deps) bool {
+	if webPasswordStorageOptedOut(d) {
 		return true
 	}
 	return webcore.PasswordStoreBypassed()
 }
 
-func webPasswordStorageOptedOut() bool {
+func webPasswordStorageOptedOut(d *shared.Deps) bool {
 	value := strings.ToLower(strings.TrimSpace(os.Getenv(webDontStorePasswordEnv)))
 	switch value {
 	case "1", "true", "yes", "on":
@@ -132,12 +129,12 @@ func webPasswordStorageOptedOut() bool {
 	case "", "0", "false", "no", "off":
 		return false
 	default:
-		warnInvalidWebPasswordOptOutOnce(value)
+		warnInvalidWebPasswordOptOutOnce(d, value)
 		return true
 	}
 }
 
-func warnInvalidWebPasswordOptOutOnce(value string) {
+func warnInvalidWebPasswordOptOutOnce(d *shared.Deps, value string) {
 	invalidWebPasswordOptOutMu.Lock()
 	if _, warned := invalidWebPasswordOptOutValues[value]; warned {
 		invalidWebPasswordOptOutMu.Unlock()
@@ -146,9 +143,9 @@ func warnInvalidWebPasswordOptOutOnce(value string) {
 	invalidWebPasswordOptOutValues[value] = struct{}{}
 	invalidWebPasswordOptOutMu.Unlock()
 
-	if passwordStoreWarningWriter != nil {
+	if d.IO.ErrOut != nil {
 		_, _ = fmt.Fprintf(
-			passwordStoreWarningWriter,
+			d.IO.ErrOut,
 			"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, or on/off); password storage disabled.\n",
 			webDontStorePasswordEnv,
 			value,
@@ -209,7 +206,7 @@ func printWebAuthStatus(d *shared.Deps, status webAuthStatus, format string, pre
 	return d.PrintOutputRows(status, format, pretty, []string{"Field", "Value"}, rows)
 }
 
-func expiredWebAuthStatus(appleID string) webAuthStatus {
+func expiredWebAuthStatus(d *shared.Deps, appleID string) webAuthStatus {
 	status := webAuthStatus{
 		Authenticated: false,
 		AppleID:       strings.TrimSpace(appleID),
@@ -221,7 +218,7 @@ func expiredWebAuthStatus(appleID string) webAuthStatus {
 		}
 		status.DeveloperTeamID = strings.TrimSpace(cached.DeveloperTeamID)
 	}
-	status.PasswordStored = storedWebPasswordStatus(status.AppleID)
+	status.PasswordStored = storedWebPasswordStatus(d, status.AppleID)
 	return status
 }
 
@@ -240,7 +237,10 @@ func signalProcessInterrupt() error {
 	return process.Signal(os.Interrupt)
 }
 
-func callResolveSessionFn(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
+func callResolveSessionFn(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
+	if resolveSessionFn == nil {
+		return resolveSession(ctx, d, appleID, password, twoFactorCode, twoFactorCodeCommand)
+	}
 	return callSessionResolverHook(ctx, resolveSessionFn, "web session resolver", appleID, password, twoFactorCode, twoFactorCodeCommand)
 }
 
@@ -565,7 +565,7 @@ func securityKeyPINForSignIn(ctx context.Context, preference appleauth.TwoFactor
 // securityKeyPreflight stops a key sign-in this invocation cannot complete,
 // before a password is requested or sent. Failures are local and say nothing
 // about the cached cookie jar.
-func securityKeyPreflight(ctx context.Context, preference appleauth.TwoFactorPreference) error {
+func securityKeyPreflight(ctx context.Context, d *shared.Deps, preference appleauth.TwoFactorPreference) error {
 	if _, err := securityKeyPINForSignIn(ctx, preference); err != nil {
 		return fmt.Errorf("%w: %w", errSecurityKeyPreflight, err)
 	}
@@ -574,7 +574,7 @@ func securityKeyPreflight(ctx context.Context, preference appleauth.TwoFactorPre
 	}
 	if err := checkSecurityKeyFn(ctx); err != nil {
 		if errors.Is(err, securitykey.ErrUnavailable) {
-			err = shared.UsageError(err.Error())
+			err = d.UsageError(err.Error())
 		}
 		return fmt.Errorf("%w: %w", errSecurityKeyPreflight, err)
 	}
@@ -635,7 +635,11 @@ func missingWebSessionErrorWithHint(appleID, hint, alternative string) error {
 // password step without one: `asc web auth login` without a password source,
 // or an interactive `web apps create` prompt answered with an empty password.
 func passwordRequiredUsageError() error {
-	return shared.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
+	return passwordRequiredUsageErrorWith(shared.DefaultDeps())
+}
+
+func passwordRequiredUsageErrorWith(d *shared.Deps) error {
+	return d.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
 }
 
 // missingAppleIDUsageError is the usage error `asc web auth login` returns
@@ -643,10 +647,10 @@ func passwordRequiredUsageError() error {
 // cache holds nothing to default to. It carries errNoCachedWebSession so
 // command-specific session diagnostics can tell a missing session from an
 // expired one.
-func missingAppleIDUsageError() error {
+func missingAppleIDUsageError(d *shared.Deps) error {
 	return shared.NewErrorWithCause(
 		shared.WithDiagnostic(
-			shared.UsageError("--apple-id is required when no cached web session is available; run 'asc web auth login --apple-id EMAIL'"),
+			d.UsageError("--apple-id is required when no cached web session is available; run 'asc web auth login --apple-id EMAIL'"),
 			shared.DiagnosticRequiredInputMissing,
 			"--apple-id",
 		),
@@ -656,9 +660,9 @@ func missingAppleIDUsageError() error {
 
 // ambiguousAppleIDUsageError is the usage error for a web command that could
 // default to any of several cached sessions and therefore refuses to guess.
-func ambiguousAppleIDUsageError(appleIDs []string) error {
+func ambiguousAppleIDUsageError(d *shared.Deps, appleIDs []string) error {
 	return shared.WithDiagnostic(
-		shared.UsageError(fmt.Sprintf("--apple-id is required: multiple cached web sessions are available (%s); pass --apple-id to choose one", strings.Join(appleIDs, ", "))),
+		d.UsageError(fmt.Sprintf("--apple-id is required: multiple cached web sessions are available (%s); pass --apple-id to choose one", strings.Join(appleIDs, ", "))),
 		shared.DiagnosticRequiredInputMissing,
 		"--apple-id",
 	)
@@ -676,11 +680,11 @@ func envAppleID() string {
 // cached-session default prints the same shape; naming the variable keeps a
 // caller who exported it in one shell profile from mistaking the choice for a
 // cache hit.
-func printEnvAppleIDNotice(appleID string) {
-	if sessionDefaultNoticeWriter == nil {
+func printEnvAppleIDNotice(d *shared.Deps, appleID string) {
+	if d.IO.ErrOut == nil {
 		return
 	}
-	_, _ = fmt.Fprintf(sessionDefaultNoticeWriter, "Using web session for %s from %s; pass --apple-id to override\n", shared.SanitizeTerminal(appleID), webAppleIDEnv)
+	_, _ = fmt.Fprintf(d.IO.ErrOut, "Using web session for %s from %s; pass --apple-id to override\n", shared.SanitizeTerminal(appleID), webAppleIDEnv)
 }
 
 // resolveDefaultCachedAppleID picks the Apple ID of the only cached web session
@@ -692,15 +696,15 @@ func printEnvAppleIDNotice(appleID string) {
 // result with a warning.
 // The boolean reports the empty-cache case, the only one a command may still
 // answer with an interactive Apple ID prompt.
-func resolveDefaultCachedAppleID() (appleID string, source webcore.CachedSessionSource, cacheEmpty bool, err error) {
+func resolveDefaultCachedAppleID(d *shared.Deps) (appleID string, source webcore.CachedSessionSource, cacheEmpty bool, err error) {
 	appleID, source, err = defaultCachedAppleIDFn()
 	if err == nil {
 		appleID = strings.TrimSpace(appleID)
 		if appleID == "" {
 			return "", webcore.CachedSessionSourceUnknown, true, webcore.ErrNoCachedSession
 		}
-		if sessionDefaultNoticeWriter != nil {
-			_, _ = fmt.Fprintf(sessionDefaultNoticeWriter, "Using cached web session for %s; pass --apple-id to override\n", shared.SanitizeTerminal(appleID))
+		if d.IO.ErrOut != nil {
+			_, _ = fmt.Fprintf(d.IO.ErrOut, "Using cached web session for %s; pass --apple-id to override\n", shared.SanitizeTerminal(appleID))
 		}
 		return appleID, source, false, nil
 	}
@@ -711,8 +715,8 @@ func resolveDefaultCachedAppleID() (appleID string, source webcore.CachedSession
 	case errors.Is(err, webcore.ErrNoCachedSession):
 		return "", source, true, webcore.ErrNoCachedSession
 	default:
-		if sessionCacheWarningWriter != nil {
-			_, _ = fmt.Fprintf(sessionCacheWarningWriter, "Warning: listing cached web sessions failed: %v\n", err)
+		if d.IO.ErrOut != nil {
+			_, _ = fmt.Fprintf(d.IO.ErrOut, "Warning: listing cached web sessions failed: %v\n", err)
 		}
 		return "", source, true, webcore.ErrNoCachedSession
 	}
@@ -732,19 +736,19 @@ func printPasswordStoreWarning(writer io.Writer, action string, err error) {
 	_, _ = fmt.Fprintf(writer, "Warning: could not %s saved Apple Account password: %v.\n", action, err)
 }
 
-func resolveNonInteractiveWebPassword(appleID, provided string, skipStored bool) resolvedWebPassword {
+func resolveNonInteractiveWebPassword(d *shared.Deps, appleID, provided string, skipStored bool) resolvedWebPassword {
 	if webPasswordProvided(provided) {
 		return resolvedWebPassword{value: provided, source: webPasswordSourceProvided}
 	}
 	if password := readPasswordFromEnv(); webPasswordProvided(password) {
 		return resolvedWebPassword{value: password, source: webPasswordSourceEnv}
 	}
-	if skipStored || webPasswordStorageDisabled() || strings.TrimSpace(appleID) == "" {
+	if skipStored || webPasswordStorageDisabled(d) || strings.TrimSpace(appleID) == "" {
 		return resolvedWebPassword{}
 	}
 	password, ok, err := loadStoredWebPasswordFn(appleID)
 	if err != nil {
-		printPasswordStoreWarning(passwordStoreWarningWriter, "load", err)
+		printPasswordStoreWarning(d.IO.ErrOut, "load", err)
 		return resolvedWebPassword{}
 	}
 	if !ok || !webPasswordProvided(password) {
@@ -753,31 +757,31 @@ func resolveNonInteractiveWebPassword(appleID, provided string, skipStored bool)
 	return resolvedWebPassword{value: password, source: webPasswordSourceStored}
 }
 
-func persistPromptedWebPassword(appleID string, password resolvedWebPassword) {
-	if password.source != webPasswordSourcePrompted || webPasswordStorageDisabled() {
+func persistPromptedWebPassword(d *shared.Deps, appleID string, password resolvedWebPassword) {
+	if password.source != webPasswordSourcePrompted || webPasswordStorageDisabled(d) {
 		return
 	}
 	if err := storeStoredWebPasswordFn(appleID, password.value); err != nil {
-		printPasswordStoreWarning(passwordStoreWarningWriter, "save", err)
+		printPasswordStoreWarning(d.IO.ErrOut, "save", err)
 	}
 }
 
-func forgetRejectedStoredPassword(appleID string) {
-	if passwordStoreWarningWriter != nil {
-		_, _ = fmt.Fprintln(passwordStoreWarningWriter, "Saved Apple Account password was rejected; removing it. Enter the current password to save a new one.")
+func forgetRejectedStoredPassword(d *shared.Deps, appleID string) {
+	if d.IO.ErrOut != nil {
+		_, _ = fmt.Fprintln(d.IO.ErrOut, "Saved Apple Account password was rejected; removing it. Enter the current password to save a new one.")
 	}
 	if err := deleteStoredWebPasswordFn(appleID); err != nil {
-		printPasswordStoreWarning(passwordStoreWarningWriter, "remove", err)
+		printPasswordStoreWarning(d.IO.ErrOut, "remove", err)
 	}
 }
 
-func storedWebPasswordStatus(appleID string) bool {
-	if webPasswordStorageDisabled() || strings.TrimSpace(appleID) == "" {
+func storedWebPasswordStatus(d *shared.Deps, appleID string) bool {
+	if webPasswordStorageDisabled(d) || strings.TrimSpace(appleID) == "" {
 		return false
 	}
 	stored, err := storedWebPasswordExistsFn(appleID)
 	if err != nil {
-		printPasswordStoreWarning(passwordStoreWarningWriter, "check", err)
+		printPasswordStoreWarning(d.IO.ErrOut, "check", err)
 		return false
 	}
 	return stored
@@ -814,25 +818,25 @@ func twoFactorSubmitFailure(err error, afterPhoneDelivery, smsCode bool) error {
 	return shared.WithDiagnostic(err, shared.DiagnosticAuthenticationRejected, "")
 }
 
-func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, appleID, password, twoFactorCode string, loginFn func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error), twoFactorStarted func(), readCommandCode twoFactorCodeCommandReader, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
+func loginWithOptionalTwoFactorUsing(ctx context.Context, d *shared.Deps, progressMessage, appleID, password, twoFactorCode string, loginFn func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error), twoFactorStarted func(), readCommandCode twoFactorCodeCommandReader, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
 	// Read before the timeout strip below, which drops layered context values.
-	twoFactorPreference, err := twoFactorPreferenceForSignIn(ctx)
+	twoFactorPreference, err := twoFactorPreferenceForSignIn(ctx, d)
 	if err != nil {
 		return nil, err
 	}
 	explicitSignIn := isWebSignIn(ctx)
 	consumedCodeNotice, _ := ctx.Value(consumedCodeNoticeContextKey{}).(bool)
 	// Credential/keychain prompts may consume the initial command budget.
-	ctx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+	ctx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	// Keep explicit-login authority when stripping a caller's timeout values.
 	if explicitSignIn {
 		ctx = contextForWebSignIn(ctx)
 	}
-	if err := securityKeyPreflight(ctx, twoFactorPreference); err != nil {
+	if err := securityKeyPreflight(ctx, d, twoFactorPreference); err != nil {
 		return nil, err
 	}
-	session, err := withWebSpinnerValue(progressMessage, func() (*webcore.AuthSession, error) {
+	session, err := withWebSpinnerValueWith(d, progressMessage, func() (*webcore.AuthSession, error) {
 		return loginFn(ctx, webcore.LoginCredentials{
 			Username: appleID,
 			Password: password,
@@ -880,53 +884,53 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 				err := errors.New("security key required by Apple; retry with --two-factor-method security-key")
 				return nil, shared.WithDiagnostic(err, shared.DiagnosticConflictingInput, "")
 			}
-			if twoFactorStatusWriter != nil {
-				_, _ = fmt.Fprintln(twoFactorStatusWriter, "Touch your security key to complete Apple sign-in.")
+			if d.IO.ErrOut != nil {
+				_, _ = fmt.Fprintln(d.IO.ErrOut, "Touch your security key to complete Apple sign-in.")
 			}
 			interruptCtx, stopInterrupt := signal.NotifyContext(shared.ContextWithoutTimeout(ctx), os.Interrupt)
 			defer stopInterrupt()
 			// Waiting for physical touch must not consume the HTTP budget used
 			// to verify the assertion and establish the trusted session.
-			verifyCtx, verifyCancel := shared.ContextWithTimeoutDuration(interruptCtx, securitykey.AssertionTimeout+asc.ResolveTimeout())
+			verifyCtx, verifyCancel := shared.ContextWithTimeoutDuration(interruptCtx, securitykey.AssertionTimeout+d.ResolveTimeout(shared.RequestTimeoutSetting, asc.DefaultTimeout))
 			defer verifyCancel()
 			if err := submitSecurityKeyFn(verifyCtx, session, pin); err != nil {
 				return nil, twoFactorSubmitFailure(err, false, false)
 			}
 			return session, nil
 		}
-		if consumedCodeNotice && twoFactorStatusWriter != nil {
-			_, _ = fmt.Fprintln(twoFactorStatusWriter, "The previous verification code was consumed by the expired session. Enter the new code Apple just sent, not the previous one.")
+		if consumedCodeNotice && d.IO.ErrOut != nil {
+			_, _ = fmt.Fprintln(d.IO.ErrOut, "The previous verification code was consumed by the expired session. Enter the new code Apple just sent, not the previous one.")
 		}
 
 		writeDeliveryNotice := func(destination string) {
 			destination = strings.TrimSpace(destination)
-			if destination == "" || twoFactorStatusWriter == nil {
+			if destination == "" || d.IO.ErrOut == nil {
 				return
 			}
-			_, _ = fmt.Fprintf(twoFactorStatusWriter, "Verification code sent to %s.\n", destination)
+			_, _ = fmt.Fprintf(d.IO.ErrOut, "Verification code sent to %s.\n", destination)
 		}
 		writeFallbackGuidance := func(usingCommand bool) {
-			if twoFactorStatusWriter == nil {
+			if d.IO.ErrOut == nil {
 				return
 			}
 			if usingCommand {
-				_, _ = fmt.Fprintln(twoFactorStatusWriter, "Trusted-device verification was rejected. Re-running the configured 2FA code command for the phone verification code.")
+				_, _ = fmt.Fprintln(d.IO.ErrOut, "Trusted-device verification was rejected. Re-running the configured 2FA code command for the phone verification code.")
 				return
 			}
-			_, _ = fmt.Fprintln(twoFactorStatusWriter, "Trusted-device verification was rejected. Enter the phone verification code that was just sent.")
+			_, _ = fmt.Fprintln(d.IO.ErrOut, "Trusted-device verification was rejected. Enter the phone verification code that was just sent.")
 		}
 		writeInitialPhoneFallbackGuidance := func() {
-			if challenge == nil || !challenge.PhoneFallbackAvailable || twoFactorStatusWriter == nil {
+			if challenge == nil || !challenge.PhoneFallbackAvailable || d.IO.ErrOut == nil {
 				return
 			}
 			destination := strings.TrimSpace(challenge.Destination)
 			if destination != "" {
-				_, _ = fmt.Fprintf(twoFactorStatusWriter, "Need a phone verification code? Enter an incorrect trusted-device code once; Apple will then deliver a verification code to %s.\n", destination)
+				_, _ = fmt.Fprintf(d.IO.ErrOut, "Need a phone verification code? Enter an incorrect trusted-device code once; Apple will then deliver a verification code to %s.\n", destination)
 				return
 			}
-			_, _ = fmt.Fprintln(twoFactorStatusWriter, "Need a phone verification code? Enter an incorrect trusted-device code once; Apple will then deliver a verification code to your registered phone number.")
+			_, _ = fmt.Fprintln(d.IO.ErrOut, "Need a phone verification code? Enter an incorrect trusted-device code once; Apple will then deliver a verification code to your registered phone number.")
 		}
-		codeRequestedAt := time.Now()
+		codeRequestedAt := d.Now()
 		readCode := func() (string, error) {
 			if command != "" {
 				read := readTwoFactorCodeFromCommandFn
@@ -950,7 +954,7 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 				writeInitialPhoneFallbackGuidance()
 			}
 			if challenge != nil && challenge.IsPhoneMethod() {
-				codeRequestedAt = time.Now()
+				codeRequestedAt = d.Now()
 				challenge, prepErr = ensureTwoFactorCodeRequestedFn(ctx, session)
 				if prepErr != nil {
 					return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
@@ -966,9 +970,9 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 			code = resolvedCode
 		}
 		submitCode := func(code string) error {
-			verifyCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+			verifyCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 			defer cancel()
-			return withWebSpinner("Verifying two-factor code", func() error {
+			return withWebSpinnerWith(d, "Verifying two-factor code", func() error {
 				return submitTwoFactorCodeFn(verifyCtx, session, code)
 			})
 		}
@@ -978,7 +982,7 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 		}
 		// A rejected trusted-device code makes Apple send a phone code during
 		// this submission, so a fallback read must ignore anything older.
-		submittedAt := time.Now()
+		submittedAt := d.Now()
 		if err := submitCode(code); err != nil {
 			var phoneCodeRequestedErr *appleauth.PhoneCodeRequestedError
 			if errors.As(err, &phoneCodeRequestedErr) {
@@ -1001,13 +1005,13 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 	return nil, err
 }
 
-func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFactorCode string, twoFactorStarted func(), readCommandCode twoFactorCodeCommandReader, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
-	return loginWithOptionalTwoFactorUsing(ctx, "Signing in to Apple web session", appleID, password, twoFactorCode, webLoginFn, twoFactorStarted, readCommandCode, twoFactorCodeCommand...)
+func loginWithOptionalTwoFactor(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, twoFactorStarted func(), readCommandCode twoFactorCodeCommandReader, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
+	return loginWithOptionalTwoFactorUsing(ctx, d, "Signing in to Apple web session", appleID, password, twoFactorCode, webLoginFn, twoFactorStarted, readCommandCode, twoFactorCodeCommand...)
 }
 
-func loginWithOptionalTwoFactorClientTracked(ctx context.Context, client *http.Client, appleID, password, twoFactorCode string, readCommandCode twoFactorCodeCommandReader, twoFactorCodeCommand ...string) (*webcore.AuthSession, bool, error) {
+func loginWithOptionalTwoFactorClientTracked(ctx context.Context, d *shared.Deps, client *http.Client, appleID, password, twoFactorCode string, readCommandCode twoFactorCodeCommandReader, twoFactorCodeCommand ...string) (*webcore.AuthSession, bool, error) {
 	twoFactorStarted := false
-	session, err := loginWithOptionalTwoFactorUsing(ctx, "Refreshing expired web session", appleID, password, twoFactorCode, func(ctx context.Context, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
+	session, err := loginWithOptionalTwoFactorUsing(ctx, d, "Refreshing expired web session", appleID, password, twoFactorCode, func(ctx context.Context, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return webLoginWithClientFn(ctx, client, credentials)
 	}, func() {
 		twoFactorStarted = true
@@ -1015,12 +1019,12 @@ func loginWithOptionalTwoFactorClientTracked(ctx context.Context, client *http.C
 	return session, twoFactorStarted, err
 }
 
-func tryResumeWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, error) {
+func tryResumeWebSession(ctx context.Context, d *shared.Deps, appleID string) (*webcore.AuthSession, bool, error) {
 	var (
 		session *webcore.AuthSession
 		ok      bool
 	)
-	err := withWebSpinner("Checking cached web session", func() error {
+	err := withWebSpinnerWith(d, "Checking cached web session", func() error {
 		var err error
 		session, ok, err = tryResumeSessionFn(ctx, appleID)
 		return err
@@ -1028,12 +1032,12 @@ func tryResumeWebSession(ctx context.Context, appleID string) (*webcore.AuthSess
 	return session, ok, err
 }
 
-func tryResumeLastWebSession(ctx context.Context) (*webcore.AuthSession, bool, error) {
+func tryResumeLastWebSession(ctx context.Context, d *shared.Deps) (*webcore.AuthSession, bool, error) {
 	var (
 		session *webcore.AuthSession
 		ok      bool
 	)
-	err := withWebSpinner("Checking cached web session", func() error {
+	err := withWebSpinnerWith(d, "Checking cached web session", func() error {
 		var err error
 		session, ok, err = tryResumeLastFn(ctx)
 		return err
@@ -1050,17 +1054,17 @@ type webSessionResolveOptions struct {
 	providerSelected     bool
 }
 
-func tryResumeKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool, error) {
+func tryResumeKnownWebSession(ctx context.Context, d *shared.Deps, appleID string) (*webcore.AuthSession, bool, bool, error) {
 	if appleID != "" {
-		resumed, ok, err := tryResumeWebSession(ctx, appleID)
+		resumed, ok, err := tryResumeWebSession(ctx, d, appleID)
 		return resumed, ok, errors.Is(err, webcore.ErrCachedSessionExpired), err
 	}
-	resumed, ok, err := tryResumeLastWebSession(ctx)
+	resumed, ok, err := tryResumeLastWebSession(ctx, d)
 	return resumed, ok, errors.Is(err, webcore.ErrCachedSessionExpired), err
 }
 
-func resolveKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool, error) {
-	resumed, ok, cacheExpired, err := tryResumeKnownWebSession(ctx, appleID)
+func resolveKnownWebSession(ctx context.Context, d *shared.Deps, appleID string) (*webcore.AuthSession, bool, bool, error) {
+	resumed, ok, cacheExpired, err := tryResumeKnownWebSession(ctx, d, appleID)
 	if err == nil {
 		return resumed, ok, false, nil
 	}
@@ -1082,11 +1086,15 @@ func resolveKnownWebSessionFromSource(ctx context.Context, appleID string, sourc
 }
 
 func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
+	return resolveWebSessionWith(ctx, shared.DefaultDeps(), appleID, password, twoFactorCode, opts)
+}
+
+func resolveWebSessionWith(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
 	shared.ApplyRootLoggingOverrides()
 	if err := webcore.SessionBackendConflict(); err != nil {
-		return nil, "", shared.UsageError(err.Error())
+		return nil, "", d.UsageError(err.Error())
 	}
-	noAutoSignIn, err := webAutoSignInDisabled()
+	noAutoSignIn, err := webAutoSignInDisabled(d)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1095,8 +1103,8 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		noAutoSignIn: noAutoSignIn,
 		alternative:  publicAPIAlternativeFromContext(ctx),
 	}
-	session, source, err := resolveWebSessionWithPolicy(ctx, appleID, password, twoFactorCode, opts, policy)
-	return session, source, policy.finish(err)
+	session, source, err := resolveWebSessionWithPolicy(ctx, d, appleID, password, twoFactorCode, opts, policy)
+	return session, source, policy.finish(d, err)
 }
 
 // webSignInPolicy decides whether a resolution may contact Apple's sign-in
@@ -1118,14 +1126,14 @@ type webSignInPolicy struct {
 // allowSignIn runs before anything is sent to Apple for appleID. It refuses an
 // automatic sign-in when ASC_WEB_NO_AUTO_LOGIN is set or while a recorded
 // sign-in cooldown is active; explicit `asc web auth login` is never refused.
-func (p *webSignInPolicy) allowSignIn(appleID string) error {
+func (p *webSignInPolicy) allowSignIn(d *shared.Deps, appleID string) error {
 	if !p.automatic {
 		return nil
 	}
 	if p.noAutoSignIn {
 		return newAutoSignInDisabledError(appleID, p.alternative)
 	}
-	return checkSigninBackoff(appleID)
+	return checkSigninBackoff(d, appleID)
 }
 
 // observe records the outcome of one sign-in attempt for appleID. A 5xx from
@@ -1151,22 +1159,22 @@ func (p *webSignInPolicy) observe(appleID string, err error, reachedTwoFactor bo
 // service last answered with a 5xx, or reported the account locked, records a
 // cooldown, and one in which Apple accepted a sign-in clears it, even if a
 // later local step such as caching the session failed.
-func (p *webSignInPolicy) finish(err error) error {
+func (p *webSignInPolicy) finish(d *shared.Deps, err error) error {
 	if p.signedInAppleID != "" {
-		clearSigninBackoff(p.signedInAppleID, p.signedInAt)
+		clearSigninBackoff(d, p.signedInAppleID, p.signedInAt)
 	}
 	if err == nil || p.failure == nil {
 		return err
 	}
-	notBefore, recorded := recordSigninBackoff(p.failureAppleID, p.failure, p.failureAt)
+	notBefore, recorded := recordSigninBackoff(d, p.failureAppleID, p.failure, p.failureAt)
 	if recorded && (isSigninServerError(err) || errors.Is(err, webcore.ErrAppleAccountLocked)) {
 		return fmt.Errorf("%w. Other asc web commands will not sign in automatically before %s; `asc web auth login` can still be run explicitly", err, notBefore.UTC().Format(time.RFC3339))
 	}
 	return err
 }
 
-func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFactorCode string, opts webSessionResolveOptions, policy *webSignInPolicy) (*webcore.AuthSession, string, error) {
-	twoFactorPreference, err := twoFactorPreferenceForSignIn(ctx)
+func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, opts webSessionResolveOptions, policy *webSignInPolicy) (*webcore.AuthSession, string, error) {
+	twoFactorPreference, err := twoFactorPreferenceForSignIn(ctx, d)
 	if err != nil {
 		return nil, "", err
 	}
@@ -1180,7 +1188,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 	if resolvedAppleID == "" {
 		if fromEnv := envAppleID(); fromEnv != "" {
 			resolvedAppleID = fromEnv
-			printEnvAppleIDNotice(resolvedAppleID)
+			printEnvAppleIDNotice(d, resolvedAppleID)
 		}
 	}
 	twoFactorCode = strings.TrimSpace(twoFactorCode)
@@ -1189,14 +1197,14 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		command = strings.TrimSpace(os.Getenv(webTwoFactorCodeCommandEnv))
 	}
 	if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey && (twoFactorCode != "" || command != "") {
-		return nil, "", shared.UsageError("--two-factor-method security-key cannot be combined with a verification code or 2FA code command; unset ASC_WEB_2FA_CODE_COMMAND")
+		return nil, "", d.UsageError("--two-factor-method security-key cannot be combined with a verification code or 2FA code command; unset ASC_WEB_2FA_CODE_COMMAND")
 	}
 	expiredNoticePrinted := false
 	printExpiredNotice := func() {
 		if expiredNoticePrinted {
 			return
 		}
-		printExpiredSessionNotice(sessionExpiredWriter)
+		printExpiredSessionNotice(d.IO.ErrOut)
 		expiredNoticePrinted = true
 	}
 
@@ -1290,15 +1298,15 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		var ok, cacheExpired bool
 		var err error
 		if source == webcore.CachedSessionSourceUnknown {
-			resumed, ok, cacheExpired, err = resolveKnownWebSession(ctx, targetAppleID)
+			resumed, ok, cacheExpired, err = resolveKnownWebSession(ctx, d, targetAppleID)
 		} else {
 			resumed, ok, cacheExpired, err = resolveKnownWebSessionFromSource(ctx, targetAppleID, source)
 		}
 		if errors.Is(err, webcore.ErrSessionKeychainBypassed) {
-			return nil, "", false, shared.UsageError(err.Error())
+			return nil, "", false, d.UsageError(err.Error())
 		}
 		if err != nil {
-			printCacheLookupWarning(sessionCacheWarningWriter, err)
+			printCacheLookupWarning(d.IO.ErrOut, err)
 			return nil, "", false, nil
 		}
 		if ok {
@@ -1319,7 +1327,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			expiredCachedSession, cachedOK, err = loadLastCachedSessionFn()
 		}
 		if err != nil {
-			printCacheLookupWarning(sessionCacheWarningWriter, fmt.Errorf("loading expired cached web session failed: %w", err))
+			printCacheLookupWarning(d.IO.ErrOut, fmt.Errorf("loading expired cached web session failed: %w", err))
 			expiredCachedSession = nil
 			printExpiredNotice()
 			return nil, "", false, nil
@@ -1336,29 +1344,29 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			reauthAppleID = strings.TrimSpace(expiredCachedSession.UserEmail)
 		}
 		if reauthAppleID == "" {
-			return nil, "", false, shared.UsageError("last cached web session predates stored Apple ID metadata; re-run once with --apple-id to refresh the cache")
+			return nil, "", false, d.UsageError("last cached web session predates stored Apple ID metadata; re-run once with --apple-id to refresh the cache")
 		}
 		if resolvedAppleID == "" {
 			resolvedAppleID = reauthAppleID
 		}
-		if err := policy.allowSignIn(reauthAppleID); err != nil {
+		if err := policy.allowSignIn(d, reauthAppleID); err != nil {
 			return nil, "", false, err
 		}
 
 		if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey && !securityKeyAvailableFn() {
-			return nil, "", false, shared.UsageError(securitykey.ErrUnavailable.Error())
+			return nil, "", false, d.UsageError(securitykey.ErrUnavailable.Error())
 		}
-		silentPassword := resolveNonInteractiveWebPassword(reauthAppleID, password, skipStoredPassword)
+		silentPassword := resolveNonInteractiveWebPassword(d, reauthAppleID, password, skipStoredPassword)
 		if !webPasswordProvided(silentPassword.value) {
 			printExpiredNotice()
 			return nil, "", false, nil
 		}
 
-		session, twoFactorStarted, loginErr := loginWithOptionalTwoFactorClientTracked(ctx, expiredCachedSession.Client, reauthAppleID, silentPassword.value, twoFactorCode, readCommandTwoFactorCode, command)
+		session, twoFactorStarted, loginErr := loginWithOptionalTwoFactorClientTracked(ctx, d, expiredCachedSession.Client, reauthAppleID, silentPassword.value, twoFactorCode, readCommandTwoFactorCode, command)
 		policy.observe(reauthAppleID, loginErr, twoFactorStarted)
 		if loginErr == nil {
 			if !opts.providerSelected {
-				if err := restoreCachedWebProvider(ctx, session, expiredCachedSession); err != nil {
+				if err := restoreCachedWebProvider(ctx, d, session, expiredCachedSession); err != nil {
 					return nil, "", false, err
 				}
 			}
@@ -1380,7 +1388,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			if !canReplaceConsumedTwoFactorCode() {
 				return nil, "", false, fmt.Errorf("web auth auto-reauth failed: %w", consumedTwoFactorCodeError(loginErr, discardErr))
 			}
-			printCacheLookupWarning(sessionCacheWarningWriter, staleSessionDiscardWarning(discardErr))
+			printCacheLookupWarning(d.IO.ErrOut, staleSessionDiscardWarning(discardErr))
 			markTwoFactorCodeConsumed()
 		}
 		if errors.Is(loginErr, webcore.ErrAppleAccountLocked) {
@@ -1392,7 +1400,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			if silentPassword.source != webPasswordSourceStored {
 				return nil, "", false, fmt.Errorf("web auth auto-reauth failed: %w", loginErr)
 			}
-			forgetRejectedStoredPassword(reauthAppleID)
+			forgetRejectedStoredPassword(d, reauthAppleID)
 			skipStoredPassword = true
 			printExpiredNotice()
 			return nil, "", false, nil
@@ -1425,7 +1433,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		// The last-session pointer resolved nothing, so fall back to the only
 		// cached account when there is exactly one. Only an empty cache may
 		// still prompt (apps create); an ambiguous cache never guesses.
-		defaultAppleID, defaultSource, cacheEmpty, defaultErr := resolveDefaultCachedAppleID()
+		defaultAppleID, defaultSource, cacheEmpty, defaultErr := resolveDefaultCachedAppleID(d)
 		// Prompting for an Apple ID only leads to a sign-in, which the
 		// no-automatic-sign-in policy forbids.
 		promptAppleID := opts.promptAppleID
@@ -1438,10 +1446,10 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		case promptAppleID == nil || !cacheEmpty:
 			var ambiguous *webcore.AmbiguousCachedSessionError
 			if errors.As(defaultErr, &ambiguous) {
-				return nil, "", ambiguousAppleIDUsageError(ambiguous.AppleIDs)
+				return nil, "", ambiguousAppleIDUsageError(d, ambiguous.AppleIDs)
 			}
 			if isWebSignIn(ctx) {
-				return nil, "", missingAppleIDUsageError()
+				return nil, "", missingAppleIDUsageError(d)
 			}
 			if policy.noAutoSignIn {
 				return nil, "", newAutoSignInDisabledError("", policy.alternative)
@@ -1464,18 +1472,18 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 	if opts.resolvePassword == nil {
 		return nil, "", fmt.Errorf("password resolver is required")
 	}
-	if err := policy.allowSignIn(resolvedAppleID); err != nil {
+	if err := policy.allowSignIn(d, resolvedAppleID); err != nil {
 		return nil, "", err
 	}
 	if twoFactorPreference.Delivery == appleauth.TwoFactorMethodSecurityKey && !securityKeyAvailableFn() {
-		return nil, "", shared.UsageError(securitykey.ErrUnavailable.Error())
+		return nil, "", d.UsageError(securitykey.ErrUnavailable.Error())
 	}
 	resolvedPassword := fallbackPassword
 	if !webPasswordProvided(resolvedPassword.value) {
-		resolvedPassword = resolveNonInteractiveWebPassword(resolvedAppleID, password, skipStoredPassword)
+		resolvedPassword = resolveNonInteractiveWebPassword(d, resolvedAppleID, password, skipStoredPassword)
 	}
 	if !webPasswordProvided(resolvedPassword.value) {
-		if err := securityKeyPreflight(ctx, twoFactorPreference); err != nil {
+		if err := securityKeyPreflight(ctx, d, twoFactorPreference); err != nil {
 			return nil, "", err
 		}
 		promptedPassword, err := opts.resolvePassword(ctx, "")
@@ -1488,7 +1496,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 	}
 	if !webPasswordProvided(resolvedPassword.value) {
 		if isWebSignIn(ctx) {
-			return nil, "", passwordRequiredUsageError()
+			return nil, "", passwordRequiredUsageErrorWith(d)
 		}
 		// No usable cached session and no way to sign in here: the command
 		// needs a session it cannot create. Say so with the sign-in hint rather
@@ -1513,15 +1521,15 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			return
 		}
 		staleSessionDiscarded = true
-		if _, discardErr := deleteStaleWebSessionFn(strings.TrimSpace(serverRejectedAppleID), serverRejectedCache); discardErr != nil && sessionCacheWarningWriter != nil {
-			_, _ = fmt.Fprintf(sessionCacheWarningWriter, "Warning: %v.\n", staleSessionDiscardWarning(discardErr))
+		if _, discardErr := deleteStaleWebSessionFn(strings.TrimSpace(serverRejectedAppleID), serverRejectedCache); discardErr != nil && d.IO.ErrOut != nil {
+			_, _ = fmt.Fprintf(d.IO.ErrOut, "Warning: %v.\n", staleSessionDiscardWarning(discardErr))
 		}
 	}
 	login := func(candidate resolvedWebPassword) (*webcore.AuthSession, bool, error) {
 		// Interactive password and 2FA entry can outlast the caller's request
 		// deadline, so bound every attempt with a fresh timeout derived from the
 		// untimed parent context instead of an already-expired one.
-		loginCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+		loginCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 		defer cancel()
 		// Stripping the timeout also drops values layered above it.
 		loginCtx = contextWithTwoFactorPreference(loginCtx, twoFactorPreference)
@@ -1539,12 +1547,12 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			}
 		}
 		if expiredCachedSession != nil && expiredCachedSession.Client != nil {
-			session, twoFactorStarted, err := loginWithOptionalTwoFactorClientTracked(loginCtx, expiredCachedSession.Client, resolvedAppleID, candidate.value, code, readCommandTwoFactorCode, command)
+			session, twoFactorStarted, err := loginWithOptionalTwoFactorClientTracked(loginCtx, d, expiredCachedSession.Client, resolvedAppleID, candidate.value, code, readCommandTwoFactorCode, command)
 			policy.observe(resolvedAppleID, err, twoFactorStarted)
 			return session, twoFactorStarted, err
 		}
 		reachedTwoFactor := false
-		session, err := loginWithOptionalTwoFactor(loginCtx, resolvedAppleID, candidate.value, code, func() {
+		session, err := loginWithOptionalTwoFactor(loginCtx, d, resolvedAppleID, candidate.value, code, func() {
 			reachedTwoFactor = true
 		}, readCommandTwoFactorCode, command)
 		policy.observe(resolvedAppleID, err, reachedTwoFactor)
@@ -1568,7 +1576,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 			if !canReplaceConsumedTwoFactorCode() {
 				return nil, consumedTwoFactorCodeError(err, discardErr)
 			}
-			printCacheLookupWarning(sessionCacheWarningWriter, staleSessionDiscardWarning(discardErr))
+			printCacheLookupWarning(d.IO.ErrOut, staleSessionDiscardWarning(discardErr))
 			markTwoFactorCodeConsumed()
 		} else if isSigninServerError(err) {
 			serverRejectedCache, serverRejectedAppleID = expiredCachedSession, resolvedAppleID
@@ -1580,7 +1588,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 
 	session, err := loginWithPromptedFreshFallback(resolvedPassword)
 	if errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) && resolvedPassword.source == webPasswordSourceStored {
-		forgetRejectedStoredPassword(resolvedAppleID)
+		forgetRejectedStoredPassword(d, resolvedAppleID)
 		promptedPassword, promptErr := opts.resolvePassword(ctx, "")
 		if promptErr != nil {
 			return nil, "", promptErr
@@ -1603,9 +1611,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, appleID, password, twoFact
 		}
 		return nil, "", err
 	}
-	persistPromptedWebPassword(resolvedAppleID, resolvedPassword)
+	persistPromptedWebPassword(d, resolvedAppleID, resolvedPassword)
 	if !opts.providerSelected {
-		if err := restoreCachedWebProvider(ctx, session, cachedProviderSession); err != nil {
+		if err := restoreCachedWebProvider(ctx, d, session, cachedProviderSession); err != nil {
 			return nil, "", err
 		}
 	}
@@ -1654,26 +1662,30 @@ func persistFreshResolvedSession(session *webcore.AuthSession) error {
 	return nil
 }
 
-func persistAutoReauthResolvedSession(session *webcore.AuthSession) {
-	printSessionCacheWriteWarning(persistWebSessionFn(session))
+func persistAutoReauthResolvedSession(d *shared.Deps, session *webcore.AuthSession) {
+	printSessionCacheWriteWarningWith(d, persistWebSessionFn(session))
 }
 
 func printSessionCacheWriteWarning(err error) {
-	if sessionCacheWarningWriter == nil || err == nil {
+	printSessionCacheWriteWarningWith(shared.DefaultDeps(), err)
+}
+
+func printSessionCacheWriteWarningWith(d *shared.Deps, err error) {
+	if d.IO.ErrOut == nil || err == nil {
 		return
 	}
-	_, _ = fmt.Fprintf(sessionCacheWarningWriter, "Warning: signed in, but caching the web session failed: %v; the next asc web command may need to sign in again.\n", err)
+	_, _ = fmt.Fprintf(d.IO.ErrOut, "Warning: signed in, but caching the web session failed: %v; the next asc web command may need to sign in again.\n", err)
 }
 
 // restoreCachedWebProvider returns a re-signed-in session to the provider the
 // expired cached session was on, since Apple starts every sign-in on the
 // account's default provider.
-func restoreCachedWebProvider(ctx context.Context, session, cached *webcore.AuthSession) error {
+func restoreCachedWebProvider(ctx context.Context, d *shared.Deps, session, cached *webcore.AuthSession) error {
 	if cached == nil || cached.ProviderID == 0 {
 		return nil
 	}
 	if session.ProviderID != cached.ProviderID {
-		providerCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+		providerCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 		defer cancel()
 		if err := selectWebProviderFn(providerCtx, session, webcore.ProviderSelection{ProviderID: cached.ProviderID}); err != nil {
 			return fmt.Errorf("web auth signed in, but could not switch back to provider %d used by the cached web session: %w; pass --provider-id to choose the provider for this command", cached.ProviderID, err)
@@ -1708,25 +1720,27 @@ func selectResolvedWebSessionProviderWith(ctx context.Context, d *shared.Deps, s
 	return nil
 }
 
-func resolveSession(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
+func resolveSession(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
 	command := ""
 	if len(twoFactorCodeCommand) > 0 {
 		command = twoFactorCodeCommand[0]
 	}
-	return resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
-		resolvePassword:      resolveSessionPassword,
-		persistFresh:         persistFreshResolvedSession,
-		persistAutoReauth:    persistAutoReauthResolvedSession,
+	return resolveWebSessionWith(ctx, d, appleID, password, twoFactorCode, webSessionResolveOptions{
+		resolvePassword: resolveSessionPassword,
+		persistFresh:    persistFreshResolvedSession,
+		persistAutoReauth: func(session *webcore.AuthSession) {
+			persistAutoReauthResolvedSession(d, session)
+		},
 		twoFactorCodeCommand: command,
 	})
 }
 
-func resolveSessionWithoutPersist(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
+func resolveSessionWithoutPersist(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
 	command := ""
 	if len(twoFactorCodeCommand) > 0 {
 		command = twoFactorCodeCommand[0]
 	}
-	return resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
+	return resolveWebSessionWith(ctx, d, appleID, password, twoFactorCode, webSessionResolveOptions{
 		resolvePassword:      resolveSessionPassword,
 		twoFactorCodeCommand: command,
 		providerSelected:     true,
@@ -1742,7 +1756,10 @@ func callResolveSessionForProviderSelectionWith(ctx context.Context, d *shared.D
 		return nil, "", shared.WithDiagnostic(d.UsageError("--provider-id must be non-negative"), shared.DiagnosticInvalidInput, "--provider-id")
 	}
 	if !hasProviderSelection(selection) {
-		return callResolveSessionFn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
+		return callResolveSessionFn(ctx, d, appleID, password, twoFactorCode, twoFactorCodeCommand)
+	}
+	if resolveSessionWithoutPersistFn == nil {
+		return resolveSessionWithoutPersist(ctx, d, appleID, password, twoFactorCode, twoFactorCodeCommand)
 	}
 	return callSessionResolverHook(ctx, resolveSessionWithoutPersistFn, "resolveSessionWithoutPersistFn", appleID, password, twoFactorCode, twoFactorCodeCommand)
 }
@@ -1907,7 +1924,7 @@ Examples:
 
 			status := webAuthStatus{
 				Authenticated:    true,
-				PasswordStored:   storedWebPasswordStatus(session.UserEmail),
+				PasswordStored:   storedWebPasswordStatus(d, session.UserEmail),
 				Source:           source,
 				AppleID:          session.UserEmail,
 				TeamID:           session.TeamID,
@@ -1950,13 +1967,13 @@ If --apple-id is not provided, this checks the last cached session.
 				err     error
 			)
 			if trimmedAppleID != "" {
-				session, ok, err = tryResumeWebSession(requestCtx, trimmedAppleID)
+				session, ok, err = tryResumeWebSession(requestCtx, d, trimmedAppleID)
 			} else {
-				session, ok, err = tryResumeLastWebSession(requestCtx)
+				session, ok, err = tryResumeLastWebSession(requestCtx, d)
 			}
 			if err != nil {
 				if errors.Is(err, webcore.ErrCachedSessionExpired) {
-					status := expiredWebAuthStatus(trimmedAppleID)
+					status := expiredWebAuthStatus(d, trimmedAppleID)
 					return printWebAuthStatus(d, status, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("web auth status failed: %w", err)
@@ -1965,13 +1982,13 @@ If --apple-id is not provided, this checks the last cached session.
 			if !ok || session == nil {
 				return printWebAuthStatus(d, webAuthStatus{
 					Authenticated:  false,
-					PasswordStored: storedWebPasswordStatus(trimmedAppleID),
+					PasswordStored: storedWebPasswordStatus(d, trimmedAppleID),
 					AppleID:        trimmedAppleID,
 				}, *output.Output, *output.Pretty)
 			}
 			return printWebAuthStatus(d, webAuthStatus{
 				Authenticated:    true,
-				PasswordStored:   storedWebPasswordStatus(session.UserEmail),
+				PasswordStored:   storedWebPasswordStatus(d, session.UserEmail),
 				Source:           "cache",
 				AppleID:          session.UserEmail,
 				TeamID:           session.TeamID,
