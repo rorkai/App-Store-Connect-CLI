@@ -76,7 +76,7 @@ func TestContextWithAvailabilityTimeout_AllTerritoriesUsesBulkDefault(t *testing
 	t.Setenv("ASC_TIMEOUT", "")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 
-	ctx, cancel := ContextWithAvailabilityTimeout(context.Background(), true)
+	ctx, cancel := DefaultDeps().AvailabilityTimeout(context.Background(), true)
 	defer cancel()
 
 	deadline, ok := ctx.Deadline()
@@ -94,7 +94,7 @@ func TestContextWithAvailabilityTimeout_AllTerritoriesRespectsASCTimeout(t *test
 	t.Setenv("ASC_TIMEOUT", "45s")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 
-	ctx, cancel := ContextWithAvailabilityTimeout(context.Background(), true)
+	ctx, cancel := DefaultDeps().AvailabilityTimeout(context.Background(), true)
 	defer cancel()
 
 	deadline, ok := ctx.Deadline()
@@ -112,7 +112,7 @@ func TestContextWithAvailabilityTimeout_SingleTerritoryUsesStandardTimeout(t *te
 	t.Setenv("ASC_TIMEOUT", "12s")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 
-	ctx, cancel := ContextWithAvailabilityTimeout(context.Background(), false)
+	ctx, cancel := DefaultDeps().AvailabilityTimeout(context.Background(), false)
 	defer cancel()
 
 	deadline, ok := ctx.Deadline()

@@ -17,15 +17,15 @@ type CategoriesSetCommandConfig struct {
 	LongHelp       string
 	ErrorPrefix    string
 	IncludeAppInfo bool
-	// Deps supplies the streams, the request timeout and the output. It
-	// defaults to DefaultDeps(). The client is not taken from it: the command
-	// resolves credentials without the auth spinner GetASCClient shows.
+	// Deps supplies the streams, the request timeout and the output. The
+	// client is not taken from it: the command resolves credentials without
+	// the auth spinner GetASCClient shows.
 	Deps *Deps
 }
 
 // NewCategoriesSetCommand builds a categories set command with shared behavior.
 func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	appID := fs.String("app", "", "App ID (required)")

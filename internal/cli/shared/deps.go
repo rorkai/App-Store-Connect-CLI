@@ -153,7 +153,9 @@ func (d *Deps) MediaUploadTimeout(ctx context.Context, bytes int64) (context.Con
 	return d.ResolvedUploadTimeout(ctx, MediaUploadTimeoutForWork(1, bytes))
 }
 
-// AvailabilityTimeout is ContextWithAvailabilityTimeout on d.
+// AvailabilityTimeout returns the request context for availability updates on
+// d: all-territories updates fan out one PATCH per territory, so they get the
+// longer bulk timeout.
 func (d *Deps) AvailabilityTimeout(ctx context.Context, allTerritories bool) (context.Context, context.CancelFunc) {
 	if allTerritories {
 		return d.ResolvedTimeout(ctx, bulkAvailabilityTimeout)

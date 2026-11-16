@@ -27,13 +27,13 @@ type PricingSetCommandConfig struct {
 	ResolveBaseTerritory  bool
 	// TemporaryPrice adds --end-date, --return-price-point, and --confirm.
 	TemporaryPrice bool
-	// Deps supplies the streams. It defaults to DefaultDeps().
+	// Deps supplies the streams.
 	Deps *Deps
 }
 
 // NewPricingSetCommand builds a pricing set command with shared behavior.
 func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")

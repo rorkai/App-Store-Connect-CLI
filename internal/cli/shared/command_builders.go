@@ -45,8 +45,7 @@ type IDGetCommandConfig struct {
 	// which runs after the ID check. The returned function may be nil.
 	Flags func(*flag.FlagSet) func() error
 
-	// Deps supplies the client, streams and timeout. It defaults to
-	// DefaultDeps().
+	// Deps supplies the client, streams and timeout.
 	Deps *Deps
 
 	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
@@ -55,7 +54,7 @@ type IDGetCommandConfig struct {
 
 // BuildIDGetCommand builds a standard "get by ID" command.
 func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	fs := d.NewFlagSet(builderDefault(config.FlagSetName, config.Name), flag.ExitOnError)
 
 	idFlagName := strings.TrimSpace(config.IDFlag)
@@ -166,8 +165,7 @@ type PaginatedListCommandConfig struct {
 	// to ErrorPrefix followed by ": failed to fetch".
 	FetchErrorPrefix string
 
-	// Deps supplies the client, streams and timeout. It defaults to
-	// DefaultDeps().
+	// Deps supplies the client, streams and timeout.
 	Deps *Deps
 
 	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
@@ -177,7 +175,7 @@ type PaginatedListCommandConfig struct {
 // BuildPaginatedListCommand builds a list command that supports --next and
 // --paginate semantics shared by many resources.
 func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	fs := d.NewFlagSet(builderDefault(config.FlagSetName, config.Name), flag.ExitOnError)
 
 	parentFlagName := strings.TrimSpace(config.ParentFlag)
@@ -344,8 +342,7 @@ type PricePointEqualizationsCommandConfig struct {
 	ErrorPrefix string
 
 	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
-	// Deps supplies the client, streams and timeout. It defaults to
-	// DefaultDeps().
+	// Deps supplies the client, streams and timeout.
 	Deps *Deps
 	// FetchPage receives the --include values for a first page and nil for a
 	// links.next page, which already carries them. The client ignores the
@@ -356,7 +353,7 @@ type PricePointEqualizationsCommandConfig struct {
 // BuildPricePointEqualizationsCommand builds a standard equalizations list
 // command with shared help/examples and --limit/--next/--paginate semantics.
 func BuildPricePointEqualizationsCommand(config PricePointEqualizationsCommandConfig) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	baseUsage := strings.TrimSpace(config.ShortUsage)
 	if baseUsage == "" {
 		baseUsage = "asc equalizations"
@@ -463,8 +460,7 @@ type ConfirmDeleteCommandConfig struct {
 	// ErrorPrefix followed by ": failed to delete".
 	DeleteErrorPrefix string
 
-	// Deps supplies the client, streams and timeout. It defaults to
-	// DefaultDeps().
+	// Deps supplies the client, streams and timeout.
 	Deps *Deps
 
 	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
@@ -475,7 +471,7 @@ type ConfirmDeleteCommandConfig struct {
 // BuildConfirmDeleteCommand builds a standard delete command requiring --id and
 // --confirm and printing a caller-provided result payload.
 func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command {
-	d := builderDeps(config.Deps)
+	d := config.Deps
 	fs := d.NewFlagSet(builderDefault(config.FlagSetName, config.Name), flag.ExitOnError)
 
 	idFlagName := strings.TrimSpace(config.IDFlag)
@@ -531,13 +527,6 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
-}
-
-func builderDeps(d *Deps) *Deps {
-	if d != nil {
-		return d
-	}
-	return DefaultDeps()
 }
 
 func builderTimeout(d *Deps, timeout func(context.Context) (context.Context, context.CancelFunc)) func(context.Context) (context.Context, context.CancelFunc) {
