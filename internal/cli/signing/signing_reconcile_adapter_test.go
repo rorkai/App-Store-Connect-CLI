@@ -642,7 +642,7 @@ func TestFetchVerifiedProfileContentRejectsResponseResourceIDDifferentFromReques
 		Certificate:         &signingCertificateRef{ID: "cert-1", SHA256: strings.Repeat("a", 64)},
 	}
 	_, _, err := fetchVerifiedProfileContent(
-		context.Background(), client, "profile-planned", plan, signingDevicesFile{}, signingTarget{BundleID: "com.example.app"},
+		context.Background(), time.Now, client, "profile-planned", plan, signingDevicesFile{}, signingTarget{BundleID: "com.example.app"},
 	)
 	if err == nil || !strings.Contains(err.Error(), "returned resource ID") {
 		t.Fatalf("mismatched profile response error=%v", err)

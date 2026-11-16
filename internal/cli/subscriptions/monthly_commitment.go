@@ -540,7 +540,7 @@ func validateMonthlyCommitmentUpfrontPrices(
 		subscriptionID,
 		200,
 		"",
-		subscriptionPricingToday(),
+		subscriptionPricingToday(d),
 		asc.SubscriptionPlanTypeUpfront,
 		"",
 	)

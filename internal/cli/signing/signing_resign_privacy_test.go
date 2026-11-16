@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"howett.net/plist"
 )
 
@@ -36,10 +37,11 @@ func TestSigningResignCommandBoundaryRedactsInjectedOperationalCause(t *testing.
 	const secret = "/private/tmp/secret-cert-selector"
 	original := executeSigningResignFn
 	t.Cleanup(func() { executeSigningResignFn = original })
-	executeSigningResignFn = func(context.Context, signingResignOptions) (signingResignResult, error) {
+	executeSigningResignFn = func(context.Context, *shared.Deps, signingResignOptions) (signingResignResult, error) {
 		return signingResignResult{}, fmt.Errorf("certificate read failed at %s: secret-password", secret)
 	}
-	command := SigningResignCommand()
+	d, _, _ := newSigningTestDeps()
+	command := newSigningResignCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--ipa", "input.ipa",
 		"--output", "output.ipa",
@@ -123,7 +125,8 @@ func TestSigningResignCommandMalformedPlatformMetadataIsOperationalExitOne(t *te
 			writeSigningResignIPAWithInfo(t, inputPath, test.info)
 			outputPath := filepath.Join(temporary, "private-output-parent", "output.ipa")
 			manifestPath := filepath.Join(temporary, "private-profiles-manifest.json")
-			command := SigningResignCommand()
+			d, _, _ := newSigningTestDeps()
+			command := newSigningResignCommand(d)
 			if err := command.FlagSet.Parse([]string{
 				"--ipa", inputPath,
 				"--output", outputPath,
@@ -166,7 +169,8 @@ func TestSigningResignOutputPreflightUsesArtifactPublicationStage(t *testing.T) 
 	if err := os.WriteFile(outputPath, []byte("existing artifact"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	command := SigningResignCommand()
+	d, _, _ := newSigningTestDeps()
+	command := newSigningResignCommand(d)
 	if err := command.FlagSet.Parse([]string{
 		"--ipa", inputPath,
 		"--output", outputPath,
@@ -221,7 +225,7 @@ func TestSigningResignEnvironmentJoinsEarlyCleanupFailureWithoutLeakingCause(t *
 	original := signingResignPlatformDepsFn
 	t.Cleanup(func() { signingResignPlatformDepsFn = original })
 	attempted := false
-	signingResignPlatformDepsFn = func() signingRunDeps {
+	signingResignPlatformDepsFn = func(*shared.Deps) signingRunDeps {
 		return minimalSigningResignDeps(
 			temporary,
 			func(context.Context) ([]string, error) { return nil, primary },
@@ -231,12 +235,12 @@ func TestSigningResignEnvironmentJoinsEarlyCleanupFailureWithoutLeakingCause(t *
 			},
 		)
 	}
-	err := runSigningResignEnvironment(context.Background(), testSigningResignIdentity(t), func(context.Context, string) error {
+	err := runSigningResignEnvironment(context.Background(), testSigningDeps(), testSigningResignIdentity(t), func(context.Context, string) error {
 		t.Fatal("operation ran after early environment failure")
 		return nil
 	})
 	if err == nil {
-		t.Fatal("runSigningResignEnvironment() returned nil")
+		t.Fatal("runSigningResignEnvironment(testSigningDeps()) returned nil")
 	}
 	if !errors.Is(err, primary) || !errors.Is(err, cleanup) {
 		t.Fatalf("error = %v, want both primary and cleanup causes", err)
@@ -258,18 +262,18 @@ func TestSigningResignEnvironmentReturnsCleanupOnlyFailureAsStableError(t *testi
 	temporary := t.TempDir()
 	original := signingResignPlatformDepsFn
 	t.Cleanup(func() { signingResignPlatformDepsFn = original })
-	signingResignPlatformDepsFn = func() signingRunDeps {
+	signingResignPlatformDepsFn = func(*shared.Deps) signingRunDeps {
 		return minimalSigningResignDeps(
 			temporary,
 			func(context.Context) ([]string, error) { return nil, nil },
 			func(string) error { return cleanup },
 		)
 	}
-	err := runSigningResignEnvironment(context.Background(), testSigningResignIdentity(t), func(context.Context, string) error {
+	err := runSigningResignEnvironment(context.Background(), testSigningDeps(), testSigningResignIdentity(t), func(context.Context, string) error {
 		return nil
 	})
 	if err == nil {
-		t.Fatal("runSigningResignEnvironment() returned nil")
+		t.Fatal("runSigningResignEnvironment(testSigningDeps()) returned nil")
 	}
 	if !errors.Is(err, cleanup) || !errors.Is(err, ErrSigningResignCleanupFailed) {
 		t.Fatalf("error = %v, want cleanup cause and signal", err)
@@ -288,7 +292,7 @@ func TestSigningResignEnvironmentSuccessfulEarlyCleanupRemainsOperational(t *tes
 	original := signingResignPlatformDepsFn
 	t.Cleanup(func() { signingResignPlatformDepsFn = original })
 	removed := false
-	signingResignPlatformDepsFn = func() signingRunDeps {
+	signingResignPlatformDepsFn = func(*shared.Deps) signingRunDeps {
 		return minimalSigningResignDeps(
 			temporary,
 			func(context.Context) ([]string, error) { return nil, primary },
@@ -298,12 +302,12 @@ func TestSigningResignEnvironmentSuccessfulEarlyCleanupRemainsOperational(t *tes
 			},
 		)
 	}
-	err := runSigningResignEnvironment(context.Background(), testSigningResignIdentity(t), func(context.Context, string) error {
+	err := runSigningResignEnvironment(context.Background(), testSigningDeps(), testSigningResignIdentity(t), func(context.Context, string) error {
 		t.Fatal("operation ran after early environment failure")
 		return nil
 	})
 	if err == nil || !errors.Is(err, primary) {
-		t.Fatalf("runSigningResignEnvironment() error = %v, want primary failure", err)
+		t.Fatalf("runSigningResignEnvironment(testSigningDeps()) error = %v, want primary failure", err)
 	}
 	if !removed {
 		t.Fatal("early failure did not attempt temporary-directory cleanup")
@@ -328,13 +332,13 @@ func TestSigningResignEnvironmentPreservesUnlockAndCleanupFailures(t *testing.T)
 	}
 	original := signingResignPlatformDepsFn
 	t.Cleanup(func() { signingResignPlatformDepsFn = original })
-	signingResignPlatformDepsFn = func() signingRunDeps { return deps }
+	signingResignPlatformDepsFn = func(*shared.Deps) signingRunDeps { return deps }
 
-	err := runSigningResignEnvironment(context.Background(), testSigningResignIdentity(t), func(context.Context, string) error {
+	err := runSigningResignEnvironment(context.Background(), testSigningDeps(), testSigningResignIdentity(t), func(context.Context, string) error {
 		return nil
 	})
 	if err == nil {
-		t.Fatal("runSigningResignEnvironment() returned nil")
+		t.Fatal("runSigningResignEnvironment(testSigningDeps()) returned nil")
 	}
 	for _, cause := range []error{unlockErr, tempErr} {
 		if !errors.Is(err, cause) {
@@ -378,14 +382,14 @@ func TestSigningResignEnvironmentWriteJournalFailureAttemptsBothCleanupPaths(t *
 		journalAttempted = true
 		return journalCleanup
 	}
-	signingResignPlatformDepsFn = func() signingRunDeps { return deps }
+	signingResignPlatformDepsFn = func(*shared.Deps) signingRunDeps { return deps }
 
-	err := runSigningResignEnvironment(context.Background(), testSigningResignIdentity(t), func(context.Context, string) error {
+	err := runSigningResignEnvironment(context.Background(), testSigningDeps(), testSigningResignIdentity(t), func(context.Context, string) error {
 		t.Fatal("operation ran after journal failure")
 		return nil
 	})
 	if err == nil {
-		t.Fatal("runSigningResignEnvironment() returned nil")
+		t.Fatal("runSigningResignEnvironment(testSigningDeps()) returned nil")
 	}
 	for _, cause := range []error{primary, journalCleanup, tempCleanup} {
 		if !errors.Is(err, cause) {

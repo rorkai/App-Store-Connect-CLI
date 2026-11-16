@@ -541,7 +541,7 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.De
 	if err != nil {
 		return nil, err
 	}
-	index.now = shared.PricingNow()
+	index.now = d.Now()
 	return index, nil
 }
 

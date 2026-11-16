@@ -77,7 +77,7 @@ printf 'signer ran in private stage' > "$app/signer-proof"
 	t.Setenv("LD_PRELOAD", "must-be-ignored")
 	destination := filepath.Join(directory, "App.ipa")
 	opts := IOSPackageOptions{AppPath: app, IPAPath: destination, AdHoc: true, LogWriter: io.Discard}
-	result, err := PackageIOSApp(context.Background(), opts)
+	result, err := PackageIOSApp(context.Background(), testSigningDeps(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ printf 'signer ran in private stage' > "$app/signer-proof"
 	if _, err := os.Stat(filepath.Join(app, "signer-proof")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("source app was modified")
 	}
-	if _, err := PackageIOSApp(context.Background(), opts); err == nil {
+	if _, err := PackageIOSApp(context.Background(), testSigningDeps(), opts); err == nil {
 		t.Fatal("existing output replaced")
 	}
 	after, err := os.ReadFile(destination)
@@ -126,15 +126,14 @@ printf 'signer ran in private stage' > "$app/signer-proof"
 func TestIOSPackageRejectsUntrustedProfileBeforeSigning(t *testing.T) {
 	directory, app := newIOSPackageFixture(t)
 	fixture := newSigningRunFixture(t, signingRunFixtureOptions{})
-	original := signingResignNowFn
-	signingResignNowFn = func() time.Time { return fixture.now }
-	t.Cleanup(func() { signingResignNowFn = original })
+	d := testSigningDeps()
+	d.Now = func() time.Time { return fixture.now }
 	profile := filepath.Join(directory, "untrusted.mobileprovision")
 	if err := os.WriteFile(profile, fixture.profile, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	destination := filepath.Join(directory, "App.ipa")
-	_, err := PackageIOSApp(context.Background(), IOSPackageOptions{AppPath: app, IPAPath: destination, IdentityPath: "not-read-before-trust", ProfilePath: profile, LogWriter: io.Discard})
+	_, err := PackageIOSApp(context.Background(), d, IOSPackageOptions{AppPath: app, IPAPath: destination, IdentityPath: "not-read-before-trust", ProfilePath: profile, LogWriter: io.Discard})
 	if err == nil {
 		t.Fatal("non-Apple profile accepted")
 	}
@@ -149,7 +148,7 @@ func TestIOSPackageAdHocRejectsExistingProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	destination := filepath.Join(directory, "App.ipa")
-	_, err := PackageIOSApp(context.Background(), IOSPackageOptions{AppPath: app, IPAPath: destination, AdHoc: true, LogWriter: io.Discard})
+	_, err := PackageIOSApp(context.Background(), testSigningDeps(), IOSPackageOptions{AppPath: app, IPAPath: destination, AdHoc: true, LogWriter: io.Discard})
 	if err == nil || !strings.Contains(err.Error(), "must not contain a provisioning profile") {
 		t.Fatalf("existing profile was not rejected: %v", err)
 	}
@@ -195,7 +194,7 @@ while IFS= read -r line; do printf '%s\n' "$line"; done < "$entitlements" > "$ap
 					t.Fatal(err)
 				}
 			}
-			if _, err := PackageIOSApp(context.Background(), opts); err != nil {
+			if _, err := PackageIOSApp(context.Background(), testSigningDeps(), opts); err != nil {
 				t.Fatal(err)
 			}
 			archive, err := zip.OpenReader(opts.IPAPath)
@@ -239,7 +238,7 @@ func TestIOSPackageReportsPrivateStageCleanupFailure(t *testing.T) {
 		}
 	})
 	t.Setenv("PATH", t.TempDir())
-	result, err := PackageIOSApp(context.Background(), IOSPackageOptions{AppPath: app, IPAPath: filepath.Join(directory, "App.ipa"), AdHoc: true, LogWriter: io.Discard})
+	result, err := PackageIOSApp(context.Background(), testSigningDeps(), IOSPackageOptions{AppPath: app, IPAPath: filepath.Join(directory, "App.ipa"), AdHoc: true, LogWriter: io.Discard})
 	if err == nil || !strings.Contains(err.Error(), "private signing stage cleanup failed") || result.Success {
 		t.Fatalf("cleanup failure hidden: %+v %v", result, err)
 	}
@@ -251,11 +250,8 @@ func TestIOSPackagePipesIdentityToSignerWithoutStagingKey(t *testing.T) {
 	}
 	directory, app := newIOSPackageFixture(t)
 	fixture := newSigningRunFixture(t, signingRunFixtureOptions{})
-	for _, now := range []*func() time.Time{&signingResignNowFn, &signingRunNowFn} {
-		original := *now
-		*now = func() time.Time { return fixture.now }
-		t.Cleanup(func() { *now = original })
-	}
+	d := testSigningDeps()
+	d.Now = func() time.Time { return fixture.now }
 	inputs := map[string][]byte{
 		"App.p12":             fixture.identity,
 		"password":            []byte(fixture.password + "\n"),
@@ -292,7 +288,7 @@ for entry in * .*; do printf '%s\n' "$entry"; done > ` + proof + `/stage
 		ProfilePath:  filepath.Join(directory, "App.mobileprovision"),
 		LogWriter:    io.Discard,
 	}
-	result, err := PackageIOSApp(context.Background(), opts)
+	result, err := PackageIOSApp(context.Background(), d, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
