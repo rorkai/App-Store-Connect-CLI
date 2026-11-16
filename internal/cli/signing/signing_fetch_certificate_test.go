@@ -26,7 +26,8 @@ import (
 )
 
 func TestSigningFetchCreateMissingCertificateUsage(t *testing.T) {
-	cmd := SigningFetchCommand()
+	d, _, _ := newSigningTestDeps()
+	cmd := newSigningFetchCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--bundle-id", "com.example.app",
@@ -55,15 +56,17 @@ func TestSigningFetchRejectsEmptyIdentityPasswordBeforeClientCreation(t *testing
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 			clientCreations := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				clientCreations++
 				return nil, fmt.Errorf("client must not be created")
-			}))
+			}
 			passwordPath := filepath.Join(t.TempDir(), "password")
 			if err := os.WriteFile(passwordPath, test.password, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			cmd := SigningFetchCommand()
+			d, _, stderr := newSigningTestDeps()
+			d.Client = clientFactory
+			cmd := newSigningFetchCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse([]string{
 				"--bundle-id", "com.example.app",
@@ -78,6 +81,9 @@ func TestSigningFetchRejectsEmptyIdentityPasswordBeforeClientCreation(t *testing
 			err := cmd.Run(context.Background())
 			if err == nil || !strings.Contains(err.Error(), "identity password file is empty") {
 				t.Fatalf("error = %v, want empty identity password diagnostic", err)
+			}
+			if got := stderr.String(); got != "Error: identity password file is empty\n" {
+				t.Fatalf("deps stderr = %q, want the usage error", got)
 			}
 			if clientCreations != 0 {
 				t.Fatalf("client creations = %d, want 0", clientCreations)
@@ -191,9 +197,6 @@ func TestSigningFetchCreatesCertificateThenSkipsOnRerun(t *testing.T) {
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	}))
 	output := t.TempDir()
 	password := filepath.Join(t.TempDir(), "password")
 	if err := os.WriteFile(password, []byte("secret\n"), 0o600); err != nil {
@@ -202,7 +205,9 @@ func TestSigningFetchCreatesCertificateThenSkipsOnRerun(t *testing.T) {
 	firstOutput := filepath.Join(output, "first")
 	secondOutput := filepath.Join(output, "second")
 	run := func(dir string) (string, error) {
-		cmd := SigningFetchCommand()
+		d, depsStdout, _ := newSigningTestDeps()
+		d.Client = func() (*asc.Client, error) { return client, nil }
+		cmd := newSigningFetchCommand(d)
 		cmd.FlagSet.SetOutput(io.Discard)
 		if err := cmd.Parse([]string{
 			"--bundle-id", "com.example.app",
@@ -216,10 +221,8 @@ func TestSigningFetchCreatesCertificateThenSkipsOnRerun(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		var runErr error
-		stdout, _ := captureOutput(t, func() {
-			runErr = cmd.Run(context.Background())
-		})
+		runErr := cmd.Run(context.Background())
+		stdout := depsStdout.String()
 		return stdout, runErr
 	}
 	stdout, err := run(firstOutput)
@@ -341,7 +344,7 @@ func TestSigningFetchCreateMissingCertificateType(t *testing.T) {
 					return nil
 				}
 			})
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+			clientFactory := func() (*asc.Client, error) { return client, nil }
 			password := filepath.Join(t.TempDir(), "password")
 			if err := os.WriteFile(password, []byte("secret"), 0o600); err != nil {
 				t.Fatal(err)
@@ -361,13 +364,15 @@ func TestSigningFetchCreateMissingCertificateType(t *testing.T) {
 			if test.profileType == "IOS_APP_DEVELOPMENT" {
 				args = append(args, "--device", "device-1")
 			}
-			cmd := SigningFetchCommand()
+			d, depsStdout, _ := newSigningTestDeps()
+			d.Client = clientFactory
+			cmd := newSigningFetchCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse(args); err != nil {
 				t.Fatal(err)
 			}
-			var runErr error
-			stdout, _ := captureOutput(t, func() { runErr = cmd.Run(context.Background()) })
+			runErr := cmd.Run(context.Background())
+			stdout := depsStdout.String()
 			if runErr != nil {
 				t.Fatalf("run: %v\n%s", runErr, stdout)
 			}
@@ -415,12 +420,14 @@ func TestSigningFetchReportsPartialCertificateCreate(t *testing.T) {
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 	password := filepath.Join(t.TempDir(), "password")
 	if err := os.WriteFile(password, []byte("secret"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := SigningFetchCommand()
+	d, depsStdout, _ := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := newSigningFetchCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--bundle-id", "com.example.app",
@@ -433,8 +440,8 @@ func TestSigningFetchReportsPartialCertificateCreate(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr := cmd.Run(context.Background())
+	stdout := depsStdout.String()
 	if runErr == nil {
 		t.Fatal("expected profile create failure")
 	}
@@ -463,7 +470,7 @@ func TestSigningFetchPreflightsCertificateCreationBeforeCertificatePOST(t *testi
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 
 	output := t.TempDir()
 	sentinel := []byte("existing metadata")
@@ -476,7 +483,9 @@ func TestSigningFetchPreflightsCertificateCreationBeforeCertificatePOST(t *testi
 		t.Fatal(err)
 	}
 
-	cmd := SigningFetchCommand()
+	d, depsStdout, _ := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := newSigningFetchCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--bundle-id", "com.example.app",
@@ -489,8 +498,8 @@ func TestSigningFetchPreflightsCertificateCreationBeforeCertificatePOST(t *testi
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr := cmd.Run(context.Background())
+	stdout := depsStdout.String()
 	if runErr == nil || !strings.Contains(runErr.Error(), "output file already exists") {
 		t.Fatalf("error = %v, want deterministic metadata preflight failure", runErr)
 	}
@@ -543,11 +552,6 @@ func TestSigningFetchPreflightsGeneratedOutputStructureBeforeCertificatePOST(t *
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if !test.now.IsZero() {
-				previousNow := signingFetchNowFn
-				signingFetchNowFn = func() time.Time { return test.now }
-				t.Cleanup(func() { signingFetchNowFn = previousNow })
-			}
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 			certificatePosts := 0
@@ -567,7 +571,7 @@ func TestSigningFetchPreflightsGeneratedOutputStructureBeforeCertificatePOST(t *
 					return nil
 				}
 			})
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+			clientFactory := func() (*asc.Client, error) { return client, nil }
 
 			output := t.TempDir()
 			password := filepath.Join(t.TempDir(), "password")
@@ -585,13 +589,18 @@ func TestSigningFetchPreflightsGeneratedOutputStructureBeforeCertificatePOST(t *
 			}
 			args = append(args, test.pathArgs(output)...)
 
-			cmd := SigningFetchCommand()
+			d, depsStdout, _ := newSigningTestDeps()
+			d.Client = clientFactory
+			if !test.now.IsZero() {
+				d.Now = func() time.Time { return test.now }
+			}
+			cmd := newSigningFetchCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse(args); err != nil {
 				t.Fatal(err)
 			}
-			var runErr error
-			stdout, _ := captureOutput(t, func() { runErr = cmd.Run(context.Background()) })
+			runErr := cmd.Run(context.Background())
+			stdout := depsStdout.String()
 			if runErr == nil || !strings.Contains(runErr.Error(), test.wantError) {
 				t.Fatalf("error = %v, want %q", runErr, test.wantError)
 			}
@@ -625,7 +634,7 @@ func TestSigningFetchRefusesSymlinkedIdentityParentBeforeCertificatePOST(t *test
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 
 	output := t.TempDir()
 	outside := t.TempDir()
@@ -637,7 +646,9 @@ func TestSigningFetchRefusesSymlinkedIdentityParentBeforeCertificatePOST(t *test
 	if err := os.WriteFile(password, []byte("secret"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := SigningFetchCommand()
+	d, _, _ := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := newSigningFetchCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--bundle-id", "com.example.app",
@@ -783,14 +794,16 @@ func TestSigningFetchPreservesUnknownCertificateCreationReceipt(t *testing.T) {
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 
 	output := t.TempDir()
 	password := filepath.Join(t.TempDir(), "password")
 	if err := os.WriteFile(password, []byte("secret"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := SigningFetchCommand()
+	d, depsStdout, _ := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := newSigningFetchCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--bundle-id", "com.example.app",
@@ -803,8 +816,8 @@ func TestSigningFetchPreservesUnknownCertificateCreationReceipt(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr := cmd.Run(context.Background())
+	stdout := depsStdout.String()
 	if runErr == nil {
 		t.Fatal("expected certificate creation failure")
 	}
@@ -840,13 +853,15 @@ func TestSigningFetchPreservesUnknownReceiptWhenCertificateResponseCannotBeParse
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 
 	password := filepath.Join(t.TempDir(), "password")
 	if err := os.WriteFile(password, []byte("secret"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := SigningFetchCommand()
+	d, depsStdout, _ := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := newSigningFetchCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
 		"--bundle-id", "com.example.app",
@@ -859,8 +874,8 @@ func TestSigningFetchPreservesUnknownReceiptWhenCertificateResponseCannotBeParse
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr := cmd.Run(context.Background())
+	stdout := depsStdout.String()
 	if runErr == nil {
 		t.Fatal("expected certificate response parsing failure")
 	}

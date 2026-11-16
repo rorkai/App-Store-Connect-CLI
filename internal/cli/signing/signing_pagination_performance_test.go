@@ -28,18 +28,18 @@ func TestSigningInventoryPageSizeReducesRequests(t *testing.T) {
 			return signingInventoryIDs(response.Data), nil
 		}},
 		{"active profiles", "/v1/bundleIds/bundle-main/profiles", "profiles", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			profiles, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE")
+			profiles, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE", signingFetchNowFn)
 			return signingInventoryIDs(profiles), err
 		}},
 		{"profile certificates", "/v1/profiles/profile-main/certificates", "certificates", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			response, err := findProfileCertificates(ctx, client, "profile-main", "IOS_DISTRIBUTION")
+			response, err := findProfileCertificates(ctx, client, "profile-main", "IOS_DISTRIBUTION", signingFetchNowFn)
 			if err != nil {
 				return nil, err
 			}
 			return signingInventoryIDs(response.Data), nil
 		}},
 		{"stale profiles", "/v1/bundleIds/bundle-main/profiles", "profiles", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			profiles, err := findStaleSigningProfiles(ctx, client, "bundle-main", "IOS_APP_STORE")
+			profiles, err := findStaleSigningProfiles(ctx, client, "bundle-main", "IOS_APP_STORE", signingFetchNowFn)
 			ids := make([]string, 0, len(profiles))
 			for _, profile := range profiles {
 				ids = append(ids, profile.ID)
@@ -47,7 +47,7 @@ func TestSigningInventoryPageSizeReducesRequests(t *testing.T) {
 			return ids, err
 		}},
 		{"latest expired profile", "/v1/bundleIds/bundle-main/profiles", "profiles", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			profile, err := findLatestExpiredProfile(ctx, client, "bundle-main", "IOS_APP_STORE")
+			profile, err := findLatestExpiredProfile(ctx, client, "bundle-main", "IOS_APP_STORE", signingFetchNowFn)
 			if err != nil || profile == nil {
 				return nil, err
 			}

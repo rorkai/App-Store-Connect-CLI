@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // isolateSigningFetchAppDefaults points HOME and the config path at a temp
@@ -98,11 +97,13 @@ func TestSigningFetchAppValidation(t *testing.T) {
 					return nil
 				}
 			})
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				return client, nil
-			}))
+			}
 
-			cmd := SigningFetchCommand()
+			d, depsStdout, _ := newSigningTestDeps()
+			d.Client = clientFactory
+			cmd := newSigningFetchCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			args := append([]string{
 				"--bundle-id", "com.example.app",
@@ -113,10 +114,8 @@ func TestSigningFetchAppValidation(t *testing.T) {
 			if err := cmd.Parse(args); err != nil {
 				t.Fatal(err)
 			}
-			var runErr error
-			stdout, _ := captureOutput(t, func() {
-				runErr = cmd.Run(context.Background())
-			})
+			runErr := cmd.Run(context.Background())
+			stdout := depsStdout.String()
 
 			if test.wantErr != "" {
 				if runErr == nil || !strings.Contains(runErr.Error(), test.wantErr) {

@@ -21,10 +21,7 @@ func TestWorkflowHelp_ResumeExamplesUseTheirOwnRunID(t *testing.T) {
 		{"workflow", "--help"},
 		{"workflow", "run", "--help"},
 	} {
-		var code int
-		stdout, _ := captureOutput(t, func() {
-			code = rootcmd.Run(args, "1.2.3")
-		})
+		stdout, _, code := runWithDeps(t, nil, args...)
 		if code != rootcmd.ExitSuccess {
 			t.Fatalf("%v: exit code = %d, want %d", args, code, rootcmd.ExitSuccess)
 		}

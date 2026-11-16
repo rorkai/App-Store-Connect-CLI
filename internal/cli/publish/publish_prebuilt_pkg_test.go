@@ -15,13 +15,14 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestPublishTestFlightPrebuiltPKGUploadOnly(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
 		if appID != "friendly-app" {
 			t.Fatalf("expected friendly-app lookup, got %q", appID)
@@ -35,7 +36,7 @@ func TestPublishTestFlightPrebuiltPKGUploadOnly(t *testing.T) {
 		return newPublishTestFileInfo(t)
 	}
 	uploadCalls := 0
-	uploadPKGBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, appID, path string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadPKGBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, appID, path string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, _ time.Duration, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		uploadCalls++
 		if appID != "app-123" || path != "Demo.pkg" {
 			t.Fatalf("unexpected PKG upload target: app=%q path=%q", appID, path)
@@ -47,7 +48,8 @@ func TestPublishTestFlightPrebuiltPKGUploadOnly(t *testing.T) {
 	}
 	requestCalls := rejectPublishUploadOnlyHTTP(t)
 
-	cmd := PublishTestFlightCommand()
+	d := newPublishTestDeps()
+	cmd := newPublishTestFlightCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "friendly-app",
@@ -60,7 +62,7 @@ func TestPublishTestFlightPrebuiltPKGUploadOnly(t *testing.T) {
 		t.Fatalf("parse flags: %v", err)
 	}
 
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		return cmd.Exec(context.Background(), nil)
 	})
 	if strings.TrimSpace(stderr) != "" {
@@ -90,7 +92,8 @@ func TestPublishAppStorePrebuiltPKGDryRun(t *testing.T) {
 		return newPublishTestFileInfo(t)
 	}
 
-	cmd := PublishAppStoreCommand()
+	d := newPublishTestDeps()
+	cmd := newPublishAppStoreCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
@@ -103,7 +106,7 @@ func TestPublishAppStorePrebuiltPKGDryRun(t *testing.T) {
 		t.Fatalf("parse flags: %v", err)
 	}
 
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		return cmd.Exec(context.Background(), nil)
 	})
 	if strings.TrimSpace(stderr) != "" {
@@ -130,7 +133,7 @@ func TestPublishAppStorePrebuiltPKGUploadsAndAttaches(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	validatePublishPKGPathFn = func(path string) (os.FileInfo, error) {
 		if path != "Demo.pkg" {
 			t.Fatalf("expected Demo.pkg validation, got %q", path)
@@ -144,7 +147,7 @@ func TestPublishAppStorePrebuiltPKGUploadsAndAttaches(t *testing.T) {
 		return "app-123", nil
 	}
 	uploadCalls := 0
-	uploadPKGBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, appID, path string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval, _ time.Duration, _ bool) (*publishUploadResult, error) {
+	uploadPKGBuildAndWaitForIDFn = func(_ context.Context, _ *shared.Deps, _ *asc.Client, appID, path string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval, _ time.Duration, _ bool) (*publishUploadResult, error) {
 		uploadCalls++
 		if appID != "app-123" || path != "Demo.pkg" || version != "1.2.3" || buildNumber != "42" {
 			t.Fatalf("unexpected PKG upload: app=%q path=%q version=%q build=%q", appID, path, version, buildNumber)
@@ -180,7 +183,8 @@ func TestPublishAppStorePrebuiltPKGUploadsAndAttaches(t *testing.T) {
 		}
 	}))
 
-	cmd := PublishAppStoreCommand()
+	d := newPublishTestDeps()
+	cmd := newPublishAppStoreCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "friendly-app",
@@ -193,7 +197,7 @@ func TestPublishAppStorePrebuiltPKGUploadsAndAttaches(t *testing.T) {
 		t.Fatalf("parse flags: %v", err)
 	}
 
-	stdout, stderr := capturePublishCommandOutput(t, func() error {
+	stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 		return cmd.Exec(context.Background(), nil)
 	})
 	if strings.TrimSpace(stderr) != "" {
@@ -214,19 +218,19 @@ func TestPublishAppStorePrebuiltPKGUploadsAndAttaches(t *testing.T) {
 func TestPublishCommandsRejectPKGPlatformMismatches(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 		wantErr string
 	}{
 		{
 			name:    "testflight PKG",
-			command: PublishTestFlightCommand,
+			command: newPublishTestFlightCommand,
 			args:    []string{"--app", "123", "--pkg", "Demo.pkg", "--version", "1.2.3", "--build-number", "42", "--platform", "IOS", "--upload-only"},
 			wantErr: "--platform IOS does not match PKG platform MAC_OS",
 		},
 		{
 			name:    "appstore PKG",
-			command: PublishAppStoreCommand,
+			command: newPublishAppStoreCommand,
 			args:    []string{"--app", "123", "--pkg", "Demo.pkg", "--version", "1.2.3", "--build-number", "42", "--platform", "IOS", "--dry-run"},
 			wantErr: "--platform IOS does not match PKG platform MAC_OS",
 		},
@@ -239,7 +243,8 @@ func TestPublishCommandsRejectPKGPlatformMismatches(t *testing.T) {
 			validatePublishIPAPathFn = func(path string) (os.FileInfo, error) { return os.Stat(path) }
 			validatePublishPKGPathFn = func(string) (os.FileInfo, error) { return newPublishTestFileInfo(t) }
 
-			cmd := test.command()
+			d := newPublishTestDeps()
+			cmd := test.command(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
@@ -256,11 +261,11 @@ func TestPublishCommandsRejectMacOSIPA(t *testing.T) {
 	const wantErr = "--ipa is not supported with --platform MAC_OS; use --pkg with --version and --build-number"
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
-		{name: "testflight", command: PublishTestFlightCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--platform", "MAC_OS", "--upload-only"}},
-		{name: "appstore", command: PublishAppStoreCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--platform", "MAC_OS", "--dry-run"}},
+		{name: "testflight", command: newPublishTestFlightCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--platform", "MAC_OS", "--upload-only"}},
+		{name: "appstore", command: newPublishAppStoreCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--platform", "MAC_OS", "--dry-run"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -271,13 +276,14 @@ func TestPublishCommandsRejectMacOSIPA(t *testing.T) {
 				return nil, nil
 			}
 
-			cmd := test.command()
+			d := newPublishTestDeps()
+			cmd := test.command(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}
 			var err error
-			stdout, stderr := capturePublishCommandOutput(t, func() error {
+			stdout, stderr := capturePublishDepsOutput(t, d, func() error {
 				err = cmd.Exec(context.Background(), nil)
 				return nil
 			})
@@ -297,20 +303,21 @@ func TestPublishCommandsRejectMacOSIPA(t *testing.T) {
 func TestPublishPrebuiltPKGRequiresVersionAndBuildNumber(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 		wantErr string
 	}{
-		{name: "testflight both", command: PublishTestFlightCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--upload-only"}, wantErr: "--version and --build-number required for PKG uploads"},
-		{name: "testflight version", command: PublishTestFlightCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--version", "1.2.3", "--upload-only"}, wantErr: "--build-number required for PKG uploads"},
-		{name: "testflight build", command: PublishTestFlightCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--build-number", "42", "--upload-only"}, wantErr: "--version required for PKG uploads"},
-		{name: "appstore both", command: PublishAppStoreCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--dry-run"}, wantErr: "--version and --build-number required for PKG uploads"},
-		{name: "appstore version", command: PublishAppStoreCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--version", "1.2.3", "--dry-run"}, wantErr: "--build-number required for PKG uploads"},
-		{name: "appstore build", command: PublishAppStoreCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--build-number", "42", "--dry-run"}, wantErr: "--version required for PKG uploads"},
+		{name: "testflight both", command: newPublishTestFlightCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--upload-only"}, wantErr: "--version and --build-number required for PKG uploads"},
+		{name: "testflight version", command: newPublishTestFlightCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--version", "1.2.3", "--upload-only"}, wantErr: "--build-number required for PKG uploads"},
+		{name: "testflight build", command: newPublishTestFlightCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--build-number", "42", "--upload-only"}, wantErr: "--version required for PKG uploads"},
+		{name: "appstore both", command: newPublishAppStoreCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--dry-run"}, wantErr: "--version and --build-number required for PKG uploads"},
+		{name: "appstore version", command: newPublishAppStoreCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--version", "1.2.3", "--dry-run"}, wantErr: "--build-number required for PKG uploads"},
+		{name: "appstore build", command: newPublishAppStoreCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--build-number", "42", "--dry-run"}, wantErr: "--version required for PKG uploads"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := test.command()
+			d := newPublishTestDeps()
+			cmd := test.command(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
@@ -326,15 +333,16 @@ func TestPublishPrebuiltPKGRequiresVersionAndBuildNumber(t *testing.T) {
 func TestPublishPrebuiltArtifactsAreMutuallyExclusive(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
-		{name: "testflight", command: PublishTestFlightCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--pkg", "Demo.pkg", "--version", "1.2.3", "--build-number", "42", "--upload-only"}},
-		{name: "appstore", command: PublishAppStoreCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--pkg", "Demo.pkg", "--version", "1.2.3", "--build-number", "42", "--dry-run"}},
+		{name: "testflight", command: newPublishTestFlightCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--pkg", "Demo.pkg", "--version", "1.2.3", "--build-number", "42", "--upload-only"}},
+		{name: "appstore", command: newPublishAppStoreCommand, args: []string{"--app", "123", "--ipa", "Demo.ipa", "--pkg", "Demo.pkg", "--version", "1.2.3", "--build-number", "42", "--dry-run"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := test.command()
+			d := newPublishTestDeps()
+			cmd := test.command(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
@@ -350,15 +358,16 @@ func TestPublishPrebuiltArtifactsAreMutuallyExclusive(t *testing.T) {
 func TestPublishPrebuiltPKGConflictsWithLocalBuild(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
-		{name: "testflight", command: PublishTestFlightCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--workspace", "Demo.xcworkspace", "--scheme", "Demo", "--version", "1.2.3", "--build-number", "42", "--upload-only"}},
-		{name: "appstore", command: PublishAppStoreCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--project", "Demo.xcodeproj", "--scheme", "Demo", "--version", "1.2.3", "--build-number", "42", "--dry-run"}},
+		{name: "testflight", command: newPublishTestFlightCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--workspace", "Demo.xcworkspace", "--scheme", "Demo", "--version", "1.2.3", "--build-number", "42", "--upload-only"}},
+		{name: "appstore", command: newPublishAppStoreCommand, args: []string{"--app", "123", "--pkg", "Demo.pkg", "--project", "Demo.xcodeproj", "--scheme", "Demo", "--version", "1.2.3", "--build-number", "42", "--dry-run"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := test.command()
+			d := newPublishTestDeps()
+			cmd := test.command(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)

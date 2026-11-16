@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"time"
@@ -29,8 +30,12 @@ type PollOptions struct {
 
 	// OnToleratedFailure observes every tolerated failure with the 1-based
 	// position in the current streak and the configured ceiling. A nil handler
-	// reports tolerated failures on stderr.
+	// reports tolerated failures on Stderr.
 	OnToleratedFailure func(err error, failures, max int)
+
+	// Stderr is where the default handler reports a tolerated failure. Nil
+	// means the process stderr.
+	Stderr io.Writer
 
 	// NextInterval, when set, returns the wait before the next check given how
 	// many checks have run so far (1-based). It replaces the fixed interval so a
@@ -65,7 +70,10 @@ func PollUntilTolerant[T any](ctx context.Context, interval time.Duration, check
 	}
 	onToleratedFailure := opts.OnToleratedFailure
 	if onToleratedFailure == nil {
-		onToleratedFailure = logToleratedPollFailure
+		stderr := opts.Stderr
+		onToleratedFailure = func(err error, failures, max int) {
+			logToleratedPollFailureTo(stderr, err, failures, max)
+		}
 	}
 
 	consecutiveFailures := 0
@@ -192,8 +200,15 @@ func isTemporaryNetError(err net.Error) bool {
 }
 
 func logToleratedPollFailure(err error, failures, max int) {
+	logToleratedPollFailureTo(os.Stderr, err, failures, max)
+}
+
+func logToleratedPollFailureTo(stderr io.Writer, err error, failures, max int) {
+	if stderr == nil {
+		stderr = os.Stderr
+	}
 	fmt.Fprintf(
-		os.Stderr,
+		stderr,
 		"transient App Store Connect error while waiting (%d/%d): %s\n",
 		failures,
 		max,
