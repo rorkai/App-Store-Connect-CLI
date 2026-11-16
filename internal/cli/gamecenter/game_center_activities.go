@@ -654,7 +654,11 @@ Examples:
 			shared.StringFlag(&fallbackURL, "fallback-url", "Fallback URL"),
 		},
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
-			return client.CreateGameCenterActivityVersion(ctx, id, fallbackURL)
+			var attrs *asc.GameCenterActivityVersionCreateAttributes
+			if value := strings.TrimSpace(fallbackURL); value != "" {
+				attrs = &asc.GameCenterActivityVersionCreateAttributes{FallbackURL: &value}
+			}
+			return client.CreateGameCenterActivityVersion(ctx, id, attrs)
 		},
 		Deps: d,
 	})

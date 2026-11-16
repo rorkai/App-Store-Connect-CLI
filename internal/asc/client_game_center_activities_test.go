@@ -255,7 +255,7 @@ func TestCreateGameCenterActivityVersion(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.CreateGameCenterActivityVersion(context.Background(), "act-1", ""); err != nil {
+	if _, err := client.CreateGameCenterActivityVersion(context.Background(), "act-1", nil); err != nil {
 		t.Fatalf("CreateGameCenterActivityVersion() error: %v", err)
 	}
 }
