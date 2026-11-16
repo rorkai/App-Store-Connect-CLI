@@ -1095,3 +1095,86 @@ func TestAdoptSpellsIdAsIDInTypeNames(t *testing.T) {
 		t.Errorf("zone_ids.go should be deleted once empty, stat err = %v", err)
 	}
 }
+
+func TestAdoptBindsThePositiveCheckOfAnIntegerArgument(t *testing.T) {
+	src := `package asc
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"strings"
+)
+
+// CreateSizedWristband creates a wristband of a positive size.
+func (c *Client) CreateSizedWristband(ctx context.Context, widgetID, label string, color WristbandColor, size int) (*WristbandResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	label = strings.TrimSpace(label)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	if label == "" {
+		return nil, fmt.Errorf("label is required")
+	}
+	if size <= 0 {
+		return nil, fmt.Errorf("size must be greater than 0")
+	}
+	payload := WristbandCreateRequest{Data: WristbandCreateData{
+		Type:          ResourceTypeWristbands,
+		Attributes:    WristbandCreateAttributes{Label: label, Color: color, Size: size},
+		Relationships: &WristbandCreateRelationships{Widget: &Relationship{Data: ResourceData{Type: ResourceTypeWidgets, ID: widgetID}}},
+	}}
+	return sendJSON[WristbandResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/wristbands", Payload: payload})
+}
+
+// CreateWristband checks the size before the label, so it stays hand-written.
+func (c *Client) CreateWristband(ctx context.Context, widgetID, label string, color WristbandColor, size int) (*WristbandResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	label = strings.TrimSpace(label)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	if size <= 0 {
+		return nil, fmt.Errorf("size is required")
+	}
+	if label == "" {
+		return nil, fmt.Errorf("label is required")
+	}
+	payload := WristbandCreateRequest{Data: WristbandCreateData{
+		Type:          ResourceTypeWristbands,
+		Attributes:    WristbandCreateAttributes{Label: label, Color: color, Size: size},
+		Relationships: &WristbandCreateRelationships{Widget: &Relationship{Data: ResourceData{Type: ResourceTypeWidgets, ID: widgetID}}},
+	}}
+	return sendJSON[WristbandResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/wristbands", Payload: payload})
+}
+`
+	types := `package asc
+
+// WristbandCreateData is the data of a new wristband.
+type WristbandCreateData struct {
+	Type          ResourceType                  ` + "`json:\"type\"`" + `
+	Attributes    WristbandCreateAttributes     ` + "`json:\"attributes\"`" + `
+	Relationships *WristbandCreateRelationships ` + "`json:\"relationships\"`" + `
+}
+`
+	dir := writeHandWritten(t, map[string]string{"client.go": src, "types.go": types})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var adopted []*OpBind
+	for _, op := range bindings.Families[0].Operations {
+		if op.Operation == "wristbands_createInstance" {
+			adopted = append(adopted, op)
+		}
+	}
+	if len(adopted) != 1 || adopted[0].Name != "CreateSizedWristband" || adopted[0].Messages != nil || len(adopted[0].Args) != 3 || adopted[0].Args[1].Positive != "" || adopted[0].Args[2].Positive != "size must be greater than 0" {
+		t.Fatalf("adopted wristband creates = %+v", adopted)
+	}
+	if client := readFile(t, filepath.Join(dir, "client.go")); strings.Contains(client, "CreateSizedWristband") || !strings.Contains(client, "func (c *Client) CreateWristband(") {
+		t.Errorf("client.go after adopt:\n%s", client)
+	}
+}
