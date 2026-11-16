@@ -14,21 +14,37 @@ func TestCallResolveAppCreateSessionFnPassesTwoFactorCommand(t *testing.T) {
 	t.Cleanup(func() { resolveAppCreateSessionFn = origResolveAppCreateSession })
 
 	var gotCommand string
-	resolveAppCreateSessionFn = func(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
-		gotCommand = twoFactorCodeCommand
-		return &webcore.AuthSession{}, "fresh", nil
-	}
+	for _, tc := range []struct {
+		name string
+		hook any
+	}{
+		{name: "command parameter", hook: func(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
+			gotCommand = twoFactorCodeCommand
+			return &webcore.AuthSession{}, "fresh", nil
+		}},
+		// The shape of resolveAppCreateSession, the hook's default.
+		{name: "variadic command", hook: func(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
+			gotCommand = strings.Join(twoFactorCodeCommand, ",")
+			return &webcore.AuthSession{}, "fresh", nil
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gotCommand = ""
+			resolveAppCreateSessionFn = tc.hook
 
-	_, _, err := callResolveAppCreateSessionFn(context.Background(), "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
-	if err != nil {
-		t.Fatalf("callResolveAppCreateSessionFn returned error: %v", err)
-	}
-	if gotCommand != "osascript ./get-2fa.scpt" {
-		t.Fatalf("expected command to be forwarded, got %q", gotCommand)
+			_, _, err := callResolveAppCreateSessionFn(context.Background(), "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
+			if err != nil {
+				t.Fatalf("callResolveAppCreateSessionFn returned error: %v", err)
+			}
+			if gotCommand != "osascript ./get-2fa.scpt" {
+				t.Fatalf("expected command to be forwarded, got %q", gotCommand)
+			}
+		})
 	}
 }
 
 func TestCallResolveSessionFnRejectsDroppedTwoFactorCommand(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = origResolveSession })
 
@@ -37,7 +53,7 @@ func TestCallResolveSessionFnRejectsDroppedTwoFactorCommand(t *testing.T) {
 		return nil, "", nil
 	}
 
-	_, _, err := callResolveSessionFn(context.Background(), "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
+	_, _, err := callResolveSessionFn(context.Background(), d, "user@example.com", "secret", "", "osascript ./get-2fa.scpt")
 	if err == nil {
 		t.Fatal("expected callResolveSessionFn to reject silently dropping the two-factor command")
 	}

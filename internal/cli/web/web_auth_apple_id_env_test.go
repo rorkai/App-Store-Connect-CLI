@@ -20,8 +20,9 @@ func recordSessionLookups(lookups *[]string) {
 }
 
 func TestResolveSessionUsesEnvAppleIDForFreshLogin(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	t.Setenv(webAppleIDEnv, "  env@example.com  ")
 	t.Setenv(webPasswordEnv, "env-secret")
 
@@ -48,7 +49,7 @@ func TestResolveSessionUsesEnvAppleIDForFreshLogin(t *testing.T) {
 		return nil
 	}
 
-	session, source, err := resolveSession(context.Background(), "", "", "")
+	session, source, err := resolveSession(context.Background(), d, "", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
@@ -70,14 +71,15 @@ func TestResolveSessionUsesEnvAppleIDForFreshLogin(t *testing.T) {
 }
 
 func TestResolveSessionSanitizesEnvAppleIDNotice(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	t.Setenv(webAppleIDEnv, "attacker@example.com\nINJECTED\x1b[31m\u202e")
 
 	var lookups []string
 	recordSessionLookups(&lookups)
 
-	if _, _, err := resolveSession(context.Background(), "", "", ""); err != nil {
+	if _, _, err := resolveSession(context.Background(), d, "", "", ""); err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
 	if got, want := strings.Join(lookups, ","), "attacker@example.com\nINJECTED\x1b[31m\u202e"; got != want {
@@ -89,8 +91,9 @@ func TestResolveSessionSanitizesEnvAppleIDNotice(t *testing.T) {
 }
 
 func TestResolveSessionExplicitAppleIDOverridesEnvAppleID(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	t.Setenv(webAppleIDEnv, "env@example.com")
 
 	origDefault := defaultCachedAppleIDFn
@@ -103,7 +106,7 @@ func TestResolveSessionExplicitAppleIDOverridesEnvAppleID(t *testing.T) {
 	var lookups []string
 	recordSessionLookups(&lookups)
 
-	session, _, err := resolveSession(context.Background(), " flag@example.com ", "", "")
+	session, _, err := resolveSession(context.Background(), d, " flag@example.com ", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
@@ -119,8 +122,9 @@ func TestResolveSessionExplicitAppleIDOverridesEnvAppleID(t *testing.T) {
 }
 
 func TestResolveSessionIgnoresBlankEnvAppleID(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "only@example.com")
 	// An exported-but-empty variable is the shape a CI runner produces for an
 	// unset secret; it must behave like no variable at all.
@@ -129,7 +133,7 @@ func TestResolveSessionIgnoresBlankEnvAppleID(t *testing.T) {
 	var lookups []string
 	recordSessionLookups(&lookups)
 
-	session, _, err := resolveSession(context.Background(), "", "", "")
+	session, _, err := resolveSession(context.Background(), d, "", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
@@ -145,8 +149,9 @@ func TestResolveSessionIgnoresBlankEnvAppleID(t *testing.T) {
 }
 
 func TestResolveSessionEnvAppleIDPreemptsLastCachedSession(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "last@example.com")
 	t.Setenv(webAppleIDEnv, "env@example.com")
 
@@ -157,7 +162,7 @@ func TestResolveSessionEnvAppleIDPreemptsLastCachedSession(t *testing.T) {
 	var lookups []string
 	recordSessionLookups(&lookups)
 
-	session, _, err := resolveSession(context.Background(), "", "", "")
+	session, _, err := resolveSession(context.Background(), d, "", "", "")
 	if err != nil {
 		t.Fatalf("resolveSession() error = %v", err)
 	}
@@ -177,8 +182,9 @@ func TestResolveSessionEnvAppleIDPreemptsLastCachedSession(t *testing.T) {
 // otherwise prompt for an Apple ID, and the environment fallback has to answer
 // that question before the prompt is reached.
 func TestResolveWebSessionEnvAppleIDSkipsAppleIDPromptWithEmptyCache(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	t.Setenv(webAppleIDEnv, "env@example.com")
 
 	origDefault := defaultCachedAppleIDFn
@@ -191,7 +197,7 @@ func TestResolveWebSessionEnvAppleIDSkipsAppleIDPromptWithEmptyCache(t *testing.
 	var lookups []string
 	recordSessionLookups(&lookups)
 
-	session, _, err := resolveWebSession(context.Background(), "", "", "", webSessionResolveOptions{
+	session, _, err := resolveWebSessionWith(context.Background(), d, "", "", "", webSessionResolveOptions{
 		resolvePassword: func(ctx context.Context, password string) (string, error) {
 			t.Fatal("did not expect password resolution for a cached session")
 			return "", nil
@@ -220,8 +226,9 @@ func TestResolveWebSessionEnvAppleIDSkipsAppleIDPromptWithEmptyCache(t *testing.
 // the Apple ID environment fallback must neither select an account nor announce
 // one on that path.
 func TestResolveWebSessionForCommandSessionFromEnvIgnoresEnvAppleID(t *testing.T) {
+	d, _, _ := newWebTestDeps()
 	dir := t.TempDir()
-	stderr := stubDefaultAppleIDResolverInputs(t, dir)
+	stderr := stubDefaultAppleIDResolverInputs(t, d, dir)
 	writeTestCachedWebSession(t, dir, "only@example.com")
 	t.Setenv(webSessionBundleEnvName, "")
 	t.Setenv(webAppleIDEnv, "env@example.com")
