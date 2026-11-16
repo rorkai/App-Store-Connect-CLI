@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+// BetaBuildLocalizationCreateData is the data object of the BetaBuildLocalizationCreateRequest schema.
+type BetaBuildLocalizationCreateData struct {
+	Type          ResourceType                          `json:"type"`
+	Attributes    BetaBuildLocalizationCreateAttributes `json:"attributes"`
+	Relationships *BetaBuildLocalizationRelationships   `json:"relationships"`
+}
+
 // BetaBuildLocalizationCreateRequest is the BetaBuildLocalizationCreateRequest schema.
 type BetaBuildLocalizationCreateRequest struct {
 	Data BetaBuildLocalizationCreateData `json:"data"`
@@ -22,6 +29,11 @@ type BetaBuildLocalizationRelationships struct {
 
 // BetaBuildLocalizationResponse is the BetaBuildLocalizationResponse schema.
 type BetaBuildLocalizationResponse = SingleResponse[BetaBuildLocalizationAttributes]
+
+// BetaBuildLocalizationUpdateAttributes is the data.attributes object of the BetaBuildLocalizationUpdateRequest schema.
+type BetaBuildLocalizationUpdateAttributes struct {
+	WhatsNew *string `json:"whatsNew,omitempty"`
+}
 
 // BetaBuildLocalizationUpdateRequest is the BetaBuildLocalizationUpdateRequest schema.
 type BetaBuildLocalizationUpdateRequest struct {
@@ -39,6 +51,29 @@ func (c *Client) GetBetaBuildLocalizationBuild(ctx context.Context, localization
 	}
 	return getJSON[BuildResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s/build", localizationID),
+	})
+}
+
+// CreateBetaBuildLocalization sends POST /v1/betaBuildLocalizations (betaBuildLocalizations_createInstance).
+func (c *Client) CreateBetaBuildLocalization(ctx context.Context, buildID string, attrs BetaBuildLocalizationCreateAttributes) (*BetaBuildLocalizationResponse, error) {
+	payload := BetaBuildLocalizationCreateRequest{
+		Data: BetaBuildLocalizationCreateData{
+			Type:       ResourceTypeBetaBuildLocalizations,
+			Attributes: attrs,
+			Relationships: &BetaBuildLocalizationRelationships{
+				Build: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBuilds,
+						ID:   buildID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/betaBuildLocalizations",
+		Payload: payload,
 	})
 }
 
@@ -62,6 +97,22 @@ func (c *Client) ListBetaBuildLocalizations(ctx context.Context, opts ...BetaBui
 func (c *Client) GetBetaBuildLocalization(ctx context.Context, localizationID string) (*BetaBuildLocalizationResponse, error) {
 	return getJSON[BetaBuildLocalizationResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID),
+	})
+}
+
+// UpdateBetaBuildLocalization sends PATCH /v1/betaBuildLocalizations/{id} (betaBuildLocalizations_updateInstance).
+func (c *Client) UpdateBetaBuildLocalization(ctx context.Context, localizationID string, attrs BetaBuildLocalizationUpdateAttributes) (*BetaBuildLocalizationResponse, error) {
+	payload := BetaBuildLocalizationUpdateRequest{
+		Data: BetaBuildLocalizationUpdateData{
+			Type:       ResourceTypeBetaBuildLocalizations,
+			ID:         localizationID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID),
+		Payload: payload,
 	})
 }
 
