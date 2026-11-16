@@ -9,6 +9,61 @@ import (
 	"strings"
 )
 
+// CustomerReviewResponseRelationships is the data.relationships object of the CustomerReviewResponseV1CreateRequest schema.
+type CustomerReviewResponseRelationships struct {
+	Review *Relationship `json:"review"`
+}
+
+// CustomerReviewResponseV1CreateAttributes is the data.attributes object of the CustomerReviewResponseV1CreateRequest schema.
+type CustomerReviewResponseV1CreateAttributes struct {
+	ResponseBody string `json:"responseBody"`
+}
+
+// CustomerReviewResponseV1CreateData is the data object of the CustomerReviewResponseV1CreateRequest schema.
+type CustomerReviewResponseV1CreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    CustomerReviewResponseV1CreateAttributes `json:"attributes"`
+	Relationships *CustomerReviewResponseRelationships     `json:"relationships"`
+}
+
+// CustomerReviewResponseV1CreateRequest is the CustomerReviewResponseV1CreateRequest schema.
+type CustomerReviewResponseV1CreateRequest struct {
+	Data CustomerReviewResponseV1CreateData `json:"data"`
+}
+
+// CreateCustomerReviewResponse sends POST /v1/customerReviewResponses (customerReviewResponses_createInstance).
+func (c *Client) CreateCustomerReviewResponse(ctx context.Context, reviewID, responseBody string) (*CustomerReviewResponseResponse, error) {
+	reviewID = strings.TrimSpace(reviewID)
+	responseBody = strings.TrimSpace(responseBody)
+	if reviewID == "" {
+		return nil, fmt.Errorf("reviewID is required")
+	}
+	if responseBody == "" {
+		return nil, fmt.Errorf("responseBody is required")
+	}
+	payload := CustomerReviewResponseV1CreateRequest{
+		Data: CustomerReviewResponseV1CreateData{
+			Type: ResourceTypeCustomerReviewResponses,
+			Attributes: CustomerReviewResponseV1CreateAttributes{
+				ResponseBody: responseBody,
+			},
+			Relationships: &CustomerReviewResponseRelationships{
+				Review: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeCustomerReviews,
+						ID:   reviewID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[CustomerReviewResponseResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/customerReviewResponses",
+		Payload: payload,
+	})
+}
+
 // DeleteCustomerReviewResponse sends DELETE /v1/customerReviewResponses/{id} (customerReviewResponses_deleteInstance).
 func (c *Client) DeleteCustomerReviewResponse(ctx context.Context, responseID string) error {
 	responseID = strings.TrimSpace(responseID)

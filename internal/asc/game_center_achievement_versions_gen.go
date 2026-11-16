@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -13,6 +14,39 @@ import (
 type GameCenterAchievementVersionV2Attributes struct {
 	Version int                    `json:"version,omitempty"`
 	State   GameCenterVersionState `json:"state,omitempty"`
+}
+
+// GameCenterAchievementVersionV2CreateData is the data object of the GameCenterAchievementVersionV2CreateRequest schema.
+type GameCenterAchievementVersionV2CreateData struct {
+	Type          ResourceType                               `json:"type"`
+	Relationships *GameCenterAchievementVersionRelationships `json:"relationships,omitempty"`
+}
+
+// GameCenterAchievementVersionV2CreateRequest is the GameCenterAchievementVersionV2CreateRequest schema.
+type GameCenterAchievementVersionV2CreateRequest struct {
+	Data GameCenterAchievementVersionV2CreateData `json:"data"`
+}
+
+// CreateGameCenterAchievementVersion sends POST /v2/gameCenterAchievementVersions (gameCenterAchievementVersionsV2_createInstance).
+func (c *Client) CreateGameCenterAchievementVersion(ctx context.Context, achievementID string) (*GameCenterAchievementVersionResponse, error) {
+	payload := GameCenterAchievementVersionV2CreateRequest{
+		Data: GameCenterAchievementVersionV2CreateData{
+			Type: ResourceTypeGameCenterAchievementVersions,
+			Relationships: &GameCenterAchievementVersionRelationships{
+				Achievement: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterAchievements,
+						ID:   strings.TrimSpace(achievementID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterAchievementVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v2/gameCenterAchievementVersions",
+		Payload: payload,
+	})
 }
 
 // GetGameCenterAchievementVersion sends GET /v2/gameCenterAchievementVersions/{id} (gameCenterAchievementVersionsV2_getInstance).
