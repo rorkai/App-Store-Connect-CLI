@@ -528,12 +528,15 @@ func (e *twoFAVerificationFailedError) HTTPStatusCode() int {
 	return e.Status
 }
 
-func newWebHTTPClient(jar http.CookieJar) *http.Client {
-	transport, ok := http.DefaultTransport.(*http.Transport)
+// newWebHTTPClient builds a session client on base: a base *http.Transport is
+// cloned with the web TLS settings, any other RoundTripper is used as given.
+func newWebHTTPClient(jar http.CookieJar, base http.RoundTripper) *http.Client {
+	transport, ok := base.(*http.Transport)
 	if !ok {
 		return &http.Client{
-			Jar:     jar,
-			Timeout: asc.ResolveTimeout(),
+			Jar:       jar,
+			Timeout:   asc.ResolveTimeout(),
+			Transport: base,
 		}
 	}
 
@@ -683,7 +686,7 @@ func Login(ctx context.Context, creds LoginCredentials) (*AuthSession, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
 	}
-	client := newWebHTTPClient(jar)
+	client := newWebHTTPClient(jar, http.DefaultTransport)
 	return loginWithHTTPClient(ctx, client, creds)
 }
 

@@ -25,7 +25,7 @@ func TestDiscoverScreenshotPlanForUploadRejectsReplacedFile(t *testing.T) {
 		t.Fatalf("ReadFile(original) error = %v", err)
 	}
 
-	plans, _, err := discoverScreenshotPlanForUpload(screenshotsDir)
+	plans, _, err := discoverScreenshotPlanForUpload(migrateTestDeps(), screenshotsDir)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlanForUpload() error = %v", err)
 	}
@@ -67,7 +67,7 @@ func TestDiscoverScreenshotPlanForUploadRejectsFormatExtensionMismatch(t *testin
 	}
 	writeJPEG(t, filepath.Join(localeDir, "iphone_65_1.png"), 1242, 2688)
 
-	plans, _, err := discoverScreenshotPlanForUpload(screenshotsDir)
+	plans, _, err := discoverScreenshotPlanForUpload(migrateTestDeps(), screenshotsDir)
 	defer closeScreenshotPlans(plans)
 	if err == nil {
 		t.Fatal("discoverScreenshotPlanForUpload() = nil error, want format mismatch")
@@ -223,7 +223,7 @@ func TestDiscoverScreenshotPlan_NormalizesLocale(t *testing.T) {
 	}
 	writePNG(t, filepath.Join(localeDir, "iphone_65_screen.png"), 1242, 2688)
 
-	plans, _, err := discoverScreenshotPlanWithOpenFiles(root, false)
+	plans, _, err := discoverScreenshotPlanWithOpenFiles(migrateTestDeps(), root, false)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlan() error: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestDiscoverScreenshotPlan_SkipsHiddenAndNonImageFiles(t *testing.T) {
 		t.Fatalf("write notes file: %v", err)
 	}
 
-	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(root, false)
+	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(migrateTestDeps(), root, false)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlan() error: %v", err)
 	}
@@ -282,7 +282,7 @@ func TestDiscoverScreenshotPlan_IgnoresEmptyLocaleDirectories(t *testing.T) {
 	}
 	writePNG(t, filepath.Join(localeDir, "iphone_65_screen.png"), 1242, 2688)
 
-	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(root, false)
+	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(migrateTestDeps(), root, false)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlan() error: %v", err)
 	}

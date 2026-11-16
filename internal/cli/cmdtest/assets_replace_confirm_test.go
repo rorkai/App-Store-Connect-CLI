@@ -27,15 +27,14 @@ func TestUploadReplaceRequiresConfirm(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			asctest.NewRegistry(t).Install()
-
-			stdout, stderr, runErr := runRootCommand(t, []string{
+			args := []string{
 				test.command, "upload",
 				"--version-localization", "LOC_123",
 				"--path", filepath.Join(t.TempDir(), "media"),
 				"--device-type", "IPHONE_65",
 				"--replace",
-			})
+			}
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), args...)
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)

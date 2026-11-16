@@ -14,13 +14,15 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 func TestWebReviewDraftsCommandExposesCRUD(t *testing.T) {
-	command := WebReviewDraftsCommand()
+	d, _, _ := newWebTestDeps()
+	command := newWebReviewDraftsCommand(d)
 	if command == nil {
-		t.Fatal("WebReviewDraftsCommand() returned nil")
+		t.Fatal("newWebReviewDraftsCommand returned nil")
 	}
 	if command.Name != "drafts" {
 		t.Fatalf("command name = %q, want drafts", command.Name)
@@ -115,23 +117,24 @@ func webReviewDraftResponse(id, body string) string {
 	return string(encoded)
 }
 
-func webReviewDraftCommand(t *testing.T, commandName string, args ...string) *ffcli.Command {
+func webReviewDraftCommand(t *testing.T, commandName string, args ...string) (*ffcli.Command, *shared.Deps) {
 	t.Helper()
+	d, _, _ := newWebTestDeps()
 	var command *ffcli.Command
 	switch commandName {
 	case "create":
-		command = WebReviewDraftCreateCommand()
+		command = newWebReviewDraftCreateCommand(d)
 	case "update":
-		command = WebReviewDraftUpdateCommand()
+		command = newWebReviewDraftUpdateCommand(d)
 	case "delete":
-		command = WebReviewDraftDeleteCommand()
+		command = newWebReviewDraftDeleteCommand(d)
 	default:
 		t.Fatalf("unsupported draft command %q", commandName)
 	}
 	if err := command.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	return command
+	return command, d
 }
 
 func TestWebReviewDraftCreateVerifiesBodyAndReceipt(t *testing.T) {
@@ -143,8 +146,8 @@ func TestWebReviewDraftCreateVerifiesBodyAndReceipt(t *testing.T) {
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: webReviewDraftResponse("draft-1", body)},
 	})
 
-	command := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", body, "--confirm", "--output", "json")
-	stdout, _ := runWebReviewCommand(t, func() error { return command.Exec(context.Background(), nil) })
+	command, d := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", body, "--confirm", "--output", "json")
+	stdout, _ := runWebReviewCommand(t, d, func() error { return command.Exec(context.Background(), nil) })
 
 	var receipt struct {
 		AppID    string `json:"appId"`
@@ -197,8 +200,8 @@ func TestWebReviewDraftUpdateAndDeleteVerifyExactDraft(t *testing.T) {
 			{method: http.MethodPatch, path: "/iris/v1/resolutionCenterDraftMessages/draft-1", status: http.StatusOK, body: webReviewDraftResponse("draft-1", body)},
 			{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: webReviewDraftResponse("draft-1", body)},
 		})
-		command := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", body, "--confirm", "--output", "json")
-		stdout, _ := runWebReviewCommand(t, func() error { return command.Exec(context.Background(), nil) })
+		command, d := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", body, "--confirm", "--output", "json")
+		stdout, _ := runWebReviewCommand(t, d, func() error { return command.Exec(context.Background(), nil) })
 		if !strings.Contains(stdout, `"action":"updated"`) || !strings.Contains(stdout, `"verified":true`) {
 			t.Fatalf("unexpected update receipt: %s", stdout)
 		}
@@ -214,8 +217,8 @@ func TestWebReviewDraftUpdateAndDeleteVerifyExactDraft(t *testing.T) {
 			{method: http.MethodDelete, path: "/iris/v1/resolutionCenterDraftMessages/draft-1", status: http.StatusNoContent, body: ""},
 			{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: `{"data":null}`},
 		})
-		command := webReviewDraftCommand(t, "delete", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--confirm", "--output", "json")
-		stdout, _ := runWebReviewCommand(t, func() error { return command.Exec(context.Background(), nil) })
+		command, d := webReviewDraftCommand(t, "delete", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--confirm", "--output", "json")
+		stdout, _ := runWebReviewCommand(t, d, func() error { return command.Exec(context.Background(), nil) })
 		if !strings.Contains(stdout, `"action":"deleted"`) || !strings.Contains(stdout, `"draftId":"draft-1"`) || !strings.Contains(stdout, `"verified":true`) {
 			t.Fatalf("unexpected delete receipt: %s", stdout)
 		}
@@ -230,9 +233,9 @@ func TestWebReviewDraftCreateRefusesAnyExistingDraftBeforeWrite(t *testing.T) {
 		{method: http.MethodGet, path: "/iris/v1/apps/app-1/resolutionCenterThreads", status: http.StatusOK, body: webReviewDraftSingleThreadFixture},
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: `{"data":{"type":"resolutionCenterDraftMessages","attributes":{"messageBody":"existing but malformed"}}}`},
 	})
-	command := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json")
+	command, d := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json")
 	var commandErr error
-	_, _ = captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+	_, _ = captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
 	if commandErr == nil || !strings.Contains(commandErr.Error(), "already has") {
 		t.Fatalf("expected existing-draft refusal, got %v", commandErr)
 	}
@@ -246,9 +249,9 @@ func TestWebReviewDraftCreateRefusesMissingPreflightData(t *testing.T) {
 		{method: http.MethodGet, path: "/iris/v1/apps/app-1/resolutionCenterThreads", status: http.StatusOK, body: webReviewDraftSingleThreadFixture},
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: `{}`},
 	})
-	command := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json")
+	command, d := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json")
 	var commandErr error
-	stdout, _ := captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+	stdout, _ := captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
 	if commandErr == nil {
 		t.Fatalf("expected missing data error, got %v", commandErr)
 	}
@@ -264,9 +267,9 @@ func TestWebReviewDraftDeleteRejectsMissingVerificationData(t *testing.T) {
 		{method: http.MethodDelete, path: "/iris/v1/resolutionCenterDraftMessages/draft-1", status: http.StatusNoContent},
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: `{}`},
 	})
-	command := webReviewDraftCommand(t, "delete", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--confirm", "--output", "json")
+	command, d := webReviewDraftCommand(t, "delete", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--confirm", "--output", "json")
 	var commandErr error
-	stdout, _ := captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+	stdout, _ := captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
 	if commandErr == nil || !strings.Contains(commandErr.Error(), "post-read verification failed; do not retry automatically") {
 		t.Fatalf("expected unverified deletion error, got %v", commandErr)
 	}
@@ -280,9 +283,9 @@ func TestWebReviewDraftUpdateRefusesMismatchedExistingDraftBeforeWrite(t *testin
 		{method: http.MethodGet, path: "/iris/v1/apps/app-1/resolutionCenterThreads", status: http.StatusOK, body: webReviewDraftSingleThreadFixture},
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: webReviewDraftResponse("other-draft", "existing")},
 	})
-	command := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "new", "--confirm", "--output", "json")
+	command, d := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "new", "--confirm", "--output", "json")
 	var commandErr error
-	_, _ = captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+	_, _ = captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
 	if commandErr == nil || !strings.Contains(commandErr.Error(), "not requested draft") {
 		t.Fatalf("expected draft ownership refusal, got %v", commandErr)
 	}
@@ -297,9 +300,9 @@ func TestWebReviewDraftUpdateDoesNotRetryMismatchedResponse(t *testing.T) {
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: webReviewDraftResponse("draft-1", "existing")},
 		{method: http.MethodPatch, path: "/iris/v1/resolutionCenterDraftMessages/draft-1", status: http.StatusOK, body: webReviewDraftResponse("other-draft", "new")},
 	})
-	command := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "new", "--confirm", "--output", "json")
+	command, d := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "new", "--confirm", "--output", "json")
 	var commandErr error
-	_, _ = captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+	_, _ = captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
 	if commandErr == nil || !strings.Contains(commandErr.Error(), "do not retry automatically") {
 		t.Fatalf("expected no-retry mismatch error, got %v", commandErr)
 	}
@@ -316,9 +319,9 @@ func TestWebReviewDraftCreateClassifiesHTTPRejections(t *testing.T) {
 				{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: `{"data":null}`},
 				{method: http.MethodPost, path: "/iris/v1/resolutionCenterDraftMessages", status: status, body: `{"errors":[{"detail":"request rejected"}]}`},
 			})
-			command := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json")
+			command, d := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json")
 			var commandErr error
-			stdout, _ := captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+			stdout, _ := captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
 			if commandErr == nil || stdout != "" || len(*requested) != 3 {
 				t.Fatalf("error=%v stdout=%q requests=%d", commandErr, stdout, len(*requested))
 			}
@@ -337,9 +340,9 @@ func TestWebReviewDraftCreateWarnsWhenMutationResponseIsLost(t *testing.T) {
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: `{"data":null}`},
 		{method: http.MethodPost, path: "/iris/v1/resolutionCenterDraftMessages", err: transportErr},
 	})
-	command := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json")
+	command, d := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json")
 	var commandErr error
-	_, _ = captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+	_, _ = captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
 	if commandErr == nil {
 		t.Fatal("expected lost-response error")
 	}
@@ -362,9 +365,9 @@ func TestWebReviewDraftUpdateWarnsWhenMutationResponseCannotBeDecoded(t *testing
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: webReviewDraftResponse("draft-1", "existing")},
 		{method: http.MethodPatch, path: "/iris/v1/resolutionCenterDraftMessages/draft-1", status: http.StatusOK, body: "not-json"},
 	})
-	command := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "new", "--confirm", "--output", "json")
+	command, d := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "new", "--confirm", "--output", "json")
 	var commandErr error
-	_, _ = captureOutput(t, func() { commandErr = command.Exec(context.Background(), nil) })
+	_, _ = captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
 	if commandErr == nil {
 		t.Fatal("expected response-decode error")
 	}
@@ -390,8 +393,8 @@ func TestWebReviewDraftBodyFilePreservesVerbatimBody(t *testing.T) {
 		{method: http.MethodPost, path: "/iris/v1/resolutionCenterDraftMessages", status: http.StatusCreated, body: webReviewDraftResponse("draft-1", body)},
 		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: webReviewDraftResponse("draft-1", body)},
 	})
-	command := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--body-file", path, "--confirm", "--output", "json")
-	_, _ = runWebReviewCommand(t, func() error { return command.Exec(context.Background(), nil) })
+	command, d := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--body-file", path, "--confirm", "--output", "json")
+	_, _ = runWebReviewCommand(t, d, func() error { return command.Exec(context.Background(), nil) })
 	var payload struct {
 		Data struct {
 			Attributes struct {
@@ -422,7 +425,7 @@ func TestWebReviewDraftRejectsInvalidUTF8BeforeSession(t *testing.T) {
 				return nil, "", errors.New("unexpected session resolution")
 			}
 			flags := append([]string{"--app", "app-1", "--thread-id", "thread-1", "--confirm", "--output", "json"}, args...)
-			command := webReviewDraftCommand(t, "create", flags...)
+			command, _ := webReviewDraftCommand(t, "create", flags...)
 			err := command.Exec(context.Background(), nil)
 			if err == nil || !strings.Contains(err.Error(), "UTF-8") || calls != 0 {
 				t.Fatalf("error=%v session calls=%d, want UTF-8 refusal before authentication", err, calls)
@@ -440,13 +443,13 @@ func TestWebReviewDraftValidatesBeforeSession(t *testing.T) {
 	}
 
 	t.Run("confirm", func(t *testing.T) {
-		command := webReviewDraftCommand(t, "delete", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--output", "json")
+		command, _ := webReviewDraftCommand(t, "delete", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--output", "json")
 		if err := command.Exec(context.Background(), nil); err == nil || !strings.Contains(err.Error(), "--confirm is required") {
 			t.Fatalf("expected missing confirm error, got %v", err)
 		}
 	})
 	t.Run("body sources", func(t *testing.T) {
-		command := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "one", "--body-file", "two", "--confirm", "--output", "json")
+		command, _ := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "one", "--body-file", "two", "--confirm", "--output", "json")
 		if err := command.Exec(context.Background(), nil); err == nil || !strings.Contains(err.Error(), "cannot be combined") {
 			t.Fatalf("expected body-source error, got %v", err)
 		}

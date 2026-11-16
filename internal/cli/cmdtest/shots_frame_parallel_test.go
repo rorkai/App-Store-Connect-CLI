@@ -76,13 +76,13 @@ func TestShotsFrame_ParallelWorkersBoundsConcurrencyAndKeepsInputOrder(t *testin
 		return frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{Device: req.Device}), nil
 	})
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input-dir", inputDir,
 		"--output-dir", outputDir,
 		"--parallel-workers", fmt.Sprint(workers),
 		"--output", "json",
-	})
+	}...)
 	if code := rootcmd.ExitCodeFromError(err); code != rootcmd.ExitError {
 		t.Fatalf("exit code = %d, want %d (err %v, stderr %q)", code, rootcmd.ExitError, err, stderr)
 	}
@@ -155,7 +155,7 @@ func TestShotsFrame_ParallelWorkersRecordsResumeStateForEveryInput(t *testing.T)
 		"--resume",
 		"--output", "json",
 	}
-	if _, stderr, err := runCommand(t, args); err != nil {
+	if _, stderr, err := runRootWithDeps(t, nil, args...); err != nil {
 		t.Fatalf("first run error = %v (stderr %q)", err, stderr)
 	}
 	if renders != 8 {
@@ -163,7 +163,7 @@ func TestShotsFrame_ParallelWorkersRecordsResumeStateForEveryInput(t *testing.T)
 	}
 
 	renders = 0
-	stdout, stderr, err := runCommand(t, args)
+	stdout, stderr, err := runRootWithDeps(t, nil, args...)
 	if err != nil {
 		t.Fatalf("resume run error = %v (stderr %q)", err, stderr)
 	}

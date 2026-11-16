@@ -145,10 +145,10 @@ type SearchOptimizationData struct {
 
 // CollectSearchOptimizationData resolves official Apple Ads authentication and
 // gathers the read-only evidence needed by `asc optimize search plan`.
-func CollectSearchOptimizationData(ctx context.Context, adsProfile, adAccount string, request SearchOptimizationRequest) (SearchOptimizationData, error) {
+func CollectSearchOptimizationData(ctx context.Context, d *shared.Deps, adsProfile, adAccount string, request SearchOptimizationRequest) (SearchOptimizationData, error) {
 	profile := strings.TrimSpace(adsProfile)
 	account := strings.TrimSpace(adAccount)
-	client, _, err := resolvePlatformClientAndAdAccountID(ctx, shared.DefaultDeps(), commonFlags{
+	client, _, err := resolvePlatformClientAndAdAccountID(ctx, d, commonFlags{
 		AdsProfile: &profile,
 		AdAccount:  &account,
 	}, appleads.ContextAdAccount)
@@ -164,10 +164,10 @@ func CollectSearchOptimizationData(ctx context.Context, adsProfile, adAccount st
 // documented suggestion endpoint before pagination, so discovery never walks
 // the broader optimization data set or downloads a full 1000-item page just
 // to truncate it locally.
-func CollectSearchSuggestions(ctx context.Context, adsProfile, adAccount string, request SearchOptimizationRequest) (SearchOptimizationData, error) {
+func CollectSearchSuggestions(ctx context.Context, d *shared.Deps, adsProfile, adAccount string, request SearchOptimizationRequest) (SearchOptimizationData, error) {
 	profile := strings.TrimSpace(adsProfile)
 	account := strings.TrimSpace(adAccount)
-	client, _, err := resolvePlatformClientAndAdAccountID(ctx, shared.DefaultDeps(), commonFlags{
+	client, _, err := resolvePlatformClientAndAdAccountID(ctx, d, commonFlags{
 		AdsProfile: &profile,
 		AdAccount:  &account,
 	}, appleads.ContextAdAccount)
@@ -180,10 +180,10 @@ func CollectSearchSuggestions(ctx context.Context, adsProfile, adAccount string,
 // CollectSearchPopularity resolves official Apple Ads authentication and reads
 // only country-and-genre search demand. Unlike the broader optimization plan,
 // this source is not scoped to a promoted app.
-func CollectSearchPopularity(ctx context.Context, adsProfile, adAccount string, request SearchOptimizationRequest) ([]SearchPopularity, error) {
+func CollectSearchPopularity(ctx context.Context, d *shared.Deps, adsProfile, adAccount string, request SearchOptimizationRequest) ([]SearchPopularity, error) {
 	profile := strings.TrimSpace(adsProfile)
 	account := strings.TrimSpace(adAccount)
-	client, _, err := resolvePlatformClientAndAdAccountID(ctx, shared.DefaultDeps(), commonFlags{
+	client, _, err := resolvePlatformClientAndAdAccountID(ctx, d, commonFlags{
 		AdsProfile: &profile,
 		AdAccount:  &account,
 	}, appleads.ContextAdAccount)

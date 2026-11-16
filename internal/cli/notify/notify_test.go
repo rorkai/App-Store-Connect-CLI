@@ -47,22 +47,22 @@ func TestNotifySlackValidationErrors(t *testing.T) {
 			}
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			root := SlackCommand()
+			d, stderrBuffer := newNotifyTestDeps(http.DefaultTransport)
+			root := newSlackCommand(d)
 			root.FlagSet.SetOutput(io.Discard)
 
-			stderr := captureOutput(t, func() {
-				err := root.Parse(test.args)
-				if err != nil && !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr := root.Run(context.Background())
-				if runErr == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if !errors.Is(runErr, flag.ErrHelp) {
-					t.Fatalf("expected flag.ErrHelp, got %v", runErr)
-				}
-			})
+			err := root.Parse(test.args)
+			if err != nil && !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr := root.Run(context.Background())
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+			}
+			stderr := stderrBuffer.String()
 
 			if !strings.Contains(stderr, test.wantErrMsg) {
 				t.Fatalf("expected error %q, got %q", test.wantErrMsg, stderr)
@@ -92,7 +92,8 @@ func TestNotifySlackSuccess(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	err := root.Parse([]string{"--message", "Hello, Slack!"})
@@ -127,7 +128,8 @@ func TestNotifySlackWithChannel(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	err := root.Parse([]string{"--message", "Test", "--channel", "#deploy"})
@@ -162,7 +164,8 @@ func TestNotifySlackWithThreadTS(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	err := root.Parse([]string{"--message", "Threaded release update", "--thread-ts", "1733977745.12345"})
@@ -184,22 +187,22 @@ func TestNotifySlackWithInvalidThreadTS(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := SlackCommand()
+	d, stderrBuffer := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
-	stderr := captureOutput(t, func() {
-		err := root.Parse([]string{"--message", "Threaded release update", "--thread-ts", "not-a-ts"})
-		if err != nil && !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr := root.Run(context.Background())
-		if runErr == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
-			t.Fatalf("expected reported usage error without help, got %v", runErr)
-		}
-	})
+	err := root.Parse([]string{"--message", "Threaded release update", "--thread-ts", "not-a-ts"})
+	if err != nil && !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := root.Run(context.Background())
+	if runErr == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+		t.Fatalf("expected reported usage error without help, got %v", runErr)
+	}
+	stderr := stderrBuffer.String()
 
 	if !strings.Contains(stderr, "--thread-ts must be in Slack ts format") {
 		t.Fatalf("expected thread-ts validation error, got %q", stderr)
@@ -221,7 +224,8 @@ func TestNotifySlackWithPayloadJSON(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	payload := `{"app":"ExampleApp","version":"1.2.3","build":42,"release_id":123456789012345678901234567890}`
@@ -309,7 +313,8 @@ func TestNotifySlackWithPayloadFile(t *testing.T) {
 		t.Fatalf("write payload file: %v", err)
 	}
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	err := root.Parse([]string{"--message", "Release submitted", "--payload-file", payloadPath})
@@ -342,7 +347,8 @@ func TestNotifySlackWithBlocksJSON(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	blocks := `[{"type":"section","text":{"type":"mrkdwn","text":"*Release* ready"}}]`
@@ -387,7 +393,8 @@ func TestNotifySlackWithBlocksFile(t *testing.T) {
 		t.Fatalf("write blocks file: %v", err)
 	}
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	err := root.Parse([]string{"--message", "Release ready", "--blocks-file", blocksPath})
@@ -447,22 +454,22 @@ func TestNotifySlackBlocksValidationErrors(t *testing.T) {
 			t.Setenv(slackWebhookAllowLocalEnv, "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			root := SlackCommand()
+			d, stderrBuffer := newNotifyTestDeps(http.DefaultTransport)
+			root := newSlackCommand(d)
 			root.FlagSet.SetOutput(io.Discard)
 
-			stderr := captureOutput(t, func() {
-				err := root.Parse(test.args)
-				if err != nil && !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr := root.Run(context.Background())
-				if runErr == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
-					t.Fatalf("expected reported usage error without help, got %v", runErr)
-				}
-			})
+			err := root.Parse(test.args)
+			if err != nil && !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr := root.Run(context.Background())
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+				t.Fatalf("expected reported usage error without help, got %v", runErr)
+			}
+			stderr := stderrBuffer.String()
 
 			if !strings.Contains(stderr, test.wantErrMsg) {
 				t.Fatalf("expected error %q, got %q", test.wantErrMsg, stderr)
@@ -520,22 +527,22 @@ func TestNotifySlackPayloadValidationErrors(t *testing.T) {
 			t.Setenv(slackWebhookAllowLocalEnv, "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			root := SlackCommand()
+			d, stderrBuffer := newNotifyTestDeps(http.DefaultTransport)
+			root := newSlackCommand(d)
 			root.FlagSet.SetOutput(io.Discard)
 
-			stderr := captureOutput(t, func() {
-				err := root.Parse(test.args)
-				if err != nil && !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr := root.Run(context.Background())
-				if runErr == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
-					t.Fatalf("expected reported usage error without help, got %v", runErr)
-				}
-			})
+			err := root.Parse(test.args)
+			if err != nil && !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr := root.Run(context.Background())
+			if runErr == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+				t.Fatalf("expected reported usage error without help, got %v", runErr)
+			}
+			stderr := stderrBuffer.String()
 
 			if !strings.Contains(stderr, test.wantErrMsg) {
 				t.Fatalf("expected error %q, got %q", test.wantErrMsg, stderr)
@@ -545,7 +552,7 @@ func TestNotifySlackPayloadValidationErrors(t *testing.T) {
 }
 
 func TestParseSlackPayloadUsesJSONNumber(t *testing.T) {
-	payload, err := parseSlackPayload(`{"release_id":123456789012345678901234567890}`, "")
+	payload, err := parseSlackPayload(&shared.Deps{}, `{"release_id":123456789012345678901234567890}`, "")
 	if err != nil {
 		t.Fatalf("parseSlackPayload returned error: %v", err)
 	}
@@ -569,7 +576,8 @@ func TestNotifySlackNonSuccessResponse(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	root := newSlackCommand(d)
 	root.FlagSet.SetOutput(io.Discard)
 
 	err := root.Parse([]string{"--message", "Test failure"})
@@ -589,18 +597,18 @@ func TestNotifySlackRejectsInvalidWebhookHost(t *testing.T) {
 	t.Setenv(slackWebhookEnvVar, "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	cmd := SlackCommand()
+	d, stderrBuffer := newNotifyTestDeps(http.DefaultTransport)
+	cmd := newSlackCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 
-	stderr := captureOutput(t, func() {
-		if err := cmd.Parse([]string{"--webhook", "https://example.com/services/test", "--message", "hi"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr := cmd.Run(context.Background())
-		if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
-			t.Fatalf("expected reported usage error without help, got %v", runErr)
-		}
-	})
+	if err := cmd.Parse([]string{"--webhook", "https://example.com/services/test", "--message", "hi"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := cmd.Run(context.Background())
+	if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+		t.Fatalf("expected reported usage error without help, got %v", runErr)
+	}
+	stderr := stderrBuffer.String()
 
 	if !strings.Contains(stderr, "hooks.slack.com") || !strings.Contains(stderr, "hooks.slack-gov.com") {
 		t.Fatalf("expected host validation error, got %q", stderr)
@@ -629,18 +637,18 @@ func TestNotifySlackRejectsInsecureScheme(t *testing.T) {
 	t.Setenv(slackWebhookEnvVar, "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	cmd := SlackCommand()
+	d, stderrBuffer := newNotifyTestDeps(http.DefaultTransport)
+	cmd := newSlackCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 
-	stderr := captureOutput(t, func() {
-		if err := cmd.Parse([]string{"--webhook", "http://hooks.slack.com/services/test", "--message", "hi"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr := cmd.Run(context.Background())
-		if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
-			t.Fatalf("expected reported usage error without help, got %v", runErr)
-		}
-	})
+	if err := cmd.Parse([]string{"--webhook", "http://hooks.slack.com/services/test", "--message", "hi"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := cmd.Run(context.Background())
+	if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+		t.Fatalf("expected reported usage error without help, got %v", runErr)
+	}
+	stderr := stderrBuffer.String()
 
 	if !strings.Contains(stderr, "https") {
 		t.Fatalf("expected https validation error, got %q", stderr)
@@ -651,18 +659,18 @@ func TestNotifySlackRejectsMalformedWebhookURL(t *testing.T) {
 	t.Setenv(slackWebhookEnvVar, "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	cmd := SlackCommand()
+	d, stderrBuffer := newNotifyTestDeps(http.DefaultTransport)
+	cmd := newSlackCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 
-	stderr := captureOutput(t, func() {
-		if err := cmd.Parse([]string{"--webhook", "http://localhost:80:80/services/test", "--message", "hi"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr := cmd.Run(context.Background())
-		if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
-			t.Fatalf("expected reported usage error without help, got %v", runErr)
-		}
-	})
+	if err := cmd.Parse([]string{"--webhook", "http://localhost:80:80/services/test", "--message", "hi"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := cmd.Run(context.Background())
+	if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+		t.Fatalf("expected reported usage error without help, got %v", runErr)
+	}
+	stderr := stderrBuffer.String()
 
 	if !strings.Contains(stderr, "valid Slack webhook URL") {
 		t.Fatalf("expected malformed URL validation error, got %q", stderr)
@@ -712,69 +720,30 @@ func TestResolveWebhook(t *testing.T) {
 }
 
 func TestSlackCommandHasUsageFunc(t *testing.T) {
-	cmd := SlackCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	cmd := newSlackCommand(d)
 	if cmd.UsageFunc == nil {
 		t.Error("expected UsageFunc to be set")
 	}
 }
 
 func TestNotifyCommandHasUsageFunc(t *testing.T) {
-	cmd := NotifyCommand()
+	d, _ := newNotifyTestDeps(http.DefaultTransport)
+	cmd := NewNotifyCommand(d)
 	if cmd.UsageFunc == nil {
 		t.Error("expected UsageFunc to be set")
 	}
 }
 
-func captureOutput(t *testing.T, fn func()) string {
-	t.Helper()
-
-	oldStdout := os.Stdout
-	oldStderr := os.Stderr
-	rOut, wOut, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create stdout pipe: %v", err)
-	}
-	rErr, wErr, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create stderr pipe: %v", err)
-	}
-
-	os.Stdout = wOut
-	os.Stderr = wErr
-
-	outC := make(chan string)
-	errC := make(chan string)
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, rOut)
-		_ = rOut.Close()
-		outC <- buf.String()
-	}()
-
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, rErr)
-		_ = rErr.Close()
-		errC <- buf.String()
-	}()
-
-	defer func() {
-		os.Stdout = oldStdout
-		os.Stderr = oldStderr
-		_ = wOut.Close()
-		_ = wErr.Close()
-	}()
-
-	fn()
-
-	_ = wOut.Close()
-	_ = wErr.Close()
-
-	<-outC
-	stderr := <-errC
-
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
-
-	return stderr
+// newNotifyTestDeps returns deps whose stderr is the returned buffer and whose
+// requests to the webhook go through transport.
+func newNotifyTestDeps(transport http.RoundTripper) (*shared.Deps, *bytes.Buffer) {
+	var stderr bytes.Buffer
+	return &shared.Deps{
+		IO:             &shared.IO{ErrOut: &stderr},
+		Timeout:        shared.ContextWithTimeout,
+		ResolveTimeout: shared.ResolveTimeoutSetting,
+		Getwd:          os.Getwd,
+		HTTPTransport:  func() http.RoundTripper { return transport },
+	}, &stderr
 }

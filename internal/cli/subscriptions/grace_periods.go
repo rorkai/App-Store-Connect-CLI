@@ -26,7 +26,7 @@ Examples:
   asc subscriptions grace-periods view --id "GRACE_PERIOD_ID"
   asc subscriptions grace-periods update --id "GRACE_PERIOD_ID" --duration SIXTEEN_DAYS --opt-in true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newSubscriptionsGracePeriodsGetCommand(d),
 			newSubscriptionsGracePeriodsUpdateCommand(d),
@@ -80,7 +80,7 @@ func newSubscriptionsGracePeriodsUpdateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc subscriptions grace-periods update --id "GRACE_PERIOD_ID" --duration SIXTEEN_DAYS --opt-in true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*gracePeriodID)
 			if id == "" {

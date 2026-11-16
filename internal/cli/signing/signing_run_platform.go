@@ -418,6 +418,11 @@ func validateSigningRunJournal(journal signingRunJournal) error {
 }
 
 func acquireSigningRunLock(ctx context.Context) (func() error, error) {
+	return acquireSigningRunLockWith(ctx, time.After)
+}
+
+// acquireSigningRunLockWith is acquireSigningRunLock polling the lock on after.
+func acquireSigningRunLockWith(ctx context.Context, after func(time.Duration) <-chan time.Time) (func() error, error) {
 	anchor, err := signingRunStateAnchorFn()
 	if err != nil {
 		return nil, err
@@ -465,14 +470,12 @@ func acquireSigningRunLock(ctx context.Context) (func() error, error) {
 			_ = anchor.root.Close()
 			return nil, err
 		}
-		timer := time.NewTimer(signingRunLockPollInterval)
 		select {
 		case <-ctx.Done():
-			timer.Stop()
 			_ = file.Close()
 			_ = anchor.root.Close()
 			return nil, ctx.Err()
-		case <-timer.C:
+		case <-after(signingRunLockPollInterval):
 		}
 	}
 }

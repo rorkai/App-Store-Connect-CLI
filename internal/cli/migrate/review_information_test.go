@@ -34,7 +34,7 @@ func TestReadFastlaneReviewInformation_ParsesFiles(t *testing.T) {
 	writeReviewFile("notes.txt", "Notes for review")
 	writeReviewFile("demo_required.txt", "true")
 
-	info, err := readFastlaneReviewInformation(root)
+	info, err := readFastlaneReviewInformation(migrateTestDeps(), root)
 	if err != nil {
 		t.Fatalf("readFastlaneReviewInformation() error: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestReadFastlaneReviewInformation_InvalidBool(t *testing.T) {
 		t.Fatalf("write demo_required: %v", err)
 	}
 
-	_, err := readFastlaneReviewInformation(root)
+	_, err := readFastlaneReviewInformation(migrateTestDeps(), root)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -138,7 +138,7 @@ func TestReadFastlaneReviewInformation_InvalidBool(t *testing.T) {
 func TestReadFastlaneReviewInformation_MissingDirectory(t *testing.T) {
 	root := t.TempDir()
 
-	info, err := readFastlaneReviewInformation(root)
+	info, err := readFastlaneReviewInformation(migrateTestDeps(), root)
 	if err != nil {
 		t.Fatalf("readFastlaneReviewInformation() error: %v", err)
 	}

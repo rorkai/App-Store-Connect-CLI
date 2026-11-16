@@ -29,7 +29,7 @@ Examples:
   asc app-clips advanced-experiences create --app "APP_ID" --bundle-id "com.example.clip" --link "https://example.com" --default-language EN --is-powered-by --header-image-id "IMAGE_ID" --localization-id "LOCALIZATION_ID"
   asc app-clips invocations list --build-bundle-id "BUILD_BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipsListCommand(d),
 			newAppClipsGetCommand(d),
@@ -71,7 +71,7 @@ Examples:
   asc app-clips list --app "APP_ID" --limit 50
   asc app-clips list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips list", 200, "bundle-id"); err != nil {
 				return err

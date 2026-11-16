@@ -14,7 +14,8 @@ import (
 )
 
 func TestSharedEnvVarsCommandHierarchy(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	envVarsCmd := findSub(cmd, "env-vars")
 	if envVarsCmd == nil {
 		t.Fatal("expected 'env-vars' subcommand")
@@ -39,7 +40,8 @@ func TestSharedEnvVarsCommandHierarchy(t *testing.T) {
 }
 
 func TestSharedEnvVarsGroupReturnsErrHelp(t *testing.T) {
-	cmd := webXcodeCloudEnvVarsSharedCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedCommand(d)
 	err := cmd.Exec(context.Background(), nil)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -69,7 +71,8 @@ func TestSharedEnvVarsList_EmptyList(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -77,7 +80,7 @@ func TestSharedEnvVarsList_EmptyList(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -88,12 +91,13 @@ func TestSharedEnvVarsList_EmptyList(t *testing.T) {
 }
 
 func TestSharedEnvVarsList_MissingProductID(t *testing.T) {
-	cmd := webXcodeCloudEnvVarsSharedListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -141,7 +145,8 @@ func TestSharedEnvVarsList_TableOutput(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -150,7 +155,7 @@ func TestSharedEnvVarsList_TableOutput(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -191,7 +196,8 @@ func TestSharedEnvVarsList_JSONOutput(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -200,7 +206,7 @@ func TestSharedEnvVarsList_JSONOutput(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -261,7 +267,8 @@ func TestSharedEnvVarsSetPlaintext_Success(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -271,7 +278,7 @@ func TestSharedEnvVarsSetPlaintext_Success(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -346,7 +353,8 @@ func TestSharedEnvVarsSetPlaintext_UpdateExisting(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -356,7 +364,7 @@ func TestSharedEnvVarsSetPlaintext_UpdateExisting(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -434,7 +442,8 @@ func TestSharedEnvVarsSetSecret_Success(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -446,7 +455,7 @@ func TestSharedEnvVarsSetSecret_Success(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -500,11 +509,12 @@ func TestSharedEnvVarsSet_MissingFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webXcodeCloudEnvVarsSharedSetCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webXcodeCloudEnvVarsSharedSetCommand(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -552,7 +562,8 @@ func TestSharedEnvVarsSetSecret_EncryptionKeyFetchFails(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -563,7 +574,7 @@ func TestSharedEnvVarsSetSecret_EncryptionKeyFetchFails(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	captureOutput(t, func() {
+	runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if err == nil {
 			t.Fatal("expected error when encryption key fetch fails")
@@ -616,7 +627,8 @@ func TestSharedEnvVarsDelete_Success(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -626,7 +638,7 @@ func TestSharedEnvVarsDelete_Success(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -671,7 +683,8 @@ func TestSharedEnvVarsDelete_NotFound(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -681,7 +694,7 @@ func TestSharedEnvVarsDelete_NotFound(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	captureOutput(t, func() {
+	runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if err == nil {
 			t.Fatal("expected error for nonexistent var")
@@ -722,11 +735,12 @@ func TestSharedEnvVarsDelete_MissingFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webXcodeCloudEnvVarsSharedDeleteCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webXcodeCloudEnvVarsSharedDeleteCommand(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -740,7 +754,8 @@ func TestSharedEnvVarsDelete_MissingFlags(t *testing.T) {
 }
 
 func TestSharedEnvVarsAllCommandsHaveUsageFunc(t *testing.T) {
-	cmd := webXcodeCloudEnvVarsSharedCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedCommand(d)
 	if cmd.UsageFunc == nil {
 		t.Fatalf("shared command should have UsageFunc set")
 	}
@@ -793,7 +808,8 @@ func TestSharedEnvVarsSetWithWorkflowIDs(t *testing.T) {
 		}, "cache", nil
 	}
 
-	cmd := webXcodeCloudEnvVarsSharedSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webXcodeCloudEnvVarsSharedSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--product-id", "prod-1",
@@ -804,7 +820,7 @@ func TestSharedEnvVarsSetWithWorkflowIDs(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	captureOutput(t, func() {
+	runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}

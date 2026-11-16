@@ -30,7 +30,7 @@ Examples:
   asc game-center leaderboard-sets v2 versions list --set-id "SET_ID"
   asc game-center leaderboard-sets v2 localizations list --version-id "VER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetsV2ListCommand(d),
 			newGameCenterLeaderboardSetsV2GetCommand(d),
@@ -70,7 +70,7 @@ Examples:
   asc game-center leaderboard-sets v2 list --group-id "GROUP_ID"
   asc game-center leaderboard-sets v2 list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "game-center leaderboard-sets v2 list", 200); err != nil {
 				return err
@@ -185,7 +185,7 @@ Examples:
   asc game-center leaderboard-sets v2 create --group-id "GROUP_ID" --reference-name "Group Season" --vendor-id "grp.com.example.groupseason"
   asc game-center leaderboard-sets v2 create --reference-name "Season 2" --vendor-id "com.example.season2" --leaderboard-ids "id1,id2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group != "" && strings.TrimSpace(*appID) != "" {
@@ -327,7 +327,7 @@ Examples:
   asc game-center leaderboard-sets v2 members list --set-id "SET_ID"
   asc game-center leaderboard-sets v2 members set --set-id "SET_ID" --leaderboard-ids "id1,id2,id3" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetMembersV2ListCommand(d),
 			newGameCenterLeaderboardSetMembersV2SetCommand(d),
@@ -385,7 +385,7 @@ Examples:
   asc game-center leaderboard-sets v2 members set --set-id "SET_ID" --leaderboard-ids "id1,id2,id3" --confirm
   asc game-center leaderboard-sets v2 members set --set-id "SET_ID" --leaderboard-ids "" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
@@ -440,7 +440,7 @@ Examples:
   asc game-center leaderboard-sets v2 versions view --id "VERSION_ID"
   asc game-center leaderboard-sets v2 versions create --set-id "SET_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetVersionsV2ListCommand(d),
 			newGameCenterLeaderboardSetVersionsV2GetCommand(d),
@@ -530,7 +530,7 @@ Examples:
   asc game-center leaderboard-sets v2 localizations list --version-id "VER_ID"
   asc game-center leaderboard-sets v2 localizations create --version-id "VER_ID" --locale en-US --name "Season 1"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetLocalizationsV2ListCommand(d),
 			newGameCenterLeaderboardSetLocalizationsV2GetCommand(d),
@@ -676,7 +676,7 @@ Examples:
   asc game-center leaderboard-sets v2 images view --localization-id "LOC_ID"
   asc game-center leaderboard-sets v2 images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetImagesV2UploadCommand(d),
 			newGameCenterLeaderboardSetImagesV2GetCommand(d),
@@ -707,7 +707,7 @@ This command performs the full upload flow: reserves the upload, uploads the fil
 Examples:
   asc game-center leaderboard-sets v2 images upload --localization-id "LOC_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -755,7 +755,7 @@ Examples:
   asc game-center leaderboard-sets v2 images view --id "IMAGE_ID"
   asc game-center leaderboard-sets v2 images view --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			locID := strings.TrimSpace(*localizationID)

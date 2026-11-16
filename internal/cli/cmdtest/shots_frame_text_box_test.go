@@ -121,7 +121,7 @@ func TestShotsFrame_TextBoxAndFontFileReachRenderer(t *testing.T) {
 		}
 		return frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{Device: req.Device}), nil
 	})
-	_, stderr, err := runCommand(t, []string{
+	_, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", filepath.Join(dir, "out"),
@@ -131,7 +131,7 @@ func TestShotsFrame_TextBoxAndFontFileReachRenderer(t *testing.T) {
 		"--text-box-color", "#1b3a5bcc",
 		"--text-box-radius", "0",
 		"--output", "json",
-	})
+	}...)
 	if err != nil || calls != 1 {
 		t.Fatalf("run error = %v calls = %d (stderr %q)", err, calls, stderr)
 	}
@@ -165,7 +165,7 @@ func TestShotsFrame_OverlayConfigTextBoxPerFile(t *testing.T) {
 			"--overlay-config", overlayPath,
 			"--output", "json",
 		}, extra...)
-		if _, stderr, err := runCommand(t, args); err != nil {
+		if _, stderr, err := runRootWithDeps(t, nil, args...); err != nil {
 			t.Fatalf("run error = %v (stderr %q)", err, stderr)
 		}
 		return seen
@@ -219,7 +219,7 @@ func TestShotsFrame_ResumeRerendersWhenTextBoxOrFontFileChanges(t *testing.T) {
 			"--resume",
 			"--output", "json",
 		}, extra...)
-		if _, stderr, err := runCommand(t, args); err != nil {
+		if _, stderr, err := runRootWithDeps(t, nil, args...); err != nil {
 			t.Fatalf("run error = %v (stderr %q)", err, stderr)
 		}
 	}

@@ -18,6 +18,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	reviewshots "github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
@@ -112,7 +113,7 @@ func TestExecuteScreenshotReviewPlanPlanModeReturnsBeforeUploadWhenBlockingIssue
 		http.DefaultTransport = origTransport
 	})
 
-	result, err := executeScreenshotReviewPlan(context.Background(), screenshotReviewPlanOptions{
+	result, err := executeScreenshotReviewPlan(context.Background(), newAssetsClientTestDeps(shared.GetASCClient), screenshotReviewPlanOptions{
 		AppID:           "123456789",
 		VersionID:       "version-123",
 		Platform:        "IOS",
@@ -215,7 +216,7 @@ func TestExecuteScreenshotReviewPlanUsesPlatformSpecificCoverageWarnings(t *test
 		http.DefaultTransport = origTransport
 	})
 
-	result, err := executeScreenshotReviewPlan(context.Background(), screenshotReviewPlanOptions{
+	result, err := executeScreenshotReviewPlan(context.Background(), newAssetsClientTestDeps(shared.GetASCClient), screenshotReviewPlanOptions{
 		AppID:           "123456789",
 		VersionID:       "version-123",
 		Platform:        "MAC_OS",
