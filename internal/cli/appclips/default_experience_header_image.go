@@ -22,7 +22,7 @@ func newAppClipDefaultExperienceHeaderImageCommand(d *shared.Deps) *ffcli.Comman
 Examples:
   asc app-clips default-experiences header-image view --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipDefaultExperienceHeaderImageGetCommand(d),
 		},

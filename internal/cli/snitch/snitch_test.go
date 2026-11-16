@@ -1,6 +1,7 @@
 package snitch
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestIsValidSeverity(t *testing.T) {
@@ -219,7 +222,7 @@ func TestSearchIssues(t *testing.T) {
 	defer func() { setGitHubAPIBase(origBase) }()
 	setGitHubAPIBase(server.URL)
 
-	issues, err := searchIssues(t.Context(), "test-token", "bundle ID")
+	issues, err := searchIssues(t.Context(), newSnitchTestDeps(), "test-token", "bundle ID")
 	if err != nil {
 		t.Fatalf("searchIssues() error: %v", err)
 	}
@@ -469,7 +472,7 @@ func TestCreateIssue(t *testing.T) {
 		Timestamp:   time.Now().UTC(),
 	}
 
-	issue, err := createIssue(t.Context(), "test-token", entry)
+	issue, err := createIssue(t.Context(), newSnitchTestDeps(), "test-token", entry)
 	if err != nil {
 		t.Fatalf("createIssue() error: %v", err)
 	}
@@ -508,7 +511,7 @@ func TestAddIssueLabels(t *testing.T) {
 	defer func() { setGitHubAPIBase(origBase) }()
 	setGitHubAPIBase(server.URL)
 
-	if err := addIssueLabels(t.Context(), "test-token", 99, []string{"asc-snitch", "bug"}); err != nil {
+	if err := addIssueLabels(t.Context(), newSnitchTestDeps(), "test-token", 99, []string{"asc-snitch", "bug"}); err != nil {
 		t.Fatalf("addIssueLabels() error: %v", err)
 	}
 
@@ -527,10 +530,9 @@ func TestListRepoLabelsPaginatesAndDedupes(t *testing.T) {
 	defer func() { setGitHubAPIBase(origBase) }()
 	setGitHubAPIBase("https://example.test")
 
-	origClient := githubHTTPClient
-	defer func() { githubHTTPClient = origClient }()
-	githubHTTPClient = func() *http.Client {
-		return &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+	d := newSnitchTestDeps()
+	d.HTTPTransport = func() http.RoundTripper {
+		return roundTripFunc(func(r *http.Request) (*http.Response, error) {
 			pageCalls++
 			if r.URL.Path != "/repos/rorkai/App-Store-Connect-CLI/labels" {
 				t.Fatalf("unexpected path: %s", r.URL.Path)
@@ -567,10 +569,10 @@ func TestListRepoLabelsPaginatesAndDedupes(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(string(body))),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
-		})}
+		})
 	}
 
-	labels, err := listRepoLabels(t.Context(), "test-token")
+	labels, err := listRepoLabels(t.Context(), d, "test-token")
 	if err != nil {
 		t.Fatalf("listRepoLabels() error: %v", err)
 	}
@@ -627,7 +629,7 @@ func TestWriteLocalLogSecuresExistingFilePermissions(t *testing.T) {
 		OS:          "darwin/arm64",
 		Timestamp:   time.Now().UTC(),
 	}
-	if err := writeLocalLog(entry); err != nil {
+	if err := writeLocalLog(newSnitchTestDeps(), entry); err != nil {
 		t.Fatalf("writeLocalLog() error: %v", err)
 	}
 
@@ -662,7 +664,7 @@ func TestReadLocalLogAndFormatEntries(t *testing.T) {
 		t.Fatalf("os.WriteFile() error: %v", err)
 	}
 
-	entries, err := readLocalLog(logPath)
+	entries, err := readLocalLog(newSnitchTestDeps(), logPath)
 	if err != nil {
 		t.Fatalf("readLocalLog() error: %v", err)
 	}
@@ -713,7 +715,7 @@ func TestReadLocalLogSupportsLargeEntries(t *testing.T) {
 		t.Fatalf("os.WriteFile() error: %v", err)
 	}
 
-	entries, err := readLocalLog(logPath)
+	entries, err := readLocalLog(newSnitchTestDeps(), logPath)
 	if err != nil {
 		t.Fatalf("readLocalLog() error: %v", err)
 	}
@@ -735,7 +737,7 @@ func TestReadLocalLogInvalidLine(t *testing.T) {
 		t.Fatalf("os.WriteFile() error: %v", err)
 	}
 
-	_, err := readLocalLog(logPath)
+	_, err := readLocalLog(newSnitchTestDeps(), logPath)
 	if err == nil {
 		t.Fatal("expected invalid log entry error")
 	}
@@ -757,7 +759,7 @@ func TestSearchIssuesHTTPError(t *testing.T) {
 	defer func() { setGitHubAPIBase(origBase) }()
 	setGitHubAPIBase(server.URL)
 
-	_, err := searchIssues(t.Context(), "", "test")
+	_, err := searchIssues(t.Context(), newSnitchTestDeps(), "", "test")
 	if err == nil {
 		t.Fatal("expected error on 403 response")
 	}
@@ -786,7 +788,7 @@ func TestCreateIssueMissingToken(t *testing.T) {
 		OS:          "darwin/arm64",
 	}
 
-	_, err := createIssue(t.Context(), "", entry)
+	_, err := createIssue(t.Context(), newSnitchTestDeps(), "", entry)
 	if err == nil {
 		t.Fatal("expected error on 401 response")
 	}
@@ -798,58 +800,27 @@ func TestCreateIssueMissingToken(t *testing.T) {
 func runSnitchCommand(t *testing.T, version string, args ...string) (string, string, error) {
 	t.Helper()
 
-	cmd := SnitchCommand(version)
+	d := newSnitchTestDeps()
+	cmd := NewSnitchCommand(d, version)
 	cmd.FlagSet.SetOutput(io.Discard)
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Parse(args); err != nil {
-			runErr = err
-			return
-		}
+	runErr := cmd.Parse(args)
+	if runErr == nil {
 		runErr = cmd.Run(context.Background())
-	})
+	}
 
-	return stdout, stderr, runErr
+	return d.IO.Out.(*bytes.Buffer).String(), d.IO.ErrOut.(*bytes.Buffer).String(), runErr
 }
 
-func captureOutput(t *testing.T, fn func()) (string, string) {
-	t.Helper()
-
-	origStdout := os.Stdout
-	origStderr := os.Stderr
-
-	stdoutR, stdoutW, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe stdout error: %v", err)
+// newSnitchTestDeps returns deps with buffered streams whose GitHub requests go
+// through the process transport.
+func newSnitchTestDeps() *shared.Deps {
+	return &shared.Deps{
+		IO:             &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
+		Now:            time.Now,
+		Timeout:        shared.ContextWithTimeout,
+		ResolveTimeout: shared.ResolveTimeoutSetting,
+		Getwd:          os.Getwd,
+		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
 	}
-	stderrR, stderrW, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe stderr error: %v", err)
-	}
-
-	os.Stdout = stdoutW
-	os.Stderr = stderrW
-
-	stdoutDone := make(chan string, 1)
-	stderrDone := make(chan string, 1)
-	go func() {
-		data, _ := io.ReadAll(stdoutR)
-		stdoutDone <- string(data)
-	}()
-	go func() {
-		data, _ := io.ReadAll(stderrR)
-		stderrDone <- string(data)
-	}()
-
-	fn()
-
-	_ = stdoutW.Close()
-	_ = stderrW.Close()
-	os.Stdout = origStdout
-	os.Stderr = origStderr
-
-	stdout := <-stdoutDone
-	stderr := <-stderrDone
-	return stdout, stderr
 }

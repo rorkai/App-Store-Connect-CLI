@@ -23,7 +23,7 @@ func newBetaGroupsAppCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-groups app view --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaGroupsAppGetCommand(d),
 		},
@@ -50,7 +50,7 @@ func newBetaGroupsAppGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-groups app view --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupValue := strings.TrimSpace(*groupID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -98,7 +98,7 @@ func newBetaGroupsRecruitmentCriteriaCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-groups beta-recruitment-criteria view --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaGroupsRecruitmentCriteriaGetCommand(d),
 		},
@@ -125,7 +125,7 @@ func newBetaGroupsRecruitmentCriteriaGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-groups beta-recruitment-criteria view --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupValue := strings.TrimSpace(*groupID)
 			aliasValue := strings.TrimSpace(*aliasID)
@@ -173,7 +173,7 @@ func newBetaGroupsRecruitmentCriterionCompatibleBuildCheckCommand(d *shared.Deps
 Examples:
   asc testflight beta-groups beta-recruitment-criterion-compatible-build-check view --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand(d),
 		},
@@ -200,7 +200,7 @@ func newBetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand(d *shared.D
 Examples:
   asc testflight beta-groups beta-recruitment-criterion-compatible-build-check view --group-id "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			groupValue := strings.TrimSpace(*groupID)
 			aliasValue := strings.TrimSpace(*aliasID)

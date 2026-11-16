@@ -82,7 +82,7 @@ func TestExecuteScreenshotUploadCommandLocaleReplaceTouchesOnlySelectedLocaleSet
 		}
 	}))
 
-	result, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	result, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) { return client, nil }), screenshotUploadCommandOptions{
 		AppID:      "123456789",
 		Version:    "1.2.3",
 		Locale:     "en-us",
@@ -90,9 +90,7 @@ func TestExecuteScreenshotUploadCommandLocaleReplaceTouchesOnlySelectedLocaleSet
 		DeviceType: "IPHONE_65",
 		Replace:    true,
 		Confirm:    true,
-	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) { return client, nil },
-	})
+	}, screenshotUploadDependencies{})
 	if err != nil {
 		t.Fatalf("executeScreenshotUploadCommand() error: %v", err)
 	}
@@ -149,16 +147,14 @@ func TestExecuteScreenshotUploadCommandLocaleDryRunAcceptsSingleFilePath(t *test
 		}
 	}))
 
-	result, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	result, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) { return client, nil }), screenshotUploadCommandOptions{
 		AppID:      "123456789",
 		VersionID:  "version-1",
 		Locale:     "en-US",
 		Path:       filePath,
 		DeviceType: "IPHONE_65",
 		DryRun:     true,
-	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) { return client, nil },
-	})
+	}, screenshotUploadDependencies{})
 	if err != nil {
 		t.Fatalf("executeScreenshotUploadCommand() error: %v", err)
 	}
@@ -191,19 +187,17 @@ func TestExecuteScreenshotUploadCommandLocaleDoesNotScanLocaleSubdirectories(t *
 	}
 
 	clientCalled := false
-	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	_, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+		clientCalled = true
+		return nil, errors.New("client must not be created")
+	}), screenshotUploadCommandOptions{
 		AppID:      "123456789",
 		Version:    "1.2.3",
 		Locale:     "en-US",
 		Path:       rootDir,
 		DeviceType: "IPHONE_65",
 		DryRun:     true,
-	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			clientCalled = true
-			return nil, errors.New("client must not be created")
-		},
-	})
+	}, screenshotUploadDependencies{})
 	if err == nil {
 		t.Fatal("expected an error for a --locale path without screenshot files")
 	}
@@ -231,7 +225,7 @@ func TestExecuteScreenshotUploadCommandLocaleMissingRemoteLocalizationListsValid
 		}
 	}))
 
-	result, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	result, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) { return client, nil }), screenshotUploadCommandOptions{
 		AppID:      "123456789",
 		Version:    "1.2.3",
 		Locale:     "de-DE",
@@ -239,9 +233,7 @@ func TestExecuteScreenshotUploadCommandLocaleMissingRemoteLocalizationListsValid
 		DeviceType: "IPHONE_65",
 		Replace:    true,
 		Confirm:    true,
-	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) { return client, nil },
-	})
+	}, screenshotUploadDependencies{})
 	if err == nil {
 		t.Fatal("expected missing localization error")
 	}
@@ -291,12 +283,10 @@ func TestExecuteScreenshotUploadCommandLocaleUsageErrors(t *testing.T) {
 			opts.Path = localeDir
 			opts.DeviceType = "IPHONE_65"
 			clientCalled := false
-			_, err := executeScreenshotUploadCommand(context.Background(), opts, screenshotUploadDependencies{
-				GetClient: func() (*asc.Client, error) {
-					clientCalled = true
-					return nil, errors.New("client must not be created")
-				},
-			})
+			_, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+				clientCalled = true
+				return nil, errors.New("client must not be created")
+			}), opts, screenshotUploadDependencies{})
 			if err == nil {
 				t.Fatal("expected usage error")
 			}

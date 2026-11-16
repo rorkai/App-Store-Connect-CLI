@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"reflect"
 	"strings"
 	"unicode/utf16"
@@ -26,29 +25,29 @@ var newVersionAliasIDFn = newUUID
 
 const webVersionAliasMaxNameUTF16 = 40
 
-func webVersionAliasesGroup() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings version-aliases", flag.ExitOnError)
+func webVersionAliasesGroup(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings version-aliases", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "version-aliases",
 		ShortUsage: "asc web xcode-cloud settings version-aliases <subcommand> [flags]",
 		ShortHelp:  "Manage Xcode Cloud custom version aliases.",
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		FlagSet:    fs,
 		Subcommands: []*ffcli.Command{
-			webVersionAliasesList(),
-			webVersionAliasView(),
-			webVersionAliasCreate(),
-			webVersionAliasUpdate(),
-			webVersionAliasDelete(),
+			webVersionAliasesList(d),
+			webVersionAliasView(d),
+			webVersionAliasCreate(d),
+			webVersionAliasUpdate(d),
+			webVersionAliasDelete(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func webVersionAliasesList() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings version-aliases list", flag.ExitOnError)
+func webVersionAliasesList(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings version-aliases list", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 
 	return &ffcli.Command{
@@ -65,15 +64,15 @@ intentionally does not claim full pagination.
 
 Example:
   asc web xcode-cloud settings version-aliases list --product-id "UUID" --apple-id "user@example.com"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -94,12 +93,12 @@ Example:
 			for _, item := range response.Items {
 				result.VersionAliases = append(result.VersionAliases, webVersionAliasOutput(item))
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return asc.PrintTable(result) },
-				func() error { return asc.PrintMarkdown(result) },
+				func() error { return asc.PrintTableTo(d.IO.Out, result) },
+				func() error { return asc.PrintMarkdownTo(d.IO.Out, result) },
 			)
 		},
 	}
@@ -160,16 +159,16 @@ func webVersionAliasName(value string) (string, error) {
 	return strings.TrimSpace(value), nil
 }
 
-func webVersionAliasNameFlag(flagName, value string) (string, error) {
+func webVersionAliasNameFlag(d *shared.Deps, flagName, value string) (string, error) {
 	name, err := webVersionAliasName(value)
 	if err == nil {
 		return name, nil
 	}
 	if strings.TrimSpace(value) == "" {
-		fmt.Fprintf(os.Stderr, "Error: --%s is required\n", flagName)
+		fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", flagName)
 		return "", shared.MissingRequiredUsageError("--" + flagName)
 	}
-	return "", shared.UsageError(fmt.Sprintf("--%s %v", flagName, err))
+	return "", d.UsageError(fmt.Sprintf("--%s %v", flagName, err))
 }
 
 func webVersionAliasBuildPresent(value json.RawMessage) bool {
@@ -250,13 +249,13 @@ func webVersionAliasTeamID(session *webcore.AuthSession, operation string) (stri
 	return teamID, nil
 }
 
-func webVersionAliasPrint(result *asc.WebXcodeCloudVersionAliasResult, output *string, pretty *bool) error {
-	return shared.PrintOutputWithRenderers(
+func webVersionAliasPrint(d *shared.Deps, result *asc.WebXcodeCloudVersionAliasResult, output *string, pretty *bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		*output,
 		*pretty,
-		func() error { return asc.PrintTable(result) },
-		func() error { return asc.PrintMarkdown(result) },
+		func() error { return asc.PrintTableTo(d.IO.Out, result) },
+		func() error { return asc.PrintMarkdownTo(d.IO.Out, result) },
 	)
 }
 
@@ -277,34 +276,34 @@ func (v webVersionAliasViewOutput) MarshalJSON() ([]byte, error) {
 	return v.raw, nil
 }
 
-func webVersionAliasViewPrint(raw json.RawMessage, result *asc.WebXcodeCloudVersionAliasResult, output *string, pretty *bool) error {
+func webVersionAliasViewPrint(d *shared.Deps, raw json.RawMessage, result *asc.WebXcodeCloudVersionAliasResult, output *string, pretty *bool) error {
 	view := webVersionAliasViewOutput{
 		raw:    append(json.RawMessage(nil), raw...),
 		scalar: result,
 	}
-	return shared.PrintOutputWithRenderers(
+	return d.PrintOutputWithRenderers(
 		view,
 		*output,
 		*pretty,
-		func() error { return asc.PrintTable(view.scalar) },
-		func() error { return asc.PrintMarkdown(view.scalar) },
+		func() error { return asc.PrintTableTo(d.IO.Out, view.scalar) },
+		func() error { return asc.PrintMarkdownTo(d.IO.Out, view.scalar) },
 	)
 }
 
-func webVersionAliasDeletePrint(result *asc.WebXcodeCloudVersionAliasDeleteResult, output *string, pretty *bool) error {
-	return shared.PrintOutputWithRenderers(
+func webVersionAliasDeletePrint(d *shared.Deps, result *asc.WebXcodeCloudVersionAliasDeleteResult, output *string, pretty *bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		*output,
 		*pretty,
-		func() error { return asc.PrintTable(result) },
-		func() error { return asc.PrintMarkdown(result) },
+		func() error { return asc.PrintTableTo(d.IO.Out, result) },
+		func() error { return asc.PrintMarkdownTo(d.IO.Out, result) },
 	)
 }
 
-func webVersionAliasView() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings version-aliases view", flag.ExitOnError)
+func webVersionAliasView(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings version-aliases view", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	aliasID := fs.String("id", "", "Version alias ID (required)")
 
@@ -320,19 +319,19 @@ table and markdown output render safe scalar fields.
 
 Example:
   asc web xcode-cloud settings version-aliases view --product-id "UUID" --id "ALIAS_UUID" --apple-id "user@example.com"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			id := strings.TrimSpace(*aliasID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -345,15 +344,15 @@ Example:
 			if err != nil {
 				return withWebAuthHint(err, "xcode-cloud settings version-aliases view")
 			}
-			return webVersionAliasViewPrint(raw, webVersionAliasResult(pid, "", item), output.Output, output.Pretty)
+			return webVersionAliasViewPrint(d, raw, webVersionAliasResult(pid, "", item), output.Output, output.Pretty)
 		},
 	}
 }
 
-func webVersionAliasCreate() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings version-aliases create", flag.ExitOnError)
+func webVersionAliasCreate(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings version-aliases create", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	name := fs.String("name", "", "Version alias name (required; maximum 40 UTF-16 code units)")
 	typeValue := fs.String("type", "", "Version alias type: macos_version or xcode_version (required)")
@@ -375,29 +374,29 @@ can_configure_locked_version_aliases capability for locked aliases.
 
 Example:
   asc web xcode-cloud settings version-aliases create --product-id "UUID" --type xcode_version --name "Stable" --build "latest:stable" --confirm --apple-id "user@example.com"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
-			normalizedName, err := webVersionAliasNameFlag("name", *name)
+			normalizedName, err := webVersionAliasNameFlag(d, "name", *name)
 			if err != nil {
 				return err
 			}
 			if *build == "" {
-				return shared.RequiredFlag("--build")
+				return d.RequiredFlag("--build")
 			}
 			normalizedType, err := webVersionAliasType(*typeValue)
 			if err != nil {
-				return shared.UsageError("--type " + err.Error())
+				return d.UsageError("--type " + err.Error())
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -418,7 +417,7 @@ Example:
 			}
 			client := newCIClientFn(session)
 			if err := client.PutCIVersionAlias(requestCtx, teamID, pid, aliasID, request); err != nil {
-				return verifyVersionAliasWrite(ctx, client, teamID, pid, aliasID, request, "create", err, output.Output, output.Pretty)
+				return verifyVersionAliasWrite(ctx, d, client, teamID, pid, aliasID, request, "create", err, output.Output, output.Pretty)
 			}
 			item, err := client.GetCIVersionAlias(requestCtx, teamID, pid, aliasID)
 			if err != nil {
@@ -427,15 +426,15 @@ Example:
 			if !webVersionAliasMatches(item, request) {
 				return fmt.Errorf("xcode-cloud settings version-aliases create verification failed: remote alias does not match the requested values")
 			}
-			return webVersionAliasPrint(webVersionAliasResult(pid, "created", item), output.Output, output.Pretty)
+			return webVersionAliasPrint(d, webVersionAliasResult(pid, "created", item), output.Output, output.Pretty)
 		},
 	}
 }
 
-func webVersionAliasUpdate() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings version-aliases update", flag.ExitOnError)
+func webVersionAliasUpdate(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings version-aliases update", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	aliasID := fs.String("id", "", "Version alias ID (required)")
 	name := fs.String("name", "", "Replacement version alias name (maximum 40 UTF-16 code units)")
@@ -458,46 +457,46 @@ workflows.
 
 Example:
   asc web xcode-cloud settings version-aliases update --product-id "UUID" --id "ALIAS_UUID" --name "Stable" --confirm --apple-id "user@example.com"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			id := strings.TrimSpace(*aliasID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			fieldProvided := versionAliasFlagProvided(fs, "name") || versionAliasFlagProvided(fs, "type") || versionAliasFlagProvided(fs, "build") || versionAliasFlagProvided(fs, "locked")
 			if !fieldProvided {
-				fmt.Fprintln(os.Stderr, "Error: at least one of --name, --type, --build, or --locked is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: at least one of --name, --type, --build, or --locked is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			var normalizedName string
 			if versionAliasFlagProvided(fs, "name") {
 				var nameErr error
-				normalizedName, nameErr = webVersionAliasNameFlag("name", *name)
+				normalizedName, nameErr = webVersionAliasNameFlag(d, "name", *name)
 				if nameErr != nil {
 					return nameErr
 				}
 			}
 			if versionAliasFlagProvided(fs, "build") && *build == "" {
-				return shared.RequiredFlag("--build")
+				return d.RequiredFlag("--build")
 			}
 			var normalizedType string
 			if versionAliasFlagProvided(fs, "type") {
 				var typeErr error
 				normalizedType, typeErr = webVersionAliasType(*typeValue)
 				if typeErr != nil {
-					return shared.UsageError("--type " + typeErr.Error())
+					return d.UsageError("--type " + typeErr.Error())
 				}
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -526,11 +525,11 @@ Example:
 			}
 			normalizedEffectiveName, err := webVersionAliasEffectiveValues(request)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			request.Name = normalizedEffectiveName
 			if err := client.PutCIVersionAlias(requestCtx, teamID, pid, id, request); err != nil {
-				return verifyVersionAliasWrite(ctx, client, teamID, pid, id, request, "update", err, output.Output, output.Pretty)
+				return verifyVersionAliasWrite(ctx, d, client, teamID, pid, id, request, "update", err, output.Output, output.Pretty)
 			}
 			updated, err := client.GetCIVersionAlias(requestCtx, teamID, pid, id)
 			if err != nil {
@@ -539,15 +538,15 @@ Example:
 			if !webVersionAliasMatches(updated, request) {
 				return fmt.Errorf("xcode-cloud settings version-aliases update verification failed: remote alias does not match the requested values")
 			}
-			return webVersionAliasPrint(webVersionAliasResult(pid, "updated", updated), output.Output, output.Pretty)
+			return webVersionAliasPrint(d, webVersionAliasResult(pid, "updated", updated), output.Output, output.Pretty)
 		},
 	}
 }
 
-func webVersionAliasDelete() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud settings version-aliases delete", flag.ExitOnError)
+func webVersionAliasDelete(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud settings version-aliases delete", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	productID := fs.String("product-id", "", "Xcode Cloud product ID (required)")
 	aliasID := fs.String("id", "", "Version alias ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deleting the version alias (required)")
@@ -565,22 +564,22 @@ aliases used by workflows.
 
 Example:
   asc web xcode-cloud settings version-aliases delete --product-id "UUID" --id "ALIAS_UUID" --confirm --apple-id "user@example.com"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		FlagSet:   fs,
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				return shared.RequiredFlag("--product-id")
+				return d.RequiredFlag("--product-id")
 			}
 			id := strings.TrimSpace(*aliasID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -597,12 +596,12 @@ Example:
 			verifyCtx := requestCtx
 			verifyCancel := func() {}
 			if writeErr != nil {
-				verifyCtx, verifyCancel = newWebRequestContext(ctx)
+				verifyCtx, verifyCancel = newWebRequestContextWith(ctx, d)
 			}
 			defer verifyCancel()
 			_, verifyErr := client.GetCIVersionAlias(verifyCtx, teamID, pid, id)
 			if isCIVersionAliasNotFound(verifyErr) {
-				return webVersionAliasDeletePrint(webVersionAliasDeleteResult(pid, id), output.Output, output.Pretty)
+				return webVersionAliasDeletePrint(d, webVersionAliasDeleteResult(pid, id), output.Output, output.Pretty)
 			}
 			if verifyErr != nil {
 				if writeErr != nil {
@@ -618,11 +617,11 @@ Example:
 	}
 }
 
-func verifyVersionAliasWrite(ctx context.Context, client *webcore.Client, teamID, productID, aliasID string, request webcore.CIVersionAliasRequest, operation string, writeErr error, output *string, pretty *bool) error {
+func verifyVersionAliasWrite(ctx context.Context, d *shared.Deps, client *webcore.Client, teamID, productID, aliasID string, request webcore.CIVersionAliasRequest, operation string, writeErr error, output *string, pretty *bool) error {
 	if !isAmbiguousCIWriteFailure(writeErr) {
 		return withWebAuthHint(writeErr, "xcode-cloud settings version-aliases "+operation)
 	}
-	verifyCtx, verifyCancel := newWebRequestContext(ctx)
+	verifyCtx, verifyCancel := newWebRequestContextWith(ctx, d)
 	defer verifyCancel()
 	item, verifyErr := client.GetCIVersionAlias(verifyCtx, teamID, productID, aliasID)
 	if verifyErr != nil {
@@ -631,7 +630,7 @@ func verifyVersionAliasWrite(ctx context.Context, client *webcore.Client, teamID
 	if !webVersionAliasMatches(item, request) {
 		return fmt.Errorf("xcode-cloud settings version-aliases %s is unverified: remote alias does not match the requested values: %w", operation, writeErr)
 	}
-	return webVersionAliasPrint(webVersionAliasResult(productID, operation+"d", item), output, pretty)
+	return webVersionAliasPrint(d, webVersionAliasResult(productID, operation+"d", item), output, pretty)
 }
 
 func isCIVersionAliasNotFound(err error) bool {

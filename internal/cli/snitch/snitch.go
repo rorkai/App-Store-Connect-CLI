@@ -46,9 +46,11 @@ func setGitHubAPIBase(base string) {
 
 var validSeverities = []string{"bug", "friction", "feature-request"}
 
-// githubHTTPClient is a package-level var for testability.
-var githubHTTPClient = func() *http.Client {
-	return &http.Client{Timeout: asc.ResolveTimeout()}
+func githubHTTPClient(d *shared.Deps) *http.Client {
+	return &http.Client{
+		Timeout:   d.ResolveTimeout(shared.RequestTimeoutSetting, asc.DefaultTimeout),
+		Transport: d.HTTPTransport(),
+	}
 }
 
 type stringListFlag []string
@@ -69,9 +71,9 @@ func (f *stringListFlag) Set(value string) error {
 	return nil
 }
 
-// SnitchCommand returns the top-level snitch command.
-func SnitchCommand(version string) *ffcli.Command {
-	fs := flag.NewFlagSet("snitch", flag.ExitOnError)
+// NewSnitchCommand returns the top-level snitch command.
+func NewSnitchCommand(d *shared.Deps, version string) *ffcli.Command {
+	fs := d.NewFlagSet("snitch", flag.ExitOnError)
 
 	repro := fs.String("repro", "", "Reproduction command (e.g., the exact asc command that failed)")
 	expected := fs.String("expected", "", "Expected behavior")
@@ -103,23 +105,23 @@ Examples:
   asc snitch flush
   asc snitch flush --file .asc/snitch.log`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			flushCommand(),
+			newFlushCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {
-				return shared.UsageError("description is required")
+				return d.UsageError("description is required")
 			}
 
-			description, err := descriptionFromArgs(args, fs)
+			description, err := descriptionFromArgs(d, args, fs)
 			if err != nil {
 				return err
 			}
 
 			sev := strings.TrimSpace(strings.ToLower(*severity))
 			if !isValidSeverity(sev) {
-				return shared.UsageErrorf("--severity must be one of: %s", strings.Join(validSeverities, ", "))
+				return d.UsageErrorf("--severity must be one of: %s", strings.Join(validSeverities, ", "))
 			}
 
 			entry := LogEntry{
@@ -129,26 +131,26 @@ Examples:
 				Actual:      strings.TrimSpace(*actual),
 				Labels:      append([]string(nil), labels...),
 				Severity:    sev,
-				Timestamp:   time.Now().UTC(),
+				Timestamp:   d.Now().UTC(),
 				ASCVersion:  version,
 				OS:          fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 			}
 			entry, redacted := redactLogEntry(entry)
 			if redacted {
-				fmt.Fprintln(os.Stderr, redactionNotice)
+				fmt.Fprintln(d.IO.ErrOut, redactionNotice)
 			}
 
 			token := resolveGitHubToken()
 
 			if len(entry.Labels) > 0 && (!*local || *dryRun) {
-				validationCtx, validationCancel := shared.ContextWithTimeout(ctx)
-				validatedLabels, err := validateRequestedLabels(validationCtx, token, entry.Labels)
+				validationCtx, validationCancel := d.Timeout(ctx)
+				validatedLabels, err := validateRequestedLabels(validationCtx, d, token, entry.Labels)
 				validationCancel()
 				if err != nil {
 					if errors.Is(err, flag.ErrHelp) {
 						return err
 					}
-					fmt.Fprintf(os.Stderr, "Warning: %s; continuing without preflight label validation.\n", asc.SanitizeTerminalText(err.Error()))
+					fmt.Fprintf(d.IO.ErrOut, "Warning: %s; continuing without preflight label validation.\n", asc.SanitizeTerminalText(err.Error()))
 					entry.Labels = dedupeLabels(entry.Labels)
 				} else {
 					entry.Labels = validatedLabels
@@ -156,27 +158,27 @@ Examples:
 			}
 
 			if *local && !*dryRun {
-				return writeLocalLog(entry)
+				return writeLocalLog(d, entry)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var duplicates []GitHubIssue
 			if token != "" {
 				var err error
-				duplicates, err = searchIssues(requestCtx, token, issueTitle(entry))
+				duplicates, err = searchIssues(requestCtx, d, token, issueTitle(entry))
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: duplicate search failed: %s\n", asc.SanitizeTerminalText(err.Error()))
+					fmt.Fprintf(d.IO.ErrOut, "Warning: duplicate search failed: %s\n", asc.SanitizeTerminalText(err.Error()))
 				}
 			} else {
-				fmt.Fprintln(os.Stderr, "Note: skipping duplicate search because GITHUB_TOKEN or GH_TOKEN is not set.")
+				fmt.Fprintln(d.IO.ErrOut, "Note: skipping duplicate search because GITHUB_TOKEN or GH_TOKEN is not set.")
 			}
 
-			printPotentialDuplicates(duplicates)
+			printPotentialDuplicates(d.IO.ErrOut, duplicates)
 
 			if *dryRun || !*confirm {
-				printPreview(entry, *dryRun)
+				printPreview(d.IO.ErrOut, entry, *dryRun)
 				return nil
 			}
 
@@ -184,28 +186,28 @@ Examples:
 				return fmt.Errorf("snitch: GITHUB_TOKEN or GH_TOKEN is required to create issues")
 			}
 
-			issue, err := createIssue(requestCtx, token, entry)
+			issue, err := createIssue(requestCtx, d, token, entry)
 			if err != nil {
 				return fmt.Errorf("snitch: failed to create issue: %w", err)
 			}
 			if labels := issueLabels(entry); len(labels) > 0 {
-				if err := addIssueLabels(requestCtx, token, issue.Number, labels); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: issue created, but labels could not be applied: %s\n", asc.SanitizeTerminalText(err.Error()))
+				if err := addIssueLabels(requestCtx, d, token, issue.Number, labels); err != nil {
+					fmt.Fprintf(d.IO.ErrOut, "Warning: issue created, but labels could not be applied: %s\n", asc.SanitizeTerminalText(err.Error()))
 				}
 			}
 
-			fmt.Fprintf(os.Stderr, "Issue created: #%d %s\n", issue.Number, asc.SanitizeTerminalText(issue.HTMLURL))
+			fmt.Fprintf(d.IO.ErrOut, "Issue created: #%d %s\n", issue.Number, asc.SanitizeTerminalText(issue.HTMLURL))
 			result := map[string]any{
 				"number":   issue.Number,
 				"html_url": issue.HTMLURL,
 				"title":    issue.Title,
 			}
-			return json.NewEncoder(os.Stdout).Encode(result)
+			return json.NewEncoder(d.IO.Out).Encode(result)
 		},
 	}
 }
 
-func descriptionFromArgs(args []string, fs *flag.FlagSet) (string, error) {
+func descriptionFromArgs(d *shared.Deps, args []string, fs *flag.FlagSet) (string, error) {
 	parts := make([]string, 0, len(args))
 	for i, raw := range args {
 		part := strings.TrimSpace(raw)
@@ -215,7 +217,7 @@ func descriptionFromArgs(args []string, fs *flag.FlagSet) (string, error) {
 
 		if i > 0 {
 			if misplacedFlag := trailingSnitchFlag(part, fs); misplacedFlag != "" {
-				return "", shared.UsageErrorf(
+				return "", d.UsageErrorf(
 					"flags must appear before the description; move %s before the description or quote it if it is part of the report text",
 					misplacedFlag,
 				)
@@ -227,7 +229,7 @@ func descriptionFromArgs(args []string, fs *flag.FlagSet) (string, error) {
 
 	description := strings.TrimSpace(strings.Join(parts, " "))
 	if description == "" {
-		return "", shared.UsageError("description must not be empty")
+		return "", d.UsageError("description must not be empty")
 	}
 
 	return description, nil
@@ -262,8 +264,8 @@ func trailingSnitchFlag(token string, fs *flag.FlagSet) string {
 	return ""
 }
 
-func flushCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("snitch flush", flag.ExitOnError)
+func newFlushCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("snitch flush", flag.ExitOnError)
 	logFile := fs.String("file", "", "Path to snitch log file (default: .asc/snitch.log)")
 
 	return &ffcli.Command{
@@ -280,16 +282,16 @@ Examples:
   asc snitch flush
   asc snitch flush --file .asc/snitch.log`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			path := *logFile
 			if path == "" {
 				path = filepath.Join(".asc", "snitch.log")
 			}
 
-			entries, err := readLocalLog(path)
+			entries, err := readLocalLog(d, path)
 			if os.IsNotExist(err) {
-				fmt.Fprintln(os.Stderr, "No local snitch entries found.")
+				fmt.Fprintln(d.IO.ErrOut, "No local snitch entries found.")
 				return nil
 			}
 			if err != nil {
@@ -297,15 +299,15 @@ Examples:
 			}
 
 			if len(entries) == 0 {
-				fmt.Fprintln(os.Stderr, "No local snitch entries found.")
+				fmt.Fprintln(d.IO.ErrOut, "No local snitch entries found.")
 				return nil
 			}
 			entries, redacted := redactLogEntries(entries)
 			if redacted {
-				fmt.Fprintln(os.Stderr, redactionNotice)
+				fmt.Fprintln(d.IO.ErrOut, redactionNotice)
 			}
 
-			fmt.Fprint(os.Stdout, formatLocalEntries(entries))
+			fmt.Fprint(d.IO.Out, formatLocalEntries(entries))
 			return nil
 		},
 	}
@@ -410,35 +412,35 @@ func issueLabels(e LogEntry) []string {
 	return dedupeLabels(labels)
 }
 
-func printPotentialDuplicates(duplicates []GitHubIssue) {
+func printPotentialDuplicates(w io.Writer, duplicates []GitHubIssue) {
 	if len(duplicates) == 0 {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Potentially related issues (%d):\n", len(duplicates))
+	fmt.Fprintf(w, "Potentially related issues (%d):\n", len(duplicates))
 	for _, dup := range duplicates {
 		fmt.Fprintf(
-			os.Stderr,
+			w,
 			"  #%d %s\n       %s\n",
 			dup.Number,
 			asc.SanitizeTerminalText(dup.Title),
 			asc.SanitizeTerminalText(dup.HTMLURL),
 		)
 	}
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(w)
 }
 
-func printPreview(entry LogEntry, dryRun bool) {
+func printPreview(w io.Writer, entry LogEntry, dryRun bool) {
 	if dryRun {
-		fmt.Fprintln(os.Stderr, "--- Dry run: would create issue ---")
+		fmt.Fprintln(w, "--- Dry run: would create issue ---")
 	} else {
-		fmt.Fprintln(os.Stderr, "--- Preview only: rerun with --confirm to create issue ---")
+		fmt.Fprintln(w, "--- Preview only: rerun with --confirm to create issue ---")
 	}
-	fmt.Fprintf(os.Stderr, "Title: %s\n", asc.SanitizeTerminalText(issueTitle(entry)))
+	fmt.Fprintf(w, "Title: %s\n", asc.SanitizeTerminalText(issueTitle(entry)))
 	if labels := issueLabels(entry); len(labels) > 0 {
-		fmt.Fprintf(os.Stderr, "Labels: %s\n", asc.SanitizeTerminalText(strings.Join(labels, ", ")))
+		fmt.Fprintf(w, "Labels: %s\n", asc.SanitizeTerminalText(strings.Join(labels, ", ")))
 	}
-	fmt.Fprintf(os.Stderr, "Body:\n%s\n", sanitizeTerminalBlock(issueBody(entry)))
+	fmt.Fprintf(w, "Body:\n%s\n", sanitizeTerminalBlock(issueBody(entry)))
 }
 
 // sanitizeTerminalBlock removes terminal control and bidi sequences from a
@@ -480,7 +482,7 @@ func dedupeLabels(labels []string) []string {
 	return deduped
 }
 
-func listRepoLabels(ctx context.Context, token string) ([]string, error) {
+func listRepoLabels(ctx context.Context, d *shared.Deps, token string) ([]string, error) {
 	seen := make(map[string]struct{})
 	labels := make([]string, 0, labelsPerPage)
 
@@ -503,7 +505,7 @@ func listRepoLabels(ctx context.Context, token string) ([]string, error) {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
 
-		resp, err := githubHTTPClient().Do(req)
+		resp, err := githubHTTPClient(d).Do(req)
 		if err != nil {
 			return nil, err
 		}
@@ -543,14 +545,14 @@ func listRepoLabels(ctx context.Context, token string) ([]string, error) {
 	return labels, nil
 }
 
-func validateRequestedLabels(ctx context.Context, token string, requested []string) ([]string, error) {
+func validateRequestedLabels(ctx context.Context, d *shared.Deps, token string, requested []string) ([]string, error) {
 	requested, _ = redactStringSlice(requested)
 	requested = dedupeLabels(requested)
 	if len(requested) == 0 {
 		return nil, nil
 	}
 
-	repoLabels, err := listRepoLabels(ctx, token)
+	repoLabels, err := listRepoLabels(ctx, d, token)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate --label values: %w", err)
 	}
@@ -573,7 +575,7 @@ func validateRequestedLabels(ctx context.Context, token string, requested []stri
 
 	if len(unknown) > 0 {
 		sort.Strings(unknown)
-		return nil, shared.UsageErrorf("--label must reference existing repo labels; unknown label(s): %s", strings.Join(unknown, ", "))
+		return nil, d.UsageErrorf("--label must reference existing repo labels; unknown label(s): %s", strings.Join(unknown, ", "))
 	}
 
 	return validated, nil
@@ -582,16 +584,16 @@ func validateRequestedLabels(ctx context.Context, token string, requested []stri
 // localLogRoot anchors snitch log access to the working directory so the
 // repository-controlled .asc directory and log file cannot redirect the log, and
 // falls back to the log's own parent for a log the operator placed elsewhere.
-func localLogRoot(path string) (rootfs.Root, string, error) {
+func localLogRoot(d *shared.Deps, path string) (rootfs.Root, string, error) {
 	if path == "" {
 		return rootfs.Root{}, "", fmt.Errorf("log path must not be empty")
 	}
 
-	absolute, err := filepath.Abs(path)
+	absolute, err := d.Abs(path)
 	if err != nil {
 		return rootfs.Root{}, "", err
 	}
-	if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+	if cwd, cwdErr := d.Getwd(); cwdErr == nil {
 		if root, rootErr := rootfs.New(cwd); rootErr == nil {
 			if relative, relErr := filepath.Rel(root.Path(), absolute); relErr == nil {
 				if relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
@@ -607,8 +609,8 @@ func localLogRoot(path string) (rootfs.Root, string, error) {
 	return root, filepath.Base(absolute), nil
 }
 
-func readLocalLog(path string) ([]LogEntry, error) {
-	root, name, err := localLogRoot(path)
+func readLocalLog(d *shared.Deps, path string) ([]LogEntry, error) {
+	root, name, err := localLogRoot(d, path)
 	if err != nil {
 		return nil, err
 	}
@@ -678,7 +680,7 @@ func formatLocalEntries(entries []LogEntry) string {
 	return b.String()
 }
 
-func searchIssues(ctx context.Context, token string, query string) ([]GitHubIssue, error) {
+func searchIssues(ctx context.Context, d *shared.Deps, token string, query string) ([]GitHubIssue, error) {
 	query, _ = redactSensitiveText(query)
 	// Search open issue titles first to reduce noisy matches from generic terms.
 	q := fmt.Sprintf("repo:%s/%s is:issue is:open in:title %q", defaultOwner, defaultRepo, strings.TrimSpace(query))
@@ -694,7 +696,7 @@ func searchIssues(ctx context.Context, token string, query string) ([]GitHubIssu
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	client := githubHTTPClient()
+	client := githubHTTPClient(d)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -717,7 +719,7 @@ func searchIssues(ctx context.Context, token string, query string) ([]GitHubIssu
 	return result.Items, nil
 }
 
-func createIssue(ctx context.Context, token string, entry LogEntry) (*GitHubIssue, error) {
+func createIssue(ctx context.Context, d *shared.Deps, token string, entry LogEntry) (*GitHubIssue, error) {
 	issueURL := fmt.Sprintf("%s/repos/%s/%s/issues", githubAPIBase, defaultOwner, defaultRepo)
 
 	payload := map[string]any{
@@ -741,7 +743,7 @@ func createIssue(ctx context.Context, token string, entry LogEntry) (*GitHubIssu
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	client := githubHTTPClient()
+	client := githubHTTPClient(d)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -760,7 +762,7 @@ func createIssue(ctx context.Context, token string, entry LogEntry) (*GitHubIssu
 	return &issue, nil
 }
 
-func addIssueLabels(ctx context.Context, token string, issueNumber int, labels []string) error {
+func addIssueLabels(ctx context.Context, d *shared.Deps, token string, issueNumber int, labels []string) error {
 	labels, _ = redactStringSlice(labels)
 	if len(labels) == 0 {
 		return nil
@@ -794,7 +796,7 @@ func addIssueLabels(ctx context.Context, token string, issueNumber int, labels [
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
-	client := githubHTTPClient()
+	client := githubHTTPClient(d)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -817,12 +819,12 @@ func readGitHubAPIError(resp *http.Response) error {
 	return fmt.Errorf("GitHub returned %d: %s", resp.StatusCode, asc.SanitizeTerminalText(strings.TrimSpace(string(respBody))))
 }
 
-func writeLocalLog(entry LogEntry) error {
+func writeLocalLog(d *shared.Deps, entry LogEntry) error {
 	entry, _ = redactLogEntry(entry)
 	dir := ".asc"
 	path := filepath.Join(dir, "snitch.log")
 
-	root, name, err := localLogRoot(path)
+	root, name, err := localLogRoot(d, path)
 	if err != nil {
 		return fmt.Errorf("snitch: %w", err)
 	}
@@ -841,6 +843,6 @@ func writeLocalLog(entry LogEntry) error {
 		return fmt.Errorf("snitch: failed to append to %s: %w", path, err)
 	}
 
-	fmt.Fprintf(os.Stderr, "Friction logged to %s\n", path)
+	fmt.Fprintf(d.IO.ErrOut, "Friction logged to %s\n", path)
 	return nil
 }
