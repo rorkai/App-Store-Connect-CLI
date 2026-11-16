@@ -175,7 +175,7 @@ func applyMetadataKeywordChanges(
 			}
 
 			createCtx, createCancel := d.Timeout(ctx)
-			resp, createErr := client.CreateAppStoreVersionLocalization(createCtx, versionID, versionAttributes(locale, createLoc, true))
+			resp, createErr := client.CreateAppStoreVersionLocalization(createCtx, versionID, versionAttributes(locale, createLoc, true).CreateAttributes())
 			createCancel()
 			if createErr != nil {
 				result.Status = "failed"
@@ -205,7 +205,7 @@ func applyMetadataKeywordChanges(
 			result.Action = "update"
 
 			updateCtx, updateCancel := d.Timeout(ctx)
-			resp, updateErr := client.UpdateAppStoreVersionLocalization(updateCtx, remoteState.id, versionAttributes(locale, localPatch.localization, false))
+			resp, updateErr := client.UpdateAppStoreVersionLocalization(updateCtx, remoteState.id, versionAttributes(locale, localPatch.localization, false).UpdateAttributes())
 			updateCancel()
 			if updateErr != nil {
 				result.Status = "failed"

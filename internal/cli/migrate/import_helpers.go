@@ -324,7 +324,7 @@ func uploadVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc
 		if localizationID != "" {
 			action = "update"
 			requestCtx, cancel := migrateRequestContext(ctx, d)
-			_, err := client.UpdateAppStoreVersionLocalization(requestCtx, localizationID, attrs)
+			_, err := client.UpdateAppStoreVersionLocalization(requestCtx, localizationID, attrs.UpdateAttributes())
 			cancel()
 			if err != nil {
 				// Report what already landed in App Store Connect; the caller
@@ -333,7 +333,7 @@ func uploadVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc
 			}
 		} else {
 			requestCtx, cancel := migrateRequestContext(ctx, d)
-			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, versionID, attrs)
+			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, versionID, attrs.CreateAttributes())
 			cancel()
 			if err != nil {
 				return results, shared.NormalizeSubmitReadinessCreateWarnings(warnings), fmt.Errorf("migrate import: failed to create %s: %w", loc.Locale, err)
@@ -484,14 +484,14 @@ func uploadAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc
 		if localizationID != "" {
 			action = "update"
 			requestCtx, cancel := migrateRequestContext(ctx, d)
-			_, err := client.UpdateAppInfoLocalization(requestCtx, localizationID, prepared.attributes)
+			_, err := client.UpdateAppInfoLocalization(requestCtx, localizationID, prepared.attributes.UpdateAttributes())
 			cancel()
 			if err != nil {
 				return results, fmt.Errorf("migrate import: failed to update app info %s: %w", loc.Locale, err)
 			}
 		} else {
 			requestCtx, cancel := migrateRequestContext(ctx, d)
-			resp, err := client.CreateAppInfoLocalization(requestCtx, plan.appInfoID, prepared.attributes)
+			resp, err := client.CreateAppInfoLocalization(requestCtx, plan.appInfoID, prepared.attributes.CreateAttributes())
 			cancel()
 			if err != nil {
 				return results, fmt.Errorf("migrate import: failed to create app info %s: %w", loc.Locale, err)
@@ -584,7 +584,7 @@ func uploadScreenshots(ctx context.Context, d *shared.Deps, client *asc.Client, 
 		localizationID := localeToID[locale]
 		if localizationID == "" {
 			createCtx, createCancel := migrateRequestContext(ctx, d)
-			resp, err := client.CreateAppStoreVersionLocalization(createCtx, versionID, asc.AppStoreVersionLocalizationAttributes{Locale: locale})
+			resp, err := client.CreateAppStoreVersionLocalization(createCtx, versionID, asc.AppStoreVersionLocalizationCreateAttributes{Locale: locale})
 			createCancel()
 			if err != nil {
 				return sortedScreenshotResults(results), fmt.Errorf("migrate import: failed to create localization for screenshots %s: %w", locale, err)

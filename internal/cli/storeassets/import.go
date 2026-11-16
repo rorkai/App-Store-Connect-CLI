@@ -234,7 +234,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 		locID := localeToID[preview.Locale]
 		if locID == "" {
 			created, err := request(ctx, p.deps, func(c context.Context) (*asc.AppStoreVersionLocalizationResponse, error) {
-				return client.CreateAppStoreVersionLocalization(c, p.VersionID, asc.AppStoreVersionLocalizationAttributes{Locale: preview.Locale})
+				return client.CreateAppStoreVersionLocalization(c, p.VersionID, asc.AppStoreVersionLocalizationCreateAttributes{Locale: preview.Locale})
 			})
 			if created != nil {
 				locID = created.Data.ID

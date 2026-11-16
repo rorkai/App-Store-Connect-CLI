@@ -118,9 +118,9 @@ func ApplyAppInfoLocalizationUpsert(
 		return nil, "", fmt.Errorf("app info localization plan is required")
 	}
 	if plan.Create {
-		resp, err := client.CreateAppInfoLocalization(ctx, plan.AppInfoID, plan.Attributes)
+		resp, err := client.CreateAppInfoLocalization(ctx, plan.AppInfoID, plan.Attributes.CreateAttributes())
 		return resp, "create", err
 	}
-	resp, err := client.UpdateAppInfoLocalization(ctx, plan.LocalizationID, plan.Attributes)
+	resp, err := client.UpdateAppInfoLocalization(ctx, plan.LocalizationID, plan.Attributes.UpdateAttributes())
 	return resp, "update", err
 }

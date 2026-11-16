@@ -1750,9 +1750,9 @@ func validateCommandOutputPath(commands []*ffcli.Command) error {
 	return nil
 }
 
-// WrapCommandOutputValidation ensures shared output flags are validated before
-// command execution so invalid format combinations fail before side effects.
-// The diagnostic goes to d's stderr.
+// WrapCommandOutputValidation ensures an --app given on the command line is
+// not blank and shared output flags are valid before command execution, so
+// both fail before side effects. The diagnostic goes to d's stderr.
 func WrapCommandOutputValidation(cmd *ffcli.Command, d *Deps) {
 	wrapCommandOutputValidation(cmd, d, nil)
 }
@@ -1773,6 +1773,9 @@ func wrapCommandOutputValidation(cmd *ffcli.Command, d *Deps, parents []*ffcli.C
 
 	originalExec := cmd.Exec
 	cmd.Exec = func(ctx context.Context, args []string) error {
+		if err := rejectGivenEmptyAppFlag(path, d.IO.ErrOut); err != nil {
+			return err
+		}
 		if err := validateCommandOutputPath(path); err != nil {
 			// Output-flag diagnostics already name the flag, its valid set,
 			// and the rejected value, so report them without dragging the
@@ -1782,6 +1785,28 @@ func wrapCommandOutputValidation(cmd *ffcli.Command, d *Deps, parents []*ffcli.C
 		}
 		return originalExec(ctx, args)
 	}
+}
+
+// rejectGivenEmptyAppFlag fails when --app was set on the command line, on
+// the command or on any group above it, to a value that is empty after
+// trimming, so a blank value never falls back to ASC_APP_ID or the config and
+// never reaches the API.
+func rejectGivenEmptyAppFlag(path []*ffcli.Command, stderr io.Writer) error {
+	blank := false
+	for _, command := range path {
+		if command.FlagSet == nil {
+			continue
+		}
+		command.FlagSet.Visit(func(f *flag.Flag) {
+			if f.Name == "app" && strings.TrimSpace(f.Value.String()) == "" {
+				blank = true
+			}
+		})
+	}
+	if !blank {
+		return nil
+	}
+	return WithDiagnostic(usageErrorTo(stderr, "--app must not be empty"), DiagnosticInvalidInput, "--app")
 }
 
 func resolveAppID(appID string) string {

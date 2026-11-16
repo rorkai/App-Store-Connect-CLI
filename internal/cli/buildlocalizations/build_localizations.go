@@ -240,7 +240,7 @@ Examples:
 				return fmt.Errorf("build-localizations create: %w", err)
 			}
 
-			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, versionID, attrs)
+			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, versionID, attrs.CreateAttributes())
 			if err != nil {
 				return fmt.Errorf("build-localizations create: %w", err)
 			}
@@ -309,7 +309,7 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resp, err := client.UpdateAppStoreVersionLocalization(requestCtx, id, attrs)
+			resp, err := client.UpdateAppStoreVersionLocalization(requestCtx, id, attrs.UpdateAttributes())
 			if err != nil {
 				return fmt.Errorf("build-localizations update: %w", err)
 			}

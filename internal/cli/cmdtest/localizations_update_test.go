@@ -595,8 +595,8 @@ func TestLocalizationsMutationSelectorValidationBeforeAuth(t *testing.T) {
 			appEnv string
 		}{
 			{"string needs app", []string{"--version", "1.17.0"}, "--app is required (or set ASC_APP_ID) when --version is a version string", ""},
-			{"blank app", []string{"--version", "1.17.0", "--app", " \t"}, "--app is required (or set ASC_APP_ID) when --version is a version string", ""},
-			{"blank app overrides environment", []string{"--version", "1.17.0", "--app", " \t"}, "--app is required (or set ASC_APP_ID) when --version is a version string", "app-1"},
+			{"blank app", []string{"--version", "1.17.0", "--app", " \t"}, "Error: --app must not be empty", ""},
+			{"blank app overrides environment", []string{"--version", "1.17.0", "--app", " \t"}, "Error: --app must not be empty", "app-1"},
 			{"ID rejects app", []string{"--version", "ver-1", "--app", "app-1"}, "--app only applies when --version is a version string", ""},
 			{"ID rejects platform", []string{"--version", "ver-1", "--platform", "IOS"}, "--platform requires a version string with --app", ""},
 			{"empty platform", []string{"--version", "ver-1", "--platform", ""}, "--platform must not be empty", ""},

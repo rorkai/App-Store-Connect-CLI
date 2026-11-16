@@ -278,7 +278,7 @@ func ensureBetaAppLocalization(ctx context.Context, client *asc.Client, buildID,
 
 	// Apple requires only the locale and the app relationship here; every
 	// other attribute belongs to the operator's App Store Connect content.
-	attrs := asc.BetaAppLocalizationAttributes{Locale: locale}
+	attrs := asc.BetaAppLocalizationCreateAttributes{Locale: locale}
 	if _, err := client.CreateBetaAppLocalization(ctx, resolvedAppID, attrs); err != nil {
 		createErr := fmt.Errorf("failed to create TestFlight app localization for locale %q: %w", locale, err)
 		if !errors.Is(err, asc.ErrConflict) {
