@@ -80,15 +80,15 @@ type GameCenterAchievementVersionRelationships struct {
 	Achievement *Relationship `json:"achievement,omitempty"`
 }
 
-// GameCenterAchievementVersionCreateData is the data portion of a version create request.
-type GameCenterAchievementVersionCreateData struct {
+// GameCenterAchievementVersionV2CreateData is the data portion of a version create request.
+type GameCenterAchievementVersionV2CreateData struct {
 	Type          ResourceType                               `json:"type"`
 	Relationships *GameCenterAchievementVersionRelationships `json:"relationships,omitempty"`
 }
 
-// GameCenterAchievementVersionCreateRequest is a request to create an achievement version.
-type GameCenterAchievementVersionCreateRequest struct {
-	Data GameCenterAchievementVersionCreateData `json:"data"`
+// GameCenterAchievementVersionV2CreateRequest is a request to create an achievement version.
+type GameCenterAchievementVersionV2CreateRequest struct {
+	Data GameCenterAchievementVersionV2CreateData `json:"data"`
 }
 
 // GameCenterAchievementVersionsResponse is the response from achievement version list endpoints.

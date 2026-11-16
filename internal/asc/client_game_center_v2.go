@@ -25,8 +25,8 @@ func (c *Client) GetGameCenterAchievementsV2(ctx context.Context, gcDetailID, gr
 
 // CreateGameCenterAchievementVersion creates a new v2 achievement version.
 func (c *Client) CreateGameCenterAchievementVersion(ctx context.Context, achievementID string) (*GameCenterAchievementVersionResponse, error) {
-	payload := GameCenterAchievementVersionCreateRequest{
-		Data: GameCenterAchievementVersionCreateData{
+	payload := GameCenterAchievementVersionV2CreateRequest{
+		Data: GameCenterAchievementVersionV2CreateData{
 			Type: ResourceTypeGameCenterAchievementVersions,
 			Relationships: &GameCenterAchievementVersionRelationships{
 				Achievement: &Relationship{
@@ -138,8 +138,8 @@ func (c *Client) GetGameCenterLeaderboardsV2(ctx context.Context, gcDetailID, gr
 
 // CreateGameCenterLeaderboardVersion creates a new v2 leaderboard version.
 func (c *Client) CreateGameCenterLeaderboardVersion(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardVersionResponse, error) {
-	payload := GameCenterLeaderboardVersionCreateRequest{
-		Data: GameCenterLeaderboardVersionCreateData{
+	payload := GameCenterLeaderboardVersionV2CreateRequest{
+		Data: GameCenterLeaderboardVersionV2CreateData{
 			Type: ResourceTypeGameCenterLeaderboardVersions,
 			Relationships: &GameCenterLeaderboardVersionRelationships{
 				Leaderboard: &Relationship{
@@ -309,8 +309,8 @@ func (c *Client) SetGameCenterLeaderboardSetMembersV2(ctx context.Context, setID
 
 // CreateGameCenterLeaderboardSetVersion creates a new v2 leaderboard set version.
 func (c *Client) CreateGameCenterLeaderboardSetVersion(ctx context.Context, setID string) (*GameCenterLeaderboardSetVersionResponse, error) {
-	payload := GameCenterLeaderboardSetVersionCreateRequest{
-		Data: GameCenterLeaderboardSetVersionCreateData{
+	payload := GameCenterLeaderboardSetVersionV2CreateRequest{
+		Data: GameCenterLeaderboardSetVersionV2CreateData{
 			Type: ResourceTypeGameCenterLeaderboardSetVersions,
 			Relationships: &GameCenterLeaderboardSetVersionRelationships{
 				LeaderboardSet: &Relationship{

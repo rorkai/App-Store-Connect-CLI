@@ -33,16 +33,16 @@ type CustomerReviewResponseResponse struct {
 	Links Links                          `json:"links"`
 }
 
-// CustomerReviewResponseCreateAttributes describes attributes for creating a review response.
-type CustomerReviewResponseCreateAttributes struct {
+// CustomerReviewResponseV1CreateAttributes describes attributes for creating a review response.
+type CustomerReviewResponseV1CreateAttributes struct {
 	ResponseBody string `json:"responseBody"`
 }
 
-// CustomerReviewResponseCreateData is the data portion of a review response create request.
-type CustomerReviewResponseCreateData struct {
-	Type          ResourceType                           `json:"type"`
-	Attributes    CustomerReviewResponseCreateAttributes `json:"attributes"`
-	Relationships *CustomerReviewResponseRelationships   `json:"relationships"`
+// CustomerReviewResponseV1CreateData is the data portion of a review response create request.
+type CustomerReviewResponseV1CreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    CustomerReviewResponseV1CreateAttributes `json:"attributes"`
+	Relationships *CustomerReviewResponseRelationships     `json:"relationships"`
 }
 
 // CustomerReviewResponseRelationships describes relationships for review response requests.
@@ -50,9 +50,9 @@ type CustomerReviewResponseRelationships struct {
 	Review *Relationship `json:"review"`
 }
 
-// CustomerReviewResponseCreateRequest is a request to create a review response.
-type CustomerReviewResponseCreateRequest struct {
-	Data CustomerReviewResponseCreateData `json:"data"`
+// CustomerReviewResponseV1CreateRequest is a request to create a review response.
+type CustomerReviewResponseV1CreateRequest struct {
+	Data CustomerReviewResponseV1CreateData `json:"data"`
 }
 
 // ResourceTypeCustomerReviewResponses is the resource type for customer review responses.
@@ -96,10 +96,10 @@ func (c *Client) CreateCustomerReviewResponse(ctx context.Context, reviewID, res
 		return nil, fmt.Errorf("responseBody is required")
 	}
 
-	payload := CustomerReviewResponseCreateRequest{
-		Data: CustomerReviewResponseCreateData{
+	payload := CustomerReviewResponseV1CreateRequest{
+		Data: CustomerReviewResponseV1CreateData{
 			Type: ResourceTypeCustomerReviewResponses,
-			Attributes: CustomerReviewResponseCreateAttributes{
+			Attributes: CustomerReviewResponseV1CreateAttributes{
 				ResponseBody: responseBody,
 			},
 			Relationships: &CustomerReviewResponseRelationships{
