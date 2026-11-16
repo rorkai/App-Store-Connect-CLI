@@ -4,6 +4,7 @@ package asc
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 )
 
@@ -46,5 +47,44 @@ func (c *Client) CreateAnalyticsReportRequest(ctx context.Context, appID string,
 		Method:  http.MethodPost,
 		Path:    "/v1/analyticsReportRequests",
 		Payload: payload,
+	})
+}
+
+// DeleteAnalyticsReportRequest sends DELETE /v1/analyticsReportRequests/{id} (analyticsReportRequests_deleteInstance).
+func (c *Client) DeleteAnalyticsReportRequest(ctx context.Context, requestID string) error {
+	path, err := resourcePath("/v1/analyticsReportRequests/%s", requestID)
+	if err != nil {
+		return fmt.Errorf("analytics report request: %w", err)
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, path, nil)
+}
+
+// GetAnalyticsReportRequest sends GET /v1/analyticsReportRequests/{id} (analyticsReportRequests_getInstance).
+func (c *Client) GetAnalyticsReportRequest(ctx context.Context, requestID string) (*AnalyticsReportRequestResponse, error) {
+	path, err := resourcePath("/v1/analyticsReportRequests/%s", requestID)
+	if err != nil {
+		return nil, fmt.Errorf("analytics report request: %w", err)
+	}
+	return getJSON[AnalyticsReportRequestResponse](ctx, c, readRequest{
+		Path: path,
+	})
+}
+
+// GetAnalyticsReports sends GET /v1/analyticsReportRequests/{id}/reports (analyticsReportRequests_reports_getToManyRelated).
+func (c *Client) GetAnalyticsReports(ctx context.Context, requestID string, opts ...AnalyticsReportsOption) (*AnalyticsReportsResponse, error) {
+	query := applyOptions(opts)
+	var path string
+	if query.nextURL == "" {
+		var err error
+		path, err = resourcePath("/v1/analyticsReportRequests/%s/reports", requestID)
+		if err != nil {
+			return nil, fmt.Errorf("analytics reports: %w", err)
+		}
+	}
+	return getJSON[AnalyticsReportsResponse](ctx, c, readRequest{
+		Path:        path,
+		Query:       buildAnalyticsReportsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "analyticsReports",
 	})
 }
