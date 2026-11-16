@@ -30,7 +30,7 @@ func migrateUploadContext(ctx context.Context, d *shared.Deps) (context.Context,
 	return assets.ContextWithAssetUploadTimeoutWith(shared.ContextWithoutTimeout(ctx), d)
 }
 
-func resolveAppID(ctx context.Context, client *asc.Client, appFlag string, config DeliverfileConfig) (string, error) {
+func resolveAppID(ctx context.Context, d *shared.Deps, client *asc.Client, appFlag string, config DeliverfileConfig) (string, error) {
 	if strings.TrimSpace(appFlag) != "" {
 		return strings.TrimSpace(appFlag), nil
 	}
@@ -61,7 +61,7 @@ func resolveAppID(ctx context.Context, client *asc.Client, appFlag string, confi
 		}
 		return resp.Data[0].ID, nil
 	}
-	if appID := shared.ResolveAppID(""); appID != "" {
+	if appID := d.ResolveAppID(""); appID != "" {
 		return appID, nil
 	}
 	return "", fmt.Errorf("--app is required (or set ASC_APP_ID or provide Deliverfile app_identifier)")

@@ -109,7 +109,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if err := d.RequireAppForStableSelector(resolvedAppID, sourceID, "--source-subscription-id"); err != nil {
 				return err
 			}
@@ -257,7 +257,7 @@ func resolveSubscriptionPriceDeriveLookupID(
 	lookupCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
-	appID := shared.ResolveAppID(appValue)
+	appID := d.ResolveAppID(appValue)
 	if err := d.RequireAppForStableSelector(appID, selector, flagName); err != nil {
 		return "", err
 	}

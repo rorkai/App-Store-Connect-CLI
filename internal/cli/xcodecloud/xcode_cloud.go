@@ -15,8 +15,8 @@ import (
 
 const xcodeCloudAppFlagUsage = "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)"
 
-func resolveXcodeCloudAppID(ctx context.Context, client *asc.Client, appID string) (string, error) {
-	resolvedAppID := shared.ResolveAppID(appID)
+func resolveXcodeCloudAppID(ctx context.Context, d *shared.Deps, client *asc.Client, appID string) (string, error) {
+	resolvedAppID := d.ResolveAppID(appID)
 	if resolvedAppID == "" {
 		return "", nil
 	}
@@ -163,7 +163,7 @@ Examples:
 				return err
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if hasWorkflowName && !hasSourceRunID && resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required when using --workflow (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -188,7 +188,7 @@ Examples:
 			if !hasSourceRunID {
 				// Resolve workflow ID if needed.
 				if resolvedWorkflowID == "" {
-					resolvedAppID, err = resolveXcodeCloudAppID(requestCtx, client, resolvedAppID)
+					resolvedAppID, err = resolveXcodeCloudAppID(requestCtx, d, client, resolvedAppID)
 					if err != nil {
 						return fmt.Errorf("xcode-cloud run: %w", err)
 					}

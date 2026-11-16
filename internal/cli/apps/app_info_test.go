@@ -523,5 +523,5 @@ func newAppInfoTestServerClient(t *testing.T, server *httptest.Server) *asc.Clie
 // newAppsTestDeps returns deps that discard stdout and keep stderr.
 func newAppsTestDeps() (*shared.Deps, *bytes.Buffer) {
 	var stderr bytes.Buffer
-	return &shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: &stderr}}, &stderr
+	return &shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: &stderr}, LookupEnv: os.LookupEnv}, &stderr
 }

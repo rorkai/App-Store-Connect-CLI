@@ -54,8 +54,8 @@ type openSSLImportWrite struct {
 	identity  *openSSLImportCertificate
 }
 
-func syncImportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("import", flag.ExitOnError)
+func syncImportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("import", flag.ExitOnError)
 
 	source := fs.String("source", "", "Local checkout directory or Git URL of the OpenSSL-encrypted signing repository (required)")
 	sourceBranch := fs.String("source-branch", "master", "Git branch of --source when it is a Git URL")
@@ -66,7 +66,7 @@ func syncImportCommand() *ffcli.Command {
 	storageFlags := bindSigningSyncStorageFlags(fs)
 	confirm := fs.Bool("confirm", false, "Confirm writing the imported artifacts to the destination store")
 	dryRun := fs.Bool("dry-run", false, "Decrypt and verify the source and list what would be imported without writing anything")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "import",
@@ -109,47 +109,47 @@ Examples:
   asc signing sync import --source git@github.com:team/certificates.git --source-password @env:SOURCE_PASSWORD \
     --repo git@github.com:team/signing.git --password-file ~/.config/asc/signing-sync-password --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			sourceLocation := strings.TrimSpace(*source)
 			if sourceLocation == "" {
-				return shared.UsageError("--source is required")
+				return d.UsageError("--source is required")
 			}
 			if *sourcePassword == "" {
-				return shared.UsageError("--source-password is required")
+				return d.UsageError("--source-password is required")
 			}
 			if *confirm && *dryRun {
-				return shared.UsageError("--confirm and --dry-run are mutually exclusive")
+				return d.UsageError("--confirm and --dry-run are mutually exclusive")
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 			if providedSigningSyncFlags(fs)["source-branch"] {
 				if info, err := os.Stat(sourceLocation); err == nil && info.IsDir() {
-					return shared.UsageError("--source-branch is only supported with a Git URL source")
+					return d.UsageError("--source-branch is only supported with a Git URL source")
 				}
 			}
-			storageSelection, err := parseSigningSyncStorage(fs, storageFlags, *repoURL, *branch)
+			storageSelection, err := parseSigningSyncStorage(d, fs, storageFlags, *repoURL, *branch)
 			if err != nil {
 				return err
 			}
 			var destinationPassword string
 			if *confirm {
-				destinationPassword, err = resolveSyncPassword(*passwordFile)
+				destinationPassword, err = resolveSyncPassword(d, *passwordFile)
 				if err != nil {
 					return err
 				}
 			}
 
-			sourceRoot, sourceLabel, cleanup, err := openOpenSSLImportSource(ctx, sourceLocation, strings.TrimSpace(*sourceBranch), (*signingpkg.GitStore).Clone)
+			sourceRoot, sourceLabel, cleanup, err := openOpenSSLImportSource(ctx, d, sourceLocation, strings.TrimSpace(*sourceBranch), (*signingpkg.GitStore).Clone)
 			if err != nil {
 				return fmt.Errorf("signing sync import: %w", err)
 			}
 			defer cleanup()
-			certificates, profiles, _, err := loadOpenSSLImportSource(sourceRoot, *sourcePassword)
+			certificates, profiles, _, err := loadOpenSSLImportSource(d, sourceRoot, *sourcePassword)
 			if err != nil {
 				return fmt.Errorf("signing sync import: %w", err)
 			}
@@ -162,17 +162,17 @@ Examples:
 				Profiles:         openSSLImportProfileResults(profiles),
 				PublicationState: "skipped",
 			}
-			now := time.Now()
+			now := d.Now()
 			if *dryRun {
-				writes, err := planOpenSSLImportWrites(certificates, profiles, nil, now)
+				writes, err := planOpenSSLImportWrites(d, certificates, profiles, nil, now)
 				if err != nil {
 					return fmt.Errorf("signing sync import: %w", err)
 				}
 				result.Files = openSSLImportWritePaths(writes)
-				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+				return d.PrintOutput(&result, *output.Output, *output.Pretty)
 			}
 
-			transport, err := storageSelection.transport(ctx)
+			transport, err := storageSelection.transport(ctx, d)
 			if err != nil {
 				return err
 			}
@@ -191,11 +191,11 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("signing sync import: list destination: %w", err)
 			}
-			existing, _, err := loadAndValidateSigningFiles(store, existingPaths, destinationPassword)
+			existing, _, err := loadAndValidateSigningFiles(d, store, existingPaths, destinationPassword)
 			if err != nil {
 				return fmt.Errorf("signing sync import: destination store: %w", err)
 			}
-			writes, err := planOpenSSLImportWrites(certificates, profiles, existing, now)
+			writes, err := planOpenSSLImportWrites(d, certificates, profiles, existing, now)
 			if err != nil {
 				return fmt.Errorf("signing sync import: %w", err)
 			}
@@ -206,27 +206,27 @@ Examples:
 			result.Files = written
 			if len(written) == 0 {
 				result.PublicationState = "not-needed"
-				fmt.Fprintln(os.Stderr, "Destination store already contains every imported artifact")
-				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+				fmt.Fprintln(d.IO.ErrOut, "Destination store already contains every imported artifact")
+				return d.PrintOutput(&result, *output.Output, *output.Pretty)
 			}
 			allPaths, err := store.ListEncryptedFiles()
 			if err != nil {
 				return fmt.Errorf("signing sync import: list destination: %w", err)
 			}
-			if _, _, err := loadAndValidateSigningFiles(store, allPaths, destinationPassword); err != nil {
+			if _, _, err := loadAndValidateSigningFiles(d, store, allPaths, destinationPassword); err != nil {
 				return fmt.Errorf("signing sync import: validate imported store: %w", err)
 			}
 			if err := transport.Publish(ctx, store, "Import signing assets from OpenSSL-encrypted repository"); err != nil {
 				return fmt.Errorf("signing sync import: %w", err)
 			}
 			result.PublicationState = "succeeded"
-			fmt.Fprintf(os.Stderr, "Done — %d encrypted signing files imported\n", len(written))
-			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+			fmt.Fprintf(d.IO.ErrOut, "Done — %d encrypted signing files imported\n", len(written))
+			return d.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func openOpenSSLImportSource(ctx context.Context, location, branch string, cloneRepository func(*signingpkg.GitStore, context.Context, bool) error) (rootfs.Root, string, func(), error) {
+func openOpenSSLImportSource(ctx context.Context, d *shared.Deps, location, branch string, cloneRepository func(*signingpkg.GitStore, context.Context, bool) error) (rootfs.Root, string, func(), error) {
 	if info, err := os.Stat(location); err == nil && info.IsDir() {
 		root, err := rootfs.New(location)
 		if err != nil {
@@ -235,7 +235,7 @@ func openOpenSSLImportSource(ctx context.Context, location, branch string, clone
 		return root, location, func() { _ = root.Close() }, nil
 	}
 	if branch == "" {
-		return rootfs.Root{}, "", nil, shared.UsageError("--source-branch must not be empty")
+		return rootfs.Root{}, "", nil, d.UsageError("--source-branch must not be empty")
 	}
 	tmpDir, err := os.MkdirTemp("", "asc-signing-sync-import-source-*")
 	if err != nil {
@@ -243,8 +243,8 @@ func openOpenSSLImportSource(ctx context.Context, location, branch string, clone
 	}
 	clone := &signingpkg.GitStore{RepoURL: location, LocalDir: filepath.Join(tmpDir, "source"), Branch: branch}
 	cleanup := func() { _ = os.RemoveAll(tmpDir) }
-	fmt.Fprintln(os.Stderr, "Cloning source repository...")
-	cloneCtx, cancel := shared.ContextWithTimeout(ctx)
+	fmt.Fprintln(d.IO.ErrOut, "Cloning source repository...")
+	cloneCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	if err := cloneRepository(clone, cloneCtx, false); err != nil {
 		cleanup()
@@ -299,7 +299,7 @@ func listOpenSSLImportFiles(root rootfs.Root, top string) ([]string, error) {
 	return files, nil
 }
 
-func loadOpenSSLImportSource(root rootfs.Root, password string) ([]openSSLImportCertificate, []openSSLImportProfile, []asc.SigningSyncSkippedEntry, error) {
+func loadOpenSSLImportSource(d *shared.Deps, root rootfs.Root, password string) ([]openSSLImportCertificate, []openSSLImportProfile, []asc.SigningSyncSkippedEntry, error) {
 	listedCertFiles, err := listOpenSSLImportFiles(root, "certs")
 	if err != nil {
 		return nil, nil, nil, err
@@ -313,7 +313,7 @@ func loadOpenSSLImportSource(root rootfs.Root, password string) ([]openSSLImport
 		case "mac_installer_distribution", "developer_id_installer":
 			if !skippedDirs[dir] {
 				skippedDirs[dir] = true
-				fmt.Fprintf(os.Stderr, "Warning: skipping installer certificate folder %s; signing sync pull requires a provisioning-profile binding\n", dir)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: skipping installer certificate folder %s; signing sync pull requires a provisioning-profile binding\n", dir)
 				skipped = append(skipped, asc.SigningSyncSkippedEntry{Path: dir, Reason: "installer certificate folder; signing sync pull requires a provisioning-profile binding"})
 			}
 		default:
@@ -443,7 +443,7 @@ func loadOpenSSLImportSource(root rootfs.Root, password string) ([]openSSLImport
 		identifier, _ := profile.Entitlements["application-identifier"].(string)
 		macIdentifier, _ := profile.Entitlements["com.apple.application-identifier"].(string)
 		if strings.HasSuffix(identifier, "*") || (identifier == "" && strings.HasSuffix(macIdentifier, "*")) {
-			fmt.Fprintf(os.Stderr, "Warning: skipping wildcard profile %s; signing sync stores only explicit bundle ID profiles\n", relPath)
+			fmt.Fprintf(d.IO.ErrOut, "Warning: skipping wildcard profile %s; signing sync stores only explicit bundle ID profiles\n", relPath)
 			skipped = append(skipped, asc.SigningSyncSkippedEntry{Path: relPath, Reason: "wildcard profile; signing sync stores only explicit bundle ID profiles"})
 			continue
 		}
@@ -519,7 +519,7 @@ func newOpenSSLImportProfile(relPath string, content []byte, profile *identityMo
 // planOpenSSLImportWrites maps the verified source onto destination
 // artifacts. Certificates and profiles already stored under any path are
 // reused; existing may be nil for a dry run.
-func planOpenSSLImportWrites(certificates []openSSLImportCertificate, profiles []openSSLImportProfile, existing []decryptedSigningFile, now time.Time) ([]openSSLImportWrite, error) {
+func planOpenSSLImportWrites(d *shared.Deps, certificates []openSSLImportCertificate, profiles []openSSLImportProfile, existing []decryptedSigningFile, now time.Time) ([]openSSLImportWrite, error) {
 	storedCertificates := make(map[string]string)
 	storedProfiles := make(map[string]decryptedSigningFile)
 	destinationPaths := make(map[string]struct{}, len(existing))
@@ -607,7 +607,7 @@ func planOpenSSLImportWrites(certificates []openSSLImportCertificate, profiles [
 		}
 		if bound == nil {
 			if !signingPullProfileHasExactTypeProvenance(nil, profile.profileType) {
-				fmt.Fprintf(os.Stderr, "Warning: %s has no currently valid imported private key; only a full pull returns this %s profile\n", profile.sourcePath, profile.profileType)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: %s has no currently valid imported private key; only a full pull returns this %s profile\n", profile.sourcePath, profile.profileType)
 			}
 			continue
 		}

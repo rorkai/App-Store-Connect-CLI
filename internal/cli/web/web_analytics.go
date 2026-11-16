@@ -435,7 +435,7 @@ func newWebAnalyticsCohortsCommand(d *shared.Deps) *ffcli.Command {
 }
 
 func resolveAnalyticsQueryFlags(d *shared.Deps, appID, startDate, endDate string) (string, string, string, error) {
-	resolvedAppID := strings.TrimSpace(shared.ResolveAppID(appID))
+	resolvedAppID := strings.TrimSpace(d.ResolveAppID(appID))
 	if resolvedAppID == "" {
 		return "", "", "", d.UsageError("--app is required")
 	}

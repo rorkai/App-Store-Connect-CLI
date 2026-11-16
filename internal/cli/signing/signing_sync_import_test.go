@@ -141,15 +141,16 @@ func newOpenSSLImportFixture(t *testing.T, profileCount int) openSSLImportFixtur
 
 func runSigningSyncImport(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
-	cmd := syncImportCommand()
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	cmd := syncImportCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Parse(args); err != nil {
-			t.Fatalf("parse: %v", err)
-		}
-		runErr = cmd.Run(context.Background())
-	})
+	if err := cmd.Parse(args); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	runErr = cmd.Run(context.Background())
+	stdout := depsStdout.String()
+	stderr := depsStderr.String()
 	if strings.Contains(stdout+stderr, importSourcePassword) {
 		t.Fatalf("source password leaked to output:\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
@@ -194,11 +195,11 @@ func TestSigningSyncImportWritesPullableStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	decrypted, err := decryptAndValidateSigningFiles(store, encryptedFiles, importDestinationPassword)
+	decrypted, err := decryptAndValidateSigningFiles(testSigningDeps(), store, encryptedFiles, importDestinationPassword)
 	if err != nil {
 		t.Fatalf("validate imported store: %v", err)
 	}
-	selected, _, err := selectSigningPullFiles(decrypted, []string{"com.example.app"}, "IOS_APP_STORE")
+	selected, _, err := selectSigningPullFiles(testSigningDeps(), decrypted, []string{"com.example.app"}, "IOS_APP_STORE")
 	if err != nil {
 		t.Fatalf("select imported files: %v", err)
 	}
@@ -326,12 +327,12 @@ func TestSigningSyncImportPlanCountsExistingPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	certificates, profiles, _, err := loadOpenSSLImportSource(root, importSourcePassword)
+	certificates, profiles, _, err := loadOpenSSLImportSource(testSigningDeps(), root, importSourcePassword)
 	if err != nil {
 		t.Fatal(err)
 	}
 	now := certificates[0].cert.NotBefore.Add(time.Hour)
-	writes, err := planOpenSSLImportWrites(certificates, profiles, nil, now)
+	writes, err := planOpenSSLImportWrites(testSigningDeps(), certificates, profiles, nil, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,7 +341,7 @@ func TestSigningSyncImportPlanCountsExistingPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stored, _, err := loadAndValidateSigningFiles(store, paths, importDestinationPassword)
+	stored, _, err := loadAndValidateSigningFiles(testSigningDeps(), store, paths, importDestinationPassword)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,7 +363,7 @@ func TestSigningSyncImportPlanCountsExistingPaths(t *testing.T) {
 			if test.reimport {
 				existing = append(existing, stored...)
 			}
-			planned, err := planOpenSSLImportWrites(certificates, profiles, existing, now)
+			planned, err := planOpenSSLImportWrites(testSigningDeps(), certificates, profiles, existing, now)
 			if test.wantErr != "" {
 				if err == nil || err.Error() != test.wantErr {
 					t.Fatalf("error = %v, want %q", err, test.wantErr)
@@ -520,7 +521,7 @@ func TestSigningSyncImportSourceCloneDeadlineAndCleanup(t *testing.T) {
 	defer cancel()
 	var bounded bool
 	var temporaryRoot string
-	_, _, _, err := openOpenSSLImportSource(ctx, "https://example.invalid/signing.git", "master", func(store *signingpkg.GitStore, cloneCtx context.Context, _ bool) error {
+	_, _, _, err := openOpenSSLImportSource(ctx, testSigningDeps(), "https://example.invalid/signing.git", "master", func(store *signingpkg.GitStore, cloneCtx context.Context, _ bool) error {
 		_, bounded = cloneCtx.Deadline()
 		temporaryRoot = filepath.Dir(store.LocalDir)
 		cancel()
