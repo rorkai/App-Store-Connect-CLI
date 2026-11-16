@@ -351,7 +351,7 @@ func resolveSubscriptionPriceSummary(
 		currency = territoryToCurrency(territory)
 	}
 
-	if value, ok := selectCurrentSubscriptionPriceValue(pricesResp.Data, pricePointValues, shared.PricingNow()); ok {
+	if value, ok := selectCurrentSubscriptionPriceValue(pricesResp.Data, pricePointValues, d.Now()); ok {
 		if value.CustomerPrice != "" {
 			summary.CurrentPrice = &subMoney{Amount: value.CustomerPrice, Currency: currency}
 		}
@@ -453,14 +453,14 @@ func parseSubscriptionPricingDate(value string) *time.Time {
 }
 
 // subscriptionPricingToday returns today's App Store Connect pricing date, the
-// US Pacific calendar day, from the clock pricing commands share.
+// US Pacific calendar day, from d's clock.
 //
 // Subscription prices carry only a startDate, so each price ends on the date
 // the next one starts: the latest price that has started on a pricing date is
 // the one that applies, matching the exclusive end dates of app and in-app
 // purchase schedules.
-func subscriptionPricingToday() time.Time {
-	return shared.PricingDate(shared.PricingNow())
+func subscriptionPricingToday(d *shared.Deps) time.Time {
+	return shared.PricingDate(d.Now())
 }
 
 func parseSubscriptionPricesIncluded(raw json.RawMessage) (map[string]subscriptionPricePointValue, map[string]string) {

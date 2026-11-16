@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type scheduleManualPrice struct {
@@ -267,7 +266,7 @@ func TestPricingScheduleCreateTemporaryPriceRechecksDefaultStartDate(t *testing.
 
 	beforeMidnight := mustParseRFC3339(t, "2026-11-01T06:59:00Z")
 	reads := 0
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+	t.Cleanup(setRootNow(func() time.Time {
 		reads++
 		if reads == 1 {
 			return beforeMidnight

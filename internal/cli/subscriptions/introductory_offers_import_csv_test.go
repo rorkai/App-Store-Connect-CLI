@@ -120,9 +120,10 @@ func TestSubscriptionIntroductoryOfferImportReconcilesAcrossPacificMidnight(t *t
 	t.Setenv("ASC_MAX_RETRIES", "1")
 	// 23:59 PDT on 2026-06-24.
 	current := time.Date(2026, time.June, 25, 6, 59, 0, 0, time.UTC)
-	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+	d := shared.DefaultDeps()
+	d.Now = func() time.Time {
 		return current
-	}))
+	}
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
@@ -149,7 +150,7 @@ func TestSubscriptionIntroductoryOfferImportReconcilesAcrossPacificMidnight(t *t
 		context.Background(),
 		shared.DefaultDeps(),
 		func(readbackCtx context.Context) (bool, error) {
-			index, err := fetchSubscriptionIntroductoryOfferImportState(readbackCtx, shared.DefaultDeps(), client, "sub-1")
+			index, err := fetchSubscriptionIntroductoryOfferImportState(readbackCtx, d, client, "sub-1")
 			if err != nil {
 				return false, err
 			}

@@ -149,7 +149,7 @@ Examples:
 
 			fmt.Fprintln(d.IO.ErrOut, "Fetching current source and target subscription prices...")
 			sourcePrices, err := fetchResolvedSubscriptionPrices(
-				ctx, d, client, sourceID, 200, "", subscriptionPricingToday(), asc.SubscriptionPlanTypeUpfront, territoryID,
+				ctx, d, client, sourceID, 200, "", subscriptionPricingToday(d), asc.SubscriptionPlanTypeUpfront, territoryID,
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing derive: fetch source prices: %w", err)
