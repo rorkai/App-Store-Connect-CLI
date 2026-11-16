@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 	core "github.com/rudrankriyam/App-Store-Connect-CLI/internal/distribution"
 )
@@ -54,7 +55,7 @@ func TestDistributionFirstRunPreSnapshotFailuresCheckpointDurably(t *testing.T) 
 			test.configure(&deps)
 			installDistributionOrchestrationDependencies(t, deps)
 
-			result, err := executeDistributionApply(context.Background(), distributionApplyRequest{
+			result, err := executeDistributionApply(context.Background(), distributionTestDepsAt(distributionTestNow), distributionApplyRequest{
 				PlanPath: "/plans/plan.json", Confirmation: plan.PlanHash,
 			})
 			if err == nil {
@@ -99,12 +100,12 @@ func TestDistributionLateResumeUsesProductionStateWriterWithoutStageRewind(t *te
 			deps := validApplyDistributionOrchestrationDependencies(t, plan)
 			deps.readRun = readDistributionRunState
 			deps.writeRun = writeDistributionRunState
-			deps.reverifyPublish = func(context.Context, privatePublishVerificationRequest) (publishExecutionResult, error) {
+			deps.reverifyPublish = func(context.Context, *shared.Deps, privatePublishVerificationRequest) (publishExecutionResult, error) {
 				return publishExecutionResult{}, fmtWrapped(core.ErrPrivatePublishConflict)
 			}
 			installDistributionOrchestrationDependencies(t, deps)
 
-			result, err := executeDistributionResume(context.Background(), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
+			result, err := executeDistributionResume(context.Background(), distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
 			if err == nil || result == nil || result.Status != "blocked" || result.Stage != "fetch_verify" || result.LastFailureCode != "publication_intent_conflict" {
 				t.Fatalf("late resume result = %#v, %v", result, err)
 			}
@@ -143,7 +144,7 @@ func TestDistributionFinalStateWriteFailureFallsBackToDurableFetchVerify(t *test
 	}
 	installDistributionOrchestrationDependencies(t, deps)
 
-	result, err := executeDistributionResume(context.Background(), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
+	result, err := executeDistributionResume(context.Background(), distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
 	if err == nil || result == nil || result.Status != "recoverable" || result.Stage != "fetch_verify" || result.LastFailureCode != "completion_state_failed" {
 		t.Fatalf("final write failure = %#v, %v", result, err)
 	}
@@ -158,7 +159,7 @@ func TestDistributionFinalStateWriteFailureFallsBackToDurableFetchVerify(t *test
 
 func TestDistributionAccountReconcileStillRequiresArchiveSnapshot(t *testing.T) {
 	plan := validPersistedDistributionPlan(t)
-	state := newDistributionRunState(plan, "/plans/plan.json", deterministicDistributionRunID(plan), distributionOrchestrationDeps.now())
+	state := newDistributionRunState(plan, "/plans/plan.json", deterministicDistributionRunID(plan), distributionTestNow)
 	state.Attempt = 1
 	state.Status, state.Stage, state.LastFailureCode = "blocked", "account_reconcile", "account_reconcile_failed"
 	if err := validatePersistedDistributionRunState(state); err == nil || !strings.Contains(err.Error(), "archive snapshot") {
@@ -197,13 +198,13 @@ func TestDistributionResumeClassifiesPublicationReverificationFailures(t *testin
 				return nil
 			}
 			verifyCalls := 0
-			deps.reverifyPublish = func(context.Context, privatePublishVerificationRequest) (publishExecutionResult, error) {
+			deps.reverifyPublish = func(context.Context, *shared.Deps, privatePublishVerificationRequest) (publishExecutionResult, error) {
 				verifyCalls++
 				return publishExecutionResult{}, test.failure
 			}
 			installDistributionOrchestrationDependencies(t, deps)
 
-			result, err := executeDistributionResume(context.Background(), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
+			result, err := executeDistributionResume(context.Background(), distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
 			if err == nil {
 				t.Fatal("publication reverification failure unexpectedly succeeded")
 			}
@@ -214,7 +215,7 @@ func TestDistributionResumeClassifiesPublicationReverificationFailures(t *testin
 				t.Fatalf("reverify calls = %d, want 1", verifyCalls)
 			}
 			if test.noLoop {
-				second, secondErr := executeDistributionResume(context.Background(), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
+				second, secondErr := executeDistributionResume(context.Background(), distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
 				if secondErr == nil || second == nil || second.Status != "blocked" {
 					t.Fatalf("second resume = %#v, %v; want blocked new-plan result", second, secondErr)
 				}
@@ -267,7 +268,7 @@ func TestDistributionProfileCopyFailureClassification(t *testing.T) {
 			}
 			installDistributionOrchestrationDependencies(t, deps)
 
-			result, err := executeDistributionApply(context.Background(), distributionApplyRequest{PlanPath: "/plans/plan.json", Confirmation: plan.PlanHash})
+			result, err := executeDistributionApply(context.Background(), distributionTestDepsAt(distributionTestNow), distributionApplyRequest{PlanPath: "/plans/plan.json", Confirmation: plan.PlanHash})
 			if err == nil {
 				t.Fatal("profile copy failure unexpectedly succeeded")
 			}
@@ -333,11 +334,11 @@ func TestDistributionResumeReappliesAfterTransientProfileCopyWithoutHalfAdoptedP
 	}
 	installDistributionOrchestrationDependencies(t, deps)
 
-	failed, err := executeDistributionApply(context.Background(), distributionApplyRequest{PlanPath: "/plans/plan.json", Confirmation: plan.PlanHash})
+	failed, err := executeDistributionApply(context.Background(), distributionTestDepsAt(distributionTestNow), distributionApplyRequest{PlanPath: "/plans/plan.json", Confirmation: plan.PlanHash})
 	if err == nil || failed == nil || failed.Status != "recoverable" || failed.Artifacts.ReconcileReceipt != nil || failed.Artifacts.Profile != nil {
 		t.Fatalf("first profile failure = %#v, %v", failed, err)
 	}
-	resumed, err := executeDistributionResume(context.Background(), distributionRunRequest{RunID: failed.RunID, StateDir: plan.Paths.StateDir})
+	resumed, err := executeDistributionResume(context.Background(), distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: failed.RunID, StateDir: plan.Paths.StateDir})
 	if err != nil || resumed == nil || resumed.Status != "complete" {
 		t.Fatalf("resume after profile copy failure = %#v, %v", resumed, err)
 	}

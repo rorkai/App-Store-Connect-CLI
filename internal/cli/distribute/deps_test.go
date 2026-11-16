@@ -25,3 +25,13 @@ func newDistributeTestDeps() *shared.Deps {
 		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
 	}
 }
+
+// distributionTestNow is the clock of the orchestration test dependencies.
+var distributionTestNow = time.Date(2026, 8, 13, 8, 0, 0, 0, time.UTC)
+
+// distributionTestDepsAt returns newDistributeTestDeps with its clock at now.
+func distributionTestDepsAt(now time.Time) *shared.Deps {
+	d := newDistributeTestDeps()
+	d.Now = func() time.Time { return now }
+	return d
+}

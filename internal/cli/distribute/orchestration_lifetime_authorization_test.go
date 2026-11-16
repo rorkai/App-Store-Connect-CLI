@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 	core "github.com/rudrankriyam/App-Store-Connect-CLI/internal/distribution"
 )
@@ -46,7 +47,6 @@ func TestExecuteDistributionPlanRejectsIdentityTooShortForPrivatePublicationBefo
 	config.Publication.DownloadGraceDuration = 0
 
 	deps := validDistributionOrchestrationDependencies(t)
-	deps.now = func() time.Time { return now }
 	deps.readConfig = func(string) (distributionConfig, string, error) {
 		return config, testDistributionConfigSHA256(), nil
 	}
@@ -65,7 +65,7 @@ func TestExecuteDistributionPlanRejectsIdentityTooShortForPrivatePublicationBefo
 	}
 	installDistributionOrchestrationDependencies(t, deps)
 
-	_, err := executeDistributionPlan(context.Background(), distributionPlanRequest{
+	_, err := executeDistributionPlan(context.Background(), distributionTestDepsAt(now), distributionPlanRequest{
 		ArchivePath: "/archives/Demo.xcarchive", ConfigPath: "/config/distribution.json",
 		PlanPath: "/plans/plan.json", StateDir: "/state/runs",
 	})
@@ -86,7 +86,6 @@ func TestExecuteDistributionPlanBindsEffectivePublicationValidityPolicy(t *testi
 	identity.NotAfter = now.Add(9 * 24 * time.Hour)
 
 	deps := validDistributionOrchestrationDependencies(t)
-	deps.now = func() time.Time { return now }
 	deps.readConfig = func(string) (distributionConfig, string, error) {
 		return config, testDistributionConfigSHA256(), nil
 	}
@@ -113,7 +112,7 @@ func TestExecuteDistributionPlanBindsEffectivePublicationValidityPolicy(t *testi
 	}
 	installDistributionOrchestrationDependencies(t, deps)
 
-	result, err := executeDistributionPlan(context.Background(), distributionPlanRequest{
+	result, err := executeDistributionPlan(context.Background(), distributionTestDepsAt(now), distributionPlanRequest{
 		ArchivePath: "/archives/Demo.xcarchive", ConfigPath: "/config/distribution.json",
 		PlanPath: "/plans/plan.json", StateDir: "/state/runs",
 	})
@@ -153,7 +152,7 @@ func TestPreflightDistributionPublicationEnforcesKnownCredentialLifetime(t *test
 			newObjectStore = func(context.Context, core.S3StoreConfig) (core.ObjectStore, time.Time, error) {
 				return nil, test.expiration(), nil
 			}
-			err := preflightDistributionPublication(context.Background(), config)
+			err := preflightDistributionPublication(context.Background(), newDistributeTestDeps(), config)
 			if (err != nil) != test.wantError {
 				t.Fatalf("preflightDistributionPublication() error = %v, wantError %t", err, test.wantError)
 			}
@@ -171,7 +170,7 @@ func TestPreflightDistributionPublicationBoundsCredentialResolution(t *testing.T
 		return nil, time.Time{}, nil
 	}
 
-	if err := preflightDistributionPublication(context.Background(), validDistributionOrchestrationConfig().Publication); err != nil {
+	if err := preflightDistributionPublication(context.Background(), newDistributeTestDeps(), validDistributionOrchestrationConfig().Publication); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -179,7 +178,7 @@ func TestPreflightDistributionPublicationBoundsCredentialResolution(t *testing.T
 func TestDistributionShortCredentialPreflightStopsBeforeAccountMutation(t *testing.T) {
 	plan := validPersistedDistributionPlan(t)
 	deps := validApplyDistributionOrchestrationDependencies(t, plan)
-	deps.preflightPublish = func(context.Context, distributionPublicationConfig) error {
+	deps.preflightPublish = func(context.Context, *shared.Deps, distributionPublicationConfig) error {
 		return errDistributionPublicationCredentialsExpireTooSoon
 	}
 	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
@@ -188,7 +187,7 @@ func TestDistributionShortCredentialPreflightStopsBeforeAccountMutation(t *testi
 	}
 	installDistributionOrchestrationDependencies(t, deps)
 
-	state, err := executeDistributionApply(context.Background(), distributionApplyRequest{PlanPath: "/plans/plan.json", Confirmation: plan.PlanHash})
+	state, err := executeDistributionApply(context.Background(), distributionTestDepsAt(distributionTestNow), distributionApplyRequest{PlanPath: "/plans/plan.json", Confirmation: plan.PlanHash})
 	if err == nil || state == nil || state.LastFailureCode != "storage_preflight_failed" {
 		t.Fatalf("state = %#v, error = %v, want storage_preflight_failed", state, err)
 	}
@@ -204,16 +203,16 @@ func TestDistributionLateResumeUsesPersistedPublicationWithoutCredentialPrefligh
 
 	deps := validApplyDistributionOrchestrationDependencies(t, plan)
 	deps.readRun = func(string, string) (persistedDistributionRunState, error) { return run, nil }
-	deps.preflightPublish = func(context.Context, distributionPublicationConfig) error {
+	deps.preflightPublish = func(context.Context, *shared.Deps, distributionPublicationConfig) error {
 		t.Fatal("late resume required storage credentials despite a persisted publication")
 		return errDistributionPublicationCredentialsExpireTooSoon
 	}
-	deps.publish = func(context.Context, privatePublishIntentRequest) (publishExecutionResult, error) {
+	deps.publish = func(context.Context, *shared.Deps, privatePublishIntentRequest) (publishExecutionResult, error) {
 		t.Fatal("late resume attempted a provider write")
 		return publishExecutionResult{}, nil
 	}
 	verifyCalls := 0
-	deps.reverifyPublish = func(context.Context, privatePublishVerificationRequest) (publishExecutionResult, error) {
+	deps.reverifyPublish = func(context.Context, *shared.Deps, privatePublishVerificationRequest) (publishExecutionResult, error) {
 		verifyCalls++
 		return validDistributionPublishResultForCompletion(plan, run), nil
 	}
@@ -224,7 +223,7 @@ func TestDistributionLateResumeUsesPersistedPublicationWithoutCredentialPrefligh
 	deps.writeReceipt = func(string, persistedDistributionReceipt) error { return nil }
 	installDistributionOrchestrationDependencies(t, deps)
 
-	result, err := executeDistributionResume(context.Background(), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
+	result, err := executeDistributionResume(context.Background(), distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
 	if err != nil {
 		t.Fatalf("executeDistributionResume() error = %v", err)
 	}
@@ -244,17 +243,17 @@ func TestDistributionOperationsRejectCopiedStateUnderNondeterministicRunID(t *te
 	}{
 		{name: "resume", run: func(ctx context.Context, deps distributionOrchestrationDependencies) error {
 			installDistributionOrchestrationDependencies(t, deps)
-			_, err := executeDistributionResume(ctx, distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
+			_, err := executeDistributionResume(ctx, distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
 			return err
 		}},
 		{name: "status", run: func(ctx context.Context, deps distributionOrchestrationDependencies) error {
 			installDistributionOrchestrationDependencies(t, deps)
-			_, err := executeDistributionStatus(ctx, distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
+			_, err := executeDistributionStatus(ctx, distributionTestDepsAt(distributionTestNow), distributionRunRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir})
 			return err
 		}},
 		{name: "verify", run: func(ctx context.Context, deps distributionOrchestrationDependencies) error {
 			installDistributionOrchestrationDependencies(t, deps)
-			_, err := executeDistributionVerify(ctx, distributionVerifyRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir, Timeout: time.Second})
+			_, err := executeDistributionVerify(ctx, distributionTestDepsAt(distributionTestNow), distributionVerifyRequest{RunID: run.RunID, StateDir: plan.Paths.StateDir, Timeout: time.Second})
 			return err
 		}},
 	}
@@ -263,7 +262,7 @@ func TestDistributionOperationsRejectCopiedStateUnderNondeterministicRunID(t *te
 			deps := panicOnDistributionOrchestrationSideEffects(t)
 			deps.readRun = func(string, string) (persistedDistributionRunState, error) { return run, nil }
 			deps.readPlan = func(string) (persistedDistributionPlan, error) { return plan, nil }
-			deps.acquireLock = func(context.Context, string, string) (func() error, error) {
+			deps.acquireLock = func(context.Context, *shared.Deps, string, string) (func() error, error) {
 				return func() error { return nil }, nil
 			}
 			deps.acquireVerifyLease = func(string, string) (distributionVerifyLease, error) {
@@ -297,7 +296,7 @@ func TestDistributionVerifyRejectsNilErrorDeviceObservationWithoutExactCompletio
 			deps.readRun = func(string, string) (persistedDistributionRunState, error) { return run, nil }
 			deps.readPlan = func(string) (persistedDistributionPlan, error) { return plan, nil }
 			deps.readReceipt = func(string, string) (persistedDistributionReceipt, error) { return receipt, nil }
-			deps.reverifyPublish = func(context.Context, privatePublishVerificationRequest) (publishExecutionResult, error) {
+			deps.reverifyPublish = func(context.Context, *shared.Deps, privatePublishVerificationRequest) (publishExecutionResult, error) {
 				return validDistributionPublishResultForCompletion(plan, run), nil
 			}
 			deps.observeDevice = func(context.Context, distributionDeviceObservationRequest) (deviceObservation, error) {
@@ -305,7 +304,7 @@ func TestDistributionVerifyRejectsNilErrorDeviceObservationWithoutExactCompletio
 			}
 			installDistributionOrchestrationDependencies(t, deps)
 
-			result, err := executeDistributionVerify(context.Background(), distributionVerifyRequest{
+			result, err := executeDistributionVerify(context.Background(), distributionTestDepsAt(distributionTestNow), distributionVerifyRequest{
 				RunID: run.RunID, StateDir: plan.Paths.StateDir, Device: "PRIVATE-DEVICE-SELECTOR", Timeout: 45 * time.Second,
 			})
 			if err == nil || result != nil || !strings.Contains(err.Error(), "device_observation_mismatch") {

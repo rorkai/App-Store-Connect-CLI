@@ -15,17 +15,18 @@ import (
 )
 
 type publicationStore struct {
-	delegate core.ObjectStore
+	delegate      core.ObjectStore
+	uploadTimeout func(context.Context) (context.Context, context.CancelFunc)
 }
 
 func (store publicationStore) Ensure(ctx context.Context, object core.PutObject) (core.StoredObject, error) {
-	requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+	requestCtx, cancel := store.uploadTimeout(ctx)
 	defer cancel()
 	return store.delegate.Ensure(requestCtx, object)
 }
 
 func (store publicationStore) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
-	requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+	requestCtx, cancel := store.uploadTimeout(ctx)
 	defer cancel()
 	return store.delegate.PresignGet(requestCtx, key, ttl)
 }

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	core "github.com/rudrankriyam/App-Store-Connect-CLI/internal/distribution"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
@@ -125,7 +126,7 @@ func TestPrivatePublishIntentArtifactsSupportDistinctTopLevelParents(t *testing.
 func TestPrivatePublishIntentRequestRejectsDiagnosticInjectionInBucket(t *testing.T) {
 	for _, bucket := range []string{"bucket\x1b[31m", "bucket\u202eexe", "bucket\u200bname"} {
 		t.Run(bucket, func(t *testing.T) {
-			err := validatePrivatePublishIntentRequest(privatePublishIntentRequest{
+			err := validatePrivatePublishIntentRequest(newDistributeTestDeps(), privatePublishIntentRequest{
 				BundleDir: "/bundle", Endpoint: "https://objects.example.com", Region: "auto", Bucket: bucket, Prefix: "app", AddressingStyle: "path",
 				URLTTL: time.Hour, DownloadGrace: time.Minute, VerifyTimeout: time.Second, ReceiptPath: "/state/receipt", IntentPath: "/state/intent",
 				ExpectedBundle: validPrivatePublishIntentAuthorization(),
@@ -139,7 +140,7 @@ func TestPrivatePublishIntentRequestRejectsDiagnosticInjectionInBucket(t *testin
 
 func TestPrivatePublishIntentRequestRejectsLifetimeOverflow(t *testing.T) {
 	digest := strings.Repeat("a", 64)
-	err := validatePrivatePublishIntentRequest(privatePublishIntentRequest{
+	err := validatePrivatePublishIntentRequest(newDistributeTestDeps(), privatePublishIntentRequest{
 		BundleDir: "/bundle", Endpoint: "https://objects.example.com", Region: "auto", Bucket: "bucket", Prefix: "app", AddressingStyle: "path",
 		URLTTL: time.Duration(1 << 62), DownloadGrace: time.Duration(1 << 62), VerifyTimeout: time.Second,
 		ReceiptPath: "/state/receipt", IntentPath: "/state/intent",
@@ -173,7 +174,7 @@ func TestPrivatePublishIntentRequestRejectsDiagnosticInjectionInPrefixAndEndpoin
 				ExpectedBundle: validPrivatePublishIntentAuthorization(),
 			}
 			mutate(&request)
-			if err := validatePrivatePublishIntentRequest(request); err == nil {
+			if err := validatePrivatePublishIntentRequest(newDistributeTestDeps(), request); err == nil {
 				t.Fatal("diagnostic-injection input passed validation")
 			}
 		})
@@ -217,7 +218,7 @@ func TestExecutePrivatePublishIntentPersistsBeforeExecutionAndRecoversWithoutPre
 		}
 		return noOpStore{}, time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC), nil
 	}
-	newPrivatePublicationVerifier = func(time.Duration) (core.Verifier, error) { return noOpVerifier{}, nil }
+	newPrivatePublicationVerifier = func(*shared.Deps, time.Duration) (core.Verifier, error) { return noOpVerifier{}, nil }
 	intent := adapterTestIntent()
 	prepareCalls, executeCalls := 0, 0
 	preparePrivatePublicationIntent = func(ctx context.Context, _ core.PreparedDescriptor, options core.PublishOptions) (core.PrivatePublishIntent, error) {
@@ -252,7 +253,7 @@ func TestExecutePrivatePublishIntentPersistsBeforeExecutionAndRecoversWithoutPre
 		URLTTL: time.Hour, DownloadGrace: time.Minute, VerifyTimeout: time.Second,
 		ReceiptPath: filepath.Join(stateDir, "receipt.json"), IntentPath: filepath.Join(stateDir, "private-intent.json"), DiagnosticWriter: io.Discard,
 	}
-	if _, err := executePrivatePublishIntent(context.Background(), request); err == nil || !strings.Contains(err.Error(), "injected crash") {
+	if _, err := executePrivatePublishIntent(context.Background(), newDistributeTestDeps(), request); err == nil || !strings.Contains(err.Error(), "injected crash") {
 		t.Fatalf("first execution error = %v", err)
 	}
 	if prepareCalls != 1 || executeCalls != 0 {
@@ -275,7 +276,7 @@ func TestExecutePrivatePublishIntentPersistsBeforeExecutionAndRecoversWithoutPre
 
 	afterPrivatePublicationIntentPersisted = func() error { return nil }
 	afterPrivatePublicationIntentExecuted = func() error { return errors.New("injected crash after remote execution") }
-	if _, err := executePrivatePublishIntent(context.Background(), request); err == nil || !strings.Contains(err.Error(), "after remote execution") {
+	if _, err := executePrivatePublishIntent(context.Background(), newDistributeTestDeps(), request); err == nil || !strings.Contains(err.Error(), "after remote execution") {
 		t.Fatalf("post-execution crash error = %v", err)
 	}
 	if prepareCalls != 1 || executeCalls != 1 {
@@ -285,7 +286,7 @@ func TestExecutePrivatePublishIntentPersistsBeforeExecutionAndRecoversWithoutPre
 		t.Fatalf("receipt exists after injected post-execution crash: %v", err)
 	}
 	afterPrivatePublicationIntentExecuted = func() error { return nil }
-	result, err := executePrivatePublishIntent(context.Background(), request)
+	result, err := executePrivatePublishIntent(context.Background(), newDistributeTestDeps(), request)
 	if err != nil {
 		t.Fatalf("recovery error = %v", err)
 	}
@@ -319,7 +320,7 @@ func TestExecutePrivatePublishIntentRejectsChangedDestinationBeforeRemoteExecuti
 	newObjectStore = func(context.Context, core.S3StoreConfig) (core.ObjectStore, time.Time, error) {
 		return noOpStore{}, time.Time{}, nil
 	}
-	newPrivatePublicationVerifier = func(time.Duration) (core.Verifier, error) { return noOpVerifier{}, nil }
+	newPrivatePublicationVerifier = func(*shared.Deps, time.Duration) (core.Verifier, error) { return noOpVerifier{}, nil }
 	preparePrivatePublicationIntent = func(context.Context, core.PreparedDescriptor, core.PublishOptions) (core.PrivatePublishIntent, error) {
 		return adapterTestIntent(), nil
 	}
@@ -336,10 +337,10 @@ func TestExecutePrivatePublishIntentRejectsChangedDestinationBeforeRemoteExecuti
 		URLTTL: time.Hour, DownloadGrace: time.Minute, VerifyTimeout: time.Second,
 		ReceiptPath: filepath.Join(stateDir, "receipt.json"), IntentPath: filepath.Join(stateDir, "intent.json"), DiagnosticWriter: io.Discard,
 	}
-	_, _ = executePrivatePublishIntent(context.Background(), request)
+	_, _ = executePrivatePublishIntent(context.Background(), newDistributeTestDeps(), request)
 	afterPrivatePublicationIntentPersisted = func() error { return nil }
 	request.Bucket = "different-bucket"
-	if _, err := executePrivatePublishIntent(context.Background(), request); err == nil || !errors.Is(err, errPrivatePublishIntentConflict) {
+	if _, err := executePrivatePublishIntent(context.Background(), newDistributeTestDeps(), request); err == nil || !errors.Is(err, errPrivatePublishIntentConflict) {
 		t.Fatalf("changed-destination error = %v", err)
 	}
 	if executeCalls != 0 {
@@ -361,7 +362,7 @@ func TestExecutePrivatePublishIntentRejectsCredentialClampedLifetimeBeforePersis
 	newObjectStore = func(context.Context, core.S3StoreConfig) (core.ObjectStore, time.Time, error) {
 		return noOpStore{}, time.Now().Add(2 * time.Hour), nil
 	}
-	newPrivatePublicationVerifier = func(time.Duration) (core.Verifier, error) { return noOpVerifier{}, nil }
+	newPrivatePublicationVerifier = func(*shared.Deps, time.Duration) (core.Verifier, error) { return noOpVerifier{}, nil }
 	preparePrivatePublicationIntent = func(context.Context, core.PreparedDescriptor, core.PublishOptions) (core.PrivatePublishIntent, error) {
 		intent := adapterTestIntent()
 		intent.URLTTL = "59m0s"
@@ -378,7 +379,7 @@ func TestExecutePrivatePublishIntentRejectsCredentialClampedLifetimeBeforePersis
 		URLTTL: time.Hour, DownloadGrace: time.Minute, VerifyTimeout: time.Second,
 		ReceiptPath: filepath.Join(stateDir, "receipt.json"), IntentPath: filepath.Join(stateDir, "intent.json"), DiagnosticWriter: io.Discard,
 	}
-	if _, err := executePrivatePublishIntent(context.Background(), request); err == nil || !errors.Is(err, errPrivatePublishIntentConflict) {
+	if _, err := executePrivatePublishIntent(context.Background(), newDistributeTestDeps(), request); err == nil || !errors.Is(err, errPrivatePublishIntentConflict) {
 		t.Fatalf("clamped-lifetime error = %v", err)
 	}
 	if executeCalls != 0 {
@@ -420,7 +421,7 @@ func TestExecutePrivatePublishIntentRejectsSwappedPreparedBundleBeforePresignOrP
 		URLTTL: time.Hour, DownloadGrace: time.Minute, VerifyTimeout: time.Second,
 		ReceiptPath: filepath.Join(stateDir, "receipt.json"), IntentPath: filepath.Join(stateDir, "intent.json"), DiagnosticWriter: io.Discard,
 	}
-	if _, err := executePrivatePublishIntent(context.Background(), request); err == nil || !errors.Is(err, errPrivatePublishIntentConflict) {
+	if _, err := executePrivatePublishIntent(context.Background(), newDistributeTestDeps(), request); err == nil || !errors.Is(err, errPrivatePublishIntentConflict) {
 		t.Fatalf("swapped bundle error = %v", err)
 	}
 	if storeCalls != 0 {
