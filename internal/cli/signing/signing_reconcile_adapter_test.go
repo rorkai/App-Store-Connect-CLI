@@ -87,12 +87,12 @@ func TestSelectReconcileCertificateWithSHA256(t *testing.T) {
 
 func TestExecuteReconcileApplyRejectsConfirmationAndHashBeforeAuth(t *testing.T) {
 	authCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	d, _ := reconcileAdapterDeps(func() (*asc.Client, error) {
 		authCalls++
 		return nil, errors.New("auth must not be reached")
-	}))
+	})
 
-	if _, err := ExecuteReconcileApply(context.Background(), ReconcileApplyOptions{
+	if _, err := ExecuteReconcileApply(context.Background(), d, ReconcileApplyOptions{
 		PlanPath: "missing.json", ExpectedPlanHash: strings.Repeat("0", 64), Confirm: false,
 	}); err == nil || ClassifyReconcileExecutionError(err) != ReconcileExecutionErrorPlanInvalid {
 		t.Fatalf("Confirm=false error=%v", err)
@@ -120,7 +120,7 @@ func TestExecuteReconcileApplyRejectsConfirmationAndHashBeforeAuth(t *testing.T)
 	if err := writeSigningStateJSON(stateDir, "plan.json", plan, false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ExecuteReconcileApply(context.Background(), ReconcileApplyOptions{
+	if _, err := ExecuteReconcileApply(context.Background(), d, ReconcileApplyOptions{
 		PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: strings.Repeat("f", 64), Confirm: true,
 	}); err == nil || ClassifyReconcileExecutionError(err) != ReconcileExecutionErrorPlanInvalid {
 		t.Fatalf("hash mismatch error=%v", err)
@@ -134,14 +134,15 @@ func TestReconcileProductionAdaptersDoNotPrintOrReturnCanaryDetails(t *testing.T
 	canary := "PROVIDER-DETAIL-LEAK-CANARY"
 	missingPlan := filepath.Join(t.TempDir(), canary+".json")
 	options := ReconcileApplyOptions{PlanPath: missingPlan, ExpectedPlanHash: strings.Repeat("a", 64), Confirm: true}
+	d, written := reconcileAdapterDeps(unreachableReconcileClient)
 
 	for name, execute := range map[string]func() error{
 		"apply": func() error {
-			_, err := ExecuteReconcileApply(context.Background(), options)
+			_, err := ExecuteReconcileApply(context.Background(), d, options)
 			return err
 		},
 		"verify": func() error {
-			_, err := verifyReconcileCompletionAdapter(context.Background(), options, "", nil)
+			_, err := verifyReconcileCompletionAdapter(context.Background(), d, options, "", nil)
 			return err
 		},
 	} {
@@ -158,8 +159,8 @@ func TestReconcileProductionAdaptersDoNotPrintOrReturnCanaryDetails(t *testing.T
 					t.Fatalf("error kind = %q, want %q", got, ReconcileExecutionErrorPlanInvalid)
 				}
 			})
-			if stdout != "" || stderr != "" {
-				t.Fatalf("adapter wrote output: stdout=%q stderr=%q", stdout, stderr)
+			if stdout != "" || stderr != "" || written() != "" {
+				t.Fatalf("adapter wrote output: stdout=%q stderr=%q deps=%q", stdout, stderr, written())
 			}
 		})
 	}
@@ -184,10 +185,14 @@ func TestExecuteReconcilePlanCollapsesOperationalCanaryWithoutOutput(t *testing.
 		return signingArchiveRequirements{TeamID: "TEAM1", Targets: []signingTarget{{Kind: "application", BundleID: "com.example.app"}}}, nil
 	}
 	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, errors.New(providerDetail) }))
+	clientCalls := 0
+	d, written := reconcileAdapterDeps(func() (*asc.Client, error) {
+		clientCalls++
+		return nil, errors.New(providerDetail)
+	})
 
 	stdout, stderr := captureOutput(t, func() {
-		_, err := ExecuteReconcilePlan(context.Background(), ReconcilePlanOptions{
+		_, err := ExecuteReconcilePlan(context.Background(), d, ReconcilePlanOptions{
 			ArchivePath: "App.xcarchive", DevicesFile: devicesPath, CertificateSHA256: strings.Repeat("a", 64),
 			MinimumValidityDays: 7, MaxMutations: 32, StateDir: stateDir,
 		})
@@ -200,8 +205,11 @@ func TestExecuteReconcilePlanCollapsesOperationalCanaryWithoutOutput(t *testing.
 			}
 		}
 	})
-	if stdout != "" || stderr != "" {
-		t.Fatalf("planning adapter wrote output: stdout=%q stderr=%q", stdout, stderr)
+	if stdout != "" || stderr != "" || written() != "" {
+		t.Fatalf("planning adapter wrote output: stdout=%q stderr=%q deps=%q", stdout, stderr, written())
+	}
+	if clientCalls == 0 {
+		t.Fatal("planning adapter did not build its client from the deps")
 	}
 }
 
@@ -217,12 +225,12 @@ func TestExecuteReconcilePlanClassifiesTerminalArchiveFailureAsPlanInvalid(t *te
 	}
 	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
 	authCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	d, _ := reconcileAdapterDeps(func() (*asc.Client, error) {
 		authCalls++
 		return nil, errors.New("auth must not be reached")
-	}))
+	})
 
-	_, err := ExecuteReconcilePlan(context.Background(), ReconcilePlanOptions{
+	_, err := ExecuteReconcilePlan(context.Background(), d, ReconcilePlanOptions{
 		ArchivePath: "App.xcarchive", DevicesFile: devicesPath, CertificateSHA256: strings.Repeat("a", 64),
 		MinimumValidityDays: 7, MaxMutations: 32, StateDir: stateDir,
 	})
@@ -291,24 +299,26 @@ func TestExecuteReconcileApplyCollapsesOperationalCanaryError(t *testing.T) {
 		return signingArchiveRequirements{TeamID: plan.TeamID, Targets: plan.Targets}, nil
 	}
 	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	clientCalls := 0
+	d, written := reconcileAdapterDeps(func() (*asc.Client, error) {
+		clientCalls++
 		return nil, &asc.APIError{StatusCode: http.StatusServiceUnavailable, Detail: canary}
-	}))
+	})
 
 	archiveDrift = true
 	stdout, stderr := captureOutput(t, func() {
-		_, err := ExecuteReconcileApply(context.Background(), ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
+		_, err := ExecuteReconcileApply(context.Background(), d, ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
 		if err == nil || !errors.Is(err, ErrReconcilePlanDrift) || ClassifyReconcileExecutionError(err) != ReconcileExecutionErrorPlanDrift {
 			t.Fatalf("drift error = %v", err)
 		}
 	})
-	if stdout != "" || stderr != "" {
-		t.Fatalf("drift adapter wrote output: stdout=%q stderr=%q", stdout, stderr)
+	if stdout != "" || stderr != "" || written() != "" {
+		t.Fatalf("drift adapter wrote output: stdout=%q stderr=%q deps=%q", stdout, stderr, written())
 	}
 	archiveDrift = false
 
 	stdout, stderr = captureOutput(t, func() {
-		_, err := ExecuteReconcileApply(context.Background(), ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
+		_, err := ExecuteReconcileApply(context.Background(), d, ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
 		if err == nil || ClassifyReconcileExecutionError(err) != ReconcileExecutionErrorRetryable {
 			t.Fatalf("adapter error = %v", err)
 		}
@@ -318,8 +328,11 @@ func TestExecuteReconcileApplyCollapsesOperationalCanaryError(t *testing.T) {
 			}
 		}
 	})
-	if stdout != "" || stderr != "" {
-		t.Fatalf("adapter wrote output: stdout=%q stderr=%q", stdout, stderr)
+	if stdout != "" || stderr != "" || written() != "" {
+		t.Fatalf("adapter wrote output: stdout=%q stderr=%q deps=%q", stdout, stderr, written())
+	}
+	if clientCalls == 0 {
+		t.Fatal("apply adapter did not build its client from the deps")
 	}
 }
 
@@ -358,15 +371,16 @@ func TestExecuteReconcileApplySilentlyClassifiesExistingReceiptConflictAsDrift(t
 		return signingArchiveRequirements{TeamID: plan.TeamID, Targets: plan.Targets}, nil
 	}
 	t.Cleanup(func() { readSigningArchiveRequirements = originalArchiveReader })
+	d, written := reconcileAdapterDeps(unreachableReconcileClient)
 
 	stdout, stderr := captureOutput(t, func() {
-		_, err := ExecuteReconcileApply(context.Background(), ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
+		_, err := ExecuteReconcileApply(context.Background(), d, ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
 		if err == nil || !errors.Is(err, ErrReconcilePlanDrift) || ClassifyReconcileExecutionError(err) != ReconcileExecutionErrorPlanDrift || strings.Contains(err.Error(), canary) {
 			t.Fatalf("receipt conflict error = %v", err)
 		}
 	})
-	if stdout != "" || stderr != "" {
-		t.Fatalf("receipt conflict wrote output: stdout=%q stderr=%q", stdout, stderr)
+	if stdout != "" || stderr != "" || written() != "" {
+		t.Fatalf("receipt conflict wrote output: stdout=%q stderr=%q deps=%q", stdout, stderr, written())
 	}
 
 	if err := os.Remove(plan.Paths.ReceiptPath); err != nil {
@@ -377,13 +391,13 @@ func TestExecuteReconcileApplySilentlyClassifiesExistingReceiptConflictAsDrift(t
 		t.Fatal(err)
 	}
 	stdout, stderr = captureOutput(t, func() {
-		_, err := ExecuteReconcileApply(context.Background(), ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
+		_, err := ExecuteReconcileApply(context.Background(), d, ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
 		if err == nil || !errors.Is(err, ErrReconcilePlanDrift) || ClassifyReconcileExecutionError(err) != ReconcileExecutionErrorPlanDrift || strings.Contains(err.Error(), malformedCanary) {
 			t.Fatalf("malformed receipt error = %v", err)
 		}
 	})
-	if stdout != "" || stderr != "" {
-		t.Fatalf("malformed receipt wrote output: stdout=%q stderr=%q", stdout, stderr)
+	if stdout != "" || stderr != "" || written() != "" {
+		t.Fatalf("malformed receipt wrote output: stdout=%q stderr=%q deps=%q", stdout, stderr, written())
 	}
 
 	if err := os.Remove(plan.Paths.ReceiptPath); err != nil {
@@ -402,13 +416,13 @@ func TestExecuteReconcileApplySilentlyClassifiesExistingReceiptConflictAsDrift(t
 		t.Fatal(err)
 	}
 	stdout, stderr = captureOutput(t, func() {
-		_, err := ExecuteReconcileApply(context.Background(), ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
+		_, err := ExecuteReconcileApply(context.Background(), d, ReconcileApplyOptions{PlanPath: plan.Paths.PlanPath, ExpectedPlanHash: plan.PlanHash, Confirm: true})
 		if err == nil || !errors.Is(err, ErrReconcilePlanDrift) || ClassifyReconcileExecutionError(err) != ReconcileExecutionErrorPlanDrift || strings.Contains(err.Error(), pathCanary) {
 			t.Fatalf("wrong-path receipt error = %v", err)
 		}
 	})
-	if stdout != "" || stderr != "" {
-		t.Fatalf("wrong-path receipt wrote output: stdout=%q stderr=%q", stdout, stderr)
+	if stdout != "" || stderr != "" || written() != "" {
+		t.Fatalf("wrong-path receipt wrote output: stdout=%q stderr=%q deps=%q", stdout, stderr, written())
 	}
 	if _, err := os.Stat(filepath.Join(pathCanary, "receipt.json")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("receipt escaped protected state dir: %v", err)
@@ -475,9 +489,12 @@ func TestReconcileReceiptViewSelectsExactMainProfile(t *testing.T) {
 		},
 	}
 
-	view, err := newReconcileReceiptView(plan, receipt)
+	view, err := newReconcileReceiptView(plan, receipt, time.Now())
 	if err != nil {
 		t.Fatalf("newReconcileReceiptView() error=%v", err)
+	}
+	if _, err := newReconcileReceiptView(plan, receipt, time.Now().Add(31*24*time.Hour)); err == nil {
+		t.Fatal("newReconcileReceiptView() accepted profiles that expire before its clock")
 	}
 	if view.MainProfile == nil {
 		t.Fatal("MainProfile=nil")
@@ -537,12 +554,12 @@ func TestReconcilePlanViewExposesCertificateWithoutProtectedInputs(t *testing.T)
 
 func TestExecuteReconcilePlanRequiresCertificateSHA256BeforeAuth(t *testing.T) {
 	authCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	d, _ := reconcileAdapterDeps(func() (*asc.Client, error) {
 		authCalls++
 		return nil, errors.New("auth must not be reached")
-	}))
+	})
 
-	_, err := ExecuteReconcilePlan(context.Background(), ReconcilePlanOptions{
+	_, err := ExecuteReconcilePlan(context.Background(), d, ReconcilePlanOptions{
 		ArchivePath: "App.xcarchive", DevicesFile: "devices.json",
 		MinimumValidityDays: 7, MaxMutations: 32, StateDir: t.TempDir(),
 	})
@@ -605,7 +622,7 @@ func TestReconcileReceiptViewRejectsProfilePathOutsideState(t *testing.T) {
 	receipt := signingReconcileReceipt{Complete: true, Actions: []signingActionReceipt{{
 		ID: "main", Kind: actionDownloadProfile, Status: "completed", ResourceID: "profile-main", OutputPath: outside,
 	}}}
-	if _, err := newReconcileReceiptView(plan, receipt); err == nil || !strings.Contains(err.Error(), "profiles directory") {
+	if _, err := newReconcileReceiptView(plan, receipt, time.Now()); err == nil || !strings.Contains(err.Error(), "profiles directory") {
 		t.Fatalf("outside path error=%v", err)
 	}
 }
@@ -621,7 +638,7 @@ func TestReconcileReceiptViewRejectsDownloadResourceIDDifferentFromPlan(t *testi
 	receipt := signingReconcileReceipt{Actions: []signingActionReceipt{{
 		ID: "main", Kind: actionDownloadProfile, Status: "completed", ResourceID: "profile-other",
 	}}}
-	if _, err := newReconcileReceiptView(plan, receipt); err == nil || !strings.Contains(err.Error(), "differs from the exact plan") {
+	if _, err := newReconcileReceiptView(plan, receipt, time.Now()); err == nil || !strings.Contains(err.Error(), "differs from the exact plan") {
 		t.Fatalf("mismatched download resource error=%v", err)
 	}
 }
@@ -662,4 +679,16 @@ func TestReadProtectedFileRejectsMultipleHardLinks(t *testing.T) {
 	if _, err := readProtectedFile(path); err == nil || !strings.Contains(err.Error(), "multiple hard links") {
 		t.Fatalf("hard-linked protected input error=%v", err)
 	}
+}
+
+// reconcileAdapterDeps returns signing test deps whose App Store Connect client
+// is client, and a function that returns what reached their streams.
+func reconcileAdapterDeps(client func() (*asc.Client, error)) (*shared.Deps, func() string) {
+	d, stdout, stderr := newSigningTestDeps()
+	d.Client = client
+	return d, func() string { return stdout.String() + stderr.String() }
+}
+
+func unreachableReconcileClient() (*asc.Client, error) {
+	return nil, errors.New("App Store Connect client must not be reached")
 }

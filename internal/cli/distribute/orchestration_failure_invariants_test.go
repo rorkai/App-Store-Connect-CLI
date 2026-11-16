@@ -25,7 +25,7 @@ func TestDistributionFirstRunPreSnapshotFailuresCheckpointDurably(t *testing.T) 
 		{
 			name: "identity inspection or binding mismatch is terminal",
 			configure: func(deps *distributionOrchestrationDependencies) {
-				deps.inspectIdentity = func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+				deps.inspectIdentity = func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 					return signing.PKCS12IdentityInfo{}, errors.New("identity changed")
 				}
 			},
@@ -300,12 +300,12 @@ func TestDistributionResumeReappliesAfterTransientProfileCopyWithoutHalfAdoptedP
 		return nil
 	}
 	reconcileApplyCalls := 0
-	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		reconcileApplyCalls++
 		return validDistributionReconcileReceipt(), nil
 	}
 	verifyCalls := 0
-	deps.verifyReconcile = func(context.Context, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
+	deps.verifyReconcile = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
 		verifyCalls++
 		return signing.ReconcileReceiptView{}, errors.New("half-adopted reconcile state must not use verification")
 	}

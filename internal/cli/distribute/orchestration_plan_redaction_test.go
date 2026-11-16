@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 )
 
@@ -43,7 +44,7 @@ func TestExecuteDistributionPlanCollapsesOperationalDiagnostics(t *testing.T) {
 			name: "identity inspection",
 			code: "identity_inspection_failed",
 			fail: func(deps *distributionOrchestrationDependencies) {
-				deps.inspectIdentity = func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+				deps.inspectIdentity = func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 					return signing.PKCS12IdentityInfo{}, raw
 				}
 			},
@@ -59,7 +60,7 @@ func TestExecuteDistributionPlanCollapsesOperationalDiagnostics(t *testing.T) {
 			name: "account planning",
 			code: "account_reconcile_failed",
 			fail: func(deps *distributionOrchestrationDependencies) {
-				deps.reconcilePlan = func(context.Context, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+				deps.reconcilePlan = func(context.Context, *shared.Deps, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 					return signing.ReconcilePlanView{}, raw
 				}
 			},

@@ -105,9 +105,9 @@ type distributionDeviceObservationRequest struct {
 type distributionOrchestrationDependencies struct {
 	readConfig                func(string) (distributionConfig, string, error)
 	hashProtectedFile         func(string) (string, error)
-	inspectIdentity           func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error)
+	inspectIdentity           func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error)
 	digestArchive             func(context.Context, string) (archiveTreeSnapshot, error)
-	reconcilePlan             func(context.Context, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error)
+	reconcilePlan             func(context.Context, *shared.Deps, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error)
 	writePlan                 func(string, persistedDistributionPlan) error
 	readPlan                  func(string) (persistedDistributionPlan, error)
 	createRun                 func(string, string) error
@@ -115,20 +115,20 @@ type distributionOrchestrationDependencies struct {
 	acquireLock               func(context.Context, *shared.Deps, string, string) (func() error, error)
 	acquireLease              func(context.Context, *shared.Deps, string, string) (func() error, func() error, error)
 	acquireVerifyLease        func(string, string) (distributionVerifyLease, error)
-	recoverEphemeral          func(context.Context) error
+	recoverEphemeral          func(context.Context, *shared.Deps) error
 	readRun                   func(string, string) (persistedDistributionRunState, error)
 	writeRun                  func(string, persistedDistributionRunState) error
 	snapshotArchive           func(context.Context, string, string, string) (archiveTreeSnapshot, error)
 	copyArtifact              func(string, string, string, string, int64) (distributionSizedFileArtifact, error)
 	revalidateArchive         func(context.Context, string, string, distributionArchiveSnapshot) error
 	preflightPublish          func(context.Context, *shared.Deps, distributionPublicationConfig) error
-	reconcileApply            func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error)
-	verifyReconcile           func(context.Context, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error)
+	reconcileApply            func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error)
+	verifyReconcile           func(context.Context, *shared.Deps, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error)
 	readReconcilePlan         func(signing.ReconcileApplyOptions) (signing.ReconcilePlanView, error)
 	validateReconcileEvidence func(string, persistedDistributionPlan, persistedDistributionRunState, signing.ReconcileReceiptView, distributionFileArtifact, distributionProfileArtifact) error
 	writeExportOptions        func(context.Context, localxcode.ManualReleaseTestingExportOptions) (*localxcode.ManualReleaseTestingExportOptionsResult, error)
 	validateExportOptions     func(context.Context, localxcode.ManualReleaseTestingExportOptions) (*localxcode.ManualReleaseTestingExportOptionsResult, error)
-	runSigning                func(context.Context, signing.EphemeralRunOptions, func(context.Context) error) error
+	runSigning                func(context.Context, *shared.Deps, signing.EphemeralRunOptions, func(context.Context) error) error
 	validateSigningEvidence   func(string, persistedDistributionPlan, persistedDistributionRunState, distributionFileArtifact) error
 	validatePreparedBundle    func(*shared.Deps, string, persistedDistributionPlan, persistedDistributionRunState) error
 	exportIPA                 func(context.Context, localxcode.ReleaseTestingExportOptions) (*localxcode.ExportResult, error)
@@ -225,7 +225,7 @@ func executeDistributionPlan(ctx context.Context, d *shared.Deps, request distri
 	if err != nil {
 		return nil, safeDistributionPlanningFailure("devices_read_failed")
 	}
-	identity, err := distributionOrchestrationDeps.inspectIdentity(ctx, signing.PKCS12IdentityOptions{
+	identity, err := distributionOrchestrationDeps.inspectIdentity(ctx, d, signing.PKCS12IdentityOptions{
 		IdentityPath: identityPath, IdentityPasswordPath: passwordPath,
 	})
 	if err != nil {
@@ -254,7 +254,7 @@ func executeDistributionPlan(ctx context.Context, d *shared.Deps, request distri
 		return nil, safeDistributionPlanningFailure("plan_id_failed")
 	}
 	reconcileDir := filepath.Join(filepath.Dir(planPath), planID+"-reconcile")
-	reconcile, err := distributionOrchestrationDeps.reconcilePlan(ctx, signing.ReconcilePlanOptions{
+	reconcile, err := distributionOrchestrationDeps.reconcilePlan(ctx, d, signing.ReconcilePlanOptions{
 		ArchivePath: archivePath, DevicesFile: devicesPath,
 		CertificateSHA256:   identity.CertificateSHA256,
 		MinimumValidityDays: effectiveMinimumValidityDays, MaxMutations: config.Signing.MaxMutations,
@@ -750,7 +750,7 @@ func continueDistributionRun(ctx context.Context, d *shared.Deps, plan persisted
 	if err := guard("preflight"); err != nil {
 		return nil, err
 	}
-	if err := distributionOrchestrationDeps.recoverEphemeral(ctx); err != nil {
+	if err := distributionOrchestrationDeps.recoverEphemeral(ctx, d); err != nil {
 		terminal := errors.Is(err, signing.ErrEphemeralRecoveryJournalInvalid) || shared.IsValidationError(err)
 		return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "signing_recovery_failed", !terminal, err)
 	}
@@ -770,7 +770,7 @@ func continueDistributionRun(ctx context.Context, d *shared.Deps, plan persisted
 	if err != nil {
 		return checkpointDistributionFailure(ctx, d, plan, state, "preflight", "password_path_invalid", false, err)
 	}
-	identity, err := distributionOrchestrationDeps.inspectIdentity(ctx, signing.PKCS12IdentityOptions{IdentityPath: identityPath, IdentityPasswordPath: passwordPath})
+	identity, err := distributionOrchestrationDeps.inspectIdentity(ctx, d, signing.PKCS12IdentityOptions{IdentityPath: identityPath, IdentityPasswordPath: passwordPath})
 	plannedExpiration, expirationErr := time.Parse(time.RFC3339, plan.Identity.ExpirationDate)
 	minimumValidUntil, minimumErr := time.Parse(time.RFC3339, plan.Identity.MinimumValidUntil)
 	if err != nil || expirationErr != nil || minimumErr != nil ||
@@ -817,7 +817,7 @@ func continueDistributionRun(ctx context.Context, d *shared.Deps, plan persisted
 		if err := guard("account_reconcile"); err != nil {
 			return nil, err
 		}
-		reconcile, err = distributionOrchestrationDeps.reconcileApply(ctx, reconcileOptions)
+		reconcile, err = distributionOrchestrationDeps.reconcileApply(ctx, d, reconcileOptions)
 		if guardErr := guard("account_reconcile"); guardErr != nil {
 			return nil, guardErr
 		}
@@ -836,7 +836,7 @@ func continueDistributionRun(ctx context.Context, d *shared.Deps, plan persisted
 				ResourceID: state.Artifacts.Profile.ResourceID, Path: filepath.Join(runRoot, state.Artifacts.Profile.Path), SHA256: state.Artifacts.Profile.SHA256,
 			}}
 		}
-		reconcile, err = distributionOrchestrationDeps.verifyReconcile(ctx, reconcileOptions, archiveSnapshotPath, evidence)
+		reconcile, err = distributionOrchestrationDeps.verifyReconcile(ctx, d, reconcileOptions, archiveSnapshotPath, evidence)
 		if err != nil {
 			if signing.ClassifyReconcileExecutionError(err) == signing.ReconcileExecutionErrorRetryable {
 				return checkpointDistributionFailure(ctx, d, plan, state, "account_reconcile", "account_verification_failed", true, err)
@@ -925,7 +925,7 @@ func continueDistributionRun(ctx context.Context, d *shared.Deps, plan persisted
 		{
 			signingReceiptPath := filepath.Join(runDir, currentSigningReceiptRel)
 			var exportResult *localxcode.ExportResult
-			err := distributionOrchestrationDeps.runSigning(ctx, signing.EphemeralRunOptions{
+			err := distributionOrchestrationDeps.runSigning(ctx, d, signing.EphemeralRunOptions{
 				IdentityPath: identityPath, IdentityPasswordPath: passwordPath,
 				ProfilePath: filepath.Join(runDir, state.Artifacts.Profile.Path), ReceiptPath: signingReceiptPath,
 				ExpectedCertificateSHA256: plan.Identity.CertificateSHA256, ExpectedProfileSHA256: state.Artifacts.Profile.SHA256,
