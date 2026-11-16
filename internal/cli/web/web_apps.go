@@ -34,6 +34,7 @@ Use ` + "`asc web apps create`" + ` as the canonical app-creation command.
 			newWebAppsCreateCommand(d),
 			newWebAppsDeleteCommand(d),
 			newWebAppsAvailabilityCommand(d),
+			newWebAppsAgeRatingsCommand(d),
 			newWebAppsCompatibilityCommand(d),
 			newWebAppsDistributionCommand(d),
 			newWebAppsHistoryCommand(d),

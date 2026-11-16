@@ -177,6 +177,10 @@ asc ads campaigns resume --campaign CAMPAIGN_ID --ad-account AD_ACCOUNT_ID --con
 asc web apps compatibility view --app "123456789"
 asc web apps compatibility edit --app "123456789" --ios-app-on-mac=false --ios-app-on-vision-pro=false
 
+# Inspect age rating declarations and territory ratings through a web session
+asc web apps age-ratings list --app APP_ID --output json
+asc web apps age-ratings territories --app-info APP_INFO_ID --output table
+
 # Upload a build
 asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
 

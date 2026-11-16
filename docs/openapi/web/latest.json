@@ -3433,6 +3433,83 @@
         ]
       }
     },
+    "/iris/v1/appInfos/{id}/territoryAgeRatings": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "get": {
+        "tags": [
+          "AppInfos"
+        ],
+        "operationId": "appInfos_territoryAgeRatings_getToManyRelated",
+        "parameters": [
+          {
+            "name": "include",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "territory"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false,
+            "required": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                500
+              ]
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Success. The schema describes fields observed in the web response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerritoryAgeRatingsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code and JSON:API error details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-16",
+          "live": "2026-11-16"
+        },
+        "x-asc-source": [
+          "Client.ListAppTerritoryAgeRatings"
+        ]
+      }
+    },
     "/iris/v1/appSandboxEntitlementUsages": {
       "post": {
         "tags": [
@@ -4346,6 +4423,72 @@
         },
         "x-asc-source": [
           "Client.GetAppAvailability"
+        ]
+      }
+    },
+    "/iris/v1/apps/{id}/appInfos": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Apps"
+        ],
+        "operationId": "apps_appInfos_getToManyRelated",
+        "parameters": [
+          {
+            "name": "include",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "ageRatingDeclaration"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false,
+            "required": true
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Success. The schema describes fields observed in the web response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppInfosResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code and JSON:API error details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-16",
+          "live": "2026-11-16"
+        },
+        "x-asc-source": [
+          "Client.ListAppAgeRatings"
         ]
       }
     },
@@ -9488,6 +9631,115 @@
         },
         "additionalProperties": true
       },
+      "AgeRatingDeclaration": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "advertising": {
+                "type": "boolean"
+              },
+              "ageAssurance": {
+                "type": "boolean"
+              },
+              "gambling": {
+                "type": "boolean"
+              },
+              "healthOrWellnessTopics": {
+                "type": "boolean"
+              },
+              "lootBox": {
+                "type": "boolean"
+              },
+              "messagingAndChat": {
+                "type": "boolean"
+              },
+              "parentalControls": {
+                "type": "boolean"
+              },
+              "socialMedia": {
+                "type": "boolean"
+              },
+              "socialMediaAgeRestricted": {
+                "type": "boolean"
+              },
+              "unrestrictedWebAccess": {
+                "type": "boolean"
+              },
+              "userGeneratedContent": {
+                "type": "boolean"
+              },
+              "ageRatingOverride": {
+                "type": "string"
+              },
+              "ageRatingOverrideV2": {
+                "type": "string"
+              },
+              "alcoholTobaccoOrDrugUseOrReferences": {
+                "type": "string"
+              },
+              "contests": {
+                "type": "string"
+              },
+              "gamblingSimulated": {
+                "type": "string"
+              },
+              "gunsOrOtherWeapons": {
+                "type": "string"
+              },
+              "horrorOrFearThemes": {
+                "type": "string"
+              },
+              "koreaAgeRatingOverride": {
+                "type": "string"
+              },
+              "matureOrSuggestiveThemes": {
+                "type": "string"
+              },
+              "medicalOrTreatmentInformation": {
+                "type": "string"
+              },
+              "profanityOrCrudeHumor": {
+                "type": "string"
+              },
+              "sexualContentGraphicAndNudity": {
+                "type": "string"
+              },
+              "sexualContentOrNudity": {
+                "type": "string"
+              },
+              "violenceCartoonOrFantasy": {
+                "type": "string"
+              },
+              "violenceRealistic": {
+                "type": "string"
+              },
+              "violenceRealisticProlongedGraphicOrSadistic": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "self": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true,
+        "title": "AgeRatingDeclaration"
+      },
       "AgreementTermAcceptanceCreateRequest": {
         "type": "object",
         "title": "AgreementTermAcceptanceCreateRequest",
@@ -12156,6 +12408,125 @@
           }
         },
         "additionalProperties": true
+      },
+      "AppInfo": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "appStoreAgeRating": {
+                "type": "string"
+              },
+              "appStoreState": {
+                "type": "string"
+              },
+              "brazilAgeRating": {
+                "type": "string"
+              },
+              "brazilAgeRatingV2": {
+                "type": "string"
+              },
+              "koreaAgeRating": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "self": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "relationships": {
+            "type": "object",
+            "properties": {
+              "ageRatingDeclaration": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true,
+        "title": "AppInfo"
+      },
+      "AppInfosResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppInfo"
+            }
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgeRatingDeclaration"
+            }
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "self": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "paging": {
+                "type": "object",
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "limit": {
+                    "type": "integer"
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true,
+        "title": "AppInfosResponse",
+        "required": [
+          "data"
+        ]
       },
       "AppResponse": {
         "type": "object",
@@ -18246,6 +18617,114 @@
           }
         },
         "additionalProperties": true
+      },
+      "TerritoryAgeRating": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "appStoreAgeRating": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "array",
+                "items": {}
+              }
+            },
+            "additionalProperties": true
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "self": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "relationships": {
+            "type": "object",
+            "properties": {
+              "territory": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true,
+        "title": "TerritoryAgeRating"
+      },
+      "TerritoryAgeRatingsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TerritoryAgeRating"
+            }
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Territory"
+            }
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "self": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "paging": {
+                "type": "object",
+                "properties": {
+                  "total": {
+                    "type": "integer"
+                  },
+                  "limit": {
+                    "type": "integer"
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true,
+        "title": "TerritoryAgeRatingsResponse",
+        "required": [
+          "data"
+        ]
       },
       "TerritoryAvailabilitiesResponse": {
         "type": "object",

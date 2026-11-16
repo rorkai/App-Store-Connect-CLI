@@ -346,6 +346,14 @@ func capabilityRows() []Capability {
 		},
 		{
 			Area:       "app-management",
+			Capability: "App age ratings via web sessions",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web apps age-ratings list", "asc web apps age-ratings territories"},
+			Notes:      []string{"Read app info records with age rating declarations and list territory age ratings for a selected app info record."},
+			NextAction: "Run asc web apps age-ratings list --app APP_ID to find the app info record ID, then run asc web apps age-ratings territories --app-info APP_INFO_ID.",
+		},
+		{
+			Area:       "app-management",
 			Capability: "App Store version status history",
 			Status:     statusWebSession,
 			Commands:   []string{"asc web apps history"},
