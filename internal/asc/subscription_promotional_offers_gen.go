@@ -33,6 +33,13 @@ type SubscriptionPromotionalOfferRelationships struct {
 	Prices       RelationshipList `json:"prices"`
 }
 
+// SubscriptionPromotionalOfferUpdateData is the data object of the SubscriptionPromotionalOfferUpdateRequest schema.
+type SubscriptionPromotionalOfferUpdateData struct {
+	Type          ResourceType                                     `json:"type"`
+	ID            string                                           `json:"id"`
+	Relationships *SubscriptionPromotionalOfferUpdateRelationships `json:"relationships,omitempty"`
+}
+
 // SubscriptionPromotionalOfferUpdateRequest is the SubscriptionPromotionalOfferUpdateRequest schema.
 type SubscriptionPromotionalOfferUpdateRequest struct {
 	Data SubscriptionPromotionalOfferUpdateData `json:"data"`

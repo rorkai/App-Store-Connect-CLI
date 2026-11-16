@@ -22,6 +22,21 @@ type AppClipAdvancedExperienceCreateRelationships struct {
 	Localizations RelationshipList `json:"localizations"`
 }
 
+// AppClipAdvancedExperienceRelationships is the data.relationships object of the AppClipAdvancedExperienceUpdateRequest schema.
+type AppClipAdvancedExperienceRelationships struct {
+	AppClip       *Relationship     `json:"appClip,omitempty"`
+	HeaderImage   *Relationship     `json:"headerImage,omitempty"`
+	Localizations *RelationshipList `json:"localizations,omitempty"`
+}
+
+// AppClipAdvancedExperienceUpdateData is the data object of the AppClipAdvancedExperienceUpdateRequest schema.
+type AppClipAdvancedExperienceUpdateData struct {
+	Type          ResourceType                               `json:"type"`
+	ID            string                                     `json:"id"`
+	Attributes    *AppClipAdvancedExperienceUpdateAttributes `json:"attributes,omitempty"`
+	Relationships *AppClipAdvancedExperienceRelationships    `json:"relationships,omitempty"`
+}
+
 // AppClipAdvancedExperienceUpdateRequest is the AppClipAdvancedExperienceUpdateRequest schema.
 type AppClipAdvancedExperienceUpdateRequest struct {
 	Data AppClipAdvancedExperienceUpdateData `json:"data"`

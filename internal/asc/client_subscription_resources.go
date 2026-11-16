@@ -109,50 +109,6 @@ func (c *Client) GetSubscriptionIntroductoryOffers(ctx context.Context, subscrip
 	return &response, nil
 }
 
-// CreateSubscriptionIntroductoryOffer creates an introductory offer.
-func (c *Client) CreateSubscriptionIntroductoryOffer(ctx context.Context, subscriptionID string, attrs SubscriptionIntroductoryOfferCreateAttributes, territoryID, pricePointID string) (*SubscriptionIntroductoryOfferResponse, error) {
-	subscriptionID = strings.TrimSpace(subscriptionID)
-	if subscriptionID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-	relationships := &SubscriptionIntroductoryOfferRelationships{
-		Subscription: &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeSubscriptions,
-				ID:   subscriptionID,
-			},
-		},
-	}
-	if id := strings.TrimSpace(territoryID); id != "" {
-		relationships.Territory = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeTerritories,
-				ID:   id,
-			},
-		}
-	}
-	if id := strings.TrimSpace(pricePointID); id != "" {
-		relationships.SubscriptionPricePoint = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeSubscriptionPricePoints,
-				ID:   id,
-			},
-		}
-	}
-	payload := SubscriptionIntroductoryOfferCreateRequest{
-		Data: SubscriptionIntroductoryOfferCreateData{
-			Type:          ResourceTypeSubscriptionIntroductoryOffers,
-			Attributes:    attrs,
-			Relationships: relationships,
-		},
-	}
-	return sendJSON[SubscriptionIntroductoryOfferResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/subscriptionIntroductoryOffers",
-		Payload: payload,
-	})
-}
-
 // GetSubscriptionPromotionalOffers retrieves promotional offers for a subscription.
 func (c *Client) GetSubscriptionPromotionalOffers(ctx context.Context, subscriptionID string, opts ...SubscriptionPromotionalOffersOption) (*SubscriptionPromotionalOffersResponse, error) {
 	query := &subscriptionPromotionalOffersQuery{}
