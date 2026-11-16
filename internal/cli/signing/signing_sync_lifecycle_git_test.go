@@ -117,11 +117,10 @@ func TestSigningSyncPushRenewExpiredReplacesProfileAndRepositoryArtifact(t *test
 	state := &lifecycleProfileState{id: "profile-old", name: "Store", profile: "IOS_APP_STORE", expiration: "2100-01-01T00:00:00Z"}
 	var events []string
 	client := lifecycleStateAPI(t, state, nil, &events)
-	clientFactory := func() (*asc.Client, error) { return client, nil }
 
 	run := func(args ...string) (string, error) {
 		d, depsStdout, _ := newSigningTestDeps()
-		d.Client = clientFactory
+		d.Client = func() (*asc.Client, error) { return client, nil }
 		cmd := syncPushCommand(d)
 		cmd.FlagSet.SetOutput(io.Discard)
 		var runErr error

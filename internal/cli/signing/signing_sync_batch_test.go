@@ -166,10 +166,6 @@ func TestSyncResultOmitsSingularBundleIDOnlyForBatchJSON(t *testing.T) {
 func TestSigningSyncPushRejectsInvalidOutputBeforeSideEffects(t *testing.T) {
 	missingDir := t.TempDir()
 	clientCalls := 0
-	clientFactory := func() (*asc.Client, error) {
-		clientCalls++
-		return nil, errors.New("client must not be created")
-	}
 
 	tests := []struct {
 		name string
@@ -208,7 +204,10 @@ func TestSigningSyncPushRejectsInvalidOutputBeforeSideEffects(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			d, depsStdout, depsStderr := newSigningTestDeps()
-			d.Client = clientFactory
+			d.Client = func() (*asc.Client, error) {
+				clientCalls++
+				return nil, errors.New("client must not be created")
+			}
 			cmd := syncPushCommand(d)
 			cmd.FlagSet.SetOutput(io.Discard)
 			if err := cmd.Parse(testCase.args); err != nil {
@@ -239,13 +238,12 @@ func TestSigningSyncPushTargetsFileValidationPrecedesPasswordAndClient(t *testin
 	writeSigningSyncTargetsFile(t, manifest, `{"schemaVersion":1,"targets":[{"bundleId":"com.example.app"}],"unexpected":true}`, 0o644)
 	t.Chdir(dir)
 	clientCalls := 0
-	clientFactory := func() (*asc.Client, error) {
+
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	d.Client = func() (*asc.Client, error) {
 		clientCalls++
 		return nil, errors.New("client must not be created")
 	}
-
-	d, depsStdout, depsStderr := newSigningTestDeps()
-	d.Client = clientFactory
 	cmd := syncPushCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
@@ -283,9 +281,6 @@ func runSigningSyncPushBatchForContext(t *testing.T, commandCtx context.Context)
 	t.Setenv("ASC_TIMEOUT", "40ms")
 
 	client := &asc.Client{}
-	clientFactory := func() (*asc.Client, error) {
-		return client, nil
-	}
 	originalRunner := runSigningSyncBatchForCommand
 	var received context.Context
 	runSigningSyncBatchForCommand = func(ctx context.Context, _ *shared.Deps, gotClient *asc.Client, options signingSyncBatchOptions) (SyncResult, error) {
@@ -298,7 +293,9 @@ func runSigningSyncPushBatchForContext(t *testing.T, commandCtx context.Context)
 	t.Cleanup(func() { runSigningSyncBatchForCommand = originalRunner })
 
 	d, depsStdout, _ := newSigningTestDeps()
-	d.Client = clientFactory
+	d.Client = func() (*asc.Client, error) {
+		return client, nil
+	}
 	cmd := syncPushCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
@@ -368,7 +365,6 @@ func TestSigningSyncPushBatchPropagatesCertificateCreationOptions(t *testing.T) 
 	t.Setenv(signingSyncPasswordEnvVar, "repository-password")
 
 	client := &asc.Client{}
-	clientFactory := func() (*asc.Client, error) { return client, nil }
 	originalRunner := runSigningSyncBatchForCommand
 	var received signingSyncBatchOptions
 	runSigningSyncBatchForCommand = func(_ context.Context, _ *shared.Deps, gotClient *asc.Client, options signingSyncBatchOptions) (SyncResult, error) {
@@ -382,7 +378,7 @@ func TestSigningSyncPushBatchPropagatesCertificateCreationOptions(t *testing.T) 
 	t.Cleanup(func() { runSigningSyncBatchForCommand = originalRunner })
 
 	d, _, _ := newSigningTestDeps()
-	d.Client = clientFactory
+	d.Client = func() (*asc.Client, error) { return client, nil }
 	cmd := syncPushCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{
