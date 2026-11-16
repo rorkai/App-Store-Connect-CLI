@@ -84,6 +84,76 @@ type RetentionMessageLocalizationUpdateAttributes struct {
 	Body   *NullableString `json:"body,omitempty"`
 }
 
+// RetentionMessageCreateAttributes is the data.attributes object of the RetentionMessageCreateRequest schema.
+type RetentionMessageCreateAttributes struct {
+	ReferenceName string `json:"referenceName"`
+}
+
+// RetentionMessageCreateRelationships is the data.relationships object of the RetentionMessageCreateRequest schema.
+type RetentionMessageCreateRelationships struct {
+	App *Relationship `json:"app"`
+}
+
+// RetentionMessageCreateData is the data object of the RetentionMessageCreateRequest schema.
+type RetentionMessageCreateData struct {
+	Type          ResourceType                         `json:"type"`
+	Attributes    RetentionMessageCreateAttributes     `json:"attributes"`
+	Relationships *RetentionMessageCreateRelationships `json:"relationships"`
+}
+
+// RetentionMessageCreateRequest is the RetentionMessageCreateRequest schema.
+type RetentionMessageCreateRequest struct {
+	Data RetentionMessageCreateData `json:"data"`
+}
+
+// RetentionMessageVersionCreateRelationships is the data.relationships object
+// of the RetentionMessageVersionCreateRequest schema, with the placement
+// declared first so the body lists its keys in alphabetical order.
+type RetentionMessageVersionCreateRelationships struct {
+	Placement        *Relationship `json:"placement,omitempty"`
+	RetentionMessage *Relationship `json:"retentionMessage"`
+}
+
+// RetentionMessageVersionCreateData is the data object of the RetentionMessageVersionCreateRequest schema.
+type RetentionMessageVersionCreateData struct {
+	Type          ResourceType                                `json:"type"`
+	Relationships *RetentionMessageVersionCreateRelationships `json:"relationships"`
+}
+
+// RetentionMessageVersionCreateRequest is the RetentionMessageVersionCreateRequest schema.
+type RetentionMessageVersionCreateRequest struct {
+	Data RetentionMessageVersionCreateData `json:"data"`
+}
+
+// RetentionMessageLocalizationCreateRelationships is the data.relationships object of the RetentionMessageLocalizationCreateRequest schema.
+type RetentionMessageLocalizationCreateRelationships struct {
+	RetentionMessageVersion *Relationship `json:"retentionMessageVersion"`
+}
+
+// RetentionMessageLocalizationCreateData is the data object of the RetentionMessageLocalizationCreateRequest schema.
+type RetentionMessageLocalizationCreateData struct {
+	Type          ResourceType                                     `json:"type"`
+	Attributes    RetentionMessageLocalizationCreateAttributes     `json:"attributes"`
+	Relationships *RetentionMessageLocalizationCreateRelationships `json:"relationships"`
+}
+
+// RetentionMessageLocalizationCreateRequest is the RetentionMessageLocalizationCreateRequest schema.
+type RetentionMessageLocalizationCreateRequest struct {
+	Data RetentionMessageLocalizationCreateData `json:"data"`
+}
+
+// RetentionMessageLocalizationUpdateData is the data object of the RetentionMessageLocalizationUpdateRequest schema.
+type RetentionMessageLocalizationUpdateData struct {
+	Type       ResourceType                                  `json:"type"`
+	ID         string                                        `json:"id"`
+	Attributes *RetentionMessageLocalizationUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// RetentionMessageLocalizationUpdateRequest is the RetentionMessageLocalizationUpdateRequest schema.
+type RetentionMessageLocalizationUpdateRequest struct {
+	Data RetentionMessageLocalizationUpdateData `json:"data"`
+}
+
 // RetentionMessagesOption configures a retention messaging read.
 type RetentionMessagesOption func(*retentionMessagesQuery)
 
@@ -104,17 +174,6 @@ func WithRetentionMessagesQuery(name string, values ...string) RetentionMessages
 	return func(q *retentionMessagesQuery) { addCSV(q.values, name, values) }
 }
 
-type retentionMessageWriteData struct {
-	Type          ResourceType            `json:"type"`
-	ID            string                  `json:"id,omitempty"`
-	Attributes    any                     `json:"attributes,omitempty"`
-	Relationships map[string]Relationship `json:"relationships,omitempty"`
-}
-
-type retentionMessageWriteRequest struct {
-	Data retentionMessageWriteData `json:"data"`
-}
-
 func getRetentionMessageRead[T any](c *Client, ctx context.Context, pathFormat, id string, opts []RetentionMessagesOption) (*T, error) {
 	q := &retentionMessagesQuery{values: url.Values{}}
 	for _, opt := range opts {
@@ -130,10 +189,6 @@ func getRetentionMessageRead[T any](c *Client, ctx context.Context, pathFormat, 
 		Next:        q.nextURL,
 		NextContext: "retention messages",
 	})
-}
-
-func writeRetentionMessageResource[T any](c *Client, ctx context.Context, method, path string, data retentionMessageWriteData) (*T, error) {
-	return sendJSON[T](ctx, c, writeRequest{Method: method, Path: path, Payload: retentionMessageWriteRequest{Data: data}})
 }
 
 func retentionMessageRelationship(resourceType ResourceType, id string) Relationship {
@@ -224,72 +279,133 @@ func (c *Client) GetSubscriptionRetentionMessageRelationship(ctx context.Context
 }
 
 // CreateRetentionMessage creates a retention message for an app.
-func (c *Client) CreateRetentionMessage(ctx context.Context, appID, referenceName string) (*RetentionMessageResponse, error) {
-	if err := requireRetentionMessageID("appID", appID); err != nil {
-		return nil, err
+func (c *Client) CreateRetentionMessage(ctx context.Context, appID string, referenceName string) (*RetentionMessageResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("appID is required")
 	}
-	return writeRetentionMessageResource[RetentionMessageResponse](c, ctx, http.MethodPost, "/v1/retentionMessages", retentionMessageWriteData{
-		Type:          ResourceTypeRetentionMessages,
-		Attributes:    map[string]string{"referenceName": referenceName},
-		Relationships: map[string]Relationship{"app": retentionMessageRelationship(ResourceTypeApps, appID)},
+	payload := RetentionMessageCreateRequest{
+		Data: RetentionMessageCreateData{
+			Type: ResourceTypeRetentionMessages,
+			Attributes: RetentionMessageCreateAttributes{
+				ReferenceName: referenceName,
+			},
+			Relationships: &RetentionMessageCreateRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[RetentionMessageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/retentionMessages",
+		Payload: payload,
 	})
 }
 
 // DeleteRetentionMessage deletes a retention message.
 func (c *Client) DeleteRetentionMessage(ctx context.Context, messageID string) error {
-	if err := requireRetentionMessageID("messageID", messageID); err != nil {
-		return err
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" {
+		return fmt.Errorf("messageID is required")
 	}
-	return sendNoContent(ctx, c, http.MethodDelete, "/v1/retentionMessages/"+strings.TrimSpace(messageID), nil)
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/retentionMessages/%s", messageID), nil)
 }
 
 // CreateRetentionMessageVersion creates a version of a retention message,
 // optionally linking an existing asset library placement.
-func (c *Client) CreateRetentionMessageVersion(ctx context.Context, messageID, placementID string) (*RetentionMessageVersionResponse, error) {
-	if err := requireRetentionMessageID("messageID", messageID); err != nil {
-		return nil, err
+func (c *Client) CreateRetentionMessageVersion(ctx context.Context, messageID string, placementID string) (*RetentionMessageVersionResponse, error) {
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" {
+		return nil, fmt.Errorf("messageID is required")
 	}
-	relationships := map[string]Relationship{"retentionMessage": retentionMessageRelationship(ResourceTypeRetentionMessages, messageID)}
-	if strings.TrimSpace(placementID) != "" {
-		relationships["placement"] = retentionMessageRelationship(ResourceTypeAppAssetLibraryPlacements, placementID)
+	relationships := &RetentionMessageVersionCreateRelationships{
+		RetentionMessage: &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeRetentionMessages,
+				ID:   messageID,
+			},
+		},
 	}
-	return writeRetentionMessageResource[RetentionMessageVersionResponse](c, ctx, http.MethodPost, "/v1/retentionMessageVersions", retentionMessageWriteData{
-		Type:          ResourceTypeRetentionMessageVersions,
-		Relationships: relationships,
+	if id := strings.TrimSpace(placementID); id != "" {
+		relationships.Placement = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeAppAssetLibraryPlacements,
+				ID:   id,
+			},
+		}
+	}
+	payload := RetentionMessageVersionCreateRequest{
+		Data: RetentionMessageVersionCreateData{
+			Type:          ResourceTypeRetentionMessageVersions,
+			Relationships: relationships,
+		},
+	}
+	return sendJSON[RetentionMessageVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/retentionMessageVersions",
+		Payload: payload,
 	})
 }
 
 // CreateRetentionMessageLocalization creates a localization for a retention message version.
 func (c *Client) CreateRetentionMessageLocalization(ctx context.Context, versionID string, attrs RetentionMessageLocalizationCreateAttributes) (*RetentionMessageLocalizationResponse, error) {
-	if err := requireRetentionMessageID("versionID", versionID); err != nil {
-		return nil, err
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
 	}
-	return writeRetentionMessageResource[RetentionMessageLocalizationResponse](c, ctx, http.MethodPost, "/v1/retentionMessageLocalizations", retentionMessageWriteData{
-		Type:          ResourceTypeRetentionMessageLocalizations,
-		Attributes:    attrs,
-		Relationships: map[string]Relationship{"retentionMessageVersion": retentionMessageRelationship(ResourceTypeRetentionMessageVersions, versionID)},
+	payload := RetentionMessageLocalizationCreateRequest{
+		Data: RetentionMessageLocalizationCreateData{
+			Type:       ResourceTypeRetentionMessageLocalizations,
+			Attributes: attrs,
+			Relationships: &RetentionMessageLocalizationCreateRelationships{
+				RetentionMessageVersion: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeRetentionMessageVersions,
+						ID:   versionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[RetentionMessageLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/retentionMessageLocalizations",
+		Payload: payload,
 	})
 }
 
 // UpdateRetentionMessageLocalization updates the header or body of a localization.
 func (c *Client) UpdateRetentionMessageLocalization(ctx context.Context, localizationID string, attrs RetentionMessageLocalizationUpdateAttributes) (*RetentionMessageLocalizationResponse, error) {
-	if err := requireRetentionMessageID("localizationID", localizationID); err != nil {
-		return nil, err
-	}
 	localizationID = strings.TrimSpace(localizationID)
-	return writeRetentionMessageResource[RetentionMessageLocalizationResponse](c, ctx, http.MethodPatch, "/v1/retentionMessageLocalizations/"+localizationID, retentionMessageWriteData{
-		Type:       ResourceTypeRetentionMessageLocalizations,
-		ID:         localizationID,
-		Attributes: attrs,
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	payload := RetentionMessageLocalizationUpdateRequest{
+		Data: RetentionMessageLocalizationUpdateData{
+			Type:       ResourceTypeRetentionMessageLocalizations,
+			ID:         localizationID,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[RetentionMessageLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/retentionMessageLocalizations/%s", localizationID),
+		Payload: payload,
 	})
 }
 
 // DeleteRetentionMessageLocalization deletes a retention message localization.
 func (c *Client) DeleteRetentionMessageLocalization(ctx context.Context, localizationID string) error {
-	if err := requireRetentionMessageID("localizationID", localizationID); err != nil {
-		return err
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
 	}
-	return sendNoContent(ctx, c, http.MethodDelete, "/v1/retentionMessageLocalizations/"+strings.TrimSpace(localizationID), nil)
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/retentionMessageLocalizations/%s", localizationID), nil)
 }
 
 // SetSubscriptionRetentionMessage assigns a retention message to a subscription,
