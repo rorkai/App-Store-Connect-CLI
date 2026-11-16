@@ -146,8 +146,18 @@ func (c *Client) GetAppRetentionMessages(ctx context.Context, appID string, opts
 }
 
 // GetAppRetentionMessagesRelationships lists retention message linkages for an app.
-func (c *Client) GetAppRetentionMessagesRelationships(ctx context.Context, appID string, opts ...RetentionMessagesOption) (*LinkagesResponse, error) {
-	return getRetentionMessageRead[LinkagesResponse](c, ctx, "/v1/apps/%s/relationships/retentionMessages", appID, opts)
+func (c *Client) GetAppRetentionMessagesRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("resource ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/relationships/retentionMessages", appID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retention messages",
+	})
 }
 
 // GetRetentionMessage retrieves a retention message.
@@ -161,8 +171,18 @@ func (c *Client) GetRetentionMessageVersions(ctx context.Context, messageID stri
 }
 
 // GetRetentionMessageVersionsRelationships lists version linkages of a retention message.
-func (c *Client) GetRetentionMessageVersionsRelationships(ctx context.Context, messageID string, opts ...RetentionMessagesOption) (*LinkagesResponse, error) {
-	return getRetentionMessageRead[LinkagesResponse](c, ctx, "/v1/retentionMessages/%s/relationships/versions", messageID, opts)
+func (c *Client) GetRetentionMessageVersionsRelationships(ctx context.Context, messageID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	messageID = strings.TrimSpace(messageID)
+	if query.nextURL == "" && messageID == "" {
+		return nil, fmt.Errorf("resource ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/retentionMessages/%s/relationships/versions", messageID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retention messages",
+	})
 }
 
 // GetRetentionMessageSubscriptions lists subscriptions assigned to a retention message.
@@ -171,8 +191,18 @@ func (c *Client) GetRetentionMessageSubscriptions(ctx context.Context, messageID
 }
 
 // GetRetentionMessageSubscriptionsRelationships lists subscription linkages of a retention message.
-func (c *Client) GetRetentionMessageSubscriptionsRelationships(ctx context.Context, messageID string, opts ...RetentionMessagesOption) (*LinkagesResponse, error) {
-	return getRetentionMessageRead[LinkagesResponse](c, ctx, "/v1/retentionMessages/%s/relationships/subscriptions", messageID, opts)
+func (c *Client) GetRetentionMessageSubscriptionsRelationships(ctx context.Context, messageID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	messageID = strings.TrimSpace(messageID)
+	if query.nextURL == "" && messageID == "" {
+		return nil, fmt.Errorf("resource ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/retentionMessages/%s/relationships/subscriptions", messageID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retention messages",
+	})
 }
 
 // GetRetentionMessageVersion retrieves a retention message version.
@@ -186,8 +216,18 @@ func (c *Client) GetRetentionMessageVersionLocalizations(ctx context.Context, ve
 }
 
 // GetRetentionMessageVersionLocalizationsRelationships lists localization linkages of a version.
-func (c *Client) GetRetentionMessageVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...RetentionMessagesOption) (*LinkagesResponse, error) {
-	return getRetentionMessageRead[LinkagesResponse](c, ctx, "/v1/retentionMessageVersions/%s/relationships/localizations", versionID, opts)
+func (c *Client) GetRetentionMessageVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("resource ID is required")
+	}
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/retentionMessageVersions/%s/relationships/localizations", versionID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "retention messages",
+	})
 }
 
 // GetRetentionMessageVersionPlacement retrieves the raw asset library placement of a version.

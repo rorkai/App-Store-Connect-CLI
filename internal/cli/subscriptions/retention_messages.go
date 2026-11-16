@@ -26,11 +26,25 @@ type retentionFilter struct {
 	allowed            []string
 }
 
-type retentionFetcher func(*asc.Client, context.Context, string, ...asc.RetentionMessagesOption) (any, error)
+// retentionPage is one request of a read: its next URL and page size, and the
+// options of reads that take the full retention query.
+type retentionPage struct {
+	next  string
+	limit int
+	opts  []asc.RetentionMessagesOption
+}
+
+type retentionFetcher func(*asc.Client, context.Context, string, retentionPage) (any, error)
 
 func retentionFetch[T any](fn func(*asc.Client, context.Context, string, ...asc.RetentionMessagesOption) (*T, error)) retentionFetcher {
-	return func(client *asc.Client, ctx context.Context, id string, opts ...asc.RetentionMessagesOption) (any, error) {
-		return fn(client, ctx, id, opts...)
+	return func(client *asc.Client, ctx context.Context, id string, page retentionPage) (any, error) {
+		return fn(client, ctx, id, page.opts...)
+	}
+}
+
+func retentionLinkagesFetch(fn func(*asc.Client, context.Context, string, ...asc.LinkagesOption) (*asc.LinkagesResponse, error)) retentionFetcher {
+	return func(client *asc.Client, ctx context.Context, id string, page retentionPage) (any, error) {
+		return fn(client, ctx, id, asc.NextURL[asc.LinkagesOption](page.next), asc.Limit[asc.LinkagesOption](page.limit))
 	}
 }
 
@@ -155,8 +169,9 @@ func retentionReadCommand(d *shared.Deps, r retentionRead) *ffcli.Command {
 				}
 				opts = append(opts, asc.WithRetentionMessagesQuery(f.param, values...))
 			}
+			pageLimit := 0
 			if limit != nil {
-				pageLimit := *limit
+				pageLimit = *limit
 				if *paginate && pageLimit == 0 {
 					pageLimit = 200
 				}
@@ -170,13 +185,13 @@ func retentionReadCommand(d *shared.Deps, r retentionRead) *ffcli.Command {
 			}
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
-			resp, err := r.fetch(client, requestCtx, id, opts...)
+			resp, err := r.fetch(client, requestCtx, id, retentionPage{next: nextURL, limit: pageLimit, opts: opts})
 			if err != nil {
 				return fmt.Errorf("%s: failed to fetch: %w", command, err)
 			}
 			if paginate != nil && *paginate {
 				resp, err = asc.PaginateAll(requestCtx, resp.(asc.PaginatedResponse), func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					page, err := r.fetch(client, ctx, id, asc.WithRetentionMessagesNextURL(nextURL))
+					page, err := r.fetch(client, ctx, id, retentionPage{next: nextURL, opts: []asc.RetentionMessagesOption{asc.WithRetentionMessagesNextURL(nextURL)}})
 					if err != nil {
 						return nil, err
 					}
@@ -604,10 +619,10 @@ func retentionMessageLinksCommand(d *shared.Deps) *ffcli.Command {
 		})
 	}
 	return retentionGroupCommand(d, "links", "View raw retention messaging relationship linkages.",
-		link("messages", "View retention message linkages for an app.", "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)", true, retentionFetch((*asc.Client).GetAppRetentionMessagesRelationships)),
-		link("versions", "View version linkages for a retention message.", "message-id", "retentionMessages", "Retention message ID", true, retentionFetch((*asc.Client).GetRetentionMessageVersionsRelationships)),
-		link("subscriptions", "View subscription linkages for a retention message.", "message-id", "retentionMessages", "Retention message ID", true, retentionFetch((*asc.Client).GetRetentionMessageSubscriptionsRelationships)),
-		link("localizations", "View localization linkages for a retention message version.", "version-id", "retentionMessageVersions", "Retention message version ID", true, retentionFetch((*asc.Client).GetRetentionMessageVersionLocalizationsRelationships)),
+		link("messages", "View retention message linkages for an app.", "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)", true, retentionLinkagesFetch((*asc.Client).GetAppRetentionMessagesRelationships)),
+		link("versions", "View version linkages for a retention message.", "message-id", "retentionMessages", "Retention message ID", true, retentionLinkagesFetch((*asc.Client).GetRetentionMessageVersionsRelationships)),
+		link("subscriptions", "View subscription linkages for a retention message.", "message-id", "retentionMessages", "Retention message ID", true, retentionLinkagesFetch((*asc.Client).GetRetentionMessageSubscriptionsRelationships)),
+		link("localizations", "View localization linkages for a retention message version.", "version-id", "retentionMessageVersions", "Retention message version ID", true, retentionLinkagesFetch((*asc.Client).GetRetentionMessageVersionLocalizationsRelationships)),
 		link("placement", "View the placement linkage for a retention message version.", "version-id", "retentionMessageVersions", "Retention message version ID", false, retentionFetch((*asc.Client).GetRetentionMessageVersionPlacementRelationship)),
 		link("assigned", "View the retention message linkage for a subscription.", "subscription-id", "subscriptions", "Subscription ID", false, retentionFetch((*asc.Client).GetSubscriptionRetentionMessageRelationship)),
 	)
