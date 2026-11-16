@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -1105,7 +1106,7 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	if caPath == "" {
 		return NewHTTPVerifier(&http.Client{Transport: transport}, timeout), nil
 	}
-	if transport != http.DefaultTransport {
+	if !IsDefaultHTTPTransport(transport) {
 		return nil, fmt.Errorf("AWS_CA_BUNDLE cannot be combined with a custom HTTP transport (%T); unset AWS_CA_BUNDLE or use the default transport", transport)
 	}
 	file, err := os.Open(caPath)
@@ -1135,6 +1136,18 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	clone := base.Clone()
 	clone.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
 	return NewHTTPVerifier(&http.Client{Transport: clone}, timeout), nil
+}
+
+// IsDefaultHTTPTransport reports whether transport is http.DefaultTransport
+// itself. A value whose dynamic type cannot be compared is never the default:
+// comparing it with == would panic.
+func IsDefaultHTTPTransport(transport http.RoundTripper) bool {
+	value := reflect.ValueOf(transport)
+	defaultValue := reflect.ValueOf(http.DefaultTransport)
+	if !value.IsValid() || !defaultValue.IsValid() || value.Type() != defaultValue.Type() || !value.Comparable() {
+		return false
+	}
+	return value.Equal(defaultValue)
 }
 
 func (v *HTTPVerifier) Verify(ctx context.Context, verification VerifyRequest) error {

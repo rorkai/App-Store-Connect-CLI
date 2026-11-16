@@ -79,7 +79,7 @@ func (verifier *publicationVerifier) Verify(ctx context.Context, request core.Ve
 // transport makes the store setup fail before any upload.
 func objectStoreHTTPClient(d *shared.Deps) *http.Client {
 	transport := d.HTTPTransport()
-	if transport == http.DefaultTransport {
+	if core.IsDefaultHTTPTransport(transport) {
 		return nil
 	}
 	return &http.Client{Transport: transport}

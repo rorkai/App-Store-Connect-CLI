@@ -1225,6 +1225,25 @@ func TestHTTPVerifierEnvironmentTrustTransportRule(t *testing.T) {
 			t.Fatalf("requests on the custom transport = %d, want none", requests)
 		}
 	})
+	t.Run("a transport that cannot be compared is never the default", func(t *testing.T) {
+		original := http.DefaultTransport
+		t.Cleanup(func() { http.DefaultTransport = original })
+		http.DefaultTransport = custom
+		wrapped := struct{ http.RoundTripper }{custom}
+		for name, transport := range map[string]http.RoundTripper{"same function type": custom, "struct holding a function": wrapped} {
+			if IsDefaultHTTPTransport(transport) {
+				t.Fatalf("%s: IsDefaultHTTPTransport() = true, want false", name)
+			}
+		}
+		http.DefaultTransport = wrapped
+		if IsDefaultHTTPTransport(wrapped) {
+			t.Fatal("struct holding a function: IsDefaultHTTPTransport() = true, want false")
+		}
+		t.Setenv("AWS_CA_BUNDLE", caPath)
+		if _, err := NewHTTPVerifierWithEnvironmentTrust(wrapped, time.Second); err == nil || !strings.Contains(err.Error(), "AWS_CA_BUNDLE cannot be combined with a custom HTTP transport") {
+			t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() error = %v, want the configuration error", err)
+		}
+	})
 }
 
 type publishVerifyRoundTripFunc func(*http.Request) (*http.Response, error)
