@@ -206,7 +206,7 @@ Examples:
 }
 
 func resolveReviewOverviewFlags(d *shared.Deps, appID, version, versionID, platform string) (string, string, string, string, error) {
-	resolvedAppID := shared.ResolveAppID(appID)
+	resolvedAppID := d.ResolveAppID(appID)
 	if strings.TrimSpace(resolvedAppID) == "" {
 		fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 		return "", "", "", "", shared.MissingRequiredUsageError("--app")

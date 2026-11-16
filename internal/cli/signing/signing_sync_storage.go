@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -59,21 +59,21 @@ func (f *signingSyncObjectFlags) options() signingpkg.ObjectStorageOptions {
 
 // parseSigningSyncObjectStorage validates the object storage locator without
 // reading credentials or contacting the network.
-func parseSigningSyncObjectStorage(flags *signingSyncObjectFlags) (signingpkg.ObjectStorageOptions, error) {
+func parseSigningSyncObjectStorage(d *shared.Deps, flags *signingSyncObjectFlags) (signingpkg.ObjectStorageOptions, error) {
 	options := flags.options()
 	if options.Bucket == "" {
-		return signingpkg.ObjectStorageOptions{}, shared.UsageErrorf("--object-bucket is required with --storage %s", signingSyncStorageObject)
+		return signingpkg.ObjectStorageOptions{}, d.UsageErrorf("--object-bucket is required with --storage %s", signingSyncStorageObject)
 	}
 	if err := signingpkg.ValidateObjectStorageOptions(options); err != nil {
-		return signingpkg.ObjectStorageOptions{}, shared.UsageError(err.Error())
+		return signingpkg.ObjectStorageOptions{}, d.UsageError(err.Error())
 	}
 	return options, nil
 }
 
-func rejectSigningSyncObjectFlags(provided map[string]bool) error {
+func rejectSigningSyncObjectFlags(d *shared.Deps, provided map[string]bool) error {
 	for _, name := range signingSyncObjectFlagNames {
 		if provided[name] {
-			return shared.UsageErrorf("--%s requires --storage %s", name, signingSyncStorageObject)
+			return d.UsageErrorf("--%s requires --storage %s", name, signingSyncStorageObject)
 		}
 	}
 	return nil
@@ -81,9 +81,9 @@ func rejectSigningSyncObjectFlags(provided map[string]bool) error {
 
 // newSigningSyncObjectStore resolves AWS configuration and credentials. It is
 // the first step that may contact the network.
-func newSigningSyncObjectStore(ctx context.Context, options signingpkg.ObjectStorageOptions) (*signingpkg.ObjectStorageStore, error) {
+func newSigningSyncObjectStore(ctx context.Context, d *shared.Deps, options signingpkg.ObjectStorageOptions) (*signingpkg.ObjectStorageStore, error) {
 	options.MaxArtifacts = maxEncryptedSigningFiles
-	options.RequestContext = shared.ContextWithTimeout
+	options.RequestContext = d.Timeout
 	return signingpkg.NewObjectStorageStore(ctx, options)
 }
 
@@ -140,7 +140,7 @@ func providedSigningSyncFlags(fs *flag.FlagSet) map[string]bool {
 	return provided
 }
 
-func parseSigningSyncStorage(fs *flag.FlagSet, flags *signingSyncStorageFlags, repoURL, branch string) (signingSyncStorageSelection, error) {
+func parseSigningSyncStorage(d *shared.Deps, fs *flag.FlagSet, flags *signingSyncStorageFlags, repoURL, branch string) (signingSyncStorageSelection, error) {
 	kind := strings.ToLower(strings.TrimSpace(*flags.storage))
 	provided := providedSigningSyncFlags(fs)
 	selection := signingSyncStorageSelection{
@@ -155,7 +155,7 @@ func parseSigningSyncStorage(fs *flag.FlagSet, flags *signingSyncStorageFlags, r
 	}
 
 	if kind != signingSyncStorageObject {
-		if err := rejectSigningSyncObjectFlags(provided); err != nil {
+		if err := rejectSigningSyncObjectFlags(d, provided); err != nil {
 			return signingSyncStorageSelection{}, err
 		}
 	}
@@ -164,78 +164,78 @@ func parseSigningSyncStorage(fs *flag.FlagSet, flags *signingSyncStorageFlags, r
 	case signingSyncStorageGit:
 		for _, name := range []string{"prefix", "region", "gitlab-host", "gitlab-project", "gitlab-token-file"} {
 			if provided[name] {
-				return signingSyncStorageSelection{}, shared.UsageErrorf("--%s requires --storage %s or --storage %s", name, signingSyncStorageGitLab, signingSyncStorageAWS)
+				return signingSyncStorageSelection{}, d.UsageErrorf("--%s requires --storage %s or --storage %s", name, signingSyncStorageGitLab, signingSyncStorageAWS)
 			}
 		}
 		if selection.repoURL == "" {
-			return signingSyncStorageSelection{}, shared.UsageError("--repo is required")
+			return signingSyncStorageSelection{}, d.UsageError("--repo is required")
 		}
 	case signingSyncStorageGitLab:
-		if err := rejectGitOnlySigningSyncFlags(provided, kind); err != nil {
+		if err := rejectGitOnlySigningSyncFlags(d, provided, kind); err != nil {
 			return signingSyncStorageSelection{}, err
 		}
 		if provided["region"] {
-			return signingSyncStorageSelection{}, shared.UsageErrorf("--region requires --storage %s", signingSyncStorageAWS)
+			return signingSyncStorageSelection{}, d.UsageErrorf("--region requires --storage %s", signingSyncStorageAWS)
 		}
 		if selection.gitlabProject == "" {
-			return signingSyncStorageSelection{}, shared.UsageErrorf("--gitlab-project is required with --storage %s", signingSyncStorageGitLab)
+			return signingSyncStorageSelection{}, d.UsageErrorf("--gitlab-project is required with --storage %s", signingSyncStorageGitLab)
 		}
 		if selection.prefix == "" {
-			return signingSyncStorageSelection{}, shared.UsageErrorf("--prefix is required with --storage %s", signingSyncStorageGitLab)
+			return signingSyncStorageSelection{}, d.UsageErrorf("--prefix is required with --storage %s", signingSyncStorageGitLab)
 		}
 		if selection.gitlabTokenFile == "" {
-			return signingSyncStorageSelection{}, shared.UsageErrorf("--gitlab-token-file is required with --storage %s", signingSyncStorageGitLab)
+			return signingSyncStorageSelection{}, d.UsageErrorf("--gitlab-token-file is required with --storage %s", signingSyncStorageGitLab)
 		}
 		if err := signingpkg.ValidateArtifactPrefix(selection.prefix); err != nil {
-			return signingSyncStorageSelection{}, shared.UsageError(err.Error())
+			return signingSyncStorageSelection{}, d.UsageError(err.Error())
 		}
 	case signingSyncStorageAWS:
-		if err := rejectGitOnlySigningSyncFlags(provided, kind); err != nil {
+		if err := rejectGitOnlySigningSyncFlags(d, provided, kind); err != nil {
 			return signingSyncStorageSelection{}, err
 		}
 		for _, name := range []string{"gitlab-host", "gitlab-project", "gitlab-token-file"} {
 			if provided[name] {
-				return signingSyncStorageSelection{}, shared.UsageErrorf("--%s requires --storage %s", name, signingSyncStorageGitLab)
+				return signingSyncStorageSelection{}, d.UsageErrorf("--%s requires --storage %s", name, signingSyncStorageGitLab)
 			}
 		}
 		if selection.prefix == "" {
-			return signingSyncStorageSelection{}, shared.UsageErrorf("--prefix is required with --storage %s", signingSyncStorageAWS)
+			return signingSyncStorageSelection{}, d.UsageErrorf("--prefix is required with --storage %s", signingSyncStorageAWS)
 		}
 		if selection.region == "" {
-			return signingSyncStorageSelection{}, shared.UsageErrorf("--region is required with --storage %s", signingSyncStorageAWS)
+			return signingSyncStorageSelection{}, d.UsageErrorf("--region is required with --storage %s", signingSyncStorageAWS)
 		}
 		if err := signingpkg.ValidateArtifactPrefix(selection.prefix); err != nil {
-			return signingSyncStorageSelection{}, shared.UsageError(err.Error())
+			return signingSyncStorageSelection{}, d.UsageError(err.Error())
 		}
 	case signingSyncStorageObject:
-		if err := rejectGitOnlySigningSyncFlags(provided, kind); err != nil {
+		if err := rejectGitOnlySigningSyncFlags(d, provided, kind); err != nil {
 			return signingSyncStorageSelection{}, err
 		}
 		for _, name := range []string{"prefix", "region"} {
 			if provided[name] {
-				return signingSyncStorageSelection{}, shared.UsageErrorf("--%s is not supported with --storage %s; use --object-%s", name, signingSyncStorageObject, name)
+				return signingSyncStorageSelection{}, d.UsageErrorf("--%s is not supported with --storage %s; use --object-%s", name, signingSyncStorageObject, name)
 			}
 		}
 		for _, name := range []string{"gitlab-host", "gitlab-project", "gitlab-token-file"} {
 			if provided[name] {
-				return signingSyncStorageSelection{}, shared.UsageErrorf("--%s requires --storage %s", name, signingSyncStorageGitLab)
+				return signingSyncStorageSelection{}, d.UsageErrorf("--%s requires --storage %s", name, signingSyncStorageGitLab)
 			}
 		}
-		objectOptions, err := parseSigningSyncObjectStorage(flags.object)
+		objectOptions, err := parseSigningSyncObjectStorage(d, flags.object)
 		if err != nil {
 			return signingSyncStorageSelection{}, err
 		}
 		selection.object = objectOptions
 	default:
-		return signingSyncStorageSelection{}, shared.UsageErrorf("unsupported --storage %q; use %s", kind, signingSyncStorageValues)
+		return signingSyncStorageSelection{}, d.UsageErrorf("unsupported --storage %q; use %s", kind, signingSyncStorageValues)
 	}
 	return selection, nil
 }
 
-func rejectGitOnlySigningSyncFlags(provided map[string]bool, kind string) error {
+func rejectGitOnlySigningSyncFlags(d *shared.Deps, provided map[string]bool, kind string) error {
 	for _, name := range []string{"repo", "branch"} {
 		if provided[name] {
-			return shared.UsageErrorf("--%s is only supported with --storage %s, not --storage %s", name, signingSyncStorageGit, kind)
+			return d.UsageErrorf("--%s is only supported with --storage %s, not --storage %s", name, signingSyncStorageGit, kind)
 		}
 	}
 	return nil
@@ -253,10 +253,10 @@ type signingSyncTransport interface {
 
 // transport resolves the selection into a usable backend. It is the first step
 // that reads a token file or contacts a remote service.
-func (s signingSyncStorageSelection) transport(ctx context.Context) (signingSyncTransport, error) {
+func (s signingSyncStorageSelection) transport(ctx context.Context, d *shared.Deps) (signingSyncTransport, error) {
 	switch s.kind {
 	case signingSyncStorageGit:
-		return signingSyncGitTransport{repoURL: s.repoURL, branch: s.branch}, nil
+		return signingSyncGitTransport{repoURL: s.repoURL, branch: s.branch, stderr: d.IO.ErrOut}, nil
 	case signingSyncStorageGitLab:
 		tokenData, err := readProtectedSecretFile(s.gitlabTokenFile, "GitLab token")
 		if err != nil {
@@ -264,7 +264,7 @@ func (s signingSyncStorageSelection) transport(ctx context.Context) (signingSync
 		}
 		token := trimPasswordFileNewline(string(tokenData))
 		if strings.TrimSpace(token) == "" {
-			return nil, shared.UsageError("GitLab token file is empty")
+			return nil, d.UsageError("GitLab token file is empty")
 		}
 		backend, err := signingpkg.NewGitLabSecureFilesStore(signingpkg.GitLabSecureFilesOptions{
 			Host:           s.gitlabHost,
@@ -272,47 +272,48 @@ func (s signingSyncStorageSelection) transport(ctx context.Context) (signingSync
 			Prefix:         s.prefix,
 			Token:          token,
 			MaxArtifacts:   maxEncryptedSigningFiles,
-			RequestContext: shared.ContextWithTimeout,
-			UploadContext:  shared.ContextWithUploadTimeout,
+			RequestContext: d.Timeout,
+			UploadContext:  d.UploadTimeout,
 		})
 		if err != nil {
-			return nil, shared.UsageError(err.Error())
+			return nil, d.UsageError(err.Error())
 		}
-		return signingSyncRemoteTransport{kind: s.kind, label: "GitLab Secure Files", backend: backend}, nil
+		return signingSyncRemoteTransport{kind: s.kind, label: "GitLab Secure Files", backend: backend, stderr: d.IO.ErrOut}, nil
 	case signingSyncStorageAWS:
 		backend, err := signingpkg.NewAWSSecretsManagerStore(ctx, signingpkg.AWSSecretsManagerOptions{
 			Region:         s.region,
 			Prefix:         s.prefix,
 			MaxArtifacts:   maxEncryptedSigningFiles,
-			RequestContext: shared.ContextWithTimeout,
+			RequestContext: d.Timeout,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("aws secrets manager: %w", err)
 		}
-		return signingSyncRemoteTransport{kind: s.kind, label: "AWS Secrets Manager", backend: backend}, nil
+		return signingSyncRemoteTransport{kind: s.kind, label: "AWS Secrets Manager", backend: backend, stderr: d.IO.ErrOut}, nil
 	case signingSyncStorageObject:
-		backend, err := newSigningSyncObjectStore(ctx, s.object)
+		backend, err := newSigningSyncObjectStore(ctx, d, s.object)
 		if err != nil {
 			return nil, err
 		}
-		return signingSyncRemoteTransport{kind: s.kind, label: "object storage", backend: backend}, nil
+		return signingSyncRemoteTransport{kind: s.kind, label: "object storage", backend: backend, stderr: d.IO.ErrOut}, nil
 	default:
-		return nil, shared.UsageErrorf("unsupported --storage %q; use %s", s.kind, signingSyncStorageValues)
+		return nil, d.UsageErrorf("unsupported --storage %q; use %s", s.kind, signingSyncStorageValues)
 	}
 }
 
 type signingSyncGitTransport struct {
 	repoURL string
 	branch  string
+	stderr  io.Writer
 }
 
 func (t signingSyncGitTransport) Fetch(ctx context.Context, store *signingpkg.GitStore, allowCreate bool) error {
-	fmt.Fprintln(os.Stderr, "Cloning signing repo...")
+	fmt.Fprintln(t.stderr, "Cloning signing repo...")
 	return store.Clone(ctx, allowCreate)
 }
 
 func (t signingSyncGitTransport) Publish(ctx context.Context, store *signingpkg.GitStore, message string) error {
-	fmt.Fprintln(os.Stderr, "Pushing to git...")
+	fmt.Fprintln(t.stderr, "Pushing to git...")
 	return store.CommitAndPush(ctx, message)
 }
 
@@ -342,15 +343,16 @@ type signingSyncRemoteTransport struct {
 	kind    string
 	label   string
 	backend signingSyncRemoteBackend
+	stderr  io.Writer
 }
 
 func (t signingSyncRemoteTransport) Fetch(ctx context.Context, store *signingpkg.GitStore, _ bool) error {
-	fmt.Fprintf(os.Stderr, "Fetching encrypted signing artifacts from %s...\n", t.label)
+	fmt.Fprintf(t.stderr, "Fetching encrypted signing artifacts from %s...\n", t.label)
 	return t.backend.Fetch(ctx, store)
 }
 
 func (t signingSyncRemoteTransport) Publish(ctx context.Context, store *signingpkg.GitStore, _ string) error {
-	fmt.Fprintf(os.Stderr, "Publishing encrypted signing artifacts to %s...\n", t.label)
+	fmt.Fprintf(t.stderr, "Publishing encrypted signing artifacts to %s...\n", t.label)
 	return t.backend.Publish(ctx, store)
 }
 

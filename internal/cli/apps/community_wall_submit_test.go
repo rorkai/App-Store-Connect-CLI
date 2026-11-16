@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -891,10 +892,11 @@ func TestCommunityWallIconForLinkUsesStorefrontCountry(t *testing.T) {
 func newWallSubmitTestDeps(now func() time.Time) (*shared.Deps, *bytes.Buffer) {
 	var stderr bytes.Buffer
 	return &shared.Deps{
-		IO:      &shared.IO{Out: io.Discard, ErrOut: &stderr},
-		Now:     now,
-		Timeout: shared.ContextWithTimeout,
-		After:   time.After,
+		IO:        &shared.IO{Out: io.Discard, ErrOut: &stderr},
+		Now:       now,
+		Timeout:   shared.ContextWithTimeout,
+		After:     time.After,
+		LookupEnv: os.LookupEnv,
 	}, &stderr
 }
 

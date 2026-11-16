@@ -15,7 +15,7 @@ import (
 )
 
 func TestSigningInventoryPageSizeReducesRequests(t *testing.T) {
-	withSigningFetchNow(t, time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC))
+	clock := func() time.Time { return time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC) }
 	tests := []struct {
 		name, path, resourceType string
 		fetch                    func(context.Context, *asc.Client) ([]string, error)
@@ -28,18 +28,18 @@ func TestSigningInventoryPageSizeReducesRequests(t *testing.T) {
 			return signingInventoryIDs(response.Data), nil
 		}},
 		{"active profiles", "/v1/bundleIds/bundle-main/profiles", "profiles", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			profiles, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE", signingFetchNowFn)
+			profiles, err := findActiveProfiles(ctx, client, "bundle-main", "IOS_APP_STORE", clock)
 			return signingInventoryIDs(profiles), err
 		}},
 		{"profile certificates", "/v1/profiles/profile-main/certificates", "certificates", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			response, err := findProfileCertificates(ctx, client, "profile-main", "IOS_DISTRIBUTION", signingFetchNowFn)
+			response, err := findProfileCertificates(ctx, client, "profile-main", "IOS_DISTRIBUTION", clock)
 			if err != nil {
 				return nil, err
 			}
 			return signingInventoryIDs(response.Data), nil
 		}},
 		{"stale profiles", "/v1/bundleIds/bundle-main/profiles", "profiles", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			profiles, err := findStaleSigningProfiles(ctx, client, "bundle-main", "IOS_APP_STORE", signingFetchNowFn)
+			profiles, err := findStaleSigningProfiles(ctx, client, "bundle-main", "IOS_APP_STORE", clock)
 			ids := make([]string, 0, len(profiles))
 			for _, profile := range profiles {
 				ids = append(ids, profile.ID)
@@ -47,7 +47,7 @@ func TestSigningInventoryPageSizeReducesRequests(t *testing.T) {
 			return ids, err
 		}},
 		{"latest expired profile", "/v1/bundleIds/bundle-main/profiles", "profiles", func(ctx context.Context, client *asc.Client) ([]string, error) {
-			profile, err := findLatestExpiredProfile(ctx, client, "bundle-main", "IOS_APP_STORE", signingFetchNowFn)
+			profile, err := findLatestExpiredProfile(ctx, client, "bundle-main", "IOS_APP_STORE", clock)
 			if err != nil || profile == nil {
 				return nil, err
 			}

@@ -16,7 +16,8 @@ import (
 )
 
 func TestSigningSyncRotatePasswordFlagsAreRegistered(t *testing.T) {
-	command := syncRotatePasswordCommand()
+	d, _, _ := newSigningTestDeps()
+	command := syncRotatePasswordCommand(d)
 	for _, name := range []string{"repo", "password-file", "new-password-file", "branch", "confirm"} {
 		flagDefinition := command.FlagSet.Lookup(name)
 		if flagDefinition == nil {
@@ -26,7 +27,8 @@ func TestSigningSyncRotatePasswordFlagsAreRegistered(t *testing.T) {
 }
 
 func TestSigningSyncRotatePasswordRequiresConfirmBeforeSecretReads(t *testing.T) {
-	command := syncRotatePasswordCommand()
+	d, _, _ := newSigningTestDeps()
+	command := syncRotatePasswordCommand(d)
 	if err := command.Parse([]string{
 		"--repo", "file:///repository-that-must-not-be-cloned",
 		"--password-file", filepath.Join(t.TempDir(), "missing-current"),
@@ -49,7 +51,8 @@ func TestSigningSyncRotatePasswordRejectsEqualPasswordsBeforeClone(t *testing.T)
 	writePrivateTestFile(t, currentPasswordFile, []byte("same-password\n"))
 	writePrivateTestFile(t, newPasswordFile, []byte("same-password\n"))
 
-	command := syncRotatePasswordCommand()
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	command := syncRotatePasswordCommand(d)
 	if err := command.Parse([]string{
 		"--repo", "file:///repository-that-must-not-be-cloned",
 		"--password-file", currentPasswordFile,
@@ -58,10 +61,9 @@ func TestSigningSyncRotatePasswordRejectsEqualPasswordsBeforeClone(t *testing.T)
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = command.Run(context.Background())
-	})
+	runErr := command.Run(context.Background())
+	stdout := depsStdout.String()
+	stderr := depsStderr.String()
 	if runErr == nil || runErr.Error() != "current and new signing sync passwords must differ" {
 		t.Fatalf("error = %v, want equal-password usage error", runErr)
 	}
@@ -119,7 +121,8 @@ func TestSigningSyncRotatePasswordReencryptsCompleteRepositoryAndIdentity(t *tes
 	writePrivateTestFile(t, currentPasswordFile, []byte(oldPassword+"\n"))
 	writePrivateTestFile(t, newPasswordFile, []byte(newPassword+"\n"))
 
-	command := syncRotatePasswordCommand()
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	command := syncRotatePasswordCommand(d)
 	if err := command.Parse([]string{
 		"--repo", remoteURL,
 		"--password-file", currentPasswordFile,
@@ -129,10 +132,9 @@ func TestSigningSyncRotatePasswordReencryptsCompleteRepositoryAndIdentity(t *tes
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = command.Run(context.Background())
-	})
+	runErr := command.Run(context.Background())
+	stdout := depsStdout.String()
+	stderr := depsStderr.String()
 	if runErr != nil {
 		t.Fatalf("rotate-password error = %v\nstderr=%s", runErr, stderr)
 	}
@@ -163,7 +165,7 @@ func TestSigningSyncRotatePasswordReencryptsCompleteRepositoryAndIdentity(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	decrypted, err := prepareDecryptedSigningFiles(verifyStore, encryptedFiles, newPassword, t.TempDir())
+	decrypted, err := prepareDecryptedSigningFiles(testSigningDeps(), verifyStore, encryptedFiles, newPassword, t.TempDir())
 	if err != nil {
 		t.Fatalf("new password rejected: %v", err)
 	}
@@ -230,7 +232,8 @@ func TestSigningSyncRotatePasswordDoesNotPublishWhenOneArtifactIsCorrupt(t *test
 	newPasswordFile := filepath.Join(t.TempDir(), "next")
 	writePrivateTestFile(t, currentPasswordFile, []byte(oldPassword))
 	writePrivateTestFile(t, newPasswordFile, []byte(newPassword))
-	command := syncRotatePasswordCommand()
+	d, _, _ := newSigningTestDeps()
+	command := syncRotatePasswordCommand(d)
 	if err := command.Parse([]string{
 		"--repo", remoteURL,
 		"--password-file", currentPasswordFile,
