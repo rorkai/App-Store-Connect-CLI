@@ -34,10 +34,8 @@ var (
 	resolvePublishAppIDWithLookupFn = func(ctx context.Context, client *asc.Client, appID string) (string, error) {
 		return shared.ResolveAppIDWithLookup(ctx, client, appID)
 	}
-	waitForPublishBuildProcessingFn = func(ctx context.Context, client *asc.Client, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-		return shared.WaitForBuildProcessingWithDetails(ctx, client, "", buildID, pollInterval)
-	}
-	applyPublishVersionMetadataFn = applyPublishVersionMetadata
+	waitForPublishBuildProcessingFn = (*shared.Deps).WaitForBuildProcessingWithDetails
+	applyPublishVersionMetadataFn   = applyPublishVersionMetadata
 )
 
 type publishLocalBuildFlagValues struct {

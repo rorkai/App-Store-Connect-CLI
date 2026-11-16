@@ -36,9 +36,7 @@ var (
 	resolveBuildUploadIDFn                = func(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt, exportCompletedAt time.Time, pollInterval time.Duration) (string, error) {
 		return waitForBuildUploadID(ctx, client, appID, version, buildNumber, platform, exportStartedAt, exportCompletedAt, pollInterval)
 	}
-	waitForBuildProcessingFn = func(ctx context.Context, client *asc.Client, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-		return shared.WaitForBuildProcessingWithDetails(ctx, client, "", buildID, pollInterval)
-	}
+	waitForBuildProcessingFn = (*shared.Deps).WaitForBuildProcessingWithDetails
 )
 
 const (
@@ -500,7 +498,7 @@ Examples:
 				}
 				discoveredBuildID := strings.TrimSpace(buildResp.Data.ID)
 				fmt.Fprintf(d.IO.ErrOut, "Build %s discovered; waiting for processing...\n", discoveredBuildID)
-				buildResp, err = waitForBuildProcessingFn(waitCtx, client, discoveredBuildID, *pollInterval)
+				buildResp, err = waitForBuildProcessingFn(d, waitCtx, client, "", discoveredBuildID, *pollInterval)
 				if err != nil {
 					return fmt.Errorf("xcode export: %w", err)
 				}
