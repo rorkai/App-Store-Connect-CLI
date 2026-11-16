@@ -576,7 +576,7 @@ func renderEqualizeFailures(failures []equalizeAttemptFailure) []equalizeFailure
 // --start-date is omitted, or the explicit start date, which must be after
 // today's US Pacific date.
 func normalizeEqualizeStartDate(d *shared.Deps, value string) (string, time.Time, error) {
-	today := subscriptionPricingToday()
+	today := subscriptionPricingToday(d)
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		return "", today, nil
@@ -604,7 +604,7 @@ func autoScheduleEqualizeStartDate(ctx context.Context, d *shared.Deps, client *
 	if err != nil {
 		return "", "", false, time.Time{}, fmt.Errorf("failed to inspect subscription state for auto scheduling: %w", err)
 	}
-	today := subscriptionPricingToday()
+	today := subscriptionPricingToday(d)
 	if !isApprovedOrLiveSubscriptionState(state) {
 		return "", state, false, today, nil
 	}
