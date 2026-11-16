@@ -999,11 +999,12 @@ func TestSigningRunCommandThreadsFlagsAndChildArgv(t *testing.T) {
 	previous := executeSigningRunFn
 	t.Cleanup(func() { executeSigningRunFn = previous })
 	var got signingRunOptions
-	executeSigningRunFn = func(_ context.Context, options signingRunOptions) error {
+	executeSigningRunFn = func(_ context.Context, _ *shared.Deps, options signingRunOptions) error {
 		got = options
 		return nil
 	}
-	command := SigningRunCommand()
+	d, _, _ := newSigningTestDeps()
+	command := newSigningRunCommand(d)
 	command.FlagSet.SetOutput(&strings.Builder{})
 	args := []string{
 		"--identity", "App.p12",
@@ -1032,7 +1033,7 @@ func TestSigningRunCommandThreadsFlagsAndChildArgv(t *testing.T) {
 func TestSigningRunCommandPreservesChildExitAndReceipt(t *testing.T) {
 	previous := executeSigningRunFn
 	var got signingRunOptions
-	executeSigningRunFn = func(_ context.Context, options signingRunOptions) error {
+	executeSigningRunFn = func(_ context.Context, _ *shared.Deps, options signingRunOptions) error {
 		got = options
 		return withSigningRunReceipt(io.Discard, options.ReceiptPath, func() (signingRunReceipt, error) {
 			return signingRunReceipt{
@@ -1046,7 +1047,8 @@ func TestSigningRunCommandPreservesChildExitAndReceipt(t *testing.T) {
 	t.Cleanup(func() { executeSigningRunFn = previous })
 
 	receiptPath := filepath.Join(t.TempDir(), "receipt.json")
-	command := SigningRunCommand()
+	d, _, _ := newSigningTestDeps()
+	command := newSigningRunCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.Parse([]string{
 		"--identity", "App.p12",
@@ -1090,7 +1092,8 @@ func TestSigningRunCommandValidation(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := SigningRunCommand()
+			d, _, _ := newSigningTestDeps()
+			command := newSigningRunCommand(d)
 			command.FlagSet.SetOutput(&strings.Builder{})
 			if err := command.Parse(test.args); err != nil {
 				t.Fatalf("parse: %v", err)
