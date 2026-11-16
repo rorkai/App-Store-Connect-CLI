@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -212,16 +211,9 @@ func selectDefaultAppStoreVersion(appID, source string, data []asc.Resource[asc.
 
 // ResolveAndAnnounceDefaultAppStoreVersion resolves the default App Store
 // version for commands whose --version flag was omitted, prints the selection
-// note to stderr, and maps platform ambiguity to an already-printed usage
+// note to d's stderr, and maps platform ambiguity to an already-printed usage
 // error (exit 2 without the full help page). overrideFlag is the flag name
 // shown in the note.
-func ResolveAndAnnounceDefaultAppStoreVersion(ctx context.Context, client *asc.Client, appID, platform, overrideFlag string) (DefaultAppStoreVersion, error) {
-	return resolveAndAnnounceDefaultAppStoreVersionTo(ctx, os.Stderr, client, appID, platform, overrideFlag)
-}
-
-// ResolveAndAnnounceDefaultAppStoreVersion is
-// ResolveAndAnnounceDefaultAppStoreVersion with the note and the "Error:" line
-// written to d's stderr.
 func (d *Deps) ResolveAndAnnounceDefaultAppStoreVersion(ctx context.Context, client *asc.Client, appID, platform, overrideFlag string) (DefaultAppStoreVersion, error) {
 	return resolveAndAnnounceDefaultAppStoreVersionTo(ctx, d.IO.ErrOut, client, appID, platform, overrideFlag)
 }

@@ -304,7 +304,7 @@ with a bundle-ID suffix):
    so its remaining 409s are state conflicts with nothing to key on.
 3. `if-exists-pricing`: `pricing availability create`. `update` routes to the
    same code path as `pricing availability edit`, through the exported
-   `shared.ApplyTerritoryAvailabilityUpdate`. Apple exposes no update operation
+   `d.ApplyTerritoryAvailabilityUpdate`. Apple exposes no update operation
    for `availableInNewTerritories`, so on `update` that flag is only verified
    against the existing policy and a mismatch fails; `--territory` and
    `--available` are applied. When every requested territory already matches,

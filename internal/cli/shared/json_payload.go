@@ -18,28 +18,15 @@ const (
 	JSONPayloadAny    JSONPayloadKind = "any"
 )
 
-// ReadJSONFilePayload loads a JSON object from a file path ("-" for standard
-// input) for commands that accept raw payload documents.
-func ReadJSONFilePayload(path string) (json.RawMessage, error) {
-	return ReadJSONFilePayloadKind(path, JSONPayloadObject)
-}
-
-// ReadJSONFilePayload is ReadJSONFilePayload with "-" read from d's stdin.
+// ReadJSONFilePayload loads a JSON object from a file path ("-" for d's stdin)
+// for commands that accept raw payload documents.
 func (d *Deps) ReadJSONFilePayload(path string) (json.RawMessage, error) {
 	return d.ReadJSONFilePayloadKind(path, JSONPayloadObject)
 }
 
-// ReadJSONFilePayloadKind loads a JSON payload from a file path ("-" for
-// standard input) and validates the requested top-level JSON shape.
-func ReadJSONFilePayloadKind(path string, kind JSONPayloadKind) (json.RawMessage, error) {
-	if path == "-" {
-		return readJSONStdinPayloadKind(os.Stdin, isTerminal(int(os.Stdin.Fd())), kind)
-	}
-	return readJSONFilePayloadKind(path, kind)
-}
-
-// ReadJSONFilePayloadKind is ReadJSONFilePayloadKind with "-" read from d's
-// stdin, refused when that stdin is a terminal.
+// ReadJSONFilePayloadKind loads a JSON payload from a file path ("-" for d's
+// stdin, refused when that stdin is a terminal) and validates the requested
+// top-level JSON shape.
 func (d *Deps) ReadJSONFilePayloadKind(path string, kind JSONPayloadKind) (json.RawMessage, error) {
 	if path == "-" {
 		return readJSONStdinPayloadKind(d.IO.In, d.IO.stdinTerminal(), kind)

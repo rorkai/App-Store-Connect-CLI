@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,13 +42,7 @@ type NextBuildNumberOptions struct {
 
 // ResolveLatestBuild finds the latest processed build matching the provided
 // app/version/platform filters. When allowEmpty is true, nil is returned when
-// no matching build exists.
-func ResolveLatestBuild(ctx context.Context, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*asc.BuildResponse, error) {
-	return resolveLatestBuildTo(ctx, os.Stderr, ResolveAppID, client, opts, allowEmpty)
-}
-
-// ResolveLatestBuild is ResolveLatestBuild with its notes and "Error:" lines
-// written to d's stderr.
+// no matching build exists. Its notes and "Error:" lines go to d's stderr.
 func (d *Deps) ResolveLatestBuild(ctx context.Context, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*asc.BuildResponse, error) {
 	return resolveLatestBuildTo(ctx, d.IO.ErrOut, d.ResolveAppID, client, opts, allowEmpty)
 }
@@ -63,13 +56,8 @@ func resolveLatestBuildTo(ctx context.Context, stderr io.Writer, resolveApp func
 }
 
 // NormalizeLatestBuildSelectionOptions validates and normalizes the common
-// version/platform filters shared by latest-build selection workflows.
-func NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
-	return normalizeLatestBuildSelectionOptionsTo(os.Stderr, ResolveAppID, appID, version, platform, processingState, excludeExpired)
-}
-
-// NormalizeLatestBuildSelectionOptions is NormalizeLatestBuildSelectionOptions
-// with the "Error:" line written to d's stderr.
+// version/platform filters shared by latest-build selection workflows. An
+// invalid value's "Error:" line goes to d's stderr.
 func (d *Deps) NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
 	return normalizeLatestBuildSelectionOptionsTo(d.IO.ErrOut, d.ResolveAppID, appID, version, platform, processingState, excludeExpired)
 }
@@ -102,13 +90,8 @@ func normalizeLatestBuildSelectionOptionsTo(stderr io.Writer, resolveApp func(st
 }
 
 // ResolveNextBuildNumber compares the highest observed processed build and
-// in-flight build upload numbers, then returns the next safe build number.
-func ResolveNextBuildNumber(ctx context.Context, client *asc.Client, opts NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
-	return resolveNextBuildNumberTo(ctx, os.Stderr, ResolveAppID, client, opts)
-}
-
-// ResolveNextBuildNumber is ResolveNextBuildNumber with its notes, warnings
-// and "Error:" lines written to d's stderr.
+// in-flight build upload numbers, then returns the next safe build number. Its
+// notes, warnings and "Error:" lines go to d's stderr.
 func (d *Deps) ResolveNextBuildNumber(ctx context.Context, client *asc.Client, opts NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
 	return resolveNextBuildNumberTo(ctx, d.IO.ErrOut, d.ResolveAppID, client, opts)
 }
@@ -534,27 +517,16 @@ func findHighestProcessedBuildNumber(
 // FindPreReleaseVersionIDs returns the exact-matching pre-release version IDs
 // for the provided app/version/platform filters. App Store Connect treats
 // "1.2" and "1.2.0" as the same version, so when the requested format matches
-// nothing the equivalent format is tried before reporting no match.
-func FindPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
-	return findPreReleaseVersionIDs(ctx, os.Stderr, client, appID, version, platform, 0)
-}
-
-// FindPreReleaseVersionIDs is FindPreReleaseVersionIDs with the
-// equivalent-version note written to d's stderr.
+// nothing the equivalent format is tried before reporting no match, with a note
+// on d's stderr.
 func (d *Deps) FindPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
 	return findPreReleaseVersionIDs(ctx, d.IO.ErrOut, client, appID, version, platform, 0)
 }
 
 // FindPreReleaseVersionIDsWithMaxPages is the bounded variant used by
 // selectors that must keep their complete lookup within a finite pagination
-// budget. The unbounded FindPreReleaseVersionIDs function remains available
-// for callers whose existing pagination semantics must not change.
-func FindPreReleaseVersionIDsWithMaxPages(ctx context.Context, client *asc.Client, appID, version, platform string, maxPages int) ([]string, error) {
-	return findPreReleaseVersionIDsWithMaxPagesTo(ctx, os.Stderr, client, appID, version, platform, maxPages)
-}
-
-// FindPreReleaseVersionIDsWithMaxPages is FindPreReleaseVersionIDsWithMaxPages
-// with the equivalent-version note written to d's stderr.
+// budget. The unbounded FindPreReleaseVersionIDs remains available for callers
+// whose existing pagination semantics must not change.
 func (d *Deps) FindPreReleaseVersionIDsWithMaxPages(ctx context.Context, client *asc.Client, appID, version, platform string, maxPages int) ([]string, error) {
 	return findPreReleaseVersionIDsWithMaxPagesTo(ctx, d.IO.ErrOut, client, appID, version, platform, maxPages)
 }

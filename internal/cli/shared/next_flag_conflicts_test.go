@@ -16,7 +16,7 @@ func TestRejectNextFlagConflictsDetectsExplicitDefaultValue(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RejectNextFlagConflicts(
+		err = DefaultDeps().RejectNextFlagConflicts(
 			fs,
 			"https://api.appstoreconnect.apple.com/v1/resources?cursor=next",
 			"resources list",
@@ -49,7 +49,7 @@ func TestRejectNextFlagConflictsAllowsUnrelatedFlags(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := RejectNextFlagConflicts(
+	if err := DefaultDeps().RejectNextFlagConflicts(
 		fs,
 		"https://api.appstoreconnect.apple.com/v1/resources?cursor=next",
 		"resources list",
@@ -66,7 +66,7 @@ func TestRejectNextFlagConflictsAllowsQueryFlagsWithoutNext(t *testing.T) {
 		t.Fatalf("Parse() error = %v", err)
 	}
 
-	if err := RejectNextFlagConflicts(fs, "", "resources list", "limit"); err != nil {
+	if err := DefaultDeps().RejectNextFlagConflicts(fs, "", "resources list", "limit"); err != nil {
 		t.Fatalf("RejectNextFlagConflicts() error = %v", err)
 	}
 }

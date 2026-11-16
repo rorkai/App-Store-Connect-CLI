@@ -45,9 +45,8 @@ func TestRunReconciledMutationNoReplayStopsAfterNegativeReadback(t *testing.T) {
 
 	mutations := 0
 	readbacks := 0
-	_, _, err := RunReconciledMutationNoReplay(
-		context.Background(),
-		func(context.Context) (string, error) {
+	_, _, err := RunReconciledMutationNoReplayWith(
+		context.Background(), DefaultDeps(), func(context.Context) (string, error) {
 			mutations++
 			return "", &asc.RetryableError{Err: &asc.APIError{StatusCode: http.StatusBadGateway}}
 		},
@@ -71,9 +70,8 @@ func TestRunReconciledMutationNoReplayRecoversOnDelayedReadback(t *testing.T) {
 
 	mutations := 0
 	readbacks := 0
-	value, status, err := RunReconciledMutationNoReplay(
-		context.Background(),
-		func(context.Context) (string, error) {
+	value, status, err := RunReconciledMutationNoReplayWith(
+		context.Background(), DefaultDeps(), func(context.Context) (string, error) {
 			mutations++
 			return "", &asc.RetryableError{Err: &asc.APIError{StatusCode: http.StatusBadGateway}}
 		},
@@ -94,9 +92,8 @@ func TestRunReconciledMutationNoReplayPreservesDeterministicFailure(t *testing.T
 	mutations := 0
 	readbacks := 0
 	wantErr := &asc.APIError{StatusCode: http.StatusUnprocessableEntity, Code: "INVALID_PRICE"}
-	_, _, err := RunReconciledMutationNoReplay(
-		context.Background(),
-		func(context.Context) (string, error) {
+	_, _, err := RunReconciledMutationNoReplayWith(
+		context.Background(), DefaultDeps(), func(context.Context) (string, error) {
 			mutations++
 			return "", wantErr
 		},
@@ -116,9 +113,8 @@ func TestRunReconciledMutationNoReplayPreservesDeterministicFailure(t *testing.T
 func TestRunReconciledMutationNoReplayDoesNotReadRateLimitRejection(t *testing.T) {
 	mutations := 0
 	readbacks := 0
-	_, _, err := RunReconciledMutationNoReplay(
-		context.Background(),
-		func(context.Context) (string, error) {
+	_, _, err := RunReconciledMutationNoReplayWith(
+		context.Background(), DefaultDeps(), func(context.Context) (string, error) {
 			mutations++
 			return "", &asc.RetryableError{Err: &asc.APIError{Code: "RATE_LIMIT_EXCEEDED", StatusCode: http.StatusTooManyRequests}}
 		},

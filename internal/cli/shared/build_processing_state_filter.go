@@ -3,7 +3,6 @@ package shared
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -26,12 +25,7 @@ type BuildProcessingStateFilterOptions struct {
 
 // NormalizeBuildProcessingStateFilter parses and validates CSV processing-state
 // filters (including "all"), deduplicates values, and applies optional aliases.
-func NormalizeBuildProcessingStateFilter(raw string, options BuildProcessingStateFilterOptions) ([]string, error) {
-	return normalizeBuildProcessingStateFilterTo(os.Stderr, raw, options)
-}
-
-// NormalizeBuildProcessingStateFilter is NormalizeBuildProcessingStateFilter
-// with the "Error:" line written to d's stderr.
+// An invalid value's "Error:" line goes to d's stderr.
 func (d *Deps) NormalizeBuildProcessingStateFilter(raw string, options BuildProcessingStateFilterOptions) ([]string, error) {
 	return normalizeBuildProcessingStateFilterTo(d.IO.ErrOut, raw, options)
 }

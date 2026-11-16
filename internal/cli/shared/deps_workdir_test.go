@@ -135,7 +135,7 @@ func TestDepsReportWritersMatchProcessVariants(t *testing.T) {
 			name: "DecompressGzipFile",
 			write: func(d *Deps, _ []byte) (int64, error) {
 				if d == nil {
-					return DecompressGzipFile("report.tsv.gz", "report.tsv")
+					return DefaultDeps().DecompressGzipFile("report.tsv.gz", "report.tsv")
 				}
 				return d.DecompressGzipFile("report.tsv.gz", "report.tsv")
 			},

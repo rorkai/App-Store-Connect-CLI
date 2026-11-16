@@ -56,7 +56,7 @@ func TestDecompressGzipFileRejectsSymlinkedOutputParent(t *testing.T) {
 	}
 
 	destination := filepath.Join(link, "artifact.txt")
-	if _, err := DecompressGzipFile(source, destination); err == nil {
+	if _, err := DefaultDeps().DecompressGzipFile(source, destination); err == nil {
 		t.Fatal("DecompressGzipFile() succeeded through a symlinked output parent")
 	}
 	if _, err := os.Stat(filepath.Join(outside, "artifact.txt")); !errors.Is(err, os.ErrNotExist) {
@@ -85,7 +85,7 @@ func TestDecompressGzipFileRejectsSymlinkedSourceParent(t *testing.T) {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 	destination := filepath.Join(root, "artifact.txt")
-	if _, err := DecompressGzipFile(filepath.Join(link, "source.gz"), destination); err == nil {
+	if _, err := DefaultDeps().DecompressGzipFile(filepath.Join(link, "source.gz"), destination); err == nil {
 		t.Fatal("DecompressGzipFile() read through a symlinked source parent")
 	}
 	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {

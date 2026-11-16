@@ -54,14 +54,8 @@ func spinnerEnabledFor(stdoutTTY, stderrTTY bool) bool {
 	return true
 }
 
-// WithSpinner runs fn while rendering a gh-style indeterminate spinner on stderr.
-// It is a no-op when SpinnerEnabled() is false.
-func WithSpinner(label string, fn func() error) (err error) {
-	return withSpinnerTo(os.Stderr, SpinnerEnabled, label, fn)
-}
-
-// WithSpinner is WithSpinner with the spinner on d's stderr, shown only when
-// d's stdout and stderr are terminals.
+// WithSpinner runs fn while rendering an indeterminate spinner on d's stderr,
+// shown only when d's stdout and stderr are terminals.
 func (d *Deps) WithSpinner(label string, fn func() error) error {
 	return withSpinnerTo(d.IO.ErrOut, d.SpinnerEnabled, label, fn)
 }
@@ -161,15 +155,10 @@ func spinnerDisabledByEnv() bool {
 // FetchFunc fetches the first page of a paginated resource.
 type FetchFunc func(ctx context.Context) (asc.PaginatedResponse, error)
 
-// PaginateWithSpinner fetches all pages with a spinner on stderr.
-// It wraps both the initial fetch and the pagination loop so the spinner
-// is visible even for single-page results.
-func PaginateWithSpinner(ctx context.Context, fetch FetchFunc, next asc.PaginateFunc) (asc.PaginatedResponse, error) {
-	return paginateWithSpinner(ctx, WithSpinner, fetch, next)
-}
-
-// PaginateWithSpinner is PaginateWithSpinner with the spinner on d's stderr,
-// shown only when d's stdout and stderr are terminals.
+// PaginateWithSpinner fetches all pages with a spinner on d's stderr, shown
+// only when d's stdout and stderr are terminals. It wraps both the initial
+// fetch and the pagination loop so the spinner is visible even for single-page
+// results.
 func (d *Deps) PaginateWithSpinner(ctx context.Context, fetch FetchFunc, next asc.PaginateFunc) (asc.PaginatedResponse, error) {
 	return paginateWithSpinner(ctx, d.WithSpinner, fetch, next)
 }

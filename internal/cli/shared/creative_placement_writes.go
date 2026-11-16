@@ -149,14 +149,9 @@ func creativePlacementWriteCommand(d *Deps, resource, prefix, label string, swap
 	}
 }
 
-// CreateLibraryPlacement assigns uploaded library media to one localization.
-// mediaRelationship is "image" or "video".
-func CreateLibraryPlacement(ctx context.Context, client *asc.Client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup string) (id, state string, err error) {
-	return createLibraryPlacement(ctx, ContextWithTimeout, client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup)
-}
-
-// CreateLibraryPlacement is CreateLibraryPlacement with the request deadline
-// from d.Timeout.
+// CreateLibraryPlacement assigns uploaded library media to one localization,
+// with the request deadline from d.Timeout. mediaRelationship is "image" or
+// "video".
 func (d *Deps) CreateLibraryPlacement(ctx context.Context, client *asc.Client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup string) (id, state string, err error) {
 	return createLibraryPlacement(ctx, d.Timeout, client, resource, localizationID, mediaRelationship, mediaID, placementType, placementGroup)
 }

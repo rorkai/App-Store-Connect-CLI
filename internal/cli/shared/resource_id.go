@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 
@@ -108,13 +107,7 @@ func (v *resourceIDValue) Get() any {
 // string default (for example one seeded from ASC_APP_ID) and so cannot be
 // bound with BindResourceIDFlag without changing its help text. It accepts an
 // apps self-link and reports a link of another type as a concise usage error
-// with the same message as a flag-parse failure.
-func AppIDFlagValue(value string) (string, error) {
-	return appIDFlagValueTo(os.Stderr, value)
-}
-
-// AppIDFlagValue is AppIDFlagValue with the "Error:" line written to d's
-// stderr.
+// with the same message as a flag-parse failure, written to d's stderr.
 func (d *Deps) AppIDFlagValue(value string) (string, error) {
 	return appIDFlagValueTo(d.IO.ErrOut, value)
 }

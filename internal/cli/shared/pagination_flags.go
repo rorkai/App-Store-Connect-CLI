@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 )
 
 // NextFlagUsage and PaginateFlagUsage are the --next and --paginate help lines
@@ -22,18 +21,12 @@ func LimitFlagUsage(limitMax int) string {
 }
 
 // ValidatePaginationFlags reports the first --limit or --next mistake of a
-// list command, in the order every list command checks them: a --limit
-// outside 1..limitMax (0 leaves it unset), a --next value that is not an App
-// Store Connect URL, then --limit or a flag in nextConflicts given together
-// with --next, which is requested verbatim. Each message starts with command,
-// the command path without "asc ", after the command-path rewrites carried by
-// ctx. Run it before the command's required-flag and filter checks.
-func ValidatePaginationFlags(ctx context.Context, fs *flag.FlagSet, command string, limitMax int, nextConflicts ...string) error {
-	return validatePaginationFlags(ctx, os.Stderr, fs, command, limitMax, nextConflicts...)
-}
-
-// ValidatePaginationFlags is ValidatePaginationFlags with the "Error:" line
-// written to d's stderr.
+// list command on d's stderr, in the order every list command checks them: a
+// --limit outside 1..limitMax (0 leaves it unset), a --next value that is not
+// an App Store Connect URL, then --limit or a flag in nextConflicts given
+// together with --next, which is requested verbatim. Each message starts with
+// command, the command path without "asc ", after the command-path rewrites
+// carried by ctx. Run it before the command's required-flag and filter checks.
 func (d *Deps) ValidatePaginationFlags(ctx context.Context, fs *flag.FlagSet, command string, limitMax int, nextConflicts ...string) error {
 	return validatePaginationFlags(ctx, d.IO.ErrOut, fs, command, limitMax, nextConflicts...)
 }

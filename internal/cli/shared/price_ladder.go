@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -74,12 +73,8 @@ func IsPriceDecimal(value string) bool {
 	return digits > 0
 }
 
-func ParsePriceRounding(value string) (PriceRounding, error) {
-	return parsePriceRoundingTo(os.Stderr, value)
-}
-
-// ParsePriceRounding is ParsePriceRounding with the "Error:" line written to
-// d's stderr.
+// ParsePriceRounding returns the --round mode named by value, or a usage error
+// with its "Error:" line on d's stderr.
 func (d *Deps) ParsePriceRounding(value string) (PriceRounding, error) {
 	return parsePriceRoundingTo(d.IO.ErrOut, value)
 }

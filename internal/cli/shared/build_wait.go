@@ -35,13 +35,8 @@ func ContextWithTimeoutDuration(ctx context.Context, timeout time.Duration) (con
 // WaitForBuildByNumberOrUploadFailure waits for a build matching version/build
 // number to appear while also watching the originating build upload for early
 // failure states. This prevents long hangs when App Store Connect rejects the
-// uploaded artifact before a build record is created.
-func WaitForBuildByNumberOrUploadFailure(ctx context.Context, client *asc.Client, appID, uploadID, version, buildNumber, platform string, pollInterval time.Duration) (*asc.BuildResponse, error) {
-	return waitForBuildByNumberOrUploadFailureTo(ctx, os.Stderr, client, appID, uploadID, version, buildNumber, platform, pollInterval)
-}
-
-// WaitForBuildByNumberOrUploadFailure is WaitForBuildByNumberOrUploadFailure
-// with the equivalent-version note written to d's stderr.
+// uploaded artifact before a build record is created. The equivalent-version
+// note goes to d's stderr.
 func (d *Deps) WaitForBuildByNumberOrUploadFailure(ctx context.Context, client *asc.Client, appID, uploadID, version, buildNumber, platform string, pollInterval time.Duration) (*asc.BuildResponse, error) {
 	return waitForBuildByNumberOrUploadFailureTo(ctx, d.IO.ErrOut, client, appID, uploadID, version, buildNumber, platform, pollInterval)
 }

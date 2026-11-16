@@ -55,7 +55,7 @@ func TestWaitForBuildByNumberOrUploadFailureRequestsLinkedBuildInclude(t *testin
 		}
 	})
 
-	buildResp, err := WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
+	buildResp, err := DefaultDeps().WaitForBuildByNumberOrUploadFailure(context.Background(), client, "app-1", "upload-current", "1.2.3", "42", "IOS", time.Millisecond)
 	if err != nil {
 		t.Fatalf("WaitForBuildByNumberOrUploadFailure() error: %v", err)
 	}

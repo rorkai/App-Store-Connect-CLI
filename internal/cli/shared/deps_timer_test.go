@@ -69,7 +69,7 @@ func TestDepsWaitHelpersMatchProcessVariants(t *testing.T) {
 		{name: "RunReconciledMutationNoReplay", waits: []time.Duration{time.Second}, run: func(t *testing.T, d *Deps) {
 			var err error
 			if d == nil {
-				_, _, err = RunReconciledMutationNoReplay(context.Background(), timedOut, noMatch)
+				_, _, err = RunReconciledMutationNoReplayWith(context.Background(), DefaultDeps(), timedOut, noMatch)
 			} else {
 				_, _, err = RunReconciledMutationNoReplayWith(context.Background(), d, timedOut, noMatch)
 			}

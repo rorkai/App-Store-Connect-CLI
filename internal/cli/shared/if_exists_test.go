@@ -15,7 +15,7 @@ func TestParseIfExistsModeAcceptsSupportedValuesOnly(t *testing.T) {
 	// explicit --if-exists "" (or an all-whitespace value). Accepting it would
 	// silently ignore an unsupported value.
 	for _, raw := range []string{"", "   "} {
-		_, err := ParseIfExistsMode(raw, IfExistsSkip)
+		_, err := DefaultDeps().ParseIfExistsMode(raw, IfExistsSkip)
 		if err == nil {
 			t.Fatalf("ParseIfExistsMode(%q) = nil error; want usage error", raw)
 		}
@@ -26,10 +26,10 @@ func TestParseIfExistsModeAcceptsSupportedValuesOnly(t *testing.T) {
 			t.Fatalf("ParseIfExistsMode(%q) = %v; want the supported modes listed", raw, err)
 		}
 	}
-	if mode, err := ParseIfExistsMode(" Skip ", IfExistsSkip); err != nil || mode != IfExistsSkip {
+	if mode, err := DefaultDeps().ParseIfExistsMode(" Skip ", IfExistsSkip); err != nil || mode != IfExistsSkip {
 		t.Fatalf("skip = %q, %v; want skip", mode, err)
 	}
-	_, err := ParseIfExistsMode("update", IfExistsSkip)
+	_, err := DefaultDeps().ParseIfExistsMode("update", IfExistsSkip)
 	if err == nil || !strings.Contains(err.Error(), "fail, skip") || strings.Contains(err.Error(), "update (got") {
 		t.Fatalf("unsupported update = %v; want usage error listing fail, skip", err)
 	}
