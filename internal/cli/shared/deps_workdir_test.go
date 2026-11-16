@@ -3,11 +3,16 @@ package shared
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestDefaultDepsGetwdMatchesProcess(t *testing.T) {
@@ -112,6 +117,9 @@ func TestDepsReportWritersMatchProcessVariants(t *testing.T) {
 		write  func(d *Deps, content []byte) (int64, error)
 		output string
 		source bool
+		// artifact rows write one new file with a generated name into the
+		// output directory on every call, whose JSON inputPath is the report.
+		artifact bool
 	}{
 		{
 			name: "WriteStreamToFile",
@@ -134,6 +142,37 @@ func TestDepsReportWritersMatchProcessVariants(t *testing.T) {
 			output: "report.tsv",
 			source: true,
 		},
+		{
+			name: "FinalizeLocalizationUploadResult",
+			write: func(d *Deps, content []byte) (int64, error) {
+				reader, err := gzip.NewReader(bytes.NewReader(content))
+				if err != nil {
+					return 0, err
+				}
+				input, err := io.ReadAll(reader)
+				if err != nil {
+					return 0, err
+				}
+				result := &asc.LocalizationUploadResult{
+					InputPath: string(input),
+					Results:   []asc.LocalizationUploadLocaleResult{{Locale: "en-US", Action: "update", Status: "failed", Error: "timeout"}},
+				}
+				if d == nil {
+					FinalizeLocalizationUploadResult(result, "publish")
+				} else {
+					d.FinalizeLocalizationUploadResult(result, "publish")
+				}
+				if result.FailureArtifactError != "" {
+					return 0, errors.New(result.FailureArtifactError)
+				}
+				if !strings.HasPrefix(result.FailureArtifactPath, filepath.Join(".asc", "reports", "localizations-upload")+string(filepath.Separator)) {
+					return 0, errors.New("artifact path " + result.FailureArtifactPath + " is not the relative report path")
+				}
+				return 0, nil
+			},
+			output:   filepath.Join(".asc", "reports", "localizations-upload"),
+			artifact: true,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			// The deps directory is reached through a symlink, so only a write
@@ -154,12 +193,31 @@ func TestDepsReportWritersMatchProcessVariants(t *testing.T) {
 				}
 			}
 			t.Chdir(dirs["process"])
-			d := &Deps{Getwd: func() (string, error) { return dirs["deps"], nil }}
+			d := &Deps{Getwd: func() (string, error) { return dirs["deps"], nil }, Now: time.Now}
 			run := map[string]func() (int64, error){
 				"process": func() (int64, error) { return test.write(nil, gzipped(t, reports["process"])) },
 				"deps":    func() (int64, error) { return test.write(d, gzipped(t, reports["deps"])) },
 			}
 
+			if test.artifact {
+				for _, name := range []string{"process", "deps"} {
+					if _, err := run[name](); err != nil {
+						t.Fatalf("%s form error = %v", name, err)
+					}
+				}
+				for name, dir := range dirs {
+					entries, err := os.ReadDir(filepath.Join(dir, test.output))
+					if err != nil || len(entries) != 1 {
+						t.Fatalf("%s in the %s directory = %v, %v; want one artifact", test.output, name, entries, err)
+					}
+					data, err := os.ReadFile(filepath.Join(dir, test.output, entries[0].Name()))
+					var artifact localizationUploadFailureArtifact
+					if err != nil || json.Unmarshal(data, &artifact) != nil || artifact.InputPath != reports[name] || artifact.Failed != 1 {
+						t.Fatalf("artifact in the %s directory = %s, %v; want the %s form's failures", name, data, err, name)
+					}
+				}
+				return
+			}
 			for _, name := range []string{"process", "deps"} {
 				size, err := run[name]()
 				if err != nil || size != int64(len(want[name])) {

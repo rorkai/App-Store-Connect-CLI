@@ -44,7 +44,7 @@ type signingCertificateCreateRequest struct {
 	Force           bool
 }
 
-func createMissingSigningCertificate(ctx context.Context, client *asc.Client, request signingCertificateCreateRequest) (asc.Resource[asc.CertificateAttributes], createdSigningIdentity, error) {
+func createMissingSigningCertificate(ctx context.Context, client *asc.Client, request signingCertificateCreateRequest, clock func() time.Time) (asc.Resource[asc.CertificateAttributes], createdSigningIdentity, error) {
 	certificateType := strings.TrimSpace(request.CertificateType)
 	if certificateType == "" {
 		return asc.Resource[asc.CertificateAttributes]{}, createdSigningIdentity{}, fmt.Errorf("certificate type is required")
@@ -127,7 +127,7 @@ func createMissingSigningCertificate(ctx context.Context, client *asc.Client, re
 	identity.CertificateSHA256 = hex.EncodeToString(sum[:])
 	identity.P12Path = request.P12Path
 	if created.Data.Attributes.ExpirationDate == "" {
-		created.Data.Attributes.ExpirationDate = time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339)
+		created.Data.Attributes.ExpirationDate = clock().Add(24 * time.Hour).UTC().Format(time.RFC3339)
 	}
 	return created.Data, identity, nil
 }

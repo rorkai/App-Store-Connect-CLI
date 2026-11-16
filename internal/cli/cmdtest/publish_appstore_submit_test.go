@@ -62,7 +62,7 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	}
 
 	requests := newRequestLog(20)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests.Add(req.Method + " " + req.URL.Path)
 		if resp, err, ok := respondToPublishAppLookup(t, req); ok {
 			return resp, err
@@ -149,29 +149,23 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
 			return nil, nil
 		}
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "appstore",
-			"--app", "app-1",
-			"--ipa", ipaPath,
-			"--version", "1.2.3",
-			"--build-number", "42",
-			"--submit",
-			"--confirm",
-			"--timeout", "1s",
-			"--poll-interval", "1ms",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
 	})
+	installDefaultTransport(t, rt)
+
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, rt), []string{
+		"publish", "appstore",
+		"--app", "app-1",
+		"--ipa", ipaPath,
+		"--version", "1.2.3",
+		"--build-number", "42",
+		"--submit",
+		"--confirm",
+		"--timeout", "1s",
+		"--poll-interval", "1ms",
+	}...)
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 
 	if stderr == "" {
 		t.Fatalf("expected progress output on stderr, got empty string")
@@ -223,7 +217,7 @@ func TestPublishAppStoreSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t
 	}
 
 	requests := newRequestLog(30)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests.Add(req.Method + " " + req.URL.Path)
 		if resp, err, ok := respondToPublishAppLookup(t, req); ok {
 			return resp, err
@@ -292,29 +286,23 @@ func TestPublishAppStoreSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t
 			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
 			return nil, nil
 		}
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "appstore",
-			"--app", "app-1",
-			"--ipa", ipaPath,
-			"--version", "1.2.3",
-			"--build-number", "42",
-			"--submit",
-			"--confirm",
-			"--output", "json",
-			"--poll-interval", "1ms",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
 	})
+	installDefaultTransport(t, rt)
+
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, rt), []string{
+		"publish", "appstore",
+		"--app", "app-1",
+		"--ipa", ipaPath,
+		"--version", "1.2.3",
+		"--build-number", "42",
+		"--submit",
+		"--confirm",
+		"--output", "json",
+		"--poll-interval", "1ms",
+	}...)
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 
 	if stderr == "" {
 		t.Fatalf("expected upload progress output on stderr, got empty string")
@@ -387,7 +375,7 @@ func runPublishAppStoreSubmitPreflightFailure(t *testing.T, localizations, appIn
 	}
 
 	buildAttachmentAttempted := false
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if resp, err, ok := respondToPublishAppLookup(t, req); ok {
 			return resp, err
 		}
@@ -440,28 +428,20 @@ func runPublishAppStoreSubmitPreflightFailure(t *testing.T, localizations, appIn
 			t.Fatalf("unexpected request during submit preflight failure: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
 			return nil, nil
 		}
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "appstore",
-			"--app", "app-1",
-			"--ipa", ipaPath,
-			"--version", "1.2.3",
-			"--build-number", "42",
-			"--submit",
-			"--confirm",
-			"--timeout", "1s",
-			"--poll-interval", "1ms",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
 	})
+	installDefaultTransport(t, rt)
+
+	_, stderr, runErr := runRootWithDeps(t, stubClient(t, rt), []string{
+		"publish", "appstore",
+		"--app", "app-1",
+		"--ipa", ipaPath,
+		"--version", "1.2.3",
+		"--build-number", "42",
+		"--submit",
+		"--confirm",
+		"--timeout", "1s",
+		"--poll-interval", "1ms",
+	}...)
 	if runErr == nil {
 		t.Fatal("expected submit preflight error, got nil")
 	}
@@ -499,27 +479,17 @@ func TestPublishAppStoreSubmitDryRunPrintsPlanWithoutMutations(t *testing.T) {
 	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"app-1"}}]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var stdout string
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "appstore",
-			"--app", "app-1",
-			"--ipa", ipaPath,
-			"--version", "1.2.3",
-			"--build-number", "42",
-			"--submit",
-			"--dry-run",
-			"--wait",
-			"--poll-interval", "1ms",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), []string{
+		"publish", "appstore",
+		"--app", "app-1",
+		"--ipa", ipaPath,
+		"--version", "1.2.3",
+		"--build-number", "42",
+		"--submit",
+		"--dry-run",
+		"--wait",
+		"--poll-interval", "1ms",
+	}...)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -607,26 +577,16 @@ func TestPublishAppStoreDryRunNumericAppIDDoesNotRequireAuth(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var stdout string
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "appstore",
-			"--app", "123456789",
-			"--ipa", ipaPath,
-			"--version", "1.2.3",
-			"--build-number", "42",
-			"--submit",
-			"--dry-run",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), []string{
+		"publish", "appstore",
+		"--app", "123456789",
+		"--ipa", ipaPath,
+		"--version", "1.2.3",
+		"--build-number", "42",
+		"--submit",
+		"--dry-run",
+		"--output", "json",
+	}...)
 	if runErr != nil {
 		t.Fatalf("expected authless dry-run to succeed, got %v", runErr)
 	}
