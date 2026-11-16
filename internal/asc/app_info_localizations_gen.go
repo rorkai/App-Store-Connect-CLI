@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+// AppInfoLocalizationCreateData is the data object of the AppInfoLocalizationCreateRequest schema.
+type AppInfoLocalizationCreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    AppInfoLocalizationCreateAttributes `json:"attributes"`
+	Relationships *AppInfoLocalizationRelationships   `json:"relationships"`
+}
+
 // AppInfoLocalizationCreateRequest is the AppInfoLocalizationCreateRequest schema.
 type AppInfoLocalizationCreateRequest struct {
 	Data AppInfoLocalizationCreateData `json:"data"`
@@ -27,6 +34,29 @@ type AppInfoLocalizationUpdateRequest struct {
 	Data AppInfoLocalizationUpdateData `json:"data"`
 }
 
+// CreateAppInfoLocalization sends POST /v1/appInfoLocalizations (appInfoLocalizations_createInstance).
+func (c *Client) CreateAppInfoLocalization(ctx context.Context, appInfoID string, attrs AppInfoLocalizationCreateAttributes) (*AppInfoLocalizationResponse, error) {
+	payload := AppInfoLocalizationCreateRequest{
+		Data: AppInfoLocalizationCreateData{
+			Type:       ResourceTypeAppInfoLocalizations,
+			Attributes: attrs,
+			Relationships: &AppInfoLocalizationRelationships{
+				AppInfo: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppInfos,
+						ID:   appInfoID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appInfoLocalizations",
+		Payload: payload,
+	})
+}
+
 // DeleteAppInfoLocalization sends DELETE /v1/appInfoLocalizations/{id} (appInfoLocalizations_deleteInstance).
 func (c *Client) DeleteAppInfoLocalization(ctx context.Context, localizationID string) error {
 	localizationID = strings.TrimSpace(localizationID)
@@ -34,4 +64,20 @@ func (c *Client) DeleteAppInfoLocalization(ctx context.Context, localizationID s
 		return fmt.Errorf("localizationID is required")
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), nil)
+}
+
+// UpdateAppInfoLocalization sends PATCH /v1/appInfoLocalizations/{id} (appInfoLocalizations_updateInstance).
+func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID string, attrs AppInfoLocalizationUpdateAttributes) (*AppInfoLocalizationResponse, error) {
+	payload := AppInfoLocalizationUpdateRequest{
+		Data: AppInfoLocalizationUpdateData{
+			Type:       ResourceTypeAppInfoLocalizations,
+			ID:         localizationID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID),
+		Payload: payload,
+	})
 }

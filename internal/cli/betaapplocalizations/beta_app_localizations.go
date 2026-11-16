@@ -185,7 +185,7 @@ Examples:
 				return d.UsageErrorfCtx(ctx, "beta-app-localizations create: %v", err)
 			}
 
-			attrs := asc.BetaAppLocalizationAttributes{
+			attrs := asc.BetaAppLocalizationCreateAttributes{
 				Locale: localeValue,
 			}
 

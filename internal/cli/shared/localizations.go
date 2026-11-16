@@ -187,13 +187,13 @@ func ValidateAppInfoLocalizationValueSet(valuesByLocale map[string]map[string]st
 
 type versionLocalizationClient interface {
 	GetAppStoreVersionLocalizations(context.Context, string, ...asc.AppStoreVersionLocalizationsOption) (*asc.AppStoreVersionLocalizationsResponse, error)
-	CreateAppStoreVersionLocalization(context.Context, string, asc.AppStoreVersionLocalizationAttributes) (*asc.AppStoreVersionLocalizationResponse, error)
+	CreateAppStoreVersionLocalization(context.Context, string, asc.AppStoreVersionLocalizationCreateAttributes) (*asc.AppStoreVersionLocalizationResponse, error)
 	UpdateAppStoreVersionLocalizationFields(context.Context, string, map[string]string) (*asc.AppStoreVersionLocalizationResponse, error)
 }
 
 type appInfoLocalizationClient interface {
 	GetAppInfoLocalizations(context.Context, string, ...asc.AppInfoLocalizationsOption) (*asc.AppInfoLocalizationsResponse, error)
-	CreateAppInfoLocalization(context.Context, string, asc.AppInfoLocalizationAttributes) (*asc.AppInfoLocalizationResponse, error)
+	CreateAppInfoLocalization(context.Context, string, asc.AppInfoLocalizationCreateAttributes) (*asc.AppInfoLocalizationResponse, error)
 	UpdateAppInfoLocalizationFields(context.Context, string, map[string]string) (*asc.AppInfoLocalizationResponse, error)
 }
 
@@ -506,7 +506,7 @@ func uploadPrevalidatedVersionLocalizationsWithWarningsTo(ctx context.Context, s
 			id, reconciled, err := runLocalizationMutationWithReadback(
 				ctx,
 				func(requestCtx context.Context) (string, error) {
-					resp, err := client.CreateAppStoreVersionLocalization(requestCtx, versionID, attributes)
+					resp, err := client.CreateAppStoreVersionLocalization(requestCtx, versionID, attributes.CreateAttributes())
 					if err != nil {
 						return "", err
 					}
@@ -600,7 +600,7 @@ func UploadAppInfoLocalizations(ctx context.Context, client appInfoLocalizationC
 			id, reconciled, err := runLocalizationMutationWithReadback(
 				ctx,
 				func(requestCtx context.Context) (string, error) {
-					resp, err := client.CreateAppInfoLocalization(requestCtx, appInfoID, attributes)
+					resp, err := client.CreateAppInfoLocalization(requestCtx, appInfoID, attributes.CreateAttributes())
 					if err != nil {
 						return "", err
 					}

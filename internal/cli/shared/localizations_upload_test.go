@@ -25,7 +25,7 @@ type stubVersionLocalizationClient struct {
 	onGet    func(context.Context, int)
 
 	createErrs        []error
-	createCalls       []asc.AppStoreVersionLocalizationAttributes
+	createCalls       []asc.AppStoreVersionLocalizationCreateAttributes
 	updateErrs        []error
 	updateCalls       []asc.AppStoreVersionLocalizationAttributes
 	updateFieldsCalls []map[string]string
@@ -42,7 +42,7 @@ type stubAppInfoLocalizationClient struct {
 	getErrs     []error
 	getCalls    int
 	createErrs  []error
-	createCalls []asc.AppInfoLocalizationAttributes
+	createCalls []asc.AppInfoLocalizationCreateAttributes
 	updateErrs  []error
 	updateCalls []map[string]string
 	onGet       func(context.Context, int)
@@ -63,13 +63,20 @@ func (s *stubAppInfoLocalizationClient) GetAppInfoLocalizations(ctx context.Cont
 	return s.getResp, nil
 }
 
-func (s *stubAppInfoLocalizationClient) CreateAppInfoLocalization(_ context.Context, _ string, attrs asc.AppInfoLocalizationAttributes) (*asc.AppInfoLocalizationResponse, error) {
+func (s *stubAppInfoLocalizationClient) CreateAppInfoLocalization(_ context.Context, _ string, attrs asc.AppInfoLocalizationCreateAttributes) (*asc.AppInfoLocalizationResponse, error) {
 	s.createCalls = append(s.createCalls, attrs)
 	index := len(s.createCalls) - 1
 	if index < len(s.createErrs) && s.createErrs[index] != nil {
 		return nil, s.createErrs[index]
 	}
-	return &asc.AppInfoLocalizationResponse{Data: asc.Resource[asc.AppInfoLocalizationAttributes]{ID: "created-id", Attributes: attrs}}, nil
+	return &asc.AppInfoLocalizationResponse{Data: asc.Resource[asc.AppInfoLocalizationAttributes]{ID: "created-id", Attributes: asc.AppInfoLocalizationAttributes{
+		Locale:            attrs.Locale,
+		Name:              attrs.Name,
+		Subtitle:          attrs.Subtitle,
+		PrivacyPolicyURL:  attrs.PrivacyPolicyURL,
+		PrivacyChoicesURL: attrs.PrivacyChoicesURL,
+		PrivacyPolicyText: attrs.PrivacyPolicyText,
+	}}}, nil
 }
 
 func (s *stubAppInfoLocalizationClient) UpdateAppInfoLocalizationFields(_ context.Context, id string, fields map[string]string) (*asc.AppInfoLocalizationResponse, error) {
@@ -95,7 +102,7 @@ func (c *expiringVersionLocalizationClient) GetAppStoreVersionLocalizations(ctx 
 	}}, nil
 }
 
-func (c *expiringVersionLocalizationClient) CreateAppStoreVersionLocalization(context.Context, string, asc.AppStoreVersionLocalizationAttributes) (*asc.AppStoreVersionLocalizationResponse, error) {
+func (c *expiringVersionLocalizationClient) CreateAppStoreVersionLocalization(context.Context, string, asc.AppStoreVersionLocalizationCreateAttributes) (*asc.AppStoreVersionLocalizationResponse, error) {
 	return nil, errors.New("unexpected create")
 }
 
@@ -123,7 +130,7 @@ func (s *stubVersionLocalizationClient) GetAppStoreVersionLocalizations(ctx cont
 	return s.getResp, nil
 }
 
-func (s *stubVersionLocalizationClient) CreateAppStoreVersionLocalization(_ context.Context, _ string, attrs asc.AppStoreVersionLocalizationAttributes) (*asc.AppStoreVersionLocalizationResponse, error) {
+func (s *stubVersionLocalizationClient) CreateAppStoreVersionLocalization(_ context.Context, _ string, attrs asc.AppStoreVersionLocalizationCreateAttributes) (*asc.AppStoreVersionLocalizationResponse, error) {
 	s.createCalls = append(s.createCalls, attrs)
 	callIndex := len(s.createCalls) - 1
 	if callIndex < len(s.createErrs) && s.createErrs[callIndex] != nil {
