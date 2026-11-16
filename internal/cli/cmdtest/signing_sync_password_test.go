@@ -35,10 +35,7 @@ func TestSigningSyncRejectsRemovedPasswordFlagAsUnknown(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("ASC_SIGNING_SYNC_PASSWORD", "")
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(tt.args, "test")
-			})
+			stdout, stderr, code := runWithDeps(t, nil, tt.args...)
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitUsage, stderr)
 			}

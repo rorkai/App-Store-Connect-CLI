@@ -63,7 +63,7 @@ Examples:
 				selectionCount++
 			}
 			if selectionCount == 0 {
-				appFlag = shared.ResolveAppID(*appID)
+				appFlag = d.ResolveAppID(*appID)
 				if appFlag == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app, --build-id, or --diagnostic-id is required")
 					return shared.MissingRequiredUsageError("")

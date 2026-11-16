@@ -28,7 +28,7 @@ Examples:
   asc performance overview --app "APP_ID" --device-type "iPhone15,2"`,
 		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolved := strings.TrimSpace(shared.ResolveAppID(*appID))
+			resolved := strings.TrimSpace(d.ResolveAppID(*appID))
 			if resolved == "" {
 				return d.UsageError("performance overview: --app is required (or set ASC_APP_ID)")
 			}

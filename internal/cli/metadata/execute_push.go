@@ -43,7 +43,7 @@ func ExecutePushWith(ctx context.Context, d *shared.Deps, opts PushExecutionOpti
 // submission warnings for callers that need to emit them after output succeeds.
 func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecutionOptions) (PushPlanResult, []shared.SubmitReadinessCreateWarning, error) {
 	errorPrefix := metadataMutationErrorPrefix(opts.CommandName)
-	resolvedAppID := shared.ResolveAppID(opts.AppID)
+	resolvedAppID := d.ResolveAppID(opts.AppID)
 	if resolvedAppID == "" {
 		return PushPlanResult{}, nil, metadataRequiredInputError(d, "--app", "--app is required (or set ASC_APP_ID)")
 	}

@@ -1,6 +1,7 @@
 package testflight
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -8,7 +9,7 @@ import (
 )
 
 func TestFlightDistributionEditDoesNotRegisterExternalTesting(t *testing.T) {
-	distribution := newTestFlightDistributionCommand(&shared.Deps{IO: &shared.IO{}})
+	distribution := newTestFlightDistributionCommand(&shared.Deps{IO: &shared.IO{}, LookupEnv: os.LookupEnv})
 	var editCommandFound bool
 	for _, subcommand := range distribution.Subcommands {
 		if subcommand.Name != "edit" {

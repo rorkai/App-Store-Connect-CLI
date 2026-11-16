@@ -29,14 +29,14 @@ func newPricingPPPCommand(d *shared.Deps) *ffcli.Command {
 			appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 			return shared.PriceSchedulePPPResource{
 				Validate: func() error {
-					if shared.ResolveAppID(*appID) == "" {
+					if d.ResolveAppID(*appID) == "" {
 						fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 						return shared.MissingRequiredUsageError("--app")
 					}
 					return nil
 				},
 				Resolve: func(ctx context.Context, client *asc.Client) (shared.PriceSchedulePPPSurface, error) {
-					return appPPPSurface(d, client, shared.ResolveAppID(*appID)), nil
+					return appPPPSurface(d, client, d.ResolveAppID(*appID)), nil
 				},
 			}
 		},
