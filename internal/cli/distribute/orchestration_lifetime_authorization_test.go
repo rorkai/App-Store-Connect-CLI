@@ -50,12 +50,12 @@ func TestExecuteDistributionPlanRejectsIdentityTooShortForPrivatePublicationBefo
 	deps.readConfig = func(string) (distributionConfig, string, error) {
 		return config, testDistributionConfigSHA256(), nil
 	}
-	deps.inspectIdentity = func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+	deps.inspectIdentity = func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 		identity := validDistributionIdentity(now)
 		identity.NotAfter = now.Add(48 * time.Hour)
 		return identity, nil
 	}
-	deps.reconcilePlan = func(context.Context, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+	deps.reconcilePlan = func(context.Context, *shared.Deps, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 		t.Fatal("account reconciliation planning ran for an identity that cannot cover the publication lifetime")
 		return signing.ReconcilePlanView{}, nil
 	}
@@ -89,11 +89,11 @@ func TestExecuteDistributionPlanBindsEffectivePublicationValidityPolicy(t *testi
 	deps.readConfig = func(string) (distributionConfig, string, error) {
 		return config, testDistributionConfigSHA256(), nil
 	}
-	deps.inspectIdentity = func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+	deps.inspectIdentity = func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 		return identity, nil
 	}
 	var nestedPlan signing.ReconcilePlanView
-	deps.reconcilePlan = func(_ context.Context, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+	deps.reconcilePlan = func(_ context.Context, _ *shared.Deps, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 		if options.MinimumValidityDays != 8 {
 			t.Fatalf("nested minimum validity = %d, want 8", options.MinimumValidityDays)
 		}
@@ -181,7 +181,7 @@ func TestDistributionShortCredentialPreflightStopsBeforeAccountMutation(t *testi
 	deps.preflightPublish = func(context.Context, *shared.Deps, distributionPublicationConfig) error {
 		return errDistributionPublicationCredentialsExpireTooSoon
 	}
-	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		t.Fatal("account reconciliation mutated after credential lifetime preflight failed")
 		return signing.ReconcileReceiptView{}, nil
 	}

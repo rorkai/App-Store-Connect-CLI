@@ -37,8 +37,8 @@ func executeSigningReconcileApplyPlan(ctx context.Context, d *shared.Deps, plan 
 	return executeSigningReconcileApplyPlanWithUsage(ctx, d, plan, d.UsageError)
 }
 
-func executeSigningReconcileApplyPlanSilent(ctx context.Context, plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
-	return executeSigningReconcileApplyPlanWithUsage(ctx, shared.DefaultDeps(), plan, func(message string) error {
+func executeSigningReconcileApplyPlanSilent(ctx context.Context, d *shared.Deps, plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
+	return executeSigningReconcileApplyPlanWithUsage(ctx, d, plan, func(message string) error {
 		return errors.New(message)
 	})
 }

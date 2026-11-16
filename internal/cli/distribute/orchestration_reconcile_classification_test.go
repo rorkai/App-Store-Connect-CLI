@@ -45,7 +45,7 @@ func TestDistributionApplyCheckpointsClosedReconcileFailureClassification(t *tes
 				checkpoints = append(checkpoints, state)
 				return nil
 			}
-			deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+			deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 				return signing.ReconcileReceiptView{}, test.err(t)
 			}
 			deps.writeExportOptions = func(context.Context, localxcode.ManualReleaseTestingExportOptions) (*localxcode.ManualReleaseTestingExportOptionsResult, error) {
@@ -109,7 +109,7 @@ func TestDistributionResumeCheckpointsClosedReconcileVerificationClassification(
 				checkpoints = append(checkpoints, state)
 				return nil
 			}
-			deps.verifyReconcile = func(context.Context, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
+			deps.verifyReconcile = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
 				return signing.ReconcileReceiptView{}, test.err(t)
 			}
 			deps.publish = func(context.Context, *shared.Deps, privatePublishIntentRequest) (publishExecutionResult, error) {
@@ -140,7 +140,7 @@ func newRetryableReconcileExecutionError(t *testing.T) error {
 
 func newInvalidReconcileExecutionError(t *testing.T) error {
 	t.Helper()
-	_, err := signing.ExecuteReconcileApply(context.Background(), signing.ReconcileApplyOptions{})
+	_, err := signing.ExecuteReconcileApply(context.Background(), newDistributeTestDeps(), signing.ReconcileApplyOptions{})
 	if err == nil || signing.ClassifyReconcileExecutionError(err) != signing.ReconcileExecutionErrorPlanInvalid {
 		t.Fatalf("invalid reconcile error fixture = %v", err)
 	}

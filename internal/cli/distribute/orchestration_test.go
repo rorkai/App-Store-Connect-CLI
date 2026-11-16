@@ -65,7 +65,7 @@ func TestExecuteDistributionPlanUsesExactLocalIdentityBeforeAccountPlanning(t *t
 		}
 		return testDistributionDeviceFileSHA256, nil
 	}
-	deps.inspectIdentity = func(_ context.Context, options signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+	deps.inspectIdentity = func(_ context.Context, _ *shared.Deps, options signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 		calls = append(calls, "inspect_identity")
 		wantIdentity := filepath.Join(configDir, "secrets", "distribution.p12")
 		wantPassword := filepath.Join(configDir, "secrets", "password.txt")
@@ -82,7 +82,7 @@ func TestExecuteDistributionPlanUsesExactLocalIdentityBeforeAccountPlanning(t *t
 		return validDistributionArchiveSnapshot(), nil
 	}
 	var nestedPlan signing.ReconcilePlanView
-	deps.reconcilePlan = func(_ context.Context, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+	deps.reconcilePlan = func(_ context.Context, _ *shared.Deps, options signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 		calls = append(calls, "reconcile_plan")
 		if !containsString(calls, "inspect_identity") {
 			t.Fatal("account reconciliation planning started before local PKCS#12 inspection")
@@ -415,10 +415,10 @@ func TestExecuteDistributionPlanRejectsIdentityDriftBeforeAccountPlanning(t *tes
 			plannerCalls := 0
 			deps := validDistributionOrchestrationDependencies(t)
 			deps.readConfig = func(string) (distributionConfig, string, error) { return config, testDistributionConfigSHA256(), nil }
-			deps.inspectIdentity = func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+			deps.inspectIdentity = func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 				return local, nil
 			}
-			deps.reconcilePlan = func(context.Context, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+			deps.reconcilePlan = func(context.Context, *shared.Deps, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 				plannerCalls++
 				return remote, nil
 			}
@@ -449,7 +449,7 @@ func TestExecuteDistributionPlanRejectsIdentityDriftBeforeAccountPlanning(t *tes
 func TestExecuteDistributionPlanReturnsTypedBlockerForMultipleTargets(t *testing.T) {
 	now := time.Date(2026, 8, 13, 8, 0, 0, 0, time.UTC)
 	deps := validDistributionOrchestrationDependencies(t)
-	deps.reconcilePlan = func(context.Context, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+	deps.reconcilePlan = func(context.Context, *shared.Deps, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 		plan := validDistributionReconcilePlan(now)
 		plan.Targets = append(plan.Targets, signing.ReconcileTargetView{Kind: "extension", BundleID: "com.example.demo.widget"})
 		return plan, nil
@@ -524,7 +524,7 @@ func TestExecuteDistributionApplyOrdersPreflightAndBindsEverySigningStage(t *tes
 		states = append(states, state)
 		return nil
 	}
-	deps.inspectIdentity = func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+	deps.inspectIdentity = func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 		calls = append(calls, "inspect_identity")
 		return validDistributionIdentity(now), nil
 	}
@@ -550,7 +550,7 @@ func TestExecuteDistributionApplyOrdersPreflightAndBindsEverySigningStage(t *tes
 		calls = append(calls, "preflight_publish")
 		return nil
 	}
-	deps.reconcileApply = func(_ context.Context, options signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(_ context.Context, _ *shared.Deps, options signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		calls = append(calls, "reconcile_apply")
 		if !containsString(calls, "snapshot_archive") || !containsString(calls, "preflight_publish") {
 			t.Fatal("account mutation started before archive snapshot and S3 credential preflight")
@@ -572,7 +572,7 @@ func TestExecuteDistributionApplyOrdersPreflightAndBindsEverySigningStage(t *tes
 	}
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "S3-SECRET-CANARY")
 	t.Setenv("ASC_PRIVATE_KEY", "ASC-SECRET-CANARY")
-	deps.runSigning = func(ctx context.Context, options signing.EphemeralRunOptions, callback func(context.Context) error) error {
+	deps.runSigning = func(ctx context.Context, _ *shared.Deps, options signing.EphemeralRunOptions, callback func(context.Context) error) error {
 		calls = append(calls, "signing_start")
 		if options.ExpectedCertificateSHA256 != testDistributionCertificateSHA256 || options.ExpectedProfileSHA256 != testDistributionProfileSHA256 {
 			t.Fatalf("ephemeral signing pins = cert %q profile %q", options.ExpectedCertificateSHA256, options.ExpectedProfileSHA256)
@@ -659,7 +659,7 @@ func TestExecuteDistributionApplyBoundsCredentialPreflightBeforeSideEffects(t *t
 		t.Fatal("archive snapshot ran after credential preflight failed")
 		return archiveTreeSnapshot{}, nil
 	}
-	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		t.Fatal("ASC reconciliation ran after credential preflight failed")
 		return signing.ReconcileReceiptView{}, nil
 	}
@@ -784,11 +784,11 @@ func TestDistributionResumeReusesCheckpointedArtifactsAfterRecoverablePublishFai
 		return state, nil
 	}
 	deps.readPlan = func(string) (persistedDistributionPlan, error) { return plan, nil }
-	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		reconcileCalls++
 		return validDistributionReconcileReceipt(), nil
 	}
-	deps.verifyReconcile = func(_ context.Context, options signing.ReconcileApplyOptions, archivePath string, evidence signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
+	deps.verifyReconcile = func(_ context.Context, _ *shared.Deps, options signing.ReconcileApplyOptions, archivePath string, evidence signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
 		reconcileVerifyCalls++
 		if options.PlanPath != plan.Reconcile.PlanPath || options.ExpectedPlanHash != plan.Reconcile.PlanHash || !options.Confirm {
 			t.Fatalf("reconcile verification options = %#v", options)
@@ -927,7 +927,7 @@ func TestDistributionResumeVerifiesFromRunLocalReconcileEvidenceAfterNestedOutpu
 		return nested, nil
 	}
 	verifyCalls := 0
-	deps.verifyReconcile = func(_ context.Context, options signing.ReconcileApplyOptions, archivePath string, evidence signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
+	deps.verifyReconcile = func(_ context.Context, _ *shared.Deps, options signing.ReconcileApplyOptions, archivePath string, evidence signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
 		verifyCalls++
 		if _, err := os.Stat(plan.Reconcile.ReceiptPath); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("nested receipt unexpectedly remains available: %v", err)
@@ -1346,7 +1346,7 @@ func TestExecuteDistributionApplySamePlanReturnsSameRunWithoutRepeatingStages(t 
 		states[state.RunID] = state
 		return nil
 	}
-	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		reconcileCalls++
 		return validDistributionReconcileReceipt(), nil
 	}
@@ -1417,7 +1417,7 @@ func TestConcurrentApplyInitializesOnlyAfterReadingStateUnderRunLock(t *testing.
 	deps.writeRun = func(string, persistedDistributionRunState) error {
 		return fixture.Errorf("stale creator overwrote completed state")
 	}
-	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		return signing.ReconcileReceiptView{}, fixture.Errorf("stale creator repeated reconciliation")
 	}
 	deps.readReceipt = func(string, string) (persistedDistributionReceipt, error) {
@@ -1532,7 +1532,7 @@ func TestDistributionApplyRecoversEphemeralSigningAfterRunLockBeforeOtherWork(t 
 		calls = append(calls, "lock")
 		return func() error { calls = append(calls, "unlock"); return nil }, nil
 	}
-	deps.recoverEphemeral = func(context.Context) error {
+	deps.recoverEphemeral = func(context.Context, *shared.Deps) error {
 		calls = append(calls, "recover_ephemeral")
 		return errors.New("validated signing journal recovery failed")
 	}
@@ -1544,7 +1544,7 @@ func TestDistributionApplyRecoversEphemeralSigningAfterRunLockBeforeOtherWork(t 
 		calls = append(calls, "storage_preflight")
 		return nil
 	}
-	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		calls = append(calls, "reconcile_mutation")
 		return signing.ReconcileReceiptView{}, nil
 	}
@@ -1565,7 +1565,7 @@ func TestDistributionApplyRecoversEphemeralSigningAfterRunLockBeforeOtherWork(t 
 func TestDistributionApplyBlocksInvalidSigningRecoveryJournal(t *testing.T) {
 	plan := validPersistedDistributionPlan(t)
 	deps := validApplyDistributionOrchestrationDependencies(t, plan)
-	deps.recoverEphemeral = func(context.Context) error { return signing.ErrEphemeralRecoveryJournalInvalid }
+	deps.recoverEphemeral = func(context.Context, *shared.Deps) error { return signing.ErrEphemeralRecoveryJournalInvalid }
 	installDistributionOrchestrationDependencies(t, deps)
 	result, err := executeDistributionApply(context.Background(), distributionTestDepsAt(distributionTestNow), distributionApplyRequest{PlanPath: "/plans/plan.json", Confirmation: plan.PlanHash})
 	if err == nil || result == nil || result.Status != "blocked" || result.Recoverable {
@@ -1860,7 +1860,7 @@ func TestDistributionPlanNeverPersistsProviderBlockerCanaries(t *testing.T) {
 	}
 	now := time.Date(2026, 8, 13, 8, 0, 0, 0, time.UTC)
 	deps := validDistributionOrchestrationDependencies(t)
-	deps.reconcilePlan = func(context.Context, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+	deps.reconcilePlan = func(context.Context, *shared.Deps, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 		plan := validDistributionReconcilePlan(now)
 		plan.Ready = false
 		plan.Blockers = []string{"provider blocker at https://example.com/?" + strings.Join(canaries, "&")}
@@ -1899,13 +1899,13 @@ func validDistributionOrchestrationDependencies(t *testing.T) distributionOrches
 			return validDistributionOrchestrationConfig(), testDistributionConfigSHA256(), nil
 		},
 		hashProtectedFile: func(string) (string, error) { return testDistributionDeviceFileSHA256, nil },
-		inspectIdentity: func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+		inspectIdentity: func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 			return validDistributionIdentity(now), nil
 		},
 		digestArchive: func(context.Context, string) (archiveTreeSnapshot, error) {
 			return validDistributionArchiveSnapshot(), nil
 		},
-		reconcilePlan: func(context.Context, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+		reconcilePlan: func(context.Context, *shared.Deps, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 			return validDistributionReconcilePlan(now), nil
 		},
 		writePlan: func(string, persistedDistributionPlan) error { return nil },
@@ -1919,7 +1919,7 @@ func validDistributionOrchestrationDependencies(t *testing.T) distributionOrches
 		acquireVerifyLease: func(string, string) (distributionVerifyLease, error) {
 			return noopDistributionVerifyLease{}, nil
 		},
-		recoverEphemeral: func(context.Context) error { return nil },
+		recoverEphemeral: func(context.Context, *shared.Deps) error { return nil },
 		readRun: func(string, string) (persistedDistributionRunState, error) {
 			return persistedDistributionRunState{}, errors.New("unexpected run read")
 		},
@@ -1938,10 +1938,10 @@ func validDistributionOrchestrationDependencies(t *testing.T) distributionOrches
 		},
 		revalidateArchive: func(context.Context, string, string, distributionArchiveSnapshot) error { return nil },
 		preflightPublish:  func(context.Context, *shared.Deps, distributionPublicationConfig) error { return nil },
-		reconcileApply: func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+		reconcileApply: func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 			return validDistributionReconcileReceipt(), nil
 		},
-		verifyReconcile: func(context.Context, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
+		verifyReconcile: func(context.Context, *shared.Deps, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
 			return validDistributionReconcileReceipt(), nil
 		},
 		readReconcilePlan: func(signing.ReconcileApplyOptions) (signing.ReconcilePlanView, error) {
@@ -1956,7 +1956,7 @@ func validDistributionOrchestrationDependencies(t *testing.T) distributionOrches
 		validateExportOptions: func(context.Context, localxcode.ManualReleaseTestingExportOptions) (*localxcode.ManualReleaseTestingExportOptionsResult, error) {
 			return &localxcode.ManualReleaseTestingExportOptionsResult{Path: "/state/run/export/ExportOptions.plist", SHA256: testDistributionDescriptorSHA256}, nil
 		},
-		runSigning: func(ctx context.Context, _ signing.EphemeralRunOptions, callback func(context.Context) error) error {
+		runSigning: func(ctx context.Context, _ *shared.Deps, _ signing.EphemeralRunOptions, callback func(context.Context) error) error {
 			return callback(ctx)
 		},
 		validateSigningEvidence: func(string, persistedDistributionPlan, persistedDistributionRunState, distributionFileArtifact) error {
@@ -2014,7 +2014,7 @@ func panicOnDistributionOrchestrationSideEffects(t *testing.T) distributionOrche
 		return distributionConfig{}, "", nil
 	}
 	deps.hashProtectedFile = func(string) (string, error) { panicCall("hashProtectedFile"); return "", nil }
-	deps.inspectIdentity = func(context.Context, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
+	deps.inspectIdentity = func(context.Context, *shared.Deps, signing.PKCS12IdentityOptions) (signing.PKCS12IdentityInfo, error) {
 		panicCall("inspectIdentity")
 		return signing.PKCS12IdentityInfo{}, nil
 	}
@@ -2022,7 +2022,7 @@ func panicOnDistributionOrchestrationSideEffects(t *testing.T) distributionOrche
 		panicCall("digestArchive")
 		return archiveTreeSnapshot{}, nil
 	}
-	deps.reconcilePlan = func(context.Context, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
+	deps.reconcilePlan = func(context.Context, *shared.Deps, signing.ReconcilePlanOptions) (signing.ReconcilePlanView, error) {
 		panicCall("reconcilePlan")
 		return signing.ReconcilePlanView{}, nil
 	}
@@ -2032,7 +2032,7 @@ func panicOnDistributionOrchestrationSideEffects(t *testing.T) distributionOrche
 		panicCall("acquireLock")
 		return func() error { return nil }, nil
 	}
-	deps.recoverEphemeral = func(context.Context) error { panicCall("recoverEphemeral"); return nil }
+	deps.recoverEphemeral = func(context.Context, *shared.Deps) error { panicCall("recoverEphemeral"); return nil }
 	deps.writeRun = func(string, persistedDistributionRunState) error { panicCall("writeRun"); return nil }
 	deps.snapshotArchive = func(context.Context, string, string, string) (archiveTreeSnapshot, error) {
 		panicCall("snapshotArchive")
@@ -2050,11 +2050,11 @@ func panicOnDistributionOrchestrationSideEffects(t *testing.T) distributionOrche
 		panicCall("preflightPublish")
 		return nil
 	}
-	deps.reconcileApply = func(context.Context, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
+	deps.reconcileApply = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions) (signing.ReconcileReceiptView, error) {
 		panicCall("reconcileApply")
 		return signing.ReconcileReceiptView{}, nil
 	}
-	deps.verifyReconcile = func(context.Context, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
+	deps.verifyReconcile = func(context.Context, *shared.Deps, signing.ReconcileApplyOptions, string, signing.ReconcileCompletionEvidence) (signing.ReconcileReceiptView, error) {
 		panicCall("verifyReconcile")
 		return signing.ReconcileReceiptView{}, nil
 	}
@@ -2062,7 +2062,7 @@ func panicOnDistributionOrchestrationSideEffects(t *testing.T) distributionOrche
 		panicCall("writeExportOptions")
 		return nil, nil
 	}
-	deps.runSigning = func(context.Context, signing.EphemeralRunOptions, func(context.Context) error) error {
+	deps.runSigning = func(context.Context, *shared.Deps, signing.EphemeralRunOptions, func(context.Context) error) error {
 		panicCall("runSigning")
 		return nil
 	}
