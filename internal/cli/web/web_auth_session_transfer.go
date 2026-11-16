@@ -28,9 +28,9 @@ const (
 
 // sessionTransferWarning writes the reminders that an exported bundle is a
 // credential and that an imported session still needs live validation.
-// os.Stderr is resolved per call so redirected process output is honored.
-func sessionTransferWarning(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, format, args...)
+// d.IO.ErrOut is resolved per call so redirected process output is honored.
+func sessionTransferWarning(d *shared.Deps, format string, args ...any) {
+	_, _ = fmt.Fprintf(d.IO.ErrOut, format, args...)
 }
 
 func formatSessionBundleTime(value time.Time) string {
@@ -47,14 +47,14 @@ func formatOptionalSessionBundleTime(value *time.Time) string {
 	return formatSessionBundleTime(*value)
 }
 
-// WebAuthExportCommand writes the cached web session to a portable file.
-func WebAuthExportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web auth export", flag.ExitOnError)
+// newWebAuthExportCommand writes the cached web session to a portable file.
+func newWebAuthExportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web auth export", flag.ExitOnError)
 
 	appleID := fs.String("apple-id", "", "Apple Account email to export (default exports the last cached session)")
 	outputPath := fs.String("output-path", "", "Destination file for the exported session bundle (required)")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing file at --output-path")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "export",
@@ -85,11 +85,11 @@ Examples:
   asc web auth export --output-path ./web-session.json --apple-id "user@example.com"
   asc web auth export --output-path ./web-session.json --overwrite --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			outputPathValue := *outputPath
 			if strings.TrimSpace(outputPathValue) == "" {
-				return shared.UsageError("--output-path is required")
+				return d.UsageError("--output-path is required")
 			}
 			trimmedAppleID := strings.TrimSpace(*appleID)
 
@@ -110,17 +110,18 @@ Examples:
 			}
 			payload = append(payload, '\n')
 
-			overwritten, err := writeWebSessionBundle(outputPathValue, payload, *overwrite)
+			overwritten, err := writeWebSessionBundle(d, outputPathValue, payload, *overwrite)
 			if err != nil {
 				return fmt.Errorf("web auth export failed: %w", err)
 			}
 
 			sessionTransferWarning(
+				d,
 				"Wrote Apple web-session credentials to %s. Treat this file as a secret and remove it once it is stored.\n",
 				outputPathValue,
 			)
 
-			return shared.PrintOutput(&asc.WebSessionExportResult{
+			return d.PrintOutput(&asc.WebSessionExportResult{
 				Path:        outputPathValue,
 				AppleID:     bundle.AppleID,
 				CookieCount: len(bundle.Cookies),
@@ -135,10 +136,10 @@ Examples:
 // writeWebSessionBundle publishes the bundle without following symlinks and
 // reports whether an existing file was replaced. The no-replace attempt runs
 // first so a missing --overwrite fails before the destination is touched.
-func writeWebSessionBundle(path string, payload []byte, overwrite bool) (bool, error) {
+func writeWebSessionBundle(d *shared.Deps, path string, payload []byte, overwrite bool) (bool, error) {
 	write := func(replace bool) error {
 		_, err := shared.SafeWriteFileNoSymlinkWithPreparationAndCreator(
-			path,
+			d.OSPath(path),
 			webSessionBundleFileMode,
 			replace,
 			webSessionBundleTempPattern,
@@ -169,17 +170,17 @@ func writeWebSessionBundle(path string, payload []byte, overwrite bool) (bool, e
 	return true, nil
 }
 
-// WebAuthImportCommand loads a previously exported session bundle into the
+// newWebAuthImportCommand loads a previously exported session bundle into the
 // cache used by "asc web" commands.
-func WebAuthImportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web auth import", flag.ExitOnError)
+func newWebAuthImportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web auth import", flag.ExitOnError)
 
 	filePath := fs.String("file", "", "Path to a session bundle produced by \"asc web auth export\" (mutually exclusive with --from-env)")
 	fromEnv := fs.Bool("from-env", false, "Read the canonical session bundle from ASC_WEB_SESSION")
 	appleID := fs.String("apple-id", "", "Require the bundle to belong to this Apple Account email")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing cached session for the bundle Apple Account")
 	validate := fs.Bool("validate", false, "Validate the bundle with Apple before importing it")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "import",
@@ -231,7 +232,7 @@ Examples:
   asc web auth import --file ./web-session.json --validate
   asc web auth import --file ./web-session.json --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			filePathValue := *filePath
 			fileFlagProvided := false
@@ -239,7 +240,7 @@ Examples:
 				fileFlagProvided = fileFlagProvided || flagDef.Name == "file"
 			})
 			if *fromEnv && fileFlagProvided {
-				return shared.UsageError("--file and --from-env are mutually exclusive")
+				return d.UsageError("--file and --from-env are mutually exclusive")
 			}
 
 			var sourceLabel string
@@ -249,7 +250,7 @@ Examples:
 				sourceLabel = webSessionBundleEnvName
 				value, ok := os.LookupEnv(webSessionBundleEnvName)
 				if !ok || strings.TrimSpace(value) == "" {
-					return shared.UsageError(webSessionBundleEnvName + " is unset or empty when --from-env is used")
+					return d.UsageError(webSessionBundleEnvName + " is unset or empty when --from-env is used")
 				}
 				if len(value) > webcore.MaxSessionBundleSize {
 					return fmt.Errorf("web auth import failed: %s exceeds %d-byte limit", webSessionBundleEnvName, webcore.MaxSessionBundleSize)
@@ -257,10 +258,10 @@ Examples:
 				payload = []byte(value)
 			} else {
 				if strings.TrimSpace(filePathValue) == "" {
-					return shared.UsageError("one of --file or --from-env is required")
+					return d.UsageError("one of --file or --from-env is required")
 				}
 				sourceLabel = filePathValue
-				payload, err = readWebSessionBundleFile(filePathValue)
+				payload, err = readWebSessionBundleFile(d, filePathValue)
 			}
 			if err != nil {
 				return fmt.Errorf("web auth import failed: %w", err)
@@ -277,7 +278,7 @@ Examples:
 				return fmt.Errorf("web auth import failed: bundle appleId %s does not match --apple-id %s", bundle.AppleID, trimmedAppleID)
 			}
 			if *validate {
-				requestCtx, cancel := newWebRequestContext(ctx)
+				requestCtx, cancel := newWebRequestContextWith(ctx, d)
 				defer cancel()
 				if err := webcore.ValidateSessionBundle(requestCtx, bundle); err != nil {
 					return fmt.Errorf("web auth import failed: live session validation: %w", err)
@@ -301,15 +302,16 @@ Examples:
 				sourceNote = " from " + webSessionBundleEnvName
 			}
 			if *validate {
-				sessionTransferWarning("Imported web session for %s%s after Apple validation.\n", summary.AppleID, sourceNote)
+				sessionTransferWarning(d, "Imported web session for %s%s after Apple validation.\n", summary.AppleID, sourceNote)
 			} else {
 				sessionTransferWarning(
+					d,
 					"Imported web session for %s%s after local bundle validation. Run \"asc web auth status\" to validate it with Apple.\n",
 					summary.AppleID, sourceNote,
 				)
 			}
 
-			return shared.PrintOutput(&asc.WebSessionImportResult{
+			return d.PrintOutput(&asc.WebSessionImportResult{
 				Path:                  sourceLabel,
 				AppleID:               summary.AppleID,
 				CookieCount:           summary.CookieCount,
@@ -321,8 +323,8 @@ Examples:
 	}
 }
 
-func readWebSessionBundleFile(path string) ([]byte, error) {
-	file, err := rootfs.OpenFile(path)
+func readWebSessionBundleFile(d *shared.Deps, path string) ([]byte, error) {
+	file, err := rootfs.OpenFile(d.OSPath(path))
 	if err != nil {
 		return nil, fmt.Errorf("open --file: %w", err)
 	}
