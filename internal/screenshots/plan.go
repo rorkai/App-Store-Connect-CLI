@@ -299,6 +299,9 @@ func validatePlan(plan *Plan) error {
 				)
 			}
 		case ActionScroll:
+			if err := validateStepFields(step, idx, "direction", "label", "id", "distance", "max_swipes"); err != nil {
+				return err
+			}
 			direction := strings.TrimSpace(strings.ToLower(stringValue(step.Direction)))
 			switch direction {
 			case "up", "down", "left", "right":
@@ -343,6 +346,9 @@ func validatePlan(plan *Plan) error {
 				}
 			}
 		case ActionSwipe:
+			if err := validateStepFields(step, idx, "x", "y", "end_x", "end_y", "duration_ms"); err != nil {
+				return err
+			}
 			for _, coord := range []*float64{step.X, step.Y, step.EndX, step.EndY} {
 				if coord == nil || *coord < 0 {
 					return newPlanValidationError(
@@ -439,6 +445,21 @@ func validatePlan(plan *Plan) error {
 // validateHoldStep rejects fields outside allowed and a duration_ms that AXe
 // cannot hold (above 0 to 10 seconds).
 func validateHoldStep(step *PlanStep, idx int, allowed ...string) error {
+	if err := validateStepFields(step, idx, allowed...); err != nil {
+		return err
+	}
+	if step.DurationMS != nil && (*step.DurationMS < 1 || *step.DurationMS > 10000) {
+		return newPlanValidationError(
+			PlanErrHoldDuration,
+			idx,
+			fmt.Sprintf("steps[%d] %s duration_ms must be from 1 to 10000", idx, step.Action),
+		)
+	}
+	return nil
+}
+
+// validateStepFields rejects any field the step's action does not read.
+func validateStepFields(step *PlanStep, idx int, allowed ...string) error {
 	fields := []struct {
 		name string
 		set  bool
@@ -472,13 +493,6 @@ func validateHoldStep(step *PlanStep, idx int, allowed ...string) error {
 				fmt.Sprintf("steps[%d] %s does not accept %s", idx, step.Action, field.name),
 			)
 		}
-	}
-	if step.DurationMS != nil && (*step.DurationMS < 1 || *step.DurationMS > 10000) {
-		return newPlanValidationError(
-			PlanErrHoldDuration,
-			idx,
-			fmt.Sprintf("steps[%d] %s duration_ms must be from 1 to 10000", idx, step.Action),
-		)
 	}
 	return nil
 }

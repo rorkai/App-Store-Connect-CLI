@@ -203,6 +203,8 @@ func TestLoadPlan_ScrollAndSwipeValidation(t *testing.T) {
 		{"double_tap missing y", `{ "action": "double_tap", "x": 200 }`, PlanErrGestureCoordinates},
 		{"double_tap negative coordinate", `{ "action": "double_tap", "x": -1, "y": 400 }`, PlanErrGestureCoordinates},
 		{"double_tap with another action's field", `{ "action": "double_tap", "x": 200, "y": 400, "label": "Photo" }`, PlanErrUnexpectedField},
+		{"scroll with another action's field", `{ "action": "scroll", "direction": "down", "x": 200 }`, PlanErrUnexpectedField},
+		{"swipe with another action's field", `{ "action": "swipe", "x": 1, "y": 2, "end_x": 3, "end_y": 4, "label": "Photo" }`, PlanErrUnexpectedField},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
