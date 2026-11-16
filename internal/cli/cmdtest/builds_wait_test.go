@@ -26,7 +26,7 @@ func TestBuildsWaitByBuildIDPollsUntilValid(t *testing.T) {
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","version":"42"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"builds", "wait", "--build-id", "build-1", "--poll-interval", "1ms", "--timeout", "200ms"})
+	stdout, stderr, err := runCommandOnFakeClock(t, []string{"builds", "wait", "--build-id", "build-1", "--poll-interval", "1ms", "--timeout", "200ms"})
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestBuildsWaitByAppAndBuildNumberResolvesThenWaits(t *testing.T) {
 	reg.Register(asctest.GET("/v1/builds/build-42"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-42","attributes":{"processingState":"VALID","version":"42"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runCommandOnFakeClock(t, []string{
 		"builds", "wait",
 		"--app", "123456789",
 		"--build-number", "42",
@@ -113,7 +113,7 @@ func TestBuildsWaitByAppLatestDiscoversThenWaits(t *testing.T) {
 	reg.Register(asctest.GET("/v1/builds/build-99"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-99","attributes":{"processingState":"VALID","version":"99"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runCommandOnFakeClock(t, []string{
 		"builds", "wait",
 		"--app", "123456789",
 		"--latest",
@@ -162,7 +162,7 @@ func TestBuildsWaitByAppWithSinceSkipsOlderMatch(t *testing.T) {
 	reg.Register(asctest.GET("/v1/builds/build-new"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-new","attributes":{"processingState":"VALID","version":"2"}}}`))
 
-	stdout, _, err := runCommand(t, []string{
+	stdout, _, err := runCommandOnFakeClock(t, []string{
 		"builds", "wait",
 		"--app", "123456789",
 		"--version", "2.4.0",
@@ -202,7 +202,7 @@ func TestBuildsWaitByBuildNumberSinceFiltersBeforeUniqueness(t *testing.T) {
 	reg.Register(asctest.GET("/v1/builds/build-new"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-new","attributes":{"processingState":"VALID","version":"42"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runCommandOnFakeClock(t, []string{
 		"builds", "wait",
 		"--app", "123456789",
 		"--build-number", "42",
@@ -248,7 +248,7 @@ func TestBuildsWaitByBuildNumberRequiresUniqueMatch(t *testing.T) {
 			]
 		}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runCommandOnFakeClock(t, []string{
 		"builds", "wait",
 		"--app", "123456789",
 		"--build-number", "42",
@@ -401,7 +401,7 @@ func TestBuildsWaitByAppDiscoveryTimeoutReturnsError(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 
 	if runErr == nil {
@@ -518,7 +518,7 @@ func TestBuildsWaitTerminalFailureStatesReturnError(t *testing.T) {
 				if err := root.Parse(args); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
-				runErr = root.Run(context.Background())
+				synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 			})
 
 			if runErr == nil {
