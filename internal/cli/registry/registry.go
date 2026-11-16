@@ -237,7 +237,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("release", "Run high-level App Store release workflows.", func() *ffcli.Command {
 			return release.NewReleaseCommand(d)
 		}),
-		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
+		commandFactory("workflow", "Run multi-step automation workflows.", func() *ffcli.Command { return workflow.NewWorkflowCommand(d) }),
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", func() *ffcli.Command {
 			return xcode.NewXcodeCommand(d)
 		}),
