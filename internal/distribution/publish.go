@@ -1111,7 +1111,7 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	if !ok {
 		return nil, fmt.Errorf("AWS_CA_BUNDLE needs an *http.Transport to add its roots to; the configured transport is %T", transport)
 	}
-	if base.DialTLSContext != nil || base.DialTLS != nil {
+	if base.DialTLSContext != nil || base.DialTLS != nil { //nolint:staticcheck // SA1019: http.Transport still dials through a deprecated DialTLS, which skips the roots too.
 		return nil, fmt.Errorf("AWS_CA_BUNDLE cannot be applied to an *http.Transport with its own TLS dialer, which handshakes without the bundle's roots")
 	}
 	file, err := os.Open(caPath)

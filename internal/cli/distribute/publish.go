@@ -269,6 +269,7 @@ Examples:
 			receipt, links, err := runPublish(ctx, bundle.IPA, bundle.Descriptor, core.PublishOptions{
 				Store: store, Verifier: verifier, Bucket: *bucket, Prefix: *prefix, Access: accessMode,
 				PublicBaseURL: *publicBaseURL, URLTTL: *urlTTL, DownloadGrace: *downloadGrace, CredentialLimit: credentialLimit,
+				Now: d.Now,
 			})
 			if err != nil {
 				return fmt.Errorf("distribute publish: %w", err)

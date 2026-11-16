@@ -254,9 +254,13 @@ func TestPublishCommandWritesSensitiveLink0600AndRedactedReceipt(t *testing.T) {
 		}
 		return noOpStore{}, time.Time{}, nil
 	}
+	depsNow := time.Date(2026, 8, 13, 8, 0, 0, 0, time.UTC)
 	runPublish = func(ctx context.Context, _ io.ReadSeeker, _ distribution.PreparedDescriptor, options distribution.PublishOptions) (distribution.PublishReceipt, distribution.SensitiveLinks, error) {
 		if _, ok := ctx.Deadline(); ok {
 			return distribution.PublishReceipt{}, distribution.SensitiveLinks{}, errors.New("publication flow inherited an expiring phase context")
+		}
+		if options.Now == nil || !options.Now().Equal(depsNow) {
+			return distribution.PublishReceipt{}, distribution.SensitiveLinks{}, errors.New("publication does not run on the deps clock")
 		}
 		if _, err := options.Store.Ensure(ctx, distribution.PutObject{}); err != nil {
 			return distribution.PublishReceipt{}, distribution.SensitiveLinks{}, err
@@ -276,7 +280,9 @@ func TestPublishCommandWritesSensitiveLink0600AndRedactedReceipt(t *testing.T) {
 	stateDir := t.TempDir()
 	receiptPath := filepath.Join(stateDir, "receipt.json")
 	linkPath := filepath.Join(stateDir, "link.json")
-	command := newPublishCommand(newDistributeTestDeps())
+	d := newDistributeTestDeps()
+	d.Now = func() time.Time { return depsNow }
+	command := newPublishCommand(d)
 	err := command.ParseAndRun(context.Background(), []string{
 		"--bundle-dir", dir, "--endpoint", "https://objects.example.com", "--region", "auto", "--bucket", "bucket", "--prefix", "app",
 		"--receipt", receiptPath, "--link-path", linkPath, "--output", "json",

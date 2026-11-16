@@ -1258,7 +1258,9 @@ func TestHTTPVerifierEnvironmentTrustTransportRule(t *testing.T) {
 		var dials int
 		dial := func(context.Context, string, string) (net.Conn, error) {
 			dials++
-			return nil, errors.New("unexpected dial")
+			client, server := net.Pipe()
+			_ = server.Close()
+			return client, nil
 		}
 		for name, transport := range map[string]*http.Transport{
 			"DialTLSContext": {DialTLSContext: dial},
