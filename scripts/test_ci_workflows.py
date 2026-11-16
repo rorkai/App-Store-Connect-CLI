@@ -332,6 +332,9 @@ def assert_optimized_workflow_text(path: Path, workflow: str, test_job: str) -> 
 
     build_platforms = job_block(workflow, "build-platforms")
     assert "needs.changes.outputs.scope == 'full'" in build_platforms
+    assert "if grep -F '[no tests to run]' \"$output\"; then" in build_platforms, (
+        f"{path}: build-platforms must fail when a go test -run pattern matches no test"
+    )
     for runner in ("macos-latest", "ubuntu-latest", "windows-latest"):
         assert f"runner: {runner}" in build_platforms, f"{path}: missing native build runner {runner}"
     assert "go test -short ./internal/screenshots" in build_platforms, f"{path}: missing Darwin-only tests"
@@ -443,6 +446,7 @@ def assert_optimized_workflow_rejects_weakened_checks() -> None:
             "ASC_BYPASS_KEYCHAIN=1 go test -race -tags fido2 -p=1 -parallel=4 -count=1",
             "./internal/securitykey ./internal/web ./internal/cli/web ./internal/cli/cmdtest",
             "ASC_BYPASS_KEYCHAIN=1 go test -short -count=1 ./internal/rootfs",
+            "if grep -F '[no tests to run]' \"$output\"; then",
         ):
             assert command in workflow, f"{path}: expected to find {command!r}"
             weakened = workflow.replace(command, "true")
