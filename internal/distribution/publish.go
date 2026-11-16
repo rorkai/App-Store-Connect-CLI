@@ -1088,31 +1088,12 @@ func NewHTTPVerifier(client *http.Client, timeout time.Duration) *HTTPVerifier {
 	return &HTTPVerifier{client: &clone, timeout: timeout}
 }
 
-// NewHTTPVerifierWithEnvironmentTrust builds a verifier that sends through
-// transport (nil means http.DefaultTransport) and honors the AWS_CA_BUNDLE
-// trust override the S3 SDK uses for private endpoints. A custom CA bundle is
-// a security setting and is never silently skipped:
-//   - without AWS_CA_BUNDLE, any round tripper is used as given;
-//   - with AWS_CA_BUNDLE and an *http.Transport, the bundle is added to a copy
-//     of its root pool (the system pool when it has none), its other TLS
-//     settings are kept, and its minimum version is raised to TLS 1.2;
-//   - with AWS_CA_BUNDLE and any other round tripper, or an *http.Transport
-//     with its own TLS dialer (which would skip the roots), it returns an
-//     error, before the verifier sends anything.
-func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout time.Duration) (*HTTPVerifier, error) {
-	if transport == nil {
-		transport = http.DefaultTransport
-	}
+// NewHTTPVerifierWithEnvironmentTrust builds a verifier that honors the same
+// AWS_CA_BUNDLE trust override used by the S3 SDK for private endpoints.
+func NewHTTPVerifierWithEnvironmentTrust(timeout time.Duration) (*HTTPVerifier, error) {
 	caPath := strings.TrimSpace(os.Getenv("AWS_CA_BUNDLE"))
 	if caPath == "" {
-		return NewHTTPVerifier(&http.Client{Transport: transport}, timeout), nil
-	}
-	base, ok := transport.(*http.Transport)
-	if !ok {
-		return nil, fmt.Errorf("AWS_CA_BUNDLE needs an *http.Transport to add its roots to; the configured transport is %T", transport)
-	}
-	if base.DialTLSContext != nil || base.DialTLS != nil { //nolint:staticcheck // SA1019: http.Transport still dials through a deprecated DialTLS, which skips the roots too.
-		return nil, fmt.Errorf("AWS_CA_BUNDLE cannot be applied to an *http.Transport with its own TLS dialer, which handshakes without the bundle's roots")
+		return NewHTTPVerifier(nil, timeout), nil
 	}
 	file, err := os.Open(caPath)
 	if err != nil {
@@ -1127,21 +1108,19 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	if err != nil {
 		return nil, fmt.Errorf("read custom CA bundle")
 	}
-	var roots *x509.CertPool
-	if base.TLSClientConfig != nil && base.TLSClientConfig.RootCAs != nil {
-		roots = base.TLSClientConfig.RootCAs.Clone()
-	} else if roots, err = x509.SystemCertPool(); err != nil {
+	roots, err := x509.SystemCertPool()
+	if err != nil {
 		roots = x509.NewCertPool()
 	}
 	if !roots.AppendCertsFromPEM(pemBytes) {
 		return nil, fmt.Errorf("custom CA bundle contains no certificates")
 	}
-	clone := base.Clone()
-	if clone.TLSClientConfig == nil {
-		clone.TLSClientConfig = &tls.Config{}
+	transport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("default HTTP transport is unavailable")
 	}
-	clone.TLSClientConfig.RootCAs = roots
-	clone.TLSClientConfig.MinVersion = max(clone.TLSClientConfig.MinVersion, tls.VersionTLS12)
+	clone := transport.Clone()
+	clone.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
 	return NewHTTPVerifier(&http.Client{Transport: clone}, timeout), nil
 }
 

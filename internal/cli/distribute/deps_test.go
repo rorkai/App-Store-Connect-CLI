@@ -2,7 +2,6 @@ package distribute
 
 import (
 	"bytes"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -11,8 +10,8 @@ import (
 )
 
 // newDistributeTestDeps returns deps that write to buffers, with the process
-// clock, timers, timeouts, working directory and HTTP transport and no App
-// Store Connect client.
+// clock, timers, timeouts and working directory and no App Store Connect
+// client.
 func newDistributeTestDeps() *shared.Deps {
 	return &shared.Deps{
 		IO:             &shared.IO{In: strings.NewReader(""), Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
@@ -22,6 +21,5 @@ func newDistributeTestDeps() *shared.Deps {
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
 		Getwd:          os.Getwd,
-		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
 	}
 }
