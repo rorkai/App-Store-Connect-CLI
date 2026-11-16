@@ -75,17 +75,17 @@ func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID strin
 // UpdateGameCenterChallenge updates an existing Game Center challenge.
 func (c *Client) UpdateGameCenterChallenge(ctx context.Context, challengeID string, attrs GameCenterChallengeUpdateAttributes, leaderboardID string) (*GameCenterChallengeResponse, error) {
 	var relationships *GameCenterChallengeUpdateRelationships
-	if strings.TrimSpace(leaderboardID) != "" {
-		relationships = &GameCenterChallengeUpdateRelationships{
-			Leaderboard: &Relationship{
-				Data: ResourceData{
-					Type: ResourceTypeGameCenterLeaderboards,
-					ID:   strings.TrimSpace(leaderboardID),
-				},
+	if id := strings.TrimSpace(leaderboardID); id != "" {
+		if relationships == nil {
+			relationships = &GameCenterChallengeUpdateRelationships{}
+		}
+		relationships.Leaderboard = &Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterLeaderboards,
+				ID:   id,
 			},
 		}
 	}
-
 	payload := GameCenterChallengeUpdateRequest{
 		Data: GameCenterChallengeUpdateData{
 			Type:          ResourceTypeGameCenterChallenges,
@@ -94,25 +94,33 @@ func (c *Client) UpdateGameCenterChallenge(ctx context.Context, challengeID stri
 			Relationships: relationships,
 		},
 	}
-
-	return sendJSON[GameCenterChallengeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)), Payload: payload})
+	return sendJSON[GameCenterChallengeResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)),
+		Payload: payload,
+	})
 }
 
 // CreateGameCenterChallengeImage reserves a challenge image upload.
 // Pass exactly one of localizationID or versionID; a version target sets the version's default image.
-func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, localizationID, versionID, fileName string, fileSize int64) (*GameCenterChallengeImageResponse, error) {
+func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, fileName string, fileSize int64, localizationID, versionID string) (*GameCenterChallengeImageResponse, error) {
 	relationships := &GameCenterChallengeImageRelationships{}
 	if id := strings.TrimSpace(localizationID); id != "" {
 		relationships.Localization = &Relationship{
-			Data: ResourceData{Type: ResourceTypeGameCenterChallengeLocalizations, ID: id},
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterChallengeLocalizations,
+				ID:   id,
+			},
 		}
 	}
 	if id := strings.TrimSpace(versionID); id != "" {
 		relationships.Version = &Relationship{
-			Data: ResourceData{Type: ResourceTypeGameCenterChallengeVersions, ID: id},
+			Data: ResourceData{
+				Type: ResourceTypeGameCenterChallengeVersions,
+				ID:   id,
+			},
 		}
 	}
-
 	payload := GameCenterChallengeImageCreateRequest{
 		Data: GameCenterChallengeImageCreateData{
 			Type: ResourceTypeGameCenterChallengeImages,
@@ -123,8 +131,11 @@ func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, localizatio
 			Relationships: relationships,
 		},
 	}
-
-	return sendJSON[GameCenterChallengeImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeImages", Payload: payload})
+	return sendJSON[GameCenterChallengeImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterChallengeImages",
+		Payload: payload,
+	})
 }
 
 // UploadGameCenterChallengeImage performs the full upload flow for a challenge image.
@@ -140,7 +151,7 @@ func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizatio
 	fileName := info.Name()
 	fileSize := info.Size()
 
-	reservation, err := c.CreateGameCenterChallengeImage(ctx, localizationID, versionID, fileName, fileSize)
+	reservation, err := c.CreateGameCenterChallengeImage(ctx, fileName, fileSize, localizationID, versionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reserve upload: %w", err)
 	}

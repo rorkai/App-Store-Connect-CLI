@@ -638,7 +638,7 @@ be combined with skip, which would leave the build unattached.`,
 				attrs.ReviewType = normalizedReviewType
 			}
 
-			resp, err := client.CreateAppStoreVersionWithBuild(requestCtx, resolvedAppID, buildIDValue, attrs)
+			resp, err := client.CreateAppStoreVersionWithBuild(requestCtx, resolvedAppID, attrs, buildIDValue)
 			action := asc.IdempotentWriteActionCreated
 			copyMetadata := copyMetadataFromValue != ""
 			conflictHandled := false
@@ -687,7 +687,7 @@ be combined with skip, which would leave the build unattached.`,
 						updateAttrs.ReviewType = &normalizedReviewType
 					}
 					if updateAttrs.Copyright != nil || updateAttrs.ReleaseType != nil || updateAttrs.EarliestReleaseDate != nil || updateAttrs.ReviewType != nil {
-						updated, updateErr := client.UpdateAppStoreVersionWithBuild(requestCtx, existing.Data.ID, buildIDValue, updateAttrs)
+						updated, updateErr := client.UpdateAppStoreVersionWithBuild(requestCtx, existing.Data.ID, updateAttrs, buildIDValue)
 						if updateErr != nil {
 							if buildIDValue != "" {
 								return fmt.Errorf("versions create: update existing version %s with build %s: %w", existing.Data.ID, buildIDValue, updateErr)

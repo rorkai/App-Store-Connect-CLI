@@ -258,7 +258,7 @@ func TestCreateGameCenterChallengeImage(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.CreateGameCenterChallengeImage(context.Background(), "loc-1", "", "image.png", 12); err != nil {
+	if _, err := client.CreateGameCenterChallengeImage(context.Background(), "image.png", 12, "loc-1", ""); err != nil {
 		t.Fatalf("CreateGameCenterChallengeImage() error: %v", err)
 	}
 }
