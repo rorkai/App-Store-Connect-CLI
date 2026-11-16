@@ -124,36 +124,6 @@ func (c *Client) GetSubscriptionGroupVersion(ctx context.Context, versionID stri
 	})
 }
 
-// GetSubscriptionGroupVersions lists versions owned by a group.
-func (c *Client) GetSubscriptionGroupVersions(ctx context.Context, groupID string, opts ...SubscriptionGroupVersionsOption) (*SubscriptionGroupVersionsResponse, error) {
-	query := applyOptions(opts)
-	groupID = strings.TrimSpace(groupID)
-	if query.nextURL == "" && groupID == "" {
-		return nil, fmt.Errorf("groupID is required")
-	}
-	return getJSON[SubscriptionGroupVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionGroups/%s/versions", groupID),
-		Query:       buildSubscriptionGroupVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscription-group-versions",
-	})
-}
-
-// GetSubscriptionGroupVersionLocalizations lists v2 localizations owned by a version.
-func (c *Client) GetSubscriptionGroupVersionLocalizations(ctx context.Context, versionID string, opts ...SubscriptionGroupVersionLocalizationsOption) (*SubscriptionGroupLocalizationsV2Response, error) {
-	query := applyOptions(opts)
-	versionID = strings.TrimSpace(versionID)
-	if query.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[SubscriptionGroupLocalizationsV2Response](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionGroupVersions/%s/localizations", versionID),
-		Query:       buildSubscriptionGroupVersionLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscription-group-version-localizations",
-	})
-}
-
 // CreateSubscriptionGroupLocalizationV2 creates a version-scoped localization.
 func (c *Client) CreateSubscriptionGroupLocalizationV2(ctx context.Context, versionID string, attrs SubscriptionGroupLocalizationV2CreateAttributes) (*SubscriptionGroupLocalizationV2Response, error) {
 	versionID = strings.TrimSpace(versionID)
