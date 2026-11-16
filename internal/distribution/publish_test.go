@@ -1230,6 +1230,9 @@ func TestHTTPVerifierEnvironmentTrustTransportRule(t *testing.T) {
 		t.Cleanup(func() { http.DefaultTransport = original })
 		http.DefaultTransport = custom
 		wrapped := struct{ http.RoundTripper }{custom}
+		if !IsDefaultHTTPTransport(nil) {
+			t.Fatal("IsDefaultHTTPTransport(nil) = false, want true")
+		}
 		for name, transport := range map[string]http.RoundTripper{"same function type": custom, "struct holding a function": wrapped} {
 			if IsDefaultHTTPTransport(transport) {
 				t.Fatalf("%s: IsDefaultHTTPTransport() = true, want false", name)

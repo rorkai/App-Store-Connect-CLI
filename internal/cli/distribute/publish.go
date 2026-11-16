@@ -71,7 +71,7 @@ func (verifier *publicationVerifier) Verify(ctx context.Context, request core.Ve
 
 // objectStoreHTTPClient returns the HTTP client the S3 store sends through:
 // none, so the store uses the AWS SDK's own client, when d's transport is the
-// process default, and a client on d's transport when the caller injected
+// process default (or nil), and a client on d's transport when the caller injected
 // one, so uploads and verification share one network path. The SDK's client
 // has its own transport defaults and applies AWS_CA_BUNDLE itself, so
 // replacing it on a normal run would change S3 networking. With

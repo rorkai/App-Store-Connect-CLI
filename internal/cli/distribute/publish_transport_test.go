@@ -68,6 +68,11 @@ func TestPublishObjectStoreClientFollowsInjectedTransport(t *testing.T) {
 		if client := objectStoreHTTPClient(shared.DefaultDeps()); client != nil {
 			t.Fatalf("objectStoreHTTPClient(DefaultDeps()) = %v, want nil", client)
 		}
+		nilTransport := newDistributeTestDeps()
+		nilTransport.HTTPTransport = func() http.RoundTripper { return nil }
+		if client := objectStoreHTTPClient(nilTransport); client != nil {
+			t.Fatalf("objectStoreHTTPClient() with a nil transport = %v, want nil", client)
+		}
 		var config distribution.S3StoreConfig
 		newObjectStore = func(_ context.Context, got distribution.S3StoreConfig) (distribution.ObjectStore, time.Time, error) {
 			config = got

@@ -1139,9 +1139,13 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 }
 
 // IsDefaultHTTPTransport reports whether transport is http.DefaultTransport
-// itself. A value whose dynamic type cannot be compared is never the default:
-// comparing it with == would panic.
+// itself or nil, which an http.Client reads as http.DefaultTransport. A value
+// whose dynamic type cannot be compared is never the default: comparing it
+// with == would panic.
 func IsDefaultHTTPTransport(transport http.RoundTripper) bool {
+	if transport == nil {
+		return true
+	}
 	value := reflect.ValueOf(transport)
 	defaultValue := reflect.ValueOf(http.DefaultTransport)
 	if !value.IsValid() || !defaultValue.IsValid() || value.Type() != defaultValue.Type() || !value.Comparable() {
