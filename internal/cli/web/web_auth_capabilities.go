@@ -293,6 +293,11 @@ func wrapWebAuthCapabilitiesSessionError(err error) error {
 }
 
 func webAuthCapabilitiesError(message string, cause error) error {
+	// A broker's refusal carries its own code and next step, which the summary
+	// message would hide.
+	if _, refused := errors.AsType[*webcore.BrokerError](cause); refused {
+		return fmt.Errorf("web auth capabilities failed: %w", cause)
+	}
 	return shared.NewErrorWithCause(errors.New(message), cause)
 }
 

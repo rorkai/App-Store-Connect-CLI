@@ -97,22 +97,27 @@ func TestWebBrokerServesReviewThreadsWithoutLocalSession(t *testing.T) {
 }
 
 func TestWebBrokerRefusalIsReportedAsBrokers(t *testing.T) {
-	_, cache := webBrokerFixture(t, `{"error":{"code":"ASC_WEB_SESSION_EXPIRED","message":"Apple ended the stored sign-in for team TEAM42."}}`)
+	for _, args := range [][]string{
+		{"web", "review", "threads", "--app", "app-1"},
+		{"web", "auth", "capabilities", "--key-id", "KEY123"},
+	} {
+		t.Run(args[2], func(t *testing.T) {
+			_, cache := webBrokerFixture(t, `{"error":{"code":"ASC_WEB_SESSION_EXPIRED","message":"Apple ended the stored sign-in for team TEAM42."}}`)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"web", "review", "threads", "--app", "app-1"}, "test")
-	})
-	if code == 0 {
-		t.Fatalf("expected failure, stdout=%q", stdout)
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
+			if code == 0 {
+				t.Fatalf("expected failure, stdout=%q", stdout)
+			}
+			if !strings.Contains(stderr, "ASC_WEB_SESSION_EXPIRED") || !strings.Contains(stderr, "Apple ended the stored sign-in for team TEAM42.") {
+				t.Fatalf("stderr=%q", stderr)
+			}
+			if strings.Contains(stderr, "asc web auth login") || strings.Contains(stderr, "network connection") {
+				t.Fatalf("broker refusal must not suggest a local sign-in or a network problem: %q", stderr)
+			}
+			assertWebSessionCacheEmpty(t, cache)
+		})
 	}
-	if !strings.Contains(stderr, "ASC_WEB_SESSION_EXPIRED") || !strings.Contains(stderr, "Apple ended the stored sign-in for team TEAM42.") {
-		t.Fatalf("stderr=%q", stderr)
-	}
-	if strings.Contains(stderr, "asc web auth login") || strings.Contains(stderr, "network connection") {
-		t.Fatalf("broker refusal must not suggest a local sign-in or a network problem: %q", stderr)
-	}
-	assertWebSessionCacheEmpty(t, cache)
 }
 
 func TestWebBrokerRefusesLocalSessionCommandsBeforeRequests(t *testing.T) {
