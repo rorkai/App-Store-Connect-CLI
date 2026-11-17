@@ -1082,6 +1082,13 @@ func resolveKnownWebSessionFromSource(ctx context.Context, appleID string, sourc
 }
 
 func resolveWebSessionWith(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
+	if broker, ok, err := webBrokerFromEnv(d); ok {
+		if err != nil {
+			return nil, "", err
+		}
+		session, err := resolveBrokeredWebSession(ctx, d, broker, appleID)
+		return session, webSessionSourceBroker, err
+	}
 	shared.ApplyRootLoggingOverrides()
 	if err := webcore.SessionBackendConflict(); err != nil {
 		return nil, "", d.UsageError(err.Error())
@@ -1887,6 +1894,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := refuseUnderWebBroker(d, "asc web auth login"); err != nil {
+				return err
+			}
 			preference, err := twoFactorDelivery.resolveWith(d)
 			if err != nil {
 				return err
@@ -1949,6 +1959,23 @@ If --apple-id is not provided, this checks the last cached session.
 			defer cancel()
 
 			trimmedAppleID := strings.TrimSpace(*appleID)
+			if broker, ok, err := webBrokerFromEnv(d); ok {
+				if err != nil {
+					return err
+				}
+				session, err := resolveBrokeredWebSession(requestCtx, d, broker, trimmedAppleID)
+				if err != nil {
+					return fmt.Errorf("web auth status failed: %w", err)
+				}
+				return printWebAuthStatus(d, webAuthStatus{
+					Authenticated:    true,
+					Source:           webSessionSourceBroker,
+					AppleID:          session.UserEmail,
+					TeamID:           session.TeamID,
+					ProviderID:       session.ProviderID,
+					PublicProviderID: session.PublicProviderID,
+				}, *output.Output, *output.Pretty)
+			}
 			var (
 				session *webcore.AuthSession
 				ok      bool

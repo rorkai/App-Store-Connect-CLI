@@ -143,6 +143,25 @@ or `--all`, and `--apple-id` on `asc web auth import` asserts which Apple
 Account the bundle must belong to rather than selecting one. Pass `--apple-id`
 explicitly to those commands.
 
+### Brokered sessions
+
+When `ASC_WEB_BROKER_URL` and `ASC_WEB_BROKER_TOKEN` are both set, a broker
+holds the Apple web session and `asc` never sees its cookies. Every `asc web`
+command sends each request for an `apple.com` host to
+`<ASC_WEB_BROKER_URL>/<host><path>?<query>` with the same method, body, and
+headers, `Authorization: Bearer <ASC_WEB_BROKER_TOKEN>`, and no cookie. The
+broker attaches the session, relays Apple's answer, and marks it with the
+`X-Asc-Web-Broker-Upstream` response header. A response without that header is
+the broker's own refusal, reported with the `code` and `message` of its
+`{"error":{"code","message"}}` body. Requests for other hosts, such as
+presigned attachment downloads, go out directly.
+
+The account and provider come from Apple's session endpoint through the broker.
+Nothing is read from or written to the session cache, and `asc web auth login`,
+`asc web auth export`, `asc web auth import`, and `--session-from-env` exit with
+code `2`. Setting only one of the two variables, or a non-HTTPS URL other than
+a loopback one, is also a usage error rather than a fallback to the cache.
+
 ### No usable session
 
 A command other than `asc web auth login` exits with code `2` when it has no

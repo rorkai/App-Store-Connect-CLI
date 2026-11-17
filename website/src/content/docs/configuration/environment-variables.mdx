@@ -239,6 +239,23 @@ They do not replace `ASC_KEY_ID`, `ASC_ISSUER_ID`, or the other API credentials.
   received after it unless `--since` is passed.
 </ParamField>
 
+<ParamField path="ASC_WEB_BROKER_URL" type="string">
+  Base URL of a web session broker that holds the Apple web session
+
+  Set with `ASC_WEB_BROKER_TOKEN`. Every `asc web` command then sends its
+  `apple.com` requests through the broker instead of using a cached or new
+  session, so no Apple cookie reaches this process. See
+  [Brokered sessions](/commands/web#brokered-sessions).
+</ParamField>
+
+<ParamField path="ASC_WEB_BROKER_TOKEN" type="string">
+  Bearer token the web session broker accepts
+
+  Sent as `Authorization: Bearer` on every brokered request and on nothing
+  else, and removed from the environment of the CLI's internal telemetry
+  worker. Treat it as a short-lived credential.
+</ParamField>
+
 <ParamField path="ASC_WEB_SESSION" type="string">
   Canonical `asc-web-session` JSON bundle supplied through the environment
 

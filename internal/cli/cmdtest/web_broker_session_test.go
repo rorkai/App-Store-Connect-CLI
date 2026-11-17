@@ -1,0 +1,145 @@
+package cmdtest
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+
+	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+)
+
+const brokerThreadsFixture = `{"data":[{"id":"thread-1","type":"resolutionCenterThreads","attributes":{"threadType":"REJECTION_BINARY","state":"OPEN","createdDate":"2026-11-16T00:00:00Z"}}]}`
+
+// webBrokerFixture serves a broker that relays canned Apple answers. With
+// refusal set, it refuses every request after the session bootstrap.
+func webBrokerFixture(t *testing.T, refusal string) (*[]string, string) {
+	t.Helper()
+	cache := t.TempDir()
+	t.Setenv("ASC_WEB_SESSION_CACHE", "1")
+	t.Setenv("ASC_WEB_SESSION_CACHE_DIR", cache)
+	t.Setenv("ASC_WEB_SESSION_CACHE_BACKEND", "file")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	for _, name := range []string{"ASC_PROFILE", "ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY_PATH", "ASC_PRIVATE_KEY", "ASC_PRIVATE_KEY_B64", "ASC_STRICT_AUTH", "ASC_WEB_SESSION", "ASC_APP_ID"} {
+		t.Setenv(name, "")
+	}
+	requests := []string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		if r.Header.Get("Authorization") != "Bearer broker-token" || r.Header.Get("Cookie") != "" {
+			t.Error("broker request must carry the broker token and no cookie")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if refusal != "" && r.URL.Path != "/broker/appstoreconnect.apple.com/olympus/v1/session" {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = io.WriteString(w, refusal)
+			return
+		}
+		w.Header().Set("X-Asc-Web-Broker-Upstream", "1")
+		switch r.URL.Path {
+		case "/broker/appstoreconnect.apple.com/olympus/v1/session":
+			_, _ = io.WriteString(w, `{"provider":{"providerId":42,"publicProviderId":"TEAM42"},"user":{"emailAddress":"user@example.com"}}`)
+		case "/broker/appstoreconnect.apple.com/iris/v1/apps/app-1/resolutionCenterThreads":
+			_, _ = io.WriteString(w, brokerThreadsFixture)
+		default:
+			t.Errorf("unexpected route: %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("ASC_WEB_BROKER_URL", server.URL+"/broker")
+	t.Setenv("ASC_WEB_BROKER_TOKEN", "broker-token")
+	return &requests, cache
+}
+
+func assertWebSessionCacheEmpty(t *testing.T, cache string) {
+	t.Helper()
+	entries, err := os.ReadDir(cache)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("session cache changed: entries=%v err=%v", entries, err)
+	}
+}
+
+func TestWebBrokerServesReviewThreadsWithoutLocalSession(t *testing.T) {
+	requests, cache := webBrokerFixture(t, "")
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{"web", "review", "threads", "--app", "app-1", "--output", "json"}, "test")
+	})
+	if code != 0 {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	var threads []struct {
+		Thread struct {
+			ID string `json:"id"`
+		} `json:"thread"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &threads); err != nil || len(threads) != 1 || threads[0].Thread.ID != "thread-1" {
+		t.Fatalf("unexpected output %q (err=%v)", stdout, err)
+	}
+	want := []string{
+		"GET /broker/appstoreconnect.apple.com/olympus/v1/session",
+		"GET /broker/appstoreconnect.apple.com/iris/v1/apps/app-1/resolutionCenterThreads",
+	}
+	if !reflect.DeepEqual(*requests, want) {
+		t.Fatalf("requests=%v, want %v", *requests, want)
+	}
+	assertWebSessionCacheEmpty(t, cache)
+}
+
+func TestWebBrokerRefusalIsReportedAsBrokers(t *testing.T) {
+	_, cache := webBrokerFixture(t, `{"error":{"code":"ASC_WEB_SESSION_EXPIRED","message":"Apple ended the stored sign-in for team TEAM42."}}`)
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{"web", "review", "threads", "--app", "app-1"}, "test")
+	})
+	if code == 0 {
+		t.Fatalf("expected failure, stdout=%q", stdout)
+	}
+	if !strings.Contains(stderr, "ASC_WEB_SESSION_EXPIRED") || !strings.Contains(stderr, "Apple ended the stored sign-in for team TEAM42.") {
+		t.Fatalf("stderr=%q", stderr)
+	}
+	if strings.Contains(stderr, "asc web auth login") || strings.Contains(stderr, "network connection") {
+		t.Fatalf("broker refusal must not suggest a local sign-in or a network problem: %q", stderr)
+	}
+	assertWebSessionCacheEmpty(t, cache)
+}
+
+func TestWebBrokerRefusesLocalSessionCommandsBeforeRequests(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		args       []string
+		env, value string
+		diagnostic string
+	}{
+		{name: "login", args: []string{"web", "auth", "login", "--apple-id", "user@example.com"}, diagnostic: "asc web auth login is unavailable while ASC_WEB_BROKER_URL is set"},
+		{name: "import", args: []string{"web", "auth", "import", "--from-env"}, diagnostic: "asc web auth import is unavailable"},
+		{name: "export", args: []string{"web", "auth", "export", "--output-path", "session.json"}, diagnostic: "asc web auth export is unavailable"},
+		{name: "session from env", args: []string{"web", "removed-apps", "list", "--session-from-env"}, diagnostic: "--session-from-env is unavailable"},
+		{name: "token missing", args: []string{"web", "review", "threads", "--app", "app-1"}, env: "ASC_WEB_BROKER_TOKEN", diagnostic: "set both ASC_WEB_BROKER_URL and ASC_WEB_BROKER_TOKEN"},
+		{name: "remote http", args: []string{"web", "review", "threads", "--app", "app-1"}, env: "ASC_WEB_BROKER_URL", value: "http://broker.example.com", diagnostic: "must use https"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requests, cache := webBrokerFixture(t, "")
+			if tc.env != "" {
+				t.Setenv(tc.env, tc.value)
+			}
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(tc.args, "test") })
+			if code != 2 || !strings.Contains(stderr, tc.diagnostic) {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			if len(*requests) != 0 {
+				t.Fatalf("unexpected requests: %v", *requests)
+			}
+			assertWebSessionCacheEmpty(t, cache)
+		})
+	}
+}

@@ -16,6 +16,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 type ClassifiedError struct {
@@ -52,6 +53,13 @@ func Classify(err error) ClassifiedError {
 	// sign-in.
 	if missing, ok := errors.AsType[*shared.MissingWebSessionError](err); ok {
 		return ClassifiedError{Message: err.Error(), Hint: missing.Hint}
+	}
+
+	// The broker answered, so this is not a network failure even though the
+	// refusal reaches the caller through the HTTP client as a transport error;
+	// its message already names the next step.
+	if _, ok := errors.AsType[*web.BrokerError](err); ok {
+		return ClassifiedError{Message: err.Error()}
 	}
 
 	if hinted, ok := errors.AsType[*shared.HintedError](err); ok {

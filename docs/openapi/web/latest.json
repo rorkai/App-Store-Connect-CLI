@@ -8010,11 +8010,12 @@
         },
         "x-asc-hand-written": true,
         "x-asc-observed": {
-          "code": "2026-11-14"
+          "code": "2026-11-17"
         },
         "x-asc-source": [
           "Login",
           "LoginWithClient",
+          "OpenBrokeredSession",
           "SelectProvider",
           "SubmitSecurityKey",
           "SubmitTwoFactorCode"
