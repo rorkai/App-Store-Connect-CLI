@@ -71,7 +71,7 @@ func TestPricePointLadderReadsSendTerritoryFiltersIncludesAndReadEveryPageForPri
 			name:      "iap price filter reads past the first page without paginate",
 			args:      []string{"iap", "pricing", "price-points", "list", "--iap-id", "9000000001", "--territory", "USA", "--price", "4.99"},
 			path:      "/v2/inAppPurchases/9000000001/pricePoints",
-			query:     []string{"filter[territory]=USA", "limit=200"},
+			query:     []string{"filter[territory]=USA", "limit=8000"},
 			nextQuery: []string{"cursor=Mg"},
 			pages: []string{
 				`{"data":[{"type":"inAppPurchasePricePoints","id":"usa-099","attributes":{"customerPrice":"0.99"}}],"links":{"next":"` + page2 + `"}}`,
