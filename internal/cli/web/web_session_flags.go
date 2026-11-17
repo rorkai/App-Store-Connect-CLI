@@ -60,6 +60,10 @@ func newWebRequestContextWith(ctx context.Context, d *shared.Deps) (context.Cont
 // The password and two-factor prompts still read and write the terminal itself.
 func resolveWebSessionForCommandWith(ctx context.Context, d *shared.Deps, flags webSessionFlags) (*webcore.AuthSession, context.Context, context.CancelFunc, error) {
 	if flags.sessionFromEnv != nil && *flags.sessionFromEnv {
+		if err := refuseUnderWebBroker(d, "--session-from-env"); err != nil {
+			requestCtx, cancel := newWebRequestContextWith(ctx, d)
+			return nil, requestCtx, cancel, err
+		}
 		session, err := resolveSessionFromEnv(ctx, d, flags)
 		requestCtx, cancel := newWebRequestContextWith(ctx, d)
 		return session, requestCtx, cancel, err
@@ -118,7 +122,7 @@ func withWebAuthHint(err error, operation string) error {
 		return fmt.Errorf("%s failed: Apple denied the request (403); the account role likely lacks permission for this action, or the web session expired (run 'asc web auth status' to check): %w", operation, err)
 	}
 	if webcore.IsSessionAuthFailure(err) {
-		return fmt.Errorf("%s failed: web session is unauthorized or expired (run 'asc web auth login'): %w", operation, err)
+		return fmt.Errorf("%s failed: web session is unauthorized or expired (%s): %w", operation, webSignInAdvice(), err)
 	}
 	return fmt.Errorf("%s failed: %w", operation, err)
 }

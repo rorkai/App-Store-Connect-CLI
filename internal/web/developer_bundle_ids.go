@@ -180,7 +180,7 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	payload, err = addDeveloperPortalTeamID(payload, teamID)
 	if err != nil {
@@ -189,7 +189,7 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 
 	csrf, csrfTS := c.developerCSRFTokens()
 	if csrf == "" || csrfTS == "" {
-		return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint())
 	}
 	path := "/bundleIds/" + url.PathEscape(req.BundleID)
 	if _, err := c.doDeveloperPortalRequest(ctx, http.MethodPatch, path, payload, developerPortalHeaders(req.BundleID), true); err != nil {
@@ -266,7 +266,7 @@ func (c *Client) DisableDeveloperBundleIDCapability(ctx context.Context, req Dev
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	payload, err = addDeveloperPortalTeamID(payload, teamID)
 	if err != nil {
@@ -274,7 +274,7 @@ func (c *Client) DisableDeveloperBundleIDCapability(ctx context.Context, req Dev
 	}
 	csrf, csrfTS := c.developerCSRFTokens()
 	if csrf == "" || csrfTS == "" {
-		return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint())
 	}
 
 	path := "/bundleIds/" + url.PathEscape(req.BundleID)

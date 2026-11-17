@@ -143,6 +143,40 @@ or `--all`, and `--apple-id` on `asc web auth import` asserts which Apple
 Account the bundle must belong to rather than selecting one. Pass `--apple-id`
 explicitly to those commands.
 
+### Brokered sessions
+
+When `ASC_WEB_BROKER_URL` and `ASC_WEB_BROKER_TOKEN` are both set, a broker
+holds the Apple web session and `asc` holds none of its cookies. Every `asc web`
+command sends each request for an `apple.com` host to
+`<ASC_WEB_BROKER_URL>/<host><path>?<query>` with the same method, body, and
+headers, `Authorization: Bearer <ASC_WEB_BROKER_TOKEN>`, and no cookie. The
+broker attaches the session, relays Apple's answer, and marks it with the
+`X-Asc-Web-Broker-Upstream` response header; `asc` drops any `Set-Cookie` the
+answer still carries. A response without that header is the broker's own
+refusal, reported with the `code` and `message` of its
+`{"error":{"code","message"}}` body. Requests for other hosts, such as
+presigned attachment downloads, go out directly, without the token. A request
+for a port other than 443, or with a `.` or `..` path segment, is not sent.
+
+The account and provider come from Apple's session endpoint through the broker
+and stay the broker's. `--apple-id` or `ASC_WEB_APPLE_ID` naming another
+account, and `--provider-id` or `--public-provider-id` naming another provider,
+are errors: `asc` never switches the lent session. Nothing is read from or
+written to the session cache, and `asc web auth login`, `asc web auth logout`,
+`asc web auth export`, `asc web auth import`, `--session-from-env`, and the
+sign-in flags `--two-factor-code-command`, `--two-factor-method`, and
+`--two-factor-phone-id` exit with code `2`. Setting only one of the two
+variables, or a non-HTTPS URL other than a loopback one, is also a usage error
+rather than a fallback to the cache.
+`asc validate --deep` does not use the broker and reports the web session as
+unavailable.
+
+The token lets its holder send any request the broker relays, so the broker
+decides what the session is lent for. A broker should relay only the Apple
+hosts and paths it means to lend, refuse Apple's sign-in hosts, strip
+`Set-Cookie` from the answers it relays, leave redirects to `asc`, and issue
+short-lived tokens.
+
 ### No usable session
 
 A command other than `asc web auth login` exits with code `2` when it has no

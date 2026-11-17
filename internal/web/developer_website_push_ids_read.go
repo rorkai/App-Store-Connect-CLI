@@ -50,7 +50,7 @@ func (c *Client) ListDeveloperWebsitePushIDs(ctx context.Context) (*DeveloperWeb
 func (c *Client) listDeveloperWebsitePushIDsAfterSession(ctx context.Context) (*DeveloperWebsitePushIDsListResult, error) {
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 
 	body, err := c.doDeveloperPortalLegacyFormRequest(readonly.WithReadIntent(ctx), developerWebsitePushIDsListPath, url.Values{

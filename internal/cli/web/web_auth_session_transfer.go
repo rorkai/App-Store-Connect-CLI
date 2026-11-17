@@ -87,6 +87,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := refuseUnderWebBroker(d, "asc web auth export"); err != nil {
+				return err
+			}
 			outputPathValue := *outputPath
 			if strings.TrimSpace(outputPathValue) == "" {
 				return d.UsageError("--output-path is required")
@@ -234,6 +237,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := refuseUnderWebBroker(d, "asc web auth import"); err != nil {
+				return err
+			}
 			filePathValue := *filePath
 			fileFlagProvided := false
 			fs.Visit(func(flagDef *flag.Flag) {

@@ -224,7 +224,7 @@ type developerPortalTeamIDRequest struct {
 func (c *Client) doDeveloperPortalBundleIDDetailRead(ctx context.Context, path, bundleID string, query url.Values) ([]byte, error) {
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	path = queryPath(path, query)
 	headers := developerPortalHeaders(bundleID)

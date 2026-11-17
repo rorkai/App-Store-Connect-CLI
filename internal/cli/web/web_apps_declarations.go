@@ -205,7 +205,7 @@ func resolveWebComplianceClient(ctx context.Context, d *shared.Deps, authFlags w
 
 	accountID := strings.TrimSpace(session.PublicProviderID)
 	if accountID == "" {
-		return "", nil, requestCtx, cancel, fmt.Errorf("%s failed: web session is missing public provider/account id (run 'asc web auth login')", command)
+		return "", nil, requestCtx, cancel, fmt.Errorf("%s failed: web session is missing public provider/account id (%s)", command, webSignInAdvice())
 	}
 	return accountID, newWebClientFn(session), requestCtx, cancel, nil
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -579,5 +581,39 @@ func TestCollectDeepValidationLoadsSessionOnDepsTransport(t *testing.T) {
 	}
 	if loaderTransport != transport {
 		t.Fatalf("session loader transport = %v, want the deps transport", loaderTransport)
+	}
+}
+
+// Under a web session broker the cached session is not validate's to use: it
+// is neither read nor sent to Apple.
+func TestLoadDeepSessionLeavesTheCacheAloneUnderAWebBroker(t *testing.T) {
+	t.Setenv("ASC_WEB_SESSION_CACHE", "1")
+	t.Setenv("ASC_WEB_SESSION_CACHE_BACKEND", "file")
+	t.Setenv("ASC_WEB_SESSION_CACHE_DIR", t.TempDir())
+	jar, _ := cookiejar.New(nil)
+	jar.SetCookies(&url.URL{Scheme: "https", Host: "appstoreconnect.apple.com", Path: "/"}, []*http.Cookie{{Name: "myacinfo", Value: "cached", Path: "/"}})
+	if err := webcore.PersistSession(&webcore.AuthSession{Client: &http.Client{Jar: jar}, UserEmail: "user@example.com"}); err != nil {
+		t.Fatalf("seed cached session: %v", err)
+	}
+	t.Setenv(webcore.WebBrokerURLEnv, "https://broker.example.com")
+	t.Setenv(webcore.WebBrokerTokenEnv, "broker-token")
+
+	requests := 0
+	transport := buildsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		return nil, errors.New("no request expected")
+	})
+	session, ok, err := loadDeepSession(context.Background(), transport, "user@example.com")
+	if session != nil || ok || err != nil || requests != 0 {
+		t.Fatalf("session=%v ok=%v err=%v requests=%d", session, ok, err, requests)
+	}
+	// The finding names no sign-in command: login is refused under a broker.
+	d := &shared.Deps{HTTPTransport: func() http.RoundTripper { return transport }}
+	_, findings, err := collectDeepValidation(context.Background(), d, validation.Report{AppID: "app-1"}, "user@example.com")
+	if err != nil || len(findings) != 1 || requests != 0 {
+		t.Fatalf("findings=%#v err=%v requests=%d", findings, err, requests)
+	}
+	if advice := findings[0].Remediation + strings.Join(findings[0].Resolution.Commands, " "); !strings.Contains(advice, webcore.WebBrokerURLEnv) || strings.Contains(advice, "asc web auth") {
+		t.Fatalf("advice=%q", advice)
 	}
 }

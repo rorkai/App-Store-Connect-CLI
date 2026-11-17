@@ -13,6 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
+	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 type validateOptions struct {
@@ -154,6 +155,11 @@ Subscriptions:
 			trimmedAppleID := strings.TrimSpace(*appleID)
 			if trimmedAppleID != "" && !*deep {
 				return shared.WithDiagnostic(d.UsageError("--apple-id requires --deep"), shared.DiagnosticInvalidInput, "--apple-id")
+			}
+			if *deep {
+				if _, _, err := webcore.BrokerFromEnv(); err != nil {
+					return d.UsageError(err.Error())
+				}
 			}
 
 			resolvedAppID := d.ResolveAppID(*appID)

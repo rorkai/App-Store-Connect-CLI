@@ -31,6 +31,11 @@ var (
 )
 
 func loadDeepSession(ctx context.Context, transport http.RoundTripper, appleID string) (*webcore.AuthSession, bool, error) {
+	// Under a web session broker the cached session is not this command's to
+	// use, and the deep checks do not go through the broker.
+	if _, brokered, _ := webcore.BrokerFromEnv(); brokered {
+		return nil, false, nil
+	}
 	requestCtx, cancel := readinessRequestContext(ctx)
 	defer cancel()
 	var session *webcore.AuthSession
@@ -68,6 +73,10 @@ func collectDeepValidation(ctx context.Context, d *shared.Deps, report validatio
 	}
 	if err != nil || !ok || session == nil || session.Client == nil {
 		deep, findings := buildDeepValidation(ctx, report, nil, validation.DeepSessionUnavailable)
+		if _, brokered, _ := webcore.BrokerFromEnv(); brokered {
+			describeBrokeredDeepSession(findings)
+			return deep, findings, nil
+		}
 		scopeDeepResolutionCommands(&deep, findings, selectedAppleID)
 		return deep, findings, nil
 	}
@@ -149,6 +158,20 @@ func buildDeepValidation(ctx context.Context, report validation.Report, client d
 	)
 	deep.Summary = validation.SummarizeDeepChecks(deep.Checks)
 	return deep, findings
+}
+
+// describeBrokeredDeepSession replaces the sign-in advice of the session
+// finding: under a broker "asc web auth login" is refused and the deep checks
+// do not go through the broker, so neither command it names would help.
+func describeBrokeredDeepSession(findings []validation.CheckResult) {
+	for i := range findings {
+		if findings[i].ID != "deep.web_session.unavailable" {
+			continue
+		}
+		findings[i].Message = "deep validation does not use the web session broker"
+		findings[i].Remediation = "Run `asc validate --deep` where asc has its own cached Apple web session, without " + webcore.WebBrokerURLEnv + " and " + webcore.WebBrokerTokenEnv
+		findings[i].Resolution = &validation.Resolution{Fixability: validation.FixabilityManual}
+	}
 }
 
 func scopeDeepResolutionCommands(deep *validation.DeepReport, findings []validation.CheckResult, appleID string) {

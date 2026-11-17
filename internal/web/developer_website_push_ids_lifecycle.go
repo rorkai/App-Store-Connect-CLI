@@ -157,7 +157,7 @@ func (c *Client) GetDeveloperWebsitePushID(ctx context.Context, websitePushID st
 func (c *Client) getDeveloperWebsitePushIDAfterSession(ctx context.Context, websitePushID string) (*DeveloperWebsitePushIDGetResult, error) {
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	path := "/websitepushIds/" + url.PathEscape(websitePushID) + "?include=" + developerWebsitePushIDDetailInclude
 	headers := developerPortalHeaders("")
@@ -191,7 +191,7 @@ func (c *Client) CreateDeveloperWebsitePushID(ctx context.Context, request Devel
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 
 	before, err := c.listDeveloperWebsitePushIDsAfterSession(ctx)
@@ -359,7 +359,7 @@ func (c *Client) doDeveloperWebsitePushIDRequest(ctx context.Context, path strin
 func (c *Client) requireEmptyWebsitePushIDCapabilityCatalog(ctx context.Context) error {
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	headers := developerPortalHeaders("")
 	headers.Set("X-HTTP-Method-Override", http.MethodGet)

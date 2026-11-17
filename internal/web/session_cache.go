@@ -2613,7 +2613,7 @@ func loadSessionFromPersistedSession(sess persistedSession) (*AuthSession, bool,
 
 // PersistSession stores web-session cookies for later reuse.
 func PersistSession(session *AuthSession) error {
-	if session == nil || session.Client == nil || session.Client.Jar == nil {
+	if session == nil || session.Brokered || session.Client == nil || session.Client.Jar == nil {
 		return nil
 	}
 	session.persistMu.Lock()

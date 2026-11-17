@@ -406,9 +406,12 @@ func RunAppsCreate(ctx context.Context, d *shared.Deps, opts AppsCreateRunOption
 	requestCtx, cancel := newWebRequestContextWith(ctx, d)
 	defer cancel()
 
-	if source == "fresh" {
+	switch source {
+	case "fresh":
 		fmt.Fprintln(d.IO.ErrOut, "Authenticated via fresh web login.")
-	} else {
+	case webSessionSourceBroker:
+		fmt.Fprintln(d.IO.ErrOut, "Using the brokered web session.")
+	default:
 		fmt.Fprintln(d.IO.ErrOut, "Using cached web session.")
 	}
 

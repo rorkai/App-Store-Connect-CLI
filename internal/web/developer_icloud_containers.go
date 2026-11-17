@@ -101,7 +101,7 @@ func (c *Client) ListDeveloperICloudContainers(ctx context.Context, hidden bool)
 func (c *Client) listDeveloperICloudContainersAfterSession(ctx context.Context, hidden bool) (*DeveloperICloudContainersListResult, error) {
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	query := url.Values{}
 	query.Set("filter[AND][hidden]", strconv.FormatBool(hidden))

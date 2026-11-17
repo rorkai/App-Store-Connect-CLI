@@ -257,12 +257,13 @@ func TestMaintenanceWorkerEnvironmentFiltersWebSession(t *testing.T) {
 	environment := maintenanceWorkerEnvironment([]string{
 		"ASC_WEB_SESSION=super-secret-token",
 		"asc_web_session=case-variant-secret",
+		"ASC_WEB_BROKER_TOKEN=broker-secret",
 		"PATH=/usr/bin",
 	})
 
 	for _, entry := range environment {
 		name, _, _ := strings.Cut(entry, "=")
-		if strings.EqualFold(name, "ASC_WEB_SESSION") {
+		if strings.EqualFold(name, "ASC_WEB_SESSION") || strings.EqualFold(name, "ASC_WEB_BROKER_TOKEN") {
 			t.Fatalf("maintenance worker environment contains session input: %q", entry)
 		}
 	}

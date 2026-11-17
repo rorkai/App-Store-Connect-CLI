@@ -253,16 +253,16 @@ func wrapWebAuthCapabilitiesError(keyID string, err error) error {
 	if errors.As(err, &apiErr) {
 		switch apiErr.Status {
 		case 401:
-			return webAuthCapabilitiesError("web auth capabilities failed: web session expired (run 'asc web auth login')", err)
+			return webAuthCapabilitiesError("web auth capabilities failed: web session expired ("+webSignInAdvice()+")", err)
 		case 403:
 			return webAuthCapabilitiesError("web auth capabilities failed: capability discovery is not permitted for this account or provider; verify the selected provider and account role", err)
 		}
 		return webAuthCapabilitiesError(
-			fmt.Sprintf("web auth capabilities failed: capability discovery is unavailable; retry or run 'asc web auth login': %s", apiErr.Error()),
+			fmt.Sprintf("web auth capabilities failed: capability discovery is unavailable; retry or %s: %s", webSignInAdvice(), apiErr.Error()),
 			err,
 		)
 	}
-	return webAuthCapabilitiesError("web auth capabilities failed: capability discovery is unavailable; retry or run 'asc web auth login'", err)
+	return webAuthCapabilitiesError("web auth capabilities failed: capability discovery is unavailable; retry or "+webSignInAdvice(), err)
 }
 
 func wrapWebAuthCapabilitiesSessionError(err error) error {
@@ -270,7 +270,7 @@ func wrapWebAuthCapabilitiesSessionError(err error) error {
 		return nil
 	}
 	if errors.Is(err, webcore.ErrCachedSessionExpired) {
-		return webAuthCapabilitiesError("web auth capabilities failed: cached web session expired; run 'asc web auth login' and retry", err)
+		return webAuthCapabilitiesError("web auth capabilities failed: cached web session expired; "+webSignInAdvice()+" and retry", err)
 	}
 	if errors.Is(err, shared.ErrMissingWebSession) || errors.Is(err, errNoCachedWebSession) || errors.Is(err, flag.ErrHelp) {
 		// The session resolver already explains these: a missing session carries
@@ -284,15 +284,20 @@ func wrapWebAuthCapabilitiesSessionError(err error) error {
 	if errors.As(err, &apiErr) {
 		switch apiErr.Status {
 		case 401:
-			return webAuthCapabilitiesError("web auth capabilities failed: web session expired (run 'asc web auth login')", err)
+			return webAuthCapabilitiesError("web auth capabilities failed: web session expired ("+webSignInAdvice()+")", err)
 		case 403:
 			return webAuthCapabilitiesError("web auth capabilities failed: capability discovery is not permitted for this account or provider; verify the selected provider and account role", err)
 		}
 	}
-	return webAuthCapabilitiesError("web auth capabilities failed: unable to establish a web session; run 'asc web auth login' and retry", err)
+	return webAuthCapabilitiesError("web auth capabilities failed: unable to establish a web session; "+webSignInAdvice()+" and retry", err)
 }
 
 func webAuthCapabilitiesError(message string, cause error) error {
+	// A broker's refusal carries its own code and next step, which the summary
+	// message would hide.
+	if _, refused := errors.AsType[*webcore.BrokerError](cause); refused {
+		return fmt.Errorf("web auth capabilities failed: %w", cause)
+	}
 	return shared.NewErrorWithCause(errors.New(message), cause)
 }
 

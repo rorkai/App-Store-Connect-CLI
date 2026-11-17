@@ -171,7 +171,11 @@ func (c *Client) AcceptBusinessAgreement(ctx context.Context, configID string) (
 		var apiErr *APIError
 		if errors.As(err, &apiErr) {
 			if apiErr.Status == http.StatusUnauthorized && slices.Contains(extractServiceErrorCodes(apiErr.rawResponseBody()), "NOT_AUTHORIZED.FRESH_2FA_REQUIRED") {
-				return nil, fmt.Errorf("web business agreements accept failed: Apple requires a fresh 2FA challenge; for the same account and provider, run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL --public-provider-id PROVIDER_ID' and complete 2FA; run 'asc web business agreements list' before retrying acceptance: %w", &APIError{Status: apiErr.Status})
+				freshSignIn := "for the same account and provider, run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL --public-provider-id PROVIDER_ID' and complete 2FA"
+				if _, brokered, _ := BrokerFromEnv(); brokered {
+					freshSignIn = "sign in to Apple again through the broker's owner and complete 2FA there"
+				}
+				return nil, fmt.Errorf("web business agreements accept failed: Apple requires a fresh 2FA challenge; %s; run 'asc web business agreements list' before retrying acceptance: %w", freshSignIn, &APIError{Status: apiErr.Status})
 			}
 			err = &APIError{Status: apiErr.Status}
 		} else if errors.Is(err, context.Canceled) {
