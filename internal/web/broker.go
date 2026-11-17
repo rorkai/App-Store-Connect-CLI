@@ -27,6 +27,10 @@ const (
 // ErrWebBrokerConfig reports an incomplete or invalid broker configuration.
 var ErrWebBrokerConfig = errors.New("invalid web session broker configuration")
 
+// ErrWebBrokerRequest reports a request for Apple that is not handed to the
+// broker because the broker could route it somewhere else.
+var ErrWebBrokerRequest = errors.New("web session broker cannot relay the request")
+
 // Broker is a service that holds an Apple web session and sends requests to
 // Apple on the caller's behalf, so the session's cookies never reach this
 // process.
@@ -47,7 +51,7 @@ func BrokerFromEnv() (broker Broker, ok bool, err error) {
 		return Broker{}, true, fmt.Errorf("%w: set both %s and %s", ErrWebBrokerConfig, WebBrokerURLEnv, WebBrokerTokenEnv)
 	}
 	parsed, err := url.Parse(rawURL)
-	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+	if err != nil || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return Broker{}, true, fmt.Errorf("%w: %s must be an absolute URL without credentials, query, or fragment", ErrWebBrokerConfig, WebBrokerURLEnv)
 	}
 	loopbackHTTP := parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname())
@@ -89,25 +93,32 @@ func (e *BrokerError) HTTPStatusCode() int {
 
 // brokerTransport sends every request for an apple.com host to the broker as
 // <broker URL>/<host><path>?<query> with the broker token. It holds no cookies;
-// the broker attaches the session's. Requests for other hosts, such as the
-// presigned storage URLs review attachments download from, carry no Apple
-// session and go out directly.
+// the broker attaches the session's, and any cookie the broker relays back is
+// dropped before the caller sees the response. Requests for other hosts, such
+// as the presigned storage URLs review attachments download from, carry no
+// Apple session and go out directly.
 type brokerTransport struct {
 	broker Broker
 	next   http.RoundTripper
 }
 
 func (t *brokerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if !isAppleSessionHost(req.URL.Hostname()) {
+	host := strings.ToLower(strings.TrimSuffix(req.URL.Hostname(), "."))
+	if !isAppleSessionHost(host) {
 		return t.next.RoundTrip(req)
 	}
-	if req.URL.Scheme != "https" {
-		return nil, fmt.Errorf("web session broker only relays https requests")
+	// The broker routes on the first path segment and reaches Apple on the
+	// default port, so a request it could route elsewhere is refused here.
+	if reason := unrelayableRequest(req.URL); reason != "" {
+		if req.Body != nil {
+			_ = req.Body.Close()
+		}
+		return nil, fmt.Errorf("%w: only %s are relayed", ErrWebBrokerRequest, reason)
 	}
 
 	target := *t.broker.URL
-	target.Path = t.broker.URL.Path + "/" + strings.ToLower(req.URL.Hostname()) + req.URL.Path
-	target.RawPath = t.broker.URL.EscapedPath() + "/" + strings.ToLower(req.URL.Hostname()) + req.URL.EscapedPath()
+	target.Path = t.broker.URL.Path + "/" + host + req.URL.Path
+	target.RawPath = t.broker.URL.EscapedPath() + "/" + host + req.URL.EscapedPath()
 	target.RawQuery = req.URL.RawQuery
 
 	out := req.Clone(req.Context())
@@ -123,14 +134,30 @@ func (t *brokerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if resp.Header.Get(WebBrokerUpstreamHeader) == "" {
 		return nil, readBrokerError(resp)
 	}
-	resp.Header.Del(WebBrokerUpstreamHeader)
+	for _, name := range []string{WebBrokerUpstreamHeader, "Set-Cookie", "Set-Cookie2"} {
+		resp.Header.Del(name)
+	}
 	resp.Request = req
 	return resp, nil
 }
 
 func isAppleSessionHost(host string) bool {
-	host = strings.ToLower(strings.TrimSuffix(host, "."))
 	return host == "apple.com" || strings.HasSuffix(host, ".apple.com")
+}
+
+func unrelayableRequest(target *url.URL) string {
+	if target.Scheme != "https" {
+		return "https requests"
+	}
+	if port := target.Port(); port != "" && port != "443" {
+		return "requests for the default https port"
+	}
+	for segment := range strings.SplitSeq(target.Path, "/") {
+		if segment == "." || segment == ".." {
+			return "paths without dot segments"
+		}
+	}
+	return ""
 }
 
 func readBrokerError(resp *http.Response) error {
@@ -177,7 +204,7 @@ func openBrokeredSession(ctx context.Context, broker Broker, base http.RoundTrip
 	if err != nil {
 		return nil, fmt.Errorf("brokered web session: %w", err)
 	}
-	session := &AuthSession{Client: client}
+	session := &AuthSession{Client: client, Brokered: true}
 	applySessionInfo(session, info)
 	return session, nil
 }

@@ -2037,6 +2037,9 @@ Pass --forget-password --confirm to also remove the native credential-store pass
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := refuseUnderWebBroker(d, "asc web auth logout"); err != nil {
+				return err
+			}
 			trimmedAppleID := strings.TrimSpace(*appleID)
 			if *all && trimmedAppleID != "" {
 				return d.UsageError("--all and --apple-id are mutually exclusive")

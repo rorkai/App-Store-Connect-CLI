@@ -55,10 +55,10 @@ func Classify(err error) ClassifiedError {
 		return ClassifiedError{Message: err.Error(), Hint: missing.Hint}
 	}
 
-	// The broker answered, so this is not a network failure even though the
-	// refusal reaches the caller through the HTTP client as a transport error;
-	// its message already names the next step.
-	if _, ok := errors.AsType[*web.BrokerError](err); ok {
+	// The broker answered, or was never asked, so this is not a network failure
+	// even though it reaches the caller through the HTTP client as a transport
+	// error; its message already names the next step.
+	if _, ok := errors.AsType[*web.BrokerError](err); ok || errors.Is(err, web.ErrWebBrokerRequest) {
 		return ClassifiedError{Message: err.Error()}
 	}
 

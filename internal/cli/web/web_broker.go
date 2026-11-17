@@ -23,11 +23,12 @@ func webBrokerFromEnv(d *shared.Deps) (webcore.Broker, bool, error) {
 	return broker, ok, nil
 }
 
-// refuseUnderWebBroker stops commands that sign in or move session cookies:
-// under a broker the session lives with the broker and never in this process.
+// refuseUnderWebBroker stops commands that sign in, sign out, or move session
+// cookies: under a broker the session lives with the broker and never in this
+// process, and the local session cache is left alone.
 func refuseUnderWebBroker(d *shared.Deps, command string) error {
-	if _, ok, _ := webcore.BrokerFromEnv(); !ok {
-		return nil
+	if _, ok, err := webBrokerFromEnv(d); !ok || err != nil {
+		return err
 	}
 	return d.UsageError(command + " is unavailable while " + webcore.WebBrokerURLEnv + " is set: the broker holds the Apple web session, so sign in to Apple through the broker's owner instead")
 }
@@ -40,8 +41,12 @@ func resolveBrokeredWebSession(ctx context.Context, d *shared.Deps, broker webco
 	if err != nil {
 		return nil, err
 	}
-	if appleID = strings.TrimSpace(appleID); appleID != "" && !strings.EqualFold(appleID, session.UserEmail) {
-		return nil, d.UsageError("--apple-id does not match the account of the brokered web session")
+	source := "--apple-id"
+	if appleID = strings.TrimSpace(appleID); appleID == "" {
+		appleID, source = envAppleID(), webAppleIDEnv
+	}
+	if appleID != "" && !strings.EqualFold(appleID, session.UserEmail) {
+		return nil, d.UsageError(source + " does not match the account of the brokered web session")
 	}
 	return session, nil
 }

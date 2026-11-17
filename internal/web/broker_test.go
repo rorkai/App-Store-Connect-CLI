@@ -5,7 +5,10 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
+	"os"
 	"strings"
 	"testing"
 )
@@ -25,6 +28,7 @@ func TestBrokerFromEnv(t *testing.T) {
 		{name: "remote http", url: "http://broker.example.com", token: "t", ok: true, wantErr: true},
 		{name: "credentials in url", url: "https://user:pass@broker.example.com", token: "t", ok: true, wantErr: true},
 		{name: "query", url: "https://broker.example.com/?token=t", token: "t", ok: true, wantErr: true},
+		{name: "port without host", url: "https://:443", token: "t", ok: true, wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv(WebBrokerURLEnv, tc.url)
@@ -45,6 +49,8 @@ func TestBrokerFromEnv(t *testing.T) {
 
 // The broker sees Apple's host, path, query, method, body and headers, its own
 // token instead of any cookie, and relays Apple's answer, redirects included.
+// The token stays with the broker when Apple redirects elsewhere, and a cookie
+// the broker relays never reaches the caller.
 func TestBrokeredSessionRelaysRequestsThroughBroker(t *testing.T) {
 	var seen []string
 	broker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -65,6 +71,9 @@ func TestBrokeredSessionRelaysRequestsThroughBroker(t *testing.T) {
 			w.WriteHeader(http.StatusFound)
 		case "/proxy/appstoreconnect.apple.com/iris/v1/target":
 			_, _ = io.WriteString(w, `{"data":[]}`)
+		case "/proxy/appstoreconnect.apple.com/iris/v1/offsite":
+			w.Header().Set("Location", "https://iosapps.example-cdn.com/signed?sig=2")
+			w.WriteHeader(http.StatusFound)
 		default:
 			w.Header().Set("Set-Cookie", "myacinfo=rotated; Domain=apple.com; Path=/")
 			_, _ = io.WriteString(w, `{"ok":true}`)
@@ -108,6 +117,9 @@ func TestBrokeredSessionRelaysRequestsThroughBroker(t *testing.T) {
 	if resp.Header.Get(WebBrokerUpstreamHeader) != "" {
 		t.Fatal("broker marker leaked to the caller")
 	}
+	if resp.Header.Get("Set-Cookie") != "" {
+		t.Fatal("a cookie the broker relayed reached the caller")
+	}
 	if session.Client.Jar != nil {
 		t.Fatal("brokered session holds a cookie jar")
 	}
@@ -127,17 +139,24 @@ func TestBrokeredSessionRelaysRequestsThroughBroker(t *testing.T) {
 	}
 	_ = download.Body.Close()
 
+	offsite, err := session.Client.Get("https://appstoreconnect.apple.com/iris/v1/offsite")
+	if err != nil {
+		t.Fatalf("GET offsite redirect: %v", err)
+	}
+	_ = offsite.Body.Close()
+
 	want := []string{
 		"GET /proxy/appstoreconnect.apple.com/olympus/v1/session?  ",
 		`POST /proxy/appstoreconnect.apple.com/iris/v1/resolutionCenterThreads/a%2Fb/messages?include=x&limit=2 itc {"m":1}`,
 		"GET /proxy/appstoreconnect.apple.com/iris/v1/moved?  ",
 		"GET /proxy/appstoreconnect.apple.com/iris/v1/target?  ",
+		"GET /proxy/appstoreconnect.apple.com/iris/v1/offsite?  ",
 	}
 	if strings.Join(seen, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("broker saw:\n%s\nwant:\n%s", strings.Join(seen, "\n"), strings.Join(want, "\n"))
 	}
-	if direct != 1 {
-		t.Fatalf("direct requests=%d, want 1", direct)
+	if direct != 2 {
+		t.Fatalf("direct requests=%d, want 2", direct)
 	}
 }
 
@@ -164,5 +183,80 @@ func TestBrokeredSessionReportsBrokerRefusal(t *testing.T) {
 	}
 	if IsSessionAuthFailure(err) {
 		t.Fatal("a broker refusal must not read as an expired local web session")
+	}
+}
+
+// The broker routes on the first path segment and reaches Apple on the default
+// https port, so a request that would land somewhere else is never sent.
+func TestBrokerTransportRefusesRequestsTheBrokerWouldRouteElsewhere(t *testing.T) {
+	var relayed []string
+	transport := &brokerTransport{
+		broker: Broker{URL: &url.URL{Scheme: "https", Host: "broker.example.com", Path: "/proxy"}, Token: "broker-token"},
+		next: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			relayed = append(relayed, req.URL.Host+req.URL.EscapedPath())
+			return &http.Response{StatusCode: http.StatusOK, Header: http.Header{WebBrokerUpstreamHeader: {"1"}}, Body: http.NoBody, Request: req}, nil
+		}),
+	}
+	for _, target := range []string{
+		"http://appstoreconnect.apple.com/olympus/v1/session",
+		"https://appstoreconnect.apple.com:8443/olympus/v1/session",
+		"https://appstoreconnect.apple.com/iris/v1/apps/../resolutionCenterThreads",
+		"https://appstoreconnect.apple.com/iris/v1/apps/%2e%2e/resolutionCenterThreads",
+	} {
+		req, _ := http.NewRequest(http.MethodGet, target, nil)
+		if resp, err := transport.RoundTrip(req); err == nil {
+			_ = resp.Body.Close()
+			t.Errorf("%s was relayed", target)
+		}
+	}
+	req, _ := http.NewRequest(http.MethodGet, "https://AppStoreConnect.apple.com.:443/olympus/v1/session", nil)
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("RoundTrip: %v", err)
+	}
+	_ = resp.Body.Close()
+	if want := []string{"broker.example.com/proxy/appstoreconnect.apple.com/olympus/v1/session"}; strings.Join(relayed, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("relayed=%v, want %v", relayed, want)
+	}
+}
+
+// The session is the broker's: asc neither switches its provider, which every
+// other borrower of that session would then be on, nor writes it to the cache.
+func TestBrokeredSessionKeepsItsProviderAndStaysOutOfTheCache(t *testing.T) {
+	var methods []string
+	broker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method)
+		w.Header().Set(WebBrokerUpstreamHeader, "1")
+		_, _ = io.WriteString(w, `{"provider":{"providerId":42,"publicProviderId":"TEAM42"},"availableProviders":[{"providerId":42,"publicProviderId":"TEAM42"},{"providerId":99,"publicProviderId":"TEAM99"}],"user":{"emailAddress":"user@example.com"}}`)
+	}))
+	t.Cleanup(broker.Close)
+	brokerURL, _ := url.Parse(broker.URL)
+	session, err := openBrokeredSession(context.Background(), Broker{URL: brokerURL, Token: "broker-token"}, http.DefaultTransport)
+	if err != nil {
+		t.Fatalf("openBrokeredSession: %v", err)
+	}
+
+	if err := SelectProvider(context.Background(), session, ProviderSelection{ProviderID: 42}); err != nil {
+		t.Fatalf("selecting the session's own provider: %v", err)
+	}
+	if err := SelectProvider(context.Background(), session, ProviderSelection{ProviderID: 99}); !errors.Is(err, ErrInvalidProviderSelection) {
+		t.Fatalf("err=%v, want ErrInvalidProviderSelection", err)
+	}
+	if strings.Join(methods, " ") != "GET GET GET" {
+		t.Fatalf("broker saw %v, want only session reads", methods)
+	}
+
+	cache := t.TempDir()
+	t.Setenv("ASC_WEB_SESSION_CACHE", "1")
+	t.Setenv("ASC_WEB_SESSION_CACHE_BACKEND", "file")
+	t.Setenv("ASC_WEB_SESSION_CACHE_DIR", cache)
+	jar, _ := cookiejar.New(nil)
+	jar.SetCookies(&url.URL{Scheme: "https", Host: "appstoreconnect.apple.com", Path: "/"}, []*http.Cookie{{Name: "myacinfo", Value: "v", Path: "/"}})
+	session.Client.Jar = jar
+	if err := PersistSession(session); err != nil {
+		t.Fatalf("PersistSession: %v", err)
+	}
+	if entries, err := os.ReadDir(cache); err != nil || len(entries) != 0 {
+		t.Fatalf("brokered session reached the cache: entries=%v err=%v", entries, err)
 	}
 }

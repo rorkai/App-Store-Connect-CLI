@@ -121,6 +121,9 @@ type AuthSession struct {
 	TeamID           string
 	UserEmail        string
 	DeveloperTeamID  string
+	// Brokered marks a session a broker lends: it is never cached, and its
+	// provider is the broker's to choose.
+	Brokered bool
 
 	// Continuation state needed after a 409 SRP completion response.
 	ServiceKey       string
@@ -1518,6 +1521,9 @@ func SelectProvider(ctx context.Context, session *AuthSession, selection Provide
 		applySessionInfo(session, info)
 		session.DeveloperTeamID = ""
 		return nil
+	}
+	if session.Brokered {
+		return newInvalidProviderSelectionError("the brokered web session is on provider %s, which only the broker's owner can change", providerSummary(info.Provider))
 	}
 
 	payload, err := json.Marshal(map[string]any{

@@ -122,6 +122,9 @@ func withWebAuthHint(err error, operation string) error {
 		return fmt.Errorf("%s failed: Apple denied the request (403); the account role likely lacks permission for this action, or the web session expired (run 'asc web auth status' to check): %w", operation, err)
 	}
 	if webcore.IsSessionAuthFailure(err) {
+		if _, brokered, _ := webcore.BrokerFromEnv(); brokered {
+			return fmt.Errorf("%s failed: the brokered web session is unauthorized or expired (sign in to Apple again through the broker's owner): %w", operation, err)
+		}
 		return fmt.Errorf("%s failed: web session is unauthorized or expired (run 'asc web auth login'): %w", operation, err)
 	}
 	return fmt.Errorf("%s failed: %w", operation, err)

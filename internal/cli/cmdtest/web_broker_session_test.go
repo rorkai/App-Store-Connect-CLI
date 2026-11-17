@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,6 +14,7 @@ import (
 	"testing"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 const brokerThreadsFixture = `{"data":[{"id":"thread-1","type":"resolutionCenterThreads","attributes":{"threadType":"REJECTION_BINARY","state":"OPEN","createdDate":"2026-11-16T00:00:00Z"}}]}`
@@ -43,7 +46,7 @@ func webBrokerFixture(t *testing.T, refusal string) (*[]string, string) {
 		w.Header().Set("X-Asc-Web-Broker-Upstream", "1")
 		switch r.URL.Path {
 		case "/broker/appstoreconnect.apple.com/olympus/v1/session":
-			_, _ = io.WriteString(w, `{"provider":{"providerId":42,"publicProviderId":"TEAM42"},"user":{"emailAddress":"user@example.com"}}`)
+			_, _ = io.WriteString(w, `{"provider":{"providerId":42,"publicProviderId":"TEAM42"},"availableProviders":[{"providerId":42,"publicProviderId":"TEAM42"},{"providerId":99,"publicProviderId":"TEAM99"}],"user":{"emailAddress":"user@example.com"}}`)
 		case "/broker/appstoreconnect.apple.com/iris/v1/apps/app-1/resolutionCenterThreads":
 			_, _ = io.WriteString(w, brokerThreadsFixture)
 		default:
@@ -122,6 +125,7 @@ func TestWebBrokerRefusesLocalSessionCommandsBeforeRequests(t *testing.T) {
 		{name: "login", args: []string{"web", "auth", "login", "--apple-id", "user@example.com"}, diagnostic: "asc web auth login is unavailable while ASC_WEB_BROKER_URL is set"},
 		{name: "import", args: []string{"web", "auth", "import", "--from-env"}, diagnostic: "asc web auth import is unavailable"},
 		{name: "export", args: []string{"web", "auth", "export", "--output-path", "session.json"}, diagnostic: "asc web auth export is unavailable"},
+		{name: "logout", args: []string{"web", "auth", "logout", "--all"}, diagnostic: "asc web auth logout is unavailable"},
 		{name: "session from env", args: []string{"web", "removed-apps", "list", "--session-from-env"}, diagnostic: "--session-from-env is unavailable"},
 		{name: "token missing", args: []string{"web", "review", "threads", "--app", "app-1"}, env: "ASC_WEB_BROKER_TOKEN", diagnostic: "set both ASC_WEB_BROKER_URL and ASC_WEB_BROKER_TOKEN"},
 		{name: "remote http", args: []string{"web", "review", "threads", "--app", "app-1"}, env: "ASC_WEB_BROKER_URL", value: "http://broker.example.com", diagnostic: "must use https"},
@@ -141,5 +145,94 @@ func TestWebBrokerRefusesLocalSessionCommandsBeforeRequests(t *testing.T) {
 			}
 			assertWebSessionCacheEmpty(t, cache)
 		})
+	}
+}
+
+// The lent session keeps its account and provider: a command that names
+// another one stops instead of acting on, or switching, the broker's session.
+func TestWebBrokerKeepsTheLentSessionsAccountAndProvider(t *testing.T) {
+	threads := []string{"web", "review", "threads", "--app", "app-1"}
+	for _, tc := range []struct {
+		name       string
+		args       []string
+		appleIDEnv string
+		diagnostic string
+	}{
+		{name: "the session's provider", args: append(threads, "--provider-id", "42")},
+		{name: "another provider", args: append(threads, "--provider-id", "99"), diagnostic: "only the broker's owner can change"},
+		{name: "another account in the environment", args: threads, appleIDEnv: "other@example.com", diagnostic: "ASC_WEB_APPLE_ID does not match the account of the brokered web session"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requests, cache := webBrokerFixture(t, "")
+			t.Setenv("ASC_WEB_APPLE_ID", tc.appleIDEnv)
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(tc.args, "test") })
+			if (code == 0) != (tc.diagnostic == "") || !strings.Contains(stderr, tc.diagnostic) {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			for _, request := range *requests {
+				if !strings.HasPrefix(request, "GET ") {
+					t.Fatalf("the lent session was changed: %v", *requests)
+				}
+			}
+			assertWebSessionCacheEmpty(t, cache)
+		})
+	}
+}
+
+// A session asc cached earlier is not the broker's: brokered commands neither
+// use it nor remove it.
+func TestWebBrokerLeavesACachedSessionAlone(t *testing.T) {
+	_, cache := webBrokerFixture(t, "")
+	jar, _ := cookiejar.New(nil)
+	jar.SetCookies(&url.URL{Scheme: "https", Host: "appstoreconnect.apple.com", Path: "/"}, []*http.Cookie{{Name: "myacinfo", Value: "cached", Path: "/"}})
+	if err := webcore.PersistSession(&webcore.AuthSession{Client: &http.Client{Jar: jar}, UserEmail: "user@example.com"}); err != nil {
+		t.Fatalf("seed cached session: %v", err)
+	}
+	snapshot := func() string {
+		entries, err := os.ReadDir(cache)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var files []string
+		for _, entry := range entries {
+			if strings.HasSuffix(entry.Name(), ".json") {
+				data, _ := os.ReadFile(filepath.Join(cache, entry.Name()))
+				files = append(files, entry.Name()+"="+string(data))
+			}
+		}
+		return strings.Join(files, "\n")
+	}
+	before := snapshot()
+	if before == "" {
+		t.Fatal("no cached session was seeded")
+	}
+
+	for _, args := range [][]string{
+		{"web", "review", "threads", "--app", "app-1"},
+		{"web", "auth", "status"},
+		{"web", "auth", "logout", "--all"},
+	} {
+		captureOutput(t, func() { cmd.Run(args, "test") })
+		if after := snapshot(); after != before {
+			t.Fatalf("%v changed the cached session:\n%s\nwas:\n%s", args, after, before)
+		}
+	}
+}
+
+// A request asc does not hand to the broker never reached the network, so it
+// is not reported as a connection problem.
+func TestWebBrokerUnrelayableRequestIsNotANetworkFailure(t *testing.T) {
+	requests, _ := webBrokerFixture(t, "")
+
+	var code int
+	_, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{"web", "review", "threads", "--app", ".."}, "test")
+	})
+	if code == 0 || !strings.Contains(stderr, "dot segments") || strings.Contains(stderr, "network connection") {
+		t.Fatalf("exit=%d stderr=%q", code, stderr)
+	}
+	if want := []string{"GET /broker/appstoreconnect.apple.com/olympus/v1/session"}; !reflect.DeepEqual(*requests, want) {
+		t.Fatalf("requests=%v, want %v", *requests, want)
 	}
 }

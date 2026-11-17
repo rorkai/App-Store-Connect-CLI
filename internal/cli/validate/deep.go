@@ -31,6 +31,11 @@ var (
 )
 
 func loadDeepSession(ctx context.Context, transport http.RoundTripper, appleID string) (*webcore.AuthSession, bool, error) {
+	// Under a web session broker the cached session is not this command's to
+	// use, and the deep checks do not go through the broker.
+	if _, brokered, _ := webcore.BrokerFromEnv(); brokered {
+		return nil, false, nil
+	}
 	requestCtx, cancel := readinessRequestContext(ctx)
 	defer cancel()
 	var session *webcore.AuthSession
