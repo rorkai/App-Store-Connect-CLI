@@ -113,7 +113,7 @@ func (c *Client) CreateDeveloperICloudContainer(ctx context.Context, request Dev
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 
 	existing, err := c.findDeveloperICloudContainers(ctx, request.Identifier, true)

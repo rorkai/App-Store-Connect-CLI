@@ -184,7 +184,7 @@ func (c *Client) fetchAgreementHistory(ctx context.Context) (string, *developerA
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return "", nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return "", nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	// Agreement history is a POST-shaped read on the Developer Portal.
 	envelope, err := c.doDeveloperPortalAgreementsRequest(readonly.WithReadIntent(ctx), developerPortalAgreementHistoryPath, map[string]string{"teamId": teamID})
@@ -290,7 +290,7 @@ func (c *Client) DownloadAgreement(ctx context.Context, agreementID string) (*Ag
 	}
 	contentType := strings.TrimSpace(response.Header.Get("Content-Type"))
 	if mediaType, _, _ := mime.ParseMediaType(contentType); strings.EqualFold(mediaType, "text/html") {
-		return nil, fmt.Errorf("developer portal returned an HTML page instead of agreement %q content; %s", agreementID, developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal returned an HTML page instead of agreement %q content; %s", agreementID, developerPortalAuthHint())
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxAgreementDownloadBytes+1))
 	if err != nil {
@@ -367,7 +367,7 @@ func (c *Client) AcceptAgreements(ctx context.Context, req AgreementsAcceptReque
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	payload := struct {
 		TeamID       string   `json:"teamId"`

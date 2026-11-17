@@ -105,7 +105,7 @@ func (c *Client) ListDeveloperServiceIDs(ctx context.Context) (*DeveloperService
 func (c *Client) listDeveloperServiceIDsAfterSession(ctx context.Context) (*DeveloperServiceIDsListResult, error) {
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	// Keep the captured source order in the proxy body. The query semantics are
 	// the same as url.Values.Encode, but the live frontend emits this order.
@@ -179,7 +179,7 @@ func (c *Client) CreateDeveloperServiceID(ctx context.Context, request Developer
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 
 	payload := developerServiceIDCreatePayload{

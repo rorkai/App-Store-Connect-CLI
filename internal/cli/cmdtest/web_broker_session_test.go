@@ -126,6 +126,7 @@ func TestWebBrokerRefusesLocalSessionCommandsBeforeRequests(t *testing.T) {
 		{name: "import", args: []string{"web", "auth", "import", "--from-env"}, diagnostic: "asc web auth import is unavailable"},
 		{name: "export", args: []string{"web", "auth", "export", "--output-path", "session.json"}, diagnostic: "asc web auth export is unavailable"},
 		{name: "logout", args: []string{"web", "auth", "logout", "--all"}, diagnostic: "asc web auth logout is unavailable"},
+		{name: "sign-in flag", args: []string{"web", "review", "threads", "--app", "app-1", "--two-factor-method", "sms"}, diagnostic: "--two-factor-method is unavailable"},
 		{name: "session from env", args: []string{"web", "removed-apps", "list", "--session-from-env"}, diagnostic: "--session-from-env is unavailable"},
 		{name: "token missing", args: []string{"web", "review", "threads", "--app", "app-1"}, env: "ASC_WEB_BROKER_TOKEN", diagnostic: "set both ASC_WEB_BROKER_URL and ASC_WEB_BROKER_TOKEN"},
 		{name: "remote http", args: []string{"web", "review", "threads", "--app", "app-1"}, env: "ASC_WEB_BROKER_URL", value: "http://broker.example.com", diagnostic: "must use https"},
@@ -234,5 +235,39 @@ func TestWebBrokerUnrelayableRequestIsNotANetworkFailure(t *testing.T) {
 	}
 	if want := []string{"GET /broker/appstoreconnect.apple.com/olympus/v1/session"}; !reflect.DeepEqual(*requests, want) {
 		t.Fatalf("requests=%v, want %v", *requests, want)
+	}
+}
+
+// When Apple itself ends the lent session, the advice is to sign in where the
+// session lives, never the asc sign-in a broker makes unavailable.
+func TestWebBrokerRelayedAppleSignOutPointsAtTheBroker(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		args          []string
+		sessionStatus int
+	}{
+		{name: "session read", args: []string{"web", "auth", "status"}, sessionStatus: http.StatusUnauthorized},
+		{name: "command request", args: []string{"web", "review", "threads", "--app", "app-1"}, sessionStatus: http.StatusOK},
+		{name: "capabilities", args: []string{"web", "auth", "capabilities", "--key-id", "KEY123"}, sessionStatus: http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			webBrokerFixture(t, "")
+			apple := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-Asc-Web-Broker-Upstream", "1")
+				if strings.HasSuffix(r.URL.Path, "/olympus/v1/session") && tc.sessionStatus == http.StatusOK {
+					_, _ = io.WriteString(w, `{"provider":{"providerId":42,"publicProviderId":"TEAM42"},"user":{"emailAddress":"user@example.com"}}`)
+					return
+				}
+				w.WriteHeader(http.StatusUnauthorized)
+			}))
+			t.Cleanup(apple.Close)
+			t.Setenv("ASC_WEB_BROKER_URL", apple.URL)
+
+			var code int
+			_, stderr := captureOutput(t, func() { code = cmd.Run(tc.args, "test") })
+			if code == 0 || !strings.Contains(stderr, "through the broker's owner") || strings.Contains(stderr, "asc web auth login") {
+				t.Fatalf("exit=%d stderr=%q", code, stderr)
+			}
+		})
 	}
 }

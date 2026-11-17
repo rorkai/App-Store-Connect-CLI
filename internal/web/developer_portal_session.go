@@ -20,7 +20,6 @@ const (
 	developerPortalLegacyPath = "/services-account/QH65B2"
 	developerPortalTeamsPath  = developerPortalLegacyPath + "/account/listTeams.action"
 	developerServicesPath     = "/services-account/v1"
-	developerPortalAuthHint   = "run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL', and try again"
 )
 
 type developerPortalTeam struct {
@@ -144,7 +143,7 @@ func (c *Client) fetchDeveloperPortalTeams(ctx context.Context) ([]developerPort
 		return nil, fmt.Errorf("invalid Developer Portal base URL: %w", parseErr)
 	}
 	if response.Request != nil && response.Request.URL != nil && !sameURLOrigin(portalURL, response.Request.URL) {
-		return nil, fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Host, developerPortalAuthHint)
+		return nil, fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Host, developerPortalAuthHint())
 	}
 
 	var payload developerPortalTeamsResponse
@@ -316,7 +315,7 @@ func (c *Client) doDeveloperPortalProxyRead(ctx context.Context, path string, qu
 	// POSTs carrying the team and encoded query in the request body.
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint())
 	}
 	headers.Set("X-HTTP-Method-Override", http.MethodGet)
 	return c.doDeveloperPortalRequest(ctx, http.MethodPost, path, developerPortalProxyReadRequest{
@@ -351,7 +350,7 @@ func (c *Client) applyDeveloperPortalCSRF(headers http.Header, requireCSRF bool)
 		headers.Set("csrf_ts", csrfTS)
 	}
 	if requireCSRF && (csrf == "" || csrfTS == "") {
-		return fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint)
+		return fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint())
 	}
 	return nil
 }
@@ -418,7 +417,7 @@ func (c *Client) doDeveloperPortalHTTP(ctx context.Context, method, requestURL s
 	previousCheckRedirect := httpClient.CheckRedirect
 	httpClient.CheckRedirect = func(redirect *http.Request, via []*http.Request) error {
 		if !sameURLOrigin(request.URL, redirect.URL) {
-			return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", redirect.URL.Host, developerPortalAuthHint)
+			return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", redirect.URL.Host, developerPortalAuthHint())
 		}
 		if previousCheckRedirect != nil {
 			return previousCheckRedirect(redirect, via)
@@ -520,7 +519,7 @@ func (e *developerPortalSessionStatusError) Error() string {
 	if e.status == http.StatusForbidden {
 		return fmt.Sprintf("apple denied the Developer Portal request (%s); the account role likely lacks permission for this action, or the web session expired; run 'asc web auth status' to check the session", e.cause)
 	}
-	return fmt.Sprintf("web session is unauthorized or expired for Developer Portal (status %d); %s", e.status, developerPortalAuthHint)
+	return fmt.Sprintf("web session is unauthorized or expired for Developer Portal (status %d); %s", e.status, developerPortalAuthHint())
 }
 
 func (e *developerPortalSessionStatusError) Unwrap() error {
@@ -534,4 +533,14 @@ func developerPortalSessionError(response *http.Response, body []byte) error {
 		CorrelationKey: strings.TrimSpace(response.Header.Get("X-Apple-Jingle-Correlation-Key")),
 		rawBody:        body,
 	}}
+}
+
+// developerPortalAuthHint names how to get a session the Developer Portal
+// accepts: signing in again with asc, or, under a broker, where the session
+// lives.
+func developerPortalAuthHint() string {
+	if _, brokered, _ := BrokerFromEnv(); brokered {
+		return "sign in to Apple again through the broker's owner, and try again"
+	}
+	return "run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL', and try again"
 }

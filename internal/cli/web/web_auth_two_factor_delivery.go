@@ -35,6 +35,9 @@ func bindTwoFactorDeliveryFlags(fs *flag.FlagSet) twoFactorDeliveryFlags {
 // resolveWith merges the flags with their environment fallbacks and validates
 // the result before any sign-in side effect, writing usage errors to d's stderr.
 func (f twoFactorDeliveryFlags) resolveWith(d *shared.Deps) (appleauth.TwoFactorPreference, error) {
+	if err := refuseSignInFlagsUnderWebBroker(d, f.flagSet); err != nil {
+		return appleauth.TwoFactorPreference{}, err
+	}
 	method := ""
 	if f.method != nil {
 		method = *f.method
