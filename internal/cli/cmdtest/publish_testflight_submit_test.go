@@ -100,9 +100,14 @@ func TestPublishTestflightSubmitWaitsForProcessingBeforeAddingGroups(t *testing.
 		t.Fatalf("run error: %v", err)
 	}
 
-	if requestCount := len(reg.Requests()); requestCount != 6 {
-		t.Fatalf("expected group lookup, build lookup, processing wait, group add, submission lookup, and submission create; got %d requests", requestCount)
-	}
+	assertBuildsRequestOrder(t, reg,
+		"GET /v1/apps/123/betaGroups",
+		"GET /v1/builds/build-1",
+		"GET /v1/builds/build-1",
+		"POST /v1/builds/build-1/relationships/betaGroups",
+		"GET /v1/builds/build-1/betaAppReviewSubmission",
+		"POST /v1/betaAppReviewSubmissions",
+	)
 	result := decodePublishTestFlightSubmitOutput(t, stdout)
 	if result.BetaReviewSubmitted == nil || !*result.BetaReviewSubmitted {
 		t.Fatalf("expected betaReviewSubmitted=true, got %#v", result.BetaReviewSubmitted)
