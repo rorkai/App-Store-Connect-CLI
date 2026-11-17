@@ -248,9 +248,8 @@ func parseResolvedIAPPricePageIncluded(raw json.RawMessage) (map[string]iapPrice
 			}
 
 			values[strings.TrimSpace(item.ID)] = value
-			_, decodedPricePointID, ok := decodeIAPPriceResourceID(item.ID)
-			if ok && strings.TrimSpace(decodedPricePointID) != "" {
-				values[strings.TrimSpace(decodedPricePointID)] = value
+			if territoryID, tier, ok := decodeIAPPriceResourceID(item.ID); ok {
+				values[iapTerritoryTierKey(territoryID, tier)] = value
 			}
 		}
 	}
@@ -269,10 +268,10 @@ func resolvedIAPPriceCandidateFromResource(
 	if err != nil || strings.TrimSpace(territoryID) == "" {
 		territoryID = decodedMeta.TerritoryID
 	}
-	pricePointID, err := relationshipID(item.Relationships, "inAppPurchasePricePoint")
-	if err != nil || strings.TrimSpace(pricePointID) == "" {
-		pricePointID = decodedMeta.PricePointID
-	} else if strings.TrimSpace(decodedMeta.PricePointID) != "" {
+	relatedPricePointID, _ := relationshipID(item.Relationships, "inAppPurchasePricePoint")
+	relatedPricePointID = strings.TrimSpace(relatedPricePointID)
+	pricePointID := relatedPricePointID
+	if strings.TrimSpace(decodedMeta.PricePointID) != "" {
 		pricePointID = decodedMeta.PricePointID
 	}
 
@@ -294,7 +293,10 @@ func resolvedIAPPriceCandidateFromResource(
 		return entry, shared.ResolvedPriceRow{}, false
 	}
 
-	value, ok := values[pricePointID]
+	value, ok := values[relatedPricePointID]
+	if !ok {
+		value, ok = values[iapTerritoryTierKey(territoryID, pricePointID)]
+	}
 	if !ok {
 		return entry, shared.ResolvedPriceRow{}, false
 	}
@@ -315,6 +317,11 @@ func resolvedIAPPriceCandidateFromResource(
 		EndDate:       entry.EndDate,
 		Manual:        iapResolvedBoolPtr(item.Attributes.Manual),
 	}, true
+}
+
+// A decoded price tier is only unique within its territory.
+func iapTerritoryTierKey(territoryID, tier string) string {
+	return strings.ToUpper(strings.TrimSpace(territoryID)) + "/" + strings.TrimSpace(tier)
 }
 
 func iapResolvedBoolPtr(value bool) *bool {
