@@ -18,7 +18,9 @@ GET /WebObjects/iTunesConnect.woa/ra/paymentConsolidation/providers/{providerId}
 GET /WebObjects/iTunesConnect.woa/ra/paymentConsolidation/regionCountriesMapping
 GET /WebObjects/iTunesConnect.woa/ra/v1/contentProviders/{contentProviderId}/agreementTerms/{agreementTermId}/locales/en-US
 GET /WebObjects/iTunesConnect.woa/ra/v1/contentProviders/{id}/agreements
+GET /analytics/api/v1/ab-tests/{id}
 GET /analytics/api/v1/app-info/{id}
+GET /analytics/api/v1/app-info/{id}/ab-tests
 GET /analytics/api/v1/app-info/{id}/in-app-events
 GET /analytics/api/v1/settings/all
 GET /appleauth/auth
