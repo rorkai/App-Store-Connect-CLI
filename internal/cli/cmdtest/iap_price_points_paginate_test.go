@@ -27,13 +27,18 @@ func TestIAPPricePointsListPaginateUsesMaxPageSizeAndPerPageTimeout(t *testing.T
 		"cursor=BQ&limit=8000": `{"data":[{"type":"inAppPurchasePricePoints","id":"pp-3"}],"links":{}}`,
 	}
 	requests := 0
+	var previousPageCtx context.Context
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests++
 		if deadline, ok := req.Context().Deadline(); !ok || time.Until(deadline) != 120*time.Millisecond {
-			t.Errorf("page %d did not get a fresh 120ms deadline: ok=%v remaining=%s", requests, ok, time.Until(deadline))
+			t.Errorf("page %d did not get a 120ms deadline: ok=%v remaining=%s", requests, ok, time.Until(deadline))
 			return nil, context.DeadlineExceeded
 		}
-		time.Sleep(70 * time.Millisecond)
+		if previousPageCtx != nil && previousPageCtx.Err() == nil {
+			t.Errorf("page %d shares a deadline with page %d", requests, requests-1)
+			return nil, context.DeadlineExceeded
+		}
+		previousPageCtx = req.Context()
 
 		body, ok := pages[req.URL.RawQuery]
 		if req.Method != http.MethodGet || req.URL.Path != "/v2/inAppPurchases/6760268101/pricePoints" || !ok {
