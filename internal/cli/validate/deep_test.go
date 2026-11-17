@@ -607,4 +607,13 @@ func TestLoadDeepSessionLeavesTheCacheAloneUnderAWebBroker(t *testing.T) {
 	if session != nil || ok || err != nil || requests != 0 {
 		t.Fatalf("session=%v ok=%v err=%v requests=%d", session, ok, err, requests)
 	}
+	// The finding names no sign-in command: login is refused under a broker.
+	d := &shared.Deps{HTTPTransport: func() http.RoundTripper { return transport }}
+	_, findings, err := collectDeepValidation(context.Background(), d, validation.Report{AppID: "app-1"}, "user@example.com")
+	if err != nil || len(findings) != 1 || requests != 0 {
+		t.Fatalf("findings=%#v err=%v requests=%d", findings, err, requests)
+	}
+	if advice := findings[0].Remediation + strings.Join(findings[0].Resolution.Commands, " "); !strings.Contains(advice, webcore.WebBrokerURLEnv) || strings.Contains(advice, "asc web auth") {
+		t.Fatalf("advice=%q", advice)
+	}
 }
