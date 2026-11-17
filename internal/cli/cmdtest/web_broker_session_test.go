@@ -272,3 +272,26 @@ func TestWebBrokerRelayedAppleSignOutPointsAtTheBroker(t *testing.T) {
 		})
 	}
 }
+
+// App creation says whose session it runs on; under a broker that is never the
+// local cache.
+func TestWebBrokerAppsCreateNamesTheBrokeredSession(t *testing.T) {
+	webBrokerFixture(t, "")
+	apple := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Asc-Web-Broker-Upstream", "1")
+		if strings.HasSuffix(r.URL.Path, "/olympus/v1/session") {
+			_, _ = io.WriteString(w, `{"provider":{"providerId":42,"publicProviderId":"TEAM42"},"user":{"emailAddress":"user@example.com"}}`)
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	t.Cleanup(apple.Close)
+	t.Setenv("ASC_WEB_BROKER_URL", apple.URL)
+
+	_, stderr := captureOutput(t, func() {
+		cmd.Run([]string{"web", "apps", "create", "--name", "Example", "--bundle-id", "com.example.app", "--sku", "EXAMPLE1", "--platform", "IOS", "--primary-locale", "en-US"}, "test")
+	})
+	if !strings.Contains(stderr, "Using the brokered web session.") || strings.Contains(stderr, "cached web session") {
+		t.Fatalf("stderr=%q", stderr)
+	}
+}
