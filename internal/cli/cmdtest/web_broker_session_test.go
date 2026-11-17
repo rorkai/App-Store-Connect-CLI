@@ -70,6 +70,8 @@ func assertWebSessionCacheEmpty(t *testing.T, cache string) {
 
 func TestWebBrokerServesReviewThreadsWithoutLocalSession(t *testing.T) {
 	requests, cache := webBrokerFixture(t, "")
+	// Sign-in settings left in the environment play no part under a broker.
+	t.Setenv("ASC_WEB_2FA_METHOD", "bogus")
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
