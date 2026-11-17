@@ -130,6 +130,7 @@ func TestWebBrokerRefusesLocalSessionCommandsBeforeRequests(t *testing.T) {
 		{name: "session from env", args: []string{"web", "removed-apps", "list", "--session-from-env"}, diagnostic: "--session-from-env is unavailable"},
 		{name: "token missing", args: []string{"web", "review", "threads", "--app", "app-1"}, env: "ASC_WEB_BROKER_TOKEN", diagnostic: "set both ASC_WEB_BROKER_URL and ASC_WEB_BROKER_TOKEN"},
 		{name: "remote http", args: []string{"web", "review", "threads", "--app", "app-1"}, env: "ASC_WEB_BROKER_URL", value: "http://broker.example.com", diagnostic: "must use https"},
+		{name: "deep validation with token missing", args: []string{"validate", "--app", "app-1", "--version", "1.0", "--deep"}, env: "ASC_WEB_BROKER_TOKEN", diagnostic: "set both ASC_WEB_BROKER_URL and ASC_WEB_BROKER_TOKEN"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			requests, cache := webBrokerFixture(t, "")
