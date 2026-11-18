@@ -89,6 +89,13 @@ func (e missingAuthError) Is(target error) bool {
 	return target == ErrMissingAuth
 }
 
+// unusableCredentialsError reports a credential setup the command cannot use
+// the way missing authentication is reported, with the diagnostic that names
+// what is wrong with it.
+func unusableCredentialsError(err error, code DiagnosticCode) error {
+	return WithDiagnostic(missingAuthError{msg: err.Error(), cause: err}, code, "")
+}
+
 var (
 	privateKeyTempMu    sync.Mutex
 	privateKeyTempPath  string
@@ -550,7 +557,7 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 		needsPrivateKey := actualKeyPath == "" && actualKeyPEM == ""
 		envCreds, err := resolveEnvCredentialsWithPrivateKey(needsPrivateKey)
 		if err != nil {
-			return resolvedCredentials{}, fmt.Errorf("invalid private key environment: %w", err)
+			return resolvedCredentials{}, unusableCredentialsError(fmt.Errorf("invalid private key environment: %w", err), DiagnosticInvalidInput)
 		}
 		if actualKeyID == "" && envCreds.keyID != "" {
 			actualKeyID = envCreds.keyID
@@ -912,6 +919,8 @@ func storedCredentialsError(profile string, err error) error {
 		return missingAuthError{msg: fmt.Sprintf("keychain access denied; set ASC_BYPASS_KEYCHAIN=1 to bypass: %v", err), cause: err}
 	case errors.Is(err, config.ErrParse):
 		return missingAuthError{msg: err.Error(), cause: err}
+	case errors.Is(err, os.ErrPermission):
+		return unusableCredentialsError(err, DiagnosticFilePermissionDenied)
 	case profile != "" && (errors.Is(err, config.ErrNotFound) || errors.Is(err, auth.ErrProfileNotFound)):
 		return missingAuthError{msg: profileNotFoundMessage(profile), cause: err}
 	}
@@ -1102,7 +1111,7 @@ func checkMixedCredentialSourcesForKeyType(sources credentialSource, keyType str
 			keyMaterialSource,
 		)
 		if strictAuthEnabled() {
-			return fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Private Key: %s", keyIDSource, keyMaterialSource)
+			return unusableCredentialsError(fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Private Key: %s", keyIDSource, keyMaterialSource), DiagnosticConflictingInput)
 		}
 		fmt.Fprint(os.Stderr, message)
 		return nil
@@ -1119,7 +1128,7 @@ func checkMixedCredentialSourcesForKeyType(sources credentialSource, keyType str
 		keyMaterialSource,
 	)
 	if strictAuthEnabled() {
-		return fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s", keyIDSource, issuerSource, keyMaterialSource)
+		return unusableCredentialsError(fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s", keyIDSource, issuerSource, keyMaterialSource), DiagnosticConflictingInput)
 	}
 	fmt.Fprint(os.Stderr, message)
 	return nil
@@ -1145,7 +1154,7 @@ func checkIgnoredEnvCredentialIDs(storedKeyID, storedIssuerID, storedSource stri
 	}
 	names := strings.Join(ignored, " and ")
 	if strictAuthEnabled() {
-		return fmt.Errorf("mixed authentication sources detected: %s ignored because the environment credentials are incomplete; using %s credentials", names, storedSource)
+		return unusableCredentialsError(fmt.Errorf("mixed authentication sources detected: %s ignored because the environment credentials are incomplete; using %s credentials", names, storedSource), DiagnosticConflictingInput)
 	}
 	fmt.Fprintf(os.Stderr, "Warning: %s ignored because the environment credentials are incomplete; using %s credentials\n", names, storedSource)
 	return nil

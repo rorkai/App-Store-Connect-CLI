@@ -1044,12 +1044,13 @@ func TestCheckMixedCredentialSourcesStrictAuthEnvErrors(t *testing.T) {
 	t.Setenv(strictAuthEnvVar, "yes")
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := checkMixedCredentialSourcesForKeyType(credentialSource{
+		err := checkMixedCredentialSourcesForKeyType(credentialSource{
 			keyID:       "keychain",
 			issuerID:    "env",
 			keyMaterial: "env",
-		}, config.CredentialKeyTypeTeam); err == nil {
-			t.Fatal("expected error, got nil")
+		}, config.CredentialKeyTypeTeam)
+		if diagnostic, _ := DiagnosticFromError(err); !errors.Is(err, ErrMissingAuth) || diagnostic.Code != DiagnosticConflictingInput {
+			t.Fatalf("expected a conflicting-input authentication error, got %v", err)
 		}
 	})
 
