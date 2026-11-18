@@ -715,6 +715,59 @@
         ]
       }
     },
+    "/analytics/api/v1/ab-tests/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "get": {
+        "tags": [
+          "AnalyticsExperiments"
+        ],
+        "operationId": "analyticsExperiments_getInstance",
+        "responses": {
+          "2XX": {
+            "description": "Success. The complete Apple envelope is preserved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsExperimentResultsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code."
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-17",
+          "live": "2026-11-17"
+        },
+        "x-asc-source": [
+          "Client.GetAnalyticsExperimentResults"
+        ],
+        "parameters": [
+          {
+            "name": "baseline",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "default": "default"
+            },
+            "description": "Original product page (default) or a treatment UUID."
+          }
+        ]
+      }
+    },
     "/analytics/api/v1/app-info/{id}": {
       "parameters": [
         {
@@ -752,6 +805,47 @@
         },
         "x-asc-source": [
           "Client.GetAnalyticsAppInfo"
+        ]
+      }
+    },
+    "/analytics/api/v1/app-info/{id}/ab-tests": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "get": {
+        "tags": [
+          "AnalyticsExperiments"
+        ],
+        "operationId": "analyticsExperiments_getCollection",
+        "responses": {
+          "2XX": {
+            "description": "Success. The complete Apple envelope is preserved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsExperimentsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code."
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-17",
+          "live": "2026-11-17"
+        },
+        "x-asc-source": [
+          "Client.GetAnalyticsExperiments"
         ]
       }
     },
@@ -10528,6 +10622,145 @@
           }
         },
         "additionalProperties": true
+      },
+      "AnalyticsExperiment": {
+        "type": "object",
+        "properties": {
+          "testId": {
+            "type": "string"
+          },
+          "testName": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "AnalyticsExperimentDataPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "conversionRate": {
+            "$ref": "#/components/schemas/AnalyticsExperimentInterval"
+          },
+          "improvement": {
+            "$ref": "#/components/schemas/AnalyticsExperimentInterval"
+          },
+          "uniqueImpressions": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": true
+      },
+      "AnalyticsExperimentInterval": {
+        "type": "object",
+        "properties": {
+          "lower": {
+            "type": "number",
+            "nullable": true
+          },
+          "central": {
+            "type": "number",
+            "nullable": true
+          },
+          "upper": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "additionalProperties": true,
+        "nullable": true
+      },
+      "AnalyticsExperimentResultsResponse": {
+        "type": "object",
+        "properties": {
+          "baseline": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          },
+          "treatments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsExperimentTreatment"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "treatments"
+        ]
+      },
+      "AnalyticsExperimentTreatment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "conversionRate": {
+            "$ref": "#/components/schemas/AnalyticsExperimentInterval"
+          },
+          "improvement": {
+            "$ref": "#/components/schemas/AnalyticsExperimentInterval"
+          },
+          "uniqueImpressions": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "confidence": {
+            "type": "number",
+            "nullable": true
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsExperimentDataPoint"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
+      "AnalyticsExperimentsResponse": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "type": "integer"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsExperiment"
+            }
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "results"
+        ]
       },
       "AnalyticsInAppEventsResponse": {
         "type": "object",

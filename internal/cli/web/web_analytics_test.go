@@ -80,6 +80,16 @@ func TestWebAnalyticsSubcommandsResolveSessionBeforeTimeoutContext(t *testing.T)
 			},
 		},
 		{
+			name:  "experiments list",
+			build: newWebAnalyticsExperimentsListCommand,
+			args:  []string{"--apple-id", "user@example.com", "--app", "123456789"},
+		},
+		{
+			name:  "experiment results",
+			build: newWebAnalyticsExperimentResultsCommand,
+			args:  []string{"--apple-id", "user@example.com", "--experiment", "11111111-1111-1111-1111-111111111111"},
+		},
+		{
 			name:  "in-app-events",
 			build: newWebAnalyticsInAppEventsCommand,
 			args: []string{

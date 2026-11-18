@@ -1262,6 +1262,8 @@ Available commands:
 * `asc web analytics overview`
 * `asc web analytics sources`
 * `asc web analytics product-pages`
+* `asc web analytics product-pages experiments list`
+* `asc web analytics product-pages experiments results`
 * `asc web analytics in-app-events`
 * `asc web analytics app-clips`
 * `asc web analytics campaigns`
@@ -1278,6 +1280,23 @@ Example:
 ```bash
 asc web analytics sales --app "123456789" --start 2026-01-01 --end 2026-03-31 --output markdown
 ```
+
+Product Page Optimization results:
+
+```bash
+asc web analytics product-pages experiments list --app "123456789"
+asc web analytics product-pages experiments results --experiment "EXPERIMENT_UUID" --output table
+asc web analytics product-pages experiments results --experiment "EXPERIMENT_UUID" --output json --pretty
+```
+
+JSON preserves Apple's complete response, including conversion and improvement
+intervals, confidence, unique impressions, outcomes, and daily data. Table and
+Markdown summarize each treatment. `--baseline` defaults to the original product
+page (`default`) and also accepts a treatment UUID. Results cover the experiment's
+full date range; date filters and pagination are not supported. These commands use
+private analytics web endpoints, separate from `asc product-pages experiments`
+management and the official Analytics Reports API. An experiment can be complete
+while its treatments still have inconclusive statistical outcomes.
 
 ### `asc web xcode-cloud`
 

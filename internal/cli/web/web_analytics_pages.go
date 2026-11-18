@@ -102,7 +102,7 @@ func newWebAnalyticsSourcesCommand(d *shared.Deps) *ffcli.Command {
 
 // newWebAnalyticsProductPagesCommand explains Product Pages availability for the app.
 func newWebAnalyticsProductPagesCommand(d *shared.Deps) *ffcli.Command {
-	return newAnalyticsCapabilityCommand(
+	cmd := newAnalyticsCapabilityCommand(
 		d,
 		"product-pages",
 		"Inspect Product Pages tab availability.",
@@ -129,6 +129,8 @@ func newWebAnalyticsProductPagesCommand(d *shared.Deps) *ffcli.Command {
 			}
 		},
 	)
+	cmd.Subcommands = []*ffcli.Command{newWebAnalyticsExperimentsCommand(d)}
+	return cmd
 }
 
 // newWebAnalyticsInAppEventsCommand recreates the Acquisition > In-App Events page.
