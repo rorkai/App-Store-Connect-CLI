@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"strconv"
+	"io"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -36,7 +37,7 @@ type analyticsExperimentResultsView struct {
 		Name              string                       `json:"name"`
 		ConversionRate    *analyticsExperimentInterval `json:"conversionRate"`
 		Improvement       *analyticsExperimentInterval `json:"improvement"`
-		UniqueImpressions *int64                       `json:"uniqueImpressions"`
+		UniqueImpressions json.Number                  `json:"uniqueImpressions"`
 		Confidence        *float64                     `json:"confidence"`
 		Outcome           string                       `json:"outcome"`
 	} `json:"treatments"`
@@ -78,9 +79,6 @@ JSON preserves Apple's complete response. No date filter or pagination is suppor
 `,
 		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return d.UsageError("unexpected positional arguments")
-			}
 			resolvedAppID, err := resolveAnalyticsAppIDFlag(d, *appID)
 			if err != nil {
 				return err
@@ -98,17 +96,37 @@ JSON preserves Apple's complete response. No date filter or pagination is suppor
 			if err != nil {
 				return withWebAuthHint(err, "analytics product-pages experiments list")
 			}
-			var result analyticsExperimentListView
-			if err := json.Unmarshal(payload, &result); err != nil {
-				return fmt.Errorf("failed to parse experiment list: %w", err)
-			}
-			rows := make([][]string, 0, len(result.Results))
-			for _, experiment := range result.Results {
-				rows = append(rows, []string{experiment.TestID, experiment.TestName, experiment.StartDate, experiment.EndDate, experiment.Status})
-			}
-			return d.PrintOutputRows(payload, *output.Output, *output.Pretty, []string{"Experiment ID", "Name", "Start", "End", "Status"}, rows)
+			return printAnalyticsExperimentRows(d, payload, *output.Output, *output.Pretty, []string{"Experiment ID", "Name", "Start", "End", "Status"}, analyticsExperimentListRows)
 		},
 	}
+}
+
+func analyticsExperimentListRows(payload json.RawMessage) ([][]string, error) {
+	var result analyticsExperimentListView
+	if err := json.Unmarshal(payload, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse experiment list: %w", err)
+	}
+	rows := make([][]string, 0, len(result.Results))
+	for _, experiment := range result.Results {
+		rows = append(rows, []string{experiment.TestID, experiment.TestName, experiment.StartDate, experiment.EndDate, experiment.Status})
+	}
+	return rows, nil
+}
+
+// printAnalyticsExperimentRows prints Apple's envelope as is for JSON. Rows
+// are decoded only for the table and Markdown views, so a field those views
+// cannot read never fails JSON output.
+func printAnalyticsExperimentRows(d *shared.Deps, payload json.RawMessage, format string, pretty bool, headers []string, decodeRows func(json.RawMessage) ([][]string, error)) error {
+	render := func(write func(io.Writer, []string, [][]string) error) func() error {
+		return func() error {
+			rows, err := decodeRows(payload)
+			if err != nil {
+				return err
+			}
+			return write(d.IO.Out, headers, rows)
+		}
+	}
+	return d.PrintOutputWithRenderers(payload, format, pretty, render(asc.WriteTableTo), render(asc.WriteMarkdownTo))
 }
 
 func newWebAnalyticsExperimentResultsCommand(d *shared.Deps) *ffcli.Command {
@@ -134,9 +152,6 @@ The API returns the experiment's full range, without --start or --end filters.
 `,
 		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if len(args) > 0 {
-				return d.UsageError("unexpected positional arguments")
-			}
 			if strings.TrimSpace(*experimentID) == "" {
 				return d.UsageError("--experiment is required")
 			}
@@ -160,25 +175,29 @@ The API returns the experiment's full range, without --start or --end filters.
 			if err != nil {
 				return withWebAuthHint(err, "analytics product-pages experiments results")
 			}
-			var result analyticsExperimentResultsView
-			if err := json.Unmarshal(payload, &result); err != nil {
-				return fmt.Errorf("failed to parse experiment results: %w", err)
-			}
-			rows := make([][]string, 0, len(result.Treatments))
-			for _, treatment := range result.Treatments {
-				impressions := "-"
-				if treatment.UniqueImpressions != nil {
-					impressions = strconv.FormatInt(*treatment.UniqueImpressions, 10)
-				}
-				improvement, confidence := analyticsExperimentIntervalString(treatment.Improvement), analyticsExperimentPercentString(treatment.Confidence)
-				if treatment.ID == result.Baseline {
-					improvement, confidence = "-", "-"
-				}
-				rows = append(rows, []string{treatment.ID, treatment.Name, impressions, analyticsExperimentIntervalString(treatment.ConversionRate), improvement, confidence, treatment.Outcome})
-			}
-			return d.PrintOutputRows(payload, *output.Output, *output.Pretty, []string{"Treatment ID", "Name", "Unique Impressions", "Conversion Rate", "Improvement", "Confidence", "Outcome"}, rows)
+			return printAnalyticsExperimentRows(d, payload, *output.Output, *output.Pretty, []string{"Treatment ID", "Name", "Unique Impressions", "Conversion Rate", "Improvement", "Confidence", "Outcome"}, analyticsExperimentResultRows)
 		},
 	}
+}
+
+func analyticsExperimentResultRows(payload json.RawMessage) ([][]string, error) {
+	var result analyticsExperimentResultsView
+	if err := json.Unmarshal(payload, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse experiment results: %w", err)
+	}
+	rows := make([][]string, 0, len(result.Treatments))
+	for _, treatment := range result.Treatments {
+		impressions := treatment.UniqueImpressions.String()
+		if impressions == "" {
+			impressions = "-"
+		}
+		improvement, confidence := analyticsExperimentIntervalString(treatment.Improvement), analyticsExperimentPercentString(treatment.Confidence)
+		if treatment.ID == result.Baseline {
+			improvement, confidence = "-", "-"
+		}
+		rows = append(rows, []string{treatment.ID, treatment.Name, impressions, analyticsExperimentIntervalString(treatment.ConversionRate), improvement, confidence, treatment.Outcome})
+	}
+	return rows, nil
 }
 
 func analyticsExperimentIntervalString(interval *analyticsExperimentInterval) string {

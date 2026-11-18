@@ -32,12 +32,15 @@ func TestWebAnalyticsExperimentsReadContract(t *testing.T) {
 		query    string
 		response string
 		wantRow  string
+		tableErr string
 	}{
-		{"list", []string{"list", "--app", "123456789"}, "/analytics/api/v1/app-info/123456789/ab-tests", "", experimentListFixture, "Preview test"},
-		{"results", []string{"results", "--experiment", "11111111-1111-1111-1111-111111111111"}, "/analytics/api/v1/ab-tests/11111111-1111-1111-1111-111111111111", "baseline=default", experimentResultsFixture, "12.29%"},
-		{"alternate baseline", []string{"results", "--experiment", "11111111-1111-1111-1111-111111111111", "--baseline", "22222222-2222-2222-2222-222222222222"}, "/analytics/api/v1/ab-tests/11111111-1111-1111-1111-111111111111", "baseline=22222222-2222-2222-2222-222222222222", `{"baseline":"22222222-2222-2222-2222-222222222222","size":0,"treatments":[]}`, ""},
-		{"empty list", []string{"list", "--app", "123456789"}, "/analytics/api/v1/app-info/123456789/ab-tests", "", `{"size":0,"results":[]}`, ""},
-		{"unavailable metrics", []string{"results", "--experiment", "11111111-1111-1111-1111-111111111111"}, "/analytics/api/v1/ab-tests/11111111-1111-1111-1111-111111111111", "baseline=default", `{"baseline":"default","size":1,"treatments":[{"id":"default","name":"No metrics","conversionRate":null,"improvement":null,"uniqueImpressions":null,"confidence":null,"outcome":"NA","data":[]}]}`, "No metrics"},
+		{"list", []string{"list", "--app", "123456789"}, "/analytics/api/v1/app-info/123456789/ab-tests", "", experimentListFixture, "Preview test", ""},
+		{"results", []string{"results", "--experiment", "11111111-1111-1111-1111-111111111111"}, "/analytics/api/v1/ab-tests/11111111-1111-1111-1111-111111111111", "baseline=default", experimentResultsFixture, "12.29%", ""},
+		{"alternate baseline", []string{"results", "--experiment", "11111111-1111-1111-1111-111111111111", "--baseline", "22222222-2222-2222-2222-222222222222"}, "/analytics/api/v1/ab-tests/11111111-1111-1111-1111-111111111111", "baseline=22222222-2222-2222-2222-222222222222", `{"baseline":"22222222-2222-2222-2222-222222222222","size":0,"treatments":[]}`, "", ""},
+		{"empty list", []string{"list", "--app", "123456789"}, "/analytics/api/v1/app-info/123456789/ab-tests", "", `{"size":0,"results":[]}`, "", ""},
+		{"unavailable metrics", []string{"results", "--experiment", "11111111-1111-1111-1111-111111111111"}, "/analytics/api/v1/ab-tests/11111111-1111-1111-1111-111111111111", "baseline=default", `{"baseline":"default","size":1,"treatments":[{"id":"default","name":"No metrics","conversionRate":null,"improvement":null,"uniqueImpressions":null,"confidence":null,"outcome":"NA","data":[]}]}`, "No metrics", ""},
+		{"float-encoded count", []string{"results", "--experiment", "11111111-1111-1111-1111-111111111111"}, "/analytics/api/v1/ab-tests/11111111-1111-1111-1111-111111111111", "baseline=default", `{"baseline":"default","treatments":[{"id":"22222222-2222-2222-2222-222222222222","name":"Preview","uniqueImpressions":41.0,"outcome":"NA"}]}`, "41.0", ""},
+		{"metric the table cannot read", []string{"results", "--experiment", "11111111-1111-1111-1111-111111111111"}, "/analytics/api/v1/ab-tests/11111111-1111-1111-1111-111111111111", "baseline=default", `{"baseline":"default","treatments":[{"id":"22222222-2222-2222-2222-222222222222","confidence":"0.9"}]}`, "", "failed to parse experiment results"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var requests atomic.Int32
@@ -65,7 +68,14 @@ func TestWebAnalyticsExperimentsReadContract(t *testing.T) {
 				d, stdout, stderr := newWebTestDeps()
 				args := append([]string{"analytics", "product-pages", "experiments"}, tc.args...)
 				args = append(args, "--output", format)
-				if err := NewWebCommand(d).ParseAndRun(context.Background(), args); err != nil || stderr.Len() != 0 {
+				err := NewWebCommand(d).ParseAndRun(context.Background(), args)
+				if format != "json" && tc.tableErr != "" {
+					if err == nil || !strings.Contains(err.Error(), tc.tableErr) || stdout.Len() != 0 {
+						t.Fatalf("%s command: err=%v stdout=%q, want error %q and no output", format, err, stdout, tc.tableErr)
+					}
+					continue
+				}
+				if err != nil || stderr.Len() != 0 {
 					t.Fatalf("%s command: err=%v stderr=%q", format, err, stderr)
 				}
 				if format == "json" {
@@ -82,7 +92,7 @@ func TestWebAnalyticsExperimentsReadContract(t *testing.T) {
 						t.Fatalf("JSON envelope changed: got %s want %s", stdout, tc.response)
 					}
 				} else {
-					if !strings.Contains(stdout.String(), "Name") || !strings.Contains(stdout.String(), tc.wantRow) {
+					if !strings.Contains(stdout.String(), tc.wantRow) {
 						t.Fatalf("missing row %q: %s", tc.wantRow, stdout)
 					}
 					if tc.name == "results" && (!strings.Contains(stdout.String(), "44.55%") || !strings.Contains(stdout.String(), "0.02%") || !strings.Contains(stdout.String(), "COLLECTING")) {
@@ -108,10 +118,11 @@ func TestWebAnalyticsExperimentsReadFailures(t *testing.T) {
 		status   int
 		body     string
 		canceled bool
+		wantErr  string
 	}{
-		{"expired session", http.StatusUnauthorized, `{"errors":[{"status":"401"}]}`, false},
-		{"malformed response", http.StatusOK, `<html>Sign in</html>`, false},
-		{"canceled", http.StatusOK, experimentResultsFixture, true},
+		{"expired session", http.StatusUnauthorized, `{"errors":[{"status":"401"}]}`, false, "run 'asc web auth login'"},
+		{"malformed response", http.StatusOK, `<html>Sign in</html>`, false, "failed to parse analytics experiment response"},
+		{"canceled", http.StatusOK, experimentResultsFixture, true, "context canceled"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -132,6 +143,9 @@ func TestWebAnalyticsExperimentsReadFailures(t *testing.T) {
 			err := NewWebCommand(d).ParseAndRun(ctx, []string{"analytics", "product-pages", "experiments", "results", "--experiment", "11111111-1111-1111-1111-111111111111", "--output", "json"})
 			if err == nil || stdout.Len() != 0 {
 				t.Fatalf("expected failure without data: err=%v stdout=%s", err, stdout)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("error = %v, want it to contain %q", err, tc.wantErr)
 			}
 			if tc.canceled && !errors.Is(err, context.Canceled) {
 				t.Fatalf("cancellation lost: %v", err)
