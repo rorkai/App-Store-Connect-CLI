@@ -921,6 +921,8 @@ func storedCredentialsError(profile string, err error) error {
 		return missingAuthError{msg: err.Error(), cause: err}
 	case errors.Is(err, os.ErrPermission):
 		return unusableCredentialsError(err, DiagnosticFilePermissionDenied)
+	case errors.Is(err, auth.ErrKeychainReadFailed):
+		return unusableCredentialsError(fmt.Errorf("keychain read failed; set ASC_BYPASS_KEYCHAIN=1 to bypass: %w", err), DiagnosticDependencyFailed)
 	case profile != "" && (errors.Is(err, config.ErrNotFound) || errors.Is(err, auth.ErrProfileNotFound)):
 		return missingAuthError{msg: profileNotFoundMessage(profile), cause: err}
 	}

@@ -1865,7 +1865,7 @@ func TestGetASCClient_UsesStoredPEMWhenPathMissing(t *testing.T) {
 	}
 }
 
-func TestResolveCredentials_KeychainAccessDeniedStopsFallback(t *testing.T) {
+func TestResolveCredentials_KeychainFailureStopsFallback(t *testing.T) {
 	tempDir := t.TempDir()
 	keyPath := filepath.Join(tempDir, "AuthKey.p8")
 	writeECDSAPEM(t, keyPath)
@@ -1889,21 +1889,26 @@ func TestResolveCredentials_KeychainAccessDeniedStopsFallback(t *testing.T) {
 	t.Cleanup(func() { strictAuth = previousStrict })
 	t.Setenv(strictAuthEnvVar, "")
 
+	tests := []struct {
+		cause    error
+		wantCode DiagnosticCode
+	}{
+		{cause: auth.ErrKeychainAccessDenied},
+		{cause: auth.ErrKeychainReadFailed, wantCode: DiagnosticDependencyFailed},
+	}
 	previous := getCredentialsWithSourceFn
-	getCredentialsWithSourceFn = func(string) (*config.Config, string, error) {
-		return nil, "", fmt.Errorf("%w: denied", auth.ErrKeychainAccessDenied)
-	}
 	t.Cleanup(func() { getCredentialsWithSourceFn = previous })
+	for _, test := range tests {
+		getCredentialsWithSourceFn = func(string) (*config.Config, string, error) {
+			return nil, "", fmt.Errorf("%w: broken", test.cause)
+		}
 
-	_, err := resolveCredentials()
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !errors.Is(err, auth.ErrKeychainAccessDenied) {
-		t.Fatalf("expected ErrKeychainAccessDenied, got %v", err)
-	}
-	if !errors.Is(err, ErrMissingAuth) {
-		t.Fatalf("expected keychain denial to report missing authentication, got %v", err)
+		_, err := resolveCredentials()
+		diagnostic, _ := DiagnosticFromError(err)
+		if !errors.Is(err, test.cause) || !errors.Is(err, ErrMissingAuth) || diagnostic.Code != test.wantCode ||
+			!strings.Contains(err.Error(), "set ASC_BYPASS_KEYCHAIN=1 to bypass") {
+			t.Fatalf("resolveCredentials() error = %v with diagnostic %q, want missing authentication caused by %v with the bypass advice and diagnostic %q", err, diagnostic.Code, test.cause, test.wantCode)
+		}
 	}
 }
 
