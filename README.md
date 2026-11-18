@@ -397,25 +397,6 @@ asc screenshots matrix --plan .asc/screenshots-matrix.json --max-concurrency 2 -
 See [docs/design/screenshots-matrix.md](docs/design/screenshots-matrix.md) for
 the JSONC schema, isolated output layout, retry behavior, and review contract.
 
-### Product Page Optimization results
-
-Read experiment analytics using an authenticated Apple web session:
-
-```bash
-asc web analytics product-pages experiments list --app "123456789"
-asc web analytics product-pages experiments results --experiment "EXPERIMENT_UUID" --output table
-asc web analytics product-pages experiments results --experiment "EXPERIMENT_UUID" --output json --pretty
-```
-
-JSON preserves Apple's complete response, including conversion and improvement
-intervals, confidence, unique impressions, outcomes, and daily data. Table and
-Markdown summarize each treatment. `--baseline` defaults to the original product
-page (`default`) and also accepts a treatment UUID. Results cover the experiment's
-full date range; date filters and pagination are not supported. These commands use
-private analytics web endpoints, separate from `asc product-pages experiments`
-management and the official Analytics Reports API. An experiment can be complete
-while its treatments still have inconclusive statistical outcomes.
-
 ### Signing and bundle IDs
 
 ```bash
