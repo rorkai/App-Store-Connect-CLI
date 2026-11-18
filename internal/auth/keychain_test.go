@@ -3183,31 +3183,54 @@ func (k *transientKeysFailingKeyring) Keys() ([]string, error) {
 	return k.inner.Keys()
 }
 
-func TestGetCredentialsWithSource_KeychainAccessDeniedReturnsSentinel(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
-
-	previousKeyringOpener := keyringOpener
-	previousLegacyKeyringOpener := legacyKeyringOpener
-	t.Cleanup(func() {
-		keyringOpener = previousKeyringOpener
-		legacyKeyringOpener = previousLegacyKeyringOpener
-	})
-
-	// Simulate the kind of stringified OSStatus errors produced by go-keychain.
-	denyErr := errors.New("Failed to query keychain: The user name or passphrase you entered is not correct. (-25293)")
-	keyringOpener = func() (keyring.Keyring, error) {
-		return failingKeyring{err: denyErr}, nil
+func TestGetCredentialsWithSource_KeychainFailureReturnsSentinel(t *testing.T) {
+	// The messages mirror the stringified OSStatus errors go-keychain produces.
+	const denied = "Failed to query keychain: The user name or passphrase you entered is not correct. (-25293)"
+	const canceled = "Failed to query keychain: User canceled the operation. (-128)"
+	tests := []struct {
+		name    string
+		keyring keyring.Keyring
+		config  string
+		want    error
+		notWant error
+		message string
+	}{
+		{name: "denied", keyring: failingKeyring{err: errors.New(denied)}, want: ErrKeychainAccessDenied},
+		{name: "other failure", keyring: failingKeyring{err: errors.New(canceled)}, want: ErrKeychainReadFailed, notWant: ErrKeychainAccessDenied, message: canceled},
+		{name: "unparsable config", keyring: keyring.NewArrayKeyring(nil), config: "{", want: config.ErrParse, notWant: ErrKeychainReadFailed},
 	}
-	legacyKeyringOpener = func() (keyring.Keyring, error) {
-		return nil, keyring.ErrNoAvailImpl
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+			configPath := filepath.Join(t.TempDir(), "config.json")
+			if test.config != "" {
+				if err := os.WriteFile(configPath, []byte(test.config), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			t.Setenv("ASC_CONFIG_PATH", configPath)
 
-	_, _, err := GetCredentialsWithSource("")
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if !errors.Is(err, ErrKeychainAccessDenied) {
-		t.Fatalf("expected ErrKeychainAccessDenied, got %v", err)
+			previousKeyringOpener := keyringOpener
+			previousLegacyKeyringOpener := legacyKeyringOpener
+			t.Cleanup(func() {
+				keyringOpener = previousKeyringOpener
+				legacyKeyringOpener = previousLegacyKeyringOpener
+			})
+			keyringOpener = func() (keyring.Keyring, error) {
+				return test.keyring, nil
+			}
+			legacyKeyringOpener = func() (keyring.Keyring, error) {
+				return nil, keyring.ErrNoAvailImpl
+			}
+
+			_, _, err := GetCredentialsWithSource("")
+			if !errors.Is(err, test.want) || test.notWant != nil && errors.Is(err, test.notWant) {
+				t.Fatalf("GetCredentialsWithSource() error = %v, want %v and not %v", err, test.want, test.notWant)
+			}
+			if test.message != "" && err.Error() != test.message {
+				t.Fatalf("GetCredentialsWithSource() error text = %q, want %q", err, test.message)
+			}
+		})
 	}
 }
 

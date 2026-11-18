@@ -32,6 +32,18 @@ import (
 // This is distinct from keychain being unavailable (`keyring.ErrNoAvailImpl`).
 var ErrKeychainAccessDenied = errors.New("keychain access denied")
 
+// ErrKeychainReadFailed is returned when a keychain backend is available but
+// reading stored credentials from it fails for any other reason.
+var ErrKeychainReadFailed = errors.New("keychain read failed")
+
+// keychainReadError marks err as a keychain read failure without changing its
+// text, which the access-denied check reads an OSStatus code from.
+type keychainReadError struct{ err error }
+
+func (e keychainReadError) Error() string        { return e.err.Error() }
+func (e keychainReadError) Unwrap() error        { return e.err }
+func (e keychainReadError) Is(target error) bool { return target == ErrKeychainReadFailed }
+
 // ErrDefaultCredentialsNotFound indicates that stored credentials exist, but no
 // default selection resolves for the current no-profile lookup.
 var ErrDefaultCredentialsNotFound = errors.New("default credentials not found")
@@ -1599,11 +1611,11 @@ type keychainLookup struct {
 func lookupKeychainCredential(profile string) (keychainLookup, error) {
 	kr, err := keyringOpener()
 	if err != nil {
-		return keychainLookup{}, err
+		return keychainLookup{}, keychainReadError{err}
 	}
 	names, err := keychainCredentialNames(kr)
 	if err != nil {
-		return keychainLookup{}, err
+		return keychainLookup{}, keychainReadError{err}
 	}
 	if !legacyKeychainMarkedEmpty() && legacyKeychainHasCredentials() {
 		// The full listing migrates legacy entries into the current keychain.
@@ -1628,7 +1640,7 @@ func lookupKeychainCredential(profile string) (keychainLookup, error) {
 	storedDefault, _ := defaultName()
 	cred, found, err := credentialFromKeyringKey(kr, keyringKey(selected), storedDefault, loadStoredKeychainMetadata())
 	if err != nil {
-		return keychainLookup{}, err
+		return keychainLookup{}, keychainReadError{err}
 	}
 	if !found {
 		// The item disappeared after Keys returned it. Do not let a stale
@@ -1647,7 +1659,7 @@ func lookupKeychainCredential(profile string) (keychainLookup, error) {
 func lookupKeychainCredentialFromListing(profile string) (keychainLookup, error) {
 	credentials, err := listFromKeychain()
 	if err != nil {
-		return keychainLookup{}, err
+		return keychainLookup{}, keychainReadError{err}
 	}
 	lookup := keychainLookup{stored: len(credentials)}
 	selected, defaultKey, err := selectedCredentialName(profile)
