@@ -129,7 +129,7 @@ func (c *Client) fetchHistogram(ctx context.Context, appID, country string, rati
 	})
 }
 
-// GetAllRatings fetches rating statistics for an app across all supported countries.
+// GetAllRatings fetches rating statistics for an app across all public App Store countries.
 func (c *Client) GetAllRatings(
 	ctx context.Context,
 	appID string,
@@ -146,7 +146,7 @@ func (c *Client) GetAllRatings(
 	workCtx, cancelWork := context.WithCancel(ctx)
 	defer cancelWork()
 
-	countries := AllCountries()
+	countries := AllPublicCountries()
 
 	var (
 		mu                 sync.Mutex
