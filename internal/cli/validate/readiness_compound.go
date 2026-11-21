@@ -313,6 +313,9 @@ func resolveMultipleAppInfoAgeRating(ctx context.Context, client *asc.Client, re
 
 	candidates := asc.AppInfoCandidates(result.response.Data)
 	ageRatingAppInfoID, ok := asc.AutoResolveAppInfoIDByVersionState(candidates, versionState)
+	if !ok && versionUsesNextAppInfo(versionState) {
+		ageRatingAppInfoID, ok = soleNonLiveAppInfoID(candidates)
+	}
 	if !ok {
 		return fmt.Errorf("failed to fetch age rating declaration: %w", &shared.AmbiguousSelectionError{
 			Kind:        "app info",
@@ -352,6 +355,37 @@ func resolveMultipleAppInfoAgeRating(ctx context.Context, client *asc.Client, re
 	}
 	result.ageRatingDeclaration = mapAgeRatingDeclaration(ageRatingResponse.Data.Attributes)
 	return nil
+}
+
+// versionUsesNextAppInfo reports whether a version has not shipped yet, so its
+// metadata lives on the app's non-live app info. That app info is shared by
+// every platform, so its state follows whichever platform moved last
+// (WAITING_FOR_REVIEW, IN_REVIEW, REJECTED, ...) rather than this version.
+func versionUsesNextAppInfo(versionState string) bool {
+	if shared.IsLiveAppStoreVersionState(versionState) {
+		return false
+	}
+	switch strings.ToUpper(strings.TrimSpace(versionState)) {
+	case "", "PREORDER_READY_FOR_SALE", "REPLACED_WITH_NEW_VERSION", "REMOVED_FROM_SALE":
+		return false
+	default:
+		return true
+	}
+}
+
+// soleNonLiveAppInfoID returns the only current app info that is not live.
+func soleNonLiveAppInfoID(candidates []asc.AppInfoCandidate) (string, bool) {
+	selected := ""
+	for _, candidate := range asc.CurrentAppInfoCandidates(candidates) {
+		if shared.IsLiveAppStoreVersionState(candidate.State) {
+			continue
+		}
+		if candidate.ID == "" || selected != "" {
+			return "", false
+		}
+		selected = candidate.ID
+	}
+	return selected, selected != ""
 }
 
 func selectAppInfoResource(resources []asc.Resource[asc.AppInfoAttributes], appInfoID string) (asc.Resource[asc.AppInfoAttributes], bool) {
