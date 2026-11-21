@@ -29,7 +29,7 @@ require (
 	github.com/olekukonko/tablewriter v1.1.5
 	github.com/peterbourgon/ff/v3 v3.4.0
 	github.com/ryanuber/go-glob v1.0.0
-	github.com/tidwall/jsonc v0.3.3
+	github.com/tidwall/jsonc v0.3.4
 	go.mozilla.org/pkcs7 v0.10.0
 	golang.org/x/crypto v0.59.0
 	golang.org/x/mod v0.43.0
