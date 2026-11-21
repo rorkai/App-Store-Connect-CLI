@@ -382,7 +382,9 @@ jobs:
             command: |
               brew install libfido2 pkg-config
               pkg-config --atleast-version=1.14.0 libfido2
-              export CGO_ENABLED=1 GOMAXPROCS=4 GOFLAGS=-p=4
+              # Go's cache key includes explicit cgo flags, so include Homebrew's current library path.
+              CGO_LDFLAGS="-O2 -g $(pkg-config --libs libfido2)"
+              export CGO_ENABLED=1 GOMAXPROCS=4 GOFLAGS=-p=4 CGO_LDFLAGS
               go build -tags fido2 -o build/asc_dev_fido2_macos .
               ASC_BYPASS_KEYCHAIN=1 go test -race -tags fido2 -p=1 -parallel=4 -count=1 ./internal/securitykey ./internal/web ./internal/cli/web ./internal/cli/cmdtest -run 'SecurityKey|SecurityChallenge|TwoFactorDelivery|TwoFactorPreference|SignCancelledBeforeDeviceDiscovery'
     steps:
