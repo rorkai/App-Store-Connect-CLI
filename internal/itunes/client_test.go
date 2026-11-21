@@ -820,9 +820,10 @@ func TestGetAllRatings_HistogramDeadlineIsNonFatal(t *testing.T) {
 		},
 	}
 
-	var countries atomic.Int32
+	// Countries without a storefront ID send no histogram request, so keep the
+	// short deadline until one histogram request has actually reached it.
 	newCountryContext := func(parent context.Context) (context.Context, context.CancelFunc) {
-		if countries.Add(1) == 1 {
+		if !histogramTimedOut.Load() {
 			marked := context.WithValue(parent, histogramDeadlineContextKey{}, true)
 			return context.WithTimeout(marked, 500*time.Millisecond)
 		}

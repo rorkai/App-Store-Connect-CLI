@@ -105,21 +105,25 @@ func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
 
 	var resolution observedRequest
 	var countryLookups []observedRequest
-	var firstCountryHistogram observedRequest
+	// Countries without a storefront ID send no histogram request, so compare
+	// the first histogram with its own country's lookup, whichever country that is.
+	var firstHistogram observedRequest
+	lookupDeadlines := make(map[string]time.Time)
 	for _, request := range requests {
 		switch request.kind {
 		case "app resolution":
 			resolution = request
 		case "country lookup":
 			countryLookups = append(countryLookups, request)
+			lookupDeadlines[request.country] = request.deadline
 		case "histogram":
-			if len(countryLookups) > 0 && request.country == countryLookups[0].country && firstCountryHistogram.deadline.IsZero() {
-				firstCountryHistogram = request
+			if firstHistogram.deadline.IsZero() {
+				firstHistogram = request
 			}
 		}
 	}
-	if resolution.deadline.IsZero() || len(countryLookups) < 2 || firstCountryHistogram.deadline.IsZero() {
-		t.Fatalf("missing deadline observations: resolution=%v lookups=%d histogram=%v", resolution, len(countryLookups), firstCountryHistogram)
+	if resolution.deadline.IsZero() || len(countryLookups) < 2 || firstHistogram.deadline.IsZero() {
+		t.Fatalf("missing deadline observations: resolution=%v lookups=%d histogram=%v", resolution, len(countryLookups), firstHistogram)
 	}
 	if gap := countryLookups[0].deadline.Sub(resolution.deadline); gap != 5*time.Millisecond {
 		t.Fatalf("first country deadline = %s, want 5ms later than app resolution deadline %s", countryLookups[0].deadline, resolution.deadline)
@@ -127,8 +131,8 @@ func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
 	if gap := countryLookups[1].deadline.Sub(countryLookups[0].deadline); gap != 5*time.Millisecond {
 		t.Fatalf("second country deadline = %s, want 5ms later than first country deadline %s", countryLookups[1].deadline, countryLookups[0].deadline)
 	}
-	if !firstCountryHistogram.deadline.Equal(countryLookups[0].deadline) {
-		t.Fatalf("first country histogram deadline = %s, want country operation deadline %s", firstCountryHistogram.deadline, countryLookups[0].deadline)
+	if want := lookupDeadlines[firstHistogram.country]; !firstHistogram.deadline.Equal(want) {
+		t.Fatalf("%s histogram deadline = %s, want country operation deadline %s", firstHistogram.country, firstHistogram.deadline, want)
 	}
 }
 
