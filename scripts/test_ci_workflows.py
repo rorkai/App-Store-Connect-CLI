@@ -1016,6 +1016,10 @@ updates:
     directory: \"/\"
     schedule:
       interval: \"weekly\"
+    groups:
+      codeql-action:
+        patterns:
+          - \"github/codeql-action*\"
 
   - package-ecosystem: \"nix\"
     directory: \"/\"
@@ -1026,7 +1030,7 @@ updates:
     directory: \"/website\"
     schedule:
       interval: \"weekly\"
-""", "Dependabot must monitor root Go modules, GitHub Actions, Nix flake inputs, and the docs site's npm packages weekly"
+""", "Dependabot must monitor all four dependency ecosystems weekly and update CodeQL actions together"
 
     assert_security_target_contract()
     assert_nix_cache_contract()
