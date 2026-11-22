@@ -749,7 +749,31 @@ func canonicalStringFieldPatchKey(field string, allowed []string) (string, error
 			return key, nil
 		}
 	}
-	return "", fmt.Errorf("json: unknown field %q", field)
+	return "", fmt.Errorf("json: unknown field %q; %s", field, unknownLocalizationFieldHint(field, allowed))
+}
+
+// unknownLocalizationFieldHint says where a field that is not allowed in this
+// localization file belongs, so the file can be fixed in one step.
+func unknownLocalizationFieldHint(field string, allowed []string) string {
+	belongsIn := func(fields []string) bool {
+		return slices.ContainsFunc(fields, func(key string) bool { return strings.EqualFold(field, key) })
+	}
+	scope := "version"
+	if slices.Equal(allowed, appInfoPlanFields) {
+		scope = "app-info"
+		if belongsIn(versionPlanFields) {
+			return "it is a version localization field: move it to version/<version>/<locale>.json"
+		}
+	} else if belongsIn(appInfoPlanFields) {
+		return "it is an app-info localization field: move it to app-info/<locale>.json"
+	}
+	switch strings.ToLower(field) {
+	case "copyright":
+		return "copyright is not a localization field: remove it and set it with `asc versions update --version-id VERSION_ID --copyright \"TEXT\"`"
+	case "locale":
+		return "the file name sets the locale: remove this key"
+	}
+	return fmt.Sprintf("%s localization fields: %s", scope, strings.Join(allowed, ", "))
 }
 
 // clearableMetadataFields lists the localization attributes App Store Connect
