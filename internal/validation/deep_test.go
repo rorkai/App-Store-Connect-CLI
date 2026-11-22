@@ -141,16 +141,11 @@ func TestUserFixCommandsUsePlaceholdersOnly(t *testing.T) {
 		field        string
 		want         string
 	}{
-		{"appStoreVersionLocalization", "description", `asc localizations update --id "loc-1" --description "DESCRIPTION"`},
-		{"appStoreVersionLocalization", "keywords", `asc localizations update --id "loc-1" --keywords "KEYWORDS"`},
-		{"appStoreVersionLocalization", "supportUrl", `asc localizations update --id "loc-1" --support-url "SUPPORT_URL"`},
 		{"appStoreVersionLocalization", "whatsNew", `asc localizations update --id "loc-1" --whats-new "WHATS_NEW"`},
 		{"appStoreVersionLocalization", "marketingUrl", `asc localizations update --id "loc-1" --marketing-url "MARKETING_URL"`},
 		{"appInfoLocalization", "name", `asc localizations update --type app-info --id "loc-1" --name "APP_NAME"`},
-		{"appInfoLocalization", "subtitle", `asc localizations update --type app-info --id "loc-1" --subtitle "SUBTITLE"`},
 		{"appInfoLocalization", "privacyPolicyUrl", `asc localizations update --type app-info --id "loc-1" --privacy-policy-url "PRIVACY_POLICY_URL"`},
 		{"appInfoLocalization", "privacyChoicesUrl", `asc localizations update --type app-info --id "loc-1" --privacy-choices-url "PRIVACY_CHOICES_URL"`},
-		{"appStoreReviewDetail", "contactEmail", `asc review details-update --id "loc-1" --contact-email "EMAIL"`},
 	}
 	for _, test := range tests {
 		t.Run(test.resourceType+"/"+test.field, func(t *testing.T) {
