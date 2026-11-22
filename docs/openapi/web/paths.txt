@@ -158,6 +158,7 @@ POST /sandbox/v2/account/validateFields
 POST /services-account/QH65B2/account/acceptAgreements
 POST /services-account/QH65B2/account/auth/key/get
 POST /services-account/QH65B2/account/auth/key/list
+POST /services-account/QH65B2/account/auth/key/revoke
 POST /services-account/QH65B2/account/auth/key/v2/create
 POST /services-account/QH65B2/account/getAgreementHistory
 POST /services-account/QH65B2/account/getNotifications

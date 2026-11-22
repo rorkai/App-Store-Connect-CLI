@@ -23,7 +23,7 @@ import (
 func newWebSignInKeysCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name: "sign-in-keys", ShortUsage: "asc web sign-in-keys <subcommand> [flags]", ShortHelp: "Create and download Sign in with Apple keys through Developer Portal.", FlagSet: d.NewFlagSet("web sign-in-keys", flag.ExitOnError), UsageFunc: d.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{newWebSignInKeysListCommand(d), newWebSignInKeysViewCommand(d), newWebSignInKeysCreateCommand(d), newWebSignInKeysDownloadCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
+		Subcommands: []*ffcli.Command{newWebSignInKeysListCommand(d), newWebSignInKeysViewCommand(d), newWebSignInKeysCreateCommand(d), newWebSignInKeysDownloadCommand(d), webDeveloperKeyRevokeCommand(d, signInKeyKind)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
@@ -109,6 +109,14 @@ var downloadDeveloperPushKeyFn = func(ctx context.Context, client *webcore.Clien
 	return client.DownloadDeveloperPushKey(ctx, keyID)
 }
 
+var revokeDeveloperSignInKeyFn = func(ctx context.Context, client *webcore.Client, keyID string) error {
+	return client.RevokeDeveloperSignInKey(ctx, keyID)
+}
+
+var revokeDeveloperPushKeyFn = func(ctx context.Context, client *webcore.Client, keyID string) error {
+	return client.RevokeDeveloperPushKey(ctx, keyID)
+}
+
 type developerKeyKind struct {
 	group        string
 	label        string
@@ -116,6 +124,7 @@ type developerKeyKind struct {
 	bundleScoped bool
 	create       func(ctx context.Context, client *webcore.Client, name, bundleID string) (*webcore.DeveloperSignInKey, error)
 	download     func(ctx context.Context, client *webcore.Client, keyID string) ([]byte, error)
+	revoke       func(ctx context.Context, client *webcore.Client, keyID string) error
 }
 
 var signInKeyKind = developerKeyKind{
@@ -126,6 +135,9 @@ var signInKeyKind = developerKeyKind{
 	download: func(ctx context.Context, client *webcore.Client, keyID string) ([]byte, error) {
 		return downloadDeveloperSignInKeyFn(ctx, client, keyID)
 	},
+	revoke: func(ctx context.Context, client *webcore.Client, keyID string) error {
+		return revokeDeveloperSignInKeyFn(ctx, client, keyID)
+	},
 }
 
 var pushKeyKind = developerKeyKind{
@@ -135,6 +147,9 @@ var pushKeyKind = developerKeyKind{
 	},
 	download: func(ctx context.Context, client *webcore.Client, keyID string) ([]byte, error) {
 		return downloadDeveloperPushKeyFn(ctx, client, keyID)
+	},
+	revoke: func(ctx context.Context, client *webcore.Client, keyID string) error {
+		return revokeDeveloperPushKeyFn(ctx, client, keyID)
 	},
 }
 
@@ -154,8 +169,45 @@ func newWebSignInKeysDownloadCommand(d *shared.Deps) *ffcli.Command {
 func newWebPushKeysCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name: "push-keys", ShortUsage: "asc web push-keys <subcommand> [flags]", ShortHelp: "Create and download APNs keys through Developer Portal.", LongHelp: "Creates team-scoped APNs keys for sandbox and production. Inspect existing keys, including APNs keys, with asc web sign-in-keys list.", FlagSet: d.NewFlagSet("web push-keys", flag.ExitOnError), UsageFunc: d.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{webDeveloperKeySaveCommand(d, pushKeyKind, true), webDeveloperKeySaveCommand(d, pushKeyKind, false)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
+		Subcommands: []*ffcli.Command{webDeveloperKeySaveCommand(d, pushKeyKind, true), webDeveloperKeySaveCommand(d, pushKeyKind, false), webDeveloperKeyRevokeCommand(d, pushKeyKind)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
+}
+
+func webDeveloperKeyRevokeCommand(d *shared.Deps, kind developerKeyKind) *ffcli.Command {
+	fs := d.NewFlagSet("web "+kind.group+" revoke", flag.ExitOnError)
+	authFlags := bindWebSessionFlags(fs)
+	portalFlags := bindDeveloperPortalFlags(fs)
+	output := d.BindOutputFlags(fs)
+	keyID := fs.String("key-id", "", "Developer Portal authentication key ID")
+	confirm := fs.Bool("confirm", false, "Confirm permanently revoking this "+kind.label+" key")
+	return &ffcli.Command{Name: "revoke", ShortUsage: "asc web " + kind.group + " revoke --key-id ID --confirm [flags]", ShortHelp: "Revoke " + kind.article + " " + kind.label + " key.", LongHelp: "Permanently revokes the key; services signing with it stop working. Refuses keys of another service or keys this account cannot revoke, verifies the key is no longer listed, and never retries automatically.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+		id := strings.TrimSpace(*keyID)
+		if id == "" {
+			return d.UsageError("--key-id is required")
+		}
+		if !regexp.MustCompile(`^[A-Za-z0-9]{1,32}$`).MatchString(id) {
+			return d.UsageError("invalid --key-id")
+		}
+		if err := d.RequireConfirm(*confirm); err != nil {
+			return err
+		}
+		if err := validateDeveloperPortalFlagsWith(d, portalFlags); err != nil {
+			return err
+		}
+		if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+			return d.UsageError(err.Error())
+		}
+		session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
+		defer cancel()
+		if err != nil {
+			return err
+		}
+		if err := kind.revoke(requestCtx, newDeveloperPortalClient(session, portalFlags), id); err != nil {
+			return withWebAuthHint(err, "web "+kind.group+" revoke")
+		}
+		persistDeveloperPortalSessionWith(d, session)
+		return d.PrintOutput(&asc.WebDeveloperKeyRevokeResult{KeyID: id, Revoked: true}, *output.Output, *output.Pretty)
+	}}
 }
 
 func webDeveloperKeySaveCommand(d *shared.Deps, kind developerKeyKind, create bool) *ffcli.Command {

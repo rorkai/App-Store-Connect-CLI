@@ -8676,6 +8676,51 @@
         ]
       }
     },
+    "/services-account/QH65B2/account/auth/key/revoke": {
+      "servers": [
+        {
+          "url": "https://developer.apple.com"
+        }
+      ],
+      "post": {
+        "tags": [
+          "SignInKeys"
+        ],
+        "operationId": "signInKeys_deleteInstance",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInKeyGetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "2XX": {
+            "description": "Success. The schema lists the fields the client reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInKeyResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code."
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-22"
+        },
+        "x-asc-source": [
+          "Client.RevokeDeveloperPushKey",
+          "Client.RevokeDeveloperSignInKey"
+        ]
+      }
+    },
     "/services-account/QH65B2/account/auth/key/v2/create": {
       "servers": [
         {
@@ -18079,6 +18124,9 @@
               "type": "object",
               "properties": {
                 "canDownload": {
+                  "type": "boolean"
+                },
+                "canRevoke": {
                   "type": "boolean"
                 },
                 "keyId": {
