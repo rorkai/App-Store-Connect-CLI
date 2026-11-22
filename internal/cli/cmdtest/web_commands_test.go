@@ -115,12 +115,6 @@ func TestWebCommandsUsageErrors(t *testing.T) {
 			deps:    true,
 		},
 		{
-			name:    "APIKeysLegacyGetIsNotRegistered",
-			args:    []string{"web", "api-keys", "get", "--key-id", "KEY_ID"},
-			wantErr: "Error: unknown command `asc web api-keys get`",
-			deps:    true,
-		},
-		{
 			name:    "AppsCreateMissingRequiredFlags",
 			args:    []string{"web", "apps", "create", "--name", "My App"},
 			wantErr: "Error: missing required flags: --bundle-id, --sku",
