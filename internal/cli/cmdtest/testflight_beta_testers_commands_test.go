@@ -323,7 +323,7 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 			testers:    noTesters,
 			groupRead:  `{"data":{"type":"betaGroups","id":"group-1","attributes":{"name":"Internal Testing","isInternalGroup":true}}}`,
 			wantCode:   cmd.ExitConflict,
-			wantStderr: `tester@example.com is not a tester of app app-1, and "Internal Testing" (group-1) is an internal group: internal groups take only users of your App Store Connect team who can see this app.`,
+			wantStderr: "Tester(s) cannot be assigned\nHint: tester@example.com is not a tester of app app-1, and \"Internal Testing\" (group-1) is an internal group: internal groups take only users of your App Store Connect team who can see this app.",
 		},
 		{
 			name:       "not a tester, external group keeps Apple's error",
@@ -374,6 +374,9 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 			}
 			if !strings.Contains(stderr, test.wantStderr) {
 				t.Fatalf("stderr = %q, want it to contain %q", stderr, test.wantStderr)
+			}
+			if strings.Count(stderr, "Hint:") > 1 {
+				t.Fatalf("stderr has more than one hint:\n%s", stderr)
 			}
 		})
 	}

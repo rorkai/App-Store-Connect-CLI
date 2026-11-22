@@ -432,8 +432,11 @@ Examples:
 				}
 				if outcome == nil || outcome.tester == nil {
 					if outcome != nil && len(outcome.internalGroups) > 0 {
-						return fmt.Errorf("beta-testers add: failed to create: %w\n%s is not a tester of app %s, and %s is an internal group: internal groups take only users of your App Store Connect team who can see this app. Invite the person with `asc users invite --email %q --first-name NAME --last-name NAME --roles DEVELOPER --visible-app %q`, then retry, or add them to an external group",
-							err, strings.TrimSpace(*email), resolvedAppID, strings.Join(outcome.internalGroups, ", "), strings.TrimSpace(*email), resolvedAppID)
+						return &shared.HintedError{
+							Err: fmt.Errorf("beta-testers add: failed to create: %w", err),
+							Hint: fmt.Sprintf("%s is not a tester of app %s, and %s is an internal group: internal groups take only users of your App Store Connect team who can see this app. Invite the person with `asc users invite --email %q --first-name NAME --last-name NAME --roles DEVELOPER --visible-app %q`, then retry, or add them to an external group.",
+								strings.TrimSpace(*email), resolvedAppID, strings.Join(outcome.internalGroups, ", "), strings.TrimSpace(*email), resolvedAppID),
+						}
 					}
 					return fmt.Errorf("beta-testers add: failed to create: %w", err)
 				}
