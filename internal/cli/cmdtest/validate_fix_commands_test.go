@@ -66,7 +66,7 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		{checkID: "review_details.missing", userInput: true, want: []string{`asc review details-create --version-id "ver-1" --contact-first-name "FIRST_NAME" --contact-last-name "LAST_NAME" --contact-email "EMAIL" --contact-phone "PHONE"`}},
 		{checkID: "metadata.required.description", field: "description", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --description "DESCRIPTION"`}},
 		{checkID: "metadata.required.keywords", field: "keywords", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --keywords "KEYWORDS"`}},
-		{checkID: "metadata.required.support_url", field: "supportUrl", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --support-url "https://example.com/support"`}},
+		{checkID: "metadata.required.support_url", field: "supportUrl", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --support-url "SUPPORT_URL"`}},
 		{checkID: "legal.required.copyright", field: "copyright", userInput: true, want: []string{`asc versions update --version-id "ver-1" --copyright "YEAR RIGHTS_HOLDER"`}},
 		{checkID: "age_rating.missing_field", field: "advertising", userInput: true, want: []string{`asc age-rating edit --app "app-1" --advertising "TRUE_OR_FALSE"`}},
 		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", userInput: true, want: []string{`asc age-rating edit --app "app-1" --alcohol-tobacco-drug-use "NONE_OR_INFREQUENT_OR_MILD_OR_FREQUENT_OR_INTENSE"`}},
