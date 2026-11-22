@@ -296,7 +296,7 @@ func TestGetAllRatings_Aggregation(t *testing.T) {
 		"us": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":4.0,"userRatingCount":100}]}`,
 		"gb": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":5.0,"userRatingCount":50}]}`,
 		"de": `{"resultCount":0,"results":[]}`, // Not available in Germany
-		// Morocco has no histogram storefront ID; its lookup rating must still count.
+		// Morocco is outside the original 115 histogram countries; its rating must still count.
 		"ma": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":3.0,"userRatingCount":3}]}`,
 	}
 

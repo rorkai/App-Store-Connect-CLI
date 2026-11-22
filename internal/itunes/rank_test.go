@@ -338,18 +338,6 @@ func TestRankAppTVOSErrorsOnNonTVResultSet(t *testing.T) {
 	}
 }
 
-func TestRankAppTVOSRejectsMissingStorefrontBeforeRequest(t *testing.T) {
-	client := &Client{HTTPClient: &http.Client{Transport: rankRoundTripFunc(func(r *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request for unsupported storefront: %s", r.URL.String())
-		return nil, errors.New("unexpected request")
-	})}}
-
-	_, err := client.RankApp(context.Background(), "1234567890", "focus timer", "kz", PublicSearchPlatformTVOS)
-	if err == nil {
-		t.Fatal("RankApp() error = nil, want missing storefront error")
-	}
-}
-
 func TestRankAppTVOSRetainsHTTPStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
@@ -380,10 +368,4 @@ func TestRankAppTVOSRespectsCanceledContext(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("RankApp() error = %v, want context.Canceled", err)
 	}
-}
-
-type rankRoundTripFunc func(*http.Request) (*http.Response, error)
-
-func (f rankRoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
 }

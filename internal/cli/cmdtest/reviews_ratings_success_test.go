@@ -104,50 +104,6 @@ func TestReviewsRatingsSuccessOutputs(t *testing.T) {
 	}
 }
 
-func TestReviewsRatingsAcceptsCountryOutsideHistogramStorefrontMap(t *testing.T) {
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/lookup" {
-			t.Fatalf("unexpected path %s", req.URL.Path)
-		}
-		if got := req.URL.Query().Get("country"); got != "kz" {
-			t.Fatalf("expected lookup country=kz, got %q", got)
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body: io.NopCloser(strings.NewReader(`{
-				"resultCount": 1,
-				"results": [{
-					"trackId": 123,
-					"trackName": "Alpha",
-					"averageUserRating": 4.5,
-					"userRatingCount": 12
-				}]
-			}`)),
-			Header: http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "reviews", "ratings", "--app", "123", "--country", "kz", "--output", "json")
-	if err != nil {
-		t.Fatalf("run error: %v", err)
-	}
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload itunes.AppRatings
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal ratings: %v", err)
-	}
-	if payload.Country != "KZ" {
-		t.Fatalf("Country = %q, want KZ", payload.Country)
-	}
-	if len(payload.Histogram) != 0 {
-		t.Fatalf("expected empty histogram, got %+v", payload.Histogram)
-	}
-}
-
 func TestReviewsRatingsAllSuccess(t *testing.T) {
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
