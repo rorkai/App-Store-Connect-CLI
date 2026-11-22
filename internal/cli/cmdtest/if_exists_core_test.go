@@ -11,7 +11,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // Apple's real 409 body for a duplicate versionString on POST /v1/appStoreVersions,
@@ -1192,5 +1194,31 @@ func TestVersionsCreateIfExistsUpdateKeepsSkippedWhenMetadataCopyChangesNothing(
 	}
 	if !strings.Contains(stderr, "left unchanged") {
 		t.Fatalf("stderr = %q, want the left-unchanged diagnostic", stderr)
+	}
+}
+
+// TestReviewDetailsCreateExistingDetailHintNamesTheRetry pins the hint for the
+// default --if-exists fail when the version already has review details.
+// Apple's body was captured live on 2026-11-22.
+func TestReviewDetailsCreateExistingDetailHintNamesTheRetry(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	const existsBody = `{"errors":[{"id":"8c935a98-6cc5-4361-a9f6-43cd05578566","status":"409","code":"STATE_ERROR.ALREADY_EXISTS","title":"Resource already exists.","detail":"The given app version already has an existing review."}]}`
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.POST("/v1/appStoreReviewDetails"), asctest.JSON(http.StatusConflict, existsBody))
+
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "review", "details-create", "--version-id", "version-1",
+		"--contact-first-name", "Dev", "--contact-phone", "+1 408 555 0100", "--notes", "Reviewer notes")
+
+	if code != cmd.ExitConflict {
+		t.Fatalf("exit code = %d, want %d (stderr %q)", code, cmd.ExitConflict, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	want := "Error: review details-create: failed to create: Resource already exists.: The given app version already has an existing review.\n" +
+		"Hint: This version already has review details. Rerun the same command with --if-exists update to apply these flags to them, or --if-exists skip to keep them as they are.\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}
 }
