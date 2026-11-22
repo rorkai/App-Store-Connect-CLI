@@ -35,6 +35,7 @@ approve-and-merge authority. Immediately before approval, or before a merge
 that does not require a new approval, confirm:
 
 - The latest head contains only the legitimate Wall change.
+- The final full-branch Claude review required by `AGENTS.md` is clear for the current head. A later base advance alone does not invalidate that review.
 - `ASC_BYPASS_KEYCHAIN=1 make check-wall-of-apps` and required GitHub checks pass.
 - No actionable unresolved review thread remains.
 - The PR is mergeable against current `main`.
