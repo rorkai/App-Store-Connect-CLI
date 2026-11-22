@@ -337,6 +337,13 @@ func TestAPIUnknownPathAnswersWithWhatToSend(t *testing.T) {
 			want: "api: GET builds/B1/betaGroups is not in the embedded schema index. Use `asc builds groups list --build-id B1`.",
 		},
 		{
+			// --allow-unknown-path cannot pick a version for the path.
+			name:      "nearest operations without a version",
+			args:      []string{"api", "DELETE", "apps/1", "--confirm"},
+			want:      "Use `asc schema <query>` to inspect operations, or add the /v1/, /v2/, or /v3/ prefix to PATH and pass --allow-unknown-path to send the request anyway.",
+			wantAllow: true,
+		},
+		{
 			name: "resource the index does not know, without a version",
 			args: []string{"api", "GET", "agreements"},
 			want: "api: GET agreements is not in the embedded schema index. No indexed operation shares its resource",
@@ -441,6 +448,7 @@ func TestAPIAcceptsCommonArgumentShapes(t *testing.T) {
 		want    string
 	}{
 		{name: "path without method", args: []string{"api", "/v1/apps/123/appInfos?limit=10"}, matcher: asctest.GET("/v1/apps/123/appInfos", "limit=10"), want: "GET /v1/apps/123/appInfos?limit=10"},
+		{name: "lone path without version or slash", args: []string{"api", "apps"}, matcher: asctest.GET("/v1/apps"), want: "GET /v1/apps"},
 		{name: "path without leading slash", args: []string{"api", "GET", "v1/apps/123/appInfos"}, matcher: asctest.GET("/v1/apps/123/appInfos"), want: "GET /v1/apps/123/appInfos"},
 		{name: "path without version", args: []string{"api", "GET", "apps/123/appInfos"}, matcher: asctest.GET("/v1/apps/123/appInfos"), want: "GET /v1/apps/123/appInfos"},
 		{name: "path with slash but without version", args: []string{"api", "GET", "/apps/123"}, matcher: asctest.GET("/v1/apps/123"), want: "GET /v1/apps/123"},

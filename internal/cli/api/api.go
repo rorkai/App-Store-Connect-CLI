@@ -145,8 +145,9 @@ type rawRequest struct {
 // parseRequest validates the invocation before any credential or network
 // access. Every failure is a usage error with exit code 2.
 func parseRequest(ctx context.Context, d *shared.Deps, positional []string, query []string, body, bodyFile string, bodyProvided, bodyFileProvided, paginate, confirm, allowUnknownPath bool) (rawRequest, error) {
-	// A lone PATH is a GET: a method never contains a slash.
-	if len(positional) == 1 && strings.Contains(positional[0], "/") {
+	// A lone PATH is a GET: anything but a method name is a PATH, such as
+	// /v1/apps, apps/123 or apps.
+	if len(positional) == 1 && !isMethodName(positional[0]) {
 		positional = []string{http.MethodGet, positional[0]}
 	}
 	if len(positional) < 2 {
@@ -217,10 +218,10 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 			return rawRequest{}, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", positional[1])
 		}
 		shown, _, _ := strings.Cut(strings.TrimSpace(positional[1]), "?")
-		return rawRequest{}, unknownOperationError(d, method, path, shown)
+		return rawRequest{}, unknownOperationError(d, method, path, shown, true)
 	}
 	if !indexed && !allowUnknownPath {
-		return rawRequest{}, unknownOperationError(d, method, path, path)
+		return rawRequest{}, unknownOperationError(d, method, path, path, false)
 	}
 	if indexed && !allowUnknownPath {
 		if err := validateQuery(d, endpoint, values); err != nil {
@@ -341,6 +342,16 @@ func undocumentedQueryNameError(d *shared.Deps, operation, key string, names []s
 		return d.UsageErrorf("api: query parameter %q is not documented for %s; did you mean %s? (documented: %s)"+schemaLagHint, key, operation, closest, strings.Join(names, ", "))
 	}
 	return d.UsageErrorf("api: query parameter %q is not documented for %s (documented: %s)"+schemaLagHint, key, operation, strings.Join(names, ", "))
+}
+
+// isMethodName reports whether raw names a method, supported or not, so a
+// lone `asc api PUT` still asks for METHOD and PATH.
+func isMethodName(raw string) bool {
+	switch strings.ToUpper(strings.TrimSpace(raw)) {
+	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions:
+		return true
+	}
+	return false
 }
 
 func normalizeMethod(d *shared.Deps, raw string) (string, error) {
@@ -640,8 +651,9 @@ func nativeCommand(method, path string) (string, bool) {
 // the nearest operations on the same resource. --allow-unknown-path is
 // offered only for that last case, where the resource is indexed and Apple
 // may have added the operation after the snapshot. A resource the index does
-// not know under any spelling is not in Apple's public API.
-func unknownOperationError(d *shared.Deps, method, path, shown string) error {
+// not know under any spelling is not in Apple's public API. An unversioned
+// path is shown as given and needs its version prefix with that flag.
+func unknownOperationError(d *shared.Deps, method, path, shown string, unversioned bool) error {
 	nearest, err := schema.NearestOperations(method, path, nearestOperationMax)
 	if err != nil {
 		return fmt.Errorf("api: %w", err)
@@ -674,6 +686,9 @@ func unknownOperationError(d *shared.Deps, method, path, shown string) error {
 	}
 	if corrected || hasCommand || len(nearest) == 0 {
 		message.WriteString(" Use `asc schema <query>` to inspect operations.")
+	} else if unversioned {
+		// --allow-unknown-path cannot pick a version for the path.
+		message.WriteString(" Use `asc schema <query>` to inspect operations, or add the /v1/, /v2/, or /v3/ prefix to PATH and pass --allow-unknown-path to send the request anyway.")
 	} else {
 		message.WriteString(" Use `asc schema <query>` to inspect operations, or pass --allow-unknown-path to send the request anyway.")
 	}
