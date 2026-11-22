@@ -41,7 +41,7 @@ func NewCommand(d *shared.Deps) *ffcli.Command {
 	bodyFile := fs.String("body-file", "", "Path to a JSON request body file (- for stdin); mutually exclusive with --body")
 	paginate := fs.Bool("paginate", false, "Follow links.next and print one merged collection envelope (GET only)")
 	confirm := fs.Bool("confirm", false, "Required for POST, PATCH, and DELETE requests")
-	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH are not in the embedded schema index")
+	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH, or its query parameter names and values, are not in the embedded schema index")
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "json", "Output format: json", "json")
 
 	return &ffcli.Command{
@@ -61,7 +61,8 @@ unless --allow-unknown-path is set. Every non-GET request requires --confirm.
 For non-GET requests, pass query parameters documented for the operation in
 PATH itself. Query parameter names, and the values of parameters that
 document them (include, fields[...], sort, enum filters), must be documented
-for the operation; anything else is a usage error before any request.
+for the operation; anything else is a usage error before any request unless
+--allow-unknown-path is set, for values Apple added after the snapshot.
 
 Examples:
   asc api GET /v1/apps --query limit=5 --query "fields[apps]=name,bundleId"
@@ -200,9 +201,11 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	if !indexed && !allowUnknownPath {
 		return rawRequest{}, unknownOperationError(d, method, path)
 	}
-	if indexed {
+	if indexed && !allowUnknownPath {
 		if err := validateQuery(d, endpoint, values); err != nil {
-			return rawRequest{}, err
+			// The failure is the query, not the --allow-unknown-path the
+			// message offers, so telemetry's failure parameter stays empty.
+			return rawRequest{}, shared.WithDiagnostic(err, shared.DiagnosticInvalidInput, "")
 		}
 	} else if method != http.MethodGet && len(values) > 0 {
 		return rawRequest{}, d.UsageError("api: PATH query parameters must be documented for this operation")
@@ -238,6 +241,10 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 // next link passes it back.
 const paginationCursor = "cursor"
 
+// schemaLagHint ends a query error that the embedded schema decides: the
+// snapshot can lag Apple, which adds attributes and states between releases.
+const schemaLagHint = ". If Apple accepts it after this snapshot, pass --allow-unknown-path to send it anyway."
+
 // validateQuery checks every query parameter name, and each comma-separated
 // value of a parameter with documented values, against the matched
 // operation, so a request Apple would answer with 400 PARAMETER_ERROR fails
@@ -268,7 +275,7 @@ func validateQuery(d *shared.Deps, endpoint schema.Endpoint, values url.Values) 
 			for item := range strings.SplitSeq(value, ",") {
 				item = strings.TrimSpace(item)
 				if item != "" && !slices.Contains(param.Enum, item) {
-					return d.UsageErrorf("api: %s value %q is not documented for %s (documented: %s)", key, item, operation, strings.Join(param.Enum, ", "))
+					return d.UsageErrorf("api: %s value %q is not documented for %s (documented: %s)"+schemaLagHint, key, item, operation, strings.Join(param.Enum, ", "))
 				}
 			}
 		}
@@ -291,7 +298,7 @@ func undocumentedQueryNameError(d *shared.Deps, operation, key string, names []s
 		}
 	}
 	if len(names) == 0 {
-		return d.UsageErrorf("api: query parameter %q is not documented for %s; it documents no query parameters", key, operation)
+		return d.UsageErrorf("api: query parameter %q is not documented for %s; it documents no query parameters"+schemaLagHint, key, operation)
 	}
 	closest, distance := "", 3
 	for _, name := range names {
@@ -300,9 +307,9 @@ func undocumentedQueryNameError(d *shared.Deps, operation, key string, names []s
 		}
 	}
 	if closest != "" {
-		return d.UsageErrorf("api: query parameter %q is not documented for %s; did you mean %s? (documented: %s)", key, operation, closest, strings.Join(names, ", "))
+		return d.UsageErrorf("api: query parameter %q is not documented for %s; did you mean %s? (documented: %s)"+schemaLagHint, key, operation, closest, strings.Join(names, ", "))
 	}
-	return d.UsageErrorf("api: query parameter %q is not documented for %s (documented: %s)", key, operation, strings.Join(names, ", "))
+	return d.UsageErrorf("api: query parameter %q is not documented for %s (documented: %s)"+schemaLagHint, key, operation, strings.Join(names, ", "))
 }
 
 func normalizeMethod(d *shared.Deps, raw string) (string, error) {

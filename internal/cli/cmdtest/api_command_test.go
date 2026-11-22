@@ -498,19 +498,35 @@ func TestAPIDeleteEmptyResponsePrintsNothing(t *testing.T) {
 }
 
 func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
-	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/notYetIndexed"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	tests := []struct {
+		name  string
+		path  string
+		query []string
+	}{
+		{name: "unindexed path", path: "/v1/notYetIndexed"},
+		// Apple serves datingAndRelationships; the snapshot predates it.
+		{name: "query value newer than the snapshot", path: "/v1/appInfos/INFO1/ageRatingDeclaration", query: []string{"fields[ageRatingDeclarations]=datingAndRelationships"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET(test.path, test.query...), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	args := []string{"api", "GET", "/v1/notYetIndexed", "--allow-unknown-path"}
-	_, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
-	if code != rootcmd.ExitSuccess {
-		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-	}
-	if stderr != "" {
-		t.Fatalf("stderr = %q, want empty", stderr)
-	}
-	if got := reg.Requests(); len(got) != 1 || got[0].Method+" "+got[0].URL.RequestURI() != "GET /v1/notYetIndexed" {
-		t.Fatalf("requests = %v, want the unindexed path", got)
+			args := []string{"api", "GET", test.path, "--allow-unknown-path"}
+			for _, pair := range test.query {
+				args = append(args, "--query", pair)
+			}
+			_, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+			if code != rootcmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d (stderr %q)", code, rootcmd.ExitSuccess, stderr)
+			}
+			if stderr != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
+			}
+			if got := reg.Requests(); len(got) != 1 || got[0].URL.Path != test.path {
+				t.Fatalf("requests = %v, want one request to %s", got, test.path)
+			}
+		})
 	}
 }
 
