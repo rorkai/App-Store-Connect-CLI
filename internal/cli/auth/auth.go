@@ -1536,7 +1536,7 @@ func (s *authStatusBearerTokenOutput) summary() string {
 	if s.RenewedBy != "" {
 		details = append(details, "renewed by "+s.RenewedBy)
 	}
-	if s.Error != "" {
+	if s.Error != "" && !strings.Contains(s.ValidationError, s.Error) {
 		details = append(details, shared.SanitizeTerminal(s.Error))
 	}
 	line := "Bearer token: " + s.Source
