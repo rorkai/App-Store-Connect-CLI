@@ -68,6 +68,7 @@ func TestRunResolvesGuessedCommands(t *testing.T) {
 		{name: "path alias into another top-level command", args: []string{"testflight", "builds", "list"}, wantCode: ExitUsage, wantFirst: "Error: --app is required (or set ASC_APP_ID)"},
 		{name: "path alias then get", args: []string{"app-info", "get"}, wantCode: ExitUsage, wantFirst: "Error: --app or --info-id is required (or set ASC_APP_ID)"},
 		{name: "alias after a spaced root boolean", args: []string{"--debug", "false", "apps", "get"}, wantCode: ExitUsage, wantFirst: "Error: --id is required"},
+		{name: "spaced boolean after an alias", args: []string{"builds", "build-beta-detail", "get", "--pretty", "false"}, wantCode: ExitUsage, wantFirst: "Error: --build-id or --app is required (or set ASC_APP_ID)"},
 		{name: "help names a leaf", args: []string{"help", "builds", "list"}, wantCode: ExitSuccess, wantFirst: "DESCRIPTION"},
 	}
 	for _, test := range tests {
