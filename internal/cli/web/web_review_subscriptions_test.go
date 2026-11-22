@@ -368,10 +368,12 @@ func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 			},
 			wantStderr: []string{
 				"is MISSING_METADATA",
-				`asc validate subscriptions --app "app-1"`,
+				"does not say which metadata is missing",
+				"retrying won't help",
+				`asc subscriptions view --id "sub-1"`,
 				`asc subscriptions versions list --subscription-id "sub-1"`,
-				`asc subscriptions versions create --subscription-id "sub-1"`,
-				`asc subscriptions versions images upload --version-id "VERSION_ID" --file "./image.png"`,
+				`asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "VERSION_ID"`,
+				`asc validate subscriptions --app "app-1"`,
 			},
 			rejectStderr: []string{"asc subscriptions images create"},
 		},
@@ -395,6 +397,23 @@ func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 				)
 			},
 			wantStderr: []string{"no READY_TO_SUBMIT subscriptions"},
+		},
+		{
+			name:    "AttachGroupNamesTheReviewItemPathForMissingMetadata",
+			command: newWebReviewSubscriptionsAttachGroupCommand,
+			args:    []string{"--group-id", "group-1"},
+			body: func(t *testing.T) string {
+				return premiumGroupBody(t,
+					monthlySubscription("MISSING_METADATA", false),
+					reviewSubscriptionFixture{ID: "sub-2", ProductID: "com.example.annual", Name: "Annual", State: "MISSING_METADATA"},
+				)
+			},
+			wantStderr: []string{
+				"no READY_TO_SUBMIT subscriptions",
+				"retrying won't help",
+				`asc subscriptions list --group-id "group-1"`,
+				`asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "VERSION_ID"`,
+			},
 		},
 	}
 	for _, tt := range tests {

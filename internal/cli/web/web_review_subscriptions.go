@@ -116,11 +116,12 @@ func reviewSubscriptionAttachPreflight(d *shared.Deps, appID string, subscriptio
 	fmt.Fprintln(d.IO.ErrOut, "Hint: Apple only allows this attach flow after the subscription reaches READY_TO_SUBMIT.")
 	switch state {
 	case "MISSING_METADATA":
-		fmt.Fprintln(d.IO.ErrOut, "Hint: Check localizations, pricing coverage, and the App Store review screenshot.")
+		printReviewSubscriptionMissingMetadataHints(d, fmt.Sprintf("`asc subscriptions view --id %q`", subscriptionID))
 		fmt.Fprintf(
 			d.IO.ErrOut,
-			"Hint: In live testing, a subscription promotional image also mattered even though App Store Connect surfaces it as a recommendation. Resolve the version with `asc subscriptions versions list --subscription-id \"%[1]s\"` (or create one with `asc subscriptions versions create --subscription-id \"%[1]s\"` if none exists), then upload one with `asc subscriptions versions images upload --version-id \"VERSION_ID\" --file \"./image.png\"` if it is missing.\n",
-			valueOrNA(subscriptionID),
+			"Hint: If it is READY_TO_SUBMIT there, nothing is missing; add its version to the app's review submission instead: `asc subscriptions versions list --subscription-id %q`, then %s.\n",
+			subscriptionID,
+			reviewSubscriptionVersionItemCommand,
 		)
 	case "":
 		fmt.Fprintln(d.IO.ErrOut, "Hint: Refresh App Store Connect or rerun `asc web review subscriptions list` to confirm the current readiness state before retrying.")
@@ -135,6 +136,17 @@ func reviewSubscriptionAttachPreflight(d *shared.Deps, appID string, subscriptio
 			state,
 		),
 	)
+}
+
+const reviewSubscriptionVersionItemCommand = "`asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`"
+
+// printReviewSubscriptionMissingMetadataHints explains a MISSING_METADATA
+// state from the web review listing. The listing names no missing field, and
+// it can keep reporting MISSING_METADATA for a subscription the App Store
+// Connect API reports READY_TO_SUBMIT, so waiting does not change it.
+func printReviewSubscriptionMissingMetadataHints(d *shared.Deps, apiStateCommand string) {
+	fmt.Fprintln(d.IO.ErrOut, "Hint: Apple's web review listing does not say which metadata is missing, and its state does not change by waiting; retrying won't help until the subscription's metadata or review path changes.")
+	fmt.Fprintf(d.IO.ErrOut, "Hint: Compare the App Store Connect API state with %s.\n", apiStateCommand)
 }
 
 func countAttachedReviewSubscriptions(subscriptions []webcore.ReviewSubscription) int {
@@ -504,7 +516,21 @@ func reviewSubscriptionGroupAttachPreflight(d *shared.Deps, appID, groupID strin
 		valueOrNA(appID),
 	)
 	fmt.Fprintln(d.IO.ErrOut, "Hint: Apple only allows attach after the relevant subscriptions reach READY_TO_SUBMIT.")
-	fmt.Fprintln(d.IO.ErrOut, "Hint: In live testing, a subscription promotional image also mattered in addition to localization, pricing coverage, and the App Store review screenshot.")
+	missingMetadata := false
+	for _, subscription := range subscriptions {
+		if reviewSubscriptionState(subscription) == "MISSING_METADATA" {
+			missingMetadata = true
+			break
+		}
+	}
+	if missingMetadata {
+		printReviewSubscriptionMissingMetadataHints(d, fmt.Sprintf("`asc subscriptions list --group-id %q`", strings.TrimSpace(groupID)))
+		fmt.Fprintf(
+			d.IO.ErrOut,
+			"Hint: Subscriptions it reports READY_TO_SUBMIT are complete; add each one's version to the app's review submission instead: `asc subscriptions versions list --subscription-id \"SUB_ID\"`, then %s.\n",
+			reviewSubscriptionVersionItemCommand,
+		)
+	}
 
 	return shared.NewNotConfiguredReportedError(
 		fmt.Errorf(

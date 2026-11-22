@@ -22,6 +22,28 @@ func TestSubscriptionReviewReadinessChecks_WarnsForReadyToSubmit(t *testing.T) {
 	if checks[0].Severity != SeverityWarning {
 		t.Fatalf("expected warning severity, got %s", checks[0].Severity)
 	}
+	// A READY_TO_SUBMIT subscription is complete; it reaches App Review as a
+	// subscription version item in the app's review submission. The web
+	// attach flow can keep reporting MISSING_METADATA for it.
+	resolution := checks[0].Resolution
+	if resolution == nil || resolution.Fixability != FixabilityAPIFixable {
+		t.Fatalf("expected an api-fixable resolution, got %+v", resolution)
+	}
+	wantCommands := []string{
+		`asc subscriptions versions list --subscription-id "sub-1"`,
+		`asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "VERSION_ID"`,
+	}
+	if strings.Join(resolution.Commands, "\n") != strings.Join(wantCommands, "\n") {
+		t.Fatalf("resolution commands = %q, want %q", resolution.Commands, wantCommands)
+	}
+	for _, reject := range []string{"not the API", "web review subscriptions attach"} {
+		if strings.Contains(checks[0].Remediation, reject) {
+			t.Fatalf("remediation must not contain %q, got %q", reject, checks[0].Remediation)
+		}
+	}
+	if !strings.Contains(checks[0].Remediation, "MISSING_METADATA") {
+		t.Fatalf("remediation should explain the web listing's MISSING_METADATA, got %q", checks[0].Remediation)
+	}
 }
 
 func TestSubscriptionReviewReadinessChecks_AllowsApproved(t *testing.T) {
