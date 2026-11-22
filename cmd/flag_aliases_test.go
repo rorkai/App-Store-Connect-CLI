@@ -164,6 +164,9 @@ func TestFlagAliasesBehaveAsTheirCanonicalFlag(t *testing.T) {
 			return
 		}
 		command.FlagSet.VisitAll(func(item *flag.Flag) {
+			if _, _, implied := shared.FlagAliasImpliedValue(item); implied {
+				return
+			}
 			canonical, ok := shared.FlagAliasTarget(item, aliasBuildID)
 			if !ok {
 				return

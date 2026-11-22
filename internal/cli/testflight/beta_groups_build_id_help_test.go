@@ -79,6 +79,7 @@ func TestBetaGroupsListHelpDocumentsAppEndpointAndBuildIDConflicts(t *testing.T)
 	classified := map[string]string{
 		"build-id": "lookup",
 		"output":   "output",
+		"json":     "output",
 		"pretty":   "output",
 	}
 	for _, name := range betaGroupsListBuildIDCompatibleFlags {
