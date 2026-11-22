@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestMetadataRepeatedAssetExportRemovesOnlyOwnedUnchangedFiles(t *testing.T) {
@@ -21,41 +23,7 @@ func TestMetadataRepeatedAssetExportRemovesOnlyOwnedUnchangedFiles(t *testing.T)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 	dir := t.TempDir()
 	empty := false
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			return nil, fmt.Errorf("unexpected mutation %s", req.Method)
-		}
-		switch req.URL.Path {
-		case "/v1/apps/APP_ID/appClips":
-			return migrateJSONResponse(200, `{"data":[{"type":"appClips","id":"CLIP"}]}`), nil
-		case "/v1/apps/APP_ID/appStoreVersions":
-			return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
-			if empty {
-				return migrateJSONResponse(404, `{}`), nil
-			}
-			return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"PLAY"}}}`), nil
-		case "/v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations":
-			return migrateJSONResponse(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"CLIP_LOC","attributes":{"locale":"en-US","subtitle":"Original subtitle"}}]}`), nil
-		case "/v1/appClipDefaultExperienceLocalizations/CLIP_LOC/appClipHeaderImage":
-			return migrateJSONResponse(200, `{"data":{"type":"appClipHeaderImages","id":"HEADER","attributes":{"imageAsset":{"templateUrl":"https://media.example/header.png","width":1800,"height":1200}}}}`), nil
-		case "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
-			if empty {
-				return migrateJSONResponse(200, `{"data":[]}`), nil
-			}
-			return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`), nil
-		case "/v1/appStoreVersionLocalizations/LOC/appPreviewSets":
-			return migrateJSONResponse(200, `{"data":[{"type":"appPreviewSets","id":"SET","attributes":{"previewType":"IPHONE_65"}}]}`), nil
-		case "/v1/appPreviewSets/SET/appPreviews":
-			return migrateJSONResponse(200, `{"data":[{"type":"appPreviews","id":"PREVIEW","attributes":{"fileName":"demo.mp4","videoUrl":"https://media.example/demo.mp4","previewFrameTimeCode":"00:00:01.000"}}]}`), nil
-		case "/v1/appPreviewSets/SET/relationships/appPreviews":
-			return migrateJSONResponse(200, `{"data":[{"type":"appPreviews","id":"PREVIEW"}]}`), nil
-		case "/header.png", "/demo.mp4":
-			return migrateJSONResponse(200, `delivered media`), nil
-		default:
-			return nil, fmt.Errorf("unexpected request %s", req.URL.Path)
-		}
-	}))
+	installMetadataAssetExportTransport(t, &empty)
 	run := func(scopes string) string {
 		t.Helper()
 		var err error
@@ -124,5 +92,101 @@ func TestMetadataRepeatedAssetExportRemovesOnlyOwnedUnchangedFiles(t *testing.T)
 	}
 	if len(result.Adds)+len(result.Updates)+len(result.Deletes)+len(result.AssetResults) != 0 {
 		t.Fatalf("empty tree recreated assets: %s", stdout)
+	}
+}
+
+// installMetadataAssetExportTransport serves one App Clip experience and one
+// preview set; *empty switches both to "nothing on App Store Connect".
+func installMetadataAssetExportTransport(t *testing.T, empty *bool) {
+	t.Helper()
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("unexpected mutation %s", req.Method)
+		}
+		switch req.URL.Path {
+		case "/v1/apps/APP_ID/appClips":
+			return migrateJSONResponse(200, `{"data":[{"type":"appClips","id":"CLIP"}]}`), nil
+		case "/v1/apps/APP_ID/appStoreVersions":
+			return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
+		case "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
+			if *empty {
+				return migrateJSONResponse(404, `{}`), nil
+			}
+			return migrateJSONResponse(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"PLAY"}}}`), nil
+		case "/v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations":
+			return migrateJSONResponse(200, `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"CLIP_LOC","attributes":{"locale":"en-US","subtitle":"Original subtitle"}}]}`), nil
+		case "/v1/appClipDefaultExperienceLocalizations/CLIP_LOC/appClipHeaderImage":
+			return migrateJSONResponse(200, `{"data":{"type":"appClipHeaderImages","id":"HEADER","attributes":{"imageAsset":{"templateUrl":"https://media.example/header.png","width":1800,"height":1200}}}}`), nil
+		case "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
+			if *empty {
+				return migrateJSONResponse(200, `{"data":[]}`), nil
+			}
+			return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`), nil
+		case "/v1/appStoreVersionLocalizations/LOC/appPreviewSets":
+			return migrateJSONResponse(200, `{"data":[{"type":"appPreviewSets","id":"SET","attributes":{"previewType":"IPHONE_65"}}]}`), nil
+		case "/v1/appPreviewSets/SET/appPreviews":
+			return migrateJSONResponse(200, `{"data":[{"type":"appPreviews","id":"PREVIEW","attributes":{"fileName":"demo.mp4","videoUrl":"https://media.example/demo.mp4","previewFrameTimeCode":"00:00:01.000"}}]}`), nil
+		case "/v1/appPreviewSets/SET/relationships/appPreviews":
+			return migrateJSONResponse(200, `{"data":[{"type":"appPreviews","id":"PREVIEW"}]}`), nil
+		case "/v1/apps/APP_ID/appInfos":
+			return migrateJSONResponse(200, `{"data":[{"type":"appInfos","id":"APP_INFO","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
+		case "/v1/appInfos/APP_INFO/appInfoLocalizations":
+			return migrateJSONResponse(200, `{"data":[{"type":"appInfoLocalizations","id":"INFO_LOC","attributes":{"locale":"en-US","name":"App"}}]}`), nil
+		case "/header.png", "/demo.mp4":
+			return migrateJSONResponse(200, `delivered media`), nil
+		default:
+			return nil, fmt.Errorf("unexpected request %s", req.URL.Path)
+		}
+	}))
+}
+
+func TestMetadataRepullWithMediaRefreshesUnchangedFilesAndRefusesEdits(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("owned refresh uses strict filesystem primitives unavailable on Windows")
+	}
+	setupAuth(t)
+	t.Chdir(t.TempDir())
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	dir := t.TempDir()
+	empty := false
+	installMetadataAssetExportTransport(t, &empty)
+	pull := func() (string, string, error) {
+		t.Helper()
+		var err error
+		stdout, stderr := captureOutput(t, func() {
+			err = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "APP_ID", "--version", "1.0", "--dir", dir, "--include", "localizations,app-clip,previews", "--output", "json"})
+		})
+		return stdout, stderr, err
+	}
+	for attempt := 1; attempt <= 2; attempt++ {
+		if stdout, stderr, err := pull(); err != nil {
+			t.Fatalf("pull %d without --force: %v; stdout=%s stderr=%s", attempt, err, stdout, stderr)
+		}
+	}
+
+	header := filepath.Join(dir, "en-US", "app_clip", "header_image.png")
+	if err := os.WriteFile(header, []byte("local header"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	localization := filepath.Join(dir, "app-info", "en-US.json")
+	if err := os.Remove(localization); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, err := pull()
+	if err == nil || !shared.IsReportedUsageError(err) {
+		t.Fatalf("pull over an edited header image: want reported usage error, got %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	want := "Error: refusing to overwrite 1 file that differs from App Store Connect: " + header + "\n"
+	if !strings.HasPrefix(stderr, want) {
+		t.Fatalf("stderr = %q, want prefix %q", stderr, want)
+	}
+	if got, _ := os.ReadFile(header); string(got) != "local header" {
+		t.Fatalf("edited header image replaced: %q", got)
+	}
+	if _, err := os.Stat(localization); !os.IsNotExist(err) {
+		t.Fatalf("refused pull wrote %s: %v", localization, err)
 	}
 }

@@ -69,8 +69,9 @@ DEVELOPER_REMOVED_FROM_SALE version, and finally the live version. The selected 
 the app has candidate versions on more than one platform.
 
 Pulling again into the same --dir refreshes files that already hold the App Store
-Connect values. A file with different values (a local edit not yet pushed) is
-kept, and pull fails before writing anything; push it first, or pass --force.
+Connect values, and App Clip or preview media left unchanged since the last pull.
+A file with different values (a local edit not yet pushed) is kept, and pull
+fails before writing anything; push it first, or pass --force.
 
 Examples:
   asc metadata pull --app "APP_ID" --dir "./metadata"
@@ -240,12 +241,18 @@ Examples:
 			}
 			defer assetRoot.Close()
 			assetExport, err := storeassets.PrepareExport(d, assetRoot, assetFiles, storeassets.ExportOptions{AppID: resolvedAppID, VersionID: versionIDValue, MetadataPrefix: ".", Clip: includesScope(includes, "app-clip"), Previews: includesScope(includes, "previews"), Overwrite: *force})
-			if err != nil {
+			var differingAssets []string
+			var differingTargets *storeassets.DifferingTargetsError
+			if errors.As(err, &differingTargets) {
+				for _, path := range differingTargets.Paths {
+					differingAssets = append(differingAssets, filepath.Join(dirValue, filepath.FromSlash(path)))
+				}
+			} else if err != nil {
 				return fmt.Errorf("metadata pull: %w", err)
 			}
 
 			if !*force {
-				if err := ensureNoExistingPullTargets(d, plans); err != nil {
+				if err := ensureNoExistingPullTargets(d, plans, differingAssets); err != nil {
 					return err
 				}
 			}
@@ -316,8 +323,9 @@ Examples:
 // ensureNoExistingPullTargets refuses to replace a file whose JSON values
 // differ from what pull would write. A file that already holds the same values
 // is an earlier pull's output, or an edit pushed since, so refreshing it loses
-// nothing; a re-pull into the same --dir then needs no --force.
-func ensureNoExistingPullTargets(d *shared.Deps, plans []WritePlan) error {
+// nothing; a re-pull into the same --dir then needs no --force. differingAssets
+// are the App Clip and preview files the asset export already refused.
+func ensureNoExistingPullTargets(d *shared.Deps, plans []WritePlan, differingAssets []string) error {
 	var differing []string
 	for _, plan := range plans {
 		info, err := os.Lstat(plan.Path)
@@ -338,6 +346,7 @@ func ensureNoExistingPullTargets(d *shared.Deps, plans []WritePlan) error {
 		}
 		differing = append(differing, plan.Path)
 	}
+	differing = append(differing, differingAssets...)
 	if len(differing) == 0 {
 		return nil
 	}
