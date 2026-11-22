@@ -454,6 +454,9 @@ func TestAPIAcceptsCommonArgumentShapes(t *testing.T) {
 		{name: "path with slash but without version", args: []string{"api", "GET", "/apps/123"}, matcher: asctest.GET("/v1/apps/123"), want: "GET /v1/apps/123"},
 		{name: "path only under v2", args: []string{"api", "GET", "appAvailabilities/123/territoryAvailabilities"}, matcher: asctest.GET("/v2/appAvailabilities/123/territoryAvailabilities"), want: "GET /v2/appAvailabilities/123/territoryAvailabilities"},
 		{name: "url-params", args: []string{"api", "GET", "/v1/apps/123/appStoreVersions", "--url-params", "include=build"}, matcher: asctest.GET("/v1/apps/123/appStoreVersions", "include=build"), want: "GET /v1/apps/123/appStoreVersions?include=build"},
+		{name: "url-params before and after the positionals", args: []string{"api", "--url-params", "limit=1", "GET", "/v1/apps", "--url-params", "fields[apps]=name"}, matcher: asctest.GET("/v1/apps", "fields[apps]=name", "limit=1"), want: "GET /v1/apps?fields%5Bapps%5D=name&limit=1"},
+		{name: "query and url-params after the positionals", args: []string{"api", "GET", "/v1/apps", "--query", "limit=1", "--url-params", "fields[apps]=name"}, matcher: asctest.GET("/v1/apps", "fields[apps]=name", "limit=1"), want: "GET /v1/apps?fields%5Bapps%5D=name&limit=1"},
+		{name: "query and url-params before the positionals", args: []string{"api", "--query", "limit=1", "--url-params", "fields[apps]=name", "GET", "/v1/apps"}, matcher: asctest.GET("/v1/apps", "fields[apps]=name", "limit=1"), want: "GET /v1/apps?fields%5Bapps%5D=name&limit=1"},
 		{name: "data", args: []string{"api", "PATCH", "/v1/betaGroups/g1", "--confirm", "--data", body}, matcher: asctest.PATCH("/v1/betaGroups/g1").JSONBody(body), want: "PATCH /v1/betaGroups/g1"},
 	}
 	for _, test := range tests {
