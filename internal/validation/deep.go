@@ -185,13 +185,13 @@ func publicAPIResolutionCommand(report Report, check CheckResult) fixCommand {
 	case "screenshots.required.any":
 		appID, versionID := strings.TrimSpace(report.AppID), strings.TrimSpace(report.VersionID)
 		if appID != "" && versionID != "" {
+			// The screenshot files and their display type are the developer's:
+			// the device type depends on the app's platform and devices.
 			command := fmt.Sprintf("asc screenshots upload --app %q --version-id %q", appID, versionID)
-			path := "./screenshots"
 			if locale := strings.TrimSpace(check.Locale); locale != "" {
 				command += fmt.Sprintf(" --locale %q", locale)
-				path += "/" + locale
 			}
-			return knownFix(command + fmt.Sprintf(" --path %q --device-type %q", path, "IPHONE_65"))
+			return userFix(command + fmt.Sprintf(" --path %q --device-type %q", "SCREENSHOTS_DIR", "DEVICE_TYPE"))
 		}
 	}
 

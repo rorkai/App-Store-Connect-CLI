@@ -60,7 +60,7 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		userInput bool
 	}{
 		{checkID: "build.required.missing", want: []string{`asc versions attach-build --app "app-1" --version-id "ver-1" --latest`}},
-		{checkID: "screenshots.required.any", want: []string{`asc screenshots upload --app "app-1" --version-id "ver-1" --locale "en-US" --path "./screenshots/en-US" --device-type "IPHONE_65"`}},
+		{checkID: "screenshots.required.any", userInput: true, want: []string{`asc screenshots upload --app "app-1" --version-id "ver-1" --locale "en-US" --path "SCREENSHOTS_DIR" --device-type "DEVICE_TYPE"`}},
 		{checkID: "categories.primary_missing", field: "primaryCategory", userInput: true, want: []string{`asc categories set --app "app-1" --app-info "info-1" --primary "CATEGORY_ID"`}},
 		{checkID: "content_rights.missing", field: "contentRightsDeclaration", userInput: true, want: []string{`asc apps update --id "app-1" --content-rights "USES_THIRD_PARTY_CONTENT_OR_DOES_NOT_USE_THIRD_PARTY_CONTENT"`}},
 		{checkID: "review_details.missing", userInput: true, want: []string{`asc review details-create --version-id "ver-1" --contact-first-name "FIRST_NAME" --contact-last-name "LAST_NAME" --contact-email "EMAIL" --contact-phone "PHONE"`}},
