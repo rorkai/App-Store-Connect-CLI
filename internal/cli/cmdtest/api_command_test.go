@@ -27,6 +27,13 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: "api: METHOD and PATH are required",
 		},
 		{
+			// The root rewrites --data before METHOD to --body, so this is
+			// --body twice with different values.
+			name:    "alias before the positionals and canonical after",
+			args:    []string{"api", "--data", `{"data":{"a":1}}`, "POST", "/v1/bundleIds", "--confirm", "--body", `{"data":{"b":2}}`},
+			wantErr: "api: `--body` is given before and after the positional arguments with different values (`--data` is the same flag); pass one value",
+		},
+		{
 			name:    "missing path",
 			args:    []string{"api", "GET"},
 			wantErr: "api: METHOD and PATH are required",

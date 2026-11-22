@@ -349,6 +349,9 @@ func TestSearchRejectsInvalidInvocationsWithUsageExit(t *testing.T) {
 		{args: []string{"search", "--limit", "0", "build"}, wantErr: "--limit must be greater than 0"},
 		{args: []string{"search", "--output", "yaml", "builds"}, wantErr: `(got "yaml")`},
 		{args: []string{"search", "builds", "--output", "yaml"}, wantErr: `(got "yaml")`},
+		{args: []string{"search", "builds", "--json", "--output", "table"}, wantErr: "`--json` and `--output` are the same flag; pass one value"},
+		{args: []string{"search", "--output", "table", "builds", "--json"}, wantErr: "`--output` and `--json` are the same flag; pass one value"},
+		{args: []string{"search", "--json", "builds", "--output", "table"}, wantErr: "`--output` is given before and after the positional arguments with different values (`--json` means `--output json`); pass one value"},
 	}
 
 	for _, test := range tests {
