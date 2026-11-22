@@ -80,7 +80,11 @@ func resolveBetaTesterAddConflict(
 		err := client.AddBuildsToBetaTester(requestCtx, testerID, missingBuilds)
 		cancel()
 		if err != nil {
-			return nil, fmt.Errorf("tester %s exists; adding build(s) %s failed: %w", testerID, strings.Join(missingBuilds, ", "), err)
+			added := ""
+			if len(missingGroups) > 0 {
+				added = fmt.Sprintf(" added it to group(s) %s, but", strings.Join(missingGroups, ", "))
+			}
+			return nil, fmt.Errorf("tester %s exists;%s adding build(s) %s failed: %w", testerID, added, strings.Join(missingBuilds, ", "), err)
 		}
 	}
 
