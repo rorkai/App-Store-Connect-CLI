@@ -79,7 +79,7 @@ func TestValidateScreenshotAssetsMatchesUploadOrdering(t *testing.T) {
 	}
 }
 
-func TestValidateScreenshotAssetsReportsUnreadableDotfilesAndDimensionMismatch(t *testing.T) {
+func TestValidateScreenshotAssetsSkipsDotfilesAndReportsDimensionMismatch(t *testing.T) {
 	dir := t.TempDir()
 	writeAssetsTestPNGWithSize(t, dir, "01-home.png", 1242, 2688)
 	writeAssetsTestPNGWithSize(t, dir, "03-bad.png", 100, 100)
@@ -92,8 +92,8 @@ func TestValidateScreenshotAssetsReportsUnreadableDotfilesAndDimensionMismatch(t
 		t.Fatalf("validateScreenshotAssets() error: %v", err)
 	}
 
-	if result.ErrorCount != 2 {
-		t.Fatalf("expected 2 errors, got %d", result.ErrorCount)
+	if result.ErrorCount != 1 {
+		t.Fatalf("expected 1 error, got %d", result.ErrorCount)
 	}
 	if result.WarningCount != 1 {
 		t.Fatalf("expected 1 warning, got %d", result.WarningCount)
@@ -102,11 +102,8 @@ func TestValidateScreenshotAssetsReportsUnreadableDotfilesAndDimensionMismatch(t
 		t.Fatalf("expected 1 ready file, got %d", result.ReadyFiles)
 	}
 
-	if !hasScreenshotValidateIssueWithSeverity(result.Issues, "hidden_file", screenshotValidateSeverityWarning, ".DS_Store") {
-		t.Fatalf("expected hidden-file warning, got %+v", result.Issues)
-	}
-	if !hasScreenshotValidateIssueWithSeverity(result.Issues, "read_failure", screenshotValidateSeverityError, ".DS_Store") {
-		t.Fatalf("expected read-failure error, got %+v", result.Issues)
+	if !hasScreenshotValidateIssueWithSeverity(result.Issues, "skipped_file", screenshotValidateSeverityWarning, ".DS_Store") {
+		t.Fatalf("expected skipped-file warning, got %+v", result.Issues)
 	}
 	if !hasScreenshotValidateIssueWithSeverity(result.Issues, "dimension_mismatch", screenshotValidateSeverityError, "03-bad.png") {
 		t.Fatalf("expected dimension mismatch error, got %+v", result.Issues)

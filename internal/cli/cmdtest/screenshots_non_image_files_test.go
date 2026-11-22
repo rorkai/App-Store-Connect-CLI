@@ -51,6 +51,8 @@ func TestScreenshotsDirectorySkipsNonImageFiles(t *testing.T) {
 		dir := t.TempDir()
 		writePNG(t, filepath.Join(dir, "01-home.png"), 1242, 2688)
 		writeScreenshotSourceFile(t, dir, "01-home.html")
+		// Finder leaves .DS_Store in every directory it opens.
+		writeScreenshotSourceFile(t, dir, ".DS_Store")
 
 		reg := asctest.NewRegistry(t)
 		reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC/appScreenshotSets"),
@@ -60,10 +62,10 @@ func TestScreenshotsDirectorySkipsNonImageFiles(t *testing.T) {
 		if runErr != nil {
 			t.Fatalf("upload error: %v; stderr=%s", runErr, stderr)
 		}
-		if !strings.Contains(stdout, `"fileName":"01-home.png"`) || strings.Contains(stdout, "01-home.html") {
+		if !strings.Contains(stdout, `"fileName":"01-home.png"`) || strings.Contains(stdout, "01-home.html") || strings.Contains(stdout, ".DS_Store") {
 			t.Fatalf("expected only 01-home.png in the preview, got %s", stdout)
 		}
-		wantWarning := `Warning: screenshots upload: skipped 1 file(s) in ` + `"` + dir + `"` + ` that are not .png, .jpg, or .jpeg screenshots: 01-home.html`
+		wantWarning := `Warning: screenshots upload: skipped 2 file(s) in ` + `"` + dir + `"` + ` that are not .png, .jpg, or .jpeg screenshots: .DS_Store, 01-home.html`
 		if !strings.Contains(stderr, wantWarning) {
 			t.Fatalf("expected skipped-file warning %q, got %q", wantWarning, stderr)
 		}

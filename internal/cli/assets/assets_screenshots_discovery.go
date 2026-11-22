@@ -41,9 +41,10 @@ func collectScreenshotUploadFiles(path string, maxScreenshots int) ([]string, []
 // collectScreenshotPaths lists the screenshot files at path. A file path is
 // returned as given, so the screenshot checks say what is wrong with it. In a
 // directory, screenshots are the .png, .jpg, and .jpeg files, the rule fan-out
-// uploads already apply to locale directories. Other visible files, such as
-// the HTML a mockup was rendered from, are returned by name in skipped. Hidden
-// files stay in files so their hidden_file warning and checks still apply.
+// uploads already apply to locale directories. Other files, such as the HTML a
+// mockup was rendered from or the .DS_Store Finder leaves, are returned by name
+// in skipped. A hidden image stays in files, so its hidden_file warning and
+// checks still apply.
 func collectScreenshotPaths(path string) (files, skipped []string, err error) {
 	paths, err := collectAssetPaths(path)
 	if err != nil {
@@ -55,7 +56,7 @@ func collectScreenshotPaths(path string) (files, skipped []string, err error) {
 	files = make([]string, 0, len(paths))
 	for _, filePath := range paths {
 		name := filepath.Base(filePath)
-		if shouldIgnoreFanoutEntryName(name) || isSupportedScreenshotUploadFile(filePath) {
+		if isSupportedScreenshotUploadFile(filePath) {
 			files = append(files, filePath)
 			continue
 		}

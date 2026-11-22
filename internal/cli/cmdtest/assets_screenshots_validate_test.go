@@ -267,7 +267,9 @@ func writeScreenshotValidatePNG(t *testing.T, path string, width, height int, ma
 	}
 }
 
-func TestAssetsScreenshotsValidateReportsUnreadableHiddenDotfiles(t *testing.T) {
+// A .DS_Store next to the screenshots is skipped with a warning, as upload
+// skips it, instead of failing validation as an unreadable image.
+func TestAssetsScreenshotsValidateSkipsHiddenNonImageFiles(t *testing.T) {
 	dir := t.TempDir()
 	writePNG(t, filepath.Join(dir, "01-home.png"), 1242, 2688)
 	if err := os.WriteFile(filepath.Join(dir, ".DS_Store"), []byte("not an image"), 0o644); err != nil {
@@ -280,24 +282,19 @@ func TestAssetsScreenshotsValidateReportsUnreadableHiddenDotfiles(t *testing.T) 
 		"--device-type", "IPHONE_65",
 		"--output", "json",
 	}...)
-
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if runErr == nil {
-		t.Fatal("expected reported validation error, got nil")
+	if runErr != nil {
+		t.Fatalf("validate error: %v; stderr=%s", runErr, stderr)
 	}
 
 	var result screenshotValidateOutput
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("decode output: %v", err)
 	}
-
-	if !hasScreenshotValidateIssue(result.Issues, "hidden_file", "warning", ".DS_Store") {
-		t.Fatalf("expected hidden dotfile warning, got %+v", result.Issues)
+	if result.TotalFiles != 1 || result.ErrorCount != 0 || result.WarningCount != 1 {
+		t.Fatalf("counts = total %d errors %d warnings %d, want 1/0/1", result.TotalFiles, result.ErrorCount, result.WarningCount)
 	}
-	if !hasScreenshotValidateIssue(result.Issues, "read_failure", "error", ".DS_Store") {
-		t.Fatalf("expected unreadable-dotfile error, got %+v", result.Issues)
+	if !hasScreenshotValidateIssue(result.Issues, "skipped_file", "warning", ".DS_Store") {
+		t.Fatalf("expected skipped_file warning for .DS_Store, got %+v", result.Issues)
 	}
 }
 
