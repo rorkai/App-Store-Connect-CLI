@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -1176,7 +1177,10 @@ func newAuthStatusCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Show current authentication status.
 
 Displays information about stored API keys and which one is currently active.
-Add --validate to perform a network validation for each stored credential.
+When ASC_BEARER_TOKEN or ASC_BEARER_TOKEN_COMMAND is set, it also shows the
+key and expiry of the token every command sends instead (never the token).
+Add --validate to perform a network validation for each stored credential
+and for that token.
 
 Examples:
   asc auth status
@@ -1277,15 +1281,29 @@ Examples:
 			envComplete := shared.HasCompleteEnvironmentCredentials()
 			environmentNote := authStatusEnvironmentNote(profile, bypassKeychain, envProvided, envComplete, envKeyTypeValid)
 			activeEnvironmentSource := profile == "" && !bypassKeychain && envComplete && envKeyTypeValid
+			bearerToken := authStatusBearerToken(ctx, *validate)
 
 			validationFailures := 0
 			var validationDiagnostic shared.Diagnostic
 			hasValidationDiagnostic := false
 			validationDiagnosticConsistent := true
+			recordValidationFailure := func(err error) {
+				validationFailures++
+				diagnostic, ok := shared.DiagnosticFromError(err)
+				switch {
+				case !ok:
+					validationDiagnosticConsistent = false
+				case !hasValidationDiagnostic:
+					validationDiagnostic = diagnostic
+					hasValidationDiagnostic = true
+				case diagnostic != validationDiagnostic:
+					validationDiagnosticConsistent = false
+				}
+			}
 			credentialOutput := make([]authStatusCredentialOutput, 0, len(credentials))
 			if len(credentials) == 0 {
 				if normalizedOutput == "table" {
-					if activeEnvironmentSource {
+					if activeEnvironmentSource || bearerToken != nil {
 						fmt.Fprintln(d.IO.Out, "No stored credentials found.")
 					} else {
 						fmt.Fprintln(d.IO.Out, "No credentials stored. Run 'asc auth login' to get started.")
@@ -1316,19 +1334,9 @@ Examples:
 									fmt.Fprintf(d.IO.Out, "    %s (Key ID: %s): works (%s)\n", cred.Name, cred.KeyID, credentialEntry.ValidationDetail)
 								}
 							} else {
-								validationFailures++
+								recordValidationFailure(err)
 								credentialEntry.Validation = "failed"
 								credentialEntry.ValidationError = err.Error()
-								if diagnostic, ok := shared.DiagnosticFromError(err); ok {
-									if !hasValidationDiagnostic {
-										validationDiagnostic = diagnostic
-										hasValidationDiagnostic = true
-									} else if diagnostic != validationDiagnostic {
-										validationDiagnosticConsistent = false
-									}
-								} else {
-									validationDiagnosticConsistent = false
-								}
 								if normalizedOutput == "table" {
 									fmt.Fprintf(d.IO.Out, "    %s (Key ID: %s): failed (%v)\n", cred.Name, cred.KeyID, err)
 								}
@@ -1347,6 +1355,14 @@ Examples:
 			if normalizedOutput == "table" && environmentNote != "" {
 				fmt.Fprintln(d.IO.Out, environmentNote)
 			}
+			if bearerToken != nil {
+				if bearerToken.validationErr != nil {
+					recordValidationFailure(bearerToken.validationErr)
+				}
+				if normalizedOutput == "table" {
+					fmt.Fprintln(d.IO.Out, bearerToken.summary())
+				}
+			}
 
 			if normalizedOutput == "json" {
 				payload := authStatusOutput{
@@ -1358,6 +1374,7 @@ Examples:
 					EnvironmentCredentialsProvided: envProvided,
 					EnvironmentCredentialsComplete: envComplete,
 					EnvironmentNote:                environmentNote,
+					BearerToken:                    bearerToken,
 					ValidationFailures:             validationFailures,
 				}
 				if *verbose {
@@ -1415,10 +1432,118 @@ type authStatusOutput struct {
 	EnvironmentCredentialsProvided bool                         `json:"environmentCredentialsProvided"`
 	EnvironmentCredentialsComplete bool                         `json:"environmentCredentialsComplete"`
 	EnvironmentNote                string                       `json:"environmentNote,omitempty"`
+	BearerToken                    *authStatusBearerTokenOutput `json:"bearerToken,omitempty"`
 	ValidationFailures             int                          `json:"validationFailures,omitempty"`
 	KeychainAvailable              *bool                        `json:"keychainAvailable,omitempty"`
 	KeychainError                  string                       `json:"keychainError,omitempty"`
 	ConfigPath                     string                       `json:"configPath,omitempty"`
+}
+
+// authStatusBearerTokenOutput describes the token signed elsewhere that every
+// API command sends instead of signing one with a stored or environment key.
+// It never carries the token itself.
+type authStatusBearerTokenOutput struct {
+	Source           string `json:"source"`
+	RenewedBy        string `json:"renewedBy,omitempty"`
+	KeyID            string `json:"keyId,omitempty"`
+	ExpiresAt        string `json:"expiresAt,omitempty"`
+	Expired          *bool  `json:"expired,omitempty"`
+	Error            string `json:"error,omitempty"`
+	Validation       string `json:"validation,omitempty"`
+	ValidationDetail string `json:"validationDetail,omitempty"`
+	ValidationError  string `json:"validationError,omitempty"`
+
+	validationErr error
+}
+
+// authStatusBearerToken reports ASC_BEARER_TOKEN and ASC_BEARER_TOKEN_COMMAND,
+// or nil when neither is set. With validate it sends the stored-credential
+// probe through the client every command would get, so it fails the way they
+// would: an expired token, Apple rejecting it, or an agreement blocking the team.
+func authStatusBearerToken(ctx context.Context, validate bool) *authStatusBearerTokenOutput {
+	token, command := shared.BearerTokenEnv()
+	if token == "" && command == "" {
+		return nil
+	}
+	status := &authStatusBearerTokenOutput{Source: "ASC_BEARER_TOKEN"}
+	switch {
+	case token == "":
+		status.Source = "ASC_BEARER_TOKEN_COMMAND"
+	case command != "":
+		status.RenewedBy = "ASC_BEARER_TOKEN_COMMAND"
+	}
+	if token != "" {
+		info, err := asc.InspectBearerToken(token)
+		if err != nil {
+			status.Error = err.Error()
+		} else {
+			status.KeyID = info.KeyID
+			status.ExpiresAt = info.ExpiresAt.UTC().Format(time.RFC3339)
+			status.Expired = boolPointer(!time.Now().Before(info.ExpiresAt))
+		}
+	}
+	if !validate {
+		return status
+	}
+	client, _, err := shared.BearerTokenClient(0)
+	if err == nil {
+		if err = probeCredential(ctx, client, ""); err != nil && !isPermissionOnlyFailure(err) {
+			err = withNetworkDiagnostic(err, err)
+		}
+	}
+	switch {
+	case err == nil:
+		status.Validation = "works"
+	case isPermissionOnlyFailure(err):
+		status.Validation = "works"
+		status.ValidationDetail = "insufficient permissions for " + credentialProbeName("")
+	default:
+		status.Validation = "failed"
+		status.ValidationError = err.Error()
+		status.validationErr = err
+	}
+	return status
+}
+
+func (s *authStatusBearerTokenOutput) summary() string {
+	var details []string
+	if s.KeyID != "" {
+		details = append(details, "key "+s.KeyID)
+	}
+	if s.Expired != nil {
+		verb := "expires"
+		if *s.Expired {
+			verb = "expired"
+		}
+		details = append(details, verb+" "+s.ExpiresAt)
+	}
+	if s.RenewedBy != "" {
+		details = append(details, "renewed by "+s.RenewedBy)
+	}
+	if s.Error != "" {
+		details = append(details, s.Error)
+	}
+	line := "Bearer token: " + s.Source
+	if len(details) > 0 {
+		line += " (" + strings.Join(details, ", ") + ")"
+	}
+	line += ", used ahead of stored and environment credentials"
+	switch {
+	case s.ValidationDetail != "":
+		line += ": works (" + s.ValidationDetail + ")"
+	case s.ValidationError != "":
+		line += ": failed (" + s.ValidationError + ")"
+	case s.Validation != "":
+		line += ": " + s.Validation
+	}
+	return line
+}
+
+// isPermissionOnlyFailure reports a 403 that still proves the credential
+// authenticates. An agreement-blocked 403 does not count: it fails every
+// request for the team until an Account Holder accepts the agreement.
+func isPermissionOnlyFailure(err error) bool {
+	return errors.Is(err, asc.ErrForbidden) && !asc.IsRequiredAgreementError(err)
 }
 
 func buildAuthStatusCredentialRows(credentials []authsvc.Credential) [][]string {

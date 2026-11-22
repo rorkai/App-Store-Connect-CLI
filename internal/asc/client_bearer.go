@@ -71,18 +71,37 @@ func newBearerTokenSource(renew BearerTokenRenewer) *bearerTokenSource {
 	return &bearerTokenSource{renew: renew, lock: make(chan struct{}, 1)}
 }
 
-// set accepts a token after checking that it is a JWT with an expiry.
-func (s *bearerTokenSource) set(token string) error {
-	token = strings.TrimSpace(token)
+// BearerTokenInfo is what a token signed elsewhere says about itself.
+type BearerTokenInfo struct {
+	// KeyID is the token's kid header, the API key that signed it.
+	KeyID     string
+	ExpiresAt time.Time
+}
+
+// InspectBearerToken reads a token's key ID and expiry without verifying its
+// signature, after the checks a client applies before sending it: it must be
+// a JWT with an expiry.
+func InspectBearerToken(token string) (BearerTokenInfo, error) {
 	claims := jwt.RegisteredClaims{}
-	if _, _, err := jwt.NewParser().ParseUnverified(token, &claims); err != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidBearerToken, err)
+	parsed, _, err := jwt.NewParser().ParseUnverified(strings.TrimSpace(token), &claims)
+	if err != nil {
+		return BearerTokenInfo{}, fmt.Errorf("%w: %w", ErrInvalidBearerToken, err)
 	}
 	if claims.ExpiresAt == nil {
-		return fmt.Errorf("%w: it has no expiry", ErrInvalidBearerToken)
+		return BearerTokenInfo{}, fmt.Errorf("%w: it has no expiry", ErrInvalidBearerToken)
 	}
-	s.token = token
-	s.expiresAt = claims.ExpiresAt.Time
+	keyID, _ := parsed.Header["kid"].(string)
+	return BearerTokenInfo{KeyID: strings.TrimSpace(keyID), ExpiresAt: claims.ExpiresAt.Time}, nil
+}
+
+// set accepts a token after checking that it is a JWT with an expiry.
+func (s *bearerTokenSource) set(token string) error {
+	info, err := InspectBearerToken(token)
+	if err != nil {
+		return err
+	}
+	s.token = strings.TrimSpace(token)
+	s.expiresAt = info.ExpiresAt
 	return nil
 }
 
