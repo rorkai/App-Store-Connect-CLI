@@ -2,6 +2,7 @@ package shared
 
 import (
 	"flag"
+	"fmt"
 	"testing"
 )
 
@@ -54,16 +55,18 @@ func TestParseInterspersedFlagsResolvesAliases(t *testing.T) {
 		{name: "value alias before, canonical after", before: []string{"--output", "json"}, args: []string{"POS", "--output", "table"}, wantErr: "`--output` is given before and after the positional arguments with different values (`--json` means `--output json`); pass one value"},
 		{name: "canonical before and after with one value", before: []string{"--body", "x"}, args: []string{"POS", "--body", "x"}, wantVisited: "body", wantValue: "x"},
 		{name: "repeatable flag before and after", before: []string{"--query", "a=1"}, args: []string{"POS", "--query", "b=2"}, wantVisited: "query", wantValue: "a=1,b=2"},
+		{name: "equal number written differently", before: []string{"--limit", "5"}, args: []string{"POS", "--limit", "05"}, wantVisited: "limit", wantValue: "5"},
+		{name: "equal output format in another case", before: []string{"--output", "json"}, args: []string{"POS", "--output", "JSON"}, wantVisited: "output", wantValue: "JSON"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			fs := flag.NewFlagSet("test", flag.ContinueOnError)
 			body := fs.String("body", "", "Body")
-			output := fs.String("output", "", "Output format: json, table")
+			output := BindOutputFlagsWith(fs, "output", "", "Output format: json, table").Output
+			limit := fs.Int("limit", 0, "Limit")
 			var query MultiStringFlag
 			fs.Var(&query, "query", "Query parameter (repeatable)")
 			BindFlagAlias(fs, "data", "body")
-			BindFlagValueAlias(fs, "json", "output", "json")
 			if err := fs.Parse(test.before); err != nil {
 				t.Fatal(err)
 			}
@@ -82,7 +85,7 @@ func TestParseInterspersedFlagsResolvesAliases(t *testing.T) {
 			if !visited[test.wantVisited] {
 				t.Fatalf("visited = %v, want --%s", visited, test.wantVisited)
 			}
-			got := map[string]string{"body": *body, "output": *output, "query": query.String()}[test.wantVisited]
+			got := map[string]string{"body": *body, "output": *output, "query": query.String(), "limit": fmt.Sprint(*limit)}[test.wantVisited]
 			if got != test.wantValue {
 				t.Fatalf("--%s = %q, want %q", test.wantVisited, got, test.wantValue)
 			}
