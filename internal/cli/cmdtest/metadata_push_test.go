@@ -833,6 +833,8 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 		appVersionsStatus int
 		// retryConflict answers the PATCH sent again without whatsNew.
 		retryConflict string
+		// wantActionError is a substring the failed action's error must contain.
+		wantActionError string
 	}{
 		{
 			name:        "other fields are pushed without whatsNew",
@@ -863,14 +865,29 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantStatus:  "failed",
 		},
 		{
-			// A live version locks whatsNew with the same 409; that edit must fail.
-			name:        "live version",
+			// A live later version locks whatsNew with the same 409; that edit must fail.
+			name:        "live version after a released one",
 			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
 			conflict:    appleWhatsNewStateError,
 			state:       "READY_FOR_SALE",
+			appVersions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"READY_FOR_SALE"}},{"type":"appStoreVersions","id":"version-0","attributes":{"versionString":"0.9","platform":"IOS","appVersionState":"REPLACED_WITH_NEW_VERSION"}}],"links":{"next":""}}`,
 			wantErr:     true,
 			wantPatches: []string{whatsNewOnly},
 			wantStatus:  "failed",
+		},
+		{
+			// A live first version still has no What's New; the local file
+			// keeps the whatsNew the remote never stores, so other edits
+			// must still go through.
+			name:        "live first version",
+			local:       `{"description":"Nuova descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			state:       "READY_FOR_SALE",
+			appVersions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"READY_FOR_SALE"}}],"links":{"next":""}}`,
+			wantPatches: []string{withWhatsNew, descriptionOnly},
+			wantStatus:  "succeeded",
+			wantSkipped: []string{"whatsNew"},
+			wantStderr:  warning,
 		},
 		{
 			name:        "editable version after a released one",
@@ -882,18 +899,6 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantStatus:  "failed",
 		},
 		{
-			// The read is limited to the version's platform, so a released
-			// version on another platform does not count.
-			name:        "first on its platform beside a released MAC_OS version",
-			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
-			conflict:    appleWhatsNewStateError,
-			appVersions: onlyFirstVersion,
-			wantPatches: []string{whatsNewOnly},
-			wantStatus:  "skipped",
-			wantSkipped: []string{"whatsNew"},
-			wantStderr:  strings.Replace(warning, " The other fields were pushed.", " Nothing else changed.", 1),
-		},
-		{
 			name:              "versions read fails",
 			local:             `{"description":"Descrizione","whatsNew":"Prima versione."}`,
 			conflict:          appleWhatsNewStateError,
@@ -902,6 +907,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantErr:           true,
 			wantPatches:       []string{whatsNewOnly},
 			wantStatus:        "failed",
+			wantActionError:   "could not confirm that version 1.0 is the app's first version",
 		},
 		{
 			name:        "more versions than one page",
@@ -993,6 +999,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 				Actions []struct {
 					Status        string   `json:"status"`
 					SkippedFields []string `json:"skippedFields"`
+					Error         string   `json:"error"`
 				} `json:"actions"`
 			}
 			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
@@ -1000,6 +1007,9 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			}
 			if len(payload.Actions) != 1 || payload.Actions[0].Status != test.wantStatus || !slices.Equal(payload.Actions[0].SkippedFields, test.wantSkipped) {
 				t.Fatalf("actions = %+v, want status %q skippedFields %q", payload.Actions, test.wantStatus, test.wantSkipped)
+			}
+			if !strings.Contains(payload.Actions[0].Error, test.wantActionError) {
+				t.Fatalf("action error = %q, want it to contain %q", payload.Actions[0].Error, test.wantActionError)
 			}
 			if (test.wantErr && !strings.HasPrefix(stderr, test.wantStderr)) || (!test.wantErr && stderr != test.wantStderr) {
 				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)

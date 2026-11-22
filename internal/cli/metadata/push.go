@@ -1435,10 +1435,17 @@ func applyVersionChanges(
 					// Apple has no What's New on an app's first version and
 					// refuses the whole PATCH, applying nothing, so the other
 					// fields can be sent again without it.
-					// A live version answers with the same 409, so this applies
-					// only to an editable first version.
-					if mutationErr != nil && skippedFields == nil && setFields["whatsNew"] != "" && isWhatsNewOnlyStateError(mutationErr) &&
-						ifExists.firstVersion != nil && ifExists.firstVersion(ctx) {
+					// A later version answers a locked whatsNew with the same
+					// 409, so this applies only to the app's first version.
+					firstVersion := false
+					if mutationErr != nil && skippedFields == nil && setFields["whatsNew"] != "" && isWhatsNewOnlyStateError(mutationErr) && ifExists.firstVersion != nil {
+						var readErr error
+						firstVersion, readErr = ifExists.firstVersion(ctx)
+						if readErr != nil {
+							mutationErr = fmt.Errorf("%w\n(could not confirm that version %s is the app's first version, where App Store Connect refuses whatsNew and push leaves it out: %w; rerun the push)", mutationErr, version, readErr)
+						}
+					}
+					if firstVersion {
 						skippedFields = []string{"whatsNew"}
 						delete(setFields, "whatsNew")
 						delete(desired, "whatsNew")
@@ -1602,8 +1609,9 @@ type metadataIfExistsOptions struct {
 	// lateAppInfoIDs are locales found by the preflight read after the plan read.
 	lateAppInfoIDs map[string]string
 	// firstVersion reports whether the pushed version is the app's first on
-	// its platform; nil means it is not known to be.
-	firstVersion func(context.Context) bool
+	// its platform, or the error of the read that would tell; nil means it is
+	// not known to be.
+	firstVersion func(context.Context) (bool, error)
 }
 
 // metadataCreateConflict describes one localization create whose failure may
@@ -1986,33 +1994,22 @@ func countIntentChanges(fields []string, localSet map[string]string, localClears
 	return adds, updates
 }
 
-// firstVersionEditableStates are the states an app's first version can be in
-// while its metadata is still editable.
-var firstVersionEditableStates = map[string]struct{}{
-	"PREPARE_FOR_SUBMISSION": {},
-	"READY_FOR_REVIEW":       {},
-	"DEVELOPER_REJECTED":     {},
-	"REJECTED":               {},
-	"METADATA_REJECTED":      {},
-	"INVALID_BINARY":         {},
-}
-
 // newFirstVersionCheck reports whether versionID is the app's first version
-// on its platform: it is in an editable state and no other App Store version
-// exists on that platform. App Store Connect allows one unreleased version per
-// platform, so any other version there has been released. The answer is read
-// once; a failed read counts as not first and is tried again on the next call.
-func newFirstVersionCheck(d *shared.Deps, client *asc.Client, appID, versionID, state, platform string) func(context.Context) bool {
+// on its platform: no other App Store version exists on that platform. Apple
+// never allows whatsNew on a first version, whatever its state. The answer is
+// read once; a failed read returns its error, counts as not first, and is
+// tried again on the next call. More than one page counts as not first.
+func newFirstVersionCheck(d *shared.Deps, client *asc.Client, appID, versionID, platform string) func(context.Context) (bool, error) {
 	var mu sync.Mutex
 	known, first := false, false
-	return func(ctx context.Context) bool {
-		if _, editable := firstVersionEditableStates[strings.ToUpper(strings.TrimSpace(state))]; !editable || strings.TrimSpace(platform) == "" {
-			return false
+	return func(ctx context.Context) (bool, error) {
+		if strings.TrimSpace(platform) == "" {
+			return false, nil
 		}
 		mu.Lock()
 		defer mu.Unlock()
 		if known {
-			return first
+			return first, nil
 		}
 		resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreVersionsResponse, error) {
 			return client.GetAppStoreVersions(requestCtx, appID,
@@ -2020,20 +2017,23 @@ func newFirstVersionCheck(d *shared.Deps, client *asc.Client, appID, versionID, 
 				asc.Limit[asc.AppStoreVersionsOption](200),
 			)
 		})
-		if err != nil || resp == nil {
-			return false
+		if err != nil {
+			return false, err
+		}
+		if resp == nil {
+			return false, fmt.Errorf("empty app store versions response")
 		}
 		known = true
 		if strings.TrimSpace(resp.Links.Next) != "" {
-			return false
+			return false, nil
 		}
 		for _, item := range resp.Data {
 			if item.ID != versionID {
-				return false
+				return false, nil
 			}
 		}
 		first = true
-		return true
+		return true, nil
 	}
 }
 

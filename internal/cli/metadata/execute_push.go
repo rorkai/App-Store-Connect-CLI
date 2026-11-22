@@ -366,7 +366,7 @@ func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecu
 				mode:           ifExistsMode,
 				prefix:         errorPrefix,
 				lateAppInfoIDs: lateAppInfoIDs,
-				firstVersion:   newFirstVersionCheck(d, client, resolvedAppID, versionIDValue, versionStateValue, resolvedVersion.platform),
+				firstVersion:   newFirstVersionCheck(d, client, resolvedAppID, versionIDValue, resolvedVersion.platform),
 			},
 		)
 		if createdLocales := appInfoCreatedVersionLocales(actions, localVersion, managedVersionItems); len(createdLocales) > 0 {
