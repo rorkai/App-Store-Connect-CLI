@@ -41,8 +41,10 @@ Flags may appear before or after `METHOD` and `PATH`.
 ## Flags
 
 <ParamField path="--query" type="string">
-  Query parameter as `key=value`; repeat the flag for each parameter. Accepted
-  for `GET` only. A query string inside `PATH` is merged with these values.
+  Query parameter as `key=value`; repeat the flag for each parameter. The flag
+  is accepted for `GET` only; for `POST`, `PATCH`, and `DELETE`, put the query
+  parameters the operation documents in `PATH` itself. A query string inside
+  `PATH` is merged with these values.
 </ParamField>
 
 <ParamField path="--body" type="string">
@@ -65,8 +67,10 @@ Flags may appear before or after `METHOD` and `PATH`.
 </ParamField>
 
 <ParamField path="--allow-unknown-path" type="boolean" default="false">
-  Send the request even when `METHOD` and `PATH` are not in the embedded
-  schema index.
+  Send the request even when `METHOD` and `PATH`, the query parameter names
+  and values, or the body's attribute and relationship names are not in the
+  embedded schema index. For an indexed operation it skips the query and body
+  checks, for any method.
 </ParamField>
 
 <ParamField path="--output" type="string" default="json">
@@ -87,8 +91,18 @@ code 2.
 
 `METHOD` and `PATH` are matched against the embedded schema index that
 `asc schema` exposes, with `{id}` segments matching any concrete value. An
-unknown operation is a usage error that lists the nearest known operations;
-pass `--allow-unknown-path` to send it anyway.
+unknown operation is a usage error that names the `asc` command serving the
+request, the indexed path it most likely means, or the nearest known
+operations; pass `--allow-unknown-path` to send it anyway.
+
+Query parameters, whether from `--query` or from `PATH`, are checked against
+the matched operation for every method: each name must be documented for it,
+and so must each value of a parameter that documents its values (`include`,
+`fields[...]`, `sort`, enum filters). `cursor` is also accepted on a `GET`. An
+undocumented name or value is a usage error that lists what the operation
+accepts. `--allow-unknown-path` skips this check for an indexed operation. An
+operation the index does not have documents no query parameters, so a query
+string in its `PATH` is a usage error on a non-`GET` even with the flag.
 
 Successful responses print Apple's JSON envelope unmodified on stdout, so the
 output shape is exactly what the API returned. Because `json` is the only
