@@ -589,6 +589,14 @@ func capabilityRows() []Capability {
 			NextAction: "Use list and view to inspect existing keys, then create with --name, --bundle-id, --output-dir, and --confirm, or recover a download with --key-id, --output-dir, and --confirm.",
 		},
 		{
+			Area:       "signing",
+			Capability: "APNs private keys",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web push-keys create", "asc web push-keys download"},
+			Notes:      []string{"Uses the same private Developer Portal authentication-key endpoints as Sign in with Apple keys. Creates team-scoped keys for sandbox and production; topic-scoped and single-environment keys are not exposed. Revoke is not exposed."},
+			NextAction: "Use asc web sign-in-keys list to inspect existing keys, then create with --name, --output-dir, and --confirm, or recover a download with --key-id, --output-dir, and --confirm.",
+		},
+		{
 			Area:         "signing",
 			Capability:   "Developer Portal Services ID lifecycle",
 			Status:       statusWebSession,

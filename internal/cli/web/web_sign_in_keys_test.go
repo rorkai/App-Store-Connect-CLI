@@ -412,3 +412,64 @@ func btoi(value bool) int {
 	}
 	return 0
 }
+
+func TestWebPushKeysCreateUsesAPNsServiceAndSavesKey(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("private P8 publication is unsupported on Windows")
+	}
+	originalResolve, originalClient, originalPersist := resolveSessionFn, newWebClientFn, persistWebSessionFn
+	originalSignInCreate, originalSignInDownload := createDeveloperSignInKeyFn, downloadDeveloperSignInKeyFn
+	originalCreate, originalDownload := createDeveloperPushKeyFn, downloadDeveloperPushKeyFn
+	t.Cleanup(func() {
+		resolveSessionFn, newWebClientFn, persistWebSessionFn = originalResolve, originalClient, originalPersist
+		createDeveloperSignInKeyFn, downloadDeveloperSignInKeyFn = originalSignInCreate, originalSignInDownload
+		createDeveloperPushKeyFn, downloadDeveloperPushKeyFn = originalCreate, originalDownload
+	})
+	resolveSessionFn = func(context.Context, string, string, string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebClientFn = func(*webcore.AuthSession) *webcore.Client { return &webcore.Client{} }
+	persistWebSessionFn = func(*webcore.AuthSession) error { return nil }
+	createDeveloperSignInKeyFn = func(context.Context, *webcore.Client, string, string) (*webcore.DeveloperSignInKey, error) {
+		t.Fatal("push-keys create used the Sign in with Apple service")
+		return nil, nil
+	}
+	downloadDeveloperSignInKeyFn = func(context.Context, *webcore.Client, string) ([]byte, error) {
+		t.Fatal("push-keys create used the Sign in with Apple download")
+		return nil, nil
+	}
+	createDeveloperPushKeyFn = func(_ context.Context, _ *webcore.Client, name string) (*webcore.DeveloperSignInKey, error) {
+		if name != "Push" {
+			t.Fatalf("name = %q", name)
+		}
+		return &webcore.DeveloperSignInKey{KeyID: "KEY123"}, nil
+	}
+	downloadDeveloperPushKeyFn = func(_ context.Context, _ *webcore.Client, keyID string) ([]byte, error) {
+		if keyID != "KEY123" {
+			t.Fatalf("keyID = %q", keyID)
+		}
+		return []byte("PRIVATE-TEST-MATERIAL"), nil
+	}
+	directory := t.TempDir()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebPushKeysCommand(d).Subcommands[0]
+	if err := command.FlagSet.Parse([]string{"--name", "Push", "--output-dir", directory, "--confirm", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+		if err := command.Exec(context.Background(), nil); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if strings.Contains(stdout+stderr, "PRIVATE-TEST-MATERIAL") {
+		t.Fatal("private key leaked")
+	}
+	want := fmt.Sprintf(`{"keyId":"KEY123","name":"Push","p8Path":%q}`, filepath.Join(directory, "AuthKey_KEY123.p8"))
+	if strings.TrimSpace(stdout) != want {
+		t.Fatalf("receipt = %s, want %s", stdout, want)
+	}
+	saved, err := os.ReadFile(filepath.Join(directory, "AuthKey_KEY123.p8"))
+	if err != nil || string(saved) != "PRIVATE-TEST-MATERIAL" {
+		t.Fatal("key not saved")
+	}
+}
