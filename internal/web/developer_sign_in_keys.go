@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-const signInKeyService = "APPLE_ID_AUTH_KEY_CONFIGURATION"
+const (
+	signInKeyService = "APPLE_ID_AUTH_KEY_CONFIGURATION"
+	pushKeyService   = "U27F4V844T"
+)
 
 var developerKeyIDPattern = regexp.MustCompile(`^[A-Za-z0-9]{1,32}$`)
 
@@ -112,42 +115,13 @@ func (c *Client) GetDeveloperSignInKey(ctx context.Context, keyID string) (*Deve
 }
 
 func (c *Client) CreateDeveloperSignInKey(ctx context.Context, name, bundleID string) (*DeveloperSignInKey, error) {
-	name = strings.TrimSpace(name)
-	if name == "" || !developerKeyIDPattern.MatchString(bundleID) {
+	if !developerKeyIDPattern.MatchString(bundleID) {
 		return nil, fmt.Errorf("name and opaque bundle resource ID are required")
 	}
-	existing, err := c.ListDeveloperSignInKeys(ctx)
+	request := map[string]any{"isNew": true, "serviceId": signInKeyService, "identifiers": map[string]any{"bundle": []string{bundleID}}}
+	detail, err := c.createDeveloperKey(ctx, name, "sign-in-keys", request)
 	if err != nil {
 		return nil, err
-	}
-	for _, key := range existing.Keys {
-		if key.KeyName == name {
-			return nil, fmt.Errorf("key %s already has this name; inspect it instead of creating a duplicate", key.KeyID)
-		}
-	}
-	payload := map[string]any{"teamId": c.developerPortalTeamID(), "name": name, "serviceConfigurationsRequests": []any{map[string]any{
-		"isNew": true, "serviceId": signInKeyService, "identifiers": map[string]any{"bundle": []string{bundleID}},
-	}}}
-	headers := developerPortalHeaders("")
-	headers.Set("Content-Type", "application/json")
-	if err := c.applyDeveloperPortalCSRF(headers, true); err != nil {
-		return nil, err
-	}
-	body, err := c.doDeveloperPortalHTTPAndCapture(ctx, http.MethodPost, c.developerPortalOrigin()+developerPortalLegacyPath+"/account/auth/key/v2/create", payload, headers)
-	if err != nil {
-		return nil, fmt.Errorf("key creation outcome is unknown; inspect sign-in-keys list before retrying: %w", err)
-	}
-	result, err := parseDeveloperSignInKeys(body)
-	if err != nil {
-		return nil, fmt.Errorf("inspect sign-in-keys list before retrying: %w", err)
-	}
-	if len(result.Keys) != 1 {
-		return nil, fmt.Errorf("key creation returned unexpected key count; inspect list before retrying")
-	}
-	keyID := result.Keys[0].KeyID
-	detail, err := c.GetDeveloperSignInKey(ctx, keyID)
-	if err != nil {
-		return nil, fmt.Errorf("key %s created, but configuration verification failed; inspect before retrying: %w", keyID, err)
 	}
 	for _, service := range detail.Services {
 		if service.ID != signInKeyService {
@@ -163,10 +137,79 @@ func (c *Client) CreateDeveloperSignInKey(ctx context.Context, name, bundleID st
 			}
 		}
 	}
-	return nil, fmt.Errorf("key %s created, but requested Sign in with Apple bundle association was not verified; inspect before retrying", keyID)
+	return nil, fmt.Errorf("key %s created, but requested Sign in with Apple bundle association was not verified; inspect before retrying", detail.KeyID)
+}
+
+// CreateDeveloperPushKey creates a team-scoped APNs key for sandbox and production.
+func (c *Client) CreateDeveloperPushKey(ctx context.Context, name string) (*DeveloperSignInKey, error) {
+	request := map[string]any{"isNew": true, "serviceId": pushKeyService, "identifiers": map[string]any{}, "environment": "all", "scope": "team"}
+	detail, err := c.createDeveloperKey(ctx, name, "push-keys", request)
+	if err != nil {
+		return nil, err
+	}
+	if !detail.hasService(pushKeyService) {
+		return nil, fmt.Errorf("key %s created, but the APNs service was not verified; inspect before retrying", detail.KeyID)
+	}
+	return detail, nil
+}
+
+func (c *Client) createDeveloperKey(ctx context.Context, name, group string, serviceRequest map[string]any) (*DeveloperSignInKey, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("key name is required")
+	}
+	existing, err := c.ListDeveloperSignInKeys(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range existing.Keys {
+		if key.KeyName == name {
+			return nil, fmt.Errorf("key %s already has this name; inspect it instead of creating a duplicate", key.KeyID)
+		}
+	}
+	payload := map[string]any{"teamId": c.developerPortalTeamID(), "name": name, "serviceConfigurationsRequests": []any{serviceRequest}}
+	headers := developerPortalHeaders("")
+	headers.Set("Content-Type", "application/json")
+	if err := c.applyDeveloperPortalCSRF(headers, true); err != nil {
+		return nil, err
+	}
+	body, err := c.doDeveloperPortalHTTPAndCapture(ctx, http.MethodPost, c.developerPortalOrigin()+developerPortalLegacyPath+"/account/auth/key/v2/create", payload, headers)
+	if err != nil {
+		return nil, fmt.Errorf("key creation outcome is unknown; inspect %s list before retrying: %w", group, err)
+	}
+	result, err := parseDeveloperSignInKeys(body)
+	if err != nil {
+		return nil, fmt.Errorf("inspect %s list before retrying: %w", group, err)
+	}
+	if len(result.Keys) != 1 {
+		return nil, fmt.Errorf("key creation returned unexpected key count; inspect list before retrying")
+	}
+	keyID := result.Keys[0].KeyID
+	detail, err := c.GetDeveloperSignInKey(ctx, keyID)
+	if err != nil {
+		return nil, fmt.Errorf("key %s created, but configuration verification failed; inspect before retrying: %w", keyID, err)
+	}
+	return detail, nil
+}
+
+func (k *DeveloperSignInKey) hasService(serviceID string) bool {
+	for _, service := range k.Services {
+		if service.ID == serviceID {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Client) DownloadDeveloperSignInKey(ctx context.Context, keyID string) ([]byte, error) {
+	return c.downloadDeveloperKey(ctx, keyID, signInKeyService, "Sign in with Apple")
+}
+
+func (c *Client) DownloadDeveloperPushKey(ctx context.Context, keyID string) ([]byte, error) {
+	return c.downloadDeveloperKey(ctx, keyID, pushKeyService, "APNs")
+}
+
+func (c *Client) downloadDeveloperKey(ctx context.Context, keyID, serviceID, label string) ([]byte, error) {
 	if _, err := c.ListDeveloperSignInKeys(ctx); err != nil {
 		return nil, err
 	}
@@ -174,14 +217,8 @@ func (c *Client) DownloadDeveloperSignInKey(ctx context.Context, keyID string) (
 	if err != nil {
 		return nil, err
 	}
-	supported := false
-	for _, service := range key.Services {
-		if service.ID == signInKeyService {
-			supported = true
-		}
-	}
-	if !supported {
-		return nil, fmt.Errorf("key %s is not a Sign in with Apple key", keyID)
+	if !key.hasService(serviceID) {
+		return nil, fmt.Errorf("key %s is not a %s key", keyID, label)
 	}
 	if !key.CanDownload {
 		return nil, fmt.Errorf("key %s is no longer downloadable", keyID)
