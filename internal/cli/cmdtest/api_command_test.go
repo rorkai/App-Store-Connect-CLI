@@ -42,8 +42,9 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: "api: METHOD must be one of GET, POST, PATCH, DELETE",
 		},
 		{
-			name:    "path without a version that no version indexes",
-			args:    []string{"api", "GET", "agreements"},
+			// Without the index there is no version to complete the path with.
+			name:    "path without a version under --allow-unknown-path",
+			args:    []string{"api", "GET", "agreements", "--allow-unknown-path"},
 			wantErr: `api: PATH must start with /v1/, /v2/, or /v3/, got "agreements"`,
 		},
 		{
@@ -317,6 +318,21 @@ func TestAPIUnknownPathAnswersWithWhatToSend(t *testing.T) {
 			name: "resource the index does not know",
 			args: []string{"api", "GET", "/v1/agreements"},
 			want: "No indexed operation shares its resource",
+		},
+		{
+			name: "misspelled segment without a version",
+			args: []string{"api", "GET", "apps/123/buildz"},
+			want: "api: GET apps/123/buildz is not in the embedded schema index. Did you mean GET /v1/apps/123/builds?",
+		},
+		{
+			name: "native command for a path without a version",
+			args: []string{"api", "GET", "builds/B1/betaGroups"},
+			want: "api: GET builds/B1/betaGroups is not in the embedded schema index. Use `asc builds groups list --build-id B1`.",
+		},
+		{
+			name: "resource the index does not know, without a version",
+			args: []string{"api", "GET", "agreements"},
+			want: "api: GET agreements is not in the embedded schema index. No indexed operation shares its resource",
 		},
 	}
 	for _, test := range tests {
