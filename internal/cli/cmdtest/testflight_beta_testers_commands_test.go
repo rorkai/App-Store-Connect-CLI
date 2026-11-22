@@ -277,8 +277,9 @@ func TestTestFlightBetaTestersInviteOutput(t *testing.T) {
 
 // Apple answers POST /v1/betaTesters with this 409 both when the email is
 // already a tester in a requested group and when it cannot join the group at
-// all (an internal group and an email outside the team). Captured live.
-const testersAddCannotAssignBody = `{"errors":[{"status":"409","code":"STATE_ERROR","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Tester(s) cannot be assigned"}]}`
+// all (an internal group and an email outside the team). Captured live on
+// 2026-11-22; the two cases return the same body.
+const testersAddCannotAssignBody = `{"errors":[{"id":"76f5639e-74a9-425b-ba54-ebc8ba7b6dc8","status":"409","code":"STATE_ERROR","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Tester(s) cannot be assigned","meta":{"associatedErrors":{}}}]}`
 
 func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 	const (
