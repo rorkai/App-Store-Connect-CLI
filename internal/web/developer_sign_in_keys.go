@@ -203,11 +203,11 @@ func (k *DeveloperSignInKey) hasService(serviceID string) bool {
 }
 
 func (c *Client) DownloadDeveloperSignInKey(ctx context.Context, keyID string) ([]byte, error) {
-	return c.downloadDeveloperKey(ctx, keyID, signInKeyService, "Sign in with Apple")
+	return c.downloadDeveloperKey(ctx, keyID, signInKeyService, "a Sign in with Apple")
 }
 
 func (c *Client) DownloadDeveloperPushKey(ctx context.Context, keyID string) ([]byte, error) {
-	return c.downloadDeveloperKey(ctx, keyID, pushKeyService, "APNs")
+	return c.downloadDeveloperKey(ctx, keyID, pushKeyService, "an APNs")
 }
 
 func (c *Client) downloadDeveloperKey(ctx context.Context, keyID, serviceID, label string) ([]byte, error) {
@@ -219,7 +219,7 @@ func (c *Client) downloadDeveloperKey(ctx context.Context, keyID, serviceID, lab
 		return nil, err
 	}
 	if !key.hasService(serviceID) {
-		return nil, fmt.Errorf("key %s is not a %s key", keyID, label)
+		return nil, fmt.Errorf("key %s is not %s key", keyID, label)
 	}
 	if !key.CanDownload {
 		return nil, fmt.Errorf("key %s is no longer downloadable", keyID)
@@ -242,11 +242,11 @@ func (c *Client) downloadDeveloperKey(ctx context.Context, keyID, serviceID, lab
 }
 
 func (c *Client) RevokeDeveloperSignInKey(ctx context.Context, keyID string) error {
-	return c.revokeDeveloperKey(ctx, keyID, signInKeyService, "Sign in with Apple")
+	return c.revokeDeveloperKey(ctx, keyID, signInKeyService, "a Sign in with Apple")
 }
 
 func (c *Client) RevokeDeveloperPushKey(ctx context.Context, keyID string) error {
-	return c.revokeDeveloperKey(ctx, keyID, pushKeyService, "APNs")
+	return c.revokeDeveloperKey(ctx, keyID, pushKeyService, "an APNs")
 }
 
 func (c *Client) revokeDeveloperKey(ctx context.Context, keyID, serviceID, label string) error {
@@ -255,7 +255,7 @@ func (c *Client) revokeDeveloperKey(ctx context.Context, keyID, serviceID, label
 		return err
 	}
 	if !key.hasService(serviceID) {
-		return fmt.Errorf("key %s is not a %s key", keyID, label)
+		return fmt.Errorf("key %s is not %s key", keyID, label)
 	}
 	if !key.CanRevoke {
 		return fmt.Errorf("key %s cannot be revoked by this account", keyID)
