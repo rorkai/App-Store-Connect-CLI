@@ -70,6 +70,9 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	// `--profile` before anything else reads the argv. Running it first also
 	// keeps spaced boolean recovery working for the flags that follow it.
 	args = hoistRootProfileFlag(root, args)
+	// A guessed read verb (`get` for `view`) resolves before any analysis, so
+	// help, diagnostics and telemetry all name the command that runs.
+	args = resolveCommandAliases(root, args)
 	args = normalizeSpacedBooleanFlags(root, args)
 	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)

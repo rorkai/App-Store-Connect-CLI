@@ -38,11 +38,6 @@ type commandPathRecoveryRule struct {
 
 var commonCommandPathRecoveryRules = []commandPathRecoveryRule{
 	{
-		invalid:     []string{"builds", "view"},
-		destination: []string{"builds", "info"},
-		validate:    validateBuildsInfoSelectorRecovery,
-	},
-	{
 		invalid:     []string{"versions", "info"},
 		destination: []string{"versions", "view"},
 		validate:    validateVersionsViewRecovery,
@@ -446,79 +441,8 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) (map
 }
 
 // These validators intentionally mirror only side-effect-free checks performed
-// before authentication by the four mapped destinations. Keep their tests in
+// before authentication by the mapped destinations. Keep their tests in
 // sync when those commands add or change semantic flag constraints.
-func validateBuildsInfoSelectorRecovery(fs *flag.FlagSet, provided map[string]struct{}) bool {
-	processingStateRaw := recoveryFlagValue(fs, "processing-state")
-	processingStateValues := shared.SplitCSVUpper(processingStateRaw)
-	if strings.TrimSpace(processingStateRaw) != "" && len(processingStateValues) == 0 {
-		return false
-	}
-	for _, state := range processingStateValues {
-		if state == "ALL" && len(processingStateValues) > 1 {
-			return false
-		}
-		switch state {
-		case "VALID", "PROCESSING", "FAILED", "INVALID", "ALL":
-		default:
-			return false
-		}
-	}
-
-	buildID := strings.TrimSpace(recoveryFlagValue(fs, "build-id"))
-	if _, ok := provided["build-id"]; ok && buildID == "" {
-		return false
-	}
-	appInput := strings.TrimSpace(recoveryFlagValue(fs, "app"))
-	if _, ok := provided["app"]; ok && appInput == "" {
-		return false
-	}
-	version := strings.TrimSpace(recoveryFlagValue(fs, "version"))
-	buildNumber := strings.TrimSpace(recoveryFlagValue(fs, "build-number"))
-	platform := strings.TrimSpace(recoveryFlagValue(fs, "platform"))
-	latest := recoveryBoolFlagValue(fs, "latest")
-	excludeExpired := recoveryBoolFlagValue(fs, "exclude-expired") || recoveryBoolFlagValue(fs, "not-expired")
-
-	hasExplicitAppSelectors := appInput != "" ||
-		latest ||
-		buildNumber != "" ||
-		version != "" ||
-		platform != "" ||
-		len(processingStateValues) > 0 ||
-		excludeExpired
-	if buildID != "" && hasExplicitAppSelectors {
-		return false
-	}
-	if latest && buildNumber != "" {
-		return false
-	}
-	if buildID != "" {
-		return true
-	}
-
-	if shared.ResolveAppID(appInput) == "" {
-		return false
-	}
-	if len(processingStateValues) > 0 && !latest {
-		return false
-	}
-	if excludeExpired && !latest {
-		return false
-	}
-	if !latest && buildNumber == "" {
-		return false
-	}
-	if buildNumber != "" && platform == "" {
-		return false
-	}
-	if platform != "" {
-		if _, err := shared.NormalizeAppStoreVersionPlatform(platform); err != nil {
-			return false
-		}
-	}
-	return true
-}
-
 func validateVersionsViewRecovery(fs *flag.FlagSet, provided map[string]struct{}) bool {
 	versionID := strings.TrimSpace(recoveryFlagValue(fs, "version-id"))
 	legacyID := strings.TrimSpace(recoveryFlagValue(fs, "id"))

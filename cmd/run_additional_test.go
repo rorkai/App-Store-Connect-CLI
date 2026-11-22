@@ -438,9 +438,9 @@ func TestRun_UnknownInputReportWriteFailureReturnsExitError(t *testing.T) {
 		},
 		{
 			name:       "allowlisted unknown command",
-			args:       []string{"builds", "get"},
-			wantPrefix: "Error: unknown command `asc builds get`\n",
-			wantChild:  "get",
+			args:       []string{"builds", "show"},
+			wantPrefix: "Error: unknown command `asc builds show`\n",
+			wantChild:  "show",
 		},
 		{
 			name:       "unknown flag",

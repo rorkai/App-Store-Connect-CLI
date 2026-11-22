@@ -438,19 +438,6 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
 	tests := [][]string{
-		{"builds", "view"},
-		{"builds", "view", "--build-id", ""},
-		{"builds", "view", "--build-id="},
-		{"builds", "view", "--build-id", "BUILD_ID", "--app", "APP_ID"},
-		{"builds", "view", "--build-id", "BUILD_ID", "--latest"},
-		{"builds", "view", "--app", "APP_ID"},
-		{"builds", "view", "--app", "APP_ID", "--build-number", "42"},
-		{"builds", "view", "--app", "APP_ID", "--latest", "--build-number", "42"},
-		{"builds", "view", "--app", "APP_ID", "--latest", "--platform", "ANDROID"},
-		{"builds", "view", "--app", "APP_ID", "--latest", "--processing-state", "UNKNOWN"},
-		{"builds", "view", "--app", "APP_ID", "--latest", "--processing-state", "all,VALID"},
-		{"builds", "view", "--app", "APP_ID", "--build-number", "42", "--platform", "IOS", "--processing-state", "VALID"},
-		{"builds", "view", "--app", "APP_ID", "--build-number", "42", "--platform", "IOS", "--exclude-expired"},
 		{"versions", "info"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include", "unknown"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include", "build", "--include-build"},
@@ -498,12 +485,6 @@ func TestCommonCommandPathRecoveryAcceptsCompleteDestinationFlags(t *testing.T) 
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
 	tests := [][]string{
-		{"builds", "view", "--build-id", "BUILD_ID"},
-		{"builds", "view", "--build-id=BUILD_ID"},
-		{"builds", "view", "--app", "APP_ID", "--latest"},
-		{"builds", "view", "--app", "APP_ID", "--latest", "--processing-state", "all"},
-		{"builds", "view", "--app", "APP_ID", "--latest", "--processing-state", "VALID,PROCESSING", "--exclude-expired"},
-		{"builds", "view", "--app", "APP_ID", "--build-number", "42", "--platform", "IOS"},
 		{"versions", "info", "--version-id", "VERSION_ID"},
 		{"versions", "info", "--version-id=VERSION_ID"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include-build"},
@@ -539,8 +520,6 @@ func TestCommonCommandPathRecoveryAcceptsTerminalHelp(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"builds", "view", "--help"}, "asc builds info --help"},
-		{[]string{"builds", "view", "-h"}, "asc builds info -h"},
 		{[]string{"versions", "info", "--help"}, "asc versions view --help"},
 		{[]string{"versions", "info", "-h"}, "asc versions view -h"},
 		{[]string{"reviewsubmissions", "list", "--help"}, "asc review submissions list --help"},
@@ -584,7 +563,6 @@ func TestCommonCommandPathRecoveryUsesAppIDEnvironment(t *testing.T) {
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
 
 	for _, args := range [][]string{
-		{"builds", "view", "--latest"},
 		{"reviewsubmissions", "list", "--limit", "10"},
 		{"testflight", "groups", "builds", "list", "--limit", "10"},
 	} {
@@ -608,7 +586,6 @@ func TestCommonCommandPathRecoveryUsesConfiguredAppID(t *testing.T) {
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
 	for _, args := range [][]string{
-		{"builds", "view", "--latest"},
 		{"reviewsubmissions", "list", "--limit", "10"},
 		{"testflight", "groups", "builds", "list", "--limit", "10"},
 	} {

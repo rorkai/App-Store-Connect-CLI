@@ -51,7 +51,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"beta":        {"asc testflight groups list --app APP_ID", "asc testflight testers list --app APP_ID"},
 	},
 	"asc age-rating": {
-		"get":    {"asc age-rating view --app APP_ID", "asc age-rating audit --app APP_ID"},
 		"show":   {"asc age-rating view --app APP_ID", "asc age-rating audit --app APP_ID"},
 		"set":    {"asc age-rating edit --app APP_ID --kids-age-band KIDS_AGE_BAND", "asc age-rating view --app APP_ID"},
 		"update": {"asc age-rating edit --app APP_ID --kids-age-band KIDS_AGE_BAND", "asc age-rating view --app APP_ID"},
@@ -65,7 +64,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"get":    {"asc web agreements status", "asc agreements territories list --id EULA_ID"},
 	},
 	"asc apps": {
-		"get":    {"asc apps view --id APP_ID", "asc apps info view --app APP_ID"},
 		"show":   {"asc apps view --id APP_ID", "asc apps info view --app APP_ID"},
 		"find":   {"asc apps list --name NAME", "asc apps list --bundle-id BUNDLE_ID"},
 		"search": {"asc apps list --name NAME", "asc apps list --bundle-id BUNDLE_ID"},
@@ -93,8 +91,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"current":             {"asc builds info --app APP_ID --latest", "asc builds list --app APP_ID --limit 1"},
 		"status":              {"asc builds info --app APP_ID --latest", "asc builds wait --app APP_ID --latest"},
 		"show":                {"asc builds info --build-id BUILD_ID", "asc builds list --app APP_ID"},
-		"get":                 {"asc builds info --build-id BUILD_ID", "asc builds list --app APP_ID"},
-		"view":                {"asc builds info --build-id BUILD_ID", "asc builds list --app APP_ID"},
 		"bundles":             {"asc build-bundles list --build-id BUILD_ID", "asc builds info --build-id BUILD_ID"},
 		"build-bundles":       {"asc build-bundles list --build-id BUILD_ID", "asc builds info --build-id BUILD_ID"},
 		"localizations":       {"asc build-localizations list --build-id BUILD_ID", "asc builds test-notes list --build-id BUILD_ID"},
@@ -115,7 +111,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"testers":             {"asc builds individual-testers list --build-id BUILD_ID", "asc builds individual-testers add --build-id BUILD_ID --tester TESTER_ID"},
 	},
 	"asc iap": {
-		"get":  {"asc iap view --id IAP_ID", "asc iap list --app APP_ID"},
 		"show": {"asc iap view --id IAP_ID", "asc iap list --app APP_ID"},
 		"add":  {"asc iap create --app APP_ID --product-id PRODUCT_ID --ref-name NAME --type TYPE"},
 		"submit": {
@@ -125,7 +120,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		},
 	},
 	"asc localizations": {
-		"get":  {"asc localizations view --id LOCALIZATION_ID", "asc localizations list --version VERSION_ID"},
 		"show": {"asc localizations view --id LOCALIZATION_ID", "asc localizations list --version VERSION_ID"},
 		"add":  {"asc localizations create --version VERSION_ID --locale LOCALE"},
 	},
@@ -171,7 +165,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"view": {"asc screenshots list --app APP_ID --version VERSION --locale LOCALE", "asc screenshots download --id SCREENSHOT_ID --output ./screenshot.png"},
 	},
 	"asc subscriptions": {
-		"get":  {"asc subscriptions view --id SUBSCRIPTION_ID", "asc subscriptions list --app APP_ID"},
 		"show": {"asc subscriptions view --id SUBSCRIPTION_ID", "asc subscriptions list --app APP_ID"},
 		"add": {
 			"asc subscriptions create --group-id GROUP_ID --reference-name NAME --product-id PRODUCT_ID --subscription-period PERIOD",
@@ -206,7 +199,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"add":          {"asc subscriptions groups create --app APP_ID --reference-name NAME", "asc subscriptions groups list --app APP_ID"},
 		"new":          {"asc subscriptions groups create --app APP_ID --reference-name NAME", "asc subscriptions groups list --app APP_ID"},
 		"create-group": {"asc subscriptions groups create --app APP_ID --reference-name NAME", "asc subscriptions groups list --app APP_ID"},
-		"get":          {"asc subscriptions groups view --id GROUP_ID", "asc subscriptions groups list --app APP_ID"},
 		"show":         {"asc subscriptions groups view --id GROUP_ID", "asc subscriptions groups list --app APP_ID"},
 	},
 	"asc subscriptions review": {
@@ -225,7 +217,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"upload": {"asc subscriptions review screenshots create --subscription-id SUBSCRIPTION_ID --file FILE_PATH"},
 		"add":    {"asc subscriptions review screenshots create --subscription-id SUBSCRIPTION_ID --file FILE_PATH"},
 		"list":   {"asc subscriptions review screenshots view --screenshot-id SCREENSHOT_ID"},
-		"get":    {"asc subscriptions review screenshots view --screenshot-id SCREENSHOT_ID"},
 		"show":   {"asc subscriptions review screenshots view --screenshot-id SCREENSHOT_ID"},
 	},
 	"asc testflight": {
@@ -254,7 +245,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"current": {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
 		"status":  {"asc versions list --app APP_ID", "asc review status --app APP_ID"},
 		"show":    {"asc versions view --version-id VERSION_ID", "asc versions list --app APP_ID"},
-		"get":     {"asc versions view --version-id VERSION_ID", "asc versions list --app APP_ID"},
 		"localizations": {
 			"asc localizations list --version VERSION_ID",
 			"asc localizations list --app APP_ID --version VERSION",

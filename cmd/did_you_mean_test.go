@@ -31,9 +31,9 @@ func TestRun_UnknownChildOffersSynonymSuggestions(t *testing.T) {
 				"  asc versions --help\n",
 		},
 		{
-			name: "apps get no longer dumps the group usage",
-			args: []string{"apps", "get"},
-			wantStderr: "Error: unknown command `asc apps get`\n" +
+			name: "apps show no longer dumps the group usage",
+			args: []string{"apps", "show"},
+			wantStderr: "Error: unknown command `asc apps show`\n" +
 				"Try:\n" +
 				"  asc apps view --id APP_ID\n" +
 				"  asc apps info view --app APP_ID\n" +
@@ -41,9 +41,9 @@ func TestRun_UnknownChildOffersSynonymSuggestions(t *testing.T) {
 				"  asc apps --help\n",
 		},
 		{
-			name: "localizations get points at the single-localization view",
-			args: []string{"localizations", "get"},
-			wantStderr: "Error: unknown command `asc localizations get`\n" +
+			name: "localizations show points at the single-localization view",
+			args: []string{"localizations", "show"},
+			wantStderr: "Error: unknown command `asc localizations show`\n" +
 				"Try:\n" +
 				"  asc localizations view --id LOCALIZATION_ID\n" +
 				"  asc localizations list --version VERSION_ID\n" +
@@ -81,21 +81,12 @@ func TestRun_UnknownChildOffersSynonymSuggestions(t *testing.T) {
 				"  asc auth --help\n",
 		},
 		{
-			name: "builds view maps to builds info like get and show",
-			args: []string{"builds", "view"},
-			wantStderr: "Error: unknown command `asc builds view`\n" +
+			name: "builds show maps to builds info",
+			args: []string{"builds", "show"},
+			wantStderr: "Error: unknown command `asc builds show`\n" +
 				"Try:\n" +
 				"  asc builds info --build-id BUILD_ID\n" +
 				"  asc builds list --app APP_ID\n" +
-				"For help:\n" +
-				"  asc builds --help\n",
-		},
-		{
-			name: "builds view with valid build-id rewrites exact command",
-			args: []string{"builds", "view", "--build-id", "BUILD_ID"},
-			wantStderr: "Error: unknown command `asc builds view`\n" +
-				"Try:\n" +
-				"  asc builds info --build-id BUILD_ID\n" +
 				"For help:\n" +
 				"  asc builds --help\n",
 		},
@@ -471,6 +462,9 @@ func TestUnknownChildSynonymsResolveToRealCommands(t *testing.T) {
 			if findDirectSubcommand(groupCommand, token) != nil {
 				t.Fatalf("%q synonym %q shadows a real subcommand", group, token)
 			}
+			if target := readVerbTarget(groupCommand, token); target != nil {
+				t.Fatalf("%q synonym %q is unreachable: the command alias runs %q", group, token, target.Name)
+			}
 			for _, invocation := range invocations {
 				assertHintInvocationResolves(t, root, group+" "+token, invocation)
 			}
@@ -494,9 +488,9 @@ func TestRun_UnknownChildTelemetryNeverCarriesThePositionalToken(t *testing.T) {
 		{name: "former legacy child", args: []string{"auth", "whoami"}, token: "whoami", wantCommand: "asc auth", wantChild: "other"},
 		{name: "near match", args: []string{"builds", "lsit"}, token: "lsit", wantCommand: "asc builds", wantChild: "other"},
 		{name: "no suggestion", args: []string{"builds", "qqqqq"}, token: "qqqqq", wantCommand: "asc builds", wantChild: "other"},
-		{name: "allowlisted child", args: []string{"apps", "get"}, wantCommand: "asc apps", wantChild: "get"},
-		{name: "flag value is skipped", args: []string{"--profile", "list", "apps", "get"}, wantCommand: "asc apps", wantChild: "get"},
-		{name: "inline flag value is skipped", args: []string{"--profile=list", "apps", "get"}, wantCommand: "asc apps", wantChild: "get"},
+		{name: "allowlisted child", args: []string{"apps", "show"}, wantCommand: "asc apps", wantChild: "show"},
+		{name: "flag value is skipped", args: []string{"--profile", "list", "apps", "show"}, wantCommand: "asc apps", wantChild: "show"},
+		{name: "inline flag value is skipped", args: []string{"--profile=list", "apps", "show"}, wantCommand: "asc apps", wantChild: "show"},
 	}
 
 	for _, test := range tests {
@@ -541,9 +535,9 @@ func TestRun_UnknownChildGenericAliasesReachUncuratedGroups(t *testing.T) {
 		wantStderr string
 	}{
 		{
-			name: "get reaches view and list in a group the curated table never mentions",
-			args: []string{"accessibility", "get"},
-			wantStderr: "Error: unknown command `asc accessibility get`\n" +
+			name: "show reaches view and list in a group the curated table never mentions",
+			args: []string{"accessibility", "show"},
+			wantStderr: "Error: unknown command `asc accessibility show`\n" +
 				"Try:\n" +
 				"  asc accessibility view --help\n" +
 				"  asc accessibility list --help\n" +
@@ -669,8 +663,8 @@ func TestUnknownChildCuratedSynonymsOutrankGenericAliases(t *testing.T) {
 		t.Fatal("apps group does not resolve")
 	}
 
-	got := unknownChildSuggestions(apps, "asc apps", "get")
-	want := unknownChildSynonyms["asc apps"]["get"]
+	got := unknownChildSuggestions(apps, "asc apps", "show")
+	want := unknownChildSynonyms["asc apps"]["show"]
 	if !slices.Equal(got, want) {
 		t.Fatalf("unknownChildSuggestions() = %v, want the curated entries %v", got, want)
 	}
