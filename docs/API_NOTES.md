@@ -93,7 +93,8 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
   - A text or choice field is `{id, sValue}` (`YES`/`NO`; filing type `LARGE` for an LLM, `ALGOR` for an algorithm). A file is `{id, fileContent: {fileData, fileName, fileType}}` with base64 `fileData`; there is no separate upload.
   - A first answer is `POST .../entities/{appId}/forms` with `{accountId, entityId, requirementId, fields}`; a later one is `PUT .../entities/{appId}/forms/{formId}` with `formId` added. The response `data` carries the declaration's `id` and `status`.
   - A requirement at `COLLECTED_VERIFY_PENDING` is refused locally; the website shows it read-only.
-  - The form walk for every answer was live-verified on 2026-11-22 with `--dry-run` (2 metadata requests for No, 3 for an affirmative Security Assessment, 4 for an affirmative AI Generated or Synthetic Content answer). The two save requests have not been sent live.
+  - The form walk for every answer was live-verified on 2026-11-22 with `--dry-run` (2 metadata requests for No, 3 for an affirmative Security Assessment, 4 for an affirmative AI Generated or Synthetic Content answer).
+  - Both save requests were live-verified on 2026-11-22 with a No on the Security Assessment: the first answer was a `POST` (200) that moved the requirement from `PENDING_COLLECT` to `COLLECTED_VERIFY_NOT_NECESSARY` and gave it a `formId`, `dateSigned`, and `lastUpdatedDate`; saving No again was a `PUT` (200) that kept the `formId` and `dateSigned` and advanced `lastUpdatedDate`. A No leaves no `requiredActions`. Saving an affirmative answer with evidence has not been sent live.
 
 ## Web-session API keys
 

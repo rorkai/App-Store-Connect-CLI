@@ -8412,7 +8412,8 @@
           }
         },
         "x-asc-observed": {
-          "code": "2026-11-22"
+          "code": "2026-11-22",
+          "live": "2026-11-22"
         },
         "x-asc-source": [
           "Client.SetAppComplianceDeclaration"
@@ -8480,7 +8481,8 @@
           }
         },
         "x-asc-observed": {
-          "code": "2026-11-22"
+          "code": "2026-11-22",
+          "live": "2026-11-22"
         },
         "x-asc-source": [
           "Client.SetAppComplianceDeclaration"
