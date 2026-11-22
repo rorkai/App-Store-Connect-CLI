@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -296,6 +297,12 @@ func groupViewForFlags(group *ffcli.Command, groupPath string, args []string) *f
 		next, consumed := consumeFlagToken(leaf.FlagSet, token, args, index)
 		if !consumed {
 			return nil
+		}
+		// A boolean given a spaced true or false, as the leaf accepts it.
+		if name, hasInlineValue := splitFlagToken(strings.TrimLeft(token, "-")); !hasInlineValue && next < len(args) && isBoolFlag(leaf.FlagSet.Lookup(name)) {
+			if _, err := strconv.ParseBool(strings.TrimSpace(args[next])); err == nil {
+				next++
+			}
 		}
 		index = next
 	}
