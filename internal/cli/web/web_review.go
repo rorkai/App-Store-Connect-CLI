@@ -968,7 +968,7 @@ func newWebReviewReplyCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web review reply", flag.ExitOnError)
 
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
-	message := fs.String("message", "", "Reply message body")
+	message := fs.String("message", "", "Reply message body, at most 4,000 characters")
 	confirm := fs.Bool("confirm", false, "Confirm sending the reply")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
@@ -1004,6 +1004,9 @@ Examples:
 			messageBody := *message
 			if strings.TrimSpace(messageBody) == "" {
 				return d.UsageError("--message must not be empty")
+			}
+			if err := validateResolutionCenterMessageLength(d, "--message", messageBody); err != nil {
+				return err
 			}
 			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
