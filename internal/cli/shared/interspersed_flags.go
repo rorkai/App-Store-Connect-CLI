@@ -3,6 +3,7 @@ package shared
 import (
 	"flag"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -21,6 +22,15 @@ func ParseInterspersedFlags(fs *flag.FlagSet, args []string) ([]string, error) {
 	if strings.HasPrefix(args[0], "-") {
 		return args, nil
 	}
+
+	// given records, per canonical flag, the spelling and value it was set
+	// with, so an alias after a positional argument is the same flag as its
+	// canonical spelling, as resolveFlagAliases makes it before parsing.
+	type spelledValue struct{ spelling, value string }
+	given := map[string]spelledValue{}
+	fs.Visit(func(f *flag.Flag) {
+		given[f.Name] = spelledValue{spelling: f.Name, value: f.Value.String()}
+	})
 
 	positional := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
@@ -45,12 +55,8 @@ func ParseInterspersedFlags(fs *flag.FlagSet, args []string) ([]string, error) {
 		}
 
 		if isBoolFlagValue(f) && !hasValue {
-			if err := fs.Set(name, "true"); err != nil {
-				return nil, fmt.Errorf("invalid value %q for --%s: %w", "true", name, err)
-			}
-			continue
+			value, hasValue = "true", true
 		}
-
 		if !hasValue {
 			if i+1 >= len(args) {
 				return nil, fmt.Errorf("flag needs an argument: --%s", name)
@@ -59,8 +65,21 @@ func ParseInterspersedFlags(fs *flag.FlagSet, args []string) ([]string, error) {
 			value = args[i]
 		}
 
-		if err := fs.Set(name, value); err != nil {
-			return nil, fmt.Errorf("invalid value %q for --%s: %w", value, name, err)
+		spelling, canonical := name, name
+		if target, implied, ok := FlagAliasImpliedValue(f); ok {
+			if enabled, err := strconv.ParseBool(value); err == nil && enabled {
+				canonical, value = target, implied
+			}
+		} else if target, ok := FlagAliasTarget(f, value); ok {
+			canonical = target
+		}
+		if previous, ok := given[canonical]; ok && previous.spelling != spelling && previous.value != value {
+			return nil, fmt.Errorf("`--%s` and `--%s` are the same flag; pass one value", previous.spelling, spelling)
+		}
+		given[canonical] = spelledValue{spelling: spelling, value: value}
+
+		if err := fs.Set(canonical, value); err != nil {
+			return nil, fmt.Errorf("invalid value %q for --%s: %w", value, spelling, err)
 		}
 	}
 
