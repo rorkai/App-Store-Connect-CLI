@@ -69,12 +69,12 @@ func NewAssetsScreenshotsValidateCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Validate screenshot assets locally before upload.
 
 This preflight mirrors upload file ordering and reports common local problems
-before any App Store Connect mutation happens, including hidden files,
+before any App Store Connect mutation happens, including hidden images,
 unreadable assets, unsupported dimensions, images whose encoded format
 contradicts their file extension, PNG alpha channels or transparency, and
 duplicate decoded pixels. In a directory, the .png, .jpg, and .jpeg files are
-the screenshots; other files, such as the HTML a mockup was rendered from, are
-reported as skipped warnings.
+the screenshots; other files, such as the HTML a mockup was rendered from or
+.DS_Store, are reported as skipped warnings.
 
 Examples:
   asc screenshots validate --path "./screenshots" --device-type "IPHONE_65"
@@ -186,7 +186,7 @@ func checkScreenshotFiles(result *screenshotValidateResult, paths []string, apiD
 				FilePath:    filePath,
 				FileName:    fileName,
 				Message:     fmt.Sprintf("hidden file %q will be included in upload ordering", fileName),
-				Remediation: "Remove hidden files like .DS_Store from the upload directory before uploading screenshots.",
+				Remediation: "Rename or remove the hidden image before uploading if it is not a screenshot.",
 			})
 		}
 
