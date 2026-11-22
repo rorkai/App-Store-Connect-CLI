@@ -189,6 +189,12 @@ metadata has no errors.
 * `supportUrl` - Support URL
 * `whatsNew` - What's new / release notes (4000 characters max)
 
+App Store Connect has no What's New on an app's first version and refuses an
+update that sets `whatsNew` there (409 `STATE_ERROR`). `metadata push` and
+`metadata apply` then send the locale's other fields without it, list
+`whatsNew` in the action's `skippedFields`, and print a warning. If nothing
+else changed, the action's status is `skipped`.
+
 ### Clearing nullable fields
 
 To clear a supported nullable field, set it to JSON `null` in its localization

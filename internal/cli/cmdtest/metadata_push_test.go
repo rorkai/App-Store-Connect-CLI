@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -793,6 +794,129 @@ func TestMetadataPushPatchesOnlyChangedFields(t *testing.T) {
 	}
 	if !payload.Applied || payload.Succeeded != 1 {
 		t.Fatalf("applied=%t succeeded=%d, want applied with 1 success; stdout=%s", payload.Applied, payload.Succeeded, stdout)
+	}
+}
+
+// appleLiveVersionStateError has the shape of App Store Connect's 409 for a
+// PATCH on a live version, built from the details agents received: every
+// locked field is its own STATE_ERROR entry.
+const appleLiveVersionStateError = `{"errors":[
+  {"status":"409","code":"STATE_ERROR","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Attribute 'description' cannot be edited at this time"},
+  {"status":"409","code":"STATE_ERROR","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Attribute 'whatsNew' cannot be edited at this time"}
+]}`
+
+// App Store Connect has no What's New for an app's first version and refuses
+// a PATCH that sets it. Push leaves whatsNew out, sends the other fields, and
+// says so, instead of failing the locale.
+func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
+	const descriptionOnly = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"description":"Nuova descrizione"}}}`
+	const withWhatsNew = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"description":"Nuova descrizione","whatsNew":"Prima versione."}}}`
+	const whatsNewOnly = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"whatsNew":"Prima versione."}}}`
+	const warning = "Warning: whatsNew was not set for locale it of version 1.0: App Store Connect does not allow What's New on an app's first version (409 STATE_ERROR). The other fields were pushed.\n"
+
+	tests := []struct {
+		name        string
+		local       string
+		conflict    string
+		wantErr     bool
+		wantPatches []string
+		wantStatus  string
+		wantSkipped []string
+		wantStderr  string
+	}{
+		{
+			name:        "other fields are pushed without whatsNew",
+			local:       `{"description":"Nuova descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			wantPatches: []string{withWhatsNew, descriptionOnly},
+			wantStatus:  "succeeded",
+			wantSkipped: []string{"whatsNew"},
+			wantStderr:  warning,
+		},
+		{
+			name:        "only whatsNew changed",
+			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			wantPatches: []string{whatsNewOnly},
+			wantStatus:  "skipped",
+			wantSkipped: []string{"whatsNew"},
+			wantStderr:  strings.Replace(warning, " The other fields were pushed.", " Nothing else changed.", 1),
+		},
+		{
+			name:        "other locked fields still fail",
+			local:       `{"description":"Nuova descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleLiveVersionStateError,
+			wantErr:     true,
+			wantPatches: []string{withWhatsNew},
+			wantStatus:  "failed",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
+			t.Chdir(t.TempDir())
+
+			dir := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(dir, "version", "1.0"), 0o755); err != nil {
+				t.Fatalf("mkdir version: %v", err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "version", "1.0", "it.json"), []byte(test.local), 0o644); err != nil {
+				t.Fatalf("write version file: %v", err)
+			}
+
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Descrizione"}}],"links":{"next":""}}`))
+			apple := func(req *http.Request) (*http.Response, error) {
+				requests := reg.Requests()
+				if strings.Contains(string(requests[len(requests)-1].Body), "whatsNew") {
+					return asctest.JSON(http.StatusConflict, test.conflict)(req)
+				}
+				return asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Nuova descrizione"}}}`)(req)
+			}
+			for range test.wantPatches {
+				reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-ver-it"), apple)
+			}
+			if test.wantErr {
+				// After a failed PATCH, push reads the locale back to learn whether it applied.
+				reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Descrizione"}}],"links":{"next":""}}`))
+			}
+
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "metadata", "push", "--app", "app-1", "--version", "1.0", "--dir", dir, "--output", "json")
+			if (runErr != nil) != test.wantErr {
+				t.Fatalf("run error = %v, wantErr %t\nstdout=%s\nstderr=%s", runErr, test.wantErr, stdout, stderr)
+			}
+			var patches []string
+			for _, req := range reg.Requests() {
+				if req.Method == http.MethodPatch {
+					patches = append(patches, strings.TrimSpace(string(req.Body)))
+				}
+			}
+			if !slices.Equal(patches, test.wantPatches) {
+				t.Fatalf("PATCH bodies = %q, want %q", patches, test.wantPatches)
+			}
+			var payload struct {
+				Actions []struct {
+					Status        string   `json:"status"`
+					SkippedFields []string `json:"skippedFields"`
+				} `json:"actions"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+			}
+			if len(payload.Actions) != 1 || payload.Actions[0].Status != test.wantStatus || !slices.Equal(payload.Actions[0].SkippedFields, test.wantSkipped) {
+				t.Fatalf("actions = %+v, want status %q skippedFields %q", payload.Actions, test.wantStatus, test.wantSkipped)
+			}
+			if !test.wantErr && stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+		})
 	}
 }
 
