@@ -296,6 +296,8 @@ func TestGetAllRatings_Aggregation(t *testing.T) {
 		"us": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":4.0,"userRatingCount":100}]}`,
 		"gb": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":5.0,"userRatingCount":50}]}`,
 		"de": `{"resultCount":0,"results":[]}`, // Not available in Germany
+		// Morocco has no histogram storefront ID; its lookup rating must still count.
+		"ma": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":3.0,"userRatingCount":3}]}`,
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -332,31 +334,33 @@ func TestGetAllRatings_Aggregation(t *testing.T) {
 		t.Fatalf("GetAllRatings() error: %v", err)
 	}
 
-	// Should have found 2 countries (US and GB)
-	if global.CountryCount != 2 {
-		t.Errorf("CountryCount = %d, want 2", global.CountryCount)
+	// Should have found 3 countries (US, GB and MA)
+	if global.CountryCount != 3 {
+		t.Errorf("CountryCount = %d, want 3", global.CountryCount)
 	}
 
-	// Total should be 150 (100 + 50)
-	if global.TotalCount != 150 {
-		t.Errorf("TotalCount = %d, want 150", global.TotalCount)
+	// Total should be 153 (100 + 50 + 3)
+	if global.TotalCount != 153 {
+		t.Errorf("TotalCount = %d, want 153", global.TotalCount)
 	}
 
-	// Weighted average: (4.0*100 + 5.0*50) / 150 = 650/150 = 4.333...
-	expectedAvg := (4.0*100 + 5.0*50) / 150.0
+	expectedAvg := (4.0*100 + 5.0*50 + 3.0*3) / 153.0
 	if global.AverageRating != expectedAvg {
 		t.Errorf("AverageRating = %f, want %f", global.AverageRating, expectedAvg)
 	}
 
 	// Results should be sorted by count descending
-	if len(global.ByCountry) != 2 {
-		t.Fatalf("ByCountry length = %d, want 2", len(global.ByCountry))
+	if len(global.ByCountry) != 3 {
+		t.Fatalf("ByCountry length = %d, want 3", len(global.ByCountry))
 	}
 	if global.ByCountry[0].Country != "US" {
 		t.Errorf("First country = %q, want US (highest count)", global.ByCountry[0].Country)
 	}
 	if global.ByCountry[1].Country != "GB" {
 		t.Errorf("Second country = %q, want GB", global.ByCountry[1].Country)
+	}
+	if global.ByCountry[2].Country != "MA" {
+		t.Errorf("Third country = %q, want MA", global.ByCountry[2].Country)
 	}
 }
 
@@ -501,7 +505,7 @@ func TestGetAllRatings_PreservesStorefrontFailureWhenFallbackOutlastsCountryDead
 	newCountryContext := func(parent context.Context) (context.Context, context.CancelFunc) {
 		return context.WithTimeout(parent, 50*time.Millisecond)
 	}
-	_, err := client.GetAllRatings(context.Background(), "123", len(AllCountries()), newCountryContext)
+	_, err := client.GetAllRatings(context.Background(), "123", len(AllPublicCountries()), newCountryContext)
 	if err == nil {
 		t.Fatal("expected all-storefront failure")
 	}
@@ -575,7 +579,7 @@ func TestGetAllRatings_NonRetryableStorefrontFailureDoesNotOverrideCountryDeadli
 	newCountryContext := func(parent context.Context) (context.Context, context.CancelFunc) {
 		return context.WithDeadline(parent, time.Now().Add(-time.Second))
 	}
-	_, err := client.GetAllRatings(context.Background(), "123", len(AllCountries()), newCountryContext)
+	_, err := client.GetAllRatings(context.Background(), "123", len(AllPublicCountries()), newCountryContext)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("GetAllRatings() error = %v, want context.DeadlineExceeded", err)
 	}
@@ -816,9 +820,10 @@ func TestGetAllRatings_HistogramDeadlineIsNonFatal(t *testing.T) {
 		},
 	}
 
-	var countries atomic.Int32
+	// Countries without a storefront ID send no histogram request, so keep the
+	// short deadline until one histogram request has actually reached it.
 	newCountryContext := func(parent context.Context) (context.Context, context.CancelFunc) {
-		if countries.Add(1) == 1 {
+		if !histogramTimedOut.Load() {
 			marked := context.WithValue(parent, histogramDeadlineContextKey{}, true)
 			return context.WithTimeout(marked, 500*time.Millisecond)
 		}
@@ -832,8 +837,8 @@ func TestGetAllRatings_HistogramDeadlineIsNonFatal(t *testing.T) {
 	if !histogramTimedOut.Load() {
 		t.Fatal("expected one best-effort histogram request to reach its child deadline")
 	}
-	if global.CountryCount != len(AllCountries()) {
-		t.Fatalf("CountryCount = %d, want %d", global.CountryCount, len(AllCountries()))
+	if global.CountryCount != len(AllPublicCountries()) {
+		t.Fatalf("CountryCount = %d, want %d", global.CountryCount, len(AllPublicCountries()))
 	}
 }
 

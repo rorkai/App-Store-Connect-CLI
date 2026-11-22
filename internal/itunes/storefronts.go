@@ -2,7 +2,6 @@
 package itunes
 
 import (
-	"sort"
 	"strings"
 
 	"golang.org/x/text/language"
@@ -301,16 +300,6 @@ type Storefront struct {
 	Country      string `json:"country"`
 	CountryName  string `json:"countryName"`
 	StorefrontID string `json:"storefrontId"`
-}
-
-// AllCountries returns a sorted list of the histogram storefront countries.
-func AllCountries() []string {
-	countries := make([]string, 0, len(Storefronts))
-	for code := range Storefronts {
-		countries = append(countries, code)
-	}
-	sort.Strings(countries)
-	return countries
 }
 
 // AllPublicCountries returns a sorted list of all public App Store country codes.
