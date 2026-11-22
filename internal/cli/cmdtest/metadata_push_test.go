@@ -829,6 +829,8 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 		// appVersions answers the one read of the app's versions push makes to
 		// confirm a first version; empty means push must not read them.
 		appVersions string
+		// appVersionsStatus is the status of that read; zero means 200.
+		appVersionsStatus int
 		// retryConflict answers the PATCH sent again without whatsNew.
 		retryConflict string
 	}{
@@ -880,6 +882,37 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantStatus:  "failed",
 		},
 		{
+			// The read is limited to the version's platform, so a released
+			// version on another platform does not count.
+			name:        "first on its platform beside a released MAC_OS version",
+			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			appVersions: onlyFirstVersion,
+			wantPatches: []string{whatsNewOnly},
+			wantStatus:  "skipped",
+			wantSkipped: []string{"whatsNew"},
+			wantStderr:  strings.Replace(warning, " The other fields were pushed.", " Nothing else changed.", 1),
+		},
+		{
+			name:              "versions read fails",
+			local:             `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:          appleWhatsNewStateError,
+			appVersions:       `{"errors":[{"status":"400","code":"PARAMETER_ERROR.INVALID","title":"A parameter has an invalid value","detail":"bad"}]}`,
+			appVersionsStatus: http.StatusBadRequest,
+			wantErr:           true,
+			wantPatches:       []string{whatsNewOnly},
+			wantStatus:        "failed",
+		},
+		{
+			name:        "more versions than one page",
+			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			appVersions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=x"}}`,
+			wantErr:     true,
+			wantPatches: []string{whatsNewOnly},
+			wantStatus:  "failed",
+		},
+		{
 			name:          "other fields fail without whatsNew",
 			local:         `{"description":"Nuova descrizione","whatsNew":"Prima versione."}`,
 			conflict:      appleWhatsNewStateError,
@@ -916,7 +949,11 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"`+state+`"}}],"links":{"next":""}}`))
 			if test.appVersions != "" {
-				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, test.appVersions))
+				status := test.appVersionsStatus
+				if status == 0 {
+					status = http.StatusOK
+				}
+				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "limit=200"), asctest.JSON(status, test.appVersions))
 			}
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Descrizione"}}],"links":{"next":""}}`))
@@ -971,6 +1008,60 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 				t.Fatalf("stderr = %q, want no whatsNew warning", stderr)
 			}
 		})
+	}
+}
+
+// A failed read of the app's versions is not remembered: the next locale
+// that hits the whatsNew 409 reads again.
+func TestMetadataPushRetriesFailedFirstVersionRead(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+	t.Chdir(t.TempDir())
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "version", "1.0"), 0o755); err != nil {
+		t.Fatalf("mkdir version: %v", err)
+	}
+	for _, locale := range []string{"fr-FR", "it"} {
+		if err := os.WriteFile(filepath.Join(dir, "version", "1.0", locale+".json"), []byte(`{"description":"Descrizione","whatsNew":"Prima versione."}`), 0o644); err != nil {
+			t.Fatalf("write version file: %v", err)
+		}
+	}
+	remote := `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"Descrizione"}},{"type":"appStoreVersionLocalizations","id":"loc-it","attributes":{"locale":"it","description":"Descrizione"}}],"links":{"next":""}}`
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, remote))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-fr"), asctest.JSON(http.StatusConflict, appleWhatsNewStateError))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-it"), asctest.JSON(http.StatusConflict, appleWhatsNewStateError))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "limit=200"),
+		asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"PARAMETER_ERROR.INVALID","title":"A parameter has an invalid value","detail":"bad"}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+	// Read-back of the locale that failed.
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, remote))
+
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "metadata", "push", "--app", "app-1", "--version", "1.0", "--dir", dir, "--output", "json")
+	if runErr == nil {
+		t.Fatalf("expected the locale whose read failed to fail\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	var payload struct {
+		Actions []struct {
+			Status string `json:"status"`
+		} `json:"actions"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	statuses := []string{}
+	for _, action := range payload.Actions {
+		statuses = append(statuses, action.Status)
+	}
+	slices.Sort(statuses)
+	if !slices.Equal(statuses, []string{"failed", "skipped"}) {
+		t.Fatalf("action statuses = %q, want one failed and one skipped; stdout=%s", statuses, stdout)
 	}
 }
 

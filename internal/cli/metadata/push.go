@@ -1438,7 +1438,7 @@ func applyVersionChanges(
 					// A live version answers with the same 409, so this applies
 					// only to an editable first version.
 					if mutationErr != nil && skippedFields == nil && setFields["whatsNew"] != "" && isWhatsNewOnlyStateError(mutationErr) &&
-						ifExists.firstVersion != nil && ifExists.firstVersion(requestCtx) {
+						ifExists.firstVersion != nil && ifExists.firstVersion(ctx) {
 						skippedFields = []string{"whatsNew"}
 						delete(setFields, "whatsNew")
 						delete(desired, "whatsNew")
@@ -1997,42 +1997,43 @@ var firstVersionEditableStates = map[string]struct{}{
 	"INVALID_BINARY":         {},
 }
 
-// newFirstVersionCheck reports, reading the app's versions at most once,
-// whether versionID is the app's first version on its platform: it is in an
-// editable state and no other App Store version exists on that platform. App
-// Store Connect allows one unreleased version per platform, so any other
-// version there has been released. A failed read counts as not first.
-func newFirstVersionCheck(d *shared.Deps, client *asc.Client, appID, versionID, state string) func(context.Context) bool {
-	var once sync.Once
-	first := false
+// newFirstVersionCheck reports whether versionID is the app's first version
+// on its platform: it is in an editable state and no other App Store version
+// exists on that platform. App Store Connect allows one unreleased version per
+// platform, so any other version there has been released. The answer is read
+// once; a failed read counts as not first and is tried again on the next call.
+func newFirstVersionCheck(d *shared.Deps, client *asc.Client, appID, versionID, state, platform string) func(context.Context) bool {
+	var mu sync.Mutex
+	known, first := false, false
 	return func(ctx context.Context) bool {
-		once.Do(func() {
-			if _, editable := firstVersionEditableStates[strings.ToUpper(strings.TrimSpace(state))]; !editable {
-				return
-			}
-			resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreVersionsResponse, error) {
-				return client.GetAppStoreVersions(requestCtx, appID, asc.Limit[asc.AppStoreVersionsOption](200))
-			})
-			if err != nil || resp == nil || strings.TrimSpace(resp.Links.Next) != "" {
-				return
-			}
-			var platform asc.Platform
-			for _, item := range resp.Data {
-				if item.ID == versionID {
-					platform = item.Attributes.Platform
-				}
-			}
-			if platform == "" {
-				return
-			}
-			for _, item := range resp.Data {
-				if item.ID != versionID && item.Attributes.Platform == platform {
-					return
-				}
-			}
-			first = true
+		if _, editable := firstVersionEditableStates[strings.ToUpper(strings.TrimSpace(state))]; !editable || strings.TrimSpace(platform) == "" {
+			return false
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if known {
+			return first
+		}
+		resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreVersionsResponse, error) {
+			return client.GetAppStoreVersions(requestCtx, appID,
+				asc.WithAppStoreVersionsPlatforms([]string{platform}),
+				asc.Limit[asc.AppStoreVersionsOption](200),
+			)
 		})
-		return first
+		if err != nil || resp == nil {
+			return false
+		}
+		known = true
+		if strings.TrimSpace(resp.Links.Next) != "" {
+			return false
+		}
+		for _, item := range resp.Data {
+			if item.ID != versionID {
+				return false
+			}
+		}
+		first = true
+		return true
 	}
 }
 
