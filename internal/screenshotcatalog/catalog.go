@@ -139,6 +139,7 @@ var registry = map[string][]Dimension{
 	"APP_WATCH_SERIES_3":             watchSeries3Dimensions,
 	"APP_APPLE_TV":                   appleTVDimensions,
 	"APP_APPLE_VISION_PRO":           visionProDimensions,
+	"IMESSAGE_APP_IPHONE_DUO":        iphoneDuoDimensions,
 	"IMESSAGE_APP_IPHONE_69":         iphone69Dimensions,
 	"IMESSAGE_APP_IPHONE_67":         iphone67Dimensions,
 	"IMESSAGE_APP_IPHONE_61":         iphone61Dimensions,

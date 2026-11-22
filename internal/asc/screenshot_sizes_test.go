@@ -189,8 +189,10 @@ func TestScreenshotDisplayTypesMatchOpenAPI(t *testing.T) {
 
 	extrasInCode := differenceStrings(codeTypes, specTypes)
 	// APP_IPHONE_DUO was accepted by the live public API on 2026-10-06.
-	// See docs/design/iphone-duo-screenshots.md; the published snapshot lags.
-	runtimeVerifiedTypes := []string{"APP_IPHONE_DUO"}
+	// IMESSAGE_APP_IPHONE_DUO is the matching iMessage screenshot set type.
+	// See docs/design/iphone-duo-screenshots.md and
+	// docs/design/imessage-duo-screenshots.md; the published snapshot lags.
+	runtimeVerifiedTypes := []string{"APP_IPHONE_DUO", "IMESSAGE_APP_IPHONE_DUO"}
 	allowedExtras := append([]string{"APP_IPHONE_69", "IMESSAGE_APP_IPHONE_69"}, runtimeVerifiedTypes...)
 	unexpectedExtras := differenceStrings(extrasInCode, allowedExtras)
 	if len(unexpectedExtras) > 0 {
@@ -201,9 +203,13 @@ func TestScreenshotDisplayTypesMatchOpenAPI(t *testing.T) {
 	for _, displayType := range specTypes {
 		specSet[displayType] = struct{}{}
 	}
+	runtimeVerified := make(map[string]struct{}, len(runtimeVerifiedTypes))
+	for _, displayType := range runtimeVerifiedTypes {
+		runtimeVerified[displayType] = struct{}{}
+	}
 	for _, displayType := range codeTypes {
 		canonical := CanonicalScreenshotDisplayTypeForAPI(displayType)
-		if canonical == "APP_IPHONE_DUO" {
+		if _, ok := runtimeVerified[canonical]; ok {
 			continue
 		}
 		if _, ok := specSet[canonical]; !ok {
