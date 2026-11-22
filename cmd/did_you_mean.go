@@ -40,15 +40,12 @@ const maxUnknownChildSuggestions = 3
 // shadows a real subcommand, so keep the table in sync with the commands.
 var unknownChildSynonyms = map[string]map[string][]string{
 	"asc": {
-		"app-info":  {"asc apps info view --app APP_ID", "asc apps info list --app APP_ID"},
-		"app-infos": {"asc apps info list --app APP_ID", "asc apps info view --app APP_ID"},
 		"app-availability": {
 			"asc pricing availability view --app APP_ID",
 			"asc pricing availability edit --app APP_ID --territory TERRITORIES --available true",
 		},
-		"submissions": {"asc review submissions list --app APP_ID", "asc review status --app APP_ID"},
-		"privacy":     {"asc web privacy pull --app APP_ID"},
-		"beta":        {"asc testflight groups list --app APP_ID", "asc testflight testers list --app APP_ID"},
+		"privacy": {"asc web privacy pull --app APP_ID"},
+		"beta":    {"asc testflight groups list --app APP_ID", "asc testflight testers list --app APP_ID"},
 	},
 	"asc age-rating": {
 		"show":   {"asc age-rating view --app APP_ID", "asc age-rating audit --app APP_ID"},
@@ -107,7 +104,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"delete":              {"asc builds expire --build-id BUILD_ID --confirm", "asc builds expire-all --app APP_ID --older-than 90d --confirm"},
 		"remove":              {"asc builds expire --build-id BUILD_ID --confirm", "asc builds remove-groups --build-id BUILD_ID --group GROUP_ID --confirm"},
 		"rm":                  {"asc builds expire --build-id BUILD_ID --confirm", "asc builds remove-groups --build-id BUILD_ID --group GROUP_ID --confirm"},
-		"beta-groups":         {"asc builds add-groups --build-id BUILD_ID --group GROUP_ID", "asc builds remove-groups --build-id BUILD_ID --group GROUP_ID --confirm"},
 		"testers":             {"asc builds individual-testers list --build-id BUILD_ID", "asc builds individual-testers add --build-id BUILD_ID --tester TESTER_ID"},
 	},
 	"asc iap": {
@@ -220,7 +216,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"show":   {"asc subscriptions review screenshots view --screenshot-id SCREENSHOT_ID"},
 	},
 	"asc testflight": {
-		"builds":     {"asc builds list --app APP_ID", "asc builds upload --app APP_ID --ipa IPA_PATH"},
 		"upload":     {"asc publish testflight --app APP_ID --ipa IPA_PATH --group GROUP_NAME", "asc builds upload --app APP_ID --ipa IPA_PATH"},
 		"publish":    {"asc publish testflight --app APP_ID --ipa IPA_PATH --group GROUP_NAME", "asc builds upload --app APP_ID --ipa IPA_PATH"},
 		"distribute": {"asc publish testflight --app APP_ID --ipa IPA_PATH --group GROUP_NAME", "asc builds upload --app APP_ID --ipa IPA_PATH"},
@@ -229,7 +224,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 			"asc testflight testers add --app APP_ID --email EMAIL --group GROUP_NAME",
 			"asc testflight groups add-testers --group GROUP_ID --email EMAIL",
 		},
-		"beta-groups": {"asc testflight groups list --app APP_ID", "asc testflight groups create --app APP_ID --name NAME"},
 	},
 	"asc testflight groups": {
 		"add":          {"asc testflight groups create --app APP_ID --name NAME", "asc testflight groups add-testers --group GROUP_ID --email EMAIL"},
@@ -241,14 +235,10 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		},
 	},
 	"asc versions": {
-		"latest":  {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
-		"current": {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
-		"status":  {"asc versions list --app APP_ID", "asc review status --app APP_ID"},
-		"show":    {"asc versions view --version-id VERSION_ID", "asc versions list --app APP_ID"},
-		"localizations": {
-			"asc localizations list --version VERSION_ID",
-			"asc localizations list --app APP_ID --version VERSION",
-		},
+		"latest":    {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
+		"current":   {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
+		"status":    {"asc versions list --app APP_ID", "asc review status --app APP_ID"},
+		"show":      {"asc versions view --version-id VERSION_ID", "asc versions list --app APP_ID"},
 		"get-build": {"asc versions view --version-id VERSION_ID --include-build", "asc builds info --build-id BUILD_ID"},
 	},
 }

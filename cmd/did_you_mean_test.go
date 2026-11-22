@@ -221,27 +221,12 @@ func TestRun_UnknownChildMapsLegacyAndAsymmetricPaths(t *testing.T) {
 			want:  []string{"asc build-localizations list --build-id BUILD_ID", "asc builds test-notes list --build-id BUILD_ID"},
 		},
 		{
-			args:  []string{"app-info"},
-			group: "asc",
-			want:  []string{"asc apps info view --app APP_ID", "asc apps info list --app APP_ID"},
-		},
-		{
-			args:  []string{"app-infos"},
-			group: "asc",
-			want:  []string{"asc apps info list --app APP_ID", "asc apps info view --app APP_ID"},
-		},
-		{
 			args:  []string{"app-availability"},
 			group: "asc",
 			want: []string{
 				"asc pricing availability view --app APP_ID",
 				"asc pricing availability edit --app APP_ID --territory TERRITORIES --available true",
 			},
-		},
-		{
-			args:  []string{"submissions"},
-			group: "asc",
-			want:  []string{"asc review submissions list --app APP_ID", "asc review status --app APP_ID"},
 		},
 		{
 			args:  []string{"privacy"},
@@ -319,27 +304,11 @@ func TestRun_UnknownChildMapsLegacyAndAsymmetricPaths(t *testing.T) {
 			},
 		},
 		{
-			args:  []string{"versions", "localizations"},
-			group: "asc versions",
-			want: []string{
-				"asc localizations list --version VERSION_ID",
-				"asc localizations list --app APP_ID --version VERSION",
-			},
-		},
-		{
 			args:  []string{"versions", "get-build"},
 			group: "asc versions",
 			want: []string{
 				"asc versions view --version-id VERSION_ID --include-build",
 				"asc builds info --build-id BUILD_ID",
-			},
-		},
-		{
-			args:  []string{"testflight", "beta-groups"},
-			group: "asc testflight",
-			want: []string{
-				"asc testflight groups list --app APP_ID",
-				"asc testflight groups create --app APP_ID --name NAME",
 			},
 		},
 		{
@@ -462,8 +431,8 @@ func TestUnknownChildSynonymsResolveToRealCommands(t *testing.T) {
 			if findDirectSubcommand(groupCommand, token) != nil {
 				t.Fatalf("%q synonym %q shadows a real subcommand", group, token)
 			}
-			if target := readVerbTarget(groupCommand, token); target != nil {
-				t.Fatalf("%q synonym %q is unreachable: the command alias runs %q", group, token, target.Name)
+			if target := commandAliasTarget(group, groupCommand, token); target != "" {
+				t.Fatalf("%q synonym %q is unreachable: the command alias runs %q", group, token, target)
 			}
 			for _, invocation := range invocations {
 				assertHintInvocationResolves(t, root, group+" "+token, invocation)
