@@ -95,7 +95,7 @@ func TestReviewItemsAddConflictHintNamesTheNextStep(t *testing.T) {
 		{
 			name:     "unfulfilled compliance requirement",
 			body:     reviewItemsAddAssociatedBody("/v1/appInfos/info-1", "Cannot submit version due to unfulfilled compliance requirement."),
-			wantHint: " An unfulfilled compliance requirement is an App Store Regulations & Permits answer the app still needs: list them with `asc web apps declarations list --app APP_ID`.\n",
+			wantHint: " App Store Connect does not review the app until every compliance requirement has an answer. List the App Compliance requirements, such as the China mainland Security Assessment and AI Generated or Synthetic Content declarations, with `asc web apps compliance list --app APP_ID` and answer them with `asc web apps compliance set`; list the App Store Regulations & Permits declarations with `asc web apps declarations list --app APP_ID`.\n",
 		},
 		{
 			name:     "version already on another submission",

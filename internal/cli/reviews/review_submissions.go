@@ -493,7 +493,7 @@ Examples:
 
 			resp, err := client.SubmitReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
 			if err != nil {
-				return withSubmissionNeedsVersionHint(requestCtx, client, strings.TrimSpace(*submissionID), fmt.Errorf("review submissions-submit: %w", err))
+				return withComplianceRequirementHint(withSubmissionNeedsVersionHint(requestCtx, client, strings.TrimSpace(*submissionID), fmt.Errorf("review submissions-submit: %w", err)))
 			}
 
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
