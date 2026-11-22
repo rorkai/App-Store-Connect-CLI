@@ -220,7 +220,7 @@ func TestMetadataCategoriesRejectsInvalidCanonicalFile(t *testing.T) {
 		wantErr string
 	}{
 		{name: "missing file", wantErr: "--include categories requires"},
-		{name: "unknown field", body: `{"tertiaryCategory":"GAMES"}`, wantErr: `unknown field "tertiaryCategory"`},
+		{name: "unknown field", body: `{"tertiaryCategory":"GAMES"}`, wantErr: `unknown field "tertiaryCategory"; categories fields: primaryCategory, primarySubcategoryOne, primarySubcategoryTwo, secondaryCategory, secondarySubcategoryOne, secondarySubcategoryTwo`},
 		{name: "null clears are unsupported", body: `{"secondaryCategory":null}`, wantErr: "secondaryCategory cannot be null"},
 	}
 	for _, test := range tests {
