@@ -186,3 +186,35 @@ func TestBuildsAddGroupsSubmitPreservesPartialSuccessWhenSubmissionFails(t *test
 		t.Fatalf("expected underlying submission error, got %v", runErr)
 	}
 }
+
+// After the groups are added, Apple's 422 for the submission is followed by
+// the TestFlight information external testing still needs.
+func TestBuildsAddGroupsSubmitExplainsMissingExternalTestingInfo(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerAddGroupsLookups(reg, addGroupsExternalQABody)
+	registerAddGroupsExternalPreflight(reg, "READY_FOR_BETA_SUBMISSION")
+	registerAddGroupsPost(reg, "group-external")
+	reg.Register(asctest.GET("/v1/builds/build-1/betaAppReviewSubmission"),
+		asctest.JSON(http.StatusOK, `{"data":null,"links":{}}`))
+	reg.Register(asctest.POST("/v1/betaAppReviewSubmissions"), asctest.JSON(http.StatusUnprocessableEntity, betaReviewMissingDataBody))
+	reg.Register(asctest.GET("/v1/builds/build-1/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
+	reg.Register(asctest.GET("/v1/betaAppLocalizations", "filter[app]=app-1"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaAppLocalizations","id":"loc-1","attributes":{"description":"A beta","feedbackEmail":"beta@example.com","locale":"en-US"}}],"links":{}}`))
+	reg.Register(asctest.GET("/v1/betaAppReviewDetails", "filter[app]=app-1"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaAppReviewDetails","id":"app-1","attributes":{"contactEmail":"dev@example.com","contactFirstName":"Ada","contactLastName":"Lovelace","contactPhone":null}}],"links":{}}`))
+
+	_, _, runErr := runCommand(t, addGroupsSubmitArgs)
+	want := `builds add-groups: beta groups were added to build "build-1", but beta app review submission failed: Missing required information to submit for external testing: Missing requied data.
+App Store Connect needs this TestFlight information before external testing:
+  - beta app review contact phone
+Set it with:
+  asc testflight review edit --id "app-1" --contact-phone "PHONE"
+Then run again: asc testflight review submit --build-id "build-1" --confirm`
+	if runErr == nil || runErr.Error() != want {
+		t.Fatalf("error =\n%v\nwant\n%s", runErr, want)
+	}
+}

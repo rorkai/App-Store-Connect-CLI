@@ -176,12 +176,18 @@ func usageMessageRewrites(replacements []textReplacement) []shared.UsageMessageR
 
 // rewriteErrorText renames commands in an error message but leaves an
 // embedded net/http error alone, so `Get "https://..."` keeps its HTTP method
-// and URL instead of becoming `View "https://..."`.
+// and URL instead of becoming `View "https://..."`. Text from a
+// shared.VerbatimText error is kept too, so a command it names stays runnable.
 func rewriteErrorText(err error, replacements []textReplacement) string {
 	message := err.Error()
 	if urlErr, ok := errors.AsType[*url.Error](err); ok {
 		if before, after, found := strings.Cut(message, urlErr.Error()); found {
 			return applyTextReplacements(before, replacements) + urlErr.Error() + applyTextReplacements(after, replacements)
+		}
+	}
+	if verbatim, ok := errors.AsType[shared.VerbatimText](err); ok {
+		if before, after, found := strings.Cut(message, verbatim.Error()); found {
+			return applyTextReplacements(before, replacements) + verbatim.Error() + applyTextReplacements(after, replacements)
 		}
 	}
 	return applyTextReplacements(message, replacements)
