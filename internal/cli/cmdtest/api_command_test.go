@@ -167,6 +167,11 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: `api: the request body for PATCH /v1/appInfoLocalizations/{id} must be a JSON:API document, {"data":{"type":...,"attributes":{...}}}; it has no top-level "data" member`,
 		},
 		{
+			name:    "query on an unindexed mutation",
+			args:    []string{"api", "DELETE", "/v1/notIndexed/1?limit=1", "--confirm", "--allow-unknown-path"},
+			wantErr: "api: PATH query parameters must be documented for this operation",
+		},
+		{
 			name:    "body on GET",
 			args:    []string{"api", "GET", "/v1/apps", "--body", `{"data":{}}`},
 			wantErr: "api: --body is only supported for POST, PATCH, and DELETE requests",
