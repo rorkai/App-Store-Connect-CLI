@@ -27,6 +27,12 @@ func TestReviewSubmissionsSubmitNeedsVersionHintNamesTheVersionToAdd(t *testing.
 			wantHint: "Hint: App app-1 has no approved IOS version yet, so App Store Connect reviews this submission only together with an App Store version. Add version 1.0 (PREPARE_FOR_SUBMISSION) with `asc review items add --submission sub-1 --item-type appStoreVersions --item-id version-1`, then submit again.\n",
 		},
 		{
+			// Some versions report only the deprecated appStoreState.
+			name:     "editable version with appStoreState only",
+			versions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.0","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`,
+			wantHint: "Hint: App app-1 has no approved IOS version yet, so App Store Connect reviews this submission only together with an App Store version. Add version 1.0 (PREPARE_FOR_SUBMISSION) with `asc review items add --submission sub-1 --item-type appStoreVersions --item-id version-1`, then submit again.\n",
+		},
+		{
 			name:     "no editable version",
 			versions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"WAITING_FOR_REVIEW"}}]}`,
 			wantHint: "Hint: App app-1 has no approved IOS version yet, so App Store Connect reviews this submission only together with an App Store version. Create one with `asc versions create --app app-1 --version VERSION --platform IOS`, add it with `asc review items add --submission sub-1 --item-type appStoreVersions --item-id VERSION_ID`, then submit again.\n",
