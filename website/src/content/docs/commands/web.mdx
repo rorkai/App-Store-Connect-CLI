@@ -1391,6 +1391,7 @@ asc web sign-in-keys list --developer-team TEAM_ID --output json
 asc web sign-in-keys view --key-id KEY_ID --developer-team TEAM_ID --output json
 asc web sign-in-keys create --name "My App Sign in with Apple" --bundle-id BUNDLE_RESOURCE_ID --developer-team TEAM_ID --output-dir ./private-keys --confirm
 asc web sign-in-keys download --key-id KEY_ID --developer-team TEAM_ID --output-dir ./private-keys --confirm
+asc web sign-in-keys revoke --key-id KEY_ID --developer-team TEAM_ID --confirm
 ```
 
 `--bundle-id` is the opaque Bundle ID resource ID returned by `asc bundle-ids list`, not the reverse-DNS identifier. Enable Sign in with Apple on that App ID first. Creation requires `--confirm`, verifies the returned key's bundle association before downloading it, and does not duplicate an existing key with the same name. Standalone download also requires `--confirm` because it can consume Apple's one-time download.
@@ -1400,6 +1401,20 @@ asc web sign-in-keys download --key-id KEY_ID --developer-team TEAM_ID --output-
 Private key creation and download require macOS or Linux with native atomic file publication. Unsupported platforms fail before contacting Apple. If the destination changes during a download, it is preserved and the private key is retained in a mode-0600 recovery file whose path appears in the error.
 
 Apple's private Developer Portal endpoints may change. An uncertain mutation or one-time download is not retried automatically. If creation fails after Apple created the key, inspect `list` and `view`, then use `download` on the existing key rather than creating another. Store the downloaded file securely; Apple may not allow a second download.
+
+`revoke` permanently revokes a key, and every service signing with it stops working. It requires `--confirm`, refuses a key of another service, a key that also serves another service, and a key this account cannot revoke, then verifies the key is no longer listed. It is never retried automatically; revoke a key shared by several services in the Developer Portal.
+
+## APNs keys
+
+`push-keys` creates team-scoped APNs keys for sandbox and production through the same Developer Portal session. Inspect existing keys, including APNs keys, with `asc web sign-in-keys list` and `view`.
+
+```bash
+asc web push-keys create --name "My Team APNs" --developer-team TEAM_ID --output-dir ./private-keys --confirm
+asc web push-keys download --key-id KEY_ID --developer-team TEAM_ID --output-dir ./private-keys --confirm
+asc web push-keys revoke --key-id KEY_ID --developer-team TEAM_ID --confirm
+```
+
+`create` and `download` save `AuthKey_<KEY_ID>.p8` with mode 0600 and print a receipt with the key ID, name, and saved path; private bytes are never printed. Both require `--confirm` because they consume Apple's one-time download, and the same platform, recovery-file, and no-retry rules as Sign in with Apple keys apply. `download` refuses a key that is not an APNs key. `revoke` follows the same rules as `sign-in-keys revoke`.
 
 ## Session upkeep
 
