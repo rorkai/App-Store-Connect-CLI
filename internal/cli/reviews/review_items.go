@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -422,7 +423,7 @@ Examples:
 
 			resp, err := client.UpdateReviewSubmissionItem(requestCtx, trimmedID, attrs)
 			if err != nil {
-				return fmt.Errorf("%s: %w", errorPrefix, err)
+				return withReviewItemResolveHint(fmt.Errorf("%s: %w", errorPrefix, err))
 			}
 
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -719,4 +720,25 @@ func findExistingReviewSubmissionItem(
 		return found, true, nil
 	}
 	return nil, false, err
+}
+
+// reviewItemResolveRejectedText is Apple's 409 detail when --resolved targets
+// an item App Review did not reject.
+const reviewItemResolveRejectedText = "can only be resolved when it is in REJECTED state"
+
+// withReviewItemResolveHint says which items take --resolved and what changes
+// a submission that has none: App Store Connect lets only REJECTED items be
+// marked resolved, and an UNRESOLVED_ISSUES submission without one is changed
+// by canceling it, which returns its version to the developer.
+func withReviewItemResolveHint(err error) error {
+	apiErr, ok := errors.AsType[*asc.APIError](err)
+	if !ok || apiErr.StatusCode != http.StatusConflict || !slices.ContainsFunc(append([]string{apiErr.Detail}, apiErr.AllDetails...), func(detail string) bool {
+		return strings.Contains(detail, reviewItemResolveRejectedText)
+	}) {
+		return err
+	}
+	return &shared.HintedError{
+		Err:  err,
+		Hint: "Only items App Review rejected (state REJECTED) take --resolved. See each item's state with `asc review items list --submission SUBMISSION_ID`. When none is REJECTED there is nothing to resolve: to change what an UNRESOLVED_ISSUES submission contains, cancel it with `asc review submissions-cancel --id SUBMISSION_ID --confirm`, which returns the version for editing, then submit again.",
+	}
 }
