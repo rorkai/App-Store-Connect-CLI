@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	authsvc "github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	authcmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
@@ -434,5 +436,35 @@ func TestAuthStatusInvalidBypassWarningPrintedOnce(t *testing.T) {
 	}
 	if payload.StorageBackend == "" {
 		t.Fatalf("expected storage backend in auth status output, got empty payload: %q", stdout)
+	}
+}
+
+func TestAuthStatusValidateFailsAStoredKeyBlockedByAnAgreement(t *testing.T) {
+	writeDefaultAuthConfig(t)
+	t.Setenv("ASC_BEARER_TOKEN", "")
+	t.Setenv("ASC_BEARER_TOKEN_COMMAND", "")
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "limit=1"), asctest.JSON(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED","title":"A required agreement is missing or has expired","detail":"This request requires an in-effect agreement that has not been signed or has expired."}]}`))
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{"auth", "status", "--validate", "--output", "json"}, "1.0.0")
+	})
+
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d; stderr: %s", code, cmd.ExitError, stderr)
+	}
+	var payload struct {
+		Credentials []struct {
+			Validation      string `json:"validation"`
+			ValidationError string `json:"validationError"`
+		} `json:"credentials"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("stdout is not JSON: %v; stdout: %q", err, stdout)
+	}
+	if len(payload.Credentials) != 1 || payload.Credentials[0].Validation != "failed" || !strings.Contains(payload.Credentials[0].ValidationError, "An Account Holder must accept it") {
+		t.Fatalf("credentials = %+v, want the key reported failed with the agreement remediation", payload.Credentials)
 	}
 }

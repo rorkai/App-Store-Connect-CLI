@@ -383,7 +383,7 @@ func validateStoredCredential(ctx context.Context, cred authsvc.Credential) erro
 		return fmt.Errorf("failed to generate JWT: %w", err)
 	}
 	if err := probeCredential(ctx, client, cred.KeyType); err != nil {
-		if errors.Is(err, asc.ErrForbidden) {
+		if isPermissionOnlyFailure(err) {
 			return &permissionWarning{err: err}
 		}
 		return withNetworkDiagnostic(err, err)
