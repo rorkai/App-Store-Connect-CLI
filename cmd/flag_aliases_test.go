@@ -47,6 +47,8 @@ const (
 var flagAliases = []flagAliasCase{
 	{"analytics sales", "output-file", "output"},
 	{"analytics sales", "output-path", "output"},
+	{"api", "data", "body"},
+	{"api", "url-params", "query"},
 	{"apps app-encryption-declarations list", "build", "build-id"},
 	{"apps info relationships primary-category", "id", "info-id"},
 	{"apps info relationships primary-subcategory-one", "id", "info-id"},
