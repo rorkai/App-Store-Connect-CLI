@@ -77,6 +77,82 @@ func TestSubscriptionVersionsListJSON(t *testing.T) {
 	}
 }
 
+// A caller that knows only the subscription lists the localizations of its
+// newest version: the draft being edited when there is one, else the live one.
+func TestSubscriptionVersionLocalizationsListBySubscription(t *testing.T) {
+	tests := []struct {
+		name       string
+		versions   string
+		wantPath   string
+		wantStdout string
+		wantErr    string
+	}{
+		{
+			name:       "newest of several versions",
+			versions:   `{"data":[{"type":"subscriptionVersions","id":"ver-2","attributes":{"version":2,"state":"PREPARE_FOR_SUBMISSION"}},{"type":"subscriptionVersions","id":"ver-1","attributes":{"version":1,"state":"APPROVED"}}],"links":{}}`,
+			wantPath:   "/v1/subscriptionVersions/ver-2/localizations",
+			wantStdout: `"id":"loc-2"`,
+		},
+		{
+			name:     "no versions",
+			versions: `{"data":[],"links":{}}`,
+			wantErr:  `subscription 123456789 has no versions; create one with: asc subscriptions versions create --subscription-id "123456789"`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+			t.Setenv("ASC_APP_ID", "")
+			useSubscriptionVersionServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/123456789/versions":
+					if got := req.URL.Query().Get("limit"); got != "200" {
+						reportSubscriptionVersionHandlerError(t, w, "versions limit = %q, want 200", got)
+						return
+					}
+					writeSubscriptionVersionJSON(w, http.StatusOK, test.versions)
+				case req.Method == http.MethodGet && test.wantPath != "" && req.URL.Path == test.wantPath:
+					writeSubscriptionVersionJSON(w, http.StatusOK, `{"data":[{"type":"subscriptionLocalizations","id":"loc-2","attributes":{"locale":"en-US","name":"Pro"}}],"links":{}}`)
+				default:
+					reportSubscriptionVersionHandlerError(t, w, "unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+			}))
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"subscriptions", "versions", "localizations", "list",
+					"--subscription-id", "123456789", "--output", "json",
+				}); err != nil {
+					t.Fatal(err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			if stderr != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
+			}
+			if test.wantErr != "" {
+				if runErr == nil || !strings.Contains(runErr.Error(), test.wantErr) {
+					t.Fatalf("run error = %v, want %q", runErr, test.wantErr)
+				}
+				if stdout != "" {
+					t.Fatalf("stdout = %q, want empty", stdout)
+				}
+				return
+			}
+			if runErr != nil {
+				t.Fatalf("run error: %v", runErr)
+			}
+			if !strings.Contains(stdout, test.wantStdout) {
+				t.Fatalf("stdout = %q, want %s", stdout, test.wantStdout)
+			}
+		})
+	}
+}
+
 func TestSubscriptionVersionsValidationUsesUsageErrors(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -88,6 +164,9 @@ func TestSubscriptionVersionsValidationUsesUsageErrors(t *testing.T) {
 		{name: "invalid relationship limit", args: []string{"subscriptions", "versions", "view", "--id", "ver-1", "--images-limit", "51"}, message: "--images-limit must be between 1 and 50"},
 		{name: "next query conflict", args: []string{"subscriptions", "versions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/versions?cursor=next", "--state", "APPROVED"}, message: "--next cannot be combined with --state"},
 		{name: "delete confirm", args: []string{"subscriptions", "versions", "images", "delete", "--id", "img-1"}, message: "Error: --confirm is required"},
+		{name: "localization list both parents", args: []string{"subscriptions", "versions", "localizations", "list", "--version-id", "ver-1", "--subscription-id", "123456789"}, message: "--version-id and --subscription-id are mutually exclusive"},
+		{name: "localization list app without subscription", args: []string{"subscriptions", "versions", "localizations", "list", "--version-id", "ver-1", "--app", "123"}, message: "--app requires --subscription-id"},
+		{name: "localization list next with subscription", args: []string{"subscriptions", "versions", "localizations", "list", "--subscription-id", "123456789", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionVersions/ver-1/localizations?cursor=next"}, message: "--next cannot be combined with --subscription-id"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
