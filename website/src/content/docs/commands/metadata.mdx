@@ -53,7 +53,8 @@ Resolution completes before any metadata file is written, so an ambiguous or
 missing default leaves the output directory unchanged.
 
 Pulling again into the same `--dir` refreshes files that already hold the App
-Store Connect values, so a re-pull needs no `--force`. A file with different
+Store Connect values, and App Clip or preview media left unchanged since the last
+pull, so a re-pull needs no `--force`. A file with different
 values (a local edit not yet pushed) is kept, and pull fails before writing
 anything; push it first, or pass `--force` to replace it.
 

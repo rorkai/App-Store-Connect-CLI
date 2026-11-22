@@ -107,8 +107,24 @@ func PrepareExport(d *shared.Deps, root rootfs.Root, files []ExportFile, options
 			return nil, fmt.Errorf("invalid selected asset export path %q", f.Path)
 		}
 	}
-	if err := CheckExportTargets(root, files, options.Overwrite); err != nil {
+	if err := CheckExportTargets(root, files, true); err != nil {
 		return nil, err
+	}
+	if !options.Overwrite {
+		var differing []string
+		for _, f := range files {
+			actual, err := p.readFingerprint(f.Path)
+			if err != nil {
+				return nil, err
+			}
+			// The Windows fallback publishes create-only, so any existing file blocks it.
+			if actual != nil && (runtime.GOOS == "windows" || !p.unchanged(f, actual)) {
+				differing = append(differing, f.Path)
+			}
+		}
+		if len(differing) > 0 {
+			return nil, &DifferingTargetsError{Paths: differing}
+		}
 	}
 	if runtime.GOOS == "windows" {
 		if identity != nil {
@@ -117,6 +133,32 @@ func PrepareExport(d *shared.Deps, root rootfs.Root, files []ExportFile, options
 		p.legacyWindows = true
 	}
 	return p, nil
+}
+
+// DifferingTargetsError lists existing destinations, relative to the export
+// root, that an export without Overwrite would have to replace.
+type DifferingTargetsError struct {
+	Paths []string
+}
+
+func (e *DifferingTargetsError) Error() string {
+	return fmt.Sprintf("refusing to overwrite existing files that differ: %s", strings.Join(e.Paths, ", "))
+}
+
+func (e *DifferingTargetsError) Unwrap() error { return os.ErrExist }
+
+// unchanged reports whether an existing destination can be refreshed without
+// Overwrite: it already holds the bytes this export writes, or it is this
+// export's own earlier output, untouched since. Replacing either loses nothing.
+func (p *ManagedExport) unchanged(f ExportFile, actual *exportFingerprint) bool {
+	if index := p.index(f.Path); index >= 0 && matchesFingerprint(actual, p.inventory.Files[index]) {
+		return true
+	}
+	if f.Text == nil {
+		return false
+	}
+	planned, err := fingerprint(strings.NewReader(*f.Text), exportPathLimit(f.Path))
+	return err == nil && planned == *actual
 }
 
 func (p *ManagedExport) selected(scope string) bool {
@@ -309,7 +351,7 @@ func (p *ManagedExport) Write(ctx context.Context) ([]string, []string, error) {
 		if err != nil {
 			return written, warnings, err
 		}
-		if actual != nil && !p.options.Overwrite {
+		if actual != nil && !p.options.Overwrite && !p.unchanged(f, actual) {
 			return written, warnings, fmt.Errorf("export %s: destination appeared after preflight: %w", f.Path, os.ErrExist)
 		}
 		index := p.index(f.Path)
