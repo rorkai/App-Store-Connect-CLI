@@ -441,6 +441,7 @@ func TestAPIAcceptsCommonArgumentShapes(t *testing.T) {
 		want    string
 	}{
 		{name: "path without method", args: []string{"api", "/v1/apps/123/appInfos?limit=10"}, matcher: asctest.GET("/v1/apps/123/appInfos", "limit=10"), want: "GET /v1/apps/123/appInfos?limit=10"},
+		{name: "lone path without version or slash", args: []string{"api", "apps"}, matcher: asctest.GET("/v1/apps"), want: "GET /v1/apps"},
 		{name: "path without leading slash", args: []string{"api", "GET", "v1/apps/123/appInfos"}, matcher: asctest.GET("/v1/apps/123/appInfos"), want: "GET /v1/apps/123/appInfos"},
 		{name: "path without version", args: []string{"api", "GET", "apps/123/appInfos"}, matcher: asctest.GET("/v1/apps/123/appInfos"), want: "GET /v1/apps/123/appInfos"},
 		{name: "path with slash but without version", args: []string{"api", "GET", "/apps/123"}, matcher: asctest.GET("/v1/apps/123"), want: "GET /v1/apps/123"},

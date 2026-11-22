@@ -145,8 +145,9 @@ type rawRequest struct {
 // parseRequest validates the invocation before any credential or network
 // access. Every failure is a usage error with exit code 2.
 func parseRequest(ctx context.Context, d *shared.Deps, positional []string, query []string, body, bodyFile string, bodyProvided, bodyFileProvided, paginate, confirm, allowUnknownPath bool) (rawRequest, error) {
-	// A lone PATH is a GET: a method never contains a slash.
-	if len(positional) == 1 && strings.Contains(positional[0], "/") {
+	// A lone PATH is a GET: anything but a method name is a PATH, such as
+	// /v1/apps, apps/123 or apps.
+	if len(positional) == 1 && !isMethodName(positional[0]) {
 		positional = []string{http.MethodGet, positional[0]}
 	}
 	if len(positional) < 2 {
@@ -341,6 +342,16 @@ func undocumentedQueryNameError(d *shared.Deps, operation, key string, names []s
 		return d.UsageErrorf("api: query parameter %q is not documented for %s; did you mean %s? (documented: %s)"+schemaLagHint, key, operation, closest, strings.Join(names, ", "))
 	}
 	return d.UsageErrorf("api: query parameter %q is not documented for %s (documented: %s)"+schemaLagHint, key, operation, strings.Join(names, ", "))
+}
+
+// isMethodName reports whether raw names a method, supported or not, so a
+// lone `asc api PUT` still asks for METHOD and PATH.
+func isMethodName(raw string) bool {
+	switch strings.ToUpper(strings.TrimSpace(raw)) {
+	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions:
+		return true
+	}
+	return false
 }
 
 func normalizeMethod(d *shared.Deps, raw string) (string, error) {
