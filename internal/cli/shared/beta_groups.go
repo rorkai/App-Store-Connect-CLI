@@ -68,12 +68,42 @@ func ResolveBetaGroups(ctx context.Context, client betaGroupsClient, appID, rawG
 		return nil, fmt.Errorf("failed to list beta groups: %w", err)
 	}
 	if len(groups) > 1 {
-		resolved, err := ResolveBetaGroupsFromList([]string{strings.TrimSpace(rawGroups)}, page, opts)
+		resolved, err := resolveBetaGroupsFromList([]string{strings.TrimSpace(rawGroups)}, page, opts, appID)
 		if diagnostic, ok := DiagnosticFromError(err); !ok || diagnostic.Code != DiagnosticResourceNotFound {
 			return resolved, err
 		}
 	}
-	return ResolveBetaGroupsFromList(groups, page, opts)
+	return resolveBetaGroupsFromList(groups, page, opts, appID)
+}
+
+// maxListedBetaGroups bounds how many of the app's groups a not-found error
+// lists.
+const maxListedBetaGroups = 10
+
+// betaGroupNotFoundError says which app was searched and which groups it has,
+// so a name typo, a group of another app, or a group that does not exist yet
+// can be told apart from the message alone.
+func betaGroupNotFoundError(group, appID string, groups []asc.Resource[asc.BetaGroupAttributes]) error {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return fmt.Errorf("beta group %q not found", group)
+	}
+	if len(groups) == 0 {
+		return fmt.Errorf("beta group %q not found: app %s has no beta groups. Create one with: asc testflight groups create --app %q --name \"NAME\"", group, appID, appID)
+	}
+	listed := make([]string, 0, min(len(groups), maxListedBetaGroups))
+	for _, item := range groups[:min(len(groups), maxListedBetaGroups)] {
+		kind := "external"
+		if item.Attributes.IsInternalGroup {
+			kind = "internal"
+		}
+		listed = append(listed, fmt.Sprintf("%q (%s, %s)", strings.TrimSpace(item.Attributes.Name), strings.TrimSpace(item.ID), kind))
+	}
+	more := ""
+	if len(groups) > maxListedBetaGroups {
+		more = fmt.Sprintf(", and %d more (asc testflight groups list --app %q)", len(groups)-maxListedBetaGroups, appID)
+	}
+	return fmt.Errorf("beta group %q not found in app %s. Its groups: %s%s. Pass one of those names or IDs, or create the group with: asc testflight groups create --app %q --name \"NAME\"", group, appID, strings.Join(listed, ", "), more, appID)
 }
 
 // A name must still be checked against the full list for ambiguity.
@@ -105,6 +135,13 @@ func NormalizeBetaGroupName(name string) string {
 
 // ResolveBetaGroupsFromList resolves IDs or names against a provided beta-groups payload.
 func ResolveBetaGroupsFromList(inputGroups []string, groups *asc.BetaGroupsResponse, opts ResolveBetaGroupsOptions) ([]ResolvedBetaGroup, error) {
+	return resolveBetaGroupsFromList(inputGroups, groups, opts, "")
+}
+
+// resolveBetaGroupsFromList is ResolveBetaGroupsFromList with the ID of the
+// app whose groups were listed; a not-found error then names that app and its
+// groups.
+func resolveBetaGroupsFromList(inputGroups []string, groups *asc.BetaGroupsResponse, opts ResolveBetaGroupsOptions, appID string) ([]ResolvedBetaGroup, error) {
 	if groups == nil {
 		return nil, fmt.Errorf("no beta groups returned for app")
 	}
@@ -155,7 +192,7 @@ func ResolveBetaGroupsFromList(inputGroups []string, groups *asc.BetaGroupsRespo
 			}
 			switch len(matches) {
 			case 0:
-				return nil, WithDiagnostic(NewValidationError(fmt.Errorf("beta group %q not found", group)), DiagnosticResourceNotFound, "--group")
+				return nil, WithDiagnostic(NewValidationError(betaGroupNotFoundError(group, appID, groups.Data)), DiagnosticResourceNotFound, "--group")
 			case 1:
 				resolvedID = matches[0]
 			default:

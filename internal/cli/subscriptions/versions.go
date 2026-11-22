@@ -34,13 +34,13 @@ func newSubscriptionsVersionsCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Manage version-scoped subscription metadata.
 
 Version IDs are distinct from subscription product IDs. The product-scoped
-"subscriptions localizations" and "subscriptions images" commands are
-deprecated; use these version-scoped commands for new workflows.
+"subscriptions localizations" and "subscriptions images" commands were
+removed in 5.0.0; use these version-scoped commands instead.
 
 Examples:
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID"
   asc subscriptions versions create --subscription-id "SUBSCRIPTION_ID"
-  asc subscriptions versions localizations list --version-id "VERSION_ID"
+  asc subscriptions versions localizations list --subscription-id "SUBSCRIPTION_ID"
   asc subscriptions versions images upload --version-id "VERSION_ID" --file "./image.png"`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,

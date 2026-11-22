@@ -165,10 +165,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"add": {
 			"asc subscriptions create --group-id GROUP_ID --reference-name NAME --product-id PRODUCT_ID --subscription-period PERIOD",
 		},
-		"localizations": {
-			"asc subscriptions versions list --subscription-id SUBSCRIPTION_ID",
-			"asc subscriptions versions localizations list --version-id VERSION_ID",
-		},
 		"prices": {
 			"asc subscriptions pricing prices list --subscription-id SUBSCRIPTION_ID",
 			"asc subscriptions pricing prices set --subscription-id SUBSCRIPTION_ID --price PRICE --territory TERRITORY",

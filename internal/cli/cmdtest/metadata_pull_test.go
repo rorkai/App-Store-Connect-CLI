@@ -194,55 +194,98 @@ func TestMetadataPullWritesCanonicalLayout(t *testing.T) {
 	}
 }
 
-func TestMetadataPullRequiresForceToOverwriteExistingFiles(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	t.Setenv("ASC_APP_ID", "")
-
-	outputDir := filepath.Join(t.TempDir(), "metadata")
-	if err := os.MkdirAll(filepath.Join(outputDir, "app-info"), 0o755); err != nil {
-		t.Fatalf("mkdir app-info: %v", err)
+func TestMetadataPullExistingFiles(t *testing.T) {
+	tests := []struct {
+		name       string
+		existing   string
+		force      bool
+		wantErr    bool
+		wantStderr string
+		wantFile   string
+	}{
+		{
+			// A re-pull into the same --dir finds its own earlier output (or an
+			// edit that was pushed since), so refreshing it loses nothing.
+			name:     "same values in other formatting refresh without force",
+			existing: "{\n  \"subtitle\": \"Great app\",\n  \"name\": \"App Name\"\n}\n",
+			wantFile: `{"name":"App Name","subtitle":"Great app"}`,
+		},
+		{
+			name:       "different values are kept",
+			existing:   `{"name":"Local edit"}`,
+			wantErr:    true,
+			wantStderr: "Error: refusing to overwrite 1 file that differs from App Store Connect: APPINFO\nPush local edits first with `asc metadata push`, or rerun with --force to replace them with the App Store Connect values.\n",
+			wantFile:   `{"name":"Local edit"}`,
+		},
+		{
+			name:     "force replaces different values",
+			existing: `{"name":"Local edit"}`,
+			force:    true,
+			wantFile: `{"name":"App Name","subtitle":"Great app"}`,
+		},
 	}
-	existingPath := filepath.Join(outputDir, "app-info", "en-US.json")
-	if err := os.WriteFile(existingPath, []byte(`{"name":"existing"}`), 0o644); err != nil {
-		t.Fatalf("write existing file: %v", err)
-	}
 
-	reg := asctest.NewRegistry(t)
-	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
-	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App Name"}}],"links":{"next":""}}`))
-	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			outputDir := filepath.Join(t.TempDir(), "metadata")
+			if err := os.MkdirAll(filepath.Join(outputDir, "app-info"), 0o755); err != nil {
+				t.Fatalf("mkdir app-info: %v", err)
+			}
+			existingPath := filepath.Join(outputDir, "app-info", "en-US.json")
+			if err := os.WriteFile(existingPath, []byte(test.existing), 0o644); err != nil {
+				t.Fatalf("write existing file: %v", err)
+			}
+			versionPath := filepath.Join(outputDir, "version", "1.2.3", "en-US.json")
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"metadata", "pull",
-			"--app", "app-1",
-			"--version", "1.2.3",
-			"--dir", outputDir,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
+			reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
+			reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App Name","subtitle":"Great app"}}],"links":{"next":""}}`))
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"English description"}}],"links":{"next":""}}`))
 
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "use --force") {
-		t.Fatalf("expected force overwrite guidance, got %q", stderr)
+			args := []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3", "--dir", outputDir}
+			if test.force {
+				args = append(args, "--force")
+			}
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
+
+			if test.wantErr {
+				if runErr == nil || errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+					t.Fatalf("expected reported usage error without ErrHelp, got %v", runErr)
+				}
+				if stdout != "" {
+					t.Fatalf("expected empty stdout, got %q", stdout)
+				}
+				if want := strings.ReplaceAll(test.wantStderr, "APPINFO", existingPath); stderr != want {
+					t.Fatalf("stderr = %q, want %q", stderr, want)
+				}
+				if _, err := os.Stat(versionPath); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("expected no files written on refusal, stat %s: %v", versionPath, err)
+				}
+			} else {
+				if runErr != nil {
+					t.Fatalf("run error: %v (stderr %q)", runErr, stderr)
+				}
+				if _, err := os.Stat(versionPath); err != nil {
+					t.Fatalf("expected version file written: %v", err)
+				}
+			}
+			data, err := os.ReadFile(existingPath)
+			if err != nil {
+				t.Fatalf("read app-info file: %v", err)
+			}
+			if string(data) != test.wantFile {
+				t.Fatalf("app-info file = %q, want %q", data, test.wantFile)
+			}
+		})
 	}
 }
 

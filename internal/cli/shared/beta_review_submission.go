@@ -10,6 +10,7 @@ import (
 )
 
 type buildBetaReviewSubmissionClient interface {
+	betaReviewReadinessClient
 	GetBuildBetaAppReviewSubmission(ctx context.Context, buildID string) (*asc.BetaAppReviewSubmissionResponse, error)
 	CreateBetaAppReviewSubmission(ctx context.Context, buildID string) (*asc.BetaAppReviewSubmissionResponse, error)
 }
@@ -52,6 +53,7 @@ func SubmitBuildBetaReviewIfNeeded(ctx context.Context, client buildBetaReviewSu
 
 	submission, err := client.CreateBetaAppReviewSubmission(ctx, buildID)
 	if err != nil {
+		err = ExplainBetaReviewSubmissionError(ctx, client, buildID, err)
 		return nil, fmt.Errorf("%s: beta groups were added to build %q, but beta app review submission failed: %w", operationName, buildID, err)
 	}
 

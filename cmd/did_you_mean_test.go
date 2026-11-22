@@ -247,22 +247,6 @@ func TestRun_UnknownChildMapsLegacyAndAsymmetricPaths(t *testing.T) {
 			},
 		},
 		{
-			args:  []string{"subscriptions", "localizations"},
-			group: "asc subscriptions",
-			want: []string{
-				"asc subscriptions versions list --subscription-id SUBSCRIPTION_ID",
-				"asc subscriptions versions localizations list --version-id VERSION_ID",
-			},
-		},
-		{
-			args:  []string{"subscriptions", "localizations", "list", "--subscription-id", "123"},
-			group: "asc subscriptions",
-			want: []string{
-				"asc subscriptions versions list --subscription-id SUBSCRIPTION_ID",
-				"asc subscriptions versions localizations list --version-id VERSION_ID",
-			},
-		},
-		{
 			args:  []string{"subscriptions", "prices"},
 			group: "asc subscriptions",
 			want: []string{

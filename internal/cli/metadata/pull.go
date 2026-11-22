@@ -2,11 +2,13 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -43,7 +45,7 @@ func newMetadataPullCommand(d *shared.Deps) *ffcli.Command {
 	version := fs.String("version", "", "App version string (for example 1.2.3); defaults to the app's active editable version, then a developer-removed version, else the live version")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Output root directory (required)")
-	force := fs.Bool("force", false, "Overwrite existing metadata files in --dir")
+	force := fs.Bool("force", false, "Replace existing files in --dir whose values differ from App Store Connect (files that already match are refreshed without it)")
 	include := fs.String("include", includeLocalizations, metadataIncludeFlagUsage())
 	output := d.BindOutputFlags(fs)
 
@@ -65,6 +67,10 @@ When --version is omitted, the app's newest active editable App Store version is
 READY_FOR_REVIEW, WAITING_FOR_REVIEW, or INVALID_BINARY), then a
 DEVELOPER_REMOVED_FROM_SALE version, and finally the live version. The selected version is reported on stderr. Pass --platform when
 the app has candidate versions on more than one platform.
+
+Pulling again into the same --dir refreshes files that already hold the App Store
+Connect values. A file with different values (a local edit not yet pushed) is
+kept, and pull fails before writing anything; push it first, or pass --force.
 
 Examples:
   asc metadata pull --app "APP_ID" --dir "./metadata"
@@ -307,15 +313,54 @@ Examples:
 	}
 }
 
+// ensureNoExistingPullTargets refuses to replace a file whose JSON values
+// differ from what pull would write. A file that already holds the same values
+// is an earlier pull's output, or an edit pushed since, so refreshing it loses
+// nothing; a re-pull into the same --dir then needs no --force.
 func ensureNoExistingPullTargets(d *shared.Deps, plans []WritePlan) error {
+	var differing []string
 	for _, plan := range plans {
-		if _, err := os.Lstat(plan.Path); err == nil {
-			return d.UsageErrorf("refusing to overwrite existing file %s (use --force)", plan.Path)
-		} else if !errors.Is(err, os.ErrNotExist) {
+		info, err := os.Lstat(plan.Path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
 			return fmt.Errorf("metadata pull: failed to inspect %s: %w", plan.Path, err)
 		}
+		if info.Mode().IsRegular() {
+			existing, err := readFileNoFollow(plan.Path)
+			if err != nil {
+				return fmt.Errorf("metadata pull: failed to inspect %s: %w", plan.Path, err)
+			}
+			if sameJSONValues(existing, plan.Contents) {
+				continue
+			}
+		}
+		differing = append(differing, plan.Path)
 	}
-	return nil
+	if len(differing) == 0 {
+		return nil
+	}
+	noun := "1 file that differs"
+	if len(differing) > 1 {
+		noun = fmt.Sprintf("%d files that differ", len(differing))
+	}
+	message := fmt.Sprintf(
+		"refusing to overwrite %s from App Store Connect: %s\nPush local edits first with `asc metadata push`, or rerun with --force to replace them with the App Store Connect values.",
+		noun, strings.Join(differing, ", "),
+	)
+	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
+	return shared.NewReportedUsageError(shared.UsageErrorOther, message)
+}
+
+// sameJSONValues reports whether a and b decode to the same JSON value,
+// ignoring formatting and key order.
+func sameJSONValues(a, b []byte) bool {
+	var left, right any
+	if json.Unmarshal(a, &left) != nil || json.Unmarshal(b, &right) != nil {
+		return false
+	}
+	return reflect.DeepEqual(left, right)
 }
 
 func parseIncludes(value string) ([]string, error) {

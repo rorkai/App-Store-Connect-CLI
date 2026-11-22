@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -248,20 +249,124 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 	}
 }
 
-func TestAPIUnknownPathSuggestsNearestOperations(t *testing.T) {
-	client := func() (*asc.Client, error) {
-		return nil, errors.New("client factory must not run during validation")
+func TestAPIUnknownPathAnswersWithWhatToSend(t *testing.T) {
+	const allowFlag = "--allow-unknown-path"
+	tests := []struct {
+		name      string
+		args      []string
+		want      string
+		wantAllow bool
+	}{
+		{
+			name: "misspelled segment keeps the caller's ID",
+			args: []string{"api", "GET", "/v1/apps/123/buildz"},
+			want: "Did you mean GET /v1/apps/123/builds?",
+		},
+		{
+			name: "other API version",
+			args: []string{"api", "GET", "/v1/appAvailabilities/AV1/territoryAvailabilities"},
+			want: "Did you mean GET /v2/appAvailabilities/AV1/territoryAvailabilities?",
+		},
+		{
+			name: "expanded resource name",
+			args: []string{"api", "GET", "/v1/appInformations/INFO1/appInfoLocalizations"},
+			want: "Did you mean GET /v1/appInfos/INFO1/appInfoLocalizations?",
+		},
+		{
+			name:      "indexed resource without a close operation",
+			args:      []string{"api", "POST", "/v1/apps/123/requestTestNotification", "--confirm"},
+			want:      "Nearest known operations: ",
+			wantAllow: true,
+		},
+		{
+			name: "resource the index does not know",
+			args: []string{"api", "GET", "/v1/agreements"},
+			want: "No indexed operation shares its resource",
+		},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := func() (*asc.Client, error) {
+				return nil, errors.New("client factory must not run during validation")
+			}
+			stdout, stderr, code := runWithDeps(t, client, test.args...)
+			assertUsageExitOutput(t, stdout, stderr, test.want)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
+			// The usage text after the first line lists every flag.
+			message, _, _ := strings.Cut(stderr, "\n")
+			if got := strings.Contains(message, allowFlag); got != test.wantAllow {
+				t.Fatalf("error mentions %s = %v, want %v: %q", allowFlag, got, test.wantAllow, message)
+			}
+		})
+	}
+}
 
-	_, stderr, code := runWithDeps(t, client, "api", "GET", "/v1/apps/123/buildz")
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+var apiNativeCommandAdvice = regexp.MustCompile("Use `(asc [^`]+)`\\.")
+
+// TestAPIUnknownPathNamesTheNativeCommand sends each unindexed request that
+// `asc api` answers with a native command and resolves that command, flags
+// included, through the real root, so the advice cannot rot into an unknown
+// command or flag.
+func TestAPIUnknownPathNamesTheNativeCommand(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{path: "/v1/builds/B1/betaGroups", want: "asc builds groups list --build-id B1"},
+		{path: "/v1/builds/B1/relationships/betaGroups", want: "asc builds groups list --build-id B1"},
+		{path: "/v1/builds/B1/buildBundles", want: "asc builds info --build-id B1 --include buildBundles"},
+		{path: "/v1/apps/123/appInfoLocalizations", want: "asc localizations list --app 123 --type app-info"},
+		{path: "/v1/apps/123/appStoreLocalizations", want: "asc localizations list --app 123"},
+		{path: "/v1/appStoreVersions/V1/localizations", want: "asc localizations list --version V1"},
+		{path: "/v1/appStoreVersions/V1/appScreenshotSets", want: "asc screenshots list --version V1"},
+		{path: "/v1/ageRatingDeclarations/D1", want: "asc age-rating view --app APP_ID"},
+		{path: "/v1/apps/123/ageRatingDeclaration", want: "asc age-rating view --app 123"},
+		{path: "/v1/subscriptionAppStoreReviewScreenshots", want: "asc subscriptions review app-store-screenshot view --subscription-id SUBSCRIPTION_ID"},
+		{path: "/v1/reviewSubmissionItems", want: "asc review items list --submission SUBMISSION_ID"},
+		{path: "/v1/reviewSubmissionItems/I1", want: "asc review items list --submission SUBMISSION_ID"},
+		{path: "/v1/apps/123/prices", want: "asc pricing current --app 123"},
+		{path: "/v1/apps/123/appPrices", want: "asc pricing current --app 123"},
+		{path: "/v1/apps/123/availableTerritories", want: "asc pricing availability view --app 123"},
+		{path: "/v1/apps/123/appDataUsages", want: "asc web privacy pull --app 123"},
 	}
-	if !strings.Contains(stderr, "GET /v1/apps/{id}/builds") {
-		t.Fatalf("stderr = %q, want nearest operation GET /v1/apps/{id}/builds", stderr)
-	}
-	if !strings.Contains(stderr, "--allow-unknown-path") {
-		t.Fatalf("stderr = %q, want --allow-unknown-path hint", stderr)
+	root := RootCommand("1.2.3")
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			client := func() (*asc.Client, error) {
+				return nil, errors.New("client factory must not run during validation")
+			}
+			_, stderr, code := runWithDeps(t, client, "api", "GET", test.path)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
+			match := apiNativeCommandAdvice.FindStringSubmatch(stderr)
+			if match == nil || match[1] != test.want {
+				t.Fatalf("stderr = %q, want advice `%s`", stderr, test.want)
+			}
+			if message, _, _ := strings.Cut(stderr, "\n"); strings.Contains(message, "--allow-unknown-path") {
+				t.Fatalf("error = %q, want no --allow-unknown-path advice next to a native command", message)
+			}
+
+			words := strings.Fields(test.want)[1:]
+			command := root
+			for len(words) > 0 && !strings.HasPrefix(words[0], "-") {
+				command = findSubcommand(command, words[0])
+				if command == nil {
+					t.Fatalf("`%s` names an unknown command at %q", test.want, words[0])
+				}
+				words = words[1:]
+			}
+			if len(command.Subcommands) > 0 {
+				t.Fatalf("`%s` names a command group, not a leaf", test.want)
+			}
+			for _, word := range words {
+				if name, ok := strings.CutPrefix(word, "--"); ok && command.FlagSet.Lookup(name) == nil {
+					t.Fatalf("`%s` passes --%s, which the command does not define", test.want, name)
+				}
+			}
+		})
 	}
 }
 
