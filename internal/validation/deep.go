@@ -175,7 +175,7 @@ func publicAPIResolutionCommand(report Report, check CheckResult) fixCommand {
 			if values == ageRatingLevelPlaceholder {
 				// INFREQUENT_OR_MILD is one value, so the levels cannot be
 				// joined with _OR_ the way TRUE_OR_FALSE is.
-				fix.note = ageRatingLevelPlaceholder + " is NONE, INFREQUENT_OR_MILD, or FREQUENT_OR_INTENSE"
+				fix.note = ageRatingLevelPlaceholder + " is NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, or FREQUENT"
 			}
 			return fix
 		}
