@@ -91,6 +91,8 @@ func (c *Client) GetRatings(ctx context.Context, appID, country string) (*AppRat
 	return ratings, nil
 }
 
+const histogramOperation = "histogram"
+
 func (c *Client) fetchHistogram(ctx context.Context, appID, country string, ratings *AppRatings) error {
 	storefront, ok := Storefronts[country]
 	if !ok {
@@ -107,7 +109,7 @@ func (c *Client) fetchHistogram(ctx context.Context, appID, country string, rati
 	req.Header.Set("X-Apple-Store-Front", storefront+",12")
 	req.Header.Set("Accept", "text/html")
 
-	return c.do(ctx, "histogram", req, func(resp *http.Response) error {
+	return c.do(ctx, histogramOperation, req, func(resp *http.Response) error {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to read histogram response: %w", err)
