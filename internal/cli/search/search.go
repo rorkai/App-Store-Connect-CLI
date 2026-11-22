@@ -227,6 +227,7 @@ func parseInterspersedSearchFlags(fs *flag.FlagSet, args []string) ([]string, er
 		return args, nil
 	}
 
+	setter := shared.NewInterspersedFlagSetter(fs)
 	queryArgs := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -251,10 +252,7 @@ func parseInterspersedSearchFlags(fs *flag.FlagSet, args []string) ([]string, er
 		}
 
 		if isBoolSearchFlag(f) && !hasValue {
-			if err := f.Value.Set("true"); err != nil {
-				return nil, fmt.Errorf("invalid value %q for --%s: %w", "true", name, err)
-			}
-			continue
+			value, hasValue = "true", true
 		}
 
 		if !hasValue {
@@ -265,8 +263,8 @@ func parseInterspersedSearchFlags(fs *flag.FlagSet, args []string) ([]string, er
 			value = args[i]
 		}
 
-		if err := f.Value.Set(value); err != nil {
-			return nil, fmt.Errorf("invalid value %q for --%s: %w", value, name, err)
+		if err := setter.Set(f, name, value); err != nil {
+			return nil, err
 		}
 	}
 
