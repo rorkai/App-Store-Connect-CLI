@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -20,6 +21,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/schema"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/suggest"
 )
 
 const (
@@ -34,12 +36,12 @@ func NewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("api", flag.ExitOnError)
 
 	var query shared.MultiStringFlag
-	fs.Var(&query, "query", "Query parameter as key=value (repeatable; GET only)")
+	fs.Var(&query, "query", "Query parameter as key=value (repeatable; GET only); names and documented values are checked against the operation")
 	body := fs.String("body", "", "Inline JSON request body, or @path to read a file (@- for stdin); POST, PATCH, and DELETE only")
 	bodyFile := fs.String("body-file", "", "Path to a JSON request body file (- for stdin); mutually exclusive with --body")
 	paginate := fs.Bool("paginate", false, "Follow links.next and print one merged collection envelope (GET only)")
 	confirm := fs.Bool("confirm", false, "Required for POST, PATCH, and DELETE requests")
-	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH are not in the embedded schema index")
+	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH, or its query parameter names and values, are not in the embedded schema index")
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "json", "Output format: json", "json")
 
 	return &ffcli.Command{
@@ -59,7 +61,10 @@ error names the asc command that serves the request, or the indexed path it
 most likely means (another API version or a misspelled segment), or else the
 nearest known operations. Every non-GET request requires --confirm.
 For non-GET requests, pass query parameters documented for the operation in
-PATH itself.
+PATH itself. Query parameter names, and the values of parameters that
+document them (include, fields[...], sort, enum filters), must be documented
+for the operation; anything else is a usage error before any request unless
+--allow-unknown-path is set, for values Apple added after the snapshot.
 
 Examples:
   asc api GET /v1/apps --query limit=5 --query "fields[apps]=name,bundleId"
@@ -198,14 +203,14 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	if !indexed && !allowUnknownPath {
 		return rawRequest{}, unknownOperationError(d, method, path)
 	}
-	if method != http.MethodGet {
-		for key := range values {
-			if !slices.ContainsFunc(endpoint.Parameters, func(param schema.Parameter) bool {
-				return param.In == "query" && param.Name == key
-			}) {
-				return rawRequest{}, d.UsageError("api: PATH query parameters must be documented for this operation")
-			}
+	if indexed && !allowUnknownPath {
+		if err := validateQuery(d, endpoint, values); err != nil {
+			// The failure is the query, not the --allow-unknown-path the
+			// message offers, so telemetry's failure parameter stays empty.
+			return rawRequest{}, shared.WithDiagnostic(err, shared.DiagnosticInvalidInput, "")
 		}
+	} else if method != http.MethodGet && len(values) > 0 {
+		return rawRequest{}, d.UsageError("api: PATH query parameters must be documented for this operation")
 	}
 	// The media-type check uses the matched template, so it applies under
 	// --allow-unknown-path too: the limitation is the response representation,
@@ -231,6 +236,82 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 		target = "https://" + parsed.Host + target
 	}
 	return rawRequest{method: method, target: target, query: values, body: payload, paginate: paginate}, nil
+}
+
+// paginationCursor is the query parameter Apple adds to links.next. The
+// OpenAPI snapshot documents no operation with it, but a caller following a
+// next link passes it back.
+const paginationCursor = "cursor"
+
+// schemaLagHint ends a query error that the embedded schema decides: the
+// snapshot can lag Apple, which adds attributes and states between releases.
+const schemaLagHint = ". If Apple accepts it after this snapshot, pass --allow-unknown-path to send it anyway."
+
+// validateQuery checks every query parameter name, and each comma-separated
+// value of a parameter with documented values, against the matched
+// operation, so a request Apple would answer with 400 PARAMETER_ERROR fails
+// first as a usage error that lists what the operation accepts.
+func validateQuery(d *shared.Deps, endpoint schema.Endpoint, values url.Values) error {
+	operation := endpoint.Method + " " + endpoint.Path
+	documented := map[string]schema.Parameter{}
+	var names []string
+	for _, param := range endpoint.Parameters {
+		if param.In == "query" {
+			documented[param.Name] = param
+			names = append(names, param.Name)
+		}
+	}
+	keys := slices.Sorted(maps.Keys(values))
+	for _, key := range keys {
+		param, ok := documented[key]
+		if !ok && endpoint.Method == http.MethodGet && key == paginationCursor {
+			continue
+		}
+		if !ok {
+			return undocumentedQueryNameError(d, operation, key, names, documented)
+		}
+		if len(param.Enum) == 0 {
+			continue
+		}
+		for _, value := range values[key] {
+			for item := range strings.SplitSeq(value, ",") {
+				item = strings.TrimSpace(item)
+				if item != "" && !slices.Contains(param.Enum, item) {
+					return d.UsageErrorf("api: %s value %q is not documented for %s (documented: %s)"+schemaLagHint, key, item, operation, strings.Join(param.Enum, ", "))
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func undocumentedQueryNameError(d *shared.Deps, operation, key string, names []string, documented map[string]schema.Parameter) error {
+	// Shell escaping (filter\[app\]) and percent-encoding in --query
+	// (filter%5Bapp%5D) both reach Apple literally.
+	if strings.Contains(key, `\`) {
+		unescaped := strings.ReplaceAll(key, `\`, "")
+		if _, ok := documented[unescaped]; ok {
+			return d.UsageErrorf("api: query parameter %q contains a backslash, which Apple receives literally; pass %s", key, unescaped)
+		}
+	}
+	if decoded, err := url.QueryUnescape(key); err == nil && decoded != key {
+		if _, ok := documented[decoded]; ok {
+			return d.UsageErrorf("api: query parameter %q is percent-encoded, which --query sends literally; pass %s", key, decoded)
+		}
+	}
+	if len(names) == 0 {
+		return d.UsageErrorf("api: query parameter %q is not documented for %s; it documents no query parameters"+schemaLagHint, key, operation)
+	}
+	closest, distance := "", 3
+	for _, name := range names {
+		if candidate := suggest.Distance(key, name); candidate < distance {
+			closest, distance = name, candidate
+		}
+	}
+	if closest != "" {
+		return d.UsageErrorf("api: query parameter %q is not documented for %s; did you mean %s? (documented: %s)"+schemaLagHint, key, operation, closest, strings.Join(names, ", "))
+	}
+	return d.UsageErrorf("api: query parameter %q is not documented for %s (documented: %s)"+schemaLagHint, key, operation, strings.Join(names, ", "))
 }
 
 func normalizeMethod(d *shared.Deps, raw string) (string, error) {
