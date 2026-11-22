@@ -21,7 +21,7 @@ Apply fixes and external writes only when authorized. Otherwise report the verif
 
 1. Verify new claims against code, API schemas, and existing behavior.
 2. Reproduce a valid defect and add or update a focused test before changing behavior.
-3. Implement the smallest coherent fix, run the affected checks, and commit when authorized. Complete the final full-branch review loop in `AGENTS.md` on the final committed head, then push when authorized.
+3. Implement the smallest coherent fix, run the affected checks, and commit when authorized. Push when authorized.
 4. When review communication is authorized, reply to and resolve only the threads fully addressed by that push.
 5. Re-fetch the PR after pushing and confirm the live head, checks, and thread state.
 6. Continue from the fresh head while required checks or reviews remain pending; apply new authorized fixes in additive commits.
@@ -31,7 +31,7 @@ Apply fixes and external writes only when authorized. Otherwise report the verif
 - `observed`: a one-time check completed; report the requested facts and mark readiness unverified unless separately established. An actionable finding does not make a completed read-only check blocked.
 - `changed`: pushed a fix; include commit and validation.
 - `pending`: required checks, required reviews, or actionable reviews are still running; identify exactly what remains. This is an intermediate state during a user-requested loop, not the final handoff.
-- `clean`: the final full-branch local review in `AGENTS.md` is clear for the current head and recorded review base, required checks pass, required reviews are satisfied, the latest head is mergeable, and no actionable unresolved thread remains. A later base advance alone does not invalidate that review. Report advisory jobs without treating them as blockers.
+- `clean`: required checks pass, required reviews are satisfied, the latest head is mergeable, and no actionable unresolved thread remains. Report advisory jobs without treating them as blockers.
 - `blocked`: user input, permissions, an external outage, or an unsafe product decision prevents progress.
 
 For an authorized merge, confirm `$audit-asc-pr`'s complete gate immediately before merging: refresh remote head, required checks and reviews, threads, and mergeability, and reuse valid local review and validation evidence under `AGENTS.md`. Follow its history rules.
