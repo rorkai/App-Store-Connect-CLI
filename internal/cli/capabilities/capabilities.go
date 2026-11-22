@@ -427,6 +427,16 @@ func capabilityRows() []Capability {
 			NextAction: "Use App Store Connect web UI, or asc web apps declarations list.",
 		},
 		{
+			Area:       "app-management",
+			Capability: "App Compliance requirements",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web apps compliance list"},
+			Notes: []string{
+				"App Compliance requirements, such as the China mainland Security Assessment and AI Generated or Synthetic Content declarations, are not present in the embedded public OpenAPI snapshot. Listing reports every requirement Apple returns for the app, answered or not; answering them remains website-only.",
+			},
+			NextAction: "Read with asc web apps compliance list --app APP_ID; answer the requirements in App Store Connect.",
+		},
+		{
 			Area:       "monetization",
 			Capability: "Subscriptions and in-app purchases",
 			Status:     statusCLISupported,

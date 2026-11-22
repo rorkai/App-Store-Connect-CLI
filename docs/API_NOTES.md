@@ -79,6 +79,15 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
   - `asc web apps medical-device region set --app APP_ID --region REGION --input PATH --confirm`: sends `PUT .../forms` with rootfs-anchored `declaration`, localized `supportInfo`, and `registrationNumber` (for `USA`/`EEA`). Requires app-level declaration `yes` and region availability in `$[*].countriesOrRegions`. Performs contact preflight (legal entity, region coverage, non-empty phone/email/address, no missing constraint legal-entity candidates), sends one PUT, and verifies readback. Negative regional and restore paths are live-verified; arbitrary affirmative legal/contact values remain provider-dependent.
 - Personal-service declarations (`personalServiceDeclaration`) are not implemented (no live fixture). EU DSA trader status (`GET /ppm/v1/accounts/{id}/sellerInfo`, `POST /ppm/v1/legalEntities/{id}/sellerInfo`) requires interactive `id.apple.com` identity verification and is out of scope for unattended CLI writes.
 
+## App Compliance requirements
+
+- The public OpenAPI snapshot has no App Compliance endpoints. The China mainland Security Assessment and AI Generated or Synthetic Content requirements use the web-session `ppm/compliancerequirements/v1` service, which is separate from `ppm/complianceform/v1` and returns none of its requirements.
+- `asc web apps compliance list`: `GET /ppm/compliancerequirements/v1/accounts/{accountId}/requirements?entity_id={appId}` (the app is the snake-case `entity_id` query parameter). `accountId` is the session's public provider ID.
+  - Every requirement is returned, answered or not. An unanswered one has `status: PENDING_COLLECT` and no `formId`, `dateSigned`, `lastUpdatedDate`, or `requiredActions`; the service omits empty fields, including `data` itself.
+  - `formName` is the only kind key (`SECURITYASF395E`, `AIGENERATEFD1DE`); the CLI maps those two to `SECURITY_ASSESSMENT` and `AI_GENERATED_CONTENT` and reports any other code as-is.
+  - `countries` holds ISO 3166-1 alpha-3 codes (`CHN`). Requirement IDs are the same for every app of an account.
+  - Live-verified read-only on 2026-11-22 with the same UI headers as the declarations service.
+
 ## Web-session API keys
 
 - `asc web api-keys list` combines iris v1 team keys (`GET /iris/v1/apiKeys?include=createdBy,revokedBy,provider&sort=-isActive,-revokingDate&limit=2000`) and iris v2 individual keys (`GET /iris/v2/apiKeys?include=visibleApps,createdByActor,revokedByActor&limit[visibleApps]=3&limit=2000`), following `links.next` internally (no `--paginate`). Use `asc web auth capabilities --key-id` to resolve actor-backed roles when an individual key's `roles` array is empty.

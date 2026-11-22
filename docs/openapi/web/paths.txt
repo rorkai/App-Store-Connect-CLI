@@ -98,6 +98,7 @@ GET /olympus/v1/contractMessages
 GET /olympus/v1/session
 GET /ppm/complianceform/v1/accounts/{accountId}/requirements/{requirementId}/forms
 GET /ppm/complianceform/v1/accounts/{id}/requirements
+GET /ppm/compliancerequirements/v1/accounts/{accountId}/requirements
 GET /sandbox/v2/provider/account/list
 GET /services-account/QH65B2/account/auth/key/download
 HEAD /logout

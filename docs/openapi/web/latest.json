@@ -8360,6 +8360,57 @@
         ]
       }
     },
+    "/ppm/compliancerequirements/v1/accounts/{accountId}/requirements": {
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "get": {
+        "tags": [
+          "AppComplianceRequirements"
+        ],
+        "operationId": "appComplianceRequirements_getCollection",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "2XX": {
+            "description": "Success. The schema lists the fields the client reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppComplianceRequirementsResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code."
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-22",
+          "live": "2026-11-22"
+        },
+        "x-asc-source": [
+          "Client.ListAppComplianceRequirements"
+        ]
+      }
+    },
     "/sandbox/v2/account/create": {
       "post": {
         "tags": [
@@ -12245,6 +12296,58 @@
         "required": [
           "data"
         ]
+      },
+      "AppComplianceRequirementsResponse": {
+        "type": "object",
+        "title": "AppComplianceRequirementsResponse",
+        "properties": {
+          "data": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "countries": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "nullable": true
+                },
+                "dateSigned": {
+                  "type": "string"
+                },
+                "formId": {
+                  "type": "string"
+                },
+                "formName": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "isRequired": {
+                  "type": "boolean"
+                },
+                "lastUpdatedDate": {
+                  "type": "string"
+                },
+                "requiredActions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "nullable": true
+                },
+                "status": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "additionalProperties": true
       },
       "AppConfigResponse": {
         "type": "object",
