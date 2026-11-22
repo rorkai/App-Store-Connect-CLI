@@ -2,11 +2,10 @@ package cmdtest
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
@@ -52,24 +51,30 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		t.Fatalf("parse report: %v\n%s", err, stdout)
 	}
 
+	// userInput rows hold a decision only the developer can make, so their
+	// commands must carry placeholders and needsUserInput instead of a choice.
 	tests := []struct {
-		checkID string
-		field   string
-		want    string
+		checkID   string
+		field     string
+		want      []string
+		userInput bool
 	}{
-		{checkID: "build.required.missing", want: `asc versions attach-build --app "app-1" --version-id "ver-1" --latest`},
-		{checkID: "categories.primary_missing", field: "primaryCategory", want: `asc categories set --app "app-1" --app-info "info-1" --primary "CATEGORY_ID"`},
-		{checkID: "content_rights.missing", field: "contentRightsDeclaration", want: `asc apps update --id "app-1" --content-rights "DECLARATION"`},
-		{checkID: "review_details.missing", want: `asc review details-create --version-id "ver-1" --contact-first-name "FIRST_NAME" --contact-last-name "LAST_NAME" --contact-email "EMAIL" --contact-phone "PHONE"`},
-		{checkID: "metadata.required.description", field: "description", want: `asc localizations update --id "ver-loc-1" --description "DESCRIPTION"`},
-		{checkID: "metadata.required.keywords", field: "keywords", want: `asc localizations update --id "ver-loc-1" --keywords "KEYWORDS"`},
-		{checkID: "metadata.required.support_url", field: "supportUrl", want: `asc localizations update --id "ver-loc-1" --support-url "https://example.com/support"`},
-		{checkID: "legal.required.copyright", field: "copyright", want: fmt.Sprintf(`asc versions update --version-id "ver-1" --copyright "%d Your Company"`, time.Now().UTC().Year())},
-		{checkID: "age_rating.missing_field", field: "advertising", want: `asc age-rating edit --app "app-1" --advertising "true|false"`},
-		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", want: `asc age-rating edit --app "app-1" --alcohol-tobacco-drug-use "NONE|INFREQUENT_OR_MILD|FREQUENT_OR_INTENSE"`},
-		{checkID: "availability.missing", field: "appAvailabilityV2", want: `asc pricing availability create --app "app-1" --all-territories --available true --available-in-new-territories true`},
-		{checkID: "pricing.schedule.missing", field: "appPriceSchedule", want: `asc pricing schedule create --app "app-1" --free --base-territory "USA"`},
-		{checkID: "screenshots.required.any", want: `asc screenshots upload --app "app-1" --version-id "ver-1" --locale "en-US" --path "./screenshots/en-US" --device-type "IPHONE_65"`},
+		{checkID: "build.required.missing", want: []string{`asc versions attach-build --app "app-1" --version-id "ver-1" --latest`}},
+		{checkID: "screenshots.required.any", want: []string{`asc screenshots upload --app "app-1" --version-id "ver-1" --locale "en-US" --path "./screenshots/en-US" --device-type "IPHONE_65"`}},
+		{checkID: "categories.primary_missing", field: "primaryCategory", userInput: true, want: []string{`asc categories set --app "app-1" --app-info "info-1" --primary "CATEGORY_ID"`}},
+		{checkID: "content_rights.missing", field: "contentRightsDeclaration", userInput: true, want: []string{`asc apps update --id "app-1" --content-rights "USES_THIRD_PARTY_CONTENT_OR_DOES_NOT_USE_THIRD_PARTY_CONTENT"`}},
+		{checkID: "review_details.missing", userInput: true, want: []string{`asc review details-create --version-id "ver-1" --contact-first-name "FIRST_NAME" --contact-last-name "LAST_NAME" --contact-email "EMAIL" --contact-phone "PHONE"`}},
+		{checkID: "metadata.required.description", field: "description", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --description "DESCRIPTION"`}},
+		{checkID: "metadata.required.keywords", field: "keywords", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --keywords "KEYWORDS"`}},
+		{checkID: "metadata.required.support_url", field: "supportUrl", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --support-url "https://example.com/support"`}},
+		{checkID: "legal.required.copyright", field: "copyright", userInput: true, want: []string{`asc versions update --version-id "ver-1" --copyright "YEAR RIGHTS_HOLDER"`}},
+		{checkID: "age_rating.missing_field", field: "advertising", userInput: true, want: []string{`asc age-rating edit --app "app-1" --advertising "TRUE_OR_FALSE"`}},
+		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", userInput: true, want: []string{`asc age-rating edit --app "app-1" --alcohol-tobacco-drug-use "NONE_OR_INFREQUENT_OR_MILD_OR_FREQUENT_OR_INTENSE"`}},
+		{checkID: "availability.missing", field: "appAvailabilityV2", userInput: true, want: []string{`asc pricing availability create --app "app-1" --territory "TERRITORIES" --available true --available-in-new-territories "TRUE_OR_FALSE"`}},
+		{checkID: "pricing.schedule.missing", field: "appPriceSchedule", userInput: true, want: []string{
+			`asc pricing schedule create --app "app-1" --price-point "PRICE_POINT_ID" --base-territory "BASE_TERRITORY"`,
+			`asc pricing schedule create --app "app-1" --free --base-territory "BASE_TERRITORY"`,
+		}},
 	}
 	for _, test := range tests {
 		t.Run(test.checkID+"/"+test.field, func(t *testing.T) {
@@ -84,11 +89,14 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 			if found == nil {
 				t.Fatalf("no blocking %s (field %q) in report: %+v", test.checkID, test.field, report.Checks)
 			}
-			if found.Resolution == nil || found.Resolution.Fixability != validation.FixabilityAPIFixable || len(found.Resolution.Commands) != 1 || found.Resolution.Commands[0] != test.want {
-				t.Fatalf("resolution = %+v, want api-fixable with command %s", found.Resolution, test.want)
+			if found.Resolution == nil || found.Resolution.Fixability != validation.FixabilityAPIFixable || !slices.Equal(found.Resolution.Commands, test.want) || found.Resolution.NeedsUserInput != test.userInput {
+				t.Fatalf("resolution = %+v, want api-fixable commands %q with needsUserInput=%v", found.Resolution, test.want, test.userInput)
 			}
-			if !strings.Contains(found.Remediation, test.want) && !strings.Contains(found.Remediation, strings.Join(strings.Fields(test.want)[:3], " ")) {
-				t.Fatalf("remediation = %q, want it to name %s", found.Remediation, test.want)
+			if !strings.Contains(found.Remediation, strings.Join(strings.Fields(test.want[0])[:3], " ")) {
+				t.Fatalf("remediation = %q, want it to name %s", found.Remediation, test.want[0])
+			}
+			if test.userInput != strings.Contains(found.Remediation, "placeholder") {
+				t.Fatalf("remediation = %q, want the placeholder note only when the developer must answer", found.Remediation)
 			}
 		})
 	}

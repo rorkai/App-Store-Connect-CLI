@@ -27,7 +27,7 @@ func contentRightsChecks(appID string, declaration *string) []CheckResult {
 				ResourceType: "app",
 				ResourceID:   strings.TrimSpace(appID),
 				Message:      "content rights declaration is not set",
-				Remediation:  fmt.Sprintf("Set content rights: asc apps update --id %s --content-rights %s", strings.TrimSpace(appID), contentRightsDoesNotUseThirdPartyContent),
+				Remediation:  "Declare whether the app uses third-party content",
 			},
 		}
 	}
@@ -44,7 +44,7 @@ func contentRightsChecks(appID string, declaration *string) []CheckResult {
 				ResourceType: "app",
 				ResourceID:   strings.TrimSpace(appID),
 				Message:      fmt.Sprintf("content rights declaration has unsupported value %q", strings.TrimSpace(*declaration)),
-				Remediation:  fmt.Sprintf("Set content rights: asc apps update --id %s --content-rights %s", strings.TrimSpace(appID), contentRightsDoesNotUseThirdPartyContent),
+				Remediation:  "Declare whether the app uses third-party content",
 			},
 		}
 	}

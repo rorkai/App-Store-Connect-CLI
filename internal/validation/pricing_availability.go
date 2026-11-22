@@ -46,7 +46,7 @@ func pricingChecks(appID string, priceScheduleID string, basePriceMissing bool, 
 			ResourceType: "app",
 			ResourceID:   strings.TrimSpace(appID),
 			Message:      "app price schedule is missing",
-			Remediation:  "Set a price (Free counts)",
+			Remediation:  "Set the price the developer chooses, Free included (list price points with asc pricing price-points)",
 		},
 	}
 }

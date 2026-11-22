@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 )
 
 // SummarizeDeepChecks counts deep checks by terminal status.
@@ -73,19 +72,41 @@ func attachFixCommands(appID, versionID string, checks []CheckResult) {
 		if check.Resolution != nil || strings.TrimSpace(check.Remediation) == "" {
 			continue
 		}
-		command := publicAPIResolutionCommand(report, *check)
-		if command == "" {
+		fix := publicAPIResolutionCommand(report, *check)
+		if len(fix.commands) == 0 {
 			continue
 		}
 		check.Resolution = &Resolution{
 			Fixability:         FixabilityAPIFixable,
-			Commands:           []string{command},
+			Commands:           fix.commands,
+			NeedsUserInput:     fix.needsUserInput,
 			AppStoreConnectURL: defaultManualResolution(appID, check.ID).AppStoreConnectURL,
 		}
-		if !strings.Contains(check.Remediation, commandName(command)) {
-			check.Remediation = strings.TrimSuffix(strings.TrimSpace(check.Remediation), ".") + ": " + command
+		if !strings.Contains(check.Remediation, commandName(fix.commands[0])) {
+			remediation := strings.TrimSuffix(strings.TrimSpace(check.Remediation), ".") + ": " + strings.Join(fix.commands, " or ")
+			if fix.needsUserInput {
+				remediation += " (replace each UPPERCASE placeholder with the developer's answer)"
+			}
+			check.Remediation = remediation
 		}
 	}
+}
+
+// fixCommand is the asc invocation that resolves one finding. Commands hold
+// only values asc knows, such as resource IDs; anything the developer must
+// decide (a price, territories, an age rating answer, listing text) is an
+// UPPERCASE placeholder, and needsUserInput says so.
+type fixCommand struct {
+	commands       []string
+	needsUserInput bool
+}
+
+func knownFix(command string) fixCommand {
+	return fixCommand{commands: []string{command}}
+}
+
+func userFix(commands ...string) fixCommand {
+	return fixCommand{commands: commands, needsUserInput: true}
 }
 
 // commandName returns the command path of an asc invocation, for example
@@ -100,32 +121,33 @@ func commandName(command string) string {
 
 func resolutionForPublicFinding(report Report, check CheckResult) *Resolution {
 	appURL := defaultManualResolution(report.AppID, check.ID).AppStoreConnectURL
-	command := publicAPIResolutionCommand(report, check)
-	if command == "" {
+	fix := publicAPIResolutionCommand(report, check)
+	if len(fix.commands) == 0 {
 		return &Resolution{Fixability: FixabilityManual, AppStoreConnectURL: appURL}
 	}
 	return &Resolution{
 		Fixability:         FixabilityAPIFixable,
-		Commands:           []string{command},
+		Commands:           fix.commands,
+		NeedsUserInput:     fix.needsUserInput,
 		AppStoreConnectURL: appURL,
 	}
 }
 
-func publicAPIResolutionCommand(report Report, check CheckResult) string {
+func publicAPIResolutionCommand(report Report, check CheckResult) fixCommand {
 	resourceID := strings.TrimSpace(check.ResourceID)
 	field := strings.TrimSpace(check.Field)
 	switch check.ID {
 	case "legal.required.copyright":
 		if versionID := strings.TrimSpace(report.VersionID); versionID != "" {
-			return fmt.Sprintf("asc versions update --version-id %q --copyright %q", versionID, fmt.Sprintf("%d Your Company", time.Now().UTC().Year()))
+			return userFix(fmt.Sprintf("asc versions update --version-id %q --copyright %q", versionID, "YEAR RIGHTS_HOLDER"))
 		}
 	case "content_rights.missing", "content_rights.invalid":
 		if appID := strings.TrimSpace(report.AppID); appID != "" {
-			return fmt.Sprintf("asc apps update --id %q --content-rights %q", appID, "DECLARATION")
+			return userFix(fmt.Sprintf("asc apps update --id %q --content-rights %q", appID, "USES_THIRD_PARTY_CONTENT_OR_DOES_NOT_USE_THIRD_PARTY_CONTENT"))
 		}
 	case "review_details.missing":
 		if versionID := strings.TrimSpace(report.VersionID); versionID != "" {
-			return fmt.Sprintf("asc review details-create --version-id %q --contact-first-name %q --contact-last-name %q --contact-email %q --contact-phone %q", versionID, "FIRST_NAME", "LAST_NAME", "EMAIL", "PHONE")
+			return userFix(fmt.Sprintf("asc review details-create --version-id %q --contact-first-name %q --contact-last-name %q --contact-email %q --contact-phone %q", versionID, "FIRST_NAME", "LAST_NAME", "EMAIL", "PHONE"))
 		}
 	case "categories.primary_missing":
 		if appID := strings.TrimSpace(report.AppID); appID != "" {
@@ -133,29 +155,32 @@ func publicAPIResolutionCommand(report Report, check CheckResult) string {
 			if resourceID != "" {
 				command += fmt.Sprintf(" --app-info %q", resourceID)
 			}
-			return command + fmt.Sprintf(" --primary %q", "CATEGORY_ID")
+			return userFix(command + fmt.Sprintf(" --primary %q", "CATEGORY_ID"))
 		}
 	case "build.required.missing", "build.invalid.expired":
 		appID, versionID := strings.TrimSpace(report.AppID), strings.TrimSpace(report.VersionID)
 		if appID != "" && versionID != "" {
-			return fmt.Sprintf("asc versions attach-build --app %q --version-id %q --latest", appID, versionID)
+			return knownFix(fmt.Sprintf("asc versions attach-build --app %q --version-id %q --latest", appID, versionID))
 		}
 	case "age_rating.missing_field":
 		appID := strings.TrimSpace(report.AppID)
 		if flag, values := ageRatingResolutionField(field); appID != "" && flag != "" {
-			return fmt.Sprintf("asc age-rating edit --app %q --%s %q", appID, flag, values)
+			return userFix(fmt.Sprintf("asc age-rating edit --app %q --%s %q", appID, flag, values))
 		}
 	case "availability.missing":
 		if appID := strings.TrimSpace(report.AppID); appID != "" {
-			return fmt.Sprintf("asc pricing availability create --app %q --all-territories --available true --available-in-new-territories true", appID)
+			return userFix(fmt.Sprintf("asc pricing availability create --app %q --territory %q --available true --available-in-new-territories %q", appID, "TERRITORIES", "TRUE_OR_FALSE"))
 		}
 	case "availability.territories.none":
 		if appID := strings.TrimSpace(report.AppID); appID != "" {
-			return fmt.Sprintf("asc pricing availability edit --app %q --all-territories --available true", appID)
+			return userFix(fmt.Sprintf("asc pricing availability edit --app %q --territory %q --available true", appID, "TERRITORIES"))
 		}
 	case "pricing.schedule.missing":
 		if appID := strings.TrimSpace(report.AppID); appID != "" {
-			return fmt.Sprintf("asc pricing schedule create --app %q --free --base-territory %q", appID, "USA")
+			return userFix(
+				fmt.Sprintf("asc pricing schedule create --app %q --price-point %q --base-territory %q", appID, "PRICE_POINT_ID", "BASE_TERRITORY"),
+				fmt.Sprintf("asc pricing schedule create --app %q --free --base-territory %q", appID, "BASE_TERRITORY"),
+			)
 		}
 	case "screenshots.required.any":
 		appID, versionID := strings.TrimSpace(report.AppID), strings.TrimSpace(report.VersionID)
@@ -166,29 +191,29 @@ func publicAPIResolutionCommand(report Report, check CheckResult) string {
 				command += fmt.Sprintf(" --locale %q", locale)
 				path += "/" + locale
 			}
-			return command + fmt.Sprintf(" --path %q --device-type %q", path, "IPHONE_65")
+			return knownFix(command + fmt.Sprintf(" --path %q --device-type %q", path, "IPHONE_65"))
 		}
 	}
 
 	if resourceID == "" {
-		return ""
+		return fixCommand{}
 	}
 	flag, example := localizationResolutionField(field)
 	switch check.ResourceType {
 	case "appStoreVersionLocalization":
 		if flag != "" {
-			return fmt.Sprintf("asc localizations update --id %q --%s %q", resourceID, flag, example)
+			return userFix(fmt.Sprintf("asc localizations update --id %q --%s %q", resourceID, flag, example))
 		}
 	case "appInfoLocalization":
 		if flag != "" {
-			return fmt.Sprintf("asc localizations update --type app-info --id %q --%s %q", resourceID, flag, example)
+			return userFix(fmt.Sprintf("asc localizations update --type app-info --id %q --%s %q", resourceID, flag, example))
 		}
 	case "appStoreReviewDetail":
 		if flag, example := reviewDetailsResolutionField(field); flag != "" {
-			return fmt.Sprintf("asc review details-update --id %q --%s %q", resourceID, flag, example)
+			return userFix(fmt.Sprintf("asc review details-update --id %q --%s %q", resourceID, flag, example))
 		}
 	}
-	return ""
+	return fixCommand{}
 }
 
 func localizationResolutionField(field string) (string, string) {
@@ -219,30 +244,30 @@ func localizationResolutionField(field string) (string, string) {
 // ageRatingResolutionField maps an age rating declaration attribute to its
 // asc age-rating edit flag and the values that flag accepts.
 func ageRatingResolutionField(field string) (string, string) {
-	const levels = "NONE|INFREQUENT_OR_MILD|FREQUENT_OR_INTENSE"
+	const levels = "NONE_OR_INFREQUENT_OR_MILD_OR_FREQUENT_OR_INTENSE"
 	switch field {
 	case "advertising", "gambling":
-		return field, "true|false"
+		return field, "TRUE_OR_FALSE"
 	case "contests":
 		return field, levels
 	case "healthOrWellnessTopics":
-		return "health-or-wellness-topics", "true|false"
+		return "health-or-wellness-topics", "TRUE_OR_FALSE"
 	case "lootBox":
-		return "loot-box", "true|false"
+		return "loot-box", "TRUE_OR_FALSE"
 	case "messagingAndChat":
-		return "messaging-and-chat", "true|false"
+		return "messaging-and-chat", "TRUE_OR_FALSE"
 	case "parentalControls":
-		return "parental-controls", "true|false"
+		return "parental-controls", "TRUE_OR_FALSE"
 	case "ageAssurance":
-		return "age-assurance", "true|false"
+		return "age-assurance", "TRUE_OR_FALSE"
 	case "socialMedia":
-		return "social-media", "true|false"
+		return "social-media", "TRUE_OR_FALSE"
 	case "socialMediaAgeRestricted":
-		return "social-media-age-restricted", "true|false"
+		return "social-media-age-restricted", "TRUE_OR_FALSE"
 	case "unrestrictedWebAccess":
-		return "unrestricted-web-access", "true|false"
+		return "unrestricted-web-access", "TRUE_OR_FALSE"
 	case "userGeneratedContent":
-		return "user-generated-content", "true|false"
+		return "user-generated-content", "TRUE_OR_FALSE"
 	case "alcoholTobaccoOrDrugUseOrReferences":
 		return "alcohol-tobacco-drug-use", levels
 	case "gamblingSimulated":

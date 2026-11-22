@@ -252,9 +252,12 @@ Without `--deep`, a finding that one `asc` command fixes still carries the
 `asc versions attach-build --app "APP_ID" --version-id "VERSION_ID" --latest`
 for `build.required.missing`. Its `remediation` text ends with the same command,
 so table output and filters that read only `remediation` see it too. Commands
-use the report's real app, version, localization, and app info IDs; values the
-operator must choose, such as the description text or the category, stay as
-named placeholders.
+contain only what `asc` knows: the report's real app, version, localization,
+and app info IDs, or `--latest` for the build. Anything the developer must
+decide, such as the price, the territories, an age rating answer, the category,
+or listing text, stays an UPPERCASE placeholder, and the resolution sets
+`"needsUserInput": true`. Ask the developer for those values; never run such a
+command as printed.
 
 ## Flags
 
