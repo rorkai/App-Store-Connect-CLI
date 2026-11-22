@@ -387,8 +387,15 @@ func parseIncludes(value string) ([]string, error) {
 }
 
 func resolveVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, appID, version, platform string) (string, string, error) {
+	id, state, _, err := resolveVersion(ctx, d, client, appID, version, platform)
+	return id, state, err
+}
+
+// resolveVersion is resolveVersionID that also returns the version's platform.
+func resolveVersion(ctx context.Context, d *shared.Deps, client *asc.Client, appID, version, platform string) (string, string, string, error) {
 	if platform != "" {
-		return shared.ResolveAppStoreVersionIDAndState(ctx, client, appID, version, platform)
+		id, state, err := shared.ResolveAppStoreVersionIDAndState(ctx, client, appID, version, platform)
+		return id, state, platform, err
 	}
 
 	resp, err := client.GetAppStoreVersions(
@@ -398,14 +405,14 @@ func resolveVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, a
 		asc.Limit[asc.AppStoreVersionsOption](200),
 	)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	if resp == nil {
-		return "", "", fmt.Errorf("empty app store versions response")
+		return "", "", "", fmt.Errorf("empty app store versions response")
 	}
 	pageHasNext := strings.TrimSpace(resp.Links.Next) != ""
 	if len(resp.Data) == 0 && !pageHasNext {
-		return "", "", shared.WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, "", shared.NewErrorWithCause(fmt.Errorf("app store version not found for version %q", version), asc.ErrNotFound))
+		return "", "", "", shared.WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, "", shared.NewErrorWithCause(fmt.Errorf("app store version not found for version %q", version), asc.ErrNotFound))
 	}
 	if len(resp.Data) > 1 || pageHasNext {
 		ambiguous := shared.AmbiguousAppStoreVersionError(version, "", resp.Data, "--platform", "")
@@ -417,9 +424,9 @@ func resolveVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, a
 		if errors.As(ambiguous, &selection) && selection.Flag == "--platform" {
 			usageKind = shared.UsageErrorMissingRequired
 		}
-		return "", "", d.AmbiguousUsageErrorWithKind(ambiguous, usageKind)
+		return "", "", "", d.AmbiguousUsageErrorWithKind(ambiguous, usageKind)
 	}
-	return resp.Data[0].ID, asc.ResolveAppStoreVersionState(resp.Data[0].Attributes), nil
+	return resp.Data[0].ID, asc.ResolveAppStoreVersionState(resp.Data[0].Attributes), string(resp.Data[0].Attributes.Platform), nil
 }
 
 func resolveMetadataPullAppInfoID(

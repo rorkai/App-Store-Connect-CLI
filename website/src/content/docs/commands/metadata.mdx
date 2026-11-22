@@ -193,7 +193,11 @@ App Store Connect has no What's New on an app's first version and refuses an
 update that sets `whatsNew` there (409 `STATE_ERROR`). `metadata push` and
 `metadata apply` then send the locale's other fields without it, list
 `whatsNew` in the action's `skippedFields`, and print a warning. If nothing
-else changed, the action's status is `skipped`.
+else changed, the action's status is `skipped`. This applies only when the
+version is the app's first version on its platform (no other App Store version
+exists there), whatever its state; a later version answers a locked `whatsNew`
+with the same 409, and that update still fails. If push cannot read the app's
+versions to check, the 409 fails the locale and the error suggests a rerun.
 
 ### Clearing nullable fields
 

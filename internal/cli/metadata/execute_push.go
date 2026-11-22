@@ -124,12 +124,13 @@ func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecu
 	defer client.CloseUploadConnections()
 
 	type versionResolution struct {
-		id    string
-		state string
+		id       string
+		state    string
+		platform string
 	}
 	resolvedVersion, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (versionResolution, error) {
-		id, state, resolveErr := resolveVersionID(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
-		return versionResolution{id: id, state: state}, resolveErr
+		id, state, platform, resolveErr := resolveVersion(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
+		return versionResolution{id: id, state: state, platform: platform}, resolveErr
 	})
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -361,7 +362,12 @@ func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecu
 			remoteAppInfoItems,
 			managedVersionItems,
 			opts.AllowDeletes,
-			metadataIfExistsOptions{mode: ifExistsMode, prefix: errorPrefix, lateAppInfoIDs: lateAppInfoIDs},
+			metadataIfExistsOptions{
+				mode:           ifExistsMode,
+				prefix:         errorPrefix,
+				lateAppInfoIDs: lateAppInfoIDs,
+				firstVersion:   newFirstVersionCheck(d, client, resolvedAppID, versionIDValue, resolvedVersion.platform),
+			},
 		)
 		if createdLocales := appInfoCreatedVersionLocales(actions, localVersion, managedVersionItems); len(createdLocales) > 0 {
 			versionCalls.list++

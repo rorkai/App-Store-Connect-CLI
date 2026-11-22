@@ -812,6 +812,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 	const descriptionOnly = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"description":"Nuova descrizione"}}}`
 	const withWhatsNew = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"description":"Nuova descrizione","whatsNew":"Prima versione."}}}`
 	const whatsNewOnly = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"whatsNew":"Prima versione."}}}`
+	const onlyFirstVersion = `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`
 	const warning = "Warning: whatsNew was not set for locale it of version 1.0: App Store Connect does not allow What's New on an app's first version (409 STATE_ERROR). The other fields were pushed.\n"
 
 	tests := []struct {
@@ -823,6 +824,17 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 		wantStatus  string
 		wantSkipped []string
 		wantStderr  string
+		// state is the version's appVersionState; empty means PREPARE_FOR_SUBMISSION.
+		state string
+		// appVersions answers the one read of the app's versions push makes to
+		// confirm a first version; empty means push must not read them.
+		appVersions string
+		// appVersionsStatus is the status of that read; zero means 200.
+		appVersionsStatus int
+		// retryConflict answers the PATCH sent again without whatsNew.
+		retryConflict string
+		// wantActionError is a substring the failed action's error must contain.
+		wantActionError string
 	}{
 		{
 			name:        "other fields are pushed without whatsNew",
@@ -832,6 +844,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantStatus:  "succeeded",
 			wantSkipped: []string{"whatsNew"},
 			wantStderr:  warning,
+			appVersions: onlyFirstVersion,
 		},
 		{
 			name:        "only whatsNew changed",
@@ -841,6 +854,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantStatus:  "skipped",
 			wantSkipped: []string{"whatsNew"},
 			wantStderr:  strings.Replace(warning, " The other fields were pushed.", " Nothing else changed.", 1),
+			appVersions: onlyFirstVersion,
 		},
 		{
 			name:        "other locked fields still fail",
@@ -849,6 +863,72 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantErr:     true,
 			wantPatches: []string{withWhatsNew},
 			wantStatus:  "failed",
+		},
+		{
+			// A live later version locks whatsNew with the same 409; that edit must fail.
+			name:        "live version after a released one",
+			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			state:       "READY_FOR_SALE",
+			appVersions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"READY_FOR_SALE"}},{"type":"appStoreVersions","id":"version-0","attributes":{"versionString":"0.9","platform":"IOS","appVersionState":"REPLACED_WITH_NEW_VERSION"}}],"links":{"next":""}}`,
+			wantErr:     true,
+			wantPatches: []string{whatsNewOnly},
+			wantStatus:  "failed",
+		},
+		{
+			// A live first version still has no What's New; the local file
+			// keeps the whatsNew the remote never stores, so other edits
+			// must still go through.
+			name:        "live first version",
+			local:       `{"description":"Nuova descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			state:       "READY_FOR_SALE",
+			appVersions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"READY_FOR_SALE"}}],"links":{"next":""}}`,
+			wantPatches: []string{withWhatsNew, descriptionOnly},
+			wantStatus:  "succeeded",
+			wantSkipped: []string{"whatsNew"},
+			wantStderr:  warning,
+		},
+		{
+			name:        "editable version after a released one",
+			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			appVersions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}},{"type":"appStoreVersions","id":"version-0","attributes":{"versionString":"0.9","platform":"IOS","appVersionState":"READY_FOR_SALE"}}],"links":{"next":""}}`,
+			wantErr:     true,
+			wantPatches: []string{whatsNewOnly},
+			wantStatus:  "failed",
+		},
+		{
+			name:              "versions read fails",
+			local:             `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:          appleWhatsNewStateError,
+			appVersions:       `{"errors":[{"status":"400","code":"PARAMETER_ERROR.INVALID","title":"A parameter has an invalid value","detail":"bad"}]}`,
+			appVersionsStatus: http.StatusBadRequest,
+			wantErr:           true,
+			wantPatches:       []string{whatsNewOnly},
+			wantStatus:        "failed",
+			wantActionError:   "could not confirm that version 1.0 is the app's first version",
+		},
+		{
+			name:        "more versions than one page",
+			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			appVersions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=x"}}`,
+			wantErr:     true,
+			wantPatches: []string{whatsNewOnly},
+			wantStatus:  "failed",
+		},
+		{
+			name:          "other fields fail without whatsNew",
+			local:         `{"description":"Nuova descrizione","whatsNew":"Prima versione."}`,
+			conflict:      appleWhatsNewStateError,
+			retryConflict: appleLiveVersionStateError,
+			appVersions:   onlyFirstVersion,
+			wantErr:       true,
+			wantPatches:   []string{withWhatsNew, descriptionOnly},
+			wantStatus:    "failed",
+			wantSkipped:   []string{"whatsNew"},
+			wantStderr:    strings.Replace(warning, " The other fields were pushed.", " Pushing the other fields failed; see the action error.", 1),
 		},
 	}
 
@@ -867,15 +947,29 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 				t.Fatalf("write version file: %v", err)
 			}
 
+			state := test.state
+			if state == "" {
+				state = "PREPARE_FOR_SUBMISSION"
+			}
 			reg := asctest.NewRegistry(t)
 			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
-				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"`+state+`"}}],"links":{"next":""}}`))
+			if test.appVersions != "" {
+				status := test.appVersionsStatus
+				if status == 0 {
+					status = http.StatusOK
+				}
+				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "limit=200"), asctest.JSON(status, test.appVersions))
+			}
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Descrizione"}}],"links":{"next":""}}`))
 			apple := func(req *http.Request) (*http.Response, error) {
 				requests := reg.Requests()
 				if strings.Contains(string(requests[len(requests)-1].Body), "whatsNew") {
 					return asctest.JSON(http.StatusConflict, test.conflict)(req)
+				}
+				if test.retryConflict != "" {
+					return asctest.JSON(http.StatusConflict, test.retryConflict)(req)
 				}
 				return asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Nuova descrizione"}}}`)(req)
 			}
@@ -905,6 +999,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 				Actions []struct {
 					Status        string   `json:"status"`
 					SkippedFields []string `json:"skippedFields"`
+					Error         string   `json:"error"`
 				} `json:"actions"`
 			}
 			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
@@ -913,10 +1008,70 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			if len(payload.Actions) != 1 || payload.Actions[0].Status != test.wantStatus || !slices.Equal(payload.Actions[0].SkippedFields, test.wantSkipped) {
 				t.Fatalf("actions = %+v, want status %q skippedFields %q", payload.Actions, test.wantStatus, test.wantSkipped)
 			}
-			if !test.wantErr && stderr != test.wantStderr {
+			if !strings.Contains(payload.Actions[0].Error, test.wantActionError) {
+				t.Fatalf("action error = %q, want it to contain %q", payload.Actions[0].Error, test.wantActionError)
+			}
+			if (test.wantErr && !strings.HasPrefix(stderr, test.wantStderr)) || (!test.wantErr && stderr != test.wantStderr) {
 				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
 			}
+			if test.wantErr && test.wantStderr == "" && strings.Contains(stderr, "Warning: whatsNew") {
+				t.Fatalf("stderr = %q, want no whatsNew warning", stderr)
+			}
 		})
+	}
+}
+
+// A failed read of the app's versions is not remembered: the next locale
+// that hits the whatsNew 409 reads again.
+func TestMetadataPushRetriesFailedFirstVersionRead(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+	t.Chdir(t.TempDir())
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "version", "1.0"), 0o755); err != nil {
+		t.Fatalf("mkdir version: %v", err)
+	}
+	for _, locale := range []string{"fr-FR", "it"} {
+		if err := os.WriteFile(filepath.Join(dir, "version", "1.0", locale+".json"), []byte(`{"description":"Descrizione","whatsNew":"Prima versione."}`), 0o644); err != nil {
+			t.Fatalf("write version file: %v", err)
+		}
+	}
+	remote := `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"Descrizione"}},{"type":"appStoreVersionLocalizations","id":"loc-it","attributes":{"locale":"it","description":"Descrizione"}}],"links":{"next":""}}`
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, remote))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-fr"), asctest.JSON(http.StatusConflict, appleWhatsNewStateError))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-it"), asctest.JSON(http.StatusConflict, appleWhatsNewStateError))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "limit=200"),
+		asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"PARAMETER_ERROR.INVALID","title":"A parameter has an invalid value","detail":"bad"}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+	// Read-back of the locale that failed.
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, remote))
+
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "metadata", "push", "--app", "app-1", "--version", "1.0", "--dir", dir, "--output", "json")
+	if runErr == nil {
+		t.Fatalf("expected the locale whose read failed to fail\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	var payload struct {
+		Actions []struct {
+			Status string `json:"status"`
+		} `json:"actions"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	statuses := []string{}
+	for _, action := range payload.Actions {
+		statuses = append(statuses, action.Status)
+	}
+	slices.Sort(statuses)
+	if !slices.Equal(statuses, []string{"failed", "skipped"}) {
+		t.Fatalf("action statuses = %q, want one failed and one skipped; stdout=%s", statuses, stdout)
 	}
 }
 
