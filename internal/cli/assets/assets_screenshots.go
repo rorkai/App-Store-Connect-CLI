@@ -777,7 +777,9 @@ With --locale, --path points directly at that locale's screenshot file or
 directory (scanned like --version-localization uploads, not as a tree of
 locale directories). The version must already have a localization for the
 locale; otherwise the command fails and lists the version's locales. --replace
-only affects that locale's screenshot set for --device-type.
+only affects that locale's screenshot set for --device-type. In a --path
+directory, the .png, .jpg, and .jpeg files are uploaded; other files, such as
+the HTML a mockup was rendered from, are skipped with a warning on stderr.
 
 Without --locale, --app with --version/--version-id fans out one run across
 locale directories under --path. In fan-out mode, the immediate children of
@@ -1057,10 +1059,11 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
 
 	if locID != "" {
-		files, err := collectScreenshotUploadFiles(d.OSPath(pathValue), opts.MaxScreenshots)
+		files, skipped, err := collectScreenshotUploadFiles(d.OSPath(pathValue), opts.MaxScreenshots)
 		if err != nil {
 			return nil, mediaPathValidationError(err)
 		}
+		warnSkippedScreenshotFiles(d.IO.ErrOut, pathValue, skipped)
 		if !opts.AssetLibrary {
 			if err := validateScreenshotDimensions(files, apiDisplayType); err != nil {
 				return nil, mediaPathValidationError(err)
@@ -1119,10 +1122,11 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 	if localeValue != "" {
 		// With --locale, --path holds that locale's screenshots directly and is
 		// scanned like --version-localization uploads, not as a fan-out tree.
-		files, err := collectScreenshotUploadFiles(d.OSPath(pathValue), opts.MaxScreenshots)
+		files, skipped, err := collectScreenshotUploadFiles(d.OSPath(pathValue), opts.MaxScreenshots)
 		if err != nil {
 			return nil, mediaPathValidationError(err)
 		}
+		warnSkippedScreenshotFiles(d.IO.ErrOut, pathValue, skipped)
 		localeAssets = []screenshotLocaleAssetFiles{{Locale: localeValue, Files: files}}
 	} else {
 		localeAssets, err = collectLocaleAssetFilesWithLimit(d.OSPath(pathValue), apiDisplayType, opts.MaxScreenshots)

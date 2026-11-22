@@ -475,6 +475,11 @@ asc subscriptions versions localizations list \
 asc subscriptions versions localizations links \
   --version-id "VERSION_ID"
 
+# List the localizations of a subscription's newest version (the draft being
+# edited when there is one, else the live version)
+asc subscriptions versions localizations list \
+  --subscription-id "SUBSCRIPTION_ID"
+
 # View one localization
 asc subscriptions versions localizations view \
   --id "LOCALIZATION_ID"

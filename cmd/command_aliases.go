@@ -36,6 +36,11 @@ var commandPathAliases = map[string]map[string][]string{
 	"asc builds": {
 		"beta-groups": {"builds", "groups"},
 	},
+	// 5.0.0 removed the v1 subscription localization commands; their v2
+	// replacements are version-scoped and share the localization IDs.
+	"asc subscriptions": {
+		"localizations": {"subscriptions", "versions", "localizations"},
+	},
 	"asc testflight": {
 		"beta-groups":  {"testflight", "groups"},
 		"beta-testers": {"testflight", "testers"},

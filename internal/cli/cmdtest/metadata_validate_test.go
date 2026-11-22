@@ -42,34 +42,68 @@ func TestMetadataValidateRequiresDir(t *testing.T) {
 }
 
 func TestMetadataValidateRejectsUnknownSchemaKeys(t *testing.T) {
-	dir := t.TempDir()
-	appInfoDir := filepath.Join(dir, "app-info")
-	if err := os.MkdirAll(appInfoDir, 0o755); err != nil {
-		t.Fatalf("mkdir app-info: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(appInfoDir, "en-US.json"), []byte(`{"name":"App","unknown":"x"}`), 0o644); err != nil {
-		t.Fatalf("write file: %v", err)
+	tests := []struct {
+		name     string
+		file     string
+		body     string
+		wantLine string
+	}{
+		{
+			name:     "version field in an app-info file",
+			file:     "app-info/en-US.json",
+			body:     `{"name":"App","description":"An app"}`,
+			wantLine: `unknown field "description"; it is a version localization field: move it to version/<version>/<locale>.json`,
+		},
+		{
+			name:     "app-info field in a version file",
+			file:     "version/1.0/en-US.json",
+			body:     `{"description":"An app","subtitle":"Short"}`,
+			wantLine: `unknown field "subtitle"; it is an app-info localization field: move it to app-info/<locale>.json`,
+		},
+		{
+			name:     "copyright in a version file",
+			file:     "version/1.0/en-US.json",
+			body:     `{"description":"An app","copyright":"2026 Example"}`,
+			wantLine: "unknown field \"copyright\"; copyright is not a localization field: remove it and set it with `asc versions update --version-id VERSION_ID --copyright \"TEXT\"`",
+		},
+		{
+			name:     "locale key",
+			file:     "app-info/en-US.json",
+			body:     `{"name":"App","locale":"en-US"}`,
+			wantLine: `unknown field "locale"; the file name sets the locale: remove this key`,
+		},
+		{
+			name:     "unrelated key",
+			file:     "app-info/en-US.json",
+			body:     `{"name":"App","unknown":"x"}`,
+			wantLine: `unknown field "unknown"; app-info localization fields: name, subtitle, privacyPolicyUrl, privacyChoicesUrl, privacyPolicyText`,
+		},
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, filepath.FromSlash(test.file))
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatalf("mkdir: %v", err)
+			}
+			if err := os.WriteFile(path, []byte(test.body), 0o644); err != nil {
+				t.Fatalf("write file: %v", err)
+			}
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"metadata", "validate", "--dir", dir}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, "metadata", "validate", "--dir", dir)
 
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "unknown field") {
-		t.Fatalf("expected unknown-field schema error, got %q", stderr)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			firstLine, _, _ := strings.Cut(stderr, "\n")
+			if want := "Error: invalid metadata schema in " + path + ": json: " + test.wantLine; firstLine != want {
+				t.Fatalf("stderr first line = %q, want %q", firstLine, want)
+			}
+		})
 	}
 }
 
