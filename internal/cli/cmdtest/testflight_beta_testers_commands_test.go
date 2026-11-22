@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
@@ -271,5 +272,108 @@ func TestTestFlightBetaTestersInviteOutput(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"testerId":"tester-9"`) {
 		t.Fatalf("expected tester id in output, got %q", stdout)
+	}
+}
+
+// Apple answers POST /v1/betaTesters with this 409 both when the email is
+// already a tester in a requested group and when it cannot join the group at
+// all (an internal group and an email outside the team). Captured live.
+const testersAddCannotAssignBody = `{"errors":[{"status":"409","code":"STATE_ERROR","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Tester(s) cannot be assigned"}]}`
+
+func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
+	const (
+		testerList = `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com","state":"INVITED"}}],"links":{"self":"/v1/betaTesters"}}`
+		noTesters  = `{"data":[],"links":{"self":"/v1/betaTesters"}}`
+		groups     = `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Internal Testing","isInternalGroup":true}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Beta"}}]}`
+	)
+	tests := []struct {
+		name       string
+		group      string
+		testers    string
+		memberOf   string
+		addGroups  string
+		groupRead  string
+		wantCode   int
+		wantStdout string
+		wantStderr string
+	}{
+		{
+			name:       "already in every group",
+			group:      "Beta",
+			testers:    testerList,
+			memberOf:   `{"data":[{"type":"betaGroups","id":"group-2"}],"links":{}}`,
+			wantCode:   0,
+			wantStdout: `"id":"tester-1"`,
+			wantStderr: "testers add: tester@example.com is already tester tester-1 in every requested group and build; left unchanged\n",
+		},
+		{
+			name:       "in one group, missing the other",
+			group:      "Internal Testing,Beta",
+			testers:    testerList,
+			memberOf:   `{"data":[{"type":"betaGroups","id":"group-2"}],"links":{}}`,
+			addGroups:  `{"data":[{"type":"betaGroups","id":"group-1"}]}`,
+			wantCode:   0,
+			wantStdout: `"id":"tester-1"`,
+			wantStderr: "testers add: tester@example.com is already tester tester-1; added it to group(s) group-1\n",
+		},
+		{
+			name:       "not a tester, internal group",
+			group:      "Internal Testing",
+			testers:    noTesters,
+			groupRead:  `{"data":{"type":"betaGroups","id":"group-1","attributes":{"name":"Internal Testing","isInternalGroup":true}}}`,
+			wantCode:   cmd.ExitConflict,
+			wantStderr: `tester@example.com is not a tester of app app-1, and "Internal Testing" (group-1) is an internal group: internal groups take only users of your App Store Connect team who can see this app.`,
+		},
+		{
+			name:       "not a tester, external group keeps Apple's error",
+			group:      "Beta",
+			testers:    noTesters,
+			groupRead:  `{"data":{"type":"betaGroups","id":"group-2","attributes":{"name":"Beta","isInternalGroup":false}}}`,
+			wantCode:   cmd.ExitConflict,
+			wantStderr: "Error: testers add: failed to create: The request cannot be fulfilled because of the state of another resource.: Tester(s) cannot be assigned\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"), asctest.JSON(http.StatusOK, groups))
+			reg.Register(asctest.POST("/v1/betaTesters"), asctest.JSON(http.StatusConflict, testersAddCannotAssignBody))
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=tester@example.com"), asctest.JSON(http.StatusOK, test.testers))
+			if test.memberOf != "" {
+				reg.Register(asctest.GET("/v1/betaTesters/tester-1/relationships/betaGroups", "limit=200"), asctest.JSON(http.StatusOK, test.memberOf))
+			}
+			if test.addGroups != "" {
+				reg.Register(asctest.POST("/v1/betaTesters/tester-1/relationships/betaGroups").JSONBody(test.addGroups), asctest.JSON(http.StatusNoContent, ""))
+			}
+			if test.groupRead != "" {
+				var group struct {
+					Data struct {
+						ID string `json:"id"`
+					} `json:"data"`
+				}
+				if err := json.Unmarshal([]byte(test.groupRead), &group); err != nil {
+					t.Fatal(err)
+				}
+				reg.Register(asctest.GET("/v1/betaGroups/"+group.Data.ID), asctest.JSON(http.StatusOK, test.groupRead))
+			}
+
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", test.group, "--output", "json")
+
+			if code != test.wantCode {
+				t.Fatalf("exit code = %d, want %d (stderr %q)", code, test.wantCode, stderr)
+			}
+			if test.wantStdout == "" && stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.Contains(stdout, test.wantStdout) {
+				t.Fatalf("stdout = %q, want it to contain %q", stdout, test.wantStdout)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("stderr = %q, want it to contain %q", stderr, test.wantStderr)
+			}
+		})
 	}
 }

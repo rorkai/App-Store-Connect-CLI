@@ -373,6 +373,12 @@ in one list, reference that group by its ID instead.
 --build-id attaches builds in the same create request. At least one of --group
 or --build-id is required, and --app is required only to resolve --group.
 
+When the email is already a tester of the app, App Store Connect rejects the
+create with 409. add then reads that tester back, adds it to only the groups
+and builds it is missing, and prints the existing tester; stderr says what
+changed. An email outside your team cannot join an internal group: invite the
+person with asc users invite first.
+
 Examples:
   asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
   asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta,iOS 27"
@@ -417,7 +423,22 @@ Examples:
 
 			tester, err := client.CreateBetaTester(requestCtx, *email, *firstName, *lastName, groupIDs, buildIDs)
 			if err != nil {
-				return fmt.Errorf("beta-testers add: failed to create: %w", err)
+				if !isHTTPConflict(err) || resolvedAppID == "" {
+					return fmt.Errorf("beta-testers add: failed to create: %w", err)
+				}
+				outcome, resolveErr := resolveBetaTesterAddConflict(ctx, d, client, resolvedAppID, strings.TrimSpace(*email), groupIDs, buildIDs)
+				if resolveErr != nil {
+					return fmt.Errorf("beta-testers add: failed to create: %w (%w)", err, resolveErr)
+				}
+				if outcome == nil || outcome.tester == nil {
+					if outcome != nil && len(outcome.internalGroups) > 0 {
+						return fmt.Errorf("beta-testers add: failed to create: %w\n%s is not a tester of app %s, and %s is an internal group: internal groups take only users of your App Store Connect team who can see this app. Invite the person with `asc users invite --email %q --first-name NAME --last-name NAME --roles DEVELOPER --visible-app %q`, then retry, or add them to an external group",
+							err, strings.TrimSpace(*email), resolvedAppID, strings.Join(outcome.internalGroups, ", "), strings.TrimSpace(*email), resolvedAppID)
+					}
+					return fmt.Errorf("beta-testers add: failed to create: %w", err)
+				}
+				reportBetaTesterAddConflict(d, strings.TrimSpace(*email), outcome)
+				tester = outcome.tester
 			}
 
 			return d.PrintOutput(tester, *output.Output, *output.Pretty)
