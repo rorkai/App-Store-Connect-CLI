@@ -126,6 +126,10 @@ func (c *Client) complianceFormBaseURL() string {
 }
 
 func (c *Client) doAppComplianceRequest(ctx context.Context, appID, method, path string, body any) ([]byte, error) {
+	return c.doAppComplianceRequestWithHTTPClient(c.httpClient, ctx, appID, method, path, body)
+}
+
+func (c *Client) doAppComplianceRequestWithHTTPClient(client *http.Client, ctx context.Context, appID, method, path string, body any) ([]byte, error) {
 	baseURL := c.complianceFormBaseURL()
 	headers := make(http.Header)
 	headers.Set("Content-Type", "application/json")
@@ -137,7 +141,7 @@ func (c *Client) doAppComplianceRequest(ctx context.Context, appID, method, path
 	headers.Set("X-Csrf-Itc", "itc")
 	headers.Set("Origin", baseURL)
 	headers.Set("Referer", strings.TrimRight(baseURL, "/")+"/apps/"+url.PathEscape(strings.TrimSpace(appID))+"/distribution/info")
-	return c.doRequestBase(ctx, baseURL, method, path, body, headers)
+	return c.doRequestBaseWithHTTPClient(client, ctx, baseURL, method, path, body, headers)
 }
 
 func normalizeMedicalDeviceRegion(value string) string {

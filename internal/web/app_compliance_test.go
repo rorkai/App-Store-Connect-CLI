@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestListAppComplianceRequirements(t *testing.T) {
@@ -345,6 +346,70 @@ func TestSetAppComplianceDeclaration(t *testing.T) {
 			}
 			if gotSave != tc.wantSave || handler.savedBody != tc.wantBody {
 				t.Fatalf("unexpected save:\n got %s %s\nwant %s %s", gotSave, handler.savedBody, tc.wantSave, tc.wantBody)
+			}
+		})
+	}
+}
+
+type deadlineRecordingTransport struct {
+	base      http.RoundTripper
+	deadlines map[string]time.Time
+	saveErr   error
+}
+
+func (t *deadlineRecordingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	deadline, _ := r.Context().Deadline()
+	t.deadlines[r.Method+" "+r.URL.Path] = deadline
+	if t.saveErr != nil && strings.HasSuffix(r.URL.Path, "/forms") {
+		return nil, t.saveErr
+	}
+	return t.base.RoundTrip(r)
+}
+
+func TestSetAppComplianceDeclarationWithEvidence(t *testing.T) {
+	pdf := &AppComplianceFile{Name: "doc.pdf", Data: []byte("pdf")}
+	declaration := AppComplianceDeclaration{Requirement: "SECURITY_ASSESSMENT", Declared: true, Proof: pdf, Report: pdf}
+	const savePath = "POST /ppm/compliancerequirements/v1/accounts/account-123/entities/app-123/forms"
+	for _, tc := range []struct {
+		name    string
+		saveErr error
+		wantErr string
+	}{
+		// The files travel in the last form-walk request and again in the save,
+		// so the caller's upload deadline, not the per-request client timeout, bounds them.
+		{name: "caller deadline bounds the uploads"},
+		{name: "failed save leaves the outcome unknown", saveErr: context.DeadlineExceeded, wantErr: "save outcome is unknown; check asc web apps compliance list"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := appComplianceFormServer{t: t, requirements: appComplianceTestRequirements}
+			server := httptest.NewServer(&handler)
+			defer server.Close()
+			transport := &deadlineRecordingTransport{base: server.Client().Transport, deadlines: map[string]time.Time{}, saveErr: tc.saveErr}
+			client := testWebClient(server)
+			client.httpClient = &http.Client{Timeout: time.Minute, Transport: transport}
+
+			deadline := time.Now().Add(time.Hour)
+			ctx, cancel := context.WithDeadline(context.Background(), deadline)
+			defer cancel()
+			_, err := client.SetAppComplianceDeclaration(ctx, "account-123", "app-123", declaration)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected error containing %q, got %v", tc.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("SetAppComplianceDeclaration() error = %v", err)
+			}
+			for request, got := range transport.deadlines {
+				if strings.Contains(request, "/requirements/") || request == savePath {
+					if !got.Equal(deadline) {
+						t.Fatalf("%s deadline = %v, want the caller's %v", request, got, deadline)
+					}
+				}
+			}
+			if _, ok := transport.deadlines[savePath]; !ok {
+				t.Fatalf("declaration was not saved; requests: %v", transport.deadlines)
 			}
 		})
 	}
