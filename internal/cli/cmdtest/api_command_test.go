@@ -167,6 +167,11 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: `api: the request body for PATCH /v1/appInfoLocalizations/{id} must be a JSON:API document, {"data":{"type":...,"attributes":{...}}}; it has no top-level "data" member`,
 		},
 		{
+			name:    "query on an unindexed mutation",
+			args:    []string{"api", "DELETE", "/v1/notIndexed/1?limit=1", "--confirm", "--allow-unknown-path"},
+			wantErr: "api: PATH query parameters must be documented for this operation",
+		},
+		{
 			name:    "body on GET",
 			args:    []string{"api", "GET", "/v1/apps", "--body", `{"data":{}}`},
 			wantErr: "api: --body is only supported for POST, PATCH, and DELETE requests",
@@ -610,15 +615,22 @@ func TestAPIPostPreservesDocumentedMutationURLQuery(t *testing.T) {
 	const requestBody = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","attributes":{"placementGroup":"IPHONE_65"},"relationships":{"orderedPlacements":{"data":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]},"appStoreVersionLocalization":{"data":{"type":"appStoreVersionLocalizations","id":"locale-1"}}}}}`
 	const responseBody = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"request-1"},"included":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]}`
 
-	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.POST(path, "include=orderedPlacements").JSONBody(requestBody), asctest.JSON(http.StatusCreated, responseBody))
+	// --allow-unknown-path skips the index checks; it must not refuse a query
+	// the operation documents.
+	for _, extra := range [][]string{nil, {"--allow-unknown-path"}} {
+		t.Run(strings.Join(append([]string{"flags"}, extra...), " "), func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.POST(path, "include=orderedPlacements").JSONBody(requestBody), asctest.JSON(http.StatusCreated, responseBody))
 
-	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "api", "POST", path+"?include=orderedPlacements", "--confirm", "--body", requestBody)
-	if code != rootcmd.ExitSuccess || stdout != responseBody+"\n" || stderr != "" {
-		t.Fatalf("exit = %d, stdout = %q, stderr = %q, want success and Apple's envelope", code, stdout, stderr)
-	}
-	if data := reg.Requests()[0].Body; string(data) != requestBody {
-		t.Errorf("request body = %q, want %q", data, requestBody)
+			args := append([]string{"api", "POST", path + "?include=orderedPlacements", "--confirm", "--body", requestBody}, extra...)
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+			if code != rootcmd.ExitSuccess || stdout != responseBody+"\n" || stderr != "" {
+				t.Fatalf("exit = %d, stdout = %q, stderr = %q, want success and Apple's envelope", code, stdout, stderr)
+			}
+			if data := reg.Requests()[0].Body; string(data) != requestBody {
+				t.Errorf("request body = %q, want %q", data, requestBody)
+			}
+		})
 	}
 }
 

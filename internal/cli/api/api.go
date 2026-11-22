@@ -219,7 +219,10 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 			// message offers, so telemetry's failure parameter stays empty.
 			return rawRequest{}, shared.WithDiagnostic(err, shared.DiagnosticInvalidInput, "")
 		}
-	} else if method != http.MethodGet && len(values) > 0 {
+	} else if !indexed && method != http.MethodGet && len(values) > 0 {
+		// An unindexed operation documents no query parameters to send in
+		// PATH. An indexed one under --allow-unknown-path skips the check, as
+		// a GET does.
 		return rawRequest{}, d.UsageError("api: PATH query parameters must be documented for this operation")
 	}
 	// The media-type check uses the matched template, so it applies under
