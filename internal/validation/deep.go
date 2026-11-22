@@ -85,7 +85,11 @@ func attachFixCommands(appID, versionID string, checks []CheckResult) {
 		if !strings.Contains(check.Remediation, commandName(fix.commands[0])) {
 			remediation := strings.TrimSuffix(strings.TrimSpace(check.Remediation), ".") + ": " + strings.Join(fix.commands, " or ")
 			if fix.needsUserInput {
-				remediation += " (replace each UPPERCASE placeholder with the developer's answer)"
+				remediation += " (replace each UPPERCASE placeholder with the developer's answer"
+				if fix.note != "" {
+					remediation += "; " + fix.note
+				}
+				remediation += ")"
 			}
 			check.Remediation = remediation
 		}
@@ -99,6 +103,8 @@ func attachFixCommands(appID, versionID string, checks []CheckResult) {
 type fixCommand struct {
 	commands       []string
 	needsUserInput bool
+	// note lists the values a placeholder takes when its name alone does not.
+	note string
 }
 
 func knownFix(command string) fixCommand {
@@ -165,7 +171,13 @@ func publicAPIResolutionCommand(report Report, check CheckResult) fixCommand {
 	case "age_rating.missing_field":
 		appID := strings.TrimSpace(report.AppID)
 		if flag, values := ageRatingResolutionField(field); appID != "" && flag != "" {
-			return userFix(fmt.Sprintf("asc age-rating edit --app %q --%s %q", appID, flag, values))
+			fix := userFix(fmt.Sprintf("asc age-rating edit --app %q --%s %q", appID, flag, values))
+			if values == ageRatingLevelPlaceholder {
+				// INFREQUENT_OR_MILD is one value, so the levels cannot be
+				// joined with _OR_ the way TRUE_OR_FALSE is.
+				fix.note = ageRatingLevelPlaceholder + " is NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, or FREQUENT"
+			}
+			return fix
 		}
 	case "availability.missing":
 		if appID := strings.TrimSpace(report.AppID); appID != "" {
@@ -241,10 +253,14 @@ func localizationResolutionField(field string) (string, string) {
 	}
 }
 
+// ageRatingLevelPlaceholder stands for one of the content-descriptor levels.
+const ageRatingLevelPlaceholder = "LEVEL"
+
 // ageRatingResolutionField maps an age rating declaration attribute to its
-// asc age-rating edit flag and the values that flag accepts.
+// asc age-rating edit flag and the placeholder for the values that flag
+// accepts.
 func ageRatingResolutionField(field string) (string, string) {
-	const levels = "NONE_OR_INFREQUENT_OR_MILD_OR_FREQUENT_OR_INTENSE"
+	const levels = ageRatingLevelPlaceholder
 	switch field {
 	case "advertising", "gambling":
 		return field, "TRUE_OR_FALSE"
