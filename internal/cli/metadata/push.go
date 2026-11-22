@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -62,7 +63,8 @@ type PlanAPICall struct {
 }
 
 // Statuses recorded on ApplyAction. metadataActionStatusSkipped is additive:
-// it is only ever recorded when --if-exists skip resolved a create conflict,
+// it is recorded when --if-exists skip resolved a create conflict, or when an
+// update had nothing left to send after App Store Connect refused whatsNew,
 // and it reuses the shared idempotent-write vocabulary from
 // asc.IdempotentWriteActionSkipped.
 const (
@@ -77,16 +79,19 @@ const (
 // on every path that does not hit an existence conflict, so the default
 // receipt is unchanged.
 type ApplyAction struct {
-	Scope               string            `json:"scope"`
-	Locale              string            `json:"locale"`
-	Version             string            `json:"version,omitempty"`
-	Action              string            `json:"action"`
-	Status              string            `json:"status,omitempty"`
-	LocalizationID      string            `json:"localizationId,omitempty"`
-	Error               string            `json:"error,omitempty"`
-	DesiredFields       map[string]string `json:"desiredFields,omitempty"`
-	AlreadyExists       bool              `json:"alreadyExists,omitempty"`
-	IfExists            string            `json:"ifExists,omitempty"`
+	Scope          string            `json:"scope"`
+	Locale         string            `json:"locale"`
+	Version        string            `json:"version,omitempty"`
+	Action         string            `json:"action"`
+	Status         string            `json:"status,omitempty"`
+	LocalizationID string            `json:"localizationId,omitempty"`
+	Error          string            `json:"error,omitempty"`
+	DesiredFields  map[string]string `json:"desiredFields,omitempty"`
+	AlreadyExists  bool              `json:"alreadyExists,omitempty"`
+	IfExists       string            `json:"ifExists,omitempty"`
+	// SkippedFields lists fields App Store Connect refused in this state and
+	// push left out of the write (whatsNew on an app's first version).
+	SkippedFields       []string `json:"skippedFields,omitempty"`
 	reconciledDuplicate bool
 	convertedFromCreate bool
 }
@@ -1023,6 +1028,13 @@ func applyMetadataPlan(
 	versionActions, err := applyVersionChanges(ctx, d, client, versionID, version, localVersion, remoteVersionItems, allowDeletes, ifExists)
 	for i := range versionActions {
 		_, versionActions[i].convertedFromCreate = createdLocales[versionActions[i].Locale]
+		if slices.Contains(versionActions[i].SkippedFields, "whatsNew") {
+			rest := "The other fields were pushed."
+			if versionActions[i].Status == metadataActionStatusSkipped {
+				rest = "Nothing else changed."
+			}
+			fmt.Fprintf(d.IO.ErrOut, "Warning: whatsNew was not set for locale %s of version %s: App Store Connect does not allow What's New on an app's first version (409 STATE_ERROR). %s\n", versionActions[i].Locale, version, rest)
+		}
 	}
 	actions = append(actions, versionActions...)
 	if err != nil {
@@ -1384,6 +1396,7 @@ func applyVersionChanges(
 			setFields := changedSetFields(localPatch.setFields, remoteFields)
 			clearFields := changedClearFields(localPatch.clearFields, remoteFields)
 			desired := desiredLocalizationFields(setFields, clearFields)
+			var skippedFields []string
 			id, action, err := runMetadataMutation(
 				ctx, d, "update",
 				func(requestCtx context.Context) (string, error) {
@@ -1392,6 +1405,22 @@ func applyVersionChanges(
 						remoteState.id,
 						nullableLocalizationPayload(setFields, clearFields),
 					)
+					// Apple has no What's New on an app's first version and
+					// refuses the whole PATCH, applying nothing, so the other
+					// fields can be sent again without it.
+					if mutationErr != nil && skippedFields == nil && setFields["whatsNew"] != "" && isWhatsNewOnlyStateError(mutationErr) {
+						skippedFields = []string{"whatsNew"}
+						delete(setFields, "whatsNew")
+						delete(desired, "whatsNew")
+						if len(setFields) == 0 && len(clearFields) == 0 {
+							return remoteState.id, nil
+						}
+						resp, mutationErr = client.UpdateAppStoreVersionLocalizationNullableFields(
+							requestCtx,
+							remoteState.id,
+							nullableLocalizationPayload(setFields, clearFields),
+						)
+					}
 					if mutationErr != nil {
 						return "", mutationErr
 					}
@@ -1402,10 +1431,17 @@ func applyVersionChanges(
 				},
 			)
 			if err != nil {
-				result.actions = append(result.actions, failedMetadataAction(versionDirName, locale, version, "update", remoteState.id, desired, err))
+				failed := failedMetadataAction(versionDirName, locale, version, "update", remoteState.id, desired, err)
+				failed.SkippedFields = skippedFields
+				result.actions = append(result.actions, failed)
 				result.errs = append(result.errs, newMetadataMutationActionError(fmt.Errorf("update version localization %s (fields: %s): %w", locale, formatAttemptedFieldMap(versionPlanFields, desired), err)))
 			} else {
-				result.actions = append(result.actions, successfulMetadataAction(versionDirName, locale, version, action, id))
+				succeeded := successfulMetadataAction(versionDirName, locale, version, action, id)
+				succeeded.SkippedFields = skippedFields
+				if len(desired) == 0 {
+					succeeded.Status = metadataActionStatusSkipped
+				}
+				result.actions = append(result.actions, succeeded)
 			}
 		}
 		return result
@@ -1915,6 +1951,22 @@ func countIntentChanges(fields []string, localSet map[string]string, localClears
 		}
 	}
 	return adds, updates
+}
+
+// isWhatsNewOnlyStateError reports whether App Store Connect refused a write
+// only because it set whatsNew: every error is a 409 STATE_ERROR naming
+// whatsNew, as Apple answers a PATCH that sets it on an app's first version.
+func isWhatsNewOnlyStateError(err error) bool {
+	apiErr, ok := errors.AsType[*asc.APIError](err)
+	if !ok || apiErr.StatusCode != http.StatusConflict || len(apiErr.Entries) == 0 {
+		return false
+	}
+	for _, entry := range apiErr.Entries {
+		if entry.Code != "STATE_ERROR" || !strings.Contains(entry.Detail, "'whatsNew'") {
+			return false
+		}
+	}
+	return true
 }
 
 // changedSetFields keeps a PATCH limited to values that differ from the
