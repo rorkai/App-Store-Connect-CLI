@@ -257,6 +257,15 @@ func (c *Client) revokeDeveloperKey(ctx context.Context, keyID, serviceID, label
 	if !key.hasService(serviceID) {
 		return fmt.Errorf("key %s is not %s key", keyID, label)
 	}
+	var others []string
+	for _, service := range key.Services {
+		if service.ID != serviceID {
+			others = append(others, service.ID)
+		}
+	}
+	if len(others) > 0 {
+		return fmt.Errorf("key %s also serves %s; revoking it would stop those services too, so revoke it in the Developer Portal if that is intended", keyID, strings.Join(others, ", "))
+	}
 	if !key.CanRevoke {
 		return fmt.Errorf("key %s cannot be revoked by this account", keyID)
 	}

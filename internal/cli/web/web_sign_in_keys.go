@@ -180,7 +180,7 @@ func webDeveloperKeyRevokeCommand(d *shared.Deps, kind developerKeyKind) *ffcli.
 	output := d.BindOutputFlags(fs)
 	keyID := fs.String("key-id", "", "Developer Portal authentication key ID")
 	confirm := fs.Bool("confirm", false, "Confirm permanently revoking this "+kind.label+" key")
-	return &ffcli.Command{Name: "revoke", ShortUsage: "asc web " + kind.group + " revoke --key-id ID --confirm [flags]", ShortHelp: "Revoke " + kind.article + " " + kind.label + " key.", LongHelp: "Permanently revokes the key; services signing with it stop working. Refuses keys of another service or keys this account cannot revoke, verifies the key is no longer listed, and never retries automatically.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
+	return &ffcli.Command{Name: "revoke", ShortUsage: "asc web " + kind.group + " revoke --key-id ID --confirm [flags]", ShortHelp: "Revoke " + kind.article + " " + kind.label + " key.", LongHelp: "Permanently revokes the key; services signing with it stop working. Refuses keys of another service, keys shared with another service, or keys this account cannot revoke, verifies the key is no longer listed, and never retries automatically.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		id := strings.TrimSpace(*keyID)
 		if id == "" {
 			return d.UsageError("--key-id is required")

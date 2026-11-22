@@ -304,7 +304,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 ## Developer Portal key revoke (web session)
 
-- `asc web sign-in-keys revoke` and `asc web push-keys revoke` send `POST /services-account/QH65B2/account/auth/key/revoke` (form `teamId`, `keyId`) and expect `resultCode: 0`. Detail is read first to refuse another service's key or `canRevoke: false`; the key list is then called immediately before the revoke because the detail read re-establishes the team CSRF and the revoke needs the key-family CSRF. A revoked key disappears from the key list, which is the verification; APNs answered `403 InvalidProviderToken` for a revoked key on 2026-11-22.
+- `asc web sign-in-keys revoke` and `asc web push-keys revoke` send `POST /services-account/QH65B2/account/auth/key/revoke` (form `teamId`, `keyId`) and expect `resultCode: 0`. Detail is read first to refuse another service's key, a key that also serves another service (revoking it would stop that service too), or `canRevoke: false`; the key list is then called immediately before the revoke because the detail read re-establishes the team CSRF and the revoke needs the key-family CSRF. A revoked key disappears from the key list, which is the verification; APNs answered `403 InvalidProviderToken` for a revoked key on 2026-11-22.
 
 ## Developer Portal Agreements (web session)
 
