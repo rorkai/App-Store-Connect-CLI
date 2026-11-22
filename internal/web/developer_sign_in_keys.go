@@ -119,7 +119,7 @@ func (c *Client) CreateDeveloperSignInKey(ctx context.Context, name, bundleID st
 		return nil, fmt.Errorf("name and opaque bundle resource ID are required")
 	}
 	request := map[string]any{"isNew": true, "serviceId": signInKeyService, "identifiers": map[string]any{"bundle": []string{bundleID}}}
-	detail, err := c.createDeveloperKey(ctx, name, "sign-in-keys", request)
+	detail, err := c.createDeveloperKey(ctx, name, request)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (c *Client) CreateDeveloperSignInKey(ctx context.Context, name, bundleID st
 // CreateDeveloperPushKey creates a team-scoped APNs key for sandbox and production.
 func (c *Client) CreateDeveloperPushKey(ctx context.Context, name string) (*DeveloperSignInKey, error) {
 	request := map[string]any{"isNew": true, "serviceId": pushKeyService, "identifiers": map[string]any{}, "environment": "all", "scope": "team"}
-	detail, err := c.createDeveloperKey(ctx, name, "push-keys", request)
+	detail, err := c.createDeveloperKey(ctx, name, request)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (c *Client) CreateDeveloperPushKey(ctx context.Context, name string) (*Deve
 	return detail, nil
 }
 
-func (c *Client) createDeveloperKey(ctx context.Context, name, group string, serviceRequest map[string]any) (*DeveloperSignInKey, error) {
+func (c *Client) createDeveloperKey(ctx context.Context, name string, serviceRequest map[string]any) (*DeveloperSignInKey, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, fmt.Errorf("key name is required")
@@ -175,11 +175,11 @@ func (c *Client) createDeveloperKey(ctx context.Context, name, group string, ser
 	}
 	body, err := c.doDeveloperPortalHTTPAndCapture(ctx, http.MethodPost, c.developerPortalOrigin()+developerPortalLegacyPath+"/account/auth/key/v2/create", payload, headers)
 	if err != nil {
-		return nil, fmt.Errorf("key creation outcome is unknown; inspect %s list before retrying: %w", group, err)
+		return nil, fmt.Errorf("key creation outcome is unknown; inspect sign-in-keys list before retrying: %w", err)
 	}
 	result, err := parseDeveloperSignInKeys(body)
 	if err != nil {
-		return nil, fmt.Errorf("inspect %s list before retrying: %w", group, err)
+		return nil, fmt.Errorf("inspect sign-in-keys list before retrying: %w", err)
 	}
 	if len(result.Keys) != 1 {
 		return nil, fmt.Errorf("key creation returned unexpected key count; inspect list before retrying")
