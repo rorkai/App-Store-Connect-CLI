@@ -71,7 +71,7 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		{checkID: "metadata.required.support_url", field: "supportUrl", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --support-url "SUPPORT_URL"`}},
 		{checkID: "legal.required.copyright", field: "copyright", userInput: true, want: []string{`asc versions update --version-id "ver-1" --copyright "YEAR RIGHTS_HOLDER"`}},
 		{checkID: "age_rating.missing_field", field: "advertising", userInput: true, want: []string{`asc age-rating edit --app "app-1" --advertising "TRUE_OR_FALSE"`}},
-		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", userInput: true, want: []string{`asc age-rating edit --app "app-1" --alcohol-tobacco-drug-use "LEVEL"`}, note: "LEVEL is NONE, INFREQUENT_OR_MILD, or FREQUENT_OR_INTENSE"},
+		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", userInput: true, want: []string{`asc age-rating edit --app "app-1" --alcohol-tobacco-drug-use "LEVEL"`}, note: "LEVEL is NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, or FREQUENT"},
 		{checkID: "availability.missing", field: "appAvailabilityV2", userInput: true, want: []string{`asc pricing availability create --app "app-1" --territory "TERRITORIES" --available true --available-in-new-territories "TRUE_OR_FALSE"`}},
 		{checkID: "pricing.schedule.missing", field: "appPriceSchedule", userInput: true, want: []string{
 			`asc pricing schedule create --app "app-1" --price-point "PRICE_POINT_ID" --base-territory "BASE_TERRITORY"`,
