@@ -1,0 +1,1350 @@
+# Command shapes coding agents run against asc, values replaced by X.
+# See TestAgentCallShapesKeepResolving in agent_calls_test.go.
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --fail-on-invalid --report-pending
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --fail-on-invalid --report-pending --output X
+ok api X X
+ok versions list --app X --output X
+ok review details-for-version --version-id X --output X
+ok builds list --app X --limit X --output X
+ok metadata pull --app X --version X --platform X --dir X
+ok metadata push --app X --version X --platform X --dir X
+ok validate --app X --version-id X --output X
+ok metadata validate --dir X --check-urls
+ok search X
+ok api X X --output X
+ok api X X --confirm --body X
+ok versions attach-build --version-id X --build-id X --output X
+ok metadata pull --app X --version X --dir X
+ok localizations list --version X --output X
+ok metadata push --app X --version X --platform X --dir X --output X
+ok versions view --version-id X --output X
+ok review details-update --id X --notes
+ok metadata push --app X --version X --platform X --dir X --dry-run
+ok search --output X X
+ok localizations update --help
+ok review --help
+ok builds list --app X
+ok review status --app X --output X
+ok apps list --output X
+ok review status --app X
+ok versions attach-build --version-id X --build-id X
+ok review details-update --id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes X --output X
+ok metadata pull --app X --version X --dir X --output X
+ok apps info view --app X --output X
+ok builds add-groups --build-id X --group X --submit --confirm
+ok validate --app X --version-id X
+ok builds list --app X --sort -uploadedDate --limit X --output X
+ok metadata validate --dir X --check-urls --output X
+ok metadata pull --app X --version X --platform X --dir X --output X
+ok builds info --build-id X --include X --output X
+ok review details-for-version --version-id X
+ok search X --output X
+ok builds list --app X --output X
+ok localizations update --id X --whats-new X --output X
+ok builds list --app X --version X --platform X --build-number X --processing-state X --output X
+ok subscriptions groups list --app X --output X
+ok versions create --app X --version X --platform X --output X
+ok versions list --app X --limit X --output X
+ok versions list --app X --platform X --output X
+ok review items add --submission X --item-type X --item-id X --output X
+ok builds info --build-id X --output X
+ok builds list --app X --version X --platform X --build-number X --processing-state X --paginate --output X
+ok versions create --help
+ok metadata push --help
+ok builds build-beta-detail view --build-id X --output X
+ok metadata push --app X --version X --platform X --dir X --dry-run --output X
+ok testflight review submit --build-id X --confirm
+ok api X X --query X
+ok api get X --output X
+ok builds --help
+ok testflight review submit --build-id X --confirm --output X
+ok versions list --app X --platform X --limit X --output X
+ok builds list --app X --limit X
+ok builds test-notes create --build-id X --locale X --whats-new X --output X
+ok builds test-notes update --build-id X --locale X --whats-new X
+ok testflight groups list --app X --paginate --output X
+ok api X X --confirm --body X --output X
+ok api get X
+ok metadata validate --dir X
+ok review items add --submission X --item-type X --item-id X
+ok versions --help
+ok apps info edit --help
+ok builds list --app X --limit X --sort=X --output X
+ok review details-update --id X --notes X --output X
+ok submit status --version-id X --output X
+ok builds add-groups --build-id X --group X --output X
+ok pricing availability view --app X --output X
+ok review details-get --id X --output X
+ok review details-update --help
+ok age-rating edit --help
+ok help
+ok metadata push --app X --version X --platform X --dir X --include X --dry-run
+ok versions view --version-id X --include X --output X
+ok apps view --id X --output X
+ok builds add-groups --build-id X --group X
+ok metadata validate --dir X --output X
+ok testflight --help
+ok testflight testers add --app X --email X --group X --output X
+ok builds add-groups --build-id X --group X --submit --confirm --output X
+ok metadata pull --help
+ok apps list
+ok builds list --app X --sort=X --limit X --output X
+ok builds test-notes create --build-id X --locale X --whats-new X
+ok metadata --help
+ok pricing availability view --app X
+ok pricing current --app X --output X
+ok status --app X --output X
+ok testflight groups list --app X --internal --paginate --output X
+ok api X X --confirm
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --fail-on-invalid --report-pending --timeout X
+ok localizations list --app X --type X --output X
+ok versions list --app X
+ok versions update --version-id X --copyright X --output X
+unknown-flag apps info --app X --output X
+ok status --app X
+ok versions update --version-id X --version X --output X
+ok builds list --app X --build-number X --output X
+ok review details-update --id X --notes X
+ok review submissions list --app X --output X
+ok testflight crashes list --app X --output X
+ok testflight groups list --app X --output X
+ok testflight testers invite --app X --email X --output X
+ok apps --help
+ok iap list --app X --output X
+ok metadata push --app X --version X --dir X --output X
+ok age-rating view --app X --output X
+ok apps info list --app X --output X
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --fail-on-invalid --report-pending --timeout X --output X
+ok localizations --help
+ok localizations list --version-id X --output X
+ok metadata pull --app X --version X --dir X --json
+ok pricing availability create --app X --all-territories --available X --available-in-new-territories X --output X
+ok schema X
+ok subscriptions --help
+ok subscriptions list --group-id X --output X
+ok subscriptions view --id X --output X
+ok versions update --version-id X --copyright X
+ok versions view --version-id X
+ok age-rating view --app X
+ok api X X --allow-unknown-path
+ok builds test-notes list --build-id X --output X
+ok builds test-notes update --build-id X --locale X --whats-new X --output X
+ok bundle-ids capabilities list --bundle X --output X
+ok review details-update --id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes
+ok review doctor --app X
+ok submit status --version-id X
+ok apps list --bundle-id X --output X
+ok builds groups list --build-id X --output X
+ok builds list --app X --limit X --sort -uploadedDate --output X
+ok pricing availability create --app X --all-territories --available X --available-in-new-territories X
+ok pricing current --app X
+ok review items list --submission X --output X
+ok review submissions-submit --id X --confirm --output X
+ok testflight testers list --app X --output X
+ok versions get --version-id X --output X
+ok versions list --app X --paginate --output X
+ok api X X --confirm --allow-unknown-path
+ok builds build-beta-detail view --build-id X
+ok metadata pull --app X --version X --dir X --force
+ok pricing availability edit --help
+ok review details-create --help
+ok review doctor --app X --output X
+ok subscriptions review screenshots create --subscription-id X --file X --output X
+ok testflight groups list --app X --internal --name X --paginate --output X
+ok validate --app X --version X --platform X --output X
+ok versions create --app X --version X --platform X --build-id X --output X
+ok versions create --app X --version X --platform X --copy-metadata-from X --output X
+ok video-previews list --version-localization X --output X
+ok age-rating --help
+ok api X X --confirm --output X
+ok apps update --id X --content-rights X --output X
+ok builds test-notes update --help
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --fail-on-invalid --output X
+ok localizations placements list --localization-id X --placement-type X --paginate --output X
+ok pricing availability edit --app X --territory X --available X
+ok pricing availability edit --app X --territory X --available X --output X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes X --output X
+ok review items add --submission X --item-type X --item-id X --if-exists X --output X
+ok review submissions-list --app X --output X
+ok review submissions-update --id X --canceled=X --confirm --output X
+ok subscriptions list --app X --output X
+ok system-status --service X
+ok testflight groups --help
+ok validate
+ok versions view --version-id X --include-build --output X
+ok api X X --body X --confirm --output X
+ok builds list --app-id X --limit X
+ok builds wait --help
+ok categories set --app X --primary X --secondary X
+ok localizations update --version X --locale X --whats-new X --output X
+ok metadata approve --review-dir X --all
+ok metadata push --app X --version X --platform X --dir X --include X
+ok pricing availability territory-availabilities --app X --paginate --output X
+ok review submissions-create --app X --platform X --output X
+ok review submissions-update --id X --canceled=X --confirm
+ok testflight app-localizations list --app X --output X
+ok validate --app X --version-id X --deep --output X
+ok versions attach-build --help
+ok versions localizations list --version-id X --output X
+ok versions update --help
+ok age-rating edit --app X --all-none
+ok api --help
+ok api X X --allow-unknown-path --output X
+ok apps info view --app X
+ok apps update --id X --content-rights X
+ok builds list --app X --version X --platform X --sort=X --limit X --processing-state X --output X
+ok builds wait --app X --build-number X --platform X --version X --fail-on-invalid --timeout X --poll-interval X --report-pending
+ok localizations update --type X --id X --name X --output X
+ok metadata pull --app X --version X --dir X --force --output X
+ok pricing --help
+ok pricing schedule create --app X --free --base-territory X
+ok pricing schedule create --app X --free --base-territory X --output X
+ok review items update --id X --resolved X --output X
+ok review submissions-cancel --id X --confirm --output X
+ok review submissions-submit --id X --confirm
+ok testflight testers --help
+ok validate subscriptions --app X --strict --output X
+ok versions attach-build --version-id X --build X --output X
+ok versions view --app X --version X --include X --output X
+ok age-rating edit --app X --all-none --output X
+ok analytics download --request-id X --instance-id X --decompress --output X
+ok builds list --app X --version X --platform X --processing-state X --sort=X --limit X --output X
+ok bundle-ids list --identifier X --output X
+ok encryption declarations list --app X --output X
+ok metadata pull --app X --dir X
+ok review details-get --id X
+ok review submissions-get --id X --output X
+ok subscriptions setup --help
+ok versions view --version-id X --include X
+ok api patch X --body X --confirm
+ok apps --output X
+ok apps update --help
+ok asset-library images upload --library-id X --file X --output X
+ok asset-library specs --output X
+ok builds info --build-id X
+ok builds list --app X --build-number X
+ok builds list --app X --platform X --processing-state X --sort=X --limit X --output X
+ok builds list --app X --processing-state X --sort=X --limit X --output X
+ok builds list --app X --version X --platform X --sort=X --limit X --output X
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --fail-on-invalid --report-pending --json
+ok categories set --app X --primary X --output X
+ok categories set --app X --primary X --secondary X --output X
+ok localizations view --id X
+ok localizations view --id X --output X
+ok metadata apply --app X --version X --dir X --review-dir X --confirm
+ok metadata pull --app X --version X --platform X --dir X --json
+ok metadata push --app X --version X --dir X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes X
+ok review items add --submission X --item-type X --item-id X --if-exists X
+ok review items-list --submission X --output X
+ok subscriptions pricing --help
+ok subscriptions setup --app X --group-id X --reference-name X --product-id X --subscription-period X --price-point-id X --price-territory X --territories X --locale X --display-name X --description X --group-level X --review-screenshot X --no-verify
+ok subscriptions versions list --subscription-id X --output X
+ok testflight groups testers list --group-id X --paginate --output X
+ok validate --output X
+ok validate subscriptions --app X --output X
+ok validate subscriptions --app X --strict
+ok versions attach-build --version-id X --build X
+ok versions get --version-id X --include-build --output X
+ok api X X --paginate
+ok apps list --json
+ok builds beta-app-review-submission view --build-id X
+ok builds beta-app-review-submission view --build-id X --output X
+ok builds groups list --build-id X
+ok builds list --app X --version X --platform X --processing-state X --limit X --output X
+ok builds wait --app X --build-number X --version X --platform X --timeout X
+ok categories set --app X --primary X
+ok categories set --help
+ok iap versions submit --version-id X --submission X --confirm --output X
+ok localizations update --id X --description
+ok review details-update --id X --demo-account-required=X --output X
+ok review submit --app X --version-id X --build-id X --confirm
+ok subscriptions groups versions list --group-id X --output X
+ok subscriptions offers offer-codes generate --offer-code-id X --quantity X --environment X --expiration-date X --output X
+ok subscriptions pricing prices list --subscription-id X --resolved --territory X --output X
+ok subscriptions pricing summary --app X --output X
+ok testflight groups builds list --group-id X --paginate --output X
+ok testflight groups edit --help
+ok testflight groups testers list --group-id X --output X
+ok users list --output X
+ok versions create --app X --version X --platform X
+ok versions update --version-id X --release-type X --output X
+ok versions view --app X --version X --platform X --include X --output X
+ok versions view --app X --version X --platform X --output X
+ok analytics view --request-id X
+ok api X X --confirm --body-file X
+ok api get X --allow-unknown-path
+ok apps info --help
+ok apps info edit --app X --version X --platform X --locale X --whats-new X --output X
+ok apps rename --app X --locale X --name X --output X
+ok builds build-beta-detail get --build-id X --output X
+ok builds list --app-id X --limit X --output X
+ok builds list --help
+ok builds test-notes create --help
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --fail-on-invalid
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --timeout X --fail-on-invalid --report-pending
+ok bundle-ids list --output X
+ok encryption --help
+ok encryption declarations create --app X --app-description X --contains-proprietary-cryptography=X --contains-third-party-cryptography=X --available-on-french-store=X --output X
+ok localizations placements create --localization-id X --image-id X --placement-type X --output X
+ok localizations update --id X --whats-new X
+ok metadata pull --app X --version X --platform X --dir X --output X X X -type X -exec X -c X X X
+ok metadata validate --help
+ok performance diagnostics list --build-id X --output X
+ok pricing availability territory-availabilities --app X --paginate
+ok pricing schedule create --help
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes X --output X
+ok review items add --help
+ok review items list --submission X
+ok review submissions-create --app X --platform X
+ok subscriptions pricing prices set --subscription-id X --price-point X
+ok subscriptions review screenshots --help
+ok subscriptions setup --app X --group-id X --reference-name X --product-id X --subscription-period X --price X --price-territory X --locale X --display-name X --description X --group-locale X --group-display-name X --review-screenshot X --repair
+ok subscriptions versions --help
+ok subscriptions versions images upload --version-id X --file X --output X
+ok testflight feedback list --app X --output X
+ok testflight groups builds list --group-id X --output X
+ok testflight groups create --app X --name X --output X
+ok testflight testers add --app X --email X --group X
+ok versions list --app X --platform X
+ok analytics reports links --report-id X --paginate --output X
+ok analytics view --request-id X --output X
+ok api X
+ok api X X --confirm --body
+ok api X X --data X --confirm --output X
+ok apps view --id X
+ok build-bundles list --build-id X
+ok build-bundles list --build-id X --output X
+ok builds list --app X --build-number X --platform X --limit X --output X
+ok builds list --app X --version X --platform X --processing-state X --paginate --output X
+ok bundle-ids capabilities add --help
+ok categories list
+ok iap versions images list --version-id X --output X
+ok localizations list --app X --type X
+ok localizations upload --version X --path X --output X
+ok metadata plan --app X --version X --dir X
+ok pricing availability edit --app X --all-territories --available X --available-in-new-territories X
+ok pricing schedule create --app X --price X --base-territory X --output X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes
+unknown-flag review details-get --version-id X --output X
+ok review details-update --id X --demo-account-required=X
+ok review submissions --help
+ok review submit --app X --version X --build-id X --confirm
+ok subscriptions list --group X --output X
+ok subscriptions review screenshots delete --screenshot-id X --confirm
+ok subscriptions versions list --subscription-id X
+ok subscriptions versions localizations list --version-id X --output X
+ok testflight app-localizations create --help
+ok testflight crashes log --submission-id X --output X
+ok testflight distribution view --build-id X --output X
+ok testflight testers add --app X --email X --first-name X --last-name X --group X --output X
+ok testflight testers invite --app X --email X --group X --output X
+ok testflight testers list --app X --paginate --output X
+ok versions attach-build --app X --version X --build-number X
+ok versions attach-build --app X --version X --build-number X --output X
+ok versions create --app X --version X --platform X --copyright X --release-type X --copy-metadata-from X --output X
+ok versions update --version-id X --version X
+ok api X X --query X --query X
+ok asset-library view --app X --output X
+ok availability --help
+ok builds add-groups --help
+ok builds list --app X --platform X --sort=X --limit X --output X
+ok builds list --app X --version X --platform X --processing-state X --sort=X --limit X
+ok bundle-ids capabilities add --bundle X --capability X
+ok categories --help
+ok categories list --output X
+ok encryption declarations create --app X --app-description X --contains-proprietary-cryptography=X --contains-third-party-cryptography=X --available-on-french-store=X
+ok encryption declarations list --app X
+ok iap versions list --iap-id X --output X
+ok localizations list --app X --version X
+ok localizations list --app X --version X --platform X --output X
+ok localizations list --help
+ok localizations list --version X
+ok localizations screenshot-sets list --localization-id X --include X --output X
+ok metadata pull --app X --version X --platform X --dir X --force
+ok metadata push --app X --version X --dir X --dry-run
+ok metadata push --app X --version X --platform X --dir X --if-exists X
+unknown-flag metadata validate --app X --version X --dir X --output X
+ok pricing availability create --app X --territory X --available X --available-in-new-territories X --output X
+ok pricing availability create --help
+ok pricing availability edit --app X --all-territories --available X --output X
+ok pricing availability remove-from-sale --app X --confirm --output X
+ok pricing schedule create --app X --price-point X --base-territory X --output X
+ok pricing schedule view --app X --output X
+ok review history --app X --output X
+ok review submissions-cancel --help
+ok review submit --version-id X --build-id X --confirm --output X
+ok subscriptions groups list --app X
+ok subscriptions offers introductory list --subscription-id X
+ok subscriptions versions localizations --help
+ok testflight app-localizations create --app X --locale X --description X --feedback-email X --output X
+ok testflight app-localizations update --id X --description X --feedback-email X --output X
+ok testflight crashes --help
+ok testflight groups builds --help
+ok testflight groups builds list --group X --output X
+ok testflight groups create --help
+ok testflight groups list --app X
+ok testflight groups list --app X --external --paginate --output X
+ok testflight review --help
+ok testflight review edit --help
+ok testflight review submissions list --build-id X
+ok testflight review view --app X --output X
+ok testflight testers add --email X --build-id X --output X
+ok testflight testers add-groups --id X --group X --output X
+ok testflight testers list --app X --email X --output X
+ok testflight testers list --group X --output X
+ok testflight testers list --group X --paginate --output X
+ok testflight testers view --id X --output X
+ok validate --app X --version X --output X
+ok validate --deep
+ok versions create --app X --version X --platform X --copy-metadata-from X
+ok versions create --app X --version X --platform X --copyright X --release-type X --build-id X --copy-metadata-from X --output X
+ok versions localizations --help
+ok versions view --app X --version X --include X
+ok versions view --app X --version X --output X
+ok analytics --help
+ok analytics request --app X --access-type X --reuse-existing
+ok api X X --body X --confirm --allow-unknown-path
+ok api X X --confirm --output X --body X
+ok api X X --query X --output X
+ok app-infos list --app X --output X
+ok app-setup info set --app X --locale X --name X --output X
+ok app-setup info set --help
+ok apps get --id X --output X
+ok apps info edit --app X --version X --platform X --locale X --description
+ok apps rename --app X --locale X --name X
+ok apps view --app X --output X
+ok asset-library videos upload --library-id X --file X --time-code X --output X
+ok builds info --build-id X --include X
+ok builds list
+ok builds list --app X --build-number X --platform X --include X --output X
+ok builds list --app X --platform X --sort -uploadedDate --output X
+ok builds list --app X --version X --output X
+ok builds test-notes --help
+ok builds test-notes update --localization-id X --whats-new X --output X
+ok builds wait --app X --build-number X --platform X --timeout X --report-pending --output X
+ok builds wait --app X --build-number X --platform X --version X --fail-on-invalid --report-pending --timeout X --output X
+ok builds wait --app X --version X --platform X --build-number X --output X
+ok categories set --app X --primary X --primary-subcategory-one X --output X
+ok encryption declarations assign-builds --id X --build-id X
+ok encryption declarations assign-builds --id X --build-id X --output X
+ok iap pricing summary --app X --output X
+ok iap pricing summary --iap-id X --output X
+ok localizations create --help
+ok localizations download --version X --path X
+ok localizations download --version X --path X --output X
+ok localizations update --id X --keywords X
+ok localizations update --type X --id X --name X
+ok localizations update --version X --locale X --whats-new X
+ok metadata apply --app X --version X --dir X --output X
+ok metadata apply --help
+ok metadata plan --app X --version X --platform X --dir X
+ok metadata pull --app X --dir X --output X
+ok metadata pull --app X --version X --platform X --dir X --include X
+ok metadata push --app X --version X --dir X --confirm --output X
+ok metadata push --app X --version X --platform X --dir X --include X --output X
+ok performance diagnostics list --build X --output X
+ok pricing availability --help
+ok pricing availability create --app X --territory X --available X --available-in-new-territories X
+ok pricing availability territory-availabilities --help
+ok pricing schedule create --app X --free --base-territory X --start-date X --output X
+ok pricing schedule view --app X
+ok pricing tiers --app X --territory X --output X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --demo-account-name X --demo-account-password X --notes X --output X
+ok review details-get --id X --include-sensitive --output X
+ok review details-update --id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes X --output X
+ok review details-update --id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes X
+ok review details-update --id X --demo-account-required X
+ok review items --help
+ok review items list --submission X --include X --output X
+ok review items remove --id X --confirm --output X
+ok review items-add --submission X --item-type X --item-id X
+ok review submissions list --app X
+ok review submissions-list --app X --state X --include X --paginate
+ok review submit --help
+unknown-command review-details --help
+ok status --app X --include X
+ok submissions list --app X --output X
+ok submit --help
+ok subscriptions groups versions list --group-id X
+ok subscriptions list --help
+ok subscriptions offers introductory create --subscription-id X --all-territories --offer-duration X --offer-mode X --number-of-periods X
+ok subscriptions offers introductory create --subscription-id X --all-territories --offer-duration X --offer-mode X --number-of-periods X --output X
+ok subscriptions offers introductory list --subscription-id X --output X
+ok subscriptions pricing availability view --subscription-id X --output X
+ok subscriptions pricing prices list --subscription-id X
+ok subscriptions pricing prices set --help
+ok subscriptions update --help
+ok subscriptions versions localizations create --version-id X --locale X --name X --description X
+ok subscriptions view --id X --include X --output X
+ok testflight crashes list --app X --limit X --output X
+ok testflight groups builds list --group-id X
+ok testflight groups create --app X --name X --build-id X --public-link-enabled --public-link-limit-enabled --public-link-limit X --feedback-enabled --output X
+ok testflight review view --app X
+ok testflight testers invite --app X --email X
+ok testflight testers list --app X
+ok testflight testers list --app X --group X --output X
+ok testflight testers list --app X --group X --paginate --output X
+ok validate --app X --version X
+ok validate --app X --version X --platform X
+ok validate --app X --version X --platform X --deep --output X
+ok version-localizations list --version-id X --output X
+ok versions create --app X --version X --platform X --copy-metadata-from X --exclude-fields X --if-exists X --output X
+ok versions create --app X --version X --platform X --copyright X --release-type X --copy-metadata-from X --exclude-fields X --if-exists X --output X
+ok versions list --app X --limit X
+ok versions list --app X --platform X --version X --output X
+ok versions release --version-id X --confirm --output X
+ok versions view --version-id X --include-build
+ok age-rating edit --app X --age-rating-override-v2 X --output X
+ok age-rating edit --app X --all-none --health-or-wellness-topics X --output X
+ok age-rating edit --app X --social-media X --social-media-age-restricted X --output X
+ok agreements --help
+ok analytics download --request-id X --instance-id X
+ok analytics request --app X --access-type X --reuse-existing --output X
+ok analytics requests --app X --output X
+ok api X X --allow-unknown-path --confirm --body X
+ok api X X --body-file X --confirm --output X
+ok api X X --confirm --body-file X --output X
+ok api patch X --body X
+ok app-events localizations placements list --localization-id X
+ok app-info --help
+unknown-command app-setup info get --app X --output X
+ok app-setup info set --app X --locale X --privacy-policy-url X --output X
+unknown-command app-store-versions get --id X --output X
+ok apps content-rights edit --app X --uses-third-party-content=X
+ok apps content-rights edit --app X --uses-third-party-content=X --output X
+ok apps get X
+unknown-flag apps info --app-id X --output X
+ok apps info edit --app X --version X --platform X --locale X --keywords X
+ok apps versions list --app X --output X
+ok build-bundles file-sizes list --id X --paginate --output X
+ok builds add-groups --build-id X --group X --confirm
+ok builds add-groups --build-id X --group X --dry-run
+unknown-command builds attach --help
+ok builds build-beta-detail get --build X
+ok builds get --app X X --include X --output X
+ok builds info --build X
+ok builds info --build-id X --include X --build-beta-detail-fields X --beta-group-fields X --output X
+ok builds list --app X --build-number X --platform X --output X
+unknown-flag builds list --app X --limit X --sort -uploadedDate --fields X --output X
+ok builds list --app X --processing-state X --sort -uploadedDate --limit X
+ok builds list --app X --sort=X --limit X --processing-state X --output X
+ok builds list --app X --version X --build-number X --output X
+ok builds list --app X --version X --limit X --output X
+ok builds list --app X --version X --platform X --build-number X --processing-state X --paginate
+ok builds list --app X --version X --platform X --processing-state X --output X
+ok builds list --app-id X --limit X --json
+unknown-flag builds list --filter X --output X
+ok builds wait --app X --build-number X --platform X
+ok builds wait --app X --build-number X --platform X --version X --fail-on-invalid --timeout X --report-pending --output X
+ok builds wait --app X --build-number X --platform X --version X --timeout X --fail-on-invalid --report-pending --output X
+ok builds wait --app X --build-number X --timeout X --output X
+ok builds wait --app X --build-number X --version X --platform X --timeout X --poll-interval X --fail-on-invalid --output X
+ok builds wait --app X --latest
+ok builds wait --app X --version X --build-number X --poll-interval X --fail-on-invalid
+ok bundle-ids capabilities add --bundle X --capability X --settings X --output X
+ok bundle-ids list
+ok encryption declarations create --help
+ok game-center --help
+ok iap --help
+ok localizations create --app X --version X --platform X --locale X --if-exists X --description
+ok localizations list --app X --output X
+ok localizations list --app X --version X --output X
+ok localizations list --app X --version-id X --output X
+ok localizations list --version-id X
+ok localizations update --app X --type X --locale X --privacy-policy-url X --output X
+ok localizations update --type X --id X --name X --confirm
+ok localizations update --version X --locale X --keywords X --output X
+ok localizations update --version X --locale X --promotional-text X
+ok localizations update --version X --locale X --promotional-text X --output X
+ok localizations view --id X --type X --output X
+ok metadata init --dir X --version X --locale X
+ok metadata pull --app X --dir X --include X
+ok metadata pull --app X --dir X --json
+ok metadata pull --app X --platform X --dir X
+ok metadata pull --app X --version X --platform X --dir X --force --output X
+ok metadata pull --app X --version X --platform X --dir X --include X --force --output X
+ok metadata push --app X --version X --dir X --dry-run --output X
+ok metadata validate --dir X --check-urls --output X X X X -- X X --app X --version X --platform X --dir X --dry-run --output X
+ok pricing availability territory-availabilities --app X
+ok pricing availability territory-availabilities --app X --output X
+ok pricing availability territory-availabilities --availability X
+ok review attachments-list --review-detail X --output X
+ok review attachments-upload --help
+ok review attachments-upload --review-detail X --file X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
+ok review details-for-version --version-id X --output X X X X X --app-version X --app X --json
+ok review details-for-version --version-id X --pretty
+ok review details-update --id X --demo-account-required X --output X
+ok review history --app X
+ok review status --app X --version-id X
+ok review submissions-create --help
+ok review submissions-list --app X --state X --include X --paginate --output X
+ok submit cancel --id X --confirm
+ok subscriptions create --group-id X --reference-name X --product-id X --subscription-period X --group-level X --review-note X --output X
+ok subscriptions get --id X --output X
+ok subscriptions groups create --app X --reference-name X --output X
+ok subscriptions offers introductory create --help
+ok subscriptions offers introductory list --subscription-id X --paginate
+ok subscriptions pricing availability --help
+ok subscriptions pricing availability available-territories --subscription-id X --paginate --output X
+ok subscriptions pricing availability edit --help
+ok subscriptions pricing availability edit --subscription-id X --territories
+ok subscriptions pricing availability edit --subscription-id X --territories X
+ok subscriptions pricing equalize --subscription-id X --base-territory X --base-price X --confirm
+ok subscriptions pricing price-points list --help
+ok subscriptions pricing price-points list --subscription-id X --territory X
+ok subscriptions pricing price-points list --subscription-id X --territory X --output X
+ok subscriptions pricing summary --app X
+ok subscriptions review screenshots create --subscription-id X --file X
+ok subscriptions review screenshots delete --screenshot-id X --confirm --output X
+ok subscriptions setup --group-id X --app X --reference-name X --product-id X --subscription-period X --group-level X --locale X --group-locale X --group-display-name X --display-name X --description X --price X --price-territory X --available-in-new-territories --review-note X --no-verify --output X
+ok subscriptions update --id X --group-level X
+ok subscriptions versions images --help
+ok subscriptions versions images list --version-id X --output X
+ok subscriptions versions localizations update --help
+ok subscriptions versions localizations update --id X --name X --description X --pretty
+ok subscriptions versions view --version-id X --output X
+ok testflight app-localizations --help
+ok testflight app-localizations update --help
+ok testflight app-localizations update --id X --privacy-policy-url X --output X
+ok testflight crashes list --app X
+ok testflight crashes list --app X --paginate --output X
+ok testflight distribution view --build-id X
+ok testflight groups create --app X --name X --internal --access-all-builds --output X
+ok testflight groups edit --id X --public-link-enabled --public-link-limit-enabled --public-link-limit X --output X
+ok testflight groups view --id X --output X
+ok testflight notifications send --build-id X --output X
+ok testflight review submissions list --build-id X --output X
+ok testflight review submit --help
+ok testflight testers add --help
+ok testflight testers remove --app X --email X --confirm
+ok testflight testers remove --app X --email X --confirm --wait
+ok validate --app X
+ok validate iap --app X --strict
+unknown-flag versions attach-build --version-id X --build-id X --confirm --output X
+ok versions create --app X --version X --platform X --copyright X --copy-metadata-from X --exclude-fields X --if-exists X --output X
+ok versions create --app X --version X --platform X --copyright X --copy-metadata-from X --output X
+ok versions create --app X --version X --platform X --release-type X --copy-metadata-from X --exclude-fields X --if-exists X --output X
+ok versions create --app X --version X --platform X --release-type X --copy-metadata-from X --output X
+unknown-flag versions create --app X --version-string X --platform X --output X
+ok versions get --version-id X
+ok versions list --app X --json
+ok versions list --app X --platform X --limit X
+ok versions update --version-id X --release-type X
+ok versions view
+ok versions view --app X --version X --platform X
+ok versions view --version-id X --json
+ok video-previews --help
+ok video-previews set-poster-frame --id X --time-code X --output X
+ok video-previews upload --version-localization X --path X --device-type X --output X
+ok accessibility --help
+ok accessibility create --app X --device-family X --supports-voiceover X --supports-larger-text X --supports-voice-control X --supports-reduced-motion X --supports-sufficient-contrast X --supports-differentiate-without-color-alone X --supports-dark-interface X --supports-captions X --supports-audio-descriptions X
+ok accessibility create --help
+ok accessibility list --app X
+ok accessibility update --id X --publish X
+ok account status --app X --output X
+ok age-rating edit --app X --all-none --user-generated-content X --messaging-and-chat X --output X
+ok age-rating edit --app X --social-media-age-restricted X
+ok age-rating edit --app X --social-media-age-restricted X --output X
+ok age-rating view --app-info-id X --output X
+ok agreements
+unknown-command agreements list
+unknown-command agreements list --output X
+ok analytics requests --app X --paginate --output X
+unknown-flag analytics view --request-id X --report X
+ok api X --output X
+ok api X X --allow-unknown-path --confirm --body X --output X
+ok api X X --body
+ok api X X --confirm --allow-unknown-path --output X
+ok api X X --confirm --data X --output X
+ok api X X --data X --confirm
+ok api X X --include X
+ok api X X --pretty
+ok api X X --query X --allow-unknown-path
+ok api patch X --data X --confirm --output X
+ok api post X --confirm --body X
+ok app-events localizations placements list --localization-id X --include X
+ok app-events submit --event-id X --app X --confirm
+ok app-setup --help
+ok app-setup availability edit --app X --territory X --available X
+unknown-command app-setup availability view --app X --output X
+ok app-setup categories set --app X --primary X --output X
+ok app-setup info --help
+ok app-setup info set --app X --content-rights X
+unknown-flag app-setup info set --app X --content-rights X --content-rights-comment X
+unknown-command apps availability view --app X --output X
+ok apps get --app X --json
+unknown-flag apps get --app-id X --output X
+ok apps get X --output X
+unknown-flag apps info edit --app X --locale X --privacy-policy-url X --output X
+ok apps info edit --app X --locale X --support-url X --output X
+ok apps info edit --app X --support-url X
+ok apps info edit --app X --version X --platform X --from-dir X
+ok apps info edit --app X --version X --platform X --from-dir X --dry-run
+ok apps info edit --app X --version X --platform X --locale X --support-url X
+ok apps info list --app X --fields X
+ok apps info list --app X --fields X --output X
+ok apps info list --app X --include X
+unknown-command apps info localizations list --app-info X --output X
+ok apps info view --app X --locale X --output X
+ok apps info view --app X --version X --platform X --output X
+ok apps list --paginate --output X
+ok apps public search --term X --country X
+unknown-flag apps update --id X --name X --output X
+ok apps versions list --app-id X --output X
+ok apps view --id X --json
+ok asset-library --help
+ok asset-library images upload --library-id X --file X
+ok asset-library images upload --library-id X --file X --reference-name X --output X
+ok asset-library images view --id X
+ok asset-library images view --id X --output X
+ok asset-library view --app X
+ok build-bundles --help
+ok build-bundles list --help
+unknown-flag builds --app X --limit X --json
+ok builds add-groups --build-id X --group X --dry-run --output X
+ok builds beta-app-review-submission view --build-id X --output X X X X -- X X X --app X --output X
+ok builds expire-all --app X --keep-latest X --confirm --output X
+ok builds expire-all --help
+ok builds get --app X --version X --platform X --build-number X
+ok builds info --app X --build-number X --platform X
+ok builds info --app X --build-number X --platform X --output X
+ok builds info --app X --latest --output X
+ok builds info --build X --output X
+ok builds info --help
+ok builds list --app X --build-number X --include X --output X
+ok builds list --app X --build-number X --platform X --limit X --output X X X X
+unknown-flag builds list --app X --filter X --output X
+ok builds list --app X --json
+unknown-flag builds list --app X --limit X --fields X --output X
+ok builds list --app X --limit X --sort -version --output X
+ok builds list --app X --output X --paginate
+ok builds list --app X --processing-state X --limit X --output X
+ok builds list --app X --processing-state X --output X
+ok builds list --app X --processing-state X --paginate --output X
+ok builds list --app X --sort -uploadedDate --output X
+ok builds list --app X --version X --build-number X --include X --output X
+ok builds list --app X --version X --build-number X --processing-state X --output X
+ok builds list --app X --version X --platform X --build-number X --processing-state X
+ok builds list --app X --version X --platform X --output X
+ok builds list --app X --version X --processing-state X --output X
+ok builds test-notes create --build X --locale X --whats-new X --output X
+unknown-flag builds test-notes create --build-id X --locale X --notes X --output X
+ok builds test-notes create --build-id X --locale X --whats-new
+ok builds uploads view --id X --output X
+ok builds wait --app X --build X
+ok builds wait --app X --build-number X --output X
+ok builds wait --app X --build-number X --platform X --timeout X --output X
+ok builds wait --app X --build-number X --platform X --timeout X --poll-interval X --fail-on-invalid --report-pending
+ok builds wait --app X --build-number X --platform X --timeout X --report-pending
+ok builds wait --app X --build-number X --timeout X --report-pending
+ok builds wait --app X --build-number X --version X --platform X --timeout X --output X
+ok builds wait --app X --version X --build X --timeout X
+ok builds wait --app X --version X --platform X --build-number X
+ok builds wait --app X --version X --platform X --build-number X --poll-interval X --fail-on-invalid --json
+ok builds wait --app X --version X --platform X --build-number X --timeout X
+ok builds wait --app X --version X --platform X --fail-on-invalid --report-pending
+ok builds wait --app X --version X --timeout X --output X
+ok bundle-ids capabilities --help
+ok bundle-ids capabilities add --bundle X --capability X --output X
+ok bundle-ids capabilities list --bundle X --output X X
+ok bundle-ids create --identifier X --name X --platform X --output X
+ok bundle-ids list --output X --paginate
+ok bundle-ids view --id X
+ok capabilities
+ok capabilities --output X
+ok devices list --output X
+ok eula view --app X --output X
+ok finance reports --help
+ok game-center app-versions --help
+ok game-center leaderboards --help
+ok iap delete --id X --confirm --output X
+ok iap list --app X --output X X X
+unknown-command iap localizations list --iap-id X --output X
+ok iap offer-codes custom-codes create --offer-code-id X --custom-code X --quantity X
+ok iap pricing price-points list --iap-id X --output X
+ok iap review-screenshots --help
+ok iap review-screenshots create --iap-id X --file X --output X
+ok iap setup --app X --type X --reference-name X --product-id X --price X --base-territory X --locale X --display-name X --description X --review-note X --output X
+ok iap versions images create --version-id X --file X --output X
+ok iap versions list --iap-id X
+ok iap view --id X --output X
+ok localizations create --app X --version X --locale X --description
+ok localizations list --app X --type X --version-id X --output X
+ok localizations list --output X
+ok localizations placements create --localization-id X --video-id X --placement-type X --placement-group X --output X
+ok localizations placements list --localization-id X --placement-type X --paginate
+ok localizations placements swap --localization-id X --image-id X --placement-type X --placement-id X --confirm --output X
+ok localizations supported-locales --version X --output X
+ok localizations update --app X --version X --locale X --description X --output X
+ok localizations update --app X --version X --locale X --whats-new X
+ok localizations update --id X
+ok localizations update --id X --description X
+ok localizations update --id X --description X --support-url X --marketing-url X --whats-new X --output X
+ok localizations update --id X --marketing-url X --support-url X --output X
+ok localizations update --id X --whats-new
+ok localizations update --type X --id X --name X --privacy-policy-url X --output X
+ok localizations update --type X --id X --privacy-policy-url X --output X
+ok localizations update --type X --id X --subtitle X --output X
+ok localizations update --type X --id X --subtitle X --privacy-policy-url X --privacy-choices-url X
+ok localizations update --version X --locale X --description
+ok localizations update --version X --locale X --name X --output X
+ok localizations update --version X --locale X --whats-new
+ok localizations update --version X --locale X --whats-new X --confirm
+ok localizations view --id
+ok merchant-ids certificates list --merchant-id X --output X
+ok merchant-ids list --output X
+ok metadata
+ok metadata apply --app X --version X --dir X
+ok metadata pull --app X --dir X --version X --platform X --include X --pretty
+ok metadata pull --app X --platform X --dir X --output X
+ok metadata pull --app X --version X --platform X --dir X --output X X X -type X
+ok metadata pull --app X --version X --platform X --include X --dir X
+ok metadata pull --dir X
+ok metadata pull --include X
+ok metadata push --app X --dir X --output X
+ok metadata push --app X --version X --platform X --dir X --allow-deletes --confirm
+ok metadata push --app X --version X --platform X --dir X --confirm
+ok metadata validate --dir X --check-urls --subscription-app --pretty
+ok metadata validate --dir X --output X X X X X -- X X --app X --version X --platform X --dir X --dry-run --output X
+ok metadata validate --dir X --subscription-app
+unknown-flag metadata validate --dir X --version X
+ok performance --help
+ok pricing availability territory-availabilities --availability X --paginate --output X
+ok pricing current
+ok pricing current --output X
+ok pricing price-points --app X --territory X
+ok pricing price-points --app X --territory X --output X
+ok pricing schedule create --app X --free --base-territory X --start-date
+ok pricing schedule create --app X --price-point X --base-territory X
+ok pricing schedule create --app X --price-point X --base-territory X --start-date X
+ok review
+ok review attachments-list --review-detail X
+ok review attachments-upload --review-detail X --file X --output X
+unknown-command review details create --help
+unknown-command review details update --help
+unknown-command review details view --version-id X --output X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --demo-account-name X --demo-account-password X --notes X --if-exists X --output X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes X
+ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes X --if-exists X
+ok review details-for-version --version-id X --output X X ---; X X X -- X X --version-id X --output X
+ok review details-for-version --version-id X --output X X ---OLD---; X X X -- X X --version-id X --output X
+ok review details-for-version --version-id X --output X X X
+ok review details-update --id X --contact-first-name X --contact-last-name X --contact-email X
+ok review details-update --id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes
+ok review details-update --id X --demo-account-required=X --demo-account-name X --notes X --output X
+unknown-flag review details-update --version-id X --demo-account-required X --if-exists X --output X
+unknown-flag review details-update --version-id X --demo-account-required=X
+unknown-flag review items add --submission X --item-type X --item-id X --confirm
+ok review items remove --help
+ok review items update --id X --resolved X
+ok review items-list --submission X
+unknown-command review submissions cancel --help
+unknown-command review submissions get --id X --output X
+unknown-command review submissions items --submission-id X --output X
+unknown-flag review submissions-create --version-id X --platform X --output X
+ok review submissions-get --id X --include X
+ok review submissions-items-ids --id X --output X
+ok review submissions-list --app X --limit X --output X
+ok review submit --app X --version X --build-id X --confirm --output X
+unknown-command review view --app X --output X
+unknown-command review-submissions --help
+ok sandbox list --output X
+ok schema --help
+ok search agreement --output X
+ok search analytics
+ok search compliance
+ok submit cancel --version-id X --confirm
+ok submit cancel --version-id X --confirm --output X
+ok subscriptions create --group-id X --reference-name X --product-id X --subscription-period X --group-level X --review-note X
+ok subscriptions create --help
+ok subscriptions delete --id X --confirm --output X
+unknown-command subscriptions groups localizations list --group-id X --output X
+ok subscriptions groups versions --help
+ok subscriptions groups versions create --group-id X --output X
+ok subscriptions groups versions localizations create --version-id X --name X --locale X --output X
+ok subscriptions groups versions localizations list --version-id X --output X
+ok subscriptions groups versions localizations update --help
+ok subscriptions groups versions view --version-id X --output X
+ok subscriptions list --app X
+ok subscriptions list --group-id X
+unknown-flag subscriptions list --subscription-group-id X --output X
+ok subscriptions offers --help
+ok subscriptions offers introductory --help
+ok subscriptions offers introductory create --subscription-id X --app X --all-territories --offer-duration X --offer-mode X --number-of-periods X --output X
+ok subscriptions offers introductory create --subscription-id X --app X --all-territories --offer-duration X --offer-mode X --number-of-periods X --pretty
+ok subscriptions offers introductory delete --id X --confirm
+unknown-flag subscriptions pricing availability edit --subscription-id X --all-territories
+ok subscriptions pricing availability edit --subscription-id X --available-in-new-territories --territories X
+ok subscriptions pricing availability view --subscription-id X
+ok subscriptions pricing equalize --help
+ok subscriptions pricing equalize --subscription-id X --base-price X --confirm
+ok subscriptions pricing plan-availability set --subscription-id X --plan-type X --territories X --available-in-new-territories --confirm
+ok subscriptions pricing plan-availability set --subscription-id X --plan-type X --territories X --confirm
+ok subscriptions pricing prices list --help
+ok subscriptions pricing prices list --subscription-id X --app X --output X
+ok subscriptions pricing prices list --subscription-id X --paginate
+ok subscriptions pricing prices list --subscription-id X --territory X --output X
+ok subscriptions pricing prices set --subscription-id X --app X --price X --territory X --output X
+ok subscriptions pricing prices set --subscription-id X --price X --territory X --output X
+ok subscriptions review app-store-screenshot view --subscription-id X --output X
+ok subscriptions review screenshots create --app X --subscription-id X --file X --output X
+ok subscriptions review screenshots delete --help
+ok subscriptions setup --app X --group-id X --reference-name X --product-id X --subscription-period X --price X --price-territory X --display-name X --description X --group-display-name X --review-screenshot X --repair
+ok subscriptions setup --app X --group-id X --reference-name X --product-id X --subscription-period X --price X --price-territory X --territories X --locale X --display-name X --description X --group-level X --review-screenshot X
+ok subscriptions setup --app X --group-id X --reference-name X --product-id X --subscription-period X --price X --price-territory X --territories X --locale X --display-name X --description X --group-level X --review-screenshot X --no-verify
+ok subscriptions setup --app X --group-id X --reference-name X --product-id X --subscription-period X --price-point-id X --price-territory X --territories X --locale X --display-name X --description X --group-level X --review-screenshot X
+ok subscriptions setup --app X --group-id X --reference-name X --product-id X --subscription-period X --price-point-id X --territories X --locale X --display-name X --description X --group-level X --review-screenshot X
+ok subscriptions update --id X --review-note X
+ok subscriptions versions create --help
+ok subscriptions versions create --subscription-id X
+ok subscriptions versions images delete --id X --confirm
+ok subscriptions versions localizations create --version-id X --locale X --name X --description X --output X
+ok subscriptions versions localizations update --id X --name X --output X
+ok subscriptions versions view --id X --output X
+ok subscriptions view --subscription-id X --output X
+ok system-status
+ok system-status --service X --output X
+ok testflight agreements view --app X --output X
+ok testflight app-localizations create --app X --locale X --description X
+ok testflight app-localizations create --app X --locale X --description X --feedback-email X --privacy-policy-url X --output X
+ok testflight app-localizations list --app X
+ok testflight beta-groups list --app X --output X
+ok testflight beta-testers list --app X --output X
+ok testflight crashes list --app X --sort -createdDate --limit X --output X
+ok testflight crashes log --submission-id X
+unknown-flag testflight groups builds --group X --output X
+ok testflight groups create --app X --name X
+ok testflight groups create --app X --name X --public-link-enabled --public-link-limit-enabled --public-link-limit X --feedback-enabled --build-id X --output X
+ok testflight groups edit --id X --public-link-enabled --public-link-limit X --output X
+ok testflight groups list --app X --internal --output X
+ok testflight groups list --build-id X --output X
+ok testflight groups list --paginate --output X
+ok testflight groups testers --help
+ok testflight groups testers list --group X --output X
+ok testflight groups view --group-id X --output X
+ok testflight review edit --id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
+ok testflight testers add --app X --email X --group X --build-id X --output X
+ok testflight testers add-builds --id X --build-id X --output X
+ok testflight testers remove --app X --email X --confirm --output X
+ok users --help
+ok users invite --help
+ok validate --app X --output X
+ok validate --app X --version-id
+ok validate --help
+ok validate iap --app X --strict --output X
+ok version --help
+ok versions attach-build --app X --version-id X --build-id X
+ok versions attach-build --version X --build X --output X
+unknown-command versions build --version-id X --output X
+ok versions create --app X --version X --platform X --build-id X
+ok versions create --app X --version X --platform X --build-id X --copy-metadata-from X --exclude-fields X --if-exists X --output X
+ok versions create --app X --version X --platform X --build-id X --release-type X --output X
+ok versions create --app X --version X --platform X --copy-metadata-from X --exclude-fields X
+ok versions create --app X --version X --platform X --copy-metadata-from X --exclude-fields X --build-id X --copyright X --release-type X --if-exists X --output X
+ok versions create --app X --version X --platform X --copy-metadata-from X --exclude-fields X --output X
+ok versions create --app X --version X --platform X --copyright X --release-type X --copy-metadata-from X --build-id X
+ok versions create --app X --version X --platform X --copyright X --release-type X --if-exists X
+ok versions create --app X --version X --platform X --release-type X --copyright X --copy-metadata-from X --exclude-fields X --if-exists X --output X
+ok versions get --app X --version-id X --output X
+unknown-command versions info --version-id X --include X --output X
+unknown-flag versions list --app X --filter X --output X
+ok versions list --app X --output X X -n -i X X X
+ok versions list --app X --output X X X X -- X X --app X --output X
+ok versions list --app X --platform X --output X --limit X
+ok versions list --output X
+ok versions view --id X --output X
+ok versions view --version X --app X --platform X --output X
+ok video-previews upload --version-localization X --path X --device-type X --skip-existing --dry-run --output X
+ok video-previews upload --version-localization X --path X --device-type X --skip-existing --time-code X --output X
+unknown-command ag --help
+unknown-flag age-rating edit --app X --advertising X --gambling X --healthOrWellnessTopics X --lootBox X --messagingAndChat X --parentalControls X --ageAssurance X --socialMedia X --unrestrictedWebAccess X --userGeneratedContent X --alcoholTobaccoOrDrugUseOrReferences X --contests X --gamblingSimulated X --gunsOrOtherWeapons X --medicalOrTreatmentInformation X --profanityOrCrudeHumor X --sexualContentGraphicAndNudity X --sexualContentOrNudity X --horrorOrFearThemes X --matureOrSuggestiveThemes X --violenceCartoonOrFantasy X --violenceRealistic X --violenceRealisticProlongedGraphicOrSadistic X
+ok age-rating edit --app X --all-none --json
+ok age-rating get --app X
+unknown-command age-rating set --help
+unknown-command age-rating update --help
+unknown-command age-ratings --help
+unknown-command agreements status
+unknown-flag analytics view --app X --output X
+unknown-flag analytics view --request-id X --report-id X --output X
+unknown-flag api --method X --path X
+ok app-info get --app X --output X
+ok app-info list --app X --output X
+unknown-command app-info localizations list --app X
+unknown-command app-info-localizations list --app-info-id X --output X
+ok app-infos --help
+unknown-flag app-infos get --app-info-id X --output X
+unknown-command app-infos localizations list --app-info-id X --output X
+unknown-command app-infos-localizations list --app-info X --output X
+unknown-command app-localizations list --app X --output X
+unknown-command app-setup availability view --app X
+unknown-flag app-setup info --output X
+unknown-flag app-setup info set --app X --content-rights X --confirm
+unknown-command app-store-version-localizations list --version-id X --output X
+unknown-command app-store-versions list --app-id X
+unknown-command appinfo --help
+unknown-command appinfo list --app X
+unknown-command appinfos list --app X
+unknown-flag apps --app-id X --json
+unknown-command apps --output X X ---; X X X --json
+unknown-command apps X X --app X --output X
+unknown-command apps compliance --app X --output X
+ok apps get --app X --output X
+ok apps get X --include X
+unknown-flag apps info --json
+unknown-flag apps info --output X
+unknown-command apps info declarations --help
+unknown-flag apps info edit --app X --locale X --name X --privacy-policy-url X --output X
+unknown-flag apps info edit --app X --locale X --primary-category X --output X
+unknown-flag apps info edit --app X --name X
+unknown-flag apps info edit --app X --name X --output X
+unknown-flag apps info edit --app X --support-url X --confirm
+unknown-flag apps info edit --app X --version X --platform X --copy-from-version X --copy-from-locale X
+ok apps info get --app X --version X --platform X --output X
+unknown-flag apps info list --app-id X --output X
+unknown-command apps info localizations list --app-info-id X --output X
+unknown-flag apps info relationships --app X --output X
+unknown-flag apps info territory-age-ratings --app-info X --output X
+unknown-command apps info update --help
+unknown-command apps info update-name --app X --name X --output X
+ok apps info view --app X --json
+unknown-command apps info-localizations list --app X --output X
+unknown-flag apps list --app X --output X
+unknown-command apps localizations list --app X --output X
+unknown-command apps ls
+unknown-command apps messages --app X --output X
+unknown-command apps pricing view --app X --output X
+unknown-flag apps public prices --bundle-id X --output X
+unknown-command apps ratings --app X
+unknown-command apps read --filter[appStoreId]=X --output X
+unknown-command apps review-status --app X --output X
+unknown-command apps screenshots-list --help
+unknown-command apps subscriptions list --app X
+unknown-flag apps update --app X --name X --output X
+unknown-flag apps update --app-id X --name X --output X
+unknown-flag apps update --id X --content-rights X --confirm
+unknown-flag apps update --id X --content-rights X --json; X X X X X -- X X --version-id X --copyright X --json
+unknown-command apps version X
+unknown-command apps version get --app-id X --version X --json
+unknown-flag apps versions --app X --output X
+unknown-flag apps versions --app-id X --filter X --json
+unknown-flag apps versions --app-id X --output X
+ok apps versions create --app X --version X --platform X --output X
+ok apps versions get --app X --output X
+ok apps versions list --app X --platform X --output X
+ok apps versions list --help
+ok apps versions list X --output X
+ok apps versions localizations list --app X --version-id X --output X
+ok apps versions update --help
+unknown-flag apps view --app-id X
+unknown-command appstore review messages --json --team X --asc-app-id X
+unknown-command asc --help
+unknown-flag availability --app X --output X
+ok availability get --app X --output X
+unknown-command availability list --app X --output X
+ok availability view --app X
+ok availability view --app X --output X
+unknown-command bash -lc X
+unknown-command beta groups list --app X --output X
+unknown-command beta-app-review-details update --app X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
+unknown-command beta-builds list --app-id X --limit X --sort -uploadedDate --output X
+unknown-command beta-groups list --app X --output X
+unknown-command build submit --help
+unknown-flag builds --app-id X --limit X
+unknown-flag builds --app-id X --limit X --output X
+unknown-command builds X
+ok builds add-groups --build-id X --group X --submit --confirm --json
+unknown-flag builds add-groups --build-id X --group-ids X --output X
+unknown-command builds beta-detail --build-id X --output X
+unknown-command builds beta-details list --build-id X --output X
+ok builds beta-groups --help
+ok builds beta-groups list --build X
+ok builds beta-groups list --build-id X
+ok builds beta-groups list --build-id X --output X
+unknown-flag builds beta-groups list --id X --output X
+unknown-command builds beta-review-submission --build-id X
+ok builds build-beta-detail get --id X --output X
+unknown-flag builds build-beta-detail view --help; X X X --help; X X X --help; X X --output X X
+unknown-command builds diagnostic-signatures list --build-id X --output X
+unknown-command builds encryption-declarations list --build-id X --output X
+ok builds get --app X X --include X
+ok builds get --id X
+ok builds get --id X --include X
+ok builds get X --output X
+unknown-flag builds groups --build-id X --output X
+unknown-flag builds individual-testers add --build-id X --email X --output X
+ok builds info --build-id X --json
+ok builds list --app X --build-number X --json
+unknown-flag builds list --app X --fields X
+unknown-flag builds list --app X --fields X --output X
+unknown-flag builds list --app X --filter X
+unknown-flag builds list --app X --filter X --limit X
+unknown-flag builds list --app X --filter-version X --limit X --output X
+unknown-flag builds list --app X --query X --output X
+ok builds list --app X --version X --platform X --build-number X --processing-state X --json
+unknown-flag builds list --app-id X --team X --limit X
+unknown-flag builds list --filter X
+unknown-flag builds list --filter X X --output X
+unknown-flag builds list --filter[app]=X --limit X --output X
+unknown-flag builds list --filter[app]=X --limit X --sort -uploadedDate --output X
+unknown-flag builds list --query X --query X --query X --output X
+unknown-flag builds list --team X --app-id X --json
+unknown-flag builds list --team X --bundle-id X --json
+unknown-command builds ls --app X --limit X --version X
+unknown-command builds relationships get --help
+unknown-flag builds test-notes create --build-id X --locale X --notes X
+unknown-flag builds test-notes create --build-id X --locale X --whats-new X --confirm
+ok builds test-notes create --build-id X --locale X --whats-new X --json
+unknown-flag builds test-notes update --build-id X --locale X --notes X --output X
+ok builds test-notes update --build-id X --locale X --whats-new X --json
+ok builds view --build-id X --include X --output X
+ok builds view --build-id X --output X
+ok builds view --help
+ok builds view --id X --output X
+ok builds wait --app X --build X --json
+unknown-command bundle-id capabilities list --bundle-id X --output X
+unknown-command bundle-ids register --bundle-id X --name X --platform X --output X
+unknown-command compliance --help
+unknown-command content-rights view --app X
+unknown-command crashes --help
+unknown-flag encryption declarations app view --app X
+unknown-command get X
+unknown-command iap localizations --iap-version-id X --output X
+unknown-command iap prices --iap-id X --output X
+unknown-flag iap versions images view --screenshot-id X --output X
+unknown-command iaps list --output X
+unknown-command info view --app X
+unknown-command keys --help
+ok localizations create --version X --locale X --json
+ok localizations get --id X
+ok localizations get X --type X --output X
+ok localizations list --app X --version X --json
+unknown-flag localizations list --app-id X --version-id X
+unknown-flag localizations placements list --version-localization X --output X
+unknown-flag localizations supported-locales --app X --version X
+unknown-flag localizations update --id X --description-file X --keywords X --promotional-text X --whats-new X --output X
+unknown-flag localizations update --id X --whatsnew X --output X
+unknown-flag localizations update --resource X --id X --body-file X --output X
+unknown-flag localizations update --version X --locale X --whats-new-file X
+unknown-flag localizations view --version-id X --locale X --output X
+unknown-flag metadata --app X --team X --out X --json
+unknown-flag metadata apply --app X --version X --locale X --set X --output X
+unknown-flag metadata apply --app X --version-id X --locale X --set X --output X
+unknown-flag metadata init --app X --version X --platform X --dir X
+ok metadata plan --app X --dir X --json
+unknown-flag metadata pull --app X --app-version X --path X --output X
+unknown-flag metadata pull --app X --dir X --review-information
+ok metadata pull --app X --json
+unknown-flag metadata pull --app X --out X --json
+unknown-flag metadata pull --app X --path X --output X
+unknown-flag metadata pull --app X --team X --out X --json
+unknown-flag metadata pull --app X --version X --output-dir X
+unknown-flag metadata pull --app X --version X --path X --output X
+unknown-flag metadata pull --app X --version X --platform X --dir X --localization-scope X
+unknown-flag metadata pull --app X --version X --platform X --output-dir X --json
+unknown-flag metadata pull --app X --version X --platform X --output-dir X --output X
+unknown-flag metadata push --app X --path X --output X
+unknown-flag metadata push --app X --version X --platform X --dir X --include X --dry-run; X X
+unknown-flag metadata push --app X --version X --platform X --dir X --validate
+unknown-flag metadata push --app X --version X --platform X --metadata-dir X --output X
+unknown-command metadata release-notes set --app X --version-id X --locale X --text X --output X
+unknown-flag metadata validate --app X --dir X
+unknown-flag metadata validate --app X --dir X --check-urls --output X
+unknown-flag metadata validate --app X --dir X --output X
+unknown-flag metadata validate --app X --platform X --dir X --output X
+unknown-flag metadata validate --app X --platform X --version X --dir X --output X
+unknown-flag metadata validate --app X --version X --dir X
+unknown-flag metadata validate --app X --version X --files X --output X
+unknown-flag metadata validate --app X --version X --platform X --dir X
+unknown-flag metadata validate --app X --version X --platform X --dir X --check-urls --output X
+unknown-flag metadata validate --dir X --check-urls; X X X -- X X --app X --version X --platform X --dir X
+unknown-flag metadata validate --dir X --check-urls; X X X X X X X -- X X --app X --version X --platform X --dir X --dry-run
+unknown-flag metadata validate --dir X --version X --locale X --check-urls
+unknown-command metadata whats-new set --app X --version X --locale X --text X
+unknown-command offer-codes --help
+unknown-command pre-release-versions list
+unknown-command pre-release-versions list --app X --output X
+unknown-flag pricing availability create --app X --all-countries --output X
+unknown-command pricing availability territories --app X --paginate --output X
+unknown-flag pricing availability territory-availabilities --app X --filter X X --paginate --output X
+unknown-flag pricing availability view --app X --all-territories --output X
+ok pricing current --app X --json
+ok pricing current --json
+unknown-command pricing list --app X --output X
+unknown-flag pricing price-points --app X --base-territory X --output X
+unknown-command pricing schedule list --app X
+unknown-flag pricing schedule view --app X --include X
+unknown-command pricing schedules list --app X
+unknown-command pricing summary --app X --output X X X X ---; X X X -- X X --version-id X --include-build --output X X X X ---; X X X -- X X --version-id X --output X X X
+unknown-command privacy --help
+unknown-command release-notes set --app X --version X --locale X --text X
+unknown-command request --method X --path X --output X
+unknown-command review attachments --help
+unknown-command review attachments-create --help
+unknown-command review detail --app X --output X
+unknown-command review detail view --app X --version X --platform X --output X
+unknown-command review details contacts list --version-id X --output X
+unknown-command review details create --app X --version-id X --first-name X --last-name X --phone X --email X --output X
+unknown-command review details info --id X --output X
+unknown-command review details view --id X --output X
+unknown-flag review details-create --app X --version X --platform X --first-name X --last-name X --phone X --email X --output X
+unknown-flag review details-create --app X --version-id X --first-name X --last-name X --phone X --email X --output X
+unknown-flag review details-for-version --app X --version X --platform X --output X
+unknown-flag review details-for-version --app X --version-id X --output X
+unknown-flag review details-get --app X --output X
+unknown-flag review details-get --app X --version-id X --output X
+unknown-flag review details-get --version-id X
+unknown-flag review details-get --version-id X --pretty
+unknown-flag review details-update --version-id X --demo-account-required=X --if-exists X --output X
+unknown-flag review details-update --version-id X --demo-account-required=X --if-exists X --pretty
+unknown-flag review details-update --version-id X --demo-account-required=X --output X
+ok review doctor --json
+unknown-command review messages --help
+unknown-command review messages --team X --asc-app-id X --output X
+unknown-command review notes-update --review-detail-id X --notes X
+ok review status --app X --json
+unknown-flag review submissions --app X --output X
+unknown-command review submissions items --submission-id X
+unknown-command review submissions items list --id X --output X
+unknown-command review submissions items list --submission-id X --output X
+unknown-command review submissions items-ids --id X --output X
+unknown-command review submissions view --id X --output X
+unknown-command review submissions view --submission X
+unknown-command review submissions view --submission X --output X
+unknown-flag review submissions-cancel --version-id X --confirm --output X
+unknown-flag review submissions-get --review-submission-id X --output X
+unknown-command review submissions-items --review-submission-id X --output X
+unknown-flag review submissions-items-ids --review-submission-id X --output X
+unknown-command review submissions-view --id X --output X
+unknown-flag review submit --app X --version X --build-id X --compliance X --confirm
+unknown-flag review submit --submission X --compliance X
+unknown-command review-detail --help
+unknown-command review-detail show --app X
+unknown-command review-details view --app X --version-id X --output X
+unknown-command review-submissions list --app X --output X
+unknown-command review-submissions view --review-submission-id X --output X
+unknown-flag storekit notifications test --app X --output X
+unknown-command submission get X
+unknown-command submissions apply-compliance --submission X --file X --json
+unknown-command submissions get --id X
+unknown-command submissions get X --output X
+unknown-command submissions get X --json
+unknown-command submissions get X
+unknown-command submissions-update X --canceled --json
+ok submit cancel --version-id X --json
+unknown-command subs --help
+unknown-command subscriptions availability --help
+unknown-command subscriptions availability view --subscription-id X --output X
+unknown-flag subscriptions create --help; X X X --help; X X X X --help
+ok subscriptions get --id X
+unknown-command subscriptions groups subscriptions list --group-id X --output X
+unknown-flag subscriptions groups versions links versions --version-id X --output X
+unknown-command subscriptions images list --subscription-id X
+unknown-flag subscriptions list --subscription-group X --output X
+unknown-flag subscriptions localizations --subscription X --output X
+ok subscriptions localizations list --subscription-id X
+unknown-command subscriptions prices list --id X --output X
+unknown-flag subscriptions pricing --help; X X X X --help; X X X X X --help
+unknown-flag subscriptions pricing availability available-territories --id X --paginate --output X
+unknown-flag subscriptions pricing availability edit --subscription-id X --all-territories --available X --available-in-new-territories X
+unknown-flag subscriptions pricing prices set --subscription-id X --price-point X --confirm
+unknown-flag subscriptions review screenshots get --subscription-id X --output X
+unknown-flag subscriptions review screenshots update --subscription-id X --file X --checksum X --output X
+unknown-flag subscriptions review screenshots view --subscription-id X --output X
+unknown-command subscriptions review-screenshots view --subscription-id X --output X
+unknown-command subscriptions submit --help
+unknown-flag subscriptions versions localizations update --id X --description X --confirm
+unknown-flag subscriptions versions localizations update --localization-id X --name X
+unknown-flag subscriptions versions localizations update --version-id X --localization-id X --name X --description X --pretty
+unknown-command teams --output X
+unknown-command territories list --app X --output X
+ok testflight app-localizations get --id X --output X
+unknown-flag testflight app-localizations update --app X --locale X --feedback-email X
+unknown-command testflight beta-details get --build X --output X
+ok testflight beta-groups get --id X
+ok testflight beta-groups list --app X
+ok testflight beta-groups list --app X --output X X X X X X -- X X X --app X --output X X X X X X -- X X X
+ok testflight beta-groups view --id X --output X
+unknown-flag testflight builds --app X --limit X --output X
+ok testflight builds list
+ok testflight builds list --app X
+unknown-flag testflight builds list --app X --fields X
+ok testflight builds list --app X --limit X
+ok testflight builds list --app X --limit X --output X
+ok testflight builds list --app X --output X
+ok testflight builds list --app X --paginate --output X
+unknown-flag testflight builds list --group X --output X
+unknown-flag testflight crashes log --crash-id X --output X
+unknown-flag testflight crashes log --id X --output X
+unknown-flag testflight feedback view --id X
+unknown-flag testflight groups builds --app X --group X
+unknown-command testflight groups builds X --output X
+unknown-command testflight groups builds add --help
+unknown-flag testflight groups create --app X --name X --external --output X
+unknown-command testflight groups info --group X --output X X ---; X X X -- X X X X --group X --output X
+unknown-command testflight groups info --id X --output X
+unknown-command testflight groups testers add --group-id X --email X --first-name X --output X
+unknown-command testflight groups testers add --help
+unknown-command testflight groups update --help
+unknown-flag testflight review edit --app X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
+ok testflight review get --app X
+unknown-flag testflight review submissions list --app X --output X
+unknown-flag testflight review submissions list --app X --output X X ---; X X X -- X X X --build-id X --output X
+unknown-command testflight review update --app X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
+unknown-flag testflight review view --help; X X --output X X
+unknown-flag testflight testers add-groups --id X --group-id X --output X
+unknown-flag testflight testers add-groups --tester X --group X --output X
+unknown-flag testflight testers add-groups --tester-id X --group-id X --output X
+unknown-flag testflight testers list --group-id X --paginate --output X
+unknown-command testflight testers resend-invite --tester X --output X
+unknown-flag testflight testers view --email X --app X --output X
+unknown-command users invitations create --help
+unknown-flag validate --app X --deep; X ---; X X X -- X X --app X --strict; X ---; X X X -- X X --app X --strict; X ---; X X X -- X X --app X
+unknown-flag validate --app X --json; X X X -- X X --app X --strict --json; X X X -- X X --app X --strict --json
+unknown-command validate --app X --version X --platform X --output X X ---; X X X X --submission X --compliance X --json
+unknown-command validate --app X --version-id X --deep --output X X ---; X X X -- X X --app X --output X X ---; X X X -- X X --app X --output X X ---; X X X X --app-version X --app X --json; X ---; X X X -- X X --app X --output X
+unknown-command validate --app X --version-id X --deep --output X X ---SCREENSHOTS---; X X X X --app-version X --app X --json; X ---PRICE---; X X X -- X X --app X --output X
+ok validate --app X --version-id X --json
+unknown-command validate --app X --version-id X --output X X ---; X X X -- X X --app X --output X X X
+unknown-command validate --app X --version-id X --output X X ---; X X X X --app-version X --app X --iphone-duo --json; X ---; X X X -- X X --app X --output X
+unknown-command validate --app X --version-id X --output X X ---SUBS---; X X X -- X X --app X --strict --output X
+unknown-command validate --app X --version-id X --output X X X X -- X X --app X --output X
+unknown-command validate --app X --version-id X --output X X X X X X --app-version X --app X --json
+unknown-command validate --deep --app X --output X X ---SCREENSHOTS---; X X X X --app-version X --app X --json; X ---PRICE---; X X X -- X X --app X --output X
+ok validate --deep --json
+unknown-command validate --deep --version X X X X -- X X --version X X X X -- X X --version X X X X X --app-version X --app X --json; X X X -- X X
+unknown-flag validate iap --app X --strict; X X
+ok version-localizations get --id X --output X
+ok version-localizations list --app X --version X --platform X --output X
+unknown-flag version-localizations update --version-localization X --whats-new X --output X
+unknown-flag versions --app X --json
+unknown-command versions attach --help
+unknown-flag versions attach-build --id X --build-id X
+unknown-flag versions attach-build --version X --build X --confirm --output X
+ok versions attach-build --version-id X --build-id X --json
+unknown-command versions build view --version-id X
+unknown-command versions builds --version-id X --output X
+unknown-flag versions create --app X --version-string X --platform X
+ok versions get --app X --version X --platform X
+ok versions get --version-id X --include X
+ok versions get --version-id X --include-build
+ok versions get --version-id X --output X --pretty
+unknown-command versions get-build --version-id X --output X
+unknown-command versions info --app X --version X --platform X
+unknown-flag versions list --app X --filter X
+unknown-flag versions list --app X --platform X --filter X --output X
+unknown-flag versions list --app-version X --output X
+unknown-flag versions list --filter[app]=X --output X
+ok versions localizations update --help
+unknown-flag versions localizations view --version-id X --locale X --output X
+unknown-command versions ls --app X --json
+unknown-command versions read --version-id X
+unknown-command versions show --version-id X --include X --output X
+unknown-flag versions update --app X --version X --platform X --build X --output X
+unknown-flag versions update --version-id X --build-id X --output X
+ok versions view --app X --version X --include X --json
+unknown-command whoami
+unknown-command whoami --json
