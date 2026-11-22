@@ -957,22 +957,12 @@ func allowsEnvFallbackForStoredError(err error) bool {
 // ASC_BEARER_TOKEN_COMMAND when that is set. Either variable takes precedence
 // over every stored or environment key; ok is false when both are unset.
 func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err error) {
-	token := strings.TrimSpace(os.Getenv(bearerTokenEnvVar))
-	command := strings.TrimSpace(os.Getenv(bearerTokenCommandEnv))
+	token, command := BearerTokenEnv()
 	if token == "" && command == "" {
 		return nil, false, nil
 	}
-	source := bearerTokenEnvVar
-	if command != "" {
-		source = bearerTokenCommandEnv
-	}
-	// The token already names its key and team, so a selection that would
-	// pick other credentials or another API host cannot be honored.
-	if profile := resolveProfileName(); profile != "" {
-		return nil, true, fmt.Errorf("%s cannot be combined with profile %q from --profile or %s; unset one of them", source, profile, profileEnvVar)
-	}
-	if config.IsEnterpriseCredentialKeyType(config.NormalizeCredentialKeyType(os.Getenv(keyTypeEnvVar))) {
-		return nil, true, fmt.Errorf("%s does not support %s=enterprise; unset %s or use the enterprise private key", source, keyTypeEnvVar, keyTypeEnvVar)
+	if err := BearerTokenSelectionError(); err != nil {
+		return nil, true, err
 	}
 	ApplyRootLoggingOverrides()
 	var renew asc.BearerTokenRenewer
@@ -995,6 +985,42 @@ func bearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err 
 		return nil, true, missingAuthError{msg: fmt.Sprintf("%s: %v", bearerTokenEnvVar, err), cause: err}
 	}
 	return client, true, nil
+}
+
+// BearerTokenEnv returns ASC_BEARER_TOKEN and ASC_BEARER_TOKEN_COMMAND, trimmed.
+// When either is set, every App Store Connect API client uses it instead of
+// stored or environment keys.
+func BearerTokenEnv() (token, command string) {
+	return strings.TrimSpace(os.Getenv(bearerTokenEnvVar)), strings.TrimSpace(os.Getenv(bearerTokenCommandEnv))
+}
+
+// BearerTokenSelectionError reports a credential selection that a token from
+// ASC_BEARER_TOKEN or ASC_BEARER_TOKEN_COMMAND cannot honor, so every command
+// refuses the token. It returns nil when neither variable is set.
+func BearerTokenSelectionError() error {
+	token, command := BearerTokenEnv()
+	if token == "" && command == "" {
+		return nil
+	}
+	source := bearerTokenEnvVar
+	if command != "" {
+		source = bearerTokenCommandEnv
+	}
+	// The token already names its key and team, so a selection that would
+	// pick other credentials or another API host cannot be honored.
+	if profile := resolveProfileName(); profile != "" {
+		return fmt.Errorf("%s cannot be combined with profile %q from --profile or %s; unset one of them", source, profile, profileEnvVar)
+	}
+	if config.IsEnterpriseCredentialKeyType(config.NormalizeCredentialKeyType(os.Getenv(keyTypeEnvVar))) {
+		return fmt.Errorf("%s does not support %s=enterprise; unset %s or use the enterprise private key", source, keyTypeEnvVar, keyTypeEnvVar)
+	}
+	return nil
+}
+
+// BearerTokenClient returns the client every command would get from
+// ASC_BEARER_TOKEN or ASC_BEARER_TOKEN_COMMAND; ok is false when both are unset.
+func BearerTokenClient(timeout time.Duration) (client *asc.Client, ok bool, err error) {
+	return bearerTokenClient(timeout)
 }
 
 func getASCClient() (*asc.Client, error) {

@@ -204,7 +204,7 @@ Successfully removed stored credential 'MyKey'
 
 ### `asc auth status`
 
-Show current authentication status.
+Show current authentication status. When `ASC_BEARER_TOKEN` or `ASC_BEARER_TOKEN_COMMAND` is set, the output includes a `bearerToken` object with the key ID and expiry of the token every command sends instead of a stored key; the token itself is never printed.
 
 <ParamField path="--output" type="string" default="table">
   Output format: `table`, `json`
@@ -215,7 +215,7 @@ Show current authentication status.
 </ParamField>
 
 <ParamField path="--validate" type="boolean" default="false">
-  Validate stored credentials via network
+  Validate stored credentials and the `ASC_BEARER_TOKEN` via network
 </ParamField>
 
 **Examples:**

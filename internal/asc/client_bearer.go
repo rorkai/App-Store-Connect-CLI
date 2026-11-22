@@ -64,6 +64,7 @@ type bearerTokenSource struct {
 	// waiting for another request's renewal when its context ends.
 	lock      chan struct{}
 	token     string
+	keyID     string
 	expiresAt time.Time
 }
 
@@ -71,19 +72,56 @@ func newBearerTokenSource(renew BearerTokenRenewer) *bearerTokenSource {
 	return &bearerTokenSource{renew: renew, lock: make(chan struct{}, 1)}
 }
 
-// set accepts a token after checking that it is a JWT with an expiry.
-func (s *bearerTokenSource) set(token string) error {
-	token = strings.TrimSpace(token)
+// BearerTokenInfo is what a token signed elsewhere says about itself.
+type BearerTokenInfo struct {
+	// KeyID is the token's kid header, the API key that signed it.
+	KeyID     string
+	ExpiresAt time.Time
+}
+
+// InspectBearerToken reads a token's key ID and expiry without verifying its
+// signature, after the checks a client applies before sending it: it must be
+// a JWT with an expiry.
+func InspectBearerToken(token string) (BearerTokenInfo, error) {
 	claims := jwt.RegisteredClaims{}
-	if _, _, err := jwt.NewParser().ParseUnverified(token, &claims); err != nil {
-		return fmt.Errorf("%w: %w", ErrInvalidBearerToken, err)
+	parsed, _, err := jwt.NewParser().ParseUnverified(strings.TrimSpace(token), &claims)
+	if err != nil {
+		return BearerTokenInfo{}, fmt.Errorf("%w: %w", ErrInvalidBearerToken, err)
 	}
 	if claims.ExpiresAt == nil {
-		return fmt.Errorf("%w: it has no expiry", ErrInvalidBearerToken)
+		return BearerTokenInfo{}, fmt.Errorf("%w: it has no expiry", ErrInvalidBearerToken)
 	}
-	s.token = token
-	s.expiresAt = claims.ExpiresAt.Time
+	keyID, _ := parsed.Header["kid"].(string)
+	return BearerTokenInfo{KeyID: strings.TrimSpace(keyID), ExpiresAt: claims.ExpiresAt.Time}, nil
+}
+
+// set accepts a token after checking that it is a JWT with an expiry.
+func (s *bearerTokenSource) set(token string) error {
+	info, err := InspectBearerToken(token)
+	if err != nil {
+		return err
+	}
+	s.token = strings.TrimSpace(token)
+	s.keyID = info.KeyID
+	s.expiresAt = info.ExpiresAt
 	return nil
+}
+
+// info reports the held token's key ID and expiry.
+func (s *bearerTokenSource) info() BearerTokenInfo {
+	s.lock <- struct{}{}
+	defer func() { <-s.lock }()
+	return BearerTokenInfo{KeyID: s.keyID, ExpiresAt: s.expiresAt}
+}
+
+// BearerTokenInfo reports the key ID and expiry of the token signed elsewhere
+// that the client sends now, which can be a renewed one; ok is false for a
+// client that signs its own tokens.
+func (c *Client) BearerTokenInfo() (info BearerTokenInfo, ok bool) {
+	if c == nil || c.bearer == nil {
+		return BearerTokenInfo{}, false
+	}
+	return c.bearer.info(), true
 }
 
 func (s *bearerTokenSource) renewToken(ctx context.Context, now time.Time) error {
