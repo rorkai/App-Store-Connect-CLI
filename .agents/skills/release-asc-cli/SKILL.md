@@ -15,7 +15,7 @@ description: Publish and verify a new release of the App-Store-Connect-CLI repos
 
 ## Review the release delta
 
-Before the release gate, run the final Claude review in `AGENTS.md` over `<previous-tag>...<release-sha>` (Claude Fable 5.2, `high` effort). Fix valid findings through normal PRs, merge them, then select and record the corrected release SHA and review the new delta again. Do not tag while the review has actionable findings or is blocked.
+Before the release gate, run the release Claude review in `AGENTS.md` over `<previous-tag>...<release-sha>` (Claude Fable 5.2, `high` effort). Fix valid findings through normal PRs, merge them, then select and record the corrected release SHA and review the new delta again. Do not tag while the review has actionable findings or is blocked.
 
 ## Run the release gate
 

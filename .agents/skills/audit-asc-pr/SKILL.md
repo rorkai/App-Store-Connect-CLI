@@ -50,7 +50,6 @@ Do not post a generic top-level audit summary unless the user asks. Put actionab
 Do not call the PR ready until all of the following are true:
 
 - The latest head was audited against its current base.
-- The final committed head passed the final full-branch Claude review required by `AGENTS.md`, with no subsequent change to the PR diff. A later base advance alone does not invalidate that review.
 - Relevant focused and GitHub-required checks pass. Non-required checks may still be pending.
 - No actionable unresolved review thread remains.
 - Required reviews are satisfied.
