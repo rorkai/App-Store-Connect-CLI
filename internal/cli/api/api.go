@@ -160,7 +160,7 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	if err != nil {
 		return rawRequest{}, err
 	}
-	path, values, err := normalizePath(d, method, positional[1])
+	path, values, unversioned, err := normalizePath(d, method, positional[1])
 	if err != nil {
 		return rawRequest{}, err
 	}
@@ -210,8 +210,17 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	if err != nil {
 		return rawRequest{}, fmt.Errorf("api: %w", err)
 	}
+	if unversioned {
+		// No API version indexes the operation. Answer as for the /v1 path, but
+		// name the path as given; --allow-unknown-path cannot pick a version.
+		if allowUnknownPath {
+			return rawRequest{}, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", positional[1])
+		}
+		shown, _, _ := strings.Cut(strings.TrimSpace(positional[1]), "?")
+		return rawRequest{}, unknownOperationError(d, method, path, shown)
+	}
 	if !indexed && !allowUnknownPath {
-		return rawRequest{}, unknownOperationError(d, method, path)
+		return rawRequest{}, unknownOperationError(d, method, path, path)
 	}
 	if indexed && !allowUnknownPath {
 		if err := validateQuery(d, endpoint, values); err != nil {
@@ -347,29 +356,31 @@ func normalizeMethod(d *shared.Deps, raw string) (string, error) {
 // normalizePath accepts a versioned path or a full App Store Connect URL and
 // returns the path plus any query parameters carried in the argument. A path
 // may omit its leading slash (v1/apps), and may omit its version when exactly
-// one API version indexes the operation (apps/{id}/appInfos is /v1).
-func normalizePath(d *shared.Deps, method, raw string) (string, url.Values, error) {
+// one API version indexes the operation (apps/{id}/appInfos is /v1). When no
+// version indexes a path without one, it returns the /v1 path and
+// unversioned, so the caller can answer it as an unknown operation.
+func normalizePath(d *shared.Deps, method, raw string) (path string, values url.Values, unversioned bool, err error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return "", nil, d.UsageError("api: METHOD and PATH are required")
+		return "", nil, false, d.UsageError("api: METHOD and PATH are required")
 	}
 
 	pathPart := trimmed
 	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
 		parsed, err := url.Parse(trimmed)
 		if err != nil {
-			return "", nil, d.UsageErrorf("api: PATH is not a valid URL: %v", err)
+			return "", nil, false, d.UsageErrorf("api: PATH is not a valid URL: %v", err)
 		}
 		if parsed.User != nil {
-			return "", nil, d.UsageError("api: PATH must not include user information")
+			return "", nil, false, d.UsageError("api: PATH must not include user information")
 		}
 		// url.Parse accepts an empty fragment delimiter with an empty Fragment
 		// field, so inspect the raw URL to reject both `#fragment` and trailing `#`.
 		if strings.Contains(trimmed, "#") {
-			return "", nil, d.UsageError("api: PATH must not include a fragment")
+			return "", nil, false, d.UsageError("api: PATH must not include a fragment")
 		}
 		if parsed.Scheme != "https" || !asc.IsAPIHost(parsed.Host) {
-			return "", nil, d.UsageErrorf("api: PATH must be an App Store Connect URL (https://%s/...)", apiHost)
+			return "", nil, false, d.UsageErrorf("api: PATH must be an App Store Connect URL (https://%s/...)", apiHost)
 		}
 		// Validate the escaped form. Parsed.Path decodes %2F and %3F before the
 		// checks below, allowing encoded data to become path or query delimiters.
@@ -380,11 +391,11 @@ func normalizePath(d *shared.Deps, method, raw string) (string, url.Values, erro
 	}
 
 	path, rawQuery, _ := strings.Cut(pathPart, "?")
-	values := url.Values{}
+	values = url.Values{}
 	if rawQuery != "" {
 		parsedValues, err := url.ParseQuery(rawQuery)
 		if err != nil {
-			return "", nil, d.UsageErrorf("api: PATH query string is invalid: %v", err)
+			return "", nil, false, d.UsageErrorf("api: PATH query string is invalid: %v", err)
 		}
 		values = parsedValues
 	}
@@ -393,32 +404,37 @@ func normalizePath(d *shared.Deps, method, raw string) (string, url.Values, erro
 		path = strings.TrimSuffix(path, "/")
 	}
 	if !hasVersionPrefix(path) {
-		versioned, err := versionedPath(method, path)
+		versioned, ambiguous, err := versionedPath(method, path)
 		if err != nil {
-			return "", nil, fmt.Errorf("api: %w", err)
+			return "", nil, false, fmt.Errorf("api: %w", err)
 		}
-		if versioned == "" {
-			return "", nil, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", raw)
+		switch {
+		case versioned != "":
+			path = versioned
+		case ambiguous || strings.Trim(path, "/") == "":
+			return "", nil, false, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", raw)
+		default:
+			path = "/v1/" + strings.TrimPrefix(path, "/")
+			unversioned = true
 		}
-		path = versioned
 	}
 	if strings.Contains(path, "//") || strings.ContainsAny(path, "#%\\") {
-		return "", nil, d.UsageErrorf("api: PATH contains an unsupported character sequence: %q", raw)
+		return "", nil, false, d.UsageErrorf("api: PATH contains an unsupported character sequence: %q", raw)
 	}
 	// The client rejects control characters too, but only once credentials have
 	// been loaded. Rejecting them here keeps every path failure a usage error
 	// that runs before any credential or network access.
 	for _, r := range path {
 		if r < 0x20 || r == 0x7f {
-			return "", nil, d.UsageErrorf("api: PATH contains a control character: %q", raw)
+			return "", nil, false, d.UsageErrorf("api: PATH contains a control character: %q", raw)
 		}
 	}
 	for _, segment := range strings.Split(path, "/") {
 		if segment == "." || segment == ".." {
-			return "", nil, d.UsageErrorf("api: PATH must not contain relative segments: %q", raw)
+			return "", nil, false, d.UsageErrorf("api: PATH must not contain relative segments: %q", raw)
 		}
 	}
-	return path, values, nil
+	return path, values, unversioned, nil
 }
 
 var apiVersions = []string{"/v1", "/v2", "/v3"}
@@ -434,30 +450,31 @@ func hasVersionPrefix(path string) bool {
 
 // versionedPath completes a path missing its leading slash or its version:
 // v1/apps becomes /v1/apps, and apps/{id} the one versioned path the index
-// has for method. It returns "" when no single completion exists.
-func versionedPath(method, path string) (string, error) {
+// has for method. It returns "" when no single completion exists, and
+// ambiguous when more than one API version indexes the operation.
+func versionedPath(method, path string) (versioned string, ambiguous bool, err error) {
 	trimmed := strings.TrimPrefix(path, "/")
 	if hasVersionPrefix("/" + trimmed) {
-		return "/" + trimmed, nil
+		return "/" + trimmed, false, nil
 	}
 	if trimmed == "" {
-		return "", nil
+		return "", false, nil
 	}
 	found := ""
 	for _, version := range apiVersions {
 		candidate := version + "/" + trimmed
 		_, indexed, err := schema.MatchOperation(method, candidate)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 		if indexed {
 			if found != "" {
-				return "", nil
+				return "", true, nil
 			}
 			found = candidate
 		}
 	}
-	return found, nil
+	return found, false, nil
 }
 
 // includeFlagValue returns the value of an --include flag in args. `asc api`
@@ -624,14 +641,14 @@ func nativeCommand(method, path string) (string, bool) {
 // offered only for that last case, where the resource is indexed and Apple
 // may have added the operation after the snapshot. A resource the index does
 // not know under any spelling is not in Apple's public API.
-func unknownOperationError(d *shared.Deps, method, path string) error {
+func unknownOperationError(d *shared.Deps, method, path, shown string) error {
 	nearest, err := schema.NearestOperations(method, path, nearestOperationMax)
 	if err != nil {
 		return fmt.Errorf("api: %w", err)
 	}
 
 	var message strings.Builder
-	fmt.Fprintf(&message, "api: %s %s is not in the embedded schema index.", method, path)
+	fmt.Fprintf(&message, "api: %s %s is not in the embedded schema index.", method, shown)
 	command, hasCommand := nativeCommand(method, path)
 	if hasCommand {
 		fmt.Fprintf(&message, " Use `%s`.", command)
