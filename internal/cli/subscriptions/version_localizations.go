@@ -49,6 +49,8 @@ Examples:
 func newSubscriptionsVersionLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("versions localizations list", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionVersions", "Subscription version ID")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name; lists its newest version's localizations")
+	appID := addSubscriptionLookupAppFlag(fs)
 	fields := fs.String("fields", "", "Sparse fields for subscriptionLocalizations")
 	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
 	include := fs.String("include", "", "Include relationships: version")
@@ -58,13 +60,28 @@ func newSubscriptionsVersionLocalizationsListCommand(d *shared.Deps) *ffcli.Comm
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: "asc subscriptions versions localizations list [flags]", ShortHelp: "List localizations for a subscription version.",
-		LongHelp: "List version-scoped subscription localizations.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
+		LongHelp: `List version-scoped subscription localizations.
+
+Pass --subscription-id to list the localizations of the subscription's newest
+version: the draft being edited when there is one, else the live version.
+
+Examples:
+  asc subscriptions versions localizations list --version-id "VERSION_ID"
+  asc subscriptions versions localizations list --subscription-id "SUBSCRIPTION_ID"`,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions localizations list", 200, "fields", "version-fields", "include", "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions versions localizations list", 200, "subscription-id", "fields", "version-fields", "include", "limit"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*versionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
+			subscription := strings.TrimSpace(*subscriptionID)
+			if id != "" && subscription != "" {
+				return d.UsageError("--version-id and --subscription-id are mutually exclusive")
+			}
+			if subscription == "" && flagWasProvided(fs, "app") {
+				return d.UsageError("--app requires --subscription-id")
+			}
+			if id == "" && subscription == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--version-id")
 			}
 			fieldValues, err := normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList())
@@ -82,6 +99,12 @@ func newSubscriptionsVersionLocalizationsListCommand(d *shared.Deps) *ffcli.Comm
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions versions localizations list: %w", err)
+			}
+			if subscription != "" {
+				id, err = resolveNewestSubscriptionVersionID(ctx, d, client, *appID, subscription)
+				if err != nil {
+					return fmt.Errorf("subscriptions versions localizations list: %w", err)
+				}
 			}
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
@@ -315,4 +338,37 @@ func newSubscriptionsVersionLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Co
 			return &asc.AssetDeleteResult{ID: id, Deleted: true}
 		},
 	})
+}
+
+// resolveNewestSubscriptionVersionID returns the subscription's highest
+// numbered version. App Store Connect opens a new version only after the
+// previous one is approved, so that version is the draft being edited when
+// one exists and the live version otherwise.
+func resolveNewestSubscriptionVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
+	subscriptionID, err := resolveSubscriptionLookupIDWithTimeout(ctx, d, client, appValue, selector)
+	if err != nil {
+		return "", err
+	}
+	requestCtx, cancel := d.Timeout(ctx)
+	defer cancel()
+	resp, err := client.GetSubscriptionVersions(requestCtx, subscriptionID, asc.Limit[asc.SubscriptionVersionsOption](200))
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch versions: %w", err)
+	}
+	aggregated, err := asc.PaginateAll(requestCtx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetSubscriptionVersions(pageCtx, subscriptionID, asc.WithSubscriptionVersionsNextURL(nextURL))
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch versions: %w", err)
+	}
+	newestID, newest := "", -1
+	for _, version := range aggregated.(*asc.SubscriptionVersionsResponse).Data {
+		if id := strings.TrimSpace(version.ID); id != "" && version.Attributes.Version > newest {
+			newestID, newest = id, version.Attributes.Version
+		}
+	}
+	if newestID == "" {
+		return "", fmt.Errorf("subscription %s has no versions; create one with: asc subscriptions versions create --subscription-id %q", subscriptionID, subscriptionID)
+	}
+	return newestID, nil
 }
