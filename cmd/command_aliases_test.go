@@ -32,6 +32,7 @@ func TestResolveCommandAliasesRewritesOnlyUnknownReadVerbs(t *testing.T) {
 		{name: "path alias after a root flag", args: "--profile p testflight builds list --app 1", want: "--profile p builds list --app 1"},
 		{name: "path alias within its group", args: "testflight beta-groups list --app 1", want: "testflight groups list --app 1"},
 		{name: "path alias to a group's own child", args: "versions localizations list --version-id V", want: "localizations list --version-id V"},
+		{name: "removed v1 group to its v2 replacement", args: "subscriptions localizations list --subscription-id S", want: "subscriptions versions localizations list --subscription-id S"},
 		{name: "help names the command", args: "help builds list", want: "builds list --help"},
 		{name: "bare help", args: "help", want: "--help"},
 		{name: "help after a terminator stays a positional", args: "help builds -- x", want: "builds --help -- x"},

@@ -29,16 +29,10 @@ func TestSubscriptionsRemoved441CommandsAreUnknown(t *testing.T) {
 		wantTry  string
 	}{
 		{
-			name:     "localizations list",
-			args:     []string{"subscriptions", "localizations", "list", "--subscription-id", "SUB_ID"},
-			wantErr:  "Error: unknown command `asc subscriptions localizations`",
-			wantHelp: "asc subscriptions --help",
-		},
-		{
 			name:     "localizations sync",
 			args:     []string{"subscriptions", "localizations", "sync", "--subscription-id", "SUB_ID", "--file", "./localizations.json"},
-			wantErr:  "Error: unknown command `asc subscriptions localizations`",
-			wantHelp: "asc subscriptions --help",
+			wantErr:  "Error: unknown command `asc subscriptions versions localizations sync`",
+			wantHelp: "asc subscriptions versions localizations --help",
 		},
 		{
 			name:     "images list",
