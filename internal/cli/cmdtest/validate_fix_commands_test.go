@@ -13,8 +13,8 @@ import (
 )
 
 // freshAppValidateFixture serves what Apple returned on 2026-11-22 for a new
-// app whose 1.0 version has nothing filled in yet (app 6795927939, read-only),
-// with Apple's IDs renamed to the fixture's.
+// app whose 1.0 version has nothing filled in yet, with Apple's IDs renamed to
+// the fixture's.
 func freshAppValidateFixture() validateFixture {
 	fixture := validValidateFixture()
 	fixture.app = `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US","contentRightsDeclaration":null}}}`
