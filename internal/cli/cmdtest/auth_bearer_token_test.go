@@ -439,6 +439,15 @@ func TestAuthStatusTableBearerTokenLine(t *testing.T) {
 			want:     `ASC_BEARER_TOKEN cannot be combined with profile "Other"`,
 			reject:   []string{"used ahead of stored and environment credentials"},
 		},
+		{
+			name:     "refused token says why once under validate",
+			token:    signedTestToken(t, time.Now().Add(20*time.Minute)),
+			env:      map[string]string{"ASC_PROFILE": "Other"},
+			validate: true,
+			wantCode: cmd.ExitError,
+			want:     `: failed (ASC_BEARER_TOKEN cannot be combined with profile "Other"`,
+			reject:   []string{"unset one of them): failed"},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			isolateBearerTokenAuth(t, tc.token)
