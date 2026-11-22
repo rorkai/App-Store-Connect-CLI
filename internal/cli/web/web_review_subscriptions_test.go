@@ -454,6 +454,82 @@ func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 	}
 }
 
+func TestWebReviewSubscriptionsAttachStopsBeforePostOnLentSession(t *testing.T) {
+	tests := []struct {
+		name         string
+		command      func(*shared.Deps) *ffcli.Command
+		args         []string
+		lent         bool
+		wantRequests []string
+	}{
+		{name: "AttachLent", command: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}, lent: true, wantRequests: []string{reviewSubscriptionsListRequest}},
+		{name: "AttachGroupLent", command: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1"}, lent: true, wantRequests: []string{reviewSubscriptionsListRequest}},
+		{name: "AttachDirect", command: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1", reviewSubscriptionsListRequest}},
+		{name: "AttachGroupDirect", command: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1"}, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1", reviewSubscriptionsListRequest}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := stubReviewSubscriptions(t,
+				premiumGroupBody(t, monthlySubscription("READY_TO_SUBMIT", false)),
+				premiumGroupBody(t, monthlySubscription("READY_TO_SUBMIT", true)),
+			)
+			if tt.lent {
+				lendReviewSubscriptionsSession(t)
+			}
+
+			_, stderr, err := runReviewSubscriptionsCommand(t, tt.command, append([]string{"--app", "app-1", "--confirm", "--output", "json"}, tt.args...)...)
+			fake.assertRequests(t, tt.wantRequests...)
+			if !tt.lent {
+				if err != nil {
+					t.Fatalf("direct session attach failed: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("expected a lent session to stop before the attach request")
+			}
+			diagnostic, ok := shared.DiagnosticFromError(err)
+			if !ok || diagnostic.Code != shared.DiagnosticDependencyFailed {
+				t.Fatalf("expected %s diagnostic, got %+v (ok=%v)", shared.DiagnosticDependencyFailed, diagnostic, ok)
+			}
+			message := err.Error() + "\n" + stderr
+			if hinted, ok := errors.AsType[*shared.HintedError](err); ok {
+				message += "\n" + hinted.Hint
+			}
+			for _, want := range []string{
+				"can't submit subscriptions for review",
+				"App Store > Subscriptions",
+				`asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "VERSION_ID"`,
+			} {
+				if !strings.Contains(message, want) {
+					t.Fatalf("expected %q in the refusal, got %q", want, message)
+				}
+			}
+			if strings.Contains(strings.ToLower(message), "permission") {
+				t.Fatalf("the refusal must not blame the account's permissions, got %q", message)
+			}
+		})
+	}
+}
+
+// lendReviewSubscriptionsSession marks the stubbed web session as one a
+// broker lends, keeping its transport.
+func lendReviewSubscriptionsSession(t *testing.T) {
+	t.Helper()
+	original, ok := resolveSessionFn.(func(context.Context, string, string, string) (*webcore.AuthSession, string, error))
+	if !ok {
+		t.Fatalf("expected a stubbed web session resolver, got %T", resolveSessionFn)
+	}
+	t.Cleanup(func() { resolveSessionFn = original })
+	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		session, source, err := original(ctx, appleID, password, twoFactorCode)
+		if session != nil {
+			session.Brokered = true
+		}
+		return session, source, err
+	}
+}
+
 func TestWebReviewSubscriptionsGroupMutationsReportRefreshedState(t *testing.T) {
 	const (
 		missingMetadataReason = "state is MISSING_METADATA; run `asc validate subscriptions` and upload missing assets first"
