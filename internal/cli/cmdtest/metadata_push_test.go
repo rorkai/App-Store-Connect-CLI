@@ -728,6 +728,74 @@ func TestMetadataPushDryRunAllowDeletesDisablesDefaultLocaleFallback(t *testing.
 	}
 }
 
+// appleWhatsNewStateError is App Store Connect's answer, captured live on
+// 2026-11-22, to a PATCH that includes whatsNew on an app's first version
+// (PREPARE_FOR_SUBMISSION, never released). POST accepts whatsNew there.
+const appleWhatsNewStateError = `{
+  "errors" : [ {
+    "id" : "2e1ef0a6-606d-463c-954f-26c2b8c567a9",
+    "status" : "409",
+    "code" : "STATE_ERROR",
+    "title" : "The request cannot be fulfilled because of the state of another resource.",
+    "detail" : "Attribute 'whatsNew' cannot be edited at this time"
+  } ]
+}`
+
+// An app's first version can hold whatsNew (written when the locale was
+// created) that App Store Connect refuses to PATCH. Editing another field
+// must not resend the unchanged whatsNew, or the whole update fails with 409.
+func TestMetadataPushPatchesOnlyChangedFields(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "version", "1.0"), 0o755); err != nil {
+		t.Fatalf("mkdir version: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "version", "1.0", "it.json"), []byte(`{"description":"Nuova descrizione","whatsNew":"Prima versione."}`), 0o644); err != nil {
+		t.Fatalf("write version file: %v", err)
+	}
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Descrizione","whatsNew":"Prima versione."}}],"links":{"next":""}}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-ver-it"), func(req *http.Request) (*http.Response, error) {
+		requests := reg.Requests()
+		if strings.Contains(string(requests[len(requests)-1].Body), "whatsNew") {
+			return asctest.JSON(http.StatusConflict, appleWhatsNewStateError)(req)
+		}
+		return asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Nuova descrizione","whatsNew":"Prima versione."}}}`)(req)
+	})
+
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "metadata", "push", "--app", "app-1", "--version", "1.0", "--dir", dir, "--output", "json")
+	if runErr != nil {
+		t.Fatalf("run error: %v\nstdout=%s\nstderr=%s", runErr, stdout, stderr)
+	}
+	var patches []string
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPatch {
+			patches = append(patches, string(req.Body))
+		}
+	}
+	want := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"description":"Nuova descrizione"}}}`
+	if len(patches) != 1 || strings.TrimSpace(patches[0]) != want {
+		t.Fatalf("PATCH bodies = %q, want [%q]", patches, want)
+	}
+	var payload struct {
+		Applied   bool `json:"applied"`
+		Succeeded int  `json:"succeeded"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if !payload.Applied || payload.Succeeded != 1 {
+		t.Fatalf("applied=%t succeeded=%d, want applied with 1 success; stdout=%s", payload.Applied, payload.Succeeded, stdout)
+	}
+}
+
 func TestMetadataPushApplyExecutesUpdates(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -757,7 +825,7 @@ func TestMetadataPushApplyExecutesUpdates(t *testing.T) {
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","name":"App Name","subtitle":"Remote subtitle"}}],"links":{"next":""}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Remote description"}}],"links":{"next":""}}`))
-	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/loc-app-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"name":"App Name","subtitle":"Local subtitle"}}}`),
+	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/loc-app-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"subtitle":"Local subtitle"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","name":"App Name","subtitle":"Local subtitle"}}}`))
 	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-ver-en").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"description":"Local description"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Local description"}}}`))
@@ -1224,7 +1292,7 @@ func TestMetadataPushApplyFailsOnPartialMutation(t *testing.T) {
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","name":"App Name","subtitle":"Remote subtitle"}}],"links":{"next":""}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Remote description"}}],"links":{"next":""}}`))
-	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/loc-app-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"name":"App Name","subtitle":"Local subtitle"}}}`),
+	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/loc-app-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"subtitle":"Local subtitle"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","name":"App Name","subtitle":"Local subtitle"}}}`))
 	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-ver-en").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"description":"Local description"}}}`),
 		asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Internal Error","detail":"boom"}]}`))

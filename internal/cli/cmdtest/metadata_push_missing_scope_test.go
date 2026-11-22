@@ -66,7 +66,7 @@ var metadataScopeStubs = map[string]struct {
 		asctest.JSON(http.StatusNoContent, ""),
 	},
 	"PATCH /v1/appInfoLocalizations/loc-app-en": {
-		asctest.PATCH("/v1/appInfoLocalizations/loc-app-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"name":"App Name","subtitle":"Local subtitle"}}}`),
+		asctest.PATCH("/v1/appInfoLocalizations/loc-app-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"subtitle":"Local subtitle"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","subtitle":"Local subtitle"}}}`),
 	},
 }

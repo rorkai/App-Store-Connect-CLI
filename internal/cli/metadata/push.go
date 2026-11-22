@@ -1208,15 +1208,16 @@ func applyAppInfoChanges(
 				result.actions = append(result.actions, successfulMetadataAction(appInfoDirName, locale, "", action, id))
 			}
 		case remoteExists:
+			setFields := changedSetFields(localPatch.setFields, remoteFields)
 			clearFields := changedClearFields(localPatch.clearFields, remoteFields)
-			desired := desiredLocalizationFields(localPatch.setFields, clearFields)
+			desired := desiredLocalizationFields(setFields, clearFields)
 			id, action, err := runMetadataMutation(
 				ctx, d, "update",
 				func(requestCtx context.Context) (string, error) {
 					resp, mutationErr := client.UpdateAppInfoLocalizationNullableFields(
 						requestCtx,
 						remoteState.id,
-						nullableLocalizationPayload(localPatch.setFields, clearFields),
+						nullableLocalizationPayload(setFields, clearFields),
 					)
 					if mutationErr != nil {
 						return "", mutationErr
@@ -1380,15 +1381,16 @@ func applyVersionChanges(
 				result.actions = append(result.actions, successfulMetadataAction(versionDirName, locale, version, action, id))
 			}
 		case remoteExists:
+			setFields := changedSetFields(localPatch.setFields, remoteFields)
 			clearFields := changedClearFields(localPatch.clearFields, remoteFields)
-			desired := desiredLocalizationFields(localPatch.setFields, clearFields)
+			desired := desiredLocalizationFields(setFields, clearFields)
 			id, action, err := runMetadataMutation(
 				ctx, d, "update",
 				func(requestCtx context.Context) (string, error) {
 					resp, mutationErr := client.UpdateAppStoreVersionLocalizationNullableFields(
 						requestCtx,
 						remoteState.id,
-						nullableLocalizationPayload(localPatch.setFields, clearFields),
+						nullableLocalizationPayload(setFields, clearFields),
 					)
 					if mutationErr != nil {
 						return "", mutationErr
@@ -1913,6 +1915,21 @@ func countIntentChanges(fields []string, localSet map[string]string, localClears
 		}
 	}
 	return adds, updates
+}
+
+// changedSetFields keeps a PATCH limited to values that differ from the
+// remote localization. App Store Connect rejects the whole PATCH with 409 when
+// it carries a field the current state locks (whatsNew on an app's first
+// version, everything but promotionalText on a live version), even when the
+// value is unchanged.
+func changedSetFields(localSet map[string]string, remote map[string]string) map[string]string {
+	changed := make(map[string]string, len(localSet))
+	for field, value := range localSet {
+		if remoteValue, exists := remote[field]; !exists || remoteValue != value {
+			changed[field] = value
+		}
+	}
+	return changed
 }
 
 // changedClearFields keeps a PATCH limited to clears present in the plan.
