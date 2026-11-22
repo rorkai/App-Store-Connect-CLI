@@ -2,8 +2,10 @@ package reviews
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -303,7 +305,7 @@ Any other 409 keeps failing.`,
 					return detail, strings.TrimSpace(detail.Data.ID) != "", nil
 				})
 				if resolveErr != nil {
-					return fmt.Errorf("review details-create: failed to create: %w", resolveErr)
+					return withReviewDetailExistsHint(ifExistsMode, fmt.Errorf("review details-create: failed to create: %w", resolveErr))
 				}
 				if !handled {
 					return fmt.Errorf("review details-create: failed to create: %w", err)
@@ -459,6 +461,21 @@ Examples:
 // owns at most one detail and Apple has reported the same conflict through
 // them. The read-back of GET /v1/appStoreVersions/{id}/appStoreReviewDetail is
 // what finally proves existence; every other STATE_ERROR.* keeps failing.
+// withReviewDetailExistsHint names the one-flag retry when the version already
+// has review details and the caller left --if-exists at fail: the create flags
+// can be applied to the existing detail instead.
+func withReviewDetailExistsHint(mode shared.IfExistsMode, err error) error {
+	apiErr, ok := errors.AsType[*asc.APIError](err)
+	if mode != shared.IfExistsFail || !ok || apiErr.StatusCode != http.StatusConflict ||
+		(apiErr.Code != "STATE_ERROR.ALREADY_EXISTS" && !strings.Contains(apiErr.Detail, "already has an existing review")) {
+		return err
+	}
+	return &shared.HintedError{
+		Err:  err,
+		Hint: "This version already has review details. Rerun the same command with --if-exists update to apply these flags to them, or --if-exists skip to keep them as they are.",
+	}
+}
+
 var reviewDetailsCreateExistsCodes = []string{
 	"STATE_ERROR.ALREADY_EXISTS",
 	"ENTITY_ERROR.RELATIONSHIP.INVALID",
