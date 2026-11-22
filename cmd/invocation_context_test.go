@@ -728,7 +728,7 @@ func TestParseFailureContextClassifiesUnknownChildAsOther(t *testing.T) {
 
 func TestRun_GroupUnknownFlagNamesSubcommandsThatAcceptIt(t *testing.T) {
 	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{"apps", "info", "--app", "123"}, "1.0.0"); code != ExitUsage {
+		if code := Run([]string{"iap", "--app", "123"}, "1.0.0"); code != ExitUsage {
 			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 		}
 	})
@@ -736,9 +736,9 @@ func TestRun_GroupUnknownFlagNamesSubcommandsThatAcceptIt(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	want := "Error: unknown flag `--app` for `asc apps info`\n" +
-		"Did you mean a subcommand? These accept `--app`: list, view, edit\n" +
-		"For help:\n  asc apps info --help\n"
+	want := "Error: unknown flag `--app` for `asc iap`\n" +
+		"Did you mean a subcommand? These accept `--app`: list, create, import, setup\n" +
+		"For help:\n  asc iap --help\n"
 	if stderr != want {
 		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}

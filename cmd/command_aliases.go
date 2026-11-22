@@ -111,6 +111,17 @@ walk:
 		if strings.HasPrefix(token, "-") && token != "-" {
 			next, consumed := consumeFlagToken(current.FlagSet, token, resolved, index)
 			if !consumed {
+				// A group given flags it does not define, with no subcommand,
+				// runs the leaf callers mean by it when that leaf defines every
+				// flag that follows (`apps info --app X`, `versions --app X`).
+				if view := groupViewForFlags(current, strings.Join(path, " "), resolved[index:]); view != nil {
+					edit()
+					resolved = slices.Insert(resolved, index, view.Name)
+					parent, current, lastCommandIndex = current, view, index
+					path = append(path, view.Name)
+					index++
+					continue
+				}
 				break
 			}
 			if pathStart >= 0 {
@@ -249,4 +260,44 @@ func compoundChild(group *ffcli.Command, first, second string) *ffcli.Command {
 		}
 	}
 	return nil
+}
+
+// groupFlagsLeaf names, per command group, the leaf a caller means when they
+// give the group flags and no subcommand: the single-resource read for a
+// resource an app has one of, the list for a collection.
+var groupFlagsLeaf = map[string]string{
+	"asc apps info":            "view",
+	"asc pricing availability": "view",
+	"asc versions":             "list",
+	"asc builds":               "list",
+	"asc testflight groups":    "list",
+	"asc review submissions":   "list",
+}
+
+// groupViewForFlags returns the leaf groupFlagsLeaf names for group when args,
+// the rest of the command line after the group, hold only flags that leaf
+// defines. A group that takes the flags itself never reaches here, and a
+// positional argument or a flag the leaf does not define leaves the command as
+// written.
+func groupViewForFlags(group *ffcli.Command, groupPath string, args []string) *ffcli.Command {
+	name, ok := groupFlagsLeaf[groupPath]
+	if group == nil || !ok || len(args) == 0 {
+		return nil
+	}
+	leaf := findDirectSubcommand(group, name)
+	if leaf == nil || len(leaf.Subcommands) > 0 || leaf.FlagSet == nil {
+		return nil
+	}
+	for index := 0; index < len(args); {
+		token := args[index]
+		if token == "--" || isHelpToken(token) || !strings.HasPrefix(token, "-") || token == "-" {
+			return nil
+		}
+		next, consumed := consumeFlagToken(leaf.FlagSet, token, args, index)
+		if !consumed {
+			return nil
+		}
+		index = next
+	}
+	return leaf
 }
