@@ -164,6 +164,9 @@ Apple's form asks for:
                         --third-party-authorization when that is true
 
 Evidence files are .doc, .docx, .jpeg, .jpg, .pdf or .png, up to 20 MB each.
+An answer with files runs under the upload timeout (ASC_UPLOAD_TIMEOUT) instead
+of the request timeout. If the save fails without an answer from Apple, the
+outcome is unknown; check ` + "`asc web apps compliance list`" + ` before retrying.
 
 The command fills Apple's form step by step and saves only when it can answer
 every field the form asks for; otherwise it stops without saving. A requirement
@@ -257,6 +260,13 @@ Examples:
 			defer cancel()
 			if err != nil {
 				return err
+			}
+			// Evidence files are uploaded twice (the last form step and the
+			// save), so they get the upload budget instead of the request one.
+			if declaration.Proof != nil || declaration.Report != nil || declaration.ThirdPartyAuthorization != nil {
+				uploadCtx, uploadCancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
+				defer uploadCancel()
+				requestCtx = uploadCtx
 			}
 
 			label := "Saving app compliance declaration"

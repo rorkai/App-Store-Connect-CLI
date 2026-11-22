@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -297,6 +298,17 @@ func (c *Client) SetAppComplianceDeclaration(ctx context.Context, accountID, app
 		return nil, fmt.Errorf("app compliance requirement %q is pending verification and cannot be changed", declaration.Requirement)
 	}
 
+	// Evidence travels base64 in the last form-walk request and again in the
+	// save, so a caller that bounds the whole upload governs those requests
+	// instead of the per-request client timeout.
+	httpClient := c.httpClient
+	if _, bounded := ctx.Deadline(); bounded && httpClient != nil &&
+		(declaration.Proof != nil || declaration.Report != nil || declaration.ThirdPartyAuthorization != nil) {
+		uploadClient := *httpClient
+		uploadClient.Timeout = 0
+		httpClient = &uploadClient
+	}
+
 	entityPath := "/ppm/compliancerequirements/v1/accounts/" + url.PathEscape(accountID) + "/entities/" + url.PathEscape(appID)
 	fields := []appComplianceField{}
 	answered := map[string]bool{}
@@ -304,7 +316,7 @@ func (c *Client) SetAppComplianceDeclaration(ctx context.Context, accountID, app
 		if len(fields) > len(appComplianceFormFields[requirement.FormName]) {
 			return nil, fmt.Errorf("app compliance form for %q keeps asking for more fields", declaration.Requirement)
 		}
-		responseBody, err := c.doAppComplianceRequest(readonly.WithReadIntent(ctx), appID, http.MethodPost,
+		responseBody, err := c.doAppComplianceRequestWithHTTPClient(httpClient, readonly.WithReadIntent(ctx), appID, http.MethodPost,
 			entityPath+"/requirements/"+url.PathEscape(requirement.RequirementID)+"/metadata",
 			map[string]any{
 				"accountId":     accountID,
@@ -377,12 +389,16 @@ func (c *Client) SetAppComplianceDeclaration(ctx context.Context, accountID, app
 	// A first answer creates the declaration; a later one replaces it.
 	var responseBody []byte
 	if requirement.FormID == "" {
-		responseBody, err = c.doAppComplianceRequest(ctx, appID, http.MethodPost, entityPath+"/forms", request)
+		responseBody, err = c.doAppComplianceRequestWithHTTPClient(httpClient, ctx, appID, http.MethodPost, entityPath+"/forms", request)
 	} else {
-		responseBody, err = c.doAppComplianceRequest(ctx, appID, http.MethodPut, entityPath+"/forms/"+url.PathEscape(requirement.FormID), request)
+		responseBody, err = c.doAppComplianceRequestWithHTTPClient(httpClient, ctx, appID, http.MethodPut, entityPath+"/forms/"+url.PathEscape(requirement.FormID), request)
 	}
 	if err != nil {
-		return nil, err
+		var apiErr *APIError
+		if errors.As(err, &apiErr) || errors.Is(err, readonly.ErrRefused) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("app compliance declaration save outcome is unknown; check asc web apps compliance list --app %s before retrying: %w", appID, err)
 	}
 	var saved struct {
 		Data struct {

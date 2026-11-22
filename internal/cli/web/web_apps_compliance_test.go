@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -127,8 +128,10 @@ func TestWebAppsComplianceSetSendsEvidenceAndPrintsReceipt(t *testing.T) {
 	}
 
 	var got webcore.AppComplianceDeclaration
+	var gotDeadline time.Time
 	setWebAppComplianceDeclarationFn = func(ctx context.Context, client *webcore.Client, accountID, appID string, declaration webcore.AppComplianceDeclaration) (*webcore.AppComplianceDeclarationResult, error) {
 		got = declaration
+		gotDeadline, _ = ctx.Deadline()
 		return &webcore.AppComplianceDeclarationResult{
 			AppID: appID, RequirementID: "req-2", RequirementName: declaration.Requirement, Declared: declaration.Declared,
 			Status: "COLLECTED_VERIFY_PENDING", FormID: "form-2",
@@ -136,6 +139,15 @@ func TestWebAppsComplianceSetSendsEvidenceAndPrintsReceipt(t *testing.T) {
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
+	// Evidence is uploaded, so the upload budget must bound the save, not the request one.
+	requestDeadline := time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)
+	uploadDeadline := requestDeadline.Add(time.Hour)
+	d.Timeout = func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return context.WithDeadline(ctx, requestDeadline)
+	}
+	d.UploadTimeout = func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return context.WithDeadline(ctx, uploadDeadline)
+	}
 	cmd := newWebAppsComplianceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1", "--requirement", "AI_GENERATED_CONTENT", "--declared", "true",
@@ -161,6 +173,9 @@ func TestWebAppsComplianceSetSendsEvidenceAndPrintsReceipt(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected declaration:\n got %#v\nwant %#v", got, want)
+	}
+	if !gotDeadline.Equal(uploadDeadline) {
+		t.Fatalf("save deadline = %v, want the upload deadline %v", gotDeadline, uploadDeadline)
 	}
 	wantStdout := `{"appId":"app-1","requirementId":"req-2","requirementName":"AI_GENERATED_CONTENT","declared":true,` +
 		`"status":"COLLECTED_VERIFY_PENDING","formId":"form-2","dryRun":false}` + "\n"
