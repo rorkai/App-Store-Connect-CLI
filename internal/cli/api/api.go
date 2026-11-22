@@ -54,8 +54,10 @@ Responses print Apple's JSON envelope unmodified; an empty response body
 prints nothing.
 
 METHOD and PATH are checked against the embedded schema index (see asc schema).
-An unknown operation is a usage error that lists the nearest known operations
-unless --allow-unknown-path is set. Every non-GET request requires --confirm.
+An unknown operation is a usage error unless --allow-unknown-path is set. The
+error names the asc command that serves the request, or the indexed path it
+most likely means (another API version or a misspelled segment), or else the
+nearest known operations. Every non-GET request requires --confirm.
 For non-GET requests, pass query parameters documented for the operation in
 PATH itself.
 
@@ -376,6 +378,81 @@ func rejectNonJSONOperation(d *shared.Deps, method, templatePath string) error {
 	)
 }
 
+// nativeCommands maps an operation the embedded schema index does not have,
+// keyed by method and path template, to the asc command that serves what a
+// caller means by it. These are the unindexed requests callers send most:
+// relationships Apple does not expose, collections Apple reads through
+// another resource, and data only asc's own commands reach. `{id}` in a
+// command is the request's first path ID. TestNativeCommandsAreUnindexed
+// keeps every key out of the index, and
+// TestAPIUnknownPathNamesTheNativeCommand resolves every command.
+var nativeCommands = map[string]string{
+	"GET /v1/builds/{id}/betaGroups":                  "asc builds groups list --build-id {id}",
+	"GET /v1/builds/{id}/relationships/betaGroups":    "asc builds groups list --build-id {id}",
+	"GET /v1/builds/{id}/buildBundles":                "asc builds info --build-id {id} --include buildBundles",
+	"GET /v1/apps/{id}/appInfoLocalizations":          "asc localizations list --app {id} --type app-info",
+	"GET /v1/apps/{id}/appStoreLocalizations":         "asc localizations list --app {id}",
+	"GET /v1/appStoreVersions/{id}/localizations":     "asc localizations list --version {id}",
+	"GET /v1/appStoreVersions/{id}/appScreenshotSets": "asc screenshots list --version {id}",
+	"GET /v1/ageRatingDeclarations/{id}":              "asc age-rating view --app APP_ID",
+	"GET /v1/apps/{id}/ageRatingDeclaration":          "asc age-rating view --app {id}",
+	"GET /v1/subscriptionAppStoreReviewScreenshots":   "asc subscriptions review app-store-screenshot view --subscription-id SUBSCRIPTION_ID",
+	"GET /v1/reviewSubmissionItems":                   "asc review items list --submission SUBMISSION_ID",
+	"GET /v1/reviewSubmissionItems/{id}":              "asc review items list --submission SUBMISSION_ID",
+	"GET /v1/apps/{id}/prices":                        "asc pricing current --app {id}",
+	"GET /v1/apps/{id}/appPrices":                     "asc pricing current --app {id}",
+	"GET /v1/apps/{id}/availableTerritories":          "asc pricing availability view --app {id}",
+	"GET /v1/apps/{id}/appDataUsages":                 "asc web privacy pull --app {id}",
+}
+
+// nativeCommand returns the command nativeCommands names for an unindexed
+// request, with the request's first path ID filled in.
+func nativeCommand(method, path string) (string, bool) {
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	for key, command := range nativeCommands {
+		keyMethod, template, _ := strings.Cut(key, " ")
+		if keyMethod != method {
+			continue
+		}
+		parts := strings.Split(strings.Trim(template, "/"), "/")
+		if len(parts) != len(segments) {
+			continue
+		}
+		id, matched := "", true
+		for i, part := range parts {
+			if part == "{id}" {
+				if id == "" {
+					id = segments[i]
+				}
+				continue
+			}
+			if part != segments[i] {
+				matched = false
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		if strings.Contains(command, "{id}") {
+			quoted, ok := shared.ShellQuote(id)
+			if !ok {
+				quoted = "ID"
+			}
+			command = strings.ReplaceAll(command, "{id}", quoted)
+		}
+		return command, true
+	}
+	return "", false
+}
+
+// unknownOperationError answers a request the index does not have with what
+// to run instead: the native command, the indexed operation the path most
+// likely misspells (another API version, a plural, a misspelled segment), or
+// the nearest operations on the same resource. --allow-unknown-path is
+// offered only for that last case, where the resource is indexed and Apple
+// may have added the operation after the snapshot. A resource the index does
+// not know under any spelling is not in Apple's public API.
 func unknownOperationError(d *shared.Deps, method, path string) error {
 	nearest, err := schema.NearestOperations(method, path, nearestOperationMax)
 	if err != nil {
@@ -383,18 +460,54 @@ func unknownOperationError(d *shared.Deps, method, path string) error {
 	}
 
 	var message strings.Builder
-	fmt.Fprintf(&message, "api: %s %s is not in the embedded schema index", method, path)
-	if len(nearest) > 0 {
+	fmt.Fprintf(&message, "api: %s %s is not in the embedded schema index.", method, path)
+	command, hasCommand := nativeCommand(method, path)
+	if hasCommand {
+		fmt.Fprintf(&message, " Use `%s`.", command)
+	}
+	corrected := len(nearest) > 0 && nearest[0].Correction
+	if corrected {
+		fmt.Fprintf(&message, " Did you mean %s %s?", nearest[0].Method, fillTemplate(nearest[0].Path, path))
+		nearest = nearest[1:]
+	}
+	switch {
+	case len(nearest) > 0:
 		names := make([]string, 0, len(nearest))
 		for _, endpoint := range nearest {
 			names = append(names, endpoint.Method+" "+endpoint.Path)
 		}
-		fmt.Fprintf(&message, " (nearest known operations: %s)", strings.Join(names, ", "))
+		label := "Nearest known operations"
+		if corrected || hasCommand {
+			label = "Other known operations"
+		}
+		fmt.Fprintf(&message, " %s: %s.", label, strings.Join(names, ", "))
+	case !corrected && !hasCommand:
+		message.WriteString(" No indexed operation shares its resource, under any API version or a similar name: the App Store Connect API does not document it.")
 	}
-	message.WriteString(". Use `asc schema <query>` to inspect operations, or pass --allow-unknown-path to send the request anyway.")
+	if corrected || hasCommand || len(nearest) == 0 {
+		message.WriteString(" Use `asc schema <query>` to inspect operations.")
+	} else {
+		message.WriteString(" Use `asc schema <query>` to inspect operations, or pass --allow-unknown-path to send the request anyway.")
+	}
 	// The diagnostic keeps telemetry's failure parameter empty: the hint
 	// mentions --allow-unknown-path, but that flag did not cause the failure.
 	return shared.WithDiagnostic(d.UsageError(message.String()), shared.DiagnosticInvalidInput, "")
+}
+
+// fillTemplate renders an indexed template with the request's own value in
+// each parameter segment, so a corrected path keeps the caller's IDs.
+func fillTemplate(template, path string) string {
+	parts := strings.Split(strings.Trim(template, "/"), "/")
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) != len(segments) {
+		return template
+	}
+	for i, part := range parts {
+		if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
+			parts[i] = segments[i]
+		}
+	}
+	return "/" + strings.Join(parts, "/")
 }
 
 // readBody loads the request payload from --body (inline JSON or @path) or
