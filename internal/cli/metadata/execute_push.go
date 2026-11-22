@@ -361,7 +361,12 @@ func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecu
 			remoteAppInfoItems,
 			managedVersionItems,
 			opts.AllowDeletes,
-			metadataIfExistsOptions{mode: ifExistsMode, prefix: errorPrefix, lateAppInfoIDs: lateAppInfoIDs},
+			metadataIfExistsOptions{
+				mode:           ifExistsMode,
+				prefix:         errorPrefix,
+				lateAppInfoIDs: lateAppInfoIDs,
+				firstVersion:   newFirstVersionCheck(d, client, resolvedAppID, versionIDValue, versionStateValue),
+			},
 		)
 		if createdLocales := appInfoCreatedVersionLocales(actions, localVersion, managedVersionItems); len(createdLocales) > 0 {
 			versionCalls.list++

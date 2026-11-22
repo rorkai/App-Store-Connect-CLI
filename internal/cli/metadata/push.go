@@ -1054,8 +1054,11 @@ func applyMetadataPlan(
 		_, versionActions[i].convertedFromCreate = createdLocales[versionActions[i].Locale]
 		if slices.Contains(versionActions[i].SkippedFields, "whatsNew") {
 			rest := "The other fields were pushed."
-			if versionActions[i].Status == metadataActionStatusSkipped {
+			switch versionActions[i].Status {
+			case metadataActionStatusSkipped:
 				rest = "Nothing else changed."
+			case metadataActionStatusFailed:
+				rest = "Pushing the other fields failed; see the action error."
 			}
 			fmt.Fprintf(d.IO.ErrOut, "Warning: whatsNew was not set for locale %s of version %s: App Store Connect does not allow What's New on an app's first version (409 STATE_ERROR). %s\n", versionActions[i].Locale, version, rest)
 		}
@@ -1432,7 +1435,10 @@ func applyVersionChanges(
 					// Apple has no What's New on an app's first version and
 					// refuses the whole PATCH, applying nothing, so the other
 					// fields can be sent again without it.
-					if mutationErr != nil && skippedFields == nil && setFields["whatsNew"] != "" && isWhatsNewOnlyStateError(mutationErr) {
+					// A live version answers with the same 409, so this applies
+					// only to an editable first version.
+					if mutationErr != nil && skippedFields == nil && setFields["whatsNew"] != "" && isWhatsNewOnlyStateError(mutationErr) &&
+						ifExists.firstVersion != nil && ifExists.firstVersion(requestCtx) {
 						skippedFields = []string{"whatsNew"}
 						delete(setFields, "whatsNew")
 						delete(desired, "whatsNew")
@@ -1595,6 +1601,9 @@ type metadataIfExistsOptions struct {
 	prefix string
 	// lateAppInfoIDs are locales found by the preflight read after the plan read.
 	lateAppInfoIDs map[string]string
+	// firstVersion reports whether the pushed version is the app's first on
+	// its platform; nil means it is not known to be.
+	firstVersion func(context.Context) bool
 }
 
 // metadataCreateConflict describes one localization create whose failure may
@@ -1975,6 +1984,56 @@ func countIntentChanges(fields []string, localSet map[string]string, localClears
 		}
 	}
 	return adds, updates
+}
+
+// firstVersionEditableStates are the states an app's first version can be in
+// while its metadata is still editable.
+var firstVersionEditableStates = map[string]struct{}{
+	"PREPARE_FOR_SUBMISSION": {},
+	"READY_FOR_REVIEW":       {},
+	"DEVELOPER_REJECTED":     {},
+	"REJECTED":               {},
+	"METADATA_REJECTED":      {},
+	"INVALID_BINARY":         {},
+}
+
+// newFirstVersionCheck reports, reading the app's versions at most once,
+// whether versionID is the app's first version on its platform: it is in an
+// editable state and no other App Store version exists on that platform. App
+// Store Connect allows one unreleased version per platform, so any other
+// version there has been released. A failed read counts as not first.
+func newFirstVersionCheck(d *shared.Deps, client *asc.Client, appID, versionID, state string) func(context.Context) bool {
+	var once sync.Once
+	first := false
+	return func(ctx context.Context) bool {
+		once.Do(func() {
+			if _, editable := firstVersionEditableStates[strings.ToUpper(strings.TrimSpace(state))]; !editable {
+				return
+			}
+			resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreVersionsResponse, error) {
+				return client.GetAppStoreVersions(requestCtx, appID, asc.Limit[asc.AppStoreVersionsOption](200))
+			})
+			if err != nil || resp == nil || strings.TrimSpace(resp.Links.Next) != "" {
+				return
+			}
+			var platform asc.Platform
+			for _, item := range resp.Data {
+				if item.ID == versionID {
+					platform = item.Attributes.Platform
+				}
+			}
+			if platform == "" {
+				return
+			}
+			for _, item := range resp.Data {
+				if item.ID != versionID && item.Attributes.Platform == platform {
+					return
+				}
+			}
+			first = true
+		})
+		return first
+	}
 }
 
 // isWhatsNewOnlyStateError reports whether App Store Connect refused a write

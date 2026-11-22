@@ -812,6 +812,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 	const descriptionOnly = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"description":"Nuova descrizione"}}}`
 	const withWhatsNew = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"description":"Nuova descrizione","whatsNew":"Prima versione."}}}`
 	const whatsNewOnly = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"whatsNew":"Prima versione."}}}`
+	const onlyFirstVersion = `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`
 	const warning = "Warning: whatsNew was not set for locale it of version 1.0: App Store Connect does not allow What's New on an app's first version (409 STATE_ERROR). The other fields were pushed.\n"
 
 	tests := []struct {
@@ -823,6 +824,13 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 		wantStatus  string
 		wantSkipped []string
 		wantStderr  string
+		// state is the version's appVersionState; empty means PREPARE_FOR_SUBMISSION.
+		state string
+		// appVersions answers the one read of the app's versions push makes to
+		// confirm a first version; empty means push must not read them.
+		appVersions string
+		// retryConflict answers the PATCH sent again without whatsNew.
+		retryConflict string
 	}{
 		{
 			name:        "other fields are pushed without whatsNew",
@@ -832,6 +840,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantStatus:  "succeeded",
 			wantSkipped: []string{"whatsNew"},
 			wantStderr:  warning,
+			appVersions: onlyFirstVersion,
 		},
 		{
 			name:        "only whatsNew changed",
@@ -841,6 +850,7 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantStatus:  "skipped",
 			wantSkipped: []string{"whatsNew"},
 			wantStderr:  strings.Replace(warning, " The other fields were pushed.", " Nothing else changed.", 1),
+			appVersions: onlyFirstVersion,
 		},
 		{
 			name:        "other locked fields still fail",
@@ -849,6 +859,37 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			wantErr:     true,
 			wantPatches: []string{withWhatsNew},
 			wantStatus:  "failed",
+		},
+		{
+			// A live version locks whatsNew with the same 409; that edit must fail.
+			name:        "live version",
+			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			state:       "READY_FOR_SALE",
+			wantErr:     true,
+			wantPatches: []string{whatsNewOnly},
+			wantStatus:  "failed",
+		},
+		{
+			name:        "editable version after a released one",
+			local:       `{"description":"Descrizione","whatsNew":"Prima versione."}`,
+			conflict:    appleWhatsNewStateError,
+			appVersions: `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}},{"type":"appStoreVersions","id":"version-0","attributes":{"versionString":"0.9","platform":"IOS","appVersionState":"READY_FOR_SALE"}}],"links":{"next":""}}`,
+			wantErr:     true,
+			wantPatches: []string{whatsNewOnly},
+			wantStatus:  "failed",
+		},
+		{
+			name:          "other fields fail without whatsNew",
+			local:         `{"description":"Nuova descrizione","whatsNew":"Prima versione."}`,
+			conflict:      appleWhatsNewStateError,
+			retryConflict: appleLiveVersionStateError,
+			appVersions:   onlyFirstVersion,
+			wantErr:       true,
+			wantPatches:   []string{withWhatsNew, descriptionOnly},
+			wantStatus:    "failed",
+			wantSkipped:   []string{"whatsNew"},
+			wantStderr:    strings.Replace(warning, " The other fields were pushed.", " Pushing the other fields failed; see the action error.", 1),
 		},
 	}
 
@@ -867,15 +908,25 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 				t.Fatalf("write version file: %v", err)
 			}
 
+			state := test.state
+			if state == "" {
+				state = "PREPARE_FOR_SUBMISSION"
+			}
 			reg := asctest.NewRegistry(t)
 			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
-				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"`+state+`"}}],"links":{"next":""}}`))
+			if test.appVersions != "" {
+				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, test.appVersions))
+			}
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Descrizione"}}],"links":{"next":""}}`))
 			apple := func(req *http.Request) (*http.Response, error) {
 				requests := reg.Requests()
 				if strings.Contains(string(requests[len(requests)-1].Body), "whatsNew") {
 					return asctest.JSON(http.StatusConflict, test.conflict)(req)
+				}
+				if test.retryConflict != "" {
+					return asctest.JSON(http.StatusConflict, test.retryConflict)(req)
 				}
 				return asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-it","attributes":{"locale":"it","description":"Nuova descrizione"}}}`)(req)
 			}
@@ -913,8 +964,11 @@ func TestMetadataPushLeavesOutRefusedFirstVersionWhatsNew(t *testing.T) {
 			if len(payload.Actions) != 1 || payload.Actions[0].Status != test.wantStatus || !slices.Equal(payload.Actions[0].SkippedFields, test.wantSkipped) {
 				t.Fatalf("actions = %+v, want status %q skippedFields %q", payload.Actions, test.wantStatus, test.wantSkipped)
 			}
-			if !test.wantErr && stderr != test.wantStderr {
+			if (test.wantErr && !strings.HasPrefix(stderr, test.wantStderr)) || (!test.wantErr && stderr != test.wantStderr) {
 				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+			if test.wantErr && test.wantStderr == "" && strings.Contains(stderr, "Warning: whatsNew") {
+				t.Fatalf("stderr = %q, want no whatsNew warning", stderr)
 			}
 		})
 	}
