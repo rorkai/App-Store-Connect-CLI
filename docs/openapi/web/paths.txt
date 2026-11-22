@@ -98,6 +98,7 @@ GET /olympus/v1/contractMessages
 GET /olympus/v1/session
 GET /ppm/complianceform/v1/accounts/{accountId}/requirements/{requirementId}/forms
 GET /ppm/complianceform/v1/accounts/{id}/requirements
+GET /ppm/compliancerequirements/v1/accounts/{accountId}/requirements
 GET /sandbox/v2/provider/account/list
 GET /services-account/QH65B2/account/auth/key/download
 HEAD /logout
@@ -152,6 +153,8 @@ POST /iris/v2/apiKeys
 POST /iris/v2/appAvailabilities
 POST /olympus/v1/session
 POST /ppm/complianceform/v1/accounts/{accountId}/contents/{contentId}/requirements/{requirementId}/forms
+POST /ppm/compliancerequirements/v1/accounts/{accountId}/entities/{entityId}/forms
+POST /ppm/compliancerequirements/v1/accounts/{accountId}/entities/{entityId}/requirements/{requirementId}/metadata
 POST /sandbox/v2/account/create
 POST /sandbox/v2/account/delete
 POST /sandbox/v2/account/validateFields
@@ -179,3 +182,4 @@ PUT /ci/api/teams/{teamId}/products/{productId}/next-build-number
 PUT /ci/api/teams/{teamId}/products/{productId}/product-environment-variables/{productEnvironmentVariableId}
 PUT /ci/api/teams/{teamId}/products/{productId}/workflows-v15/{workflowId}
 PUT /ppm/complianceform/v1/accounts/{accountId}/contents/{contentId}/requirements/{requirementId}/forms
+PUT /ppm/compliancerequirements/v1/accounts/{accountId}/entities/{entityId}/forms/{formId}

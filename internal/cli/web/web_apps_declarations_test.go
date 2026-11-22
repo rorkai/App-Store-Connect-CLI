@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -31,17 +34,19 @@ func stubWebDeclarationSession(t *testing.T, accountID string) {
 func TestWebAppsDeclarationsListValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 		wantErr string
 	}{
-		{name: "missing app", args: nil, wantErr: "--app is required"},
+		{name: "missing app", command: newWebAppsDeclarationsListCommand, args: nil, wantErr: "--app is required"},
+		{name: "compliance list missing app", command: newWebAppsComplianceListCommand, args: nil, wantErr: "--app is required"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 			d, depsStdout, depsStderr := newWebTestDeps()
-			cmd := newWebAppsDeclarationsListCommand(d)
+			cmd := tc.command(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
