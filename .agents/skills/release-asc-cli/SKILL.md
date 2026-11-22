@@ -13,6 +13,10 @@ description: Publish and verify a new release of the App-Store-Connect-CLI repos
 4. For a new release, select and record the exact current `origin/main` SHA as the intended release commit, then create a clean detached worktree at that SHA. Freeze this target for the release. When resuming, use the tag's previously approved, verified release commit. Do not release from a dirty user checkout or an unmerged branch. Reselect only when the user changes the intended scope or a concrete release defect requires a corrected target; verify the replacement includes all requested changes and record why it changed.
 5. Inspect `.github/workflows/release.yml` and current repository guidance instead of assuming an older release procedure still applies.
 
+## Review the release delta
+
+Before the release gate, run the final Claude review in `AGENTS.md` over `<previous-tag>...<release-sha>` (Claude Fable 5.2, `high` effort). Fix valid findings through normal PRs, merge them, then select and record the corrected release SHA and review the new delta again. Do not tag while the review has actionable findings or is blocked.
+
 ## Run the release gate
 
 For both new and resumed releases, inventory recorded results for the selected release SHA and run only missing or invalidated checks below. Reuse a result only when its exact source, build and test inputs, toolchain, command, and relevant environment remain unchanged under `AGENTS.md`; record that evidence with the result. A PR head result does not validate a different merge SHA, and a result from another platform does not validate this platform. If the target or other inputs change, invalidate affected results. Verify consumer-visible state freshly.
