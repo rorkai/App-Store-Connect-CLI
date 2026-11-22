@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -384,4 +385,94 @@ func TestWebReviewReplyTakesAppScopeAndBodyFile(t *testing.T) {
 			t.Fatalf("error=%v requests=%d, want refusal after the thread read only", commandErr, len(*requested))
 		}
 	})
+}
+
+func TestWebReviewReplyExplainsAppleRefusals(t *testing.T) {
+	const (
+		draftPath   = "/iris/v1/resolutionCenterDraftMessages"
+		sendPath    = "/iris/v1/resolutionCenterMessages"
+		existingGet = "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage"
+	)
+	tests := []struct {
+		name      string
+		responses []webReviewDraftHTTPResponse
+		wantErr   []string
+		rejectErr []string
+		wantHint  []string
+	}{
+		{
+			name: "send refused after resubmission",
+			responses: []webReviewDraftHTTPResponse{
+				{method: http.MethodPost, path: draftPath, status: http.StatusCreated, body: webReviewDraftResponse("draft-1", "Reply body")},
+				{method: http.MethodPost, path: sendPath, status: http.StatusConflict, body: `{"errors":[{"status":"409","code":"STATE_ERROR"}]}`},
+			},
+			wantErr:   []string{"Apple refused to send draft draft-1", "the reply was not sent", "codes=[STATE_ERROR]"},
+			rejectErr: []string{"outcome is unknown", "outcome may be unknown"},
+			wantHint: []string{
+				"resubmitted",
+				"asc review status --app APP_ID",
+				`asc web review drafts delete --app APP_ID --thread-id "thread-1" --draft-id "draft-1" --confirm`,
+			},
+		},
+		{
+			name: "thread already has a draft",
+			responses: []webReviewDraftHTTPResponse{
+				{method: http.MethodPost, path: draftPath, status: http.StatusConflict, body: `{"errors":[{"status":"409","code":"STATE_ERROR.ALREADY_EXISTS"}]}`},
+				{method: http.MethodGet, path: existingGet, status: http.StatusOK, body: webReviewDraftResponse("draft-0", "Older reply")},
+			},
+			wantErr:   []string{`thread "thread-1" already has unsent draft "draft-0"`, "nothing was sent"},
+			rejectErr: []string{"Older reply", "outcome may be unknown"},
+			wantHint: []string{
+				"one unsent draft per thread",
+				"asc web review threads --app APP_ID --drafts",
+				`asc web review drafts delete --app APP_ID --thread-id "thread-1" --draft-id "draft-0" --confirm`,
+			},
+		},
+		{
+			name: "send server error stays ambiguous",
+			responses: []webReviewDraftHTTPResponse{
+				{method: http.MethodPost, path: draftPath, status: http.StatusCreated, body: webReviewDraftResponse("draft-1", "Reply body")},
+				{method: http.MethodPost, path: sendPath, status: http.StatusInternalServerError, body: `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR"}]}`},
+			},
+			wantErr:   []string{"draft draft-1 was created but send outcome is unknown", "do not retry automatically"},
+			rejectErr: []string{"was not sent"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requested := stubWebReviewDraftSequence(t, test.responses)
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebReviewReplyCommand(d)
+			if err := command.FlagSet.Parse([]string{"--thread-id", "thread-1", "--message", "Reply body", "--confirm", "--output", "json"}); err != nil {
+				t.Fatal(err)
+			}
+			var commandErr error
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() { commandErr = command.Exec(context.Background(), nil) })
+			if commandErr == nil || stdout != "" {
+				t.Fatalf("error=%v stdout=%q, want a failure and no receipt", commandErr, stdout)
+			}
+			for _, want := range test.wantErr {
+				if !strings.Contains(commandErr.Error(), want) {
+					t.Errorf("error = %q, want %q", commandErr, want)
+				}
+			}
+			for _, reject := range test.rejectErr {
+				if strings.Contains(commandErr.Error(), reject) {
+					t.Errorf("error = %q, must not contain %q", commandErr, reject)
+				}
+			}
+			hint := ""
+			if hinted, ok := errors.AsType[*shared.HintedError](commandErr); ok {
+				hint = hinted.Hint
+			}
+			for _, want := range test.wantHint {
+				if !strings.Contains(hint, want) {
+					t.Errorf("hint = %q, want %q", hint, want)
+				}
+			}
+			if len(*requested) != len(test.responses) {
+				t.Fatalf("requests = %#v, want exactly %d", *requested, len(test.responses))
+			}
+		})
+	}
 }

@@ -423,7 +423,7 @@ Examples:
 
 			resp, err := client.UpdateReviewSubmissionItem(requestCtx, trimmedID, attrs)
 			if err != nil {
-				return withReviewItemResolveHint(fmt.Errorf("%s: %w", errorPrefix, err))
+				return withComplianceRequirementHint(withReviewItemResolveHint(fmt.Errorf("%s: %w", errorPrefix, err)))
 			}
 
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
