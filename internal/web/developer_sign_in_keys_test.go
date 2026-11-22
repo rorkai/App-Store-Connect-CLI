@@ -277,6 +277,7 @@ func TestDeveloperKeyRevoke(t *testing.T) {
 	}{
 		{name: "APNs key", detail: apnsKey, listAfter: `{"resultCode":0,"keys":[]}`, revoke: func(c *Client) error { return c.RevokeDeveloperPushKey(context.Background(), "KEY123") }, wantRevoke: true},
 		{name: "wrong service", detail: apnsKey, revoke: func(c *Client) error { return c.RevokeDeveloperSignInKey(context.Background(), "KEY123") }, wantErrText: "not a Sign in with Apple key"},
+		{name: "key shared with other services", detail: `{"resultCode":0,"keys":[{"keyId":"KEY123","canRevoke":true,"services":[{"id":"U27F4V844T"},{"id":"APPLE_ID_AUTH_KEY_CONFIGURATION"},{"id":"DEVICE_CHECK"}]}]}`, revoke: func(c *Client) error { return c.RevokeDeveloperPushKey(context.Background(), "KEY123") }, wantErrText: "also serves APPLE_ID_AUTH_KEY_CONFIGURATION, DEVICE_CHECK"},
 		{name: "not revocable", detail: `{"resultCode":0,"keys":[{"keyId":"KEY123","canRevoke":false,"services":[{"id":"U27F4V844T"}]}]}`, revoke: func(c *Client) error { return c.RevokeDeveloperPushKey(context.Background(), "KEY123") }, wantErrText: "cannot be revoked"},
 		{name: "still listed", detail: apnsKey, listAfter: `{"resultCode":0,"keys":[{"keyId":"KEY123"}]}`, revoke: func(c *Client) error { return c.RevokeDeveloperPushKey(context.Background(), "KEY123") }, wantRevoke: true, wantErrText: "still listed"},
 	} {
