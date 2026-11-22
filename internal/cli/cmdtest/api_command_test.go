@@ -42,9 +42,19 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: "api: METHOD must be one of GET, POST, PATCH, DELETE",
 		},
 		{
-			name:    "relative path",
-			args:    []string{"api", "GET", "v1/apps"},
-			wantErr: "api: PATH must start with /v1/, /v2/, or /v3/",
+			name:    "path without a version that no version indexes",
+			args:    []string{"api", "GET", "agreements"},
+			wantErr: `api: PATH must start with /v1/, /v2/, or /v3/, got "agreements"`,
+		},
+		{
+			name:    "include flag",
+			args:    []string{"api", "GET", "/v1/apps/123/appInfos", "--include", "appInfoLocalizations"},
+			wantErr: "api: --include is not an `asc api` flag; pass it as a query parameter: --query include=appInfoLocalizations",
+		},
+		{
+			name:    "include flag with equals",
+			args:    []string{"api", "GET", "/v1/apps/123/appInfos", "--include=appInfoLocalizations"},
+			wantErr: "api: --include is not an `asc api` flag; pass it as a query parameter: --query include=appInfoLocalizations",
 		},
 		{
 			name:    "foreign host",
@@ -365,6 +375,42 @@ func TestAPIUnknownPathNamesTheNativeCommand(t *testing.T) {
 				if name, ok := strings.CutPrefix(word, "--"); ok && command.FlagSet.Lookup(name) == nil {
 					t.Fatalf("`%s` passes --%s, which the command does not define", test.want, name)
 				}
+			}
+		})
+	}
+}
+
+// TestAPIAcceptsCommonArgumentShapes sends the shapes callers use most often
+// besides the canonical `asc api METHOD /vN/PATH --query|--body`: no
+// method, no leading slash or no version, and the --data and --url-params
+// spellings of --body and --query.
+func TestAPIAcceptsCommonArgumentShapes(t *testing.T) {
+	const body = `{"data":{"type":"betaGroups","id":"g1","attributes":{"name":"QA"}}}`
+	tests := []struct {
+		name    string
+		args    []string
+		matcher asctest.Matcher
+		want    string
+	}{
+		{name: "path without method", args: []string{"api", "/v1/apps/123/appInfos?limit=10"}, matcher: asctest.GET("/v1/apps/123/appInfos", "limit=10"), want: "GET /v1/apps/123/appInfos?limit=10"},
+		{name: "path without leading slash", args: []string{"api", "GET", "v1/apps/123/appInfos"}, matcher: asctest.GET("/v1/apps/123/appInfos"), want: "GET /v1/apps/123/appInfos"},
+		{name: "path without version", args: []string{"api", "GET", "apps/123/appInfos"}, matcher: asctest.GET("/v1/apps/123/appInfos"), want: "GET /v1/apps/123/appInfos"},
+		{name: "path with slash but without version", args: []string{"api", "GET", "/apps/123"}, matcher: asctest.GET("/v1/apps/123"), want: "GET /v1/apps/123"},
+		{name: "path only under v2", args: []string{"api", "GET", "appAvailabilities/123/territoryAvailabilities"}, matcher: asctest.GET("/v2/appAvailabilities/123/territoryAvailabilities"), want: "GET /v2/appAvailabilities/123/territoryAvailabilities"},
+		{name: "url-params", args: []string{"api", "GET", "/v1/apps/123/appStoreVersions", "--url-params", "include=build"}, matcher: asctest.GET("/v1/apps/123/appStoreVersions", "include=build"), want: "GET /v1/apps/123/appStoreVersions?include=build"},
+		{name: "data", args: []string{"api", "PATCH", "/v1/betaGroups/g1", "--confirm", "--data", body}, matcher: asctest.PATCH("/v1/betaGroups/g1").JSONBody(body), want: "PATCH /v1/betaGroups/g1"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(test.matcher, asctest.JSON(http.StatusOK, `{"data":[]}`))
+
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
+			if code != rootcmd.ExitSuccess || stderr != "" || stdout != `{"data":[]}`+"\n" {
+				t.Fatalf("exit = %d, stdout = %q, stderr = %q, want success and Apple's envelope", code, stdout, stderr)
+			}
+			if got := reg.Requests(); len(got) != 1 || got[0].Method+" "+got[0].URL.RequestURI() != test.want {
+				t.Fatalf("requests = %v, want %s", got, test.want)
 			}
 		})
 	}

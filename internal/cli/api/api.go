@@ -43,15 +43,20 @@ func NewCommand(d *shared.Deps) *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Required for POST, PATCH, and DELETE requests")
 	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH, or its query parameter names and values, are not in the embedded schema index")
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "json", "Output format: json", "json")
+	// curl's and gh's spellings, and a common guess for the query flag.
+	shared.BindFlagAlias(fs, "data", "body")
+	shared.BindFlagAlias(fs, "url-params", "query")
 
 	return &ffcli.Command{
 		Name:       "api",
-		ShortUsage: "asc api <METHOD> <PATH> [flags]",
+		ShortUsage: "asc api [METHOD] <PATH> [flags]",
 		ShortHelp:  "Send an authenticated raw request to the App Store Connect API.",
 		LongHelp: `Send an authenticated raw request to the App Store Connect API.
 
-METHOD is GET, POST, PATCH, or DELETE. PATH is a versioned API path such as
-/v1/apps/{id}/builds or a full https://api.appstoreconnect.apple.com URL.
+METHOD is GET, POST, PATCH, or DELETE, and defaults to GET when only PATH is
+given. PATH is a versioned API path such as /v1/apps/{id}/builds or a full
+https://api.appstoreconnect.apple.com URL; v1/apps/{id}/builds works too, and
+apps/{id}/builds when exactly one API version has that operation.
 Responses print Apple's JSON envelope unmodified; an empty response body
 prints nothing.
 
@@ -78,6 +83,9 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			positional, err := shared.ParseInterspersedFlags(fs, args)
 			if err != nil {
+				if value, ok := includeFlagValue(args); ok && err.Error() == "flag provided but not defined: --include" {
+					return d.UsageErrorf("api: --include is not an `asc api` flag; pass it as a query parameter: --query include=%s", value)
+				}
 				return d.UsageErrorf("api: %v", err)
 			}
 			if err := shared.ValidateBoundOutputFlags(fs); err != nil {
@@ -133,14 +141,12 @@ type rawRequest struct {
 // parseRequest validates the invocation before any credential or network
 // access. Every failure is a usage error with exit code 2.
 func parseRequest(ctx context.Context, d *shared.Deps, positional []string, query []string, body, bodyFile string, bodyProvided, bodyFileProvided, paginate, confirm, allowUnknownPath bool) (rawRequest, error) {
+	// A lone PATH is a GET: a method never contains a slash.
+	if len(positional) == 1 && strings.Contains(positional[0], "/") {
+		positional = []string{http.MethodGet, positional[0]}
+	}
 	if len(positional) < 2 {
-		err := d.UsageError("api: METHOD and PATH are required")
-		if len(positional) == 1 && (strings.HasPrefix(positional[0], "/") || strings.HasPrefix(positional[0], "https://")) {
-			if quoted, ok := shared.ShellQuote(positional[0]); ok {
-				fmt.Fprintf(d.IO.ErrOut, "Hint: pass the method first: asc api GET %s\n", quoted)
-			}
-		}
-		return rawRequest{}, err
+		return rawRequest{}, d.UsageError("api: METHOD and PATH are required")
 	}
 	if len(positional) > 2 {
 		return rawRequest{}, d.UsageErrorf("api: unexpected argument %q", positional[2])
@@ -150,7 +156,7 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	if err != nil {
 		return rawRequest{}, err
 	}
-	path, values, err := normalizePath(d, positional[1])
+	path, values, err := normalizePath(d, method, positional[1])
 	if err != nil {
 		return rawRequest{}, err
 	}
@@ -325,8 +331,10 @@ func normalizeMethod(d *shared.Deps, raw string) (string, error) {
 }
 
 // normalizePath accepts a versioned path or a full App Store Connect URL and
-// returns the path plus any query parameters carried in the argument.
-func normalizePath(d *shared.Deps, raw string) (string, url.Values, error) {
+// returns the path plus any query parameters carried in the argument. A path
+// may omit its leading slash (v1/apps), and may omit its version when exactly
+// one API version indexes the operation (apps/{id}/appInfos is /v1).
+func normalizePath(d *shared.Deps, method, raw string) (string, url.Values, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return "", nil, d.UsageError("api: METHOD and PATH are required")
@@ -370,8 +378,15 @@ func normalizePath(d *shared.Deps, raw string) (string, url.Values, error) {
 	if len(path) > 1 {
 		path = strings.TrimSuffix(path, "/")
 	}
-	if !strings.HasPrefix(path, "/v1/") && !strings.HasPrefix(path, "/v2/") && !strings.HasPrefix(path, "/v3/") {
-		return "", nil, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", raw)
+	if !hasVersionPrefix(path) {
+		versioned, err := versionedPath(method, path)
+		if err != nil {
+			return "", nil, fmt.Errorf("api: %w", err)
+		}
+		if versioned == "" {
+			return "", nil, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", raw)
+		}
+		path = versioned
 	}
 	if strings.Contains(path, "//") || strings.ContainsAny(path, "#%\\") {
 		return "", nil, d.UsageErrorf("api: PATH contains an unsupported character sequence: %q", raw)
@@ -390,6 +405,67 @@ func normalizePath(d *shared.Deps, raw string) (string, url.Values, error) {
 		}
 	}
 	return path, values, nil
+}
+
+var apiVersions = []string{"/v1", "/v2", "/v3"}
+
+func hasVersionPrefix(path string) bool {
+	for _, version := range apiVersions {
+		if strings.HasPrefix(path, version+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// versionedPath completes a path missing its leading slash or its version:
+// v1/apps becomes /v1/apps, and apps/{id} the one versioned path the index
+// has for method. It returns "" when no single completion exists.
+func versionedPath(method, path string) (string, error) {
+	trimmed := strings.TrimPrefix(path, "/")
+	if hasVersionPrefix("/" + trimmed) {
+		return "/" + trimmed, nil
+	}
+	if trimmed == "" {
+		return "", nil
+	}
+	found := ""
+	for _, version := range apiVersions {
+		candidate := version + "/" + trimmed
+		_, indexed, err := schema.MatchOperation(method, candidate)
+		if err != nil {
+			return "", err
+		}
+		if indexed {
+			if found != "" {
+				return "", nil
+			}
+			found = candidate
+		}
+	}
+	return found, nil
+}
+
+// includeFlagValue returns the value of an --include flag in args. `asc api`
+// has no such flag; other asc commands use it for JSON:API include.
+func includeFlagValue(args []string) (string, bool) {
+	for i, arg := range args {
+		if arg == "--" {
+			break
+		}
+		name, value, hasValue := strings.Cut(strings.TrimLeft(arg, "-"), "=")
+		if !strings.HasPrefix(arg, "-") || name != "include" {
+			continue
+		}
+		if !hasValue {
+			if i+1 >= len(args) {
+				return "", false
+			}
+			value = args[i+1]
+		}
+		return value, true
+	}
+	return "", false
 }
 
 // nonJSONOperation describes an indexed operation that `asc api` cannot serve.
