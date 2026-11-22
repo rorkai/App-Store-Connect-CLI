@@ -24,7 +24,7 @@ func reviewDetailsChecks(details *ReviewDetails) []CheckResult {
 				Severity:     SeverityError,
 				ResourceType: "appStoreReviewDetail",
 				Message:      "app store review details are missing",
-				Remediation:  "Create App Store review details for this version in App Store Connect",
+				Remediation:  "Create App Store review details for this version",
 			},
 		}
 	}

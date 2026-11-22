@@ -46,7 +46,7 @@ func pricingChecks(appID string, priceScheduleID string, basePriceMissing bool, 
 			ResourceType: "app",
 			ResourceID:   strings.TrimSpace(appID),
 			Message:      "app price schedule is missing",
-			Remediation:  "Set pricing for the app in App Store Connect (Pricing and Availability)",
+			Remediation:  "Set a price (Free counts)",
 		},
 	}
 }
@@ -72,7 +72,7 @@ func availabilityChecks(appID string, availabilityID string, availableTerritorie
 				ResourceType: "app",
 				ResourceID:   strings.TrimSpace(appID),
 				Message:      "app availability is missing",
-				Remediation:  "Configure availability for the app in App Store Connect (Pricing and Availability)",
+				Remediation:  "Make the app available in at least one territory",
 			},
 		}
 	}
@@ -89,7 +89,7 @@ func availabilityChecks(appID string, availabilityID string, availableTerritorie
 			ResourceType: "appAvailabilityV2",
 			ResourceID:   strings.TrimSpace(availabilityID),
 			Message:      fmt.Sprintf("no available territories configured (available=%d)", availableTerritories),
-			Remediation:  "Enable at least one territory in App Store Connect (Pricing and Availability)",
+			Remediation:  "Enable at least one territory",
 		},
 	}
 }

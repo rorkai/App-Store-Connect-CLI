@@ -245,8 +245,16 @@ which subscription to attach.
 JSON is the default for pipes and CI; terminals default to a table. Both forms
 include the severity summary, ordered remediation steps, and individual
 findings. Deep mode adds a `deep` section to JSON and resolution columns to
-table or Markdown output. The ordinary output shape doesn't change when
-`--deep` is absent.
+table or Markdown output.
+
+Without `--deep`, a finding that one `asc` command fixes still carries the
+`api-fixable` `resolution` with that command, for example
+`asc versions attach-build --app "APP_ID" --version-id "VERSION_ID" --latest`
+for `build.required.missing`. Its `remediation` text ends with the same command,
+so table output and filters that read only `remediation` see it too. Commands
+use the report's real app, version, localization, and app info IDs; values the
+operator must choose, such as the description text or the category, stay as
+named placeholders.
 
 ## Flags
 

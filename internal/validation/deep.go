@@ -62,6 +62,42 @@ func ApplyDeepValidation(report Report, deep DeepReport, findings []CheckResult)
 	return report
 }
 
+// attachFixCommands gives every finding that a known asc command resolves the
+// api-fixable resolution --deep attaches, and names the command at the end of
+// the remediation text, so the default report says how to fix each blocker
+// in JSON, in table output and in jq filters that read only remediation.
+func attachFixCommands(appID, versionID string, checks []CheckResult) {
+	report := Report{AppID: appID, VersionID: versionID}
+	for index := range checks {
+		check := &checks[index]
+		if check.Resolution != nil || strings.TrimSpace(check.Remediation) == "" {
+			continue
+		}
+		command := publicAPIResolutionCommand(report, *check)
+		if command == "" {
+			continue
+		}
+		check.Resolution = &Resolution{
+			Fixability:         FixabilityAPIFixable,
+			Commands:           []string{command},
+			AppStoreConnectURL: defaultManualResolution(appID, check.ID).AppStoreConnectURL,
+		}
+		if !strings.Contains(check.Remediation, commandName(command)) {
+			check.Remediation = strings.TrimSuffix(strings.TrimSpace(check.Remediation), ".") + ": " + command
+		}
+	}
+}
+
+// commandName returns the command path of an asc invocation, for example
+// "asc apps update", so remediation text that already names it is kept.
+func commandName(command string) string {
+	fields := strings.Fields(command)
+	if len(fields) > 3 {
+		fields = fields[:3]
+	}
+	return strings.Join(fields, " ")
+}
+
 func resolutionForPublicFinding(report Report, check CheckResult) *Resolution {
 	appURL := defaultManualResolution(report.AppID, check.ID).AppStoreConnectURL
 	command := publicAPIResolutionCommand(report, check)
@@ -99,9 +135,38 @@ func publicAPIResolutionCommand(report Report, check CheckResult) string {
 			}
 			return command + fmt.Sprintf(" --primary %q", "CATEGORY_ID")
 		}
-	case "build.required.missing":
-		if versionID := strings.TrimSpace(report.VersionID); versionID != "" {
-			return fmt.Sprintf("asc versions attach-build --version-id %q --build-id %q", versionID, "BUILD_ID")
+	case "build.required.missing", "build.invalid.expired":
+		appID, versionID := strings.TrimSpace(report.AppID), strings.TrimSpace(report.VersionID)
+		if appID != "" && versionID != "" {
+			return fmt.Sprintf("asc versions attach-build --app %q --version-id %q --latest", appID, versionID)
+		}
+	case "age_rating.missing_field":
+		appID := strings.TrimSpace(report.AppID)
+		if flag, values := ageRatingResolutionField(field); appID != "" && flag != "" {
+			return fmt.Sprintf("asc age-rating edit --app %q --%s %q", appID, flag, values)
+		}
+	case "availability.missing":
+		if appID := strings.TrimSpace(report.AppID); appID != "" {
+			return fmt.Sprintf("asc pricing availability create --app %q --all-territories --available true --available-in-new-territories true", appID)
+		}
+	case "availability.territories.none":
+		if appID := strings.TrimSpace(report.AppID); appID != "" {
+			return fmt.Sprintf("asc pricing availability edit --app %q --all-territories --available true", appID)
+		}
+	case "pricing.schedule.missing":
+		if appID := strings.TrimSpace(report.AppID); appID != "" {
+			return fmt.Sprintf("asc pricing schedule create --app %q --free --base-territory %q", appID, "USA")
+		}
+	case "screenshots.required.any":
+		appID, versionID := strings.TrimSpace(report.AppID), strings.TrimSpace(report.VersionID)
+		if appID != "" && versionID != "" {
+			command := fmt.Sprintf("asc screenshots upload --app %q --version-id %q", appID, versionID)
+			path := "./screenshots"
+			if locale := strings.TrimSpace(check.Locale); locale != "" {
+				command += fmt.Sprintf(" --locale %q", locale)
+				path += "/" + locale
+			}
+			return command + fmt.Sprintf(" --path %q --device-type %q", path, "IPHONE_65")
 		}
 	}
 
@@ -146,6 +211,62 @@ func localizationResolutionField(field string) (string, string) {
 		return "privacy-policy-url", "https://example.com/privacy"
 	case "privacyChoicesUrl":
 		return "privacy-choices-url", "https://example.com/privacy-choices"
+	default:
+		return "", ""
+	}
+}
+
+// ageRatingResolutionField maps an age rating declaration attribute to its
+// asc age-rating edit flag and the values that flag accepts.
+func ageRatingResolutionField(field string) (string, string) {
+	const levels = "NONE|INFREQUENT_OR_MILD|FREQUENT_OR_INTENSE"
+	switch field {
+	case "advertising", "gambling":
+		return field, "true|false"
+	case "contests":
+		return field, levels
+	case "healthOrWellnessTopics":
+		return "health-or-wellness-topics", "true|false"
+	case "lootBox":
+		return "loot-box", "true|false"
+	case "messagingAndChat":
+		return "messaging-and-chat", "true|false"
+	case "parentalControls":
+		return "parental-controls", "true|false"
+	case "ageAssurance":
+		return "age-assurance", "true|false"
+	case "socialMedia":
+		return "social-media", "true|false"
+	case "socialMediaAgeRestricted":
+		return "social-media-age-restricted", "true|false"
+	case "unrestrictedWebAccess":
+		return "unrestricted-web-access", "true|false"
+	case "userGeneratedContent":
+		return "user-generated-content", "true|false"
+	case "alcoholTobaccoOrDrugUseOrReferences":
+		return "alcohol-tobacco-drug-use", levels
+	case "gamblingSimulated":
+		return "gambling-simulated", levels
+	case "gunsOrOtherWeapons":
+		return "guns-or-other-weapons", levels
+	case "medicalOrTreatmentInformation":
+		return "medical-treatment", levels
+	case "profanityOrCrudeHumor":
+		return "profanity-humor", levels
+	case "sexualContentGraphicAndNudity":
+		return "sexual-content-graphic-nudity", levels
+	case "sexualContentOrNudity":
+		return "sexual-content-nudity", levels
+	case "horrorOrFearThemes":
+		return "horror-fear", levels
+	case "matureOrSuggestiveThemes":
+		return "mature-suggestive", levels
+	case "violenceCartoonOrFantasy":
+		return "violence-cartoon", levels
+	case "violenceRealistic":
+		return "violence-realistic", levels
+	case "violenceRealisticProlongedGraphicOrSadistic":
+		return "violence-realistic-graphic", levels
 	default:
 		return "", ""
 	}

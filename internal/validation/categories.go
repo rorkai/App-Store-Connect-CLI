@@ -14,7 +14,7 @@ func categoryChecks(appInfoID string, primaryCategoryID string) []CheckResult {
 			ResourceType: "appInfo",
 			ResourceID:   strings.TrimSpace(appInfoID),
 			Message:      "primary category is not set",
-			Remediation:  "Set a primary category in App Store Connect (App Information)",
+			Remediation:  "Set a primary category (list category IDs with asc categories list)",
 		},
 	}
 }
