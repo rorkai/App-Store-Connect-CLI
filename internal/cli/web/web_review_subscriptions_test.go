@@ -409,6 +409,16 @@ func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 			if !errors.As(err, &reported) {
 				t.Fatalf("expected ReportedError, got %T: %v", err, err)
 			}
+			if !shared.IsPrintedToStderr(err) {
+				t.Fatalf("expected the preflight to be marked as already printed to stderr, got %T: %v", err, err)
+			}
+			if !shared.IsValidationError(err) {
+				t.Fatalf("expected a not-ready subscription to be a validation failure, got %T: %v", err, err)
+			}
+			diagnostic, ok := shared.DiagnosticFromError(err)
+			if !ok || diagnostic.Code != shared.DiagnosticStateNotReady {
+				t.Fatalf("expected %s diagnostic, got %+v (ok=%v)", shared.DiagnosticStateNotReady, diagnostic, ok)
+			}
 			fake.assertRequests(t, reviewSubscriptionsListRequest)
 			for _, want := range tt.wantStderr {
 				if !strings.Contains(stderr, want) {
