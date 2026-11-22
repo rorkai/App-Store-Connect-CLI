@@ -103,7 +103,37 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 		{
 			name:    "undocumented inline mutation query",
 			args:    []string{"api", "DELETE", "/v1/betaGroups/123?limit=1", "--confirm"},
-			wantErr: "api: PATH query parameters must be documented for this operation",
+			wantErr: `api: query parameter "limit" is not documented for DELETE /v1/betaGroups/{id}; it documents no query parameters`,
+		},
+		{
+			name:    "undocumented GET query name",
+			args:    []string{"api", "GET", "/v1/apps/123/builds", "--query", "sort=-uploadedDate"},
+			wantErr: `api: query parameter "sort" is not documented for GET /v1/apps/{id}/builds (documented: fields[builds], limit)`,
+		},
+		{
+			name:    "GET query name one edit from a documented one",
+			args:    []string{"api", "GET", "/v1/betaTesters?filter[app]=123"},
+			wantErr: `api: query parameter "filter[app]" is not documented for GET /v1/betaTesters; did you mean filter[apps]?`,
+		},
+		{
+			name:    "shell-escaped brackets in a GET query name",
+			args:    []string{"api", "GET", "/v1/apps/123/appStoreVersions", "--query", `filter\[appStoreState\]=READY_FOR_SALE`},
+			wantErr: `api: query parameter "filter\\[appStoreState\\]" contains a backslash, which Apple receives literally; pass filter[appStoreState]`,
+		},
+		{
+			name:    "percent-encoded brackets in a GET query name",
+			args:    []string{"api", "GET", "/v1/apps/123/appStoreVersions", "--query", "filter%5BappStoreState%5D=READY_FOR_SALE"},
+			wantErr: `api: query parameter "filter%5BappStoreState%5D" is percent-encoded, which --query sends literally; pass filter[appStoreState]`,
+		},
+		{
+			name:    "undocumented GET include value",
+			args:    []string{"api", "GET", "/v1/subscriptions/123/prices?include=pricePoint"},
+			wantErr: `api: include value "pricePoint" is not documented for GET /v1/subscriptions/{id}/prices (documented: territory, subscriptionPricePoint)`,
+		},
+		{
+			name:    "undocumented GET filter value in a list",
+			args:    []string{"api", "GET", "/v1/apps/123/appStoreVersions", "--query", "filter[appVersionState]=READY_FOR_DISTRIBUTION,READY_FOR_SALE"},
+			wantErr: `api: filter[appVersionState] value "READY_FOR_SALE" is not documented for GET /v1/apps/{id}/appStoreVersions (documented: `,
 		},
 		{
 			name:    "body on GET",
@@ -264,11 +294,13 @@ func TestAPIGetPrintsEnvelopeUnmodified(t *testing.T) {
 	}
 }
 
+// TestAPIGetAcceptsFullURLWithQueryAndPretty passes a links.next URL back:
+// its `cursor` is undocumented in the snapshot but must reach Apple.
 func TestAPIGetAcceptsFullURLWithQueryAndPretty(t *testing.T) {
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "limit=2", "sort=name"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps", "cursor=two", "limit=2", "sort=name"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	args := []string{"api", "--pretty", "GET", "https://api.appstoreconnect.apple.com/v1/apps?limit=2", "--query", "sort=name"}
+	args := []string{"api", "--pretty", "GET", "https://api.appstoreconnect.apple.com/v1/apps?cursor=two&limit=2", "--query", "sort=name"}
 	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
 	if code != rootcmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
@@ -279,7 +311,7 @@ func TestAPIGetAcceptsFullURLWithQueryAndPretty(t *testing.T) {
 	if stdout != "{\n  \"data\": []\n}\n" {
 		t.Fatalf("stdout = %q, want pretty JSON", stdout)
 	}
-	if got := reg.Requests(); len(got) != 1 || got[0].Method+" "+got[0].URL.RequestURI() != "GET /v1/apps?limit=2&sort=name" {
+	if got := reg.Requests(); len(got) != 1 || got[0].Method+" "+got[0].URL.RequestURI() != "GET /v1/apps?cursor=two&limit=2&sort=name" {
 		t.Fatalf("requests = %v, want merged query", got)
 	}
 }
