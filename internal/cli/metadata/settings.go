@@ -152,7 +152,11 @@ func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingSc
 	for key, rawValue := range raw {
 		field, ok := scope.field(key)
 		if !ok {
-			return nil, d.UsageErrorf("invalid metadata schema in %s: unknown field %q", path, key)
+			names := make([]string, 0, len(scope.fields))
+			for _, known := range scope.fields {
+				names = append(names, known.name)
+			}
+			return nil, d.UsageErrorf("invalid metadata schema in %s: unknown field %q; %s fields: %s", path, key, scope.name, strings.Join(names, ", "))
 		}
 		if field.nullUnset && isJSONNull(rawValue) {
 			continue

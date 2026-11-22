@@ -52,13 +52,18 @@ and its version string names the `version/<version>/` directory. Pass
 Resolution completes before any metadata file is written, so an ambiguous or
 missing default leaves the output directory unchanged.
 
+Pulling again into the same `--dir` refreshes files that already hold the App
+Store Connect values, so a re-pull needs no `--force`. A file with different
+values (a local edit not yet pushed) is kept, and pull fails before writing
+anything; push it first, or pass `--force` to replace it.
+
 **Flags:**
 
 * `--app` - App Store Connect app ID (or `ASC_APP_ID`)
 * `--version` - App version string (e.g., `1.2.3`); defaults to the active editable version, then a developer-removed version, else the live version
 * `--platform` - Optional platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`; also selects the default version
 * `--dir` - Output root directory (required)
-* `--force` - Overwrite existing metadata files in `--dir`
+* `--force` - Replace existing files in `--dir` whose values differ from App Store Connect
 * `--include` - Included metadata scopes (default: `localizations`)
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
@@ -183,6 +188,12 @@ metadata has no errors.
 * `promotionalText` - Promotional text (170 characters max)
 * `supportUrl` - Support URL
 * `whatsNew` - What's new / release notes (4000 characters max)
+
+App Store Connect has no What's New on an app's first version and refuses an
+update that sets `whatsNew` there (409 `STATE_ERROR`). `metadata push` and
+`metadata apply` then send the locale's other fields without it, list
+`whatsNew` in the action's `skippedFields`, and print a warning. If nothing
+else changed, the action's status is `skipped`.
 
 ### Clearing nullable fields
 

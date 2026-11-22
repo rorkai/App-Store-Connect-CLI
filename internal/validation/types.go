@@ -22,9 +22,13 @@ const (
 
 // Resolution describes how to resolve an actionable validation finding.
 type Resolution struct {
-	Fixability         Fixability `json:"fixability"`
-	Commands           []string   `json:"commands,omitempty"`
-	AppStoreConnectURL string     `json:"appStoreConnectUrl,omitempty"`
+	Fixability Fixability `json:"fixability"`
+	Commands   []string   `json:"commands,omitempty"`
+	// NeedsUserInput reports that the commands contain UPPERCASE placeholders
+	// for decisions only the developer can make, such as a price, territories,
+	// an age rating answer or listing text; never run them as printed.
+	NeedsUserInput     bool   `json:"needsUserInput,omitempty"`
+	AppStoreConnectURL string `json:"appStoreConnectUrl,omitempty"`
 }
 
 // DeepStatus is the terminal state of one deep validation check.

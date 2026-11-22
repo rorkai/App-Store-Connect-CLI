@@ -36,30 +36,41 @@ func NewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("api", flag.ExitOnError)
 
 	var query shared.MultiStringFlag
-	fs.Var(&query, "query", "Query parameter as key=value (repeatable; GET only)")
+	fs.Var(&query, "query", "Query parameter as key=value (repeatable; GET only); names and documented values are checked against the operation")
 	body := fs.String("body", "", "Inline JSON request body, or @path to read a file (@- for stdin); POST, PATCH, and DELETE only")
 	bodyFile := fs.String("body-file", "", "Path to a JSON request body file (- for stdin); mutually exclusive with --body")
 	paginate := fs.Bool("paginate", false, "Follow links.next and print one merged collection envelope (GET only)")
 	confirm := fs.Bool("confirm", false, "Required for POST, PATCH, and DELETE requests")
-	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH, or the body's attribute and relationship names, are not in the embedded schema index")
+	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH, its query parameter names and values, or the body's attribute and relationship names, are not in the embedded schema index")
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "json", "Output format: json", "json")
+	// curl's and gh's spellings, and a common guess for the query flag.
+	shared.BindFlagAlias(fs, "data", "body")
+	shared.BindFlagAlias(fs, "url-params", "query")
 
 	return &ffcli.Command{
 		Name:       "api",
-		ShortUsage: "asc api <METHOD> <PATH> [flags]",
+		ShortUsage: "asc api [METHOD] <PATH> [flags]",
 		ShortHelp:  "Send an authenticated raw request to the App Store Connect API.",
 		LongHelp: `Send an authenticated raw request to the App Store Connect API.
 
-METHOD is GET, POST, PATCH, or DELETE. PATH is a versioned API path such as
-/v1/apps/{id}/builds or a full https://api.appstoreconnect.apple.com URL.
+METHOD is GET, POST, PATCH, or DELETE, and defaults to GET when only PATH is
+given. PATH is a versioned API path such as /v1/apps/{id}/builds or a full
+https://api.appstoreconnect.apple.com URL; v1/apps/{id}/builds works too, and
+apps/{id}/builds when exactly one API version has that operation.
 Responses print Apple's JSON envelope unmodified; an empty response body
 prints nothing.
 
 METHOD and PATH are checked against the embedded schema index (see asc schema).
-An unknown operation is a usage error that lists the nearest known operations
-unless --allow-unknown-path is set. Every non-GET request requires --confirm.
+An unknown operation is a usage error unless --allow-unknown-path is set. The
+error names the asc command that serves the request, or the indexed path it
+most likely means (another API version or a misspelled segment), or else the
+nearest known operations. Every non-GET request requires --confirm.
 For non-GET requests, pass query parameters documented for the operation in
-PATH itself. A POST or PATCH body must be a JSON:API document whose attribute
+PATH itself. Query parameter names, and the values of parameters that
+document them (include, fields[...], sort, enum filters), must be documented
+for the operation; anything else is a usage error before any request unless
+--allow-unknown-path is set, for values Apple added after the snapshot.
+A POST or PATCH body must be a JSON:API document whose attribute
 and relationship names are in the operation's request schema; anything else
 is a usage error before any request unless --allow-unknown-path is set, for
 attributes Apple added after the snapshot.
@@ -76,6 +87,9 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			positional, err := shared.ParseInterspersedFlags(fs, args)
 			if err != nil {
+				if value, ok := includeFlagValue(args); ok && err.Error() == "flag provided but not defined: --include" {
+					return d.UsageErrorf("api: --include is not an `asc api` flag; pass it as a query parameter: --query include=%s", value)
+				}
 				return d.UsageErrorf("api: %v", err)
 			}
 			if err := shared.ValidateBoundOutputFlags(fs); err != nil {
@@ -131,14 +145,12 @@ type rawRequest struct {
 // parseRequest validates the invocation before any credential or network
 // access. Every failure is a usage error with exit code 2.
 func parseRequest(ctx context.Context, d *shared.Deps, positional []string, query []string, body, bodyFile string, bodyProvided, bodyFileProvided, paginate, confirm, allowUnknownPath bool) (rawRequest, error) {
+	// A lone PATH is a GET: a method never contains a slash.
+	if len(positional) == 1 && strings.Contains(positional[0], "/") {
+		positional = []string{http.MethodGet, positional[0]}
+	}
 	if len(positional) < 2 {
-		err := d.UsageError("api: METHOD and PATH are required")
-		if len(positional) == 1 && (strings.HasPrefix(positional[0], "/") || strings.HasPrefix(positional[0], "https://")) {
-			if quoted, ok := shared.ShellQuote(positional[0]); ok {
-				fmt.Fprintf(d.IO.ErrOut, "Hint: pass the method first: asc api GET %s\n", quoted)
-			}
-		}
-		return rawRequest{}, err
+		return rawRequest{}, d.UsageError("api: METHOD and PATH are required")
 	}
 	if len(positional) > 2 {
 		return rawRequest{}, d.UsageErrorf("api: unexpected argument %q", positional[2])
@@ -148,7 +160,7 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	if err != nil {
 		return rawRequest{}, err
 	}
-	path, values, err := normalizePath(d, positional[1])
+	path, values, err := normalizePath(d, method, positional[1])
 	if err != nil {
 		return rawRequest{}, err
 	}
@@ -201,14 +213,14 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	if !indexed && !allowUnknownPath {
 		return rawRequest{}, unknownOperationError(d, method, path)
 	}
-	if method != http.MethodGet {
-		for key := range values {
-			if !slices.ContainsFunc(endpoint.Parameters, func(param schema.Parameter) bool {
-				return param.In == "query" && param.Name == key
-			}) {
-				return rawRequest{}, d.UsageError("api: PATH query parameters must be documented for this operation")
-			}
+	if indexed && !allowUnknownPath {
+		if err := validateQuery(d, endpoint, values); err != nil {
+			// The failure is the query, not the --allow-unknown-path the
+			// message offers, so telemetry's failure parameter stays empty.
+			return rawRequest{}, shared.WithDiagnostic(err, shared.DiagnosticInvalidInput, "")
 		}
+	} else if method != http.MethodGet && len(values) > 0 {
+		return rawRequest{}, d.UsageError("api: PATH query parameters must be documented for this operation")
 	}
 	// The media-type check uses the matched template, so it applies under
 	// --allow-unknown-path too: the limitation is the response representation,
@@ -243,6 +255,82 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	return rawRequest{method: method, target: target, query: values, body: payload, paginate: paginate}, nil
 }
 
+// paginationCursor is the query parameter Apple adds to links.next. The
+// OpenAPI snapshot documents no operation with it, but a caller following a
+// next link passes it back.
+const paginationCursor = "cursor"
+
+// schemaLagHint ends a query or body error that the embedded schema decides: the
+// snapshot can lag Apple, which adds attributes and states between releases.
+const schemaLagHint = ". If Apple accepts it after this snapshot, pass --allow-unknown-path to send it anyway."
+
+// validateQuery checks every query parameter name, and each comma-separated
+// value of a parameter with documented values, against the matched
+// operation, so a request Apple would answer with 400 PARAMETER_ERROR fails
+// first as a usage error that lists what the operation accepts.
+func validateQuery(d *shared.Deps, endpoint schema.Endpoint, values url.Values) error {
+	operation := endpoint.Method + " " + endpoint.Path
+	documented := map[string]schema.Parameter{}
+	var names []string
+	for _, param := range endpoint.Parameters {
+		if param.In == "query" {
+			documented[param.Name] = param
+			names = append(names, param.Name)
+		}
+	}
+	keys := slices.Sorted(maps.Keys(values))
+	for _, key := range keys {
+		param, ok := documented[key]
+		if !ok && endpoint.Method == http.MethodGet && key == paginationCursor {
+			continue
+		}
+		if !ok {
+			return undocumentedQueryNameError(d, operation, key, names, documented)
+		}
+		if len(param.Enum) == 0 {
+			continue
+		}
+		for _, value := range values[key] {
+			for item := range strings.SplitSeq(value, ",") {
+				item = strings.TrimSpace(item)
+				if item != "" && !slices.Contains(param.Enum, item) {
+					return d.UsageErrorf("api: %s value %q is not documented for %s (documented: %s)"+schemaLagHint, key, item, operation, strings.Join(param.Enum, ", "))
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func undocumentedQueryNameError(d *shared.Deps, operation, key string, names []string, documented map[string]schema.Parameter) error {
+	// Shell escaping (filter\[app\]) and percent-encoding in --query
+	// (filter%5Bapp%5D) both reach Apple literally.
+	if strings.Contains(key, `\`) {
+		unescaped := strings.ReplaceAll(key, `\`, "")
+		if _, ok := documented[unescaped]; ok {
+			return d.UsageErrorf("api: query parameter %q contains a backslash, which Apple receives literally; pass %s", key, unescaped)
+		}
+	}
+	if decoded, err := url.QueryUnescape(key); err == nil && decoded != key {
+		if _, ok := documented[decoded]; ok {
+			return d.UsageErrorf("api: query parameter %q is percent-encoded, which --query sends literally; pass %s", key, decoded)
+		}
+	}
+	if len(names) == 0 {
+		return d.UsageErrorf("api: query parameter %q is not documented for %s; it documents no query parameters"+schemaLagHint, key, operation)
+	}
+	closest, distance := "", 3
+	for _, name := range names {
+		if candidate := suggest.Distance(key, name); candidate < distance {
+			closest, distance = name, candidate
+		}
+	}
+	if closest != "" {
+		return d.UsageErrorf("api: query parameter %q is not documented for %s; did you mean %s? (documented: %s)"+schemaLagHint, key, operation, closest, strings.Join(names, ", "))
+	}
+	return d.UsageErrorf("api: query parameter %q is not documented for %s (documented: %s)"+schemaLagHint, key, operation, strings.Join(names, ", "))
+}
+
 func normalizeMethod(d *shared.Deps, raw string) (string, error) {
 	method := strings.ToUpper(strings.TrimSpace(raw))
 	for _, supported := range supportedMethods {
@@ -254,8 +342,10 @@ func normalizeMethod(d *shared.Deps, raw string) (string, error) {
 }
 
 // normalizePath accepts a versioned path or a full App Store Connect URL and
-// returns the path plus any query parameters carried in the argument.
-func normalizePath(d *shared.Deps, raw string) (string, url.Values, error) {
+// returns the path plus any query parameters carried in the argument. A path
+// may omit its leading slash (v1/apps), and may omit its version when exactly
+// one API version indexes the operation (apps/{id}/appInfos is /v1).
+func normalizePath(d *shared.Deps, method, raw string) (string, url.Values, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return "", nil, d.UsageError("api: METHOD and PATH are required")
@@ -299,8 +389,15 @@ func normalizePath(d *shared.Deps, raw string) (string, url.Values, error) {
 	if len(path) > 1 {
 		path = strings.TrimSuffix(path, "/")
 	}
-	if !strings.HasPrefix(path, "/v1/") && !strings.HasPrefix(path, "/v2/") && !strings.HasPrefix(path, "/v3/") {
-		return "", nil, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", raw)
+	if !hasVersionPrefix(path) {
+		versioned, err := versionedPath(method, path)
+		if err != nil {
+			return "", nil, fmt.Errorf("api: %w", err)
+		}
+		if versioned == "" {
+			return "", nil, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", raw)
+		}
+		path = versioned
 	}
 	if strings.Contains(path, "//") || strings.ContainsAny(path, "#%\\") {
 		return "", nil, d.UsageErrorf("api: PATH contains an unsupported character sequence: %q", raw)
@@ -319,6 +416,67 @@ func normalizePath(d *shared.Deps, raw string) (string, url.Values, error) {
 		}
 	}
 	return path, values, nil
+}
+
+var apiVersions = []string{"/v1", "/v2", "/v3"}
+
+func hasVersionPrefix(path string) bool {
+	for _, version := range apiVersions {
+		if strings.HasPrefix(path, version+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// versionedPath completes a path missing its leading slash or its version:
+// v1/apps becomes /v1/apps, and apps/{id} the one versioned path the index
+// has for method. It returns "" when no single completion exists.
+func versionedPath(method, path string) (string, error) {
+	trimmed := strings.TrimPrefix(path, "/")
+	if hasVersionPrefix("/" + trimmed) {
+		return "/" + trimmed, nil
+	}
+	if trimmed == "" {
+		return "", nil
+	}
+	found := ""
+	for _, version := range apiVersions {
+		candidate := version + "/" + trimmed
+		_, indexed, err := schema.MatchOperation(method, candidate)
+		if err != nil {
+			return "", err
+		}
+		if indexed {
+			if found != "" {
+				return "", nil
+			}
+			found = candidate
+		}
+	}
+	return found, nil
+}
+
+// includeFlagValue returns the value of an --include flag in args. `asc api`
+// has no such flag; other asc commands use it for JSON:API include.
+func includeFlagValue(args []string) (string, bool) {
+	for i, arg := range args {
+		if arg == "--" {
+			break
+		}
+		name, value, hasValue := strings.Cut(strings.TrimLeft(arg, "-"), "=")
+		if !strings.HasPrefix(arg, "-") || name != "include" {
+			continue
+		}
+		if !hasValue {
+			if i+1 >= len(args) {
+				return "", false
+			}
+			value = args[i+1]
+		}
+		return value, true
+	}
+	return "", false
 }
 
 // nonJSONOperation describes an indexed operation that `asc api` cannot serve.
@@ -388,6 +546,81 @@ func rejectNonJSONOperation(d *shared.Deps, method, templatePath string) error {
 	)
 }
 
+// nativeCommands maps an operation the embedded schema index does not have,
+// keyed by method and path template, to the asc command that serves what a
+// caller means by it. These are the unindexed requests callers send most:
+// relationships Apple does not expose, collections Apple reads through
+// another resource, and data only asc's own commands reach. `{id}` in a
+// command is the request's first path ID. TestNativeCommandsAreUnindexed
+// keeps every key out of the index, and
+// TestAPIUnknownPathNamesTheNativeCommand resolves every command.
+var nativeCommands = map[string]string{
+	"GET /v1/builds/{id}/betaGroups":                  "asc builds groups list --build-id {id}",
+	"GET /v1/builds/{id}/relationships/betaGroups":    "asc builds groups list --build-id {id}",
+	"GET /v1/builds/{id}/buildBundles":                "asc builds info --build-id {id} --include buildBundles",
+	"GET /v1/apps/{id}/appInfoLocalizations":          "asc localizations list --app {id} --type app-info",
+	"GET /v1/apps/{id}/appStoreLocalizations":         "asc localizations list --app {id}",
+	"GET /v1/appStoreVersions/{id}/localizations":     "asc localizations list --version {id}",
+	"GET /v1/appStoreVersions/{id}/appScreenshotSets": "asc screenshots list --version {id}",
+	"GET /v1/ageRatingDeclarations/{id}":              "asc age-rating view --app APP_ID",
+	"GET /v1/apps/{id}/ageRatingDeclaration":          "asc age-rating view --app {id}",
+	"GET /v1/subscriptionAppStoreReviewScreenshots":   "asc subscriptions review app-store-screenshot view --subscription-id SUBSCRIPTION_ID",
+	"GET /v1/reviewSubmissionItems":                   "asc review items list --submission SUBMISSION_ID",
+	"GET /v1/reviewSubmissionItems/{id}":              "asc review items list --submission SUBMISSION_ID",
+	"GET /v1/apps/{id}/prices":                        "asc pricing current --app {id}",
+	"GET /v1/apps/{id}/appPrices":                     "asc pricing current --app {id}",
+	"GET /v1/apps/{id}/availableTerritories":          "asc pricing availability view --app {id}",
+	"GET /v1/apps/{id}/appDataUsages":                 "asc web privacy pull --app {id}",
+}
+
+// nativeCommand returns the command nativeCommands names for an unindexed
+// request, with the request's first path ID filled in.
+func nativeCommand(method, path string) (string, bool) {
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	for key, command := range nativeCommands {
+		keyMethod, template, _ := strings.Cut(key, " ")
+		if keyMethod != method {
+			continue
+		}
+		parts := strings.Split(strings.Trim(template, "/"), "/")
+		if len(parts) != len(segments) {
+			continue
+		}
+		id, matched := "", true
+		for i, part := range parts {
+			if part == "{id}" {
+				if id == "" {
+					id = segments[i]
+				}
+				continue
+			}
+			if part != segments[i] {
+				matched = false
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		if strings.Contains(command, "{id}") {
+			quoted, ok := shared.ShellQuote(id)
+			if !ok {
+				quoted = "ID"
+			}
+			command = strings.ReplaceAll(command, "{id}", quoted)
+		}
+		return command, true
+	}
+	return "", false
+}
+
+// unknownOperationError answers a request the index does not have with what
+// to run instead: the native command, the indexed operation the path most
+// likely misspells (another API version, a plural, a misspelled segment), or
+// the nearest operations on the same resource. --allow-unknown-path is
+// offered only for that last case, where the resource is indexed and Apple
+// may have added the operation after the snapshot. A resource the index does
+// not know under any spelling is not in Apple's public API.
 func unknownOperationError(d *shared.Deps, method, path string) error {
 	nearest, err := schema.NearestOperations(method, path, nearestOperationMax)
 	if err != nil {
@@ -395,15 +628,35 @@ func unknownOperationError(d *shared.Deps, method, path string) error {
 	}
 
 	var message strings.Builder
-	fmt.Fprintf(&message, "api: %s %s is not in the embedded schema index", method, path)
-	if len(nearest) > 0 {
+	fmt.Fprintf(&message, "api: %s %s is not in the embedded schema index.", method, path)
+	command, hasCommand := nativeCommand(method, path)
+	if hasCommand {
+		fmt.Fprintf(&message, " Use `%s`.", command)
+	}
+	corrected := len(nearest) > 0 && nearest[0].Correction
+	if corrected {
+		fmt.Fprintf(&message, " Did you mean %s %s?", nearest[0].Method, fillTemplate(nearest[0].Path, path))
+		nearest = nearest[1:]
+	}
+	switch {
+	case len(nearest) > 0:
 		names := make([]string, 0, len(nearest))
 		for _, endpoint := range nearest {
 			names = append(names, endpoint.Method+" "+endpoint.Path)
 		}
-		fmt.Fprintf(&message, " (nearest known operations: %s)", strings.Join(names, ", "))
+		label := "Nearest known operations"
+		if corrected || hasCommand {
+			label = "Other known operations"
+		}
+		fmt.Fprintf(&message, " %s: %s.", label, strings.Join(names, ", "))
+	case !corrected && !hasCommand:
+		message.WriteString(" No indexed operation shares its resource, under any API version or a similar name: the App Store Connect API does not document it.")
 	}
-	message.WriteString(". Use `asc schema <query>` to inspect operations, or pass --allow-unknown-path to send the request anyway.")
+	if corrected || hasCommand || len(nearest) == 0 {
+		message.WriteString(" Use `asc schema <query>` to inspect operations.")
+	} else {
+		message.WriteString(" Use `asc schema <query>` to inspect operations, or pass --allow-unknown-path to send the request anyway.")
+	}
 	// The diagnostic keeps telemetry's failure parameter empty: the hint
 	// mentions --allow-unknown-path, but that flag did not cause the failure.
 	return shared.WithDiagnostic(d.UsageError(message.String()), shared.DiagnosticInvalidInput, "")
@@ -442,10 +695,6 @@ func validateBody(d *shared.Deps, endpoint schema.Endpoint, payload []byte) erro
 	return checkMemberNames(d, "relationship", resource.Relationships, slices.Collect(maps.Keys(endpoint.RequestRelationships)), endpoint.RequestSchema, operation)
 }
 
-// schemaLagHint ends a body error that the embedded schema decides: the
-// snapshot can lag Apple, which adds attributes between releases.
-const schemaLagHint = ". If Apple accepts it after this snapshot, pass --allow-unknown-path to send it anyway."
-
 func checkMemberNames(d *shared.Deps, kind string, members map[string]json.RawMessage, documented []string, requestSchema, operation string) error {
 	slices.Sort(documented)
 	for _, name := range slices.Sorted(maps.Keys(members)) {
@@ -467,6 +716,22 @@ func checkMemberNames(d *shared.Deps, kind string, members map[string]json.RawMe
 		return d.UsageErrorf("api: %s %q is not in %s for %s (%ss: %s)"+schemaLagHint, kind, name, requestSchema, operation, kind, strings.Join(documented, ", "))
 	}
 	return nil
+}
+
+// fillTemplate renders an indexed template with the request's own value in
+// each parameter segment, so a corrected path keeps the caller's IDs.
+func fillTemplate(template, path string) string {
+	parts := strings.Split(strings.Trim(template, "/"), "/")
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) != len(segments) {
+		return template
+	}
+	for i, part := range parts {
+		if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
+			parts[i] = segments[i]
+		}
+	}
+	return "/" + strings.Join(parts, "/")
 }
 
 // readBody loads the request payload from --body (inline JSON or @path) or

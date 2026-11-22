@@ -38,7 +38,7 @@ func TestMetadataApplySendsNullForExplicitlyClearedAppInfoFields(t *testing.T) {
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Outslept","subtitle":"Sleep tracker","privacyPolicyUrl":"https://example.com/privacy"}}],"links":{"next":""}}`))
-	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/loc-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"name":"Outslept","privacyPolicyUrl":null,"subtitle":null}}}`),
+	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/loc-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"privacyPolicyUrl":null,"subtitle":null}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Outslept","subtitle":null,"privacyPolicyUrl":null}}}`))
 
 	stdout := runMetadataReviewCommand(t, []string{

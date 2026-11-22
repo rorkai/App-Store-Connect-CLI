@@ -14,12 +14,15 @@ token` and shelling out to `curl`.
 ## Usage
 
 ```bash
-asc api <METHOD> <PATH> [flags]
+asc api [METHOD] <PATH> [flags]
 ```
 
-`METHOD` is `GET`, `POST`, `PATCH`, or `DELETE`. `PATH` is a versioned API path
-such as `/v1/apps/APP_ID/builds` or a full
-`https://api.appstoreconnect.apple.com/...` URL. Any other host is rejected.
+`METHOD` is `GET`, `POST`, `PATCH`, or `DELETE`, and defaults to `GET` when
+only `PATH` is given. `PATH` is a versioned API path such as
+`/v1/apps/APP_ID/builds` or a full `https://api.appstoreconnect.apple.com/...`
+URL. Any other host is rejected. `v1/apps/APP_ID/builds` (no leading slash)
+works too, and so does `apps/APP_ID/builds` when exactly one API version has
+that operation.
 
 ## Examples
 

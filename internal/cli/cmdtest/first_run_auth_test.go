@@ -240,14 +240,3 @@ func TestAuthLoginKeyIDFromKeyFileName(t *testing.T) {
 		})
 	}
 }
-
-func TestAPIPathWithoutMethodSuggestsGET(t *testing.T) {
-	clearAuthEnvWithConfig(t)
-	_, stderr, code := runWithDeps(t, nil, "api", "/v1/apps")
-	if code != rootcmd.ExitUsage {
-		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-	}
-	if !strings.Contains(stderr, "Error: api: METHOD and PATH are required\nHint: pass the method first: asc api GET /v1/apps\n") {
-		t.Fatalf("stderr = %q, want a GET suggestion", stderr)
-	}
-}
