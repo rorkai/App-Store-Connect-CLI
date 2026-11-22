@@ -172,6 +172,7 @@ walk:
 			if current = resolveCommandPath(root, target); current == nil {
 				break
 			}
+			parent, lastCommandIndex = resolveCommandPath(root, target[:len(target)-1]), index-1
 			continue
 		}
 		break
@@ -237,7 +238,8 @@ func compoundChild(group *ffcli.Command, first, second string) *ffcli.Command {
 		return nil
 	}
 	first, second = strings.ToLower(first), strings.ToLower(second)
-	candidates := []string{first + "-" + second}
+	// Also the verb-noun order (`builds groups add` for `builds add-groups`).
+	candidates := []string{first + "-" + second, second + "-" + first}
 	if _, ok := readVerbAliases[second]; ok || second == "view" {
 		candidates = append(candidates, first+"-get", first+"-view")
 	}

@@ -1229,10 +1229,10 @@ unknown-command review-submissions view --review-submission-id X --output X
 unknown-flag storekit notifications test --app X --output X
 unknown-command submission get X
 unknown-command submissions apply-compliance --submission X --file X --json
-unknown-command submissions get --id X
-unknown-command submissions get X --output X
-unknown-command submissions get X --json
-unknown-command submissions get X
+ok submissions get --id X
+ok submissions get X --output X
+ok submissions get X --json
+ok submissions get X
 unknown-command submissions-update X --canceled --json
 ok submit cancel --version-id X --json
 unknown-command subs --help
@@ -1286,8 +1286,8 @@ unknown-command testflight groups builds add --help
 unknown-flag testflight groups create --app X --name X --external --output X
 unknown-command testflight groups info --group X --output X X ---; X X X -- X X X X --group X --output X
 unknown-command testflight groups info --id X --output X
-unknown-command testflight groups testers add --group-id X --email X --first-name X --output X
-unknown-command testflight groups testers add --help
+unknown-flag testflight groups testers add --group-id X --email X --first-name X --output X
+ok testflight groups testers add --help
 unknown-command testflight groups update --help
 unknown-flag testflight review edit --app X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
 ok testflight review get --app X
