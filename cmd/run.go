@@ -71,6 +71,7 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	// `--profile` before anything else reads the argv. Running it first also
 	// keeps spaced boolean recovery working for the flags that follow it.
 	args = hoistRootProfileFlag(root, args)
+	args = normalizeSpacedBooleanFlags(root, args)
 	// A guessed command (`get` for `view`, `app-infos` for `apps info`)
 	// resolves before any analysis, so help, diagnostics and telemetry all
 	// name the command that runs. The root holds only the top-level command
@@ -78,11 +79,12 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	if aliased := resolveCommandAliases(root, args); !slices.Equal(aliased, args) {
 		if topLevelCommand(root, aliased) != topLevelCommand(root, args) {
 			root = rootCommandForArgs(versionInfo, d, aliased)
-			aliased = resolveCommandAliases(root, aliased)
+			aliased = resolveCommandAliases(root, normalizeSpacedBooleanFlags(root, aliased))
 		}
-		args = aliased
+		// The first normalization stopped at the guessed token, so flags after
+		// the resolved command still need theirs.
+		args = normalizeSpacedBooleanFlags(root, aliased)
 	}
-	args = normalizeSpacedBooleanFlags(root, args)
 	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()

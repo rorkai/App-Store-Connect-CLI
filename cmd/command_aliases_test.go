@@ -37,6 +37,7 @@ func TestResolveCommandAliasesRewritesOnlyUnknownReadVerbs(t *testing.T) {
 		{name: "split hyphenated read verb", args: "review details view --version-id V", want: "review details-get --version-id V"},
 		{name: "verb after a real subgroup", args: "review submissions get --id S", want: "review submissions-get --id S"},
 		{name: "verb after a real subgroup that has it", args: "review submissions list --app A", want: "review submissions list --app A"},
+		{name: "verb split before its noun", args: "builds beta-groups add --build-id B --group G", want: "builds add-groups --build-id B --group G"},
 		{name: "no hyphenated leaf", args: "review details frobnicate", want: "review details frobnicate"},
 		{name: "help names the command", args: "help builds list", want: "builds list --help"},
 		{name: "bare help", args: "help", want: "--help"},
@@ -66,6 +67,8 @@ func TestRunResolvesGuessedCommands(t *testing.T) {
 		{name: "get runs view", args: []string{"builds", "build-beta-detail", "get"}, wantCode: ExitUsage, wantFirst: "Error: --build-id or --app is required (or set ASC_APP_ID)"},
 		{name: "path alias into another top-level command", args: []string{"testflight", "builds", "list"}, wantCode: ExitUsage, wantFirst: "Error: --app is required (or set ASC_APP_ID)"},
 		{name: "path alias then get", args: []string{"app-info", "get"}, wantCode: ExitUsage, wantFirst: "Error: --app or --info-id is required (or set ASC_APP_ID)"},
+		{name: "alias after a spaced root boolean", args: []string{"--debug", "false", "apps", "get"}, wantCode: ExitUsage, wantFirst: "Error: --id is required"},
+		{name: "spaced boolean after an alias", args: []string{"builds", "build-beta-detail", "get", "--pretty", "false"}, wantCode: ExitUsage, wantFirst: "Error: --build-id or --app is required (or set ASC_APP_ID)"},
 		{name: "help names a leaf", args: []string{"help", "builds", "list"}, wantCode: ExitSuccess, wantFirst: "DESCRIPTION"},
 	}
 	for _, test := range tests {
