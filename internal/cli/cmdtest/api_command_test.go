@@ -106,6 +106,26 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: "api: PATH query parameters must be documented for this operation",
 		},
 		{
+			name:    "attribute of another resource",
+			args:    []string{"api", "PATCH", "/v1/appInfoLocalizations/AIL1", "--confirm", "--body", `{"data":{"type":"appInfoLocalizations","id":"AIL1","attributes":{"supportUrl":"https://example.com/support"}}}`},
+			wantErr: `api: attribute "supportUrl" is not in AppInfoLocalizationUpdateRequest for PATCH /v1/appInfoLocalizations/{id} (attributes: name, privacyChoicesUrl, privacyPolicyText, privacyPolicyUrl, subtitle)`,
+		},
+		{
+			name:    "attribute one edit from a documented one",
+			args:    []string{"api", "PATCH", "/v1/appInfoLocalizations/AIL1", "--confirm", "--body", `{"data":{"type":"appInfoLocalizations","id":"AIL1","attributes":{"privacyPolicyURL":"https://example.com/privacy"}}}`},
+			wantErr: `api: attribute "privacyPolicyURL" is not in AppInfoLocalizationUpdateRequest for PATCH /v1/appInfoLocalizations/{id}; did you mean privacyPolicyUrl?`,
+		},
+		{
+			name:    "undocumented relationship",
+			args:    []string{"api", "POST", "/v1/betaGroups", "--confirm", "--body", `{"data":{"type":"betaGroups","attributes":{"name":"QA"},"relationships":{"apps":{"data":{"type":"apps","id":"123"}}}}}`},
+			wantErr: `api: relationship "apps" is not in BetaGroupCreateRequest for POST /v1/betaGroups; did you mean app?`,
+		},
+		{
+			name:    "body without the data member",
+			args:    []string{"api", "PATCH", "/v1/appInfoLocalizations/AIL1", "--confirm", "--body", `{"attributes":{"name":"Demo"}}`},
+			wantErr: `api: the request body for PATCH /v1/appInfoLocalizations/{id} must be a JSON:API document, {"data":{"type":...,"attributes":{...}}}; it has no top-level "data" member`,
+		},
+		{
 			name:    "body on GET",
 			args:    []string{"api", "GET", "/v1/apps", "--body", `{"data":{}}`},
 			wantErr: "api: --body is only supported for POST, PATCH, and DELETE requests",
@@ -479,6 +499,29 @@ func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
 	}
 	if got := reg.Requests(); len(got) != 1 || got[0].Method+" "+got[0].URL.RequestURI() != "GET /v1/notYetIndexed" {
 		t.Fatalf("requests = %v, want the unindexed path", got)
+	}
+}
+
+// TestAPIAllowUnknownPathSendsBodyNewerThanSnapshot covers an attribute Apple
+// serves that the snapshot predates: ageRatingDeclarations has
+// datingAndRelationships live, so the body check must yield to the flag.
+func TestAPIAllowUnknownPathSendsBodyNewerThanSnapshot(t *testing.T) {
+	const requestBody = `{"data":{"type":"ageRatingDeclarations","id":"D1","attributes":{"datingAndRelationships":"NONE"}}}`
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.PATCH("/v1/ageRatingDeclarations/D1").JSONBody(requestBody), asctest.JSON(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"D1"}}`))
+
+	args := []string{"api", "PATCH", "/v1/ageRatingDeclarations/D1", "--confirm", "--body", requestBody}
+	_, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+	if code != rootcmd.ExitUsage || !strings.Contains(stderr, `attribute "datingAndRelationships" is not in AgeRatingDeclarationUpdateRequest`) || !strings.Contains(stderr, "pass --allow-unknown-path to send it anyway") {
+		t.Fatalf("exit = %d, stderr = %q, want a usage error that offers --allow-unknown-path", code, stderr)
+	}
+
+	_, stderr, code = runWithDeps(t, stubClient(t, reg), append(args, "--allow-unknown-path")...)
+	if code != rootcmd.ExitSuccess || stderr != "" {
+		t.Fatalf("exit = %d, stderr = %q, want the body sent", code, stderr)
+	}
+	if got := reg.Requests(); len(got) != 1 {
+		t.Fatalf("requests = %v, want one PATCH", got)
 	}
 }
 

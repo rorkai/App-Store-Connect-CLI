@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -20,6 +21,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/schema"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/suggest"
 )
 
 const (
@@ -39,7 +41,7 @@ func NewCommand(d *shared.Deps) *ffcli.Command {
 	bodyFile := fs.String("body-file", "", "Path to a JSON request body file (- for stdin); mutually exclusive with --body")
 	paginate := fs.Bool("paginate", false, "Follow links.next and print one merged collection envelope (GET only)")
 	confirm := fs.Bool("confirm", false, "Required for POST, PATCH, and DELETE requests")
-	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH are not in the embedded schema index")
+	allowUnknownPath := fs.Bool("allow-unknown-path", false, "Send the request even when METHOD and PATH, or the body's attribute and relationship names, are not in the embedded schema index")
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "json", "Output format: json", "json")
 
 	return &ffcli.Command{
@@ -57,7 +59,10 @@ METHOD and PATH are checked against the embedded schema index (see asc schema).
 An unknown operation is a usage error that lists the nearest known operations
 unless --allow-unknown-path is set. Every non-GET request requires --confirm.
 For non-GET requests, pass query parameters documented for the operation in
-PATH itself.
+PATH itself. A POST or PATCH body must be a JSON:API document whose attribute
+and relationship names are in the operation's request schema; anything else
+is a usage error before any request unless --allow-unknown-path is set, for
+attributes Apple added after the snapshot.
 
 Examples:
   asc api GET /v1/apps --query limit=5 --query "fields[apps]=name,bundleId"
@@ -217,6 +222,13 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	payload, err := readBody(d, body, bodyFile)
 	if err != nil {
 		return rawRequest{}, err
+	}
+	if indexed && !allowUnknownPath && len(payload) > 0 {
+		if err := validateBody(d, endpoint, payload); err != nil {
+			// The failure is the body, not the --allow-unknown-path the
+			// message offers, so telemetry's failure parameter stays empty.
+			return rawRequest{}, shared.WithDiagnostic(err, shared.DiagnosticInvalidInput, "")
+		}
 	}
 
 	target := path
@@ -395,6 +407,66 @@ func unknownOperationError(d *shared.Deps, method, path string) error {
 	// The diagnostic keeps telemetry's failure parameter empty: the hint
 	// mentions --allow-unknown-path, but that flag did not cause the failure.
 	return shared.WithDiagnostic(d.UsageError(message.String()), shared.DiagnosticInvalidInput, "")
+}
+
+// validateBody checks a request document against the matched operation's
+// request schema: Apple answers a body without a top-level `data` member
+// with 422, and an attribute or relationship the resource does not have
+// with 409 ENTITY_ERROR.ATTRIBUTE.UNKNOWN. The embedded index carries each
+// request schema's attribute and relationship names, so both fail first as a
+// usage error naming what the request takes. Linkage requests, whose data is
+// an array of resource identifiers, have no attributes to check.
+func validateBody(d *shared.Deps, endpoint schema.Endpoint, payload []byte) error {
+	if endpoint.RequestSchema == "" {
+		return nil
+	}
+	operation := endpoint.Method + " " + endpoint.Path
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &document); err != nil {
+		return nil
+	}
+	data, ok := document["data"]
+	if !ok {
+		return d.UsageErrorf(`api: the request body for %s must be a JSON:API document, {"data":{"type":...,"attributes":{...}}}; it has no top-level "data" member`, operation)
+	}
+	var resource struct {
+		Attributes    map[string]json.RawMessage `json:"attributes"`
+		Relationships map[string]json.RawMessage `json:"relationships"`
+	}
+	if json.Unmarshal(data, &resource) != nil {
+		return nil
+	}
+	if err := checkMemberNames(d, "attribute", resource.Attributes, slices.Collect(maps.Keys(endpoint.RequestAttributes)), endpoint.RequestSchema, operation); err != nil {
+		return err
+	}
+	return checkMemberNames(d, "relationship", resource.Relationships, slices.Collect(maps.Keys(endpoint.RequestRelationships)), endpoint.RequestSchema, operation)
+}
+
+// schemaLagHint ends a body error that the embedded schema decides: the
+// snapshot can lag Apple, which adds attributes between releases.
+const schemaLagHint = ". If Apple accepts it after this snapshot, pass --allow-unknown-path to send it anyway."
+
+func checkMemberNames(d *shared.Deps, kind string, members map[string]json.RawMessage, documented []string, requestSchema, operation string) error {
+	slices.Sort(documented)
+	for _, name := range slices.Sorted(maps.Keys(members)) {
+		if slices.Contains(documented, name) {
+			continue
+		}
+		if len(documented) == 0 {
+			return d.UsageErrorf("api: %s %q is not in %s for %s, which takes no %ss"+schemaLagHint, kind, name, requestSchema, operation, kind)
+		}
+		closest, distance := "", 3
+		for _, candidate := range documented {
+			if edits := suggest.Distance(strings.ToLower(name), strings.ToLower(candidate)); edits < distance {
+				closest, distance = candidate, edits
+			}
+		}
+		if closest != "" {
+			return d.UsageErrorf("api: %s %q is not in %s for %s; did you mean %s? (%ss: %s)"+schemaLagHint, kind, name, requestSchema, operation, closest, kind, strings.Join(documented, ", "))
+		}
+		return d.UsageErrorf("api: %s %q is not in %s for %s (%ss: %s)"+schemaLagHint, kind, name, requestSchema, operation, kind, strings.Join(documented, ", "))
+	}
+	return nil
 }
 
 // readBody loads the request payload from --body (inline JSON or @path) or
