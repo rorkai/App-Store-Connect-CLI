@@ -430,11 +430,11 @@ func capabilityRows() []Capability {
 			Area:       "app-management",
 			Capability: "App Compliance requirements",
 			Status:     statusWebSession,
-			Commands:   []string{"asc web apps compliance list"},
+			Commands:   []string{"asc web apps compliance list", "asc web apps compliance set"},
 			Notes: []string{
-				"App Compliance requirements, such as the China mainland Security Assessment and AI Generated or Synthetic Content declarations, are not present in the embedded public OpenAPI snapshot. Listing reports every requirement Apple returns for the app, answered or not; answering them remains website-only.",
+				"App Compliance requirements, such as the China mainland Security Assessment and AI Generated or Synthetic Content declarations, are not present in the embedded public OpenAPI snapshot. Listing reports every requirement Apple returns for the app, answered or not. Setting answers one of those two requirements, with its evidence files and filing details for an affirmative answer, and saves nothing when Apple's form asks for a field the command does not know.",
 			},
-			NextAction: "Read with asc web apps compliance list --app APP_ID; answer the requirements in App Store Connect.",
+			NextAction: "Read with asc web apps compliance list --app APP_ID. Answer with asc web apps compliance set --app APP_ID --requirement SECURITY_ASSESSMENT|AI_GENERATED_CONTENT --declared true|false --confirm, or check an answer first with --dry-run.",
 		},
 		{
 			Area:       "monetization",

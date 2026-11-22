@@ -8360,6 +8360,202 @@
         ]
       }
     },
+    "/ppm/compliancerequirements/v1/accounts/{accountId}/entities/{entityId}/forms": {
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        },
+        {
+          "name": "entityId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "post": {
+        "tags": [
+          "AppComplianceForms"
+        ],
+        "operationId": "appComplianceForms_createInstance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppComplianceFormSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "2XX": {
+            "description": "Success. The schema lists the fields the client reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppComplianceFormResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code."
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-22"
+        },
+        "x-asc-source": [
+          "Client.SetAppComplianceDeclaration"
+        ]
+      }
+    },
+    "/ppm/compliancerequirements/v1/accounts/{accountId}/entities/{entityId}/forms/{formId}": {
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        },
+        {
+          "name": "entityId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        },
+        {
+          "name": "formId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "put": {
+        "tags": [
+          "AppComplianceForms"
+        ],
+        "operationId": "appComplianceForms_replaceInstance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppComplianceFormSaveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "2XX": {
+            "description": "Success. The schema lists the fields the client reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppComplianceFormResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code."
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-22"
+        },
+        "x-asc-source": [
+          "Client.SetAppComplianceDeclaration"
+        ]
+      }
+    },
+    "/ppm/compliancerequirements/v1/accounts/{accountId}/entities/{entityId}/requirements/{requirementId}/metadata": {
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        },
+        {
+          "name": "entityId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        },
+        {
+          "name": "requirementId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "post": {
+        "tags": [
+          "AppComplianceForms"
+        ],
+        "operationId": "appComplianceFormMetadata_query",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppComplianceFormMetadataRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "2XX": {
+            "description": "Success. The schema lists the fields the client reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppComplianceFormMetadataResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code."
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-22",
+          "live": "2026-11-22"
+        },
+        "x-asc-source": [
+          "Client.SetAppComplianceDeclaration"
+        ]
+      }
+    },
     "/ppm/compliancerequirements/v1/accounts/{accountId}/requirements": {
       "parameters": [
         {
@@ -12296,6 +12492,180 @@
         "required": [
           "data"
         ]
+      },
+      "AppComplianceFormField": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sValue": {
+            "type": "string"
+          },
+          "fileContent": {
+            "type": "object",
+            "required": [
+              "fileData",
+              "fileName",
+              "fileType"
+            ],
+            "properties": {
+              "fileData": {
+                "type": "string",
+                "format": "byte"
+              },
+              "fileName": {
+                "type": "string"
+              },
+              "fileType": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "title": "AppComplianceFormField"
+      },
+      "AppComplianceFormMetadataRequest": {
+        "type": "object",
+        "title": "AppComplianceFormMetadataRequest",
+        "required": [
+          "accountId",
+          "entityId",
+          "requirementId",
+          "form"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "requirementId": {
+            "type": "string"
+          },
+          "form": {
+            "type": "object",
+            "required": [
+              "fields"
+            ],
+            "properties": {
+              "fields": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AppComplianceFormField"
+                }
+              }
+            }
+          }
+        }
+      },
+      "AppComplianceFormMetadataResponse": {
+        "type": "object",
+        "title": "AppComplianceFormMetadataResponse",
+        "additionalProperties": true,
+        "properties": {
+          "constraints": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "presentation": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "options": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true,
+                        "properties": {
+                          "valueId": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "validation": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "properties": {
+                    "editable": {
+                      "type": "boolean"
+                    },
+                    "allowedFileTypes": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "AppComplianceFormResponse": {
+        "type": "object",
+        "title": "AppComplianceFormResponse",
+        "additionalProperties": true,
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "AppComplianceFormSaveRequest": {
+        "type": "object",
+        "title": "AppComplianceFormSaveRequest",
+        "required": [
+          "accountId",
+          "entityId",
+          "requirementId",
+          "fields"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "requirementId": {
+            "type": "string"
+          },
+          "formId": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppComplianceFormField"
+            }
+          }
+        }
       },
       "AppComplianceRequirementsResponse": {
         "type": "object",

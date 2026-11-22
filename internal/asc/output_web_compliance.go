@@ -44,3 +44,31 @@ func webAppComplianceRequirementListRows(result *WebAppComplianceRequirementList
 	}
 	return headers, rows
 }
+
+// WebAppComplianceDeclarationResult is the mutation receipt from
+// `asc web apps compliance set`. With DryRun nothing was saved and Status and
+// FormID describe the requirement as it stands.
+type WebAppComplianceDeclarationResult struct {
+	AppID           string `json:"appId"`
+	RequirementID   string `json:"requirementId"`
+	RequirementName string `json:"requirementName"`
+	Declared        bool   `json:"declared"`
+	Status          string `json:"status,omitempty"`
+	FormID          string `json:"formId,omitempty"`
+	DryRun          bool   `json:"dryRun"`
+}
+
+func webAppComplianceDeclarationResultRows(result *WebAppComplianceDeclarationResult) ([]string, [][]string) {
+	headers := []string{"App ID", "Requirement", "Declared", "Status", "Form ID", "Dry Run"}
+	if result == nil {
+		return headers, nil
+	}
+	return headers, [][]string{{
+		result.AppID,
+		result.RequirementName,
+		fmt.Sprintf("%t", result.Declared),
+		webDeclarationText(result.Status),
+		webDeclarationText(result.FormID),
+		fmt.Sprintf("%t", result.DryRun),
+	}}
+}

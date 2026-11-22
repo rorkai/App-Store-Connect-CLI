@@ -87,6 +87,13 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
   - `formName` is the only kind key (`SECURITYASF395E`, `AIGENERATEFD1DE`); the CLI maps those two to `SECURITY_ASSESSMENT` and `AI_GENERATED_CONTENT` and reports any other code as-is.
   - `countries` holds ISO 3166-1 alpha-3 codes (`CHN`). Requirement IDs are the same for every app of an account.
   - Live-verified read-only on 2026-11-22 with the same UI headers as the declarations service.
+- `asc web apps compliance set` fills the requirement's form the way the website does:
+  - `POST .../entities/{appId}/requirements/{requirementId}/metadata` with `{accountId, entityId, requirementId, form: {fields}}` computes the form for a draft and saves nothing. Its `constraints` map is keyed by field ID; each answer that opens more fields is posted again until the form asks for nothing new.
+  - Fields are recognized by the key inside `presentation.label` (`PPM.compliance.form.{formName}.field.{key}.label`), never by ID. A field with an unknown key, without `validation.editable`, or a file outside `validation.allowedFileTypes` stops the command before any save.
+  - A text or choice field is `{id, sValue}` (`YES`/`NO`; filing type `LARGE` for an LLM, `ALGOR` for an algorithm). A file is `{id, fileContent: {fileData, fileName, fileType}}` with base64 `fileData`; there is no separate upload.
+  - A first answer is `POST .../entities/{appId}/forms` with `{accountId, entityId, requirementId, fields}`; a later one is `PUT .../entities/{appId}/forms/{formId}` with `formId` added. The response `data` carries the declaration's `id` and `status`.
+  - A requirement at `COLLECTED_VERIFY_PENDING` is refused locally; the website shows it read-only.
+  - The form walk for every answer was live-verified on 2026-11-22 with `--dry-run` (2 metadata requests for No, 3 for an affirmative Security Assessment, 4 for an affirmative AI Generated or Synthetic Content answer). The two save requests have not been sent live.
 
 ## Web-session API keys
 
