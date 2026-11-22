@@ -24,7 +24,8 @@ import (
 //
 // A flag given under two spellings with the same value is kept once. When a
 // spelling's value differs from the latest value given under another
-// spelling, the invocation is ambiguous, so it is a usage error.
+// spelling, the invocation is ambiguous, so it is a usage error. A repeatable
+// flag keeps every value under any spelling.
 func resolveFlagAliases(root *ffcli.Command, args []string, resolveIndirect func(name, value string) (string, error)) ([]string, error) {
 	command := root
 	commandPath := make([]string, 0, 4)
@@ -109,6 +110,10 @@ func resolveFlagAliases(root *ffcli.Command, args []string, resolveIndirect func
 		if spellings == nil {
 			spellings = map[string]string{}
 			given[canonical] = spellings
+		}
+		if shared.IsRepeatableFlag(commandFlag(command, canonical)) {
+			resolved = append(resolved, tokens...)
+			continue
 		}
 		drop := false
 		for _, other := range slices.Sorted(maps.Keys(spellings)) {

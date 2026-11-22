@@ -105,9 +105,10 @@ func isBoolFlagValue(f *flag.Flag) bool {
 // keeping an alias the same flag as its canonical spelling, as
 // resolveFlagAliases makes it before parsing. A second spelling with another
 // value is an error instead of a silent last-one-wins, and so is a value that
-// differs from the one given before the positional arguments, unless the flag
-// is repeatable: the root rewrites an alias there to its canonical spelling,
-// so `--data A POST PATH --body B` reaches the setter as --body twice.
+// differs from the one given before the positional arguments. The root
+// rewrites an alias there to its canonical spelling, so `--data A POST PATH
+// --body B` reaches the setter as --body twice. A repeatable flag adds every
+// value under any spelling, so it has no conflict.
 type InterspersedFlagSetter struct {
 	fs    *flag.FlagSet
 	given map[string]givenFlagValue
@@ -138,11 +139,12 @@ func (s *InterspersedFlagSetter) Set(f *flag.Flag, spelling, value string) error
 	} else if target, ok := FlagAliasTarget(f, value); ok {
 		canonical = target
 	}
-	if previous, ok := s.given[canonical]; ok && previous.value != value {
+	repeatable := IsRepeatableFlag(s.fs.Lookup(canonical))
+	if previous, ok := s.given[canonical]; ok && !repeatable && previous.value != value {
 		if previous.spelling != spelling {
 			return fmt.Errorf("`--%s` and `--%s` are the same flag; pass one value", previous.spelling, spelling)
 		}
-		if previous.beforePositional && !isRepeatableFlag(s.fs.Lookup(canonical)) {
+		if previous.beforePositional {
 			return fmt.Errorf("`--%s` is given before and after the positional arguments with different values%s; pass one value", canonical, s.aliasNote(canonical))
 		}
 	}
@@ -181,9 +183,9 @@ func (s *InterspersedFlagSetter) aliasNote(canonical string) string {
 	return " (" + strings.Join(notes, "; ") + ")"
 }
 
-// isRepeatableFlag reports whether each value given for f adds to the
+// IsRepeatableFlag reports whether each value given for f adds to the
 // earlier ones instead of replacing them.
-func isRepeatableFlag(f *flag.Flag) bool {
+func IsRepeatableFlag(f *flag.Flag) bool {
 	if f == nil {
 		return false
 	}
