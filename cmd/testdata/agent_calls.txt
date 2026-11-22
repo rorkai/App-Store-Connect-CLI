@@ -100,7 +100,7 @@ ok builds wait --app X --version X --platform X --build-number X --poll-interval
 ok localizations list --app X --type X --output X
 ok versions list --app X
 ok versions update --version-id X --copyright X --output X
-unknown-flag apps info --app X --output X
+ok apps info --app X --output X
 ok status --app X
 ok versions update --version-id X --version X --output X
 ok builds list --app X --build-number X --output X
@@ -703,7 +703,7 @@ ok asset-library images view --id X --output X
 ok asset-library view --app X
 ok build-bundles --help
 ok build-bundles list --help
-unknown-flag builds --app X --limit X --json
+ok builds --app X --limit X --json
 ok builds add-groups --build-id X --group X --dry-run --output X
 ok builds beta-app-review-submission view --build-id X --output X X X X -- X X X --app X --output X
 ok builds expire-all --app X --keep-latest X --confirm --output X
@@ -994,8 +994,8 @@ unknown-command apps X X --app X --output X
 unknown-command apps compliance --app X --output X
 ok apps get --app X --output X
 ok apps get X --include X
-unknown-flag apps info --json
-unknown-flag apps info --output X
+ok apps info --json
+ok apps info --output X
 unknown-command apps info declarations --help
 unknown-flag apps info edit --app X --locale X --name X --privacy-policy-url X --output X
 unknown-flag apps info edit --app X --locale X --primary-category X --output X
@@ -1029,9 +1029,9 @@ unknown-flag apps update --id X --content-rights X --confirm
 unknown-flag apps update --id X --content-rights X --json; X X X X X -- X X --version-id X --copyright X --json
 unknown-command apps version X
 unknown-command apps version get --app-id X --version X --json
-unknown-flag apps versions --app X --output X
+ok apps versions --app X --output X
 unknown-flag apps versions --app-id X --filter X --json
-unknown-flag apps versions --app-id X --output X
+ok apps versions --app-id X --output X
 ok apps versions create --app X --version X --platform X --output X
 ok apps versions get --app X --output X
 ok apps versions list --app X --platform X --output X
@@ -1042,7 +1042,7 @@ ok apps versions update --help
 unknown-flag apps view --app-id X
 unknown-command appstore review messages --json --team X --asc-app-id X
 unknown-command asc --help
-unknown-flag availability --app X --output X
+ok availability --app X --output X
 ok availability get --app X --output X
 unknown-command availability list --app X --output X
 ok availability view --app X
@@ -1053,8 +1053,8 @@ unknown-command beta-app-review-details update --app X --contact-first-name X --
 unknown-command beta-builds list --app-id X --limit X --sort -uploadedDate --output X
 unknown-command beta-groups list --app X --output X
 unknown-command build submit --help
-unknown-flag builds --app-id X --limit X
-unknown-flag builds --app-id X --limit X --output X
+ok builds --app-id X --limit X
+ok builds --app-id X --limit X --output X
 unknown-command builds X
 ok builds add-groups --build-id X --group X --submit --confirm --json
 unknown-flag builds add-groups --build-id X --group-ids X --output X
@@ -1206,7 +1206,7 @@ unknown-command review messages --help
 unknown-command review messages --team X --asc-app-id X --output X
 unknown-command review notes-update --review-detail-id X --notes X
 ok review status --app X --json
-unknown-flag review submissions --app X --output X
+ok review submissions --app X --output X
 unknown-command review submissions items --submission-id X
 unknown-command review submissions items list --id X --output X
 unknown-command review submissions items list --submission-id X --output X
@@ -1268,7 +1268,7 @@ ok testflight beta-groups get --id X
 ok testflight beta-groups list --app X
 ok testflight beta-groups list --app X --output X X X X X X -- X X X --app X --output X X X X X X -- X X X
 ok testflight beta-groups view --id X --output X
-unknown-flag testflight builds --app X --limit X --output X
+ok testflight builds --app X --limit X --output X
 ok testflight builds list
 ok testflight builds list --app X
 unknown-flag testflight builds list --app X --fields X
@@ -1320,7 +1320,7 @@ unknown-flag validate iap --app X --strict; X X
 ok version-localizations get --id X --output X
 ok version-localizations list --app X --version X --platform X --output X
 unknown-flag version-localizations update --version-localization X --whats-new X --output X
-unknown-flag versions --app X --json
+ok versions --app X --json
 unknown-command versions attach --help
 unknown-flag versions attach-build --id X --build-id X
 unknown-flag versions attach-build --version X --build X --confirm --output X
