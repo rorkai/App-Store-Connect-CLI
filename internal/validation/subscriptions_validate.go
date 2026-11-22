@@ -224,6 +224,7 @@ func subscriptionReviewReadinessChecks(subs []Subscription) []CheckResult {
 			ResourceID:   strings.TrimSpace(sub.ID),
 			Message:      message,
 			Remediation:  remediation,
+			Resolution:   resolutionForSubscriptionState(state, sub.ID),
 		})
 	}
 
@@ -251,13 +252,28 @@ func remediationForSubscriptionState(state string) string {
 	case "MISSING_METADATA":
 		return "See diagnostic checks below for specific missing items (group localizations, subscription localizations, pricing); fix all issues then re-validate"
 	case "READY_TO_SUBMIT":
-		return "Submit this subscription for review in App Store Connect so it is attached to the next app review submission; note: first-time subscriptions must be submitted via the app version page in App Store Connect (not the API)"
+		return "Nothing is missing. Add this subscription's version to the app's review submission (the one that holds the app version, for a first subscription) with the resolution commands. App Store Connect's web review listing, used by `asc web review subscriptions`, can still report MISSING_METADATA for a subscription the API reports READY_TO_SUBMIT; that state does not change by waiting"
 	case "DEVELOPER_ACTION_NEEDED":
 		return "Resolve developer action required issues for this subscription in App Store Connect"
 	case "REJECTED":
 		return "Address the rejection feedback for this subscription and resubmit in App Store Connect"
 	default:
 		return "Review this subscription in App Store Connect and submit it for review if needed"
+	}
+}
+
+// resolutionForSubscriptionState returns the commands that send a complete
+// subscription to App Review as a subscriptionVersions review item.
+func resolutionForSubscriptionState(state, subscriptionID string) *Resolution {
+	if strings.ToUpper(strings.TrimSpace(state)) != "READY_TO_SUBMIT" {
+		return nil
+	}
+	return &Resolution{
+		Fixability: FixabilityAPIFixable,
+		Commands: []string{
+			fmt.Sprintf("asc subscriptions versions list --subscription-id %q", fallbackString(strings.TrimSpace(subscriptionID), "SUB_ID")),
+			`asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "VERSION_ID"`,
+		},
 	}
 }
 
