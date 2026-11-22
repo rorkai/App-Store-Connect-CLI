@@ -87,10 +87,35 @@ func reviewItemNotReviewableHint(apiErr *asc.APIError, itemType asc.ReviewSubmis
 			}
 		}
 	}
-	if associatedErrorsMention(apiErr, "compliance requirement") {
-		hint += " An unfulfilled compliance requirement is an App Store Regulations & Permits answer the app still needs: list them with `asc web apps declarations list --app APP_ID`."
+	if associatedErrorsMention(apiErr, reviewComplianceRequirementText) {
+		hint += " " + reviewComplianceRequirementHint
 	}
 	return hint
+}
+
+// reviewComplianceRequirementText is in the associated error Apple lists on
+// the app's appInfos, once per open requirement: "Cannot submit version due to
+// unfulfilled compliance requirement."
+const reviewComplianceRequirementText = "compliance requirement"
+
+// reviewComplianceRequirementHint names the reads for both kinds of
+// requirement App Store Connect can hold a submission on; they live on two
+// separate web-session services and neither appears in the public API.
+const reviewComplianceRequirementHint = "App Store Connect does not review the app until every compliance requirement has an answer. List the App Compliance requirements, such as the China mainland Security Assessment and AI Generated or Synthetic Content declarations, with `asc web apps compliance list --app APP_ID` and answer them with `asc web apps compliance set`; list the App Store Regulations & Permits declarations with `asc web apps declarations list --app APP_ID`."
+
+// withComplianceRequirementHint names the compliance reads when a 409 on
+// resolving an item or submitting a submission is blocked by an unanswered
+// compliance requirement; any other error, or one that already carries a
+// hint, is returned unchanged.
+func withComplianceRequirementHint(err error) error {
+	if _, hinted := errors.AsType[*shared.HintedError](err); hinted {
+		return err
+	}
+	apiErr, ok := errors.AsType[*asc.APIError](err)
+	if !ok || apiErr.StatusCode != http.StatusConflict || !associatedErrorsMention(apiErr, reviewComplianceRequirementText) {
+		return err
+	}
+	return &shared.HintedError{Err: err, Hint: reviewComplianceRequirementHint}
 }
 
 // firstDraftReviewSubmission returns another READY_FOR_REVIEW submission of
