@@ -620,3 +620,93 @@ func TestLocalizationsMutationSelectorValidationBeforeAuth(t *testing.T) {
 		t.Fatalf("client calls=%d, want 0", clientCalls)
 	}
 }
+
+// Apple's 409 on PATCH /v1/appStoreVersionLocalizations/{id}, captured live on
+// 2026-11-22 for whatsNew on the first version of a never-released app. Apple
+// sends the same shape, naming the attribute, for every field of a version
+// that is not editable.
+func locUpdateNotEditableBody(attribute string) string {
+	return `{"errors":[{"id":"9f915c91-9e7e-4542-a15d-096545024364","status":"409","code":"STATE_ERROR","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Attribute '` + attribute + `' cannot be edited at this time"}]}`
+}
+
+func TestLocalizationsUpdateConflictNamesVersionStateAndEditableVersion(t *testing.T) {
+	version := func(id, versionString, state string) string {
+		return `{"type":"appStoreVersions","id":"` + id + `","attributes":{"platform":"IOS","versionString":"` + versionString + `","appStoreState":"` + state + `","appVersionState":"` + state + `"}}`
+	}
+	tests := []struct {
+		name       string
+		args       []string
+		attribute  string
+		versionID  string
+		byID       bool
+		current    string
+		appRows    string
+		wantStderr string
+	}{
+		{
+			name:       "whatsNew on the first version of an unreleased app",
+			args:       []string{"--id", "loc-1", "--whats-new", "Bug fixes"},
+			attribute:  "whatsNew",
+			byID:       true,
+			current:    version("ver-1", "1.0", "PREPARE_FOR_SUBMISSION"),
+			appRows:    version("ver-1", "1.0", "PREPARE_FOR_SUBMISSION"),
+			wantStderr: "\nHint: Version 1.0 (IOS) is PREPARE_FOR_SUBMISSION, but the app has no released version on IOS yet, and App Store Connect takes whatsNew only for an update to a released app. Retry without --whats-new.\n",
+		},
+		{
+			name:       "released version with a newer editable one",
+			args:       []string{"--version", "ver-1", "--locale", "en-US", "--keywords", "focus,timer"},
+			attribute:  "keywords",
+			current:    version("ver-1", "1.0", "READY_FOR_DISTRIBUTION"),
+			appRows:    version("ver-2", "1.1", "PREPARE_FOR_SUBMISSION") + `,` + version("ver-1", "1.0", "READY_FOR_DISTRIBUTION"),
+			wantStderr: "\nHint: Version 1.0 (IOS, id ver-1) is READY_FOR_DISTRIBUTION. App Store Connect edits description, keywords, whatsNew, supportUrl and marketingUrl only while a version is PREPARE_FOR_SUBMISSION, DEVELOPER_REJECTED, REJECTED, METADATA_REJECTED, INVALID_BINARY; promotionalText can change in any state.\nVersion 1.1 (PREPARE_FOR_SUBMISSION) is editable: retry with --version \"ver-2\" --locale \"en-US\".\n",
+		},
+		{
+			name:       "version in review and no editable one",
+			args:       []string{"--id", "loc-1", "--description", "New"},
+			attribute:  "description",
+			byID:       true,
+			current:    version("ver-1", "1.0", "WAITING_FOR_REVIEW"),
+			appRows:    version("ver-1", "1.0", "WAITING_FOR_REVIEW"),
+			wantStderr: "\nNo IOS version is editable: create the next one with `asc versions create --app \"app-1\" --version NEXT_VERSION --platform IOS`, then retry on it.\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			reg := asctest.NewRegistry(t)
+			if !test.byID {
+				reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`))
+			}
+			reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1"), asctest.JSON(http.StatusConflict, locUpdateNotEditableBody(test.attribute)))
+			if test.byID {
+				reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/loc-1", "include=appStoreVersion", "fields[appStoreVersionLocalizations]=appStoreVersion"),
+					asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`))
+			}
+			current := strings.TrimSuffix(test.current, `}}`) + `},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}`
+			reg.Register(asctest.GET("/v1/appStoreVersions/ver-1", "include=app"), asctest.JSON(http.StatusOK, `{"data":`+current+`}`))
+			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[`+test.appRows+`]}`))
+
+			args := append([]string{"localizations", "update"}, test.args...)
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+
+			if code != cmd.ExitConflict {
+				t.Fatalf("exit code = %d, want %d (stderr %q)", code, cmd.ExitConflict, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.Contains(stderr, "Attribute '"+test.attribute+"' cannot be edited at this time") {
+				t.Fatalf("stderr %q dropped Apple's detail", stderr)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("stderr = %q, want it to contain %q", stderr, test.wantStderr)
+			}
+			if got := strings.Count(stderr, "Hint:"); got != 1 {
+				t.Fatalf("stderr has %d hints, want 1:\n%s", got, stderr)
+			}
+		})
+	}
+}
