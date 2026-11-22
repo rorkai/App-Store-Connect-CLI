@@ -58,6 +58,8 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		field     string
 		want      []string
 		userInput bool
+		// note is what the remediation text says a placeholder may be.
+		note string
 	}{
 		{checkID: "build.required.missing", want: []string{`asc versions attach-build --app "app-1" --version-id "ver-1" --latest`}},
 		{checkID: "screenshots.required.any", userInput: true, want: []string{`asc screenshots upload --app "app-1" --version-id "ver-1" --locale "en-US" --path "SCREENSHOTS_DIR" --device-type "DEVICE_TYPE"`}},
@@ -69,7 +71,7 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		{checkID: "metadata.required.support_url", field: "supportUrl", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --support-url "SUPPORT_URL"`}},
 		{checkID: "legal.required.copyright", field: "copyright", userInput: true, want: []string{`asc versions update --version-id "ver-1" --copyright "YEAR RIGHTS_HOLDER"`}},
 		{checkID: "age_rating.missing_field", field: "advertising", userInput: true, want: []string{`asc age-rating edit --app "app-1" --advertising "TRUE_OR_FALSE"`}},
-		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", userInput: true, want: []string{`asc age-rating edit --app "app-1" --alcohol-tobacco-drug-use "NONE_OR_INFREQUENT_OR_MILD_OR_FREQUENT_OR_INTENSE"`}},
+		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", userInput: true, want: []string{`asc age-rating edit --app "app-1" --alcohol-tobacco-drug-use "LEVEL"`}, note: "LEVEL is NONE, INFREQUENT_OR_MILD, or FREQUENT_OR_INTENSE"},
 		{checkID: "availability.missing", field: "appAvailabilityV2", userInput: true, want: []string{`asc pricing availability create --app "app-1" --territory "TERRITORIES" --available true --available-in-new-territories "TRUE_OR_FALSE"`}},
 		{checkID: "pricing.schedule.missing", field: "appPriceSchedule", userInput: true, want: []string{
 			`asc pricing schedule create --app "app-1" --price-point "PRICE_POINT_ID" --base-territory "BASE_TERRITORY"`,
@@ -97,6 +99,9 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 			}
 			if test.userInput != strings.Contains(found.Remediation, "placeholder") {
 				t.Fatalf("remediation = %q, want the placeholder note only when the developer must answer", found.Remediation)
+			}
+			if !strings.Contains(found.Remediation, test.note) {
+				t.Fatalf("remediation = %q, want it to say %q", found.Remediation, test.note)
 			}
 		})
 	}
