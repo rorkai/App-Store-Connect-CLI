@@ -64,6 +64,7 @@ type bearerTokenSource struct {
 	// waiting for another request's renewal when its context ends.
 	lock      chan struct{}
 	token     string
+	keyID     string
 	expiresAt time.Time
 }
 
@@ -101,8 +102,26 @@ func (s *bearerTokenSource) set(token string) error {
 		return err
 	}
 	s.token = strings.TrimSpace(token)
+	s.keyID = info.KeyID
 	s.expiresAt = info.ExpiresAt
 	return nil
+}
+
+// info reports the held token's key ID and expiry.
+func (s *bearerTokenSource) info() BearerTokenInfo {
+	s.lock <- struct{}{}
+	defer func() { <-s.lock }()
+	return BearerTokenInfo{KeyID: s.keyID, ExpiresAt: s.expiresAt}
+}
+
+// BearerTokenInfo reports the key ID and expiry of the token signed elsewhere
+// that the client sends now, which can be a renewed one; ok is false for a
+// client that signs its own tokens.
+func (c *Client) BearerTokenInfo() (info BearerTokenInfo, ok bool) {
+	if c == nil || c.bearer == nil {
+		return BearerTokenInfo{}, false
+	}
+	return c.bearer.info(), true
 }
 
 func (s *bearerTokenSource) renewToken(ctx context.Context, now time.Time) error {

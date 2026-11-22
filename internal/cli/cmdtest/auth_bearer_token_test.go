@@ -36,6 +36,11 @@ func isolateBearerTokenAuth(t *testing.T, token string) {
 
 func signedTestToken(t *testing.T, expiresAt time.Time) string {
 	t.Helper()
+	return signedTestTokenForKey(t, "KEY123", expiresAt)
+}
+
+func signedTestTokenForKey(t *testing.T, keyID string, expiresAt time.Time) string {
+	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("GenerateKey() error: %v", err)
@@ -49,7 +54,7 @@ func signedTestToken(t *testing.T, expiresAt time.Time) string {
 		claims.ExpiresAt = jwt.NewNumericDate(expiresAt)
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	token.Header["kid"] = "KEY123"
+	token.Header["kid"] = keyID
 	signed, err := token.SignedString(key)
 	if err != nil {
 		t.Fatalf("SignedString() error: %v", err)
@@ -269,6 +274,9 @@ func TestBearerTokenRejectsSelectionsItCannotHonorBeforeAnyRequest(t *testing.T)
 }
 
 func TestAuthStatusReportsTheBearerToken(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a POSIX shell command")
+	}
 	const agreementBody = `{"errors":[{"status":"403","code":"FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED","title":"A required agreement is missing or has expired","detail":"This request requires an in-effect agreement that has not been signed or has expired."}]}`
 	const unauthorizedBody = `{"errors":[{"status":"401","code":"NOT_AUTHORIZED","title":"Authentication credentials are missing or invalid.","detail":"Provide a properly configured and signed bearer token."}]}`
 	type bearerToken struct {
@@ -276,30 +284,53 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 		KeyID           string `json:"keyId"`
 		ExpiresAt       string `json:"expiresAt"`
 		Expired         *bool  `json:"expired"`
+		Error           string `json:"error"`
 		Validation      string `json:"validation"`
 		ValidationError string `json:"validationError"`
 	}
+	fresh := time.Now().Add(20 * time.Minute).Truncate(time.Second)
+	expired := time.Now().Add(-time.Minute).Truncate(time.Second)
+	renewed := time.Now().Add(15 * time.Minute).Truncate(time.Second)
+	renewedToken := signedTestTokenForKey(t, "OTHERKEY99", renewed)
 	for _, tc := range []struct {
-		name         string
-		expiresIn    time.Duration
-		validate     bool
-		status       int
-		body         string
-		wantCode     int
-		wantExpired  bool
-		wantValidity string
-		wantError    string
+		name          string
+		envExpiresAt  time.Time
+		command       bool
+		env           map[string]string
+		validate      bool
+		status        int
+		body          string
+		wantCode      int
+		wantSource    string
+		wantKeyID     string
+		wantExpiresAt time.Time
+		wantExpired   bool
+		wantError     string
+		wantValidity  string
+		wantValErr    string
 	}{
-		{name: "unexpired token", expiresIn: 20 * time.Minute, wantCode: cmd.ExitSuccess},
-		{name: "expired token", expiresIn: -time.Minute, wantCode: cmd.ExitSuccess, wantExpired: true},
-		{name: "validate works", expiresIn: 20 * time.Minute, validate: true, status: http.StatusOK, body: `{"data":[],"links":{}}`, wantCode: cmd.ExitSuccess, wantValidity: "works"},
-		{name: "validate agreement blocked", expiresIn: 20 * time.Minute, validate: true, status: http.StatusForbidden, body: agreementBody, wantCode: cmd.ExitError, wantValidity: "failed", wantError: "An Account Holder must accept it"},
-		{name: "validate rejected by Apple", expiresIn: 20 * time.Minute, validate: true, status: http.StatusUnauthorized, body: unauthorizedBody, wantCode: cmd.ExitError, wantValidity: "failed", wantError: "Authentication credentials are missing or invalid."},
+		{name: "unexpired token", envExpiresAt: fresh, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: fresh},
+		{name: "expired token", envExpiresAt: expired, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: expired, wantExpired: true},
+		{name: "profile refuses the token", envExpiresAt: fresh, env: map[string]string{"ASC_PROFILE": "Other"}, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: fresh, wantError: `cannot be combined with profile "Other"`},
+		{name: "enterprise key type refuses the token", envExpiresAt: fresh, env: map[string]string{"ASC_KEY_TYPE": "enterprise"}, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: fresh, wantError: "does not support ASC_KEY_TYPE=enterprise"},
+		{name: "validate works", envExpiresAt: fresh, validate: true, status: http.StatusOK, body: `{"data":[],"links":{}}`, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: fresh, wantValidity: "works"},
+		{name: "validate reports the token the command renewed", envExpiresAt: expired, command: true, validate: true, status: http.StatusOK, body: `{"data":[],"links":{}}`, wantCode: cmd.ExitSuccess, wantKeyID: "OTHERKEY99", wantExpiresAt: renewed, wantValidity: "works"},
+		{name: "validate reports the command's token", command: true, validate: true, status: http.StatusOK, body: `{"data":[],"links":{}}`, wantCode: cmd.ExitSuccess, wantSource: "ASC_BEARER_TOKEN_COMMAND", wantKeyID: "OTHERKEY99", wantExpiresAt: renewed, wantValidity: "works"},
+		{name: "validate agreement blocked", envExpiresAt: fresh, validate: true, status: http.StatusForbidden, body: agreementBody, wantCode: cmd.ExitError, wantKeyID: "KEY123", wantExpiresAt: fresh, wantValidity: "failed", wantValErr: "An Account Holder must accept it"},
+		{name: "validate rejected by Apple", envExpiresAt: fresh, validate: true, status: http.StatusUnauthorized, body: unauthorizedBody, wantCode: cmd.ExitError, wantKeyID: "KEY123", wantExpiresAt: fresh, wantValidity: "failed", wantValErr: "Authentication credentials are missing or invalid."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			expiresAt := time.Now().Add(tc.expiresIn).Truncate(time.Second)
-			token := signedTestToken(t, expiresAt)
+			token := ""
+			if !tc.envExpiresAt.IsZero() {
+				token = signedTestToken(t, tc.envExpiresAt)
+			}
 			isolateBearerTokenAuth(t, token)
+			if tc.command {
+				t.Setenv("ASC_BEARER_TOKEN_COMMAND", "printf '%s' "+renewedToken)
+			}
+			for name, value := range tc.env {
+				t.Setenv(name, value)
+			}
 			reg := asctest.NewRegistry(t)
 			reg.Install()
 			args := []string{"auth", "status", "--output", "json"}
@@ -316,7 +347,7 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 			if code != tc.wantCode {
 				t.Fatalf("exit code = %d, want %d; stderr: %s", code, tc.wantCode, stderr)
 			}
-			if strings.Contains(stdout+stderr, token) {
+			if (token != "" && strings.Contains(stdout+stderr, token)) || strings.Contains(stdout+stderr, renewedToken) {
 				t.Fatal("auth status exposed the bearer token")
 			}
 			var payload struct {
@@ -325,16 +356,42 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
 				t.Fatalf("stdout is not JSON: %v; stdout: %q", err, stdout)
 			}
+			wantSource := tc.wantSource
+			if wantSource == "" {
+				wantSource = "ASC_BEARER_TOKEN"
+			}
+			wantExpiresAt := tc.wantExpiresAt.UTC().Format(time.RFC3339)
 			got := payload.BearerToken
-			if got == nil || got.Source != "ASC_BEARER_TOKEN" || got.KeyID != "KEY123" || got.ExpiresAt != expiresAt.UTC().Format(time.RFC3339) || got.Expired == nil || *got.Expired != tc.wantExpired {
-				t.Fatalf("bearerToken = %+v, want ASC_BEARER_TOKEN for KEY123 expiring %s (expired %t)", got, expiresAt.UTC().Format(time.RFC3339), tc.wantExpired)
+			if got == nil || got.Source != wantSource || got.KeyID != tc.wantKeyID || got.ExpiresAt != wantExpiresAt || got.Expired == nil || *got.Expired != tc.wantExpired {
+				t.Fatalf("bearerToken = %+v, want %s for %s expiring %s (expired %t)", got, wantSource, tc.wantKeyID, wantExpiresAt, tc.wantExpired)
 			}
-			if got.Validation != tc.wantValidity || !strings.Contains(got.ValidationError, tc.wantError) {
-				t.Fatalf("validation = %q (%q), want %q containing %q", got.Validation, got.ValidationError, tc.wantValidity, tc.wantError)
+			if tc.wantError == "" && got.Error != "" || !strings.Contains(got.Error, tc.wantError) {
+				t.Fatalf("error = %q, want %q", got.Error, tc.wantError)
 			}
-			if tc.validate && reg.Requests()[0].Header.Get("Authorization") != "Bearer "+token {
-				t.Fatal("--validate did not send ASC_BEARER_TOKEN")
+			if got.Validation != tc.wantValidity || !strings.Contains(got.ValidationError, tc.wantValErr) {
+				t.Fatalf("validation = %q (%q), want %q containing %q", got.Validation, got.ValidationError, tc.wantValidity, tc.wantValErr)
+			}
+			if tc.validate {
+				sent := strings.TrimPrefix(reg.Requests()[0].Header.Get("Authorization"), "Bearer ")
+				if want := map[bool]string{true: renewedToken, false: token}[tc.command]; sent != want {
+					t.Fatal("--validate sent a different token than the one asc would use")
+				}
 			}
 		})
+	}
+}
+
+func TestAuthStatusTableSanitizesTheBearerTokenKeyID(t *testing.T) {
+	isolateBearerTokenAuth(t, signedTestTokenForKey(t, "K\x1b[31mRED\nStored credentials: fake", time.Now().Add(20*time.Minute)))
+	asctest.NewRegistry(t).Install()
+
+	stdout, stderr := captureOutput(t, func() {
+		if code := cmd.Run([]string{"auth", "status", "--output", "table"}, "1.2.3"); code != cmd.ExitSuccess {
+			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+		}
+	})
+
+	if !strings.Contains(stdout, "Bearer token: ASC_BEARER_TOKEN (key K") || strings.ContainsAny(stdout, "\x1b") || strings.Contains(stdout, "\nStored credentials: fake") {
+		t.Fatalf("stdout = %q, want one Bearer token line without terminal control characters; stderr: %s", stdout, stderr)
 	}
 }

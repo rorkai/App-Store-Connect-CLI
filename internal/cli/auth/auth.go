@@ -1168,7 +1168,7 @@ func newAuthStatusCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("auth status", flag.ExitOnError)
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", defaultAuthStatusOutputFormat(d), "Output format: table, json", "table", "json")
 	verbose := fs.Bool("verbose", false, "Show detailed storage information")
-	validate := fs.Bool("validate", false, "Validate stored credentials via network")
+	validate := fs.Bool("validate", false, "Validate stored credentials and the ASC_BEARER_TOKEN via network")
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -1477,10 +1477,13 @@ func authStatusBearerToken(ctx context.Context, validate bool) *authStatusBearer
 		if err != nil {
 			status.Error = err.Error()
 		} else {
-			status.KeyID = info.KeyID
-			status.ExpiresAt = info.ExpiresAt.UTC().Format(time.RFC3339)
-			status.Expired = boolPointer(!time.Now().Before(info.ExpiresAt))
+			status.setToken(info)
 		}
+	}
+	// Every command refuses the token under these selections, so say so
+	// even without --validate.
+	if err := shared.BearerTokenSelectionError(); err != nil {
+		status.Error = err.Error()
 	}
 	if !validate {
 		return status
@@ -1489,6 +1492,11 @@ func authStatusBearerToken(ctx context.Context, validate bool) *authStatusBearer
 	if err == nil {
 		if err = probeCredential(ctx, client, ""); err != nil && !isPermissionOnlyFailure(err) {
 			err = withNetworkDiagnostic(err, err)
+		}
+		// The command may have replaced ASC_BEARER_TOKEN; report the token
+		// the probe actually sent.
+		if info, ok := client.BearerTokenInfo(); ok {
+			status.setToken(info)
 		}
 	}
 	switch {
@@ -1505,10 +1513,17 @@ func authStatusBearerToken(ctx context.Context, validate bool) *authStatusBearer
 	return status
 }
 
+func (s *authStatusBearerTokenOutput) setToken(info asc.BearerTokenInfo) {
+	s.KeyID = info.KeyID
+	s.ExpiresAt = info.ExpiresAt.UTC().Format(time.RFC3339)
+	s.Expired = boolPointer(!time.Now().Before(info.ExpiresAt))
+}
+
 func (s *authStatusBearerTokenOutput) summary() string {
 	var details []string
 	if s.KeyID != "" {
-		details = append(details, "key "+s.KeyID)
+		// kid comes from an unverified token header.
+		details = append(details, "key "+shared.SanitizeTerminal(s.KeyID))
 	}
 	if s.Expired != nil {
 		verb := "expires"
@@ -1521,13 +1536,15 @@ func (s *authStatusBearerTokenOutput) summary() string {
 		details = append(details, "renewed by "+s.RenewedBy)
 	}
 	if s.Error != "" {
-		details = append(details, s.Error)
+		details = append(details, shared.SanitizeTerminal(s.Error))
 	}
 	line := "Bearer token: " + s.Source
 	if len(details) > 0 {
 		line += " (" + strings.Join(details, ", ") + ")"
 	}
-	line += ", used ahead of stored and environment credentials"
+	if s.Error == "" {
+		line += ", used ahead of stored and environment credentials"
+	}
 	switch {
 	case s.ValidationDetail != "":
 		line += ": works (" + s.ValidationDetail + ")"
