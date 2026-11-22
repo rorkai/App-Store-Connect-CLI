@@ -328,11 +328,11 @@ Examples:
 				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, codes, func() (*asc.ReviewSubmissionItemResponse, bool, error) {
 					return findExistingReviewSubmissionItem(requestCtx, client, submissionValue, normalizedType, itemValue)
 				})
-				if resolveErr != nil {
-					return fmt.Errorf("%s: %w", errorPrefix, resolveErr)
+				if resolveErr == nil && !handled {
+					resolveErr = err
 				}
-				if !handled {
-					return fmt.Errorf("%s: %w", errorPrefix, err)
+				if resolveErr != nil {
+					return withReviewItemsAddConflictHint(requestCtx, client, submissionValue, normalizedType, itemValue, fmt.Errorf("%s: %w", errorPrefix, resolveErr))
 				}
 				resp = existing
 				fmt.Fprintf(d.IO.ErrOut, "%s: %s %s is already on submission %s as item %s; left unchanged (--if-exists %s)\n",
