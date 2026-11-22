@@ -72,7 +72,9 @@ This preflight mirrors upload file ordering and reports common local problems
 before any App Store Connect mutation happens, including hidden files,
 unreadable assets, unsupported dimensions, images whose encoded format
 contradicts their file extension, PNG alpha channels or transparency, and
-duplicate decoded pixels.
+duplicate decoded pixels. In a directory, the .png, .jpg, and .jpeg files are
+the screenshots; other files, such as the HTML a mockup was rendered from, are
+reported as skipped warnings.
 
 Examples:
   asc screenshots validate --path "./screenshots" --device-type "IPHONE_65"
@@ -132,7 +134,7 @@ func validateScreenshotAssets(d *shared.Deps, pathValue, displayType string) (*s
 		result.APIDisplayType = apiDisplayType
 	}
 
-	paths, err := collectAssetPaths(d.OSPath(rawPath))
+	paths, skipped, err := collectScreenshotPaths(d.OSPath(rawPath))
 	if err != nil {
 		return nil, err
 	}
@@ -140,10 +142,20 @@ func validateScreenshotAssets(d *shared.Deps, pathValue, displayType string) (*s
 		appendScreenshotValidateIssue(result, screenshotValidateIssue{
 			Code:        "no_files",
 			Severity:    screenshotValidateSeverityError,
-			Message:     fmt.Sprintf("no files found in %q", rawPath),
+			Message:     noScreenshotFilesError(rawPath, skipped).Error(),
 			Remediation: "Add screenshot image files or point --path at a specific screenshot.",
 		})
 		return result, nil
+	}
+	for _, name := range skipped {
+		appendScreenshotValidateIssue(result, screenshotValidateIssue{
+			Code:        "skipped_file",
+			Severity:    screenshotValidateSeverityWarning,
+			FilePath:    filepath.Join(rawPath, name),
+			FileName:    name,
+			Message:     fmt.Sprintf("skipped %q: not a .png, .jpg, or .jpeg screenshot", name),
+			Remediation: "Upload skips this file. Nothing to do unless it should be a screenshot; then export it as PNG or JPEG.",
+		})
 	}
 	checkScreenshotFiles(result, paths, apiDisplayType)
 	return result, nil
