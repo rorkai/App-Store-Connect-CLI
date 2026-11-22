@@ -44,11 +44,6 @@ func TestOptimizeKeywordsRankUsageErrors(t *testing.T) {
 			args:    []string{"optimize", "keywords", "rank", "--app", "1234567890", "--keywords", "focus timer", "--platform", "MAC_OS"},
 			wantErr: "--platform must be one of: IOS, TV_OS",
 		},
-		{
-			name:    "tv storefront without numeric id",
-			args:    []string{"optimize", "keywords", "rank", "--app", "1234567890", "--keywords", "focus timer", "--platform", "TV_OS", "--country", "kz"},
-			wantErr: "TV_OS ranking is unavailable for storefront KZ",
-		},
 	}
 
 	for _, test := range tests {

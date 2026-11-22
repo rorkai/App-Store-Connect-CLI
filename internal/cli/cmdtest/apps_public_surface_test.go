@@ -190,29 +190,6 @@ func TestAppsPublicValidationErrors(t *testing.T) {
 	}
 }
 
-func TestAppsPublicRankRejectsTVStorefrontWithoutNumericIDBeforeRequest(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-
-	asctest.NewRegistry(t).Install()
-
-	stdout, stderr, runErr := runCommand(t, []string{
-		"apps", "public", "rank",
-		"--app", "1234567890",
-		"--term", "focus timer",
-		"--country", "kz",
-		"--platform", "TV_OS",
-	})
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "TV_OS ranking is unavailable for storefront KZ") {
-		t.Fatalf("unexpected stderr: %q", stderr)
-	}
-}
-
 func TestAppsPublicRankTVOSJSON(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
@@ -533,36 +510,6 @@ func TestAppsPublicViewAcceptsZeroPaddedAppIDAndUnlistedCountry(t *testing.T) {
 	if payload.Country != "KZ" {
 		t.Fatalf("Country = %q, want KZ", payload.Country)
 	}
-}
-
-func TestAppsPublicStorefrontsListIncludesPublicOnlyCountry(t *testing.T) {
-	stdout, stderr, runErr := runCommand(t, []string{"apps", "public", "storefronts", "list", "--output", "json"})
-	if runErr != nil {
-		t.Fatalf("run error: %v", runErr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-
-	var payload []itunes.Storefront
-	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
-		t.Fatalf("unmarshal storefronts: %v", err)
-	}
-
-	for _, storefront := range payload {
-		if storefront.Country != "KZ" {
-			continue
-		}
-		if storefront.CountryName != "Kazakhstan" {
-			t.Fatalf("CountryName = %q, want Kazakhstan", storefront.CountryName)
-		}
-		if storefront.StorefrontID != "" {
-			t.Fatalf("StorefrontID = %q, want empty string", storefront.StorefrontID)
-		}
-		return
-	}
-
-	t.Fatal("expected KZ storefront in public storefront list output")
 }
 
 func TestAppsPublicOutputFormats(t *testing.T) {

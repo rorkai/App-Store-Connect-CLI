@@ -80,11 +80,6 @@ func TestKeywordsRankCommandValidatesInputBeforeRequests(t *testing.T) {
 			args: []string{"--app", "1234567890", "--keywords", "focus timer", "--platform", "MAC_OS"},
 			want: "--platform must be one of: IOS, TV_OS",
 		},
-		{
-			name: "tv storefront",
-			args: []string{"--app", "1234567890", "--keywords", "focus timer", "--platform", "TV_OS", "--country", "kz"},
-			want: "TV_OS ranking is unavailable for storefront KZ",
-		},
 	}
 
 	for _, test := range tests {

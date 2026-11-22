@@ -354,23 +354,12 @@ func TestListStorefrontsDeterministicOrder(t *testing.T) {
 	}
 }
 
-func TestListStorefrontsIncludesPublicCountryWithoutHistogramStorefrontID(t *testing.T) {
-	storefronts := ListStorefronts()
-
-	for _, storefront := range storefronts {
-		if storefront.Country != "KZ" {
-			continue
+func TestListStorefrontsHasStorefrontIDForEveryPublicCountry(t *testing.T) {
+	for _, storefront := range ListStorefronts() {
+		if storefront.StorefrontID == "" {
+			t.Errorf("%s has no storefront ID, so ratings --all returns no histogram for it", storefront.Country)
 		}
-		if storefront.CountryName != "Kazakhstan" {
-			t.Fatalf("CountryName = %q, want Kazakhstan", storefront.CountryName)
-		}
-		if storefront.StorefrontID != "" {
-			t.Fatalf("StorefrontID = %q, want empty string", storefront.StorefrontID)
-		}
-		return
 	}
-
-	t.Fatal("expected KZ storefront in public storefront list")
 }
 
 func TestGetRatingsHistogramRequestHeader(t *testing.T) {
@@ -418,38 +407,5 @@ func TestGetRatingsHistogramRequestHeader(t *testing.T) {
 	}
 	if ratings.Histogram[5] != 10 {
 		t.Fatalf("Histogram[5] = %d, want 10", ratings.Histogram[5])
-	}
-}
-
-func TestGetRatingsAllowsCountryOutsideHistogramStorefrontMap(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/lookup" {
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-		if got := r.URL.Query().Get("country"); got != "kz" {
-			t.Fatalf("expected lookup country=kz, got %q", got)
-		}
-		writeBody(t, w, `{
-			"resultCount": 1,
-			"results": [{
-				"trackId": 123,
-				"trackName": "Alpha",
-				"averageUserRating": 4.5,
-				"userRatingCount": 12
-			}]
-		}`)
-	}))
-	defer server.Close()
-
-	client := &Client{BaseURL: server.URL, HTTPClient: server.Client()}
-	ratings, err := client.GetRatings(context.Background(), "123", "kz")
-	if err != nil {
-		t.Fatalf("GetRatings() error: %v", err)
-	}
-	if ratings.Country != "KZ" {
-		t.Fatalf("Country = %q, want KZ", ratings.Country)
-	}
-	if len(ratings.Histogram) != 0 {
-		t.Fatalf("expected empty histogram, got %+v", ratings.Histogram)
 	}
 }
