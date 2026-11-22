@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -326,4 +327,61 @@ func TestWebReviewReplyWarnsWhenDraftResponseIsLost(t *testing.T) {
 	if len(*requested) != 1 {
 		t.Fatalf("requests = %v, want exactly one draft POST and no send", *requested)
 	}
+}
+
+func TestWebReviewReplyTakesAppScopeAndBodyFile(t *testing.T) {
+	body := "Line one.\n\nLine two keeps its spacing.  \n"
+	bodyFile := filepath.Join(t.TempDir(), "reply.txt")
+	if err := os.WriteFile(bodyFile, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	const threadsPath = "/iris/v1/apps/app-1/resolutionCenterThreads"
+
+	t.Run("thread under the app is sent from --body-file", func(t *testing.T) {
+		requested := stubWebReviewDraftSequence(t, []webReviewDraftHTTPResponse{
+			{method: http.MethodGet, path: threadsPath, status: http.StatusOK, body: webReviewDraftSingleThreadFixture},
+			{method: http.MethodPost, path: "/iris/v1/resolutionCenterDraftMessages", status: http.StatusCreated, body: webReviewDraftResponse("draft-1", body)},
+			{method: http.MethodPost, path: "/iris/v1/resolutionCenterMessages", status: http.StatusCreated, body: `{"data":{"id":"message-1","type":"resolutionCenterMessages"}}`},
+			{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterMessages", status: http.StatusOK, body: `{"data":[{"id":"message-1","type":"resolutionCenterMessages"}]}`},
+		})
+		d, depsStdout, depsStderr := newWebTestDeps()
+		command := newWebReviewReplyCommand(d)
+		if err := command.FlagSet.Parse([]string{"--app", "app-1", "--thread-id", "thread-1", "--body-file", bodyFile, "--confirm", "--output", "json"}); err != nil {
+			t.Fatal(err)
+		}
+		var commandErr error
+		_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() { commandErr = command.Exec(context.Background(), nil) })
+		if commandErr != nil || len(*requested) != 4 {
+			t.Fatalf("error=%v requests=%d, want the scoped reply sent", commandErr, len(*requested))
+		}
+		var payload struct {
+			Data struct {
+				Attributes struct {
+					MessageBody string `json:"messageBody"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal((*requested)[1].body, &payload); err != nil {
+			t.Fatalf("decode draft payload: %v", err)
+		}
+		if payload.Data.Attributes.MessageBody != body {
+			t.Fatalf("draft body = %q, want the file verbatim %q", payload.Data.Attributes.MessageBody, body)
+		}
+	})
+
+	t.Run("thread outside the app is refused before any write", func(t *testing.T) {
+		requested := stubWebReviewDraftSequence(t, []webReviewDraftHTTPResponse{
+			{method: http.MethodGet, path: threadsPath, status: http.StatusOK, body: `{"data":[{"id":"thread-9","type":"resolutionCenterThreads"}]}`},
+		})
+		d, depsStdout, depsStderr := newWebTestDeps()
+		command := newWebReviewReplyCommand(d)
+		if err := command.FlagSet.Parse([]string{"--app", "app-1", "--thread-id", "thread-1", "--message", "Reply body", "--confirm", "--output", "json"}); err != nil {
+			t.Fatal(err)
+		}
+		var commandErr error
+		_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() { commandErr = command.Exec(context.Background(), nil) })
+		if commandErr == nil || !strings.Contains(commandErr.Error(), `thread "thread-1" was not found under app "app-1"`) || len(*requested) != 1 {
+			t.Fatalf("error=%v requests=%d, want refusal after the thread read only", commandErr, len(*requested))
+		}
+	})
 }

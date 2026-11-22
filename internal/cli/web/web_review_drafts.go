@@ -371,21 +371,8 @@ func webReviewDraftOperation(action string) string {
 
 func preflightWebReviewDraftMutation(ctx context.Context, client *webcore.Client, mutation webReviewDraftMutation) error {
 	operation := webReviewDraftOperation(mutation.Action)
-	threads, err := client.ListResolutionCenterThreadsByApp(ctx, mutation.AppID)
-	if err != nil {
-		return withWebAuthHint(err, "web review drafts "+operation)
-	}
-	matching := 0
-	for _, thread := range threads {
-		if strings.TrimSpace(thread.ID) == mutation.ThreadID {
-			matching++
-		}
-	}
-	if matching == 0 {
-		return fmt.Errorf("web review drafts %s refused: thread %q was not found under app %q", mutation.Action, mutation.ThreadID, mutation.AppID)
-	}
-	if matching > 1 {
-		return fmt.Errorf("web review drafts %s refused: thread %q appeared more than once under app %q", mutation.Action, mutation.ThreadID, mutation.AppID)
+	if err := requireWebReviewThreadUnderApp(ctx, client, "web review drafts "+operation, mutation.AppID, mutation.ThreadID); err != nil {
+		return err
 	}
 
 	existing, err := client.GetResolutionCenterDraftMessage(ctx, mutation.ThreadID, false)
@@ -408,6 +395,29 @@ func preflightWebReviewDraftMutation(ctx context.Context, client *webcore.Client
 		if strings.TrimSpace(existing.ID) != mutation.DraftID {
 			return fmt.Errorf("web review drafts %s refused: thread %q has draft %q, not requested draft %q", mutation.Action, mutation.ThreadID, strings.TrimSpace(existing.ID), mutation.DraftID)
 		}
+	}
+	return nil
+}
+
+// requireWebReviewThreadUnderApp refuses a Resolution Center write unless the
+// thread appears exactly once among the app's threads, so an app selector
+// cannot be paired with another app's thread.
+func requireWebReviewThreadUnderApp(ctx context.Context, client *webcore.Client, command, appID, threadID string) error {
+	threads, err := client.ListResolutionCenterThreadsByApp(ctx, appID)
+	if err != nil {
+		return withWebAuthHint(err, command)
+	}
+	matching := 0
+	for _, thread := range threads {
+		if strings.TrimSpace(thread.ID) == threadID {
+			matching++
+		}
+	}
+	if matching == 0 {
+		return fmt.Errorf("%s refused: thread %q was not found under app %q", command, threadID, appID)
+	}
+	if matching > 1 {
+		return fmt.Errorf("%s refused: thread %q appeared more than once under app %q", command, threadID, appID)
 	}
 	return nil
 }
