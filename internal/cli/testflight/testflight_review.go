@@ -247,6 +247,7 @@ Examples:
 
 			submission, err := client.CreateBetaAppReviewSubmission(requestCtx, strings.TrimSpace(*buildID))
 			if err != nil {
+				err = shared.ExplainBetaReviewSubmissionError(requestCtx, client, strings.TrimSpace(*buildID), err)
 				return fmt.Errorf("testflight review submit: failed to submit: %w", err)
 			}
 
