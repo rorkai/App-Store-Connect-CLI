@@ -13,7 +13,7 @@ func buildChecks(build *Build) []CheckResult {
 				Severity:     SeverityError,
 				ResourceType: "build",
 				Message:      "no build attached to app store version",
-				Remediation:  "Select a build for this version in App Store Connect",
+				Remediation:  "Attach a build to this version",
 			},
 		}
 	}
@@ -28,7 +28,7 @@ func buildChecks(build *Build) []CheckResult {
 			ResourceType: "build",
 			ResourceID:   buildID,
 			Message:      "build is expired",
-			Remediation:  "Select a non-expired build for this version in App Store Connect",
+			Remediation:  "Attach a non-expired build to this version",
 		})
 	}
 

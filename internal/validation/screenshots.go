@@ -115,8 +115,9 @@ func screenshotPresenceChecks(primaryLocale string, versionLocs []VersionLocaliz
 			{
 				ID:          "screenshots.required.any",
 				Severity:    SeverityError,
+				Locale:      strings.TrimSpace(primaryLocale),
 				Message:     "no screenshot sets found",
-				Remediation: "Upload screenshots for at least one required device size in App Store Connect",
+				Remediation: "Upload screenshots for at least one required device size",
 			},
 		}
 	}
