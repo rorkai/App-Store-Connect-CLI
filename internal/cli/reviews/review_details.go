@@ -452,15 +452,6 @@ Examples:
 	}
 }
 
-// reviewDetailsCreateExistsCodes lists the Apple 409 codes accepted as "an
-// appStoreReviewDetail already exists for this appStoreVersion" on
-// POST /v1/appStoreReviewDetails. Live against app 6759231657 on 2026-09-15
-// Apple answers this conflict with STATE_ERROR.ALREADY_EXISTS ("Resource
-// already exists." / "The given app version already has an existing review.");
-// the relationship and duplicate-attribute codes are kept because the version
-// owns at most one detail and Apple has reported the same conflict through
-// them. The read-back of GET /v1/appStoreVersions/{id}/appStoreReviewDetail is
-// what finally proves existence; every other STATE_ERROR.* keeps failing.
 // withReviewDetailExistsHint names the one-flag retry when the version already
 // has review details and the caller left --if-exists at fail: the create flags
 // can be applied to the existing detail instead.
@@ -476,6 +467,15 @@ func withReviewDetailExistsHint(mode shared.IfExistsMode, err error) error {
 	}
 }
 
+// reviewDetailsCreateExistsCodes lists the Apple 409 codes accepted as "an
+// appStoreReviewDetail already exists for this appStoreVersion" on
+// POST /v1/appStoreReviewDetails. Live against app 6759231657 on 2026-09-15
+// Apple answers this conflict with STATE_ERROR.ALREADY_EXISTS ("Resource
+// already exists." / "The given app version already has an existing review.");
+// the relationship and duplicate-attribute codes are kept because the version
+// owns at most one detail and Apple has reported the same conflict through
+// them. The read-back of GET /v1/appStoreVersions/{id}/appStoreReviewDetail is
+// what finally proves existence; every other STATE_ERROR.* keeps failing.
 var reviewDetailsCreateExistsCodes = []string{
 	"STATE_ERROR.ALREADY_EXISTS",
 	"ENTITY_ERROR.RELATIONSHIP.INVALID",
