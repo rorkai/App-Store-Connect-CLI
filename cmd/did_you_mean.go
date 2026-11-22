@@ -149,9 +149,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"check":             {"asc review status --app APP_ID", "asc review doctor --app APP_ID"},
 		"list":              {"asc review history --app APP_ID", "asc review submissions list --app APP_ID"},
 	},
-	"asc review submissions": {
-		"create": {"asc review submissions-create --app APP_ID --platform IOS"},
-	},
 	"asc screenshots": {
 		"add":  {"asc screenshots upload --app APP_ID --version VERSION --path DIR --device-type IPHONE_65", "asc screenshots plan --app APP_ID --version VERSION"},
 		"push": {"asc screenshots upload --app APP_ID --version VERSION --path DIR --device-type IPHONE_65", "asc screenshots plan --app APP_ID --version VERSION"},

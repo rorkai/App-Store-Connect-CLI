@@ -78,6 +78,8 @@ func resolveCommandAliases(root *ffcli.Command, args []string) []string {
 		}
 	}
 	current := root
+	var parent *ffcli.Command
+	lastCommandIndex := -1
 	path := []string{root.Name}
 	pathStart := -1
 	contiguous := true
@@ -97,7 +99,7 @@ walk:
 			if pathStart < 0 {
 				pathStart = index
 			}
-			current = sub
+			parent, current, lastCommandIndex = current, sub, index
 			path = append(path, sub.Name)
 			index++
 			continue
@@ -126,10 +128,32 @@ walk:
 		if target := readVerbTarget(current, token); target != nil {
 			edit()
 			resolved[index] = target.Name
-			current = target
+			parent, current, lastCommandIndex = current, target, index
 			path = append(path, target.Name)
 			index++
 			continue
+		}
+		// asc spells some verbs as one hyphenated child (`review
+		// details-create`, `review submissions-get`); callers split them.
+		if index+1 < len(resolved) {
+			if target := compoundChild(current, token, resolved[index+1]); target != nil {
+				edit()
+				resolved = slices.Concat(resolved[:index], []string{target.Name}, resolved[index+2:])
+				parent, current, lastCommandIndex = current, target, index
+				path = append(path, target.Name)
+				index++
+				continue
+			}
+		}
+		if parent != nil && lastCommandIndex == index-1 {
+			if target := compoundChild(parent, current.Name, token); target != nil {
+				edit()
+				resolved = slices.Concat(resolved[:index-1], []string{target.Name}, resolved[index+1:])
+				current = target
+				path = append(path[:len(path)-1], target.Name)
+				lastCommandIndex = index - 1
+				continue
+			}
 		}
 		if target, ok := commandPathAliases[strings.Join(path, " ")][strings.ToLower(token)]; ok && contiguous {
 			start := index
@@ -202,4 +226,25 @@ func topLevelCommand(root *ffcli.Command, args []string) string {
 		return ""
 	}
 	return parts[1]
+}
+
+// compoundChild returns the leaf of group named first-second, the hyphenated
+// verb a caller split into two words, or first-get for a guessed read verb
+// (`review details view` runs `review details-get`). It returns nil when the
+// group has no such leaf, or when first is a real child of the group.
+func compoundChild(group *ffcli.Command, first, second string) *ffcli.Command {
+	if group == nil || strings.HasPrefix(first, "-") || strings.HasPrefix(second, "-") {
+		return nil
+	}
+	first, second = strings.ToLower(first), strings.ToLower(second)
+	candidates := []string{first + "-" + second}
+	if _, ok := readVerbAliases[second]; ok || second == "view" {
+		candidates = append(candidates, first+"-get", first+"-view")
+	}
+	for _, name := range candidates {
+		if target := findDirectSubcommand(group, name); target != nil && len(target.Subcommands) == 0 {
+			return target
+		}
+	}
+	return nil
 }
