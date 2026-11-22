@@ -590,16 +590,16 @@ Examples:
 				return fmt.Errorf("analytics download: %w", err)
 			}
 
-			_, instances, _, err := findAnalyticsReportInstance(ctx, d, client, strings.TrimSpace(*requestID), strings.TrimSpace(*instanceID), 0, "", true)
-			if err != nil {
-				return fmt.Errorf("analytics download: %w", err)
-			}
-			if len(instances) == 0 {
-				return analyticsNotFoundError(fmt.Errorf("analytics download: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID)), "--instance-id")
-			}
-
+			// Read the instance's segments directly. Apple's instance resource has
+			// no link back to its report or request, so confirming that the
+			// instance belongs to --request-id meant listing the instances of
+			// every report before it: about 40 requests per download against an
+			// hourly limit of 3,600.
 			segments, err := fetchAnalyticsReportSegmentsUntilMatch(ctx, d, client, strings.TrimSpace(*instanceID), strings.TrimSpace(*segmentID))
 			if err != nil {
+				if asc.IsNotFound(err) {
+					return analyticsNotFoundError(fmt.Errorf("analytics download: instance %q not found", strings.TrimSpace(*instanceID)), "--instance-id")
+				}
 				return fmt.Errorf("analytics download: failed to fetch segments: %w", err)
 			}
 			if len(segments) == 0 {

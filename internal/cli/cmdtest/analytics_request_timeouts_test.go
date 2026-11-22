@@ -176,21 +176,13 @@ func TestAnalyticsDownloadRefreshesTimeoutThroughBodyTransfer(t *testing.T) {
 
 		switch requestCount {
 		case 1:
-			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "limit=200")
-			requireAnalyticsRequestAuth(t, req, true)
-			return analyticsViewJSONResponse(`{"data":[{"type":"analyticsReports","id":"report-1"}],"links":{}}`), nil
-		case 2:
-			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReports/report-1/instances", "limit=200")
-			requireAnalyticsRequestAuth(t, req, true)
-			return analyticsViewJSONResponse(`{"data":[{"type":"analyticsReportInstances","id":"instance-1"}],"links":{}}`), nil
-		case 3:
 			assertAnalyticsTimeoutRequest(t, req, "/v1/analyticsReportInstances/instance-1/segments", "limit=200")
 			requireAnalyticsRequestAuth(t, req, true)
 			return analyticsViewJSONResponse(`{
 				"data":[{"type":"analyticsReportSegments","id":"segment-1","attributes":{"url":"https://mzstatic.com/report.csv.gz"}}],
 				"links":{}
 			}`), nil
-		case 4:
+		case 2:
 			assertAnalyticsTimeoutRequest(t, req, "/report.csv.gz", "")
 			requireAnalyticsRequestAuth(t, req, false)
 			reportBody = &analyticsDeadlineBody{
@@ -241,8 +233,8 @@ func TestAnalyticsDownloadRefreshesTimeoutThroughBodyTransfer(t *testing.T) {
 	if reportBody.contextErr != nil {
 		t.Fatalf("report body context ended before transfer completed: %v", reportBody.contextErr)
 	}
-	if requestCount != 4 {
-		t.Fatalf("request count = %d, want 4", requestCount)
+	if requestCount != 2 {
+		t.Fatalf("request count = %d, want 2", requestCount)
 	}
 	assertAnalyticsDeadlinesRefresh(t, deadlines)
 }
@@ -251,17 +243,9 @@ func TestAnalyticsDownloadStopsSegmentPagingAfterExactMatch(t *testing.T) {
 	setupAnalyticsTimeoutTest(t)
 	const reportData = "selected analytics segment"
 	const targetURL = "https://mzstatic.com/selected.csv.gz"
-	reportPages, segmentPages, downloads := 0, 0, 0
+	segmentPages, downloads := 0, 0
 	client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
-		case "/v1/analyticsReportRequests/" + analyticsViewRequestID + "/reports":
-			reportPages++
-			if req.URL.Query().Get("cursor") != "" {
-				return nil, io.ErrUnexpectedEOF
-			}
-			return analyticsViewJSONResponse(`{"data":[{"type":"analyticsReports","id":"report-1"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/` + analyticsViewRequestID + `/reports?cursor=next"}}`), nil
-		case "/v1/analyticsReports/report-1/instances":
-			return analyticsViewJSONResponse(`{"data":[{"type":"analyticsReportInstances","id":"instance-1"}],"links":{}}`), nil
 		case "/v1/analyticsReportInstances/instance-1/segments":
 			segmentPages++
 			if req.URL.Query().Get("cursor") != "" {
@@ -295,10 +279,10 @@ func TestAnalyticsDownloadStopsSegmentPagingAfterExactMatch(t *testing.T) {
 		"--output", outputPath, "--output-format", "json",
 	)
 	if runErr != nil {
-		t.Fatalf("download failed after %d report pages and %d segment pages: %v", reportPages, segmentPages, runErr)
+		t.Fatalf("download failed after %d segment pages: %v", segmentPages, runErr)
 	}
-	if reportPages != 1 || segmentPages != 1 || downloads != 1 || !strings.Contains(stdout, `"segmentId":"segment-1"`) {
-		t.Fatalf("report pages=%d segment pages=%d downloads=%d stdout=%s, want one page of each and one download of segment-1", reportPages, segmentPages, downloads, stdout)
+	if segmentPages != 1 || downloads != 1 || !strings.Contains(stdout, `"segmentId":"segment-1"`) {
+		t.Fatalf("segment pages=%d downloads=%d stdout=%s, want one segment page and one download of segment-1", segmentPages, downloads, stdout)
 	}
 	data, err := os.ReadFile(outputPath)
 	if err != nil || string(data) != reportData {
