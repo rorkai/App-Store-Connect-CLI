@@ -391,3 +391,29 @@ func TestConditionalSynonymTargetsExistSomewhere(t *testing.T) {
 		}
 	}
 }
+
+// TestFormatFlagSuggestionNeedsAFormatSelector keeps `--json` from pointing at
+// an `--output` flag that names a file, where `--output json` would write a
+// file called json.
+func TestFormatFlagSuggestionNeedsAFormatSelector(t *testing.T) {
+	tests := []struct {
+		name    string
+		usage   string
+		unknown string
+		want    string
+	}{
+		{name: "format selector", usage: "Output format: json, table, markdown (default: json)", unknown: "--json", want: "--output json"},
+		{name: "file destination", usage: "Output JSON file path (required)", unknown: "--json", want: ""},
+		{name: "format the selector lacks", usage: "Output format: table, markdown", unknown: "--json", want: ""},
+		{name: "not a format spelling", usage: "Output format: json, table, markdown", unknown: "--jsonl", want: ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			flags := flag.NewFlagSet("asc test", flag.ContinueOnError)
+			flags.String("output", "", test.usage)
+			if got := formatFlagSuggestion(flags, test.unknown); got != test.want {
+				t.Fatalf("formatFlagSuggestion() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}

@@ -200,11 +200,15 @@ func printConciseUnknownFlag(stderr io.Writer, root *ffcli.Command, analysis inv
 		}
 	}
 
-	printFlagSuggestions(stderr, unknownFlagSuggestions(
-		analysis.command.FlagSet,
-		flagName,
-		unknownFlagSuggestionOptions{allowSelectorFallback: true, passed: passedFlagNames(args)},
-	))
+	if suggestion := formatFlagSuggestion(analysis.command.FlagSet, flagName); suggestion != "" {
+		fmt.Fprintf(stderr, "Try:\n  %s\n", suggestion)
+	} else {
+		printFlagSuggestions(stderr, unknownFlagSuggestions(
+			analysis.command.FlagSet,
+			flagName,
+			unknownFlagSuggestionOptions{allowSelectorFallback: true, passed: passedFlagNames(args)},
+		))
+	}
 	fmt.Fprintln(stderr, "For help:")
 	fmt.Fprintf(stderr, "  %s --help\n", commandName)
 }

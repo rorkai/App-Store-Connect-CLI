@@ -275,6 +275,33 @@ func isIdentifierSelectorFlag(name, usage string) bool {
 	return identifierUsagePattern.MatchString(usage)
 }
 
+// formatFlagSpellings lists output formats callers spell as flags of their
+// own, as in `--json`, which other CLIs accept and asc spells `--output json`.
+var formatFlagSpellings = map[string]struct{}{"json": {}}
+
+// formatFlagSuggestion answers a format spelled as its own flag with the
+// `--output <format>` invocation, and only when the command's `--output` is a
+// format selector that offers that format. It returns "" otherwise.
+func formatFlagSuggestion(flags *flag.FlagSet, flagName string) string {
+	format := strings.ToLower(strings.TrimLeft(strings.TrimSpace(flagName), "-"))
+	if _, ok := formatFlagSpellings[format]; !ok || flags == nil {
+		return ""
+	}
+	output := flags.Lookup("output")
+	if output == nil || isPathValuedUsage(output.Usage) || !offersFormat(output.Usage, format) {
+		return ""
+	}
+	return "--output " + format
+}
+
+// offersFormat reports whether a format selector's help text lists format as
+// a word of its own.
+func offersFormat(usage, format string) bool {
+	return slices.Contains(strings.FieldsFunc(strings.ToLower(usage), func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < '0' || r > '9')
+	}), format)
+}
+
 // printFlagSuggestions writes the `Try:` block for the ranked suggestions, and
 // writes nothing when there are none.
 func printFlagSuggestions(w io.Writer, suggestions []string) {

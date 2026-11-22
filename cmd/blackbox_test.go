@@ -60,6 +60,15 @@ func TestUnknownInputRecoveryWithBuiltBinary(t *testing.T) {
 				"For help:\n" +
 				"  asc builds list --help\n",
 		},
+		{
+			name: "format spelled as its own flag",
+			args: []string{"builds", "list", "--app", "PRIVATE_VALUE", "--json"},
+			wantStderr: "Error: unknown flag `--json` for `asc builds list`\n" +
+				"Try:\n" +
+				"  --output json\n" +
+				"For help:\n" +
+				"  asc builds list --help\n",
+		},
 	}
 
 	for _, test := range tests {
