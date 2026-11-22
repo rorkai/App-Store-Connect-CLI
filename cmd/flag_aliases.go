@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -81,16 +82,26 @@ func resolveFlagAliases(root *ffcli.Command, args []string, resolveIndirect func
 
 		canonical := name
 		shape := value
-		if resolveIndirect != nil && shared.FlagAliasDependsOnValue(item) && shared.HasFlagValueIndirection(value) {
-			if resolved, err := resolveIndirect(name, value); err == nil {
-				shape = resolved
+		if target, implied, ok := shared.FlagAliasImpliedValue(item); ok {
+			// A value alias that is not given as true stays as written, so
+			// parsing reports it with the alias's own message.
+			if enabled, err := strconv.ParseBool(value); err == nil && enabled {
+				canonical = target
+				value = implied
+				tokens = []string{dashes + target, implied}
 			}
-		}
-		if target, ok := shared.FlagAliasTarget(item, shape); ok {
-			canonical = target
-			tokens[0] = dashes + canonical
-			if hasInlineValue {
-				tokens[0] += "=" + inlineValue
+		} else {
+			if resolveIndirect != nil && shared.FlagAliasDependsOnValue(item) && shared.HasFlagValueIndirection(value) {
+				if resolved, err := resolveIndirect(name, value); err == nil {
+					shape = resolved
+				}
+			}
+			if target, ok := shared.FlagAliasTarget(item, shape); ok {
+				canonical = target
+				tokens[0] = dashes + canonical
+				if hasInlineValue {
+					tokens[0] += "=" + inlineValue
+				}
 			}
 		}
 

@@ -1656,6 +1656,11 @@ func BindOutputFlagsWithAllowed(fs *flag.FlagSet, flagName, defaultValue, usage 
 		pretty:  &prettyValue,
 		allowed: slices.Clone(allowed),
 	}, name, usage)
+	// Callers carry `--json` over from other CLIs; on a format selector that
+	// offers json it is a hidden second spelling of `--output json`.
+	if name == "output" && slices.Contains(allowed, "json") && fs.Lookup("json") == nil {
+		BindFlagValueAlias(fs, "json", name, "json")
+	}
 
 	return OutputFlags{
 		Output: &outputValue,

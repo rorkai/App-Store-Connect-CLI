@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -12,6 +13,11 @@ import (
 // the flag the alias stands for.
 type flagAlias struct {
 	targets []flagAliasTarget
+	// name and implied are set for a value alias bound with
+	// BindFlagValueAlias: a flag that takes no value and stands for its
+	// target given implied.
+	name    string
+	implied string
 }
 
 type flagAliasTarget struct {
@@ -38,10 +44,19 @@ func (a *flagAlias) String() string {
 }
 
 func (a *flagAlias) Set(value string) error {
+	if a.implied != "" {
+		if enabled, err := strconv.ParseBool(value); err != nil || !enabled {
+			return fmt.Errorf("--%s takes no value; it means --%s %s", a.name, a.targets[0].flag.Name, a.implied)
+		}
+		return a.targets[0].flag.Value.Set(a.implied)
+	}
 	return a.target(value).Value.Set(value)
 }
 
 func (a *flagAlias) IsBoolFlag() bool {
+	if a.implied != "" {
+		return true
+	}
 	boolValue, ok := a.targets[0].flag.Value.(interface{ IsBoolFlag() bool })
 	return ok && boolValue.IsBoolFlag()
 }
@@ -52,6 +67,19 @@ func (a *flagAlias) IsBoolFlag() bool {
 // validated, reported and sent exactly as the canonical flag is.
 func BindFlagAlias(fs *flag.FlagSet, alias, canonical string) {
 	bindFlagAlias(fs, alias, flagAliasTarget{flag: boundFlag(fs, alias, canonical)})
+}
+
+// BindFlagValueAlias accepts --alias, which takes no value, as a second
+// spelling of --canonical given value: `--json` for `--output json`. The
+// canonical flag must already be bound on fs. The alias is hidden from help,
+// and the root rewrites it to `--canonical value` before parsing, so giving
+// it next to the canonical flag with another value is a usage error.
+func BindFlagValueAlias(fs *flag.FlagSet, alias, canonical, value string) {
+	fs.Var(&flagAlias{
+		targets: []flagAliasTarget{{flag: boundFlag(fs, alias, canonical)}},
+		name:    alias,
+		implied: value,
+	}, alias, fmt.Sprintf("Alias of --%s %s", canonical, value))
 }
 
 var buildIDShape = regexp.MustCompile(`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$`)
@@ -114,4 +142,17 @@ func FlagAliasTarget(f *flag.Flag, value string) (string, bool) {
 		return "", false
 	}
 	return f.Value.(*flagAlias).target(value).Name, true
+}
+
+// FlagAliasImpliedValue returns the canonical flag and value that the value
+// alias f, bound with BindFlagValueAlias, stands for.
+func FlagAliasImpliedValue(f *flag.Flag) (canonical, value string, ok bool) {
+	if !IsFlagAlias(f) {
+		return "", "", false
+	}
+	alias := f.Value.(*flagAlias)
+	if alias.implied == "" {
+		return "", "", false
+	}
+	return alias.targets[0].flag.Name, alias.implied, true
 }
