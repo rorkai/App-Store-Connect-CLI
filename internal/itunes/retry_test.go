@@ -530,3 +530,33 @@ func TestPublicRetriesRespectResolveRetryOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRatingsRetriesThrottledHistogram(t *testing.T) {
+	useFastRetries(t, "3")
+
+	var histogramRequests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/lookup" {
+			writeBody(t, w, retryLookupPayload)
+			return
+		}
+		// Apple throttles the customer-reviews page with 403, not 429.
+		if histogramRequests.Add(1) == 1 {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		writeBody(t, w, retryHistogramHTML)
+	}))
+	t.Cleanup(server.Close)
+
+	ratings, err := retryTestClient(server).GetRatings(context.Background(), "123", "us")
+	if err != nil {
+		t.Fatalf("GetRatings() error: %v", err)
+	}
+	if ratings.Histogram[5] != 61 {
+		t.Fatalf("histogram = %v, want 5-star count 61 from the retried request", ratings.Histogram)
+	}
+	if got := histogramRequests.Load(); got != 2 {
+		t.Fatalf("histogram requests = %d, want 2", got)
+	}
+}

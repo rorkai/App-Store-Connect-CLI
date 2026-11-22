@@ -53,7 +53,7 @@ func (c *Client) doOnce(
 
 	if resp.StatusCode != http.StatusOK {
 		statusErr := &httpStatusError{operation: operation, statusCode: resp.StatusCode}
-		if retrySafe && isRetryablePublicStatus(resp.StatusCode) {
+		if retrySafe && (isRetryablePublicStatus(resp.StatusCode) || isThrottledHistogram(operation, resp.StatusCode)) {
 			drainPublicRetryResponse(resp.Body)
 			retryAfter := publicRetryDelay(resp.Header, time.Now(), maxDelay)
 			return &asc.RetryableError{
@@ -127,6 +127,12 @@ func (e *publicRetryDelayExceededError) Unwrap() []error {
 // 429 for storefront rate limiting and any 5xx for storefront-side failures.
 func isRetryablePublicStatus(statusCode int) bool {
 	return statusCode == http.StatusTooManyRequests || (statusCode >= 500 && statusCode <= 599)
+}
+
+// isThrottledHistogram reports whether a histogram request was throttled. The
+// customer-reviews page answers throttling with 403 rather than 429.
+func isThrottledHistogram(operation string, statusCode int) bool {
+	return operation == histogramOperation && statusCode == http.StatusForbidden
 }
 
 // publicRetryDelay reads the Retry-After hint, which Apple sends either as a
