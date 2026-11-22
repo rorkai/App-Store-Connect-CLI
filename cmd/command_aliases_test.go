@@ -26,6 +26,15 @@ func TestResolveCommandAliasesRewritesOnlyUnknownReadVerbs(t *testing.T) {
 		{name: "a leaf's positional is not a command", args: "api GET /v1/apps/get", want: "api GET /v1/apps/get"},
 		{name: "after an unknown flag", args: "versions --bogus get", want: "versions --bogus get"},
 		{name: "after the terminator", args: "versions -- get", want: "versions -- get"},
+		{name: "API resource name at the root", args: "app-infos list --app 1", want: "apps info list --app 1"},
+		{name: "path alias then read verb", args: "app-info get --app 1", want: "apps info view --app 1"},
+		{name: "nested path alias moves across groups", args: "apps versions list --app 1", want: "versions list --app 1"},
+		{name: "path alias after a root flag", args: "--profile p testflight builds list --app 1", want: "--profile p builds list --app 1"},
+		{name: "path alias within its group", args: "testflight beta-groups list --app 1", want: "testflight groups list --app 1"},
+		{name: "path alias to a group's own child", args: "versions localizations list --version-id V", want: "localizations list --version-id V"},
+		{name: "help names the command", args: "help builds list", want: "builds list --help"},
+		{name: "bare help", args: "help", want: "--help"},
+		{name: "help after a terminator stays a positional", args: "help builds -- x", want: "builds --help -- x"},
 	}
 	root := RootCommand("1.0.0")
 	for _, test := range tests {
@@ -38,19 +47,63 @@ func TestResolveCommandAliasesRewritesOnlyUnknownReadVerbs(t *testing.T) {
 	}
 }
 
-// TestRunResolvesGetToTheViewCommand runs a guessed `get` end to end: it must
-// reach the `view` command's own validation, not the unknown-command error.
-func TestRunResolvesGetToTheViewCommand(t *testing.T) {
-	resetReportFlags(t)
-	t.Setenv("ASC_APP_ID", "")
-	var code int
-	_, stderr := captureCommandOutput(t, func() {
-		code = Run([]string{"builds", "build-beta-detail", "get"}, "1.0.0")
-	})
-	if code != ExitUsage {
-		t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+// TestRunResolvesGuessedCommands runs guessed commands end to end: each must
+// reach the canonical command, including one in another top-level command,
+// which the lazily built root has to materialize after the rewrite.
+func TestRunResolvesGuessedCommands(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantCode  int
+		wantFirst string
+	}{
+		{name: "get runs view", args: []string{"builds", "build-beta-detail", "get"}, wantCode: ExitUsage, wantFirst: "Error: --build-id or --app is required (or set ASC_APP_ID)"},
+		{name: "path alias into another top-level command", args: []string{"testflight", "builds", "list"}, wantCode: ExitUsage, wantFirst: "Error: --app is required (or set ASC_APP_ID)"},
+		{name: "path alias then get", args: []string{"app-info", "get"}, wantCode: ExitUsage, wantFirst: "Error: --app or --info-id is required (or set ASC_APP_ID)"},
+		{name: "help names a leaf", args: []string{"help", "builds", "list"}, wantCode: ExitSuccess, wantFirst: "DESCRIPTION"},
 	}
-	if first, _, _ := strings.Cut(stderr, "\n"); first != "Error: --build-id or --app is required (or set ASC_APP_ID)" {
-		t.Fatalf("stderr first line = %q, want the view command's validation error", first)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resetReportFlags(t)
+			t.Setenv("ASC_APP_ID", "")
+			var code int
+			stdout, stderr := captureCommandOutput(t, func() {
+				code = Run(test.args, "1.0.0")
+			})
+			if code != test.wantCode {
+				t.Fatalf("Run() exit code = %d, want %d; stderr %q", code, test.wantCode, stderr)
+			}
+			output := stderr
+			if test.wantCode == ExitSuccess {
+				output = stdout
+				if !strings.Contains(stdout, "asc builds list [flags]") {
+					t.Fatalf("stdout = %q, want builds list help", stdout)
+				}
+			}
+			if first, _, _ := strings.Cut(output, "\n"); first != test.wantFirst {
+				t.Fatalf("first line = %q, want %q", first, test.wantFirst)
+			}
+		})
+	}
+}
+
+// TestCommandPathAliasesResolveToRealCommands guards the path-alias table: each
+// key sits on a real group without shadowing one of its subcommands, and each
+// target is a real command.
+func TestCommandPathAliasesResolveToRealCommands(t *testing.T) {
+	root := RootCommand("1.0.0")
+	for group, aliases := range commandPathAliases {
+		groupCommand := resolveCommandPath(root, strings.Fields(strings.TrimPrefix(group, "asc")))
+		if groupCommand == nil {
+			t.Fatalf("path alias group %q does not resolve", group)
+		}
+		for token, target := range aliases {
+			if findDirectSubcommand(groupCommand, token) != nil {
+				t.Fatalf("%s %s shadows a real subcommand", group, token)
+			}
+			if resolveCommandPath(root, target) == nil {
+				t.Fatalf("%s %s targets %q, which does not resolve", group, token, target)
+			}
+		}
 	}
 }
