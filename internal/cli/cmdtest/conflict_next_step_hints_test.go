@@ -18,8 +18,11 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 	tests := []struct {
 		args         []string
 		lookupTester bool
-		request      asctest.Matcher
-		wantHint     string
+		// readsBack registers the read-back the command makes after the 409;
+		// it answers 404 so only the generic hint is under test.
+		readsBack asctest.Matcher
+		request   asctest.Matcher
+		wantHint  string
 	}{
 		{
 			args:     []string{"review", "items", "add", "--submission", "sub-1", "--item-type", "appStoreVersions", "--item-id", "version-1"},
@@ -37,9 +40,10 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 			wantHint: "Hint: Check the submission's state and items with `asc review submissions-get --id SUBMISSION_ID --include items`, and what blocks review with `asc review doctor --app APP_ID`.",
 		},
 		{
-			args:     []string{"localizations", "update", "--id", "loc-1", "--description", "Description"},
-			request:  asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Description"}}}`),
-			wantHint: "Hint: Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
+			args:      []string{"localizations", "update", "--id", "loc-1", "--description", "Description"},
+			readsBack: asctest.GET("/v1/appStoreVersionLocalizations/loc-1", "include=appStoreVersion", "fields[appStoreVersionLocalizations]=appStoreVersion"),
+			request:   asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Description"}}}`),
+			wantHint:  "Hint: Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
 		},
 		{
 			args:     []string{"testflight", "testers", "add", "--email", "tester@example.com", "--build-id", "build-1"},
@@ -69,6 +73,9 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}],"links":{"self":"/v1/betaTesters"}}`))
 			}
 			reg.Register(test.request, asctest.JSON(http.StatusConflict, conflictBody))
+			if test.readsBack.String() != "" {
+				reg.Register(test.readsBack, asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found","detail":"No such localization."}]}`))
+			}
 
 			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
 

@@ -421,13 +421,14 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 		if selector == "" {
 			selector = localizationID
 		}
-		return fmt.Errorf(
+		fields := versionAttemptedFields(p)
+		return withVersionLocalizationConflictFacts(ctx, d, client, localizationID, vid, p.locale, fields, fmt.Errorf(
 			"localizations update: update version localization %q via PATCH /v1/appStoreVersionLocalizations/%s (fields: %s): %w",
 			selector,
 			localizationID,
-			formatAttemptedFields(versionAttemptedFields(p)),
+			formatAttemptedFields(fields),
 			err,
-		)
+		))
 	}
 
 	return d.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
