@@ -130,3 +130,29 @@ func TestSummarizeDeepChecksCountsEveryTerminalStatus(t *testing.T) {
 		t.Fatalf("SummarizeDeepChecks() = %#v", got)
 	}
 }
+
+// TestUserFixCommandsUsePlaceholdersOnly fails if a command that needs the
+// developer's answer prints a runnable example value (such as an example.com
+// URL) instead of an UPPERCASE placeholder.
+func TestUserFixCommandsUsePlaceholdersOnly(t *testing.T) {
+	report := Report{AppID: "app-1", VersionID: "ver-1"}
+	tests := []struct {
+		resourceType string
+		field        string
+		want         string
+	}{
+		{"appStoreVersionLocalization", "whatsNew", `asc localizations update --id "loc-1" --whats-new "WHATS_NEW"`},
+		{"appStoreVersionLocalization", "marketingUrl", `asc localizations update --id "loc-1" --marketing-url "MARKETING_URL"`},
+		{"appInfoLocalization", "name", `asc localizations update --type app-info --id "loc-1" --name "APP_NAME"`},
+		{"appInfoLocalization", "privacyPolicyUrl", `asc localizations update --type app-info --id "loc-1" --privacy-policy-url "PRIVACY_POLICY_URL"`},
+		{"appInfoLocalization", "privacyChoicesUrl", `asc localizations update --type app-info --id "loc-1" --privacy-choices-url "PRIVACY_CHOICES_URL"`},
+	}
+	for _, test := range tests {
+		t.Run(test.resourceType+"/"+test.field, func(t *testing.T) {
+			fix := publicAPIResolutionCommand(report, CheckResult{ID: "metadata.check", Field: test.field, ResourceType: test.resourceType, ResourceID: "loc-1"})
+			if !fix.needsUserInput || len(fix.commands) != 1 || fix.commands[0] != test.want {
+				t.Fatalf("fix = %+v, want %s with needsUserInput", fix, test.want)
+			}
+		})
+	}
+}

@@ -223,19 +223,19 @@ func localizationResolutionField(field string) (string, string) {
 	case "keywords":
 		return "keywords", "KEYWORDS"
 	case "supportUrl":
-		return "support-url", "https://example.com/support"
+		return "support-url", "SUPPORT_URL"
 	case "whatsNew":
-		return "whats-new", "WHAT'S NEW"
+		return "whats-new", "WHATS_NEW"
 	case "marketingUrl":
-		return "marketing-url", "https://example.com"
+		return "marketing-url", "MARKETING_URL"
 	case "name":
-		return "name", "APP NAME"
+		return "name", "APP_NAME"
 	case "subtitle":
 		return "subtitle", "SUBTITLE"
 	case "privacyPolicyUrl":
-		return "privacy-policy-url", "https://example.com/privacy"
+		return "privacy-policy-url", "PRIVACY_POLICY_URL"
 	case "privacyChoicesUrl":
-		return "privacy-choices-url", "https://example.com/privacy-choices"
+		return "privacy-choices-url", "PRIVACY_CHOICES_URL"
 	default:
 		return "", ""
 	}
