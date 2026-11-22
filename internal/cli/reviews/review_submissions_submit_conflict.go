@@ -52,15 +52,24 @@ func withSubmissionNeedsVersionHint(ctx context.Context, client *asc.Client, sub
 
 	hint := fmt.Sprintf("App %s has no approved %s version yet, so App Store Connect reviews this submission only together with an App Store version.", appID, platform)
 	editable := slices.IndexFunc(versions.Data, func(version asc.Resource[asc.AppStoreVersionAttributes]) bool {
-		return slices.Contains(reviewSubmissionEditableVersionStates, strings.TrimSpace(version.Attributes.AppVersionState))
+		return slices.Contains(reviewSubmissionEditableVersionStates, submissionVersionState(version.Attributes))
 	})
 	if editable >= 0 {
 		version := versions.Data[editable]
 		hint += fmt.Sprintf(" Add version %s (%s) with `asc review items add --submission %s --item-type appStoreVersions --item-id %s`, then submit again.",
-			version.Attributes.VersionString, version.Attributes.AppVersionState, submissionID, version.ID)
+			version.Attributes.VersionString, submissionVersionState(version.Attributes), submissionID, version.ID)
 	} else {
 		hint += fmt.Sprintf(" Create one with `asc versions create --app %s --version VERSION --platform %s`, add it with `asc review items add --submission %s --item-type appStoreVersions --item-id VERSION_ID`, then submit again.",
 			appID, platform, submissionID)
 	}
 	return &shared.HintedError{Err: submitErr, Hint: hint}
+}
+
+// submissionVersionState prefers appVersionState, which replaces the
+// deprecated appStoreState that some versions still report alone.
+func submissionVersionState(attrs asc.AppStoreVersionAttributes) string {
+	if state := strings.TrimSpace(attrs.AppVersionState); state != "" {
+		return state
+	}
+	return strings.TrimSpace(attrs.AppStoreState)
 }
