@@ -294,6 +294,8 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 		memberOf   string
 		addGroups  string
 		groupRead  string
+		buildID    string
+		buildsOf   string
 		wantCode   int
 		wantStdout string
 		wantStderr string
@@ -316,6 +318,19 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 			wantCode:   0,
 			wantStdout: `"id":"tester-1"`,
 			wantStderr: "testers add: tester@example.com is already tester tester-1; added it to group(s) group-1\n",
+		},
+		{
+			// A rerun adds only what is still missing, but the caller must
+			// learn that the group add went through.
+			name:       "group added, build add fails",
+			group:      "Internal Testing,Beta",
+			testers:    testerList,
+			memberOf:   `{"data":[{"type":"betaGroups","id":"group-2"}],"links":{}}`,
+			addGroups:  `{"data":[{"type":"betaGroups","id":"group-1"}]}`,
+			buildID:    "build-1",
+			buildsOf:   `{"data":[],"links":{}}`,
+			wantCode:   cmd.ExitConflict,
+			wantStderr: "tester tester-1 exists; added it to group(s) group-1, but adding build(s) build-1 failed: ",
 		},
 		{
 			name:       "not a tester, internal group",
@@ -349,6 +364,10 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 			if test.addGroups != "" {
 				reg.Register(asctest.POST("/v1/betaTesters/tester-1/relationships/betaGroups").JSONBody(test.addGroups), asctest.JSON(http.StatusNoContent, ""))
 			}
+			if test.buildsOf != "" {
+				reg.Register(asctest.GET("/v1/betaTesters/tester-1/relationships/builds", "limit=200"), asctest.JSON(http.StatusOK, test.buildsOf))
+				reg.Register(asctest.POST("/v1/betaTesters/tester-1/relationships/builds"), asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","title":"Build cannot be assigned","detail":"Build cannot be assigned"}]}`))
+			}
 			if test.groupRead != "" {
 				var group struct {
 					Data struct {
@@ -361,7 +380,11 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 				reg.Register(asctest.GET("/v1/betaGroups/"+group.Data.ID), asctest.JSON(http.StatusOK, test.groupRead))
 			}
 
-			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", test.group, "--output", "json")
+			args := []string{"testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", test.group, "--output", "json"}
+			if test.buildID != "" {
+				args = append(args, "--build-id", test.buildID)
+			}
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
 
 			if code != test.wantCode {
 				t.Fatalf("exit code = %d, want %d (stderr %q)", code, test.wantCode, stderr)
