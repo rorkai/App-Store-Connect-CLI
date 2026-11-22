@@ -185,10 +185,9 @@ func runSubmissionSubscriptionPreflight(ctx context.Context, d *shared.Deps, cli
 		}
 		fmt.Fprintf(
 			d.IO.ErrOut,
-			"If this is their first review, run `asc web review subscriptions list --app \"APP_ID\"` to find the relevant IDs, then attach the group with `asc web review subscriptions attach-group --app \"APP_ID\" --group-id \"GROUP_ID\" --confirm` (or use `attach --subscription-id \"SUB_ID\"` for one subscription) before retrying `%s`.\n",
+			"To include them, find each version with `asc subscriptions versions list --subscription-id \"SUB_ID\"` (or `asc subscriptions versions create --subscription-id \"SUB_ID\"` when a new version is needed), then add it to the app's review submission with `asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"` before retrying `%s`; a first subscription goes in the same submission as the app version.\n",
 			normalizeSubmissionRetryCommand(retryCommand),
 		)
-		fmt.Fprintln(d.IO.ErrOut, "For subsequent reviews, use `asc subscriptions versions list --subscription-id \"SUB_ID\"` (or `asc subscriptions versions create --subscription-id \"SUB_ID\"` when a new version is needed), then add that version with `asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`.")
 	}
 
 	if len(skippedGroups) > 0 {

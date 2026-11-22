@@ -226,6 +226,11 @@ func TestReviewSubmitSubscriptionPreflightUsesReviewSubmitGuidance(t *testing.T)
 	if strings.Contains(stderr, "asc subscriptions review submit") {
 		t.Fatalf("did not expect deprecated subscription submission guidance, got %q", stderr)
 	}
+	// The web attach flow refuses subscriptions its listing still reports as
+	// MISSING_METADATA, even when the API reports READY_TO_SUBMIT.
+	if strings.Contains(stderr, "asc web review subscriptions attach") {
+		t.Fatalf("did not expect web attach guidance for READY_TO_SUBMIT subscriptions, got %q", stderr)
+	}
 	if strings.Contains(stderr, "submit create") {
 		t.Fatalf("did not expect removed submit create guidance, got %q", stderr)
 	}
