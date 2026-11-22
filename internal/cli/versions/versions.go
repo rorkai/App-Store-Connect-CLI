@@ -1061,7 +1061,7 @@ Examples:
 			defer cancel()
 
 			if err := client.AttachBuildToVersion(requestCtx, resolvedVersionID, buildID); err != nil {
-				return fmt.Errorf("versions attach-build: %w", err)
+				return withAttachBuildConflictHint(requestCtx, client, resolvedVersionID, buildID, fmt.Errorf("versions attach-build: %w", err))
 			}
 
 			result := &asc.AppStoreVersionAttachBuildResult{
