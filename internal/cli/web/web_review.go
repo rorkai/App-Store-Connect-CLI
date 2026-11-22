@@ -984,6 +984,10 @@ Apple web-session API. The command creates one draft, sends it,
 and re-reads the thread to verify the created message. It never retries a send
 automatically because a failed response can follow a successful Apple write.
 
+A thread holds one unsent draft, so the reply fails while the thread already
+has one; "asc web review threads --app APP_ID --drafts" shows it. When Apple
+refuses the send, nothing is posted and the created draft stays on the thread.
+
 Attachments are not supported by this command until Apple's attachment write
 contract is captured. The message body is never printed in the receipt or
 errors.
@@ -1023,7 +1027,7 @@ Examples:
 				return err
 			})
 			if err != nil {
-				return webReviewMutationError(err, "web review reply")
+				return webReviewReplyDraftCreateError(requestCtx, client, trimmedThreadID, err)
 			}
 			if draft == nil || strings.TrimSpace(draft.ID) == "" {
 				return fmt.Errorf("web review reply failed: draft create returned no draft id; send was not attempted")
@@ -1036,7 +1040,7 @@ Examples:
 				return err
 			})
 			if err != nil {
-				return fmt.Errorf("web review reply failed: draft %s was created but send outcome is unknown; do not retry automatically: %w", draft.ID, err)
+				return webReviewReplySendError(trimmedThreadID, strings.TrimSpace(draft.ID), err)
 			}
 			if sent == nil || strings.TrimSpace(sent.ID) == "" {
 				return fmt.Errorf("web review reply failed: send response returned no message id; send outcome may be ambiguous and must not be retried")
