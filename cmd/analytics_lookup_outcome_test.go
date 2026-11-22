@@ -22,6 +22,7 @@ func TestRunAnalyticsLookupFailureOutcome(t *testing.T) {
 		args          []string
 		instances     string
 		segments      string
+		noInstance    bool
 		wantExit      int
 		wantStderr    string
 		wantOutcome   telemetry.OutcomeKind
@@ -31,9 +32,9 @@ func TestRunAnalyticsLookupFailureOutcome(t *testing.T) {
 		{
 			name:          "download instance not found",
 			args:          []string{"analytics", "download", "--request-id", requestID, "--instance-id", "inst-1"},
-			instances:     `[{"type":"analyticsReportInstances","id":"inst-other"}]`,
+			noInstance:    true,
 			wantExit:      ExitNotFound,
-			wantStderr:    fmt.Sprintf("Error: analytics download: instance %q not found for request %q", "inst-1", requestID),
+			wantStderr:    fmt.Sprintf("Error: analytics download: instance %q not found", "inst-1"),
 			wantOutcome:   telemetry.OutcomeNotFound,
 			wantDiagnosis: shared.DiagnosticResourceNotFound,
 			wantParameter: "--instance-id",
@@ -41,7 +42,6 @@ func TestRunAnalyticsLookupFailureOutcome(t *testing.T) {
 		{
 			name:          "download no segments yet",
 			args:          []string{"analytics", "download", "--request-id", requestID, "--instance-id", "inst-1"},
-			instances:     `[{"type":"analyticsReportInstances","id":"inst-1"}]`,
 			segments:      `[]`,
 			wantExit:      ExitError,
 			wantStderr:    fmt.Sprintf("Error: analytics download: no segments available for instance %q", "inst-1"),
@@ -51,7 +51,6 @@ func TestRunAnalyticsLookupFailureOutcome(t *testing.T) {
 		{
 			name:          "download segment not found",
 			args:          []string{"analytics", "download", "--request-id", requestID, "--instance-id", "inst-1", "--segment-id", "seg-missing"},
-			instances:     `[{"type":"analyticsReportInstances","id":"inst-1"}]`,
 			segments:      fmt.Sprintf(`[{"type":"analyticsReportSegments","id":"seg-1","attributes":{"url":%q}}]`, segmentURL),
 			wantExit:      ExitNotFound,
 			wantStderr:    fmt.Sprintf("Error: analytics download: segment %q not found for instance %q", "seg-missing", "inst-1"),
@@ -62,7 +61,6 @@ func TestRunAnalyticsLookupFailureOutcome(t *testing.T) {
 		{
 			name:          "download segment URL not ready",
 			args:          []string{"analytics", "download", "--request-id", requestID, "--instance-id", "inst-1"},
-			instances:     `[{"type":"analyticsReportInstances","id":"inst-1"}]`,
 			segments:      `[{"type":"analyticsReportSegments","id":"seg-1","attributes":{"url":""}}]`,
 			wantExit:      ExitError,
 			wantStderr:    "Error: analytics download: segment download URL is empty",
@@ -102,6 +100,11 @@ func TestRunAnalyticsLookupFailureOutcome(t *testing.T) {
 					fmt.Fprint(w, `{"data":[{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Downloads"}}],"links":{}}`)
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/analyticsReports/report-1/instances":
 					fmt.Fprintf(w, `{"data":%s,"links":{}}`, test.instances)
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/analyticsReportInstances/inst-1/segments" && test.noInstance:
+					w.WriteHeader(http.StatusNotFound)
+					// Apple's live response for an unknown instance (GET
+					// /v1/analyticsReportInstances/{id}/segments, 2026-11-22).
+					fmt.Fprint(w, `{"errors":[{"id":"c9f59569-a500-44b6-beeb-89596c027400","status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'analyticsReportInstances' with id 'inst-1'"}]}`)
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/analyticsReportInstances/inst-1/segments" && test.segments != "":
 					fmt.Fprintf(w, `{"data":%s,"links":{}}`, test.segments)
 				default:

@@ -63,14 +63,14 @@ func TestAnalyticsInstancesLinksAcceptsPrefixedInstanceID(t *testing.T) {
 }
 
 func TestAnalyticsDownloadAcceptsPrefixedInstanceID(t *testing.T) {
-	runAnalyticsDownloadIDCase(t, "r39-example-instance", "33333333-3333-3333-3333-333333333333", false)
+	runAnalyticsDownloadIDCase(t, "r39-example-instance", "33333333-3333-3333-3333-333333333333")
 }
 
 func TestAnalyticsDownloadAcceptsPrefixedSegmentID(t *testing.T) {
-	runAnalyticsDownloadIDCase(t, "22222222-2222-2222-2222-222222222222", "s39-example-segment", true)
+	runAnalyticsDownloadIDCase(t, "22222222-2222-2222-2222-222222222222", "s39-example-segment")
 }
 
-func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string, matchOnSecondPage bool) {
+func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string) {
 	t.Helper()
 	setupAnalyticsResourceIDAuth(t)
 
@@ -79,27 +79,6 @@ func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string, matc
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		switch req.URL.Path {
-		case "/v1/analyticsReportRequests/" + analyticsViewRequestID + "/reports":
-			assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "limit=200", true)
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReports","id":"r39-example-report"}],"links":{}}`)
-		case "/v1/analyticsReports/r39-example-report/instances":
-			w.Header().Set("Content-Type", "application/json")
-			const nextPage = "https://api.appstoreconnect.apple.com/v1/analyticsReports/r39-example-report/instances?cursor="
-			switch req.URL.Query().Get("cursor") {
-			case "unused":
-				http.NotFound(w, req)
-			case "match":
-				assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReports/r39-example-report/instances", "cursor=match", true)
-				_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReportInstances","id":"`+instanceID+`"}],"links":{"next":"`+nextPage+`unused"}}`)
-			default:
-				assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReports/r39-example-report/instances", "limit=200", true)
-				if matchOnSecondPage {
-					_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReportInstances","id":"another-instance"}],"links":{"next":"`+nextPage+`match"}}`)
-				} else {
-					_, _ = io.WriteString(w, `{"data":[{"type":"analyticsReportInstances","id":"`+instanceID+`"}],"links":{"next":"`+nextPage+`unused"}}`)
-				}
-			}
 		case "/v1/analyticsReportInstances/" + instanceID + "/segments":
 			assertAnalyticsResourceIDRequest(t, req, "/v1/analyticsReportInstances/"+instanceID+"/segments", "limit=200", true)
 			w.Header().Set("Content-Type", "application/json")
@@ -130,12 +109,8 @@ func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string, matc
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	wantRequests := 4
-	if matchOnSecondPage {
-		wantRequests++
-	}
-	if requestCount != wantRequests {
-		t.Fatalf("request count = %d, want %d", requestCount, wantRequests)
+	if requestCount != 2 {
+		t.Fatalf("request count = %d, want 2 (segments, then the report file)", requestCount)
 	}
 	data, err := os.ReadFile(outputPath)
 	if err != nil {
