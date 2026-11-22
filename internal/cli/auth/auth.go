@@ -1178,7 +1178,8 @@ func newAuthStatusCommand(d *shared.Deps) *ffcli.Command {
 
 Displays information about stored API keys and which one is currently active.
 When ASC_BEARER_TOKEN or ASC_BEARER_TOKEN_COMMAND is set, it also shows the
-key and expiry of the token every command sends instead (never the token).
+key and expiry of the token every command sends instead (never the token);
+ASC_BEARER_TOKEN_COMMAND runs only with --validate.
 Add --validate to perform a network validation for each stored credential
 and for that token.
 
@@ -1549,7 +1550,7 @@ func (s *authStatusBearerTokenOutput) summary() string {
 	case s.ValidationDetail != "":
 		line += ": works (" + s.ValidationDetail + ")"
 	case s.ValidationError != "":
-		line += ": failed (" + s.ValidationError + ")"
+		line += ": failed (" + shared.SanitizeTerminal(s.ValidationError) + ")"
 	case s.Validation != "":
 		line += ": " + s.Validation
 	}

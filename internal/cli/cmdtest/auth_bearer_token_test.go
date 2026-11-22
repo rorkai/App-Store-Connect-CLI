@@ -4,8 +4,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -305,6 +308,7 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 		wantKeyID     string
 		wantExpiresAt time.Time
 		wantExpired   bool
+		wantNoToken   bool
 		wantError     string
 		wantValidity  string
 		wantValErr    string
@@ -313,6 +317,7 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 		{name: "expired token", envExpiresAt: expired, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: expired, wantExpired: true},
 		{name: "profile refuses the token", envExpiresAt: fresh, env: map[string]string{"ASC_PROFILE": "Other"}, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: fresh, wantError: `cannot be combined with profile "Other"`},
 		{name: "enterprise key type refuses the token", envExpiresAt: fresh, env: map[string]string{"ASC_KEY_TYPE": "enterprise"}, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: fresh, wantError: "does not support ASC_KEY_TYPE=enterprise"},
+		{name: "command is not run without validate", command: true, wantCode: cmd.ExitSuccess, wantSource: "ASC_BEARER_TOKEN_COMMAND", wantNoToken: true},
 		{name: "validate works", envExpiresAt: fresh, validate: true, status: http.StatusOK, body: `{"data":[],"links":{}}`, wantCode: cmd.ExitSuccess, wantKeyID: "KEY123", wantExpiresAt: fresh, wantValidity: "works"},
 		{name: "validate reports the token the command renewed", envExpiresAt: expired, command: true, validate: true, status: http.StatusOK, body: `{"data":[],"links":{}}`, wantCode: cmd.ExitSuccess, wantKeyID: "OTHERKEY99", wantExpiresAt: renewed, wantValidity: "works"},
 		{name: "validate reports the command's token", command: true, validate: true, status: http.StatusOK, body: `{"data":[],"links":{}}`, wantCode: cmd.ExitSuccess, wantSource: "ASC_BEARER_TOKEN_COMMAND", wantKeyID: "OTHERKEY99", wantExpiresAt: renewed, wantValidity: "works"},
@@ -325,8 +330,9 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 				token = signedTestToken(t, tc.envExpiresAt)
 			}
 			isolateBearerTokenAuth(t, token)
+			ranMarker := filepath.Join(t.TempDir(), "ran")
 			if tc.command {
-				t.Setenv("ASC_BEARER_TOKEN_COMMAND", "printf '%s' "+renewedToken)
+				t.Setenv("ASC_BEARER_TOKEN_COMMAND", "touch '"+ranMarker+"'; printf '%s' "+renewedToken)
 			}
 			for name, value := range tc.env {
 				t.Setenv(name, value)
@@ -362,7 +368,11 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 			}
 			wantExpiresAt := tc.wantExpiresAt.UTC().Format(time.RFC3339)
 			got := payload.BearerToken
-			if got == nil || got.Source != wantSource || got.KeyID != tc.wantKeyID || got.ExpiresAt != wantExpiresAt || got.Expired == nil || *got.Expired != tc.wantExpired {
+			if tc.wantNoToken {
+				if got == nil || got.Source != wantSource || got.KeyID != "" || got.ExpiresAt != "" || got.Expired != nil {
+					t.Fatalf("bearerToken = %+v, want only the source %s", got, wantSource)
+				}
+			} else if got == nil || got.Source != wantSource || got.KeyID != tc.wantKeyID || got.ExpiresAt != wantExpiresAt || got.Expired == nil || *got.Expired != tc.wantExpired {
 				t.Fatalf("bearerToken = %+v, want %s for %s expiring %s (expired %t)", got, wantSource, tc.wantKeyID, wantExpiresAt, tc.wantExpired)
 			}
 			if tc.wantError == "" && got.Error != "" || !strings.Contains(got.Error, tc.wantError) {
@@ -370,6 +380,9 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 			}
 			if got.Validation != tc.wantValidity || !strings.Contains(got.ValidationError, tc.wantValErr) {
 				t.Fatalf("validation = %q (%q), want %q containing %q", got.Validation, got.ValidationError, tc.wantValidity, tc.wantValErr)
+			}
+			if _, err := os.Stat(ranMarker); (err == nil) != (tc.command && tc.validate) {
+				t.Fatalf("ASC_BEARER_TOKEN_COMMAND ran = %t, want %t", err == nil, tc.command && tc.validate)
 			}
 			if tc.validate {
 				sent := strings.TrimPrefix(reg.Requests()[0].Header.Get("Authorization"), "Bearer ")
@@ -381,17 +394,85 @@ func TestAuthStatusReportsTheBearerToken(t *testing.T) {
 	}
 }
 
-func TestAuthStatusTableSanitizesTheBearerTokenKeyID(t *testing.T) {
-	isolateBearerTokenAuth(t, signedTestTokenForKey(t, "K\x1b[31mRED\nStored credentials: fake", time.Now().Add(20*time.Minute)))
-	asctest.NewRegistry(t).Install()
+func TestAuthStatusTableBearerTokenLine(t *testing.T) {
+	// A JSON string can carry C1 controls, bidi overrides and DEL; the JWT
+	// library echoes this exp value in its error.
+	unsafeExp := "x\u009b31mC1\u202e\u007fZ"
+	unsafeToken := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"ES256","kid":"KEY123"}`)) + "." +
+		base64.RawURLEncoding.EncodeToString([]byte(`{"exp":"`+unsafeExp+`"}`)) + ".c2ln"
+	for _, tc := range []struct {
+		name     string
+		token    string
+		env      map[string]string
+		validate bool
+		wantCode int
+		want     string
+		reject   []string
+	}{
+		{
+			name:     "kid with terminal controls",
+			token:    signedTestTokenForKey(t, "K\x1b[31mRED\nStored credentials: fake", time.Now().Add(20*time.Minute)),
+			wantCode: cmd.ExitSuccess,
+			want:     "Bearer token: ASC_BEARER_TOKEN (key K",
+			reject:   []string{"\x1b", "\nStored credentials: fake"},
+		},
+		{
+			name:     "error with terminal controls",
+			token:    unsafeToken,
+			wantCode: cmd.ExitSuccess,
+			want:     "Bearer token: ASC_BEARER_TOKEN (invalid bearer token",
+			reject:   []string{"\u009b", "\u202e", "\u007f"},
+		},
+		{
+			name:     "validation error with terminal controls",
+			token:    unsafeToken,
+			validate: true,
+			wantCode: cmd.ExitError,
+			want:     ": failed (",
+			reject:   []string{"\u009b", "\u202e", "\u007f"},
+		},
+		{
+			name:     "token every command refuses",
+			token:    signedTestToken(t, time.Now().Add(20*time.Minute)),
+			env:      map[string]string{"ASC_PROFILE": "Other"},
+			wantCode: cmd.ExitSuccess,
+			want:     `ASC_BEARER_TOKEN cannot be combined with profile "Other"`,
+			reject:   []string{"used ahead of stored and environment credentials"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			isolateBearerTokenAuth(t, tc.token)
+			for name, value := range tc.env {
+				t.Setenv(name, value)
+			}
+			asctest.NewRegistry(t).Install()
+			args := []string{"auth", "status", "--output", "table"}
+			if tc.validate {
+				args = append(args, "--validate")
+			}
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"auth", "status", "--output", "table"}, "1.2.3"); code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = cmd.Run(args, "1.2.3")
+			})
 
-	if !strings.Contains(stdout, "Bearer token: ASC_BEARER_TOKEN (key K") || strings.ContainsAny(stdout, "\x1b") || strings.Contains(stdout, "\nStored credentials: fake") {
-		t.Fatalf("stdout = %q, want one Bearer token line without terminal control characters; stderr: %s", stdout, stderr)
+			if code != tc.wantCode {
+				t.Fatalf("exit code = %d, want %d; stderr: %s", code, tc.wantCode, stderr)
+			}
+			var line string
+			for candidate := range strings.SplitSeq(stdout, "\n") {
+				if strings.HasPrefix(candidate, "Bearer token: ") {
+					line = candidate
+				}
+			}
+			if !strings.Contains(line, tc.want) {
+				t.Fatalf("Bearer token line = %q, want it to contain %q; stdout: %q", line, tc.want, stdout)
+			}
+			for _, rejected := range tc.reject {
+				if strings.Contains(stdout, rejected) {
+					t.Fatalf("stdout = %q, want no %q", stdout, rejected)
+				}
+			}
+		})
 	}
 }
