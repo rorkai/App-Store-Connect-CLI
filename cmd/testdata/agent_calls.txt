@@ -823,9 +823,9 @@ ok pricing schedule create --app X --price-point X --base-territory X --start-da
 ok review
 ok review attachments-list --review-detail X
 ok review attachments-upload --review-detail X --file X --output X
-unknown-command review details create --help
-unknown-command review details update --help
-unknown-command review details view --version-id X --output X
+ok review details create --help
+ok review details update --help
+unknown-flag review details view --version-id X --output X
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --demo-account-name X --demo-account-password X --notes X --if-exists X --output X
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes X
@@ -842,8 +842,8 @@ unknown-flag review items add --submission X --item-type X --item-id X --confirm
 ok review items remove --help
 ok review items update --id X --resolved X
 ok review items-list --submission X
-unknown-command review submissions cancel --help
-unknown-command review submissions get --id X --output X
+ok review submissions cancel --help
+ok review submissions get --id X --output X
 unknown-command review submissions items --submission-id X --output X
 unknown-flag review submissions-create --version-id X --platform X --output X
 ok review submissions-get --id X --include X
@@ -1187,9 +1187,9 @@ unknown-command review attachments-create --help
 unknown-command review detail --app X --output X
 unknown-command review detail view --app X --version X --platform X --output X
 unknown-command review details contacts list --version-id X --output X
-unknown-command review details create --app X --version-id X --first-name X --last-name X --phone X --email X --output X
+unknown-flag review details create --app X --version-id X --first-name X --last-name X --phone X --email X --output X
 unknown-command review details info --id X --output X
-unknown-command review details view --id X --output X
+ok review details view --id X --output X
 unknown-flag review details-create --app X --version X --platform X --first-name X --last-name X --phone X --email X --output X
 unknown-flag review details-create --app X --version-id X --first-name X --last-name X --phone X --email X --output X
 unknown-flag review details-for-version --app X --version X --platform X --output X
@@ -1210,10 +1210,10 @@ unknown-flag review submissions --app X --output X
 unknown-command review submissions items --submission-id X
 unknown-command review submissions items list --id X --output X
 unknown-command review submissions items list --submission-id X --output X
-unknown-command review submissions items-ids --id X --output X
-unknown-command review submissions view --id X --output X
-unknown-command review submissions view --submission X
-unknown-command review submissions view --submission X --output X
+ok review submissions items-ids --id X --output X
+ok review submissions view --id X --output X
+unknown-flag review submissions view --submission X
+unknown-flag review submissions view --submission X --output X
 unknown-flag review submissions-cancel --version-id X --confirm --output X
 unknown-flag review submissions-get --review-submission-id X --output X
 unknown-command review submissions-items --review-submission-id X --output X

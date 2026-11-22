@@ -317,11 +317,6 @@ func TestRun_UnknownChildMapsLegacyAndAsymmetricPaths(t *testing.T) {
 				"asc pricing territories list",
 			},
 		},
-		{
-			args:  []string{"review", "submissions", "create"},
-			group: "asc review submissions",
-			want:  []string{"asc review submissions-create --app APP_ID --platform IOS"},
-		},
 	}
 
 	for _, test := range tests {
@@ -362,7 +357,6 @@ func TestUnknownChildSynonymsCoverTheTelemetryGroups(t *testing.T) {
 		"asc pricing",
 		"asc pricing availability",
 		"asc review",
-		"asc review submissions",
 		"asc screenshots",
 		"asc subscriptions",
 		"asc subscriptions groups",
@@ -417,6 +411,11 @@ func TestUnknownChildSynonymsResolveToRealCommands(t *testing.T) {
 			}
 			if target := commandAliasTarget(group, groupCommand, token); target != "" {
 				t.Fatalf("%q synonym %q is unreachable: the command alias runs %q", group, token, target)
+			}
+			if parts := strings.Fields(strings.TrimPrefix(group, "asc")); len(parts) > 0 {
+				if target := compoundChild(resolveCommandPath(root, parts[:len(parts)-1]), parts[len(parts)-1], token); target != nil {
+					t.Fatalf("%q synonym %q is unreachable: the command alias runs %q", group, token, target.Name)
+				}
 			}
 			for _, invocation := range invocations {
 				assertHintInvocationResolves(t, root, group+" "+token, invocation)
