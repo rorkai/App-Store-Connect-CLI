@@ -163,6 +163,8 @@ func TestBuildReadinessReport_OverlapsSixIndependentReadGroups(t *testing.T) {
 			fmt.Fprint(w, `{"data":{"type":"territories","id":"USA"}}`)
 		case "/v1/appPriceSchedules/schedule-1/manualPrices":
 			fmt.Fprint(w, `{"data":[],"links":{"next":""}}`)
+		case "/v1/apps/app-1/appStoreVersions":
+			fmt.Fprint(w, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"}}],"links":{"next":""}}`)
 		case "/v1/apps/app-1/appAvailabilityV2":
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(w, `{"errors":[{"status":"404","code":"NOT_FOUND"}]}`)

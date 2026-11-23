@@ -690,6 +690,8 @@ func TestValidateOutputsOrderedRemediationByDefault(t *testing.T) {
 	fixture := validValidateFixture()
 	fixture.version = strings.Replace(fixture.version, `"versionString":"1.0"`, `"versionString":"1.2.3"`, 1)
 	fixture.versions = strings.Replace(fixture.versions, `"versionString":"1.0"`, `"versionString":"1.2.3"`, 1)
+	// An earlier version exists, so 1.2.3 is not the app's first and What's New applies.
+	fixture.versions = strings.Replace(fixture.versions, `{"data":[`, `{"data":[{"type":"appStoreVersions","id":"ver-0","attributes":{"platform":"IOS","versionString":"1.2.2","appVersionState":"READY_FOR_SALE"}},`, 1)
 	fixture.versionLocs = `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"","keywords":"keyword","whatsNew":"","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`
 	fixture.primaryCategory = ""
 	fixture.build = ""
@@ -1400,6 +1402,31 @@ func TestValidateSkipsWhatsNewOnInitialRelease(t *testing.T) {
 	for _, check := range report.Checks {
 		if check.ID == "metadata.required.whats_new" {
 			t.Fatalf("did not expect metadata.required.whats_new check for initial release")
+		}
+	}
+}
+
+// TestValidateSkipsWhatsNewOnFirstVersionNotNumberedOneZero covers an app whose
+// first App Store version is 1.3: App Store Connect takes no What's New on it,
+// so the version history, not the number, decides.
+func TestValidateSkipsWhatsNewOnFirstVersionNotNumberedOneZero(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.version = strings.Replace(fixture.version, `"versionString":"1.0"`, `"versionString":"1.3"`, 1)
+	fixture.versions = strings.Replace(fixture.versions, `"versionString":"1.0"`, `"versionString":"1.3"`, 1)
+	fixture.versionLocs = fmt.Sprintf(`{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"Description. Terms of Use: %s","keywords":"keyword","whatsNew":"","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`, validation.AppleStandardEULAURL)
+
+	client := newValidateTestClient(t, fixture)
+	stdout, _, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "--app", "app-1", "--version-id", "ver-1", "--strict")
+	if err != nil {
+		t.Fatalf("expected no error with --strict on the app's first version, got %v", err)
+	}
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	for _, check := range report.Checks {
+		if check.ID == "metadata.required.whats_new" {
+			t.Fatalf("did not expect metadata.required.whats_new on the app's first version 1.3")
 		}
 	}
 }

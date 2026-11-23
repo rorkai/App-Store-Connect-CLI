@@ -144,11 +144,15 @@ type Report struct {
 
 // Input collects the validation inputs.
 type Input struct {
-	AppID                       string
-	AppInfoID                   string
-	VersionID                   string
-	VersionString               string
-	VersionState                string
+	AppID         string
+	AppInfoID     string
+	VersionID     string
+	VersionString string
+	VersionState  string
+	// FirstVersion reports whether the version is the app's first App Store
+	// version on its platform, read from the app's version history; nil when
+	// that read was not made or failed.
+	FirstVersion                *bool
 	Platform                    string
 	PrimaryLocale               string
 	VersionLocalizations        []VersionLocalization

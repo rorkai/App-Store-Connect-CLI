@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func requiredFieldChecks(primaryLocale string, versionString string, versionState string, hasActiveMonetization bool, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
+func requiredFieldChecks(primaryLocale string, versionString string, firstVersion *bool, versionState string, hasActiveMonetization bool, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
 	var checks []CheckResult
 
 	normalizedState := strings.ToUpper(strings.TrimSpace(versionState))
@@ -50,11 +50,15 @@ func requiredFieldChecks(primaryLocale string, versionString string, versionStat
 		}
 	}
 
-	// Apple doesn't support a "What's New" section on initial App Store releases.
-	// In practice, these initial releases commonly use versionString "1.0" (or
-	// equivalent like "1.0.0"), and attempting to set `whatsNew` is rejected by
-	// the API. Avoid warning users for an uneditable field.
+	// Apple doesn't support a "What's New" section on an app's first App Store
+	// version, whatever it is numbered, and rejects setting `whatsNew` there.
+	// firstVersion is the answer from the app's version history; when it is
+	// unknown, fall back to the common "1.0" (or "1.0.0") numbering. Avoid
+	// warning users for an uneditable field.
 	skipWhatsNew := isInitialReleaseVersionString(versionString)
+	if firstVersion != nil {
+		skipWhatsNew = *firstVersion
+	}
 
 	for _, loc := range versionLocs {
 		if strings.TrimSpace(loc.Description) == "" {
