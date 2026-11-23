@@ -1,6 +1,7 @@
 package api
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -17,9 +18,11 @@ func TestNativeCommandsAreUnindexed(t *testing.T) {
 		if !ok {
 			t.Fatalf("key %q is not METHOD PATH", key)
 		}
-		path := strings.ReplaceAll(template, "{id}", "ID")
+		path := placeholderSegment.ReplaceAllString(template, "ID")
 		if _, indexed, err := schema.MatchOperation(method, path); err != nil || indexed {
 			t.Errorf("%s is in the embedded schema index (err %v), so `asc api` never reaches its native command", key, err)
 		}
 	}
 }
+
+var placeholderSegment = regexp.MustCompile(`\{[^/}]+\}`)
