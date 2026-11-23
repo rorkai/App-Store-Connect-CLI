@@ -787,7 +787,7 @@ so commands continue to work even if the original .p8 file is removed.`,
 					if kind, _ := authsvc.PrivateKeyErrorKindOf(err); kind == authsvc.PrivateKeyPermissionsInsecure {
 						message = privateKeyTooPermissiveMessage(*keyPath)
 					}
-					rendered := shared.WithPrivateKeyDiagnostic(d.UsageErrorf("auth login: invalid private key: %s", message), err)
+					rendered := shared.WithPrivateKeyDiagnostic(d.InvalidInputErrorf("auth login: invalid private key: %s", message), err)
 					printPrivateKeyPermissionRemediation(d, err, *keyPath)
 					return rendered
 				}

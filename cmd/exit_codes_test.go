@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -1120,7 +1121,65 @@ func TestAuthLoginInvalidPrivateKeyExitCodes(t *testing.T) {
 			if !strings.Contains(stderr.String(), "invalid private key") {
 				t.Fatalf("stderr = %q, want invalid private key diagnostic", stderr.String())
 			}
+			// The message names the key file problem; the command's usage page
+			// after it would only bury that.
+			if strings.Contains(stderr.String(), "USAGE") {
+				t.Fatalf("stderr = %q, want no usage page after the private key error", stderr.String())
+			}
 		})
+	}
+}
+
+func TestAuthLoginPermissiveKeyPrintsFixWithoutUsagePage(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file mode permissions are not enforced on Windows")
+	}
+	tmpDir := t.TempDir()
+	binaryPath := buildASCBlackboxBinary(t)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("MarshalPKCS8PrivateKey() error: %v", err)
+	}
+	keyPath := filepath.Join(tmpDir, "AuthKey_TEST.p8")
+	if err := os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+	if err := os.Chmod(keyPath, 0o644); err != nil {
+		t.Fatalf("Chmod() error: %v", err)
+	}
+
+	runCmd := exec.Command(binaryPath, "auth", "login", "--name", "demo", "--key-id", "ABC123DEF4", "--issuer-id", "00000000-0000-0000-0000-000000000000",
+		"--private-key", keyPath, "--bypass-keychain", "--local", "--skip-validation")
+	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	runCmd.Stdout = &stdout
+	runCmd.Stderr = &stderr
+
+	err = runCmd.Run()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *exec.ExitError, got %T (%v); stderr=%q", err, err, stderr.String())
+	}
+	if exitErr.ExitCode() != ExitUsage {
+		t.Fatalf("exit code = %d, want %d; stderr=%q", exitErr.ExitCode(), ExitUsage, stderr.String())
+	}
+	got := stderr.String()
+	errorAt := strings.Index(got, "Error: auth login: invalid private key: private key file is too permissive")
+	fixAt := strings.Index(got, "To fix, run:\n  chmod 600 ")
+	if errorAt < 0 || fixAt < errorAt {
+		t.Fatalf("stderr = %q, want the error line first, then the chmod fix", got)
+	}
+	if strings.Contains(got, "USAGE") {
+		t.Fatalf("stderr = %q, want no usage page burying the fix", got)
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
 	}
 }
 

@@ -43,8 +43,9 @@ func readLoginKeyJSON(d *shared.Deps, path string, fixPermissions bool) (loginKe
 		if kind, _ := authsvc.PrivateKeyErrorKindOf(err); kind == authsvc.PrivateKeyPermissionsInsecure {
 			message = "file is too permissive; other users can read this credential"
 		}
+		rendered := shared.WithPrivateKeyDiagnostic(d.InvalidInputErrorf("auth login: invalid --key-json file: %s", message), err)
 		printPrivateKeyPermissionRemediation(d, err, path)
-		return loginKeyJSON{}, shared.WithPrivateKeyDiagnostic(d.UsageErrorf("auth login: invalid --key-json file: %s", message), err)
+		return loginKeyJSON{}, rendered
 	}
 
 	var fields map[string]json.RawMessage
@@ -85,7 +86,7 @@ func readLoginKeyJSON(d *shared.Deps, path string, fixPermissions bool) (loginKe
 		loaded.PrivateKeyPEM = string(decoded)
 	}
 	if _, err := authsvc.LoadPrivateKeyFromPEM([]byte(loaded.PrivateKeyPEM)); err != nil {
-		return loginKeyJSON{}, shared.WithPrivateKeyDiagnostic(d.UsageErrorf(`auth login: invalid private key in --key-json field "key": %s`, err.Error()), err)
+		return loginKeyJSON{}, shared.WithPrivateKeyDiagnostic(d.InvalidInputErrorf(`auth login: invalid private key in --key-json field "key": %s`, err.Error()), err)
 	}
 
 	inHouse, err := keyJSONBool(d, fields, "in_house")
@@ -125,5 +126,5 @@ func keyJSONBool(d *shared.Deps, fields map[string]json.RawMessage, name string)
 }
 
 func keyJSONError(d *shared.Deps, message string) error {
-	return shared.WithDiagnostic(d.UsageError(message), shared.DiagnosticInvalidInput, "--key-json")
+	return shared.WithDiagnostic(d.InvalidInputError(message), shared.DiagnosticInvalidInput, "--key-json")
 }

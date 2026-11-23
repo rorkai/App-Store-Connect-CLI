@@ -60,6 +60,9 @@ func TestAuthLoginKeyJSON(t *testing.T) {
 		wantCode    int
 		wantStderr  string
 		wantKeyType string
+		// noUsagePage marks a refused file content: the message names the
+		// problem, so the command's usage page must not follow it.
+		noUsagePage bool
 	}{
 		{
 			name:     "stores key id, issuer id and a 0600 copy of the key",
@@ -89,16 +92,18 @@ func TestAuthLoginKeyJSON(t *testing.T) {
 			wantStderr: `--key-type team conflicts with "in_house": true in the --key-json file`,
 		},
 		{
-			name:       "missing key",
-			fields:     map[string]any{"key_id": "ABC123DEFG", "issuer_id": issuerID, "key": ""},
-			wantCode:   rootcmd.ExitUsage,
-			wantStderr: `auth login: --key-json file is missing "key"`,
+			name:        "missing key",
+			fields:      map[string]any{"key_id": "ABC123DEFG", "issuer_id": issuerID, "key": ""},
+			wantCode:    rootcmd.ExitUsage,
+			wantStderr:  `auth login: --key-json file is missing "key"`,
+			noUsagePage: true,
 		},
 		{
-			name:       "invalid base64",
-			fields:     map[string]any{"key_id": "ABC123DEFG", "issuer_id": issuerID, "key": "not base64!", "is_key_content_base64": true},
-			wantCode:   rootcmd.ExitUsage,
-			wantStderr: `auth login: --key-json field "key" is not valid base64`,
+			name:        "invalid base64",
+			fields:      map[string]any{"key_id": "ABC123DEFG", "issuer_id": issuerID, "key": "not base64!", "is_key_content_base64": true},
+			wantCode:    rootcmd.ExitUsage,
+			wantStderr:  `auth login: --key-json field "key" is not valid base64`,
+			noUsagePage: true,
 		},
 	}
 	for _, test := range tests {
@@ -118,6 +123,9 @@ func TestAuthLoginKeyJSON(t *testing.T) {
 			}
 			if strings.Contains(stderr, "PRIVATE KEY") {
 				t.Fatalf("stderr leaked key material: %q", stderr)
+			}
+			if test.noUsagePage && strings.Contains(stderr, "USAGE") {
+				t.Fatalf("stderr = %q, want no usage page after the --key-json error", stderr)
 			}
 			if test.wantCode != rootcmd.ExitSuccess {
 				requireNoConfigFile(t, configPath)
@@ -155,6 +163,35 @@ func TestAuthLoginKeyJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthLoginKeyJSONPermissiveFilePrintsErrorThenFix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file mode permissions are not enforced on Windows")
+	}
+	isolateAuthConfigWrite(t)
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	jsonPath, _ := writeAPIKeyJSON(t, map[string]any{"key_id": "ABC123DEFG", "issuer_id": "00000000-0000-0000-0000-000000000000"}, false)
+	if err := os.Chmod(jsonPath, 0o644); err != nil {
+		t.Fatalf("chmod key json: %v", err)
+	}
+
+	code, stderr := runAuthLoginKeyJSON(t, "--key-json", jsonPath)
+
+	if code != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d; stderr = %q", code, rootcmd.ExitUsage, stderr)
+	}
+	errorAt := strings.Index(stderr, "Error: auth login: invalid --key-json file: file is too permissive")
+	fixAt := strings.Index(stderr, "To fix, run:\n  chmod 600 ")
+	if errorAt < 0 || fixAt < errorAt {
+		t.Fatalf("stderr = %q, want the error line, then the chmod fix", stderr)
+	}
+	if strings.Contains(stderr, "USAGE") {
+		t.Fatalf("stderr = %q, want no usage page burying the fix", stderr)
+	}
+	requireNoConfigFile(t, configPath)
 }
 
 func TestAuthLoginKeyJSONRefusesToReplaceADifferentKey(t *testing.T) {
