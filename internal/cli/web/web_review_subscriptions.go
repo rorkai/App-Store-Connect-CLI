@@ -26,6 +26,9 @@ type reviewSubscriptionMutationOutput struct {
 	Changed      bool                       `json:"changed"`
 	SubmissionID string                     `json:"submissionId,omitempty"`
 	Subscription webcore.ReviewSubscription `json:"subscription"`
+	// Set by attach: the review submission item and the subscription version it holds.
+	ReviewSubmissionItemID string `json:"reviewSubmissionItemId,omitempty"`
+	SubscriptionVersionID  string `json:"subscriptionVersionId,omitempty"`
 }
 
 type reviewSubscriptionMutationSkip struct {
@@ -37,6 +40,7 @@ type reviewSubscriptionGroupMutationOutput struct {
 	AppID              string                           `json:"appId"`
 	GroupID            string                           `json:"groupId"`
 	GroupReferenceName string                           `json:"groupReferenceName,omitempty"`
+	SubmissionID       string                           `json:"submissionId,omitempty"`
 	Operation          string                           `json:"operation"`
 	ChangedCount       int                              `json:"changedCount"`
 	SkippedCount       int                              `json:"skippedCount"`
@@ -66,10 +70,6 @@ func reviewSubscriptionAttachmentValue(subscription webcore.ReviewSubscription) 
 	return reviewSubscriptionBool(subscription.SubmitWithNextAppStoreVersion)
 }
 
-func reviewSubscriptionState(subscription webcore.ReviewSubscription) string {
-	return strings.ToUpper(strings.TrimSpace(subscription.State))
-}
-
 // A response without submitWithNextAppStoreVersion is an upstream failure, not
 // an operator mistake. Nothing prints this error first, so it must not be a
 // ReportedError or the command exits silently.
@@ -84,99 +84,6 @@ func reviewSubscriptionUnknownAttachmentError(operation, appID, subscriptionID s
 		shared.DiagnosticDependencyFailed,
 		"",
 	)
-}
-
-func reviewSubscriptionAttachPreflight(d *shared.Deps, appID string, subscription webcore.ReviewSubscription) error {
-	if !subscription.SubmitWithNextAppStoreVersionKnown {
-		return reviewSubscriptionUnknownAttachmentError("attach", appID, subscription.ID)
-	}
-	state := reviewSubscriptionState(subscription)
-	if state == "READY_TO_SUBMIT" {
-		return nil
-	}
-
-	subscriptionID := strings.TrimSpace(subscription.ID)
-	if subscriptionID == "" {
-		subscriptionID = "SUB_ID"
-	}
-
-	fmt.Fprintln(d.IO.ErrOut, "")
-	fmt.Fprintf(
-		d.IO.ErrOut,
-		"Attach preflight: subscription %q (%s) is %s, so Apple will not attach it to the next app version review yet.\n",
-		reviewSubscriptionName(subscription),
-		valueOrNA(subscriptionID),
-		state,
-	)
-	fmt.Fprintf(
-		d.IO.ErrOut,
-		"Hint: run `asc validate subscriptions --app \"%s\"` to inspect readiness.\n",
-		valueOrNA(appID),
-	)
-	fmt.Fprintln(d.IO.ErrOut, "Hint: Apple only allows this attach flow after the subscription reaches READY_TO_SUBMIT.")
-	switch state {
-	case "MISSING_METADATA":
-		printReviewSubscriptionMissingMetadataHints(d, fmt.Sprintf("`asc subscriptions view --id %q`", subscriptionID))
-		fmt.Fprintf(
-			d.IO.ErrOut,
-			"Hint: If it is READY_TO_SUBMIT there, nothing is missing; add its version to the app's review submission instead: `asc subscriptions versions list --subscription-id %q`, then %s.\n",
-			subscriptionID,
-			reviewSubscriptionVersionItemCommand,
-		)
-	case "":
-		fmt.Fprintln(d.IO.ErrOut, "Hint: Refresh App Store Connect or rerun `asc web review subscriptions list` to confirm the current readiness state before retrying.")
-	default:
-		fmt.Fprintln(d.IO.ErrOut, "Hint: Complete the outstanding App Store Connect action for this subscription, then retry once it reaches READY_TO_SUBMIT.")
-	}
-
-	return shared.NewNotConfiguredReportedError(
-		fmt.Errorf(
-			"web review subscriptions attach: subscription %q is %s; Apple only allows attach once it reaches READY_TO_SUBMIT",
-			subscriptionID,
-			state,
-		),
-	)
-}
-
-// reviewSubscriptionLentSessionError stops an attach before
-// POST /iris/v1/subscriptionSubmissions when a broker lends the web session:
-// the broker does not relay that request, so sending it can never attach the
-// subscription. The refusal is the broker's policy, not the account's
-// permissions, and the App Store Connect API path still works.
-func reviewSubscriptionLentSessionError(operation string, subscriptionIDs []string) error {
-	subscriptionID := "SUB_ID"
-	each := ""
-	if len(subscriptionIDs) == 1 && strings.TrimSpace(subscriptionIDs[0]) != "" {
-		subscriptionID = strings.TrimSpace(subscriptionIDs[0])
-	} else {
-		each = " for each subscription"
-	}
-	return shared.WithDiagnostic(
-		&shared.HintedError{
-			Err: fmt.Errorf(
-				"web review subscriptions %s: this Apple session can't submit subscriptions for review: it is lent through a web session broker that does not relay POST /iris/v1/subscriptionSubmissions, so nothing was sent",
-				operation,
-			),
-			Hint: fmt.Sprintf(
-				"Add the subscription to the app's review submission with the App Store Connect API instead%s: `asc subscriptions versions list --subscription-id %q`, then `asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`. Or attach it in App Store Connect (App Store > Subscriptions), or ask the user to.",
-				each,
-				subscriptionID,
-			),
-		},
-		shared.DiagnosticDependencyFailed,
-		"",
-	)
-}
-
-const reviewSubscriptionVersionItemCommand = "`asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`"
-
-// printReviewSubscriptionMissingMetadataHints explains a MISSING_METADATA
-// state from the web review listing. The listing names no missing field, and
-// it can keep reporting MISSING_METADATA for a subscription the App Store
-// Connect API reports READY_TO_SUBMIT, so waiting does not change it.
-func printReviewSubscriptionMissingMetadataHints(d *shared.Deps, apiStateCommand string) {
-	fmt.Fprintln(d.IO.ErrOut, "Hint: Apple's web review listing does not say which metadata is missing, and its state does not change by waiting; retrying won't help until the subscription's metadata or review path changes.")
-	fmt.Fprintf(d.IO.ErrOut, "Hint: Compare the App Store Connect API state with %s.\n", apiStateCommand)
 }
 
 func countAttachedReviewSubscriptions(subscriptions []webcore.ReviewSubscription) int {
@@ -457,23 +364,6 @@ func reviewSubscriptionGroupLabel(subscriptions []webcore.ReviewSubscription, gr
 	return strings.TrimSpace(groupID)
 }
 
-func reviewSubscriptionAttachSkipReason(subscription webcore.ReviewSubscription) string {
-	switch state := reviewSubscriptionState(subscription); state {
-	case "MISSING_METADATA":
-		return "state is MISSING_METADATA; run `asc validate subscriptions` and upload missing assets first"
-	case "READY_TO_SUBMIT":
-		return "state is READY_TO_SUBMIT but the refreshed review state still shows not attached"
-	case "":
-		return "state is unknown; Apple only allows attach from READY_TO_SUBMIT"
-	default:
-		return fmt.Sprintf("state is %s; Apple only allows attach from READY_TO_SUBMIT", state)
-	}
-}
-
-func reviewSubscriptionAttachUnchangedAfterRefreshReason() string {
-	return "attach request completed but refreshed state still shows not attached"
-}
-
 func reviewSubscriptionRemoveUnchangedAfterRefreshReason() string {
 	return "remove request completed but refreshed state still shows attached"
 }
@@ -518,58 +408,6 @@ func collectReviewSubscriptionGroupChanges(
 	return changed, skipped
 }
 
-func reviewSubscriptionGroupAttachPreflight(d *shared.Deps, appID, groupID string, subscriptions []webcore.ReviewSubscription) error {
-	readyCount := 0
-	attachedCount := 0
-	for _, subscription := range subscriptions {
-		if subscription.SubmitWithNextAppStoreVersionKnown && subscription.SubmitWithNextAppStoreVersion {
-			attachedCount++
-		}
-		if reviewSubscriptionState(subscription) == "READY_TO_SUBMIT" && subscription.SubmitWithNextAppStoreVersionKnown && !subscription.SubmitWithNextAppStoreVersion {
-			readyCount++
-		}
-	}
-	if readyCount > 0 || attachedCount > 0 {
-		return nil
-	}
-
-	fmt.Fprintln(d.IO.ErrOut, "")
-	fmt.Fprintf(
-		d.IO.ErrOut,
-		"Attach preflight: subscription group %q (%s) has no READY_TO_SUBMIT subscriptions for first-submission attachment yet.\n",
-		reviewSubscriptionGroupLabel(subscriptions, groupID),
-		valueOrNA(groupID),
-	)
-	fmt.Fprintf(
-		d.IO.ErrOut,
-		"Hint: run `asc validate subscriptions --app \"%s\"` to inspect readiness.\n",
-		valueOrNA(appID),
-	)
-	fmt.Fprintln(d.IO.ErrOut, "Hint: Apple only allows attach after the relevant subscriptions reach READY_TO_SUBMIT.")
-	missingMetadata := false
-	for _, subscription := range subscriptions {
-		if reviewSubscriptionState(subscription) == "MISSING_METADATA" {
-			missingMetadata = true
-			break
-		}
-	}
-	if missingMetadata {
-		printReviewSubscriptionMissingMetadataHints(d, fmt.Sprintf("`asc subscriptions list --group-id %q`", strings.TrimSpace(groupID)))
-		fmt.Fprintf(
-			d.IO.ErrOut,
-			"Hint: Subscriptions it reports READY_TO_SUBMIT are complete; add each one's version to the app's review submission instead: `asc subscriptions versions list --subscription-id \"SUB_ID\"`, then %s.\n",
-			reviewSubscriptionVersionItemCommand,
-		)
-	}
-
-	return shared.NewNotConfiguredReportedError(
-		fmt.Errorf(
-			"web review subscriptions attach-group: group %q has no READY_TO_SUBMIT subscriptions to attach",
-			groupID,
-		),
-	)
-}
-
 func loadReviewSubscriptionsWithLabelWith(ctx context.Context, d *shared.Deps, client *webcore.Client, appID, label string) ([]webcore.ReviewSubscription, error) {
 	return withWebSpinnerValueWith(d, label, func() ([]webcore.ReviewSubscription, error) {
 		return client.ListReviewSubscriptions(ctx, appID)
@@ -590,8 +428,8 @@ Inspect and mutate subscription selection for the next app version review.
 
 Subcommands:
   list    List subscriptions and their next-version attach state
-  attach  Attach one subscription to the next app version review
-  attach-group  Attach all READY_TO_SUBMIT subscriptions in one group
+  attach  Add one subscription to the app's review submission (App Store Connect API)
+  attach-group  Add every subscription in one group to the app's review submission (App Store Connect API)
   remove  Remove one subscription from the next app version review
   remove-group  Remove all attached subscriptions in one group
 
@@ -658,219 +496,6 @@ func newWebReviewSubscriptionsListCommand(d *shared.Deps) *ffcli.Command {
 				*output.Pretty,
 				func() error { return renderReviewSubscriptionsListTable(d, payload) },
 				func() error { return renderReviewSubscriptionsListMarkdown(d, payload) },
-			)
-		},
-	}
-}
-
-// newWebReviewSubscriptionsAttachCommand attaches a subscription to the next app version review.
-func newWebReviewSubscriptionsAttachCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("web review subscriptions attach", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
-	confirm := fs.Bool("confirm", false, "Confirm the attach operation")
-	authFlags := bindWebSessionFlags(fs)
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "attach",
-		ShortUsage: "asc web review subscriptions attach --app APP_ID --subscription-id SUB_ID --confirm [flags]",
-		ShortHelp:  "Attach a subscription to the next app version review.",
-		FlagSet:    fs,
-		UsageFunc:  d.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
-			trimmedSubscriptionID := strings.TrimSpace(*subscriptionID)
-			switch {
-			case trimmedAppID == "":
-				return d.UsageError("--app is required (or set ASC_APP_ID)")
-			case trimmedSubscriptionID == "":
-				return d.UsageError("--subscription-id is required")
-			case !*confirm:
-				return d.RequireConfirm(*confirm)
-			}
-
-			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
-			defer cancel()
-			if err != nil {
-				return err
-			}
-			client := newWebClientFn(session)
-
-			subscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Loading review subscriptions")
-			if err != nil {
-				return withWebAuthHint(err, "web review subscriptions attach")
-			}
-			selected, err := findReviewSubscription(subscriptions, trimmedSubscriptionID)
-			if err != nil {
-				return fmt.Errorf("subscription lookup for app %q failed: %w", trimmedAppID, withReviewSelectorDiagnostic(err, "--subscription-id"))
-			}
-			trimmedSubscriptionID = strings.TrimSpace(selected.ID)
-
-			payload := reviewSubscriptionMutationOutput{
-				AppID:        trimmedAppID,
-				Operation:    "attach",
-				Changed:      false,
-				Subscription: *selected,
-			}
-			if !selected.SubmitWithNextAppStoreVersionKnown {
-				return reviewSubscriptionAttachPreflight(d, trimmedAppID, *selected)
-			}
-			if !selected.SubmitWithNextAppStoreVersion {
-				if err := reviewSubscriptionAttachPreflight(d, trimmedAppID, *selected); err != nil {
-					return err
-				}
-				if session.Brokered {
-					return reviewSubscriptionLentSessionError("attach", []string{trimmedSubscriptionID})
-				}
-
-				submission, err := withWebSpinnerValueWith(d, "Attaching subscription to next app version", func() (webcore.ReviewSubscriptionSubmission, error) {
-					return client.CreateSubscriptionSubmission(requestCtx, trimmedSubscriptionID)
-				})
-				if err != nil {
-					return withWebAuthHint(err, "web review subscriptions attach")
-				}
-
-				refreshedSubscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Refreshing review subscriptions")
-				if err != nil {
-					return withWebAuthHint(err, "web review subscriptions attach")
-				}
-				refreshed, err := findReviewSubscription(refreshedSubscriptions, trimmedSubscriptionID)
-				if err != nil {
-					return fmt.Errorf("subscription %q was not found for app %q after attach: %w", trimmedSubscriptionID, trimmedAppID, err)
-				}
-				payload.SubmissionID = strings.TrimSpace(submission.ID)
-				payload.Changed = reviewSubscriptionChangedAfterRefresh(*refreshed, true)
-				payload.Subscription = *refreshed
-			}
-
-			return d.PrintOutputWithRenderers(
-				payload,
-				*output.Output,
-				*output.Pretty,
-				func() error { return renderReviewSubscriptionMutationTable(d, payload) },
-				func() error { return renderReviewSubscriptionMutationMarkdown(d, payload) },
-			)
-		},
-	}
-}
-
-// newWebReviewSubscriptionsAttachGroupCommand attaches every READY_TO_SUBMIT subscription in one group.
-func newWebReviewSubscriptionsAttachGroupCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("web review subscriptions attach-group", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
-	groupID := fs.String("group-id", "", "Subscription group ID or exact current name")
-	confirm := fs.Bool("confirm", false, "Confirm the attach-group operation")
-	authFlags := bindWebSessionFlags(fs)
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "attach-group",
-		ShortUsage: "asc web review subscriptions attach-group --app APP_ID --group-id GROUP_ID_OR_NAME --confirm [flags]",
-		ShortHelp:  "Attach all READY_TO_SUBMIT subscriptions in one group.",
-		FlagSet:    fs,
-		UsageFunc:  d.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedAppID := strings.TrimSpace(d.ResolveAppID(*appID))
-			trimmedGroupID := strings.TrimSpace(*groupID)
-			switch {
-			case trimmedAppID == "":
-				return d.UsageError("--app is required (or set ASC_APP_ID)")
-			case trimmedGroupID == "":
-				return d.UsageError("--group-id is required")
-			case !*confirm:
-				return d.RequireConfirm(*confirm)
-			}
-
-			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
-			defer cancel()
-			if err != nil {
-				return err
-			}
-			client := newWebClientFn(session)
-
-			subscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Loading review subscriptions")
-			if err != nil {
-				return withWebAuthHint(err, "web review subscriptions attach-group")
-			}
-			selectedGroup, err := findReviewSubscriptionGroup(subscriptions, trimmedGroupID)
-			if err != nil {
-				return fmt.Errorf("subscription group lookup for app %q failed: %w", trimmedAppID, withReviewSelectorDiagnostic(err, "--group-id"))
-			}
-			trimmedGroupID = strings.TrimSpace(selectedGroup.GroupID)
-			groupSubscriptions := findReviewSubscriptionsByGroup(subscriptions, trimmedGroupID)
-			if len(groupSubscriptions) == 0 {
-				return fmt.Errorf("subscription group %q was not found for app %q", trimmedGroupID, trimmedAppID)
-			}
-			if err := reviewSubscriptionGroupAttachPreflight(d, trimmedAppID, trimmedGroupID, groupSubscriptions); err != nil {
-				return err
-			}
-
-			skipped := make([]reviewSubscriptionMutationSkip, 0)
-			attachIDs := make([]string, 0)
-			for _, subscription := range groupSubscriptions {
-				switch {
-				case !subscription.SubmitWithNextAppStoreVersionKnown:
-					skipped = append(skipped, reviewSubscriptionMutationSkip{Subscription: subscription, Reason: "next-version attachment state is unknown"})
-				case subscription.SubmitWithNextAppStoreVersion:
-					skipped = append(skipped, reviewSubscriptionMutationSkip{Subscription: subscription, Reason: "already attached"})
-				case reviewSubscriptionState(subscription) != "READY_TO_SUBMIT":
-					skipped = append(skipped, reviewSubscriptionMutationSkip{Subscription: subscription, Reason: reviewSubscriptionAttachSkipReason(subscription)})
-				default:
-					attachIDs = append(attachIDs, strings.TrimSpace(subscription.ID))
-				}
-			}
-
-			if len(attachIDs) > 0 && session.Brokered {
-				return reviewSubscriptionLentSessionError("attach-group", attachIDs)
-			}
-			if len(attachIDs) > 0 {
-				err = withWebSpinnerWith(d, "Attaching subscription group to next app version", func() error {
-					for _, subscriptionID := range attachIDs {
-						if _, err := client.CreateSubscriptionSubmission(requestCtx, subscriptionID); err != nil {
-							return err
-						}
-					}
-					return nil
-				})
-				if err != nil {
-					return withWebAuthHint(err, "web review subscriptions attach-group")
-				}
-			}
-
-			refreshedSubscriptions, err := loadReviewSubscriptionsWithLabelWith(requestCtx, d, client, trimmedAppID, "Refreshing review subscriptions")
-			if err != nil {
-				return withWebAuthHint(err, "web review subscriptions attach-group")
-			}
-			refreshedGroup := findReviewSubscriptionsByGroup(refreshedSubscriptions, trimmedGroupID)
-
-			changed, postRefreshSkipped := collectReviewSubscriptionGroupChanges(
-				refreshedGroup,
-				attachIDs,
-				true,
-				reviewSubscriptionAttachUnchangedAfterRefreshReason(),
-			)
-			skipped = append(skipped, postRefreshSkipped...)
-
-			payload := reviewSubscriptionGroupMutationOutput{
-				AppID:              trimmedAppID,
-				GroupID:            trimmedGroupID,
-				GroupReferenceName: reviewSubscriptionGroupLabel(refreshedGroup, trimmedGroupID),
-				Operation:          "attach-group",
-				ChangedCount:       len(changed),
-				SkippedCount:       len(skipped),
-				Changed:            changed,
-				Skipped:            skipped,
-			}
-
-			return d.PrintOutputWithRenderers(
-				payload,
-				*output.Output,
-				*output.Pretty,
-				func() error { return renderReviewSubscriptionGroupMutationTable(d, payload) },
-				func() error { return renderReviewSubscriptionGroupMutationMarkdown(d, payload) },
 			)
 		},
 	}

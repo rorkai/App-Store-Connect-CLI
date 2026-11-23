@@ -12,7 +12,7 @@ import (
 )
 
 func TestWebReviewSubscriptionsMutationReportsUnknownAttachmentState(t *testing.T) {
-	for _, operation := range []string{"attach", "remove"} {
+	for _, operation := range []string{"remove"} {
 		t.Run(operation, func(t *testing.T) {
 			setCmdtestHome(t)
 			t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
