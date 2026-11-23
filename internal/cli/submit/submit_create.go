@@ -751,8 +751,13 @@ func preserveCreatedReviewSubmission(stderr io.Writer, submissionID string, emit
 	if submissionID == "" {
 		return
 	}
+	// The submission is usually still an unsubmitted draft (READY_FOR_REVIEW),
+	// which App Store Connect refuses to cancel; it is only cancelable once a
+	// final submit reached App Review. Name the commands for both states.
 	message := fmt.Sprintf(
-		"Preserved newly created review submission %s instead of canceling it automatically because it may now contain review items. Retry the command if this run reports an error; it will reuse the draft when safe. To cancel it intentionally, run `asc submit cancel --id %s --confirm`.",
+		"Preserved newly created review submission %s instead of canceling it automatically because it may now contain review items. Retry the command if this run reports an error; it will reuse the draft when safe. Check its state with `asc review submissions-get --id %s --include items`. App Store Connect does not cancel an unsubmitted draft (READY_FOR_REVIEW): change it with `asc review items remove` or send it with `asc review submissions-submit --id %s --confirm`. Once it was submitted, cancel it with `asc submit cancel --id %s --confirm`.",
+		submissionID,
+		submissionID,
 		submissionID,
 		submissionID,
 	)
