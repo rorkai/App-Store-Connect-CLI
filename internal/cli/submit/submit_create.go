@@ -576,8 +576,8 @@ func summarizeReviewSubmissionItemsWithPageLimit(
 	resp, err := client.GetReviewSubmissionItemsStrict(
 		ctx,
 		submissionID,
-		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
-		asc.WithReviewSubmissionItemsFields([]string{"appStoreVersion"}),
+		asc.WithReviewSubmissionItemsInclude(reviewSubmissionItemLinkages),
+		asc.WithReviewSubmissionItemsFields(reviewSubmissionItemLinkages),
 		asc.Limit[asc.ReviewSubmissionItemsOption](200),
 	)
 	if err != nil {
@@ -640,6 +640,25 @@ func summarizeReviewSubmissionItemsWithPageLimit(
 	return summary, nil
 }
 
+// reviewSubmissionItemLinkages are the item relationships the summary reads:
+// the app version, and the subscription and subscription group versions that
+// App Store Connect reviews together with it.
+var reviewSubmissionItemLinkages = []string{"appStoreVersion", "subscriptionGroupVersion", "subscriptionVersion"}
+
+// isStagedSubscriptionItem reports whether item holds only a subscription or
+// subscription group version, as `asc web review subscriptions attach
+// --review-items` stages next to the app version. Such items travel with the
+// version, so they do not make its draft unrelated; any other item does.
+func isStagedSubscriptionItem(item asc.ReviewSubmissionItemResource) bool {
+	rel := item.Relationships
+	if rel == nil || reviewSubmissionItemVersionID(item) != "" {
+		return false
+	}
+	sub := rel.SubscriptionVersion != nil && rel.SubscriptionVersion.Data.Type == asc.ResourceTypeSubscriptionVersions && strings.TrimSpace(rel.SubscriptionVersion.Data.ID) != ""
+	group := rel.SubscriptionGroupVersion != nil && rel.SubscriptionGroupVersion.Data.Type == asc.ResourceTypeSubscriptionGroupVersions && strings.TrimSpace(rel.SubscriptionGroupVersion.Data.ID) != ""
+	return sub != group
+}
+
 func accumulateReviewSubmissionItemSummary(summary *reviewSubmissionItemSummary, items []asc.ReviewSubmissionItemResource, targetVersionID string) {
 	if summary == nil {
 		return
@@ -651,6 +670,7 @@ func accumulateReviewSubmissionItemSummary(summary *reviewSubmissionItemSummary,
 
 		versionID := reviewSubmissionItemVersionID(item)
 		switch {
+		case isStagedSubscriptionItem(item):
 		case targetVersionID != "" && versionID == targetVersionID:
 			summary.hasTargetVersion = true
 		case versionID != "":
