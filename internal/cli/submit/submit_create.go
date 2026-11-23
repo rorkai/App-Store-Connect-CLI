@@ -388,7 +388,11 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 		}
 		if reusable {
 			if hasVersion {
-				emitMessage("Reusing existing review submission %s because the target version is already attached.", sub.ID)
+				if staged := inspector.summaries[strings.TrimSpace(sub.ID)].stagedSubscriptionItems; staged > 0 {
+					emitMessage("Reusing existing review submission %s because the target version is already attached; its %d subscription review item%s submitted with the version.", sub.ID, staged, pluralItemsAre(staged))
+				} else {
+					emitMessage("Reusing existing review submission %s because the target version is already attached.", sub.ID)
+				}
 			} else {
 				emitMessage("Reusing existing review submission %s because it has no review items.", sub.ID)
 			}
@@ -466,6 +470,16 @@ type reviewSubmissionItemSummary struct {
 	hasItems         bool
 	hasTargetVersion bool
 	hasOtherItems    bool
+	// stagedSubscriptionItems counts subscription and subscription group
+	// version items, which go to review with the app version.
+	stagedSubscriptionItems int
+}
+
+// reusableForVersion reports whether review submit reuses a draft with these
+// items: it is empty, or it holds the target version and nothing else but
+// staged subscription items.
+func (s reviewSubmissionItemSummary) reusableForVersion() bool {
+	return !s.hasItems || (s.hasTargetVersion && !s.hasOtherItems)
 }
 
 // reviewSubmissionInspector answers reuse and cancellation questions about the
@@ -521,25 +535,29 @@ func (i *reviewSubmissionInspector) canReuse(ctx context.Context, submission *as
 	if err != nil {
 		return false, false, err
 	}
-	if itemSummary.hasItems {
-		if itemSummary.hasTargetVersion && !itemSummary.hasOtherItems {
-			return true, true, nil
-		}
+	if !itemSummary.reusableForVersion() {
 		return false, false, nil
 	}
-
-	return true, false, nil
+	return true, itemSummary.hasTargetVersion, nil
 }
 
 // ReviewSubmissionHoldsOnlyVersion reports whether a draft review submission
-// holds no items or only versionID, the same check review submit makes before
-// it reuses a draft. Submitting any other draft would also send its other items.
+// is empty or holds versionID with nothing else but subscription and
+// subscription group versions, the same check review submit makes before it
+// reuses a draft. Submitting any other draft would also send unrelated items.
 func ReviewSubmissionHoldsOnlyVersion(ctx context.Context, client *asc.Client, submissionID, versionID string) (bool, error) {
 	summary, err := summarizeReviewSubmissionItems(ctx, client, submissionID, versionID)
 	if err != nil {
 		return false, err
 	}
-	return !summary.hasOtherItems, nil
+	return summary.reusableForVersion(), nil
+}
+
+func pluralItemsAre(n int) string {
+	if n == 1 {
+		return " is"
+	}
+	return "s are"
 }
 
 // reviewSubmissionItemsMaxPages bounds untrusted links.next chains while
@@ -682,6 +700,7 @@ func accumulateReviewSubmissionItemSummary(summary *reviewSubmissionItemSummary,
 		versionID := reviewSubmissionItemVersionID(item)
 		switch {
 		case isStagedSubscriptionItem(item):
+			summary.stagedSubscriptionItems++
 		case targetVersionID != "" && versionID == targetVersionID:
 			summary.hasTargetVersion = true
 		case versionID != "":

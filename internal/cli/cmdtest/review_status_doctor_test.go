@@ -533,7 +533,7 @@ func TestReviewStatusDoesNotPointAtDraftHoldingOtherItems(t *testing.T) {
 	if payload["reviewState"] != "COMPLETE" {
 		t.Fatalf("expected reviewState COMPLETE, got %v", payload["reviewState"])
 	}
-	wantNextAction := "Draft review submission \"draft-1\" holds other review items, so do not submit it for this version: run `asc review submit --app \"123456789\" --version-id \"ver-1\" --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it holds nothing but this version and otherwise creates a new submission."
+	wantNextAction := "Draft review submission \"draft-1\" holds other review items, so do not submit it for this version: run `asc review submit --app \"123456789\" --version-id \"ver-1\" --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it is empty or holds this version plus subscription items, and otherwise creates a new submission."
 	if payload["nextAction"] != wantNextAction {
 		t.Fatalf("expected review submit next action, got %v", payload["nextAction"])
 	}

@@ -47,7 +47,8 @@ type reviewSnapshot struct {
 	SubmissionItems  *reviewSubmissionItemsContext
 	// DraftSubmissionID is a READY_FOR_REVIEW submission with no other version
 	// linked. DraftHoldsOnlyVersion is read only when the next action needs it:
-	// the draft holds no items or only the selected version.
+	// the draft is empty or holds the selected version plus only subscription
+	// items, the drafts review submit reuses.
 	DraftSubmissionID     string
 	DraftHoldsOnlyVersion bool
 }
@@ -516,7 +517,7 @@ func staleReviewSubmissionNextAction(snapshot reviewSnapshot) string {
 	versionID := strings.TrimSpace(snapshot.Version.ID)
 	if !snapshot.DraftHoldsOnlyVersion {
 		return fmt.Sprintf(
-			"Draft review submission %q holds other review items, so do not submit it for this version: run `asc review submit --app %q --version-id %q --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it holds nothing but this version and otherwise creates a new submission.",
+			"Draft review submission %q holds other review items, so do not submit it for this version: run `asc review submit --app %q --version-id %q --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it is empty or holds this version plus subscription items, and otherwise creates a new submission.",
 			draftID, strings.TrimSpace(snapshot.AppID), versionID,
 		)
 	}
