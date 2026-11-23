@@ -24,6 +24,11 @@ asc builds upload --app APP_ID --ipa /path/to/MyApp.ipa
 asc builds upload --app APP_ID --pkg /path/to/MyMacApp.pkg --version 1.0.0 --build-number 1
 ```
 
+`--reserve-only` creates the build upload in App Store Connect and prints its
+upload operations without sending the file. `--dry-run` does the same in 7.3.2
+but warns that, from 7.4.0, it sends nothing to App Store Connect and only
+checks the artifact locally.
+
 ### List builds
 
 List builds for an app and filter by version, build number, or processing state:
