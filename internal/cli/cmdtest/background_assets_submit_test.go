@@ -163,6 +163,15 @@ func TestBackgroundAssetsSubmitPreflightRejectsAdversarialResponses(t *testing.T
 			wantCancelRequests: 1,
 		},
 		{
+			name:               "created receipt mixed errors and draft cancel refused",
+			createBody:         `{"data":{"type":"reviewSubmissions","id":"sub-created"},"errors":[]}`,
+			itemsBody:          validItems,
+			cancelStatus:       http.StatusConflict,
+			cancelBody:         reviewSubmissionNotCancellableBody,
+			wantErr:            `submission "sub-created" failed; App Store Connect refused to cancel it, so it was kept`,
+			wantCancelRequests: 1,
+		},
+		{
 			name:               "created receipt wrong resource type",
 			createBody:         backgroundReviewSubmissionDetailJSON("appStoreVersions", "sub-created", validState, platform, appID),
 			itemsBody:          validItems,
@@ -674,6 +683,64 @@ func TestBackgroundAssetsSubmitRollsBackEmptySubmissionOnFirstAttachFailure(t *t
 	}
 	if got := countBackgroundSubmitRequests(reg, http.MethodPatch, "/v1/reviewSubmissions/sub-doomed"); got != 1 {
 		t.Errorf("expected 1 cancel call (rollback), got %d", got)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout on failure, got %q", stdout)
+	}
+}
+
+func TestBackgroundAssetsSubmitKeepsDraftWhenRollbackCancelIsRefused(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/123456789/backgroundAssets", "filter[archived]=false", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
+				{"type":"backgroundAssets","id":"asset-1","attributes":{"assetPackIdentifier":"pack.one"}}
+			],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/backgroundAssets/asset-1/versions", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
+				{"type":"backgroundAssetVersions","id":"asset-1-v1","attributes":{"state":"COMPLETE","version":"1","platforms":["IOS"]}}
+			],"links":{"next":""}}`))
+	reg.Register(asctest.POST("/v1/reviewSubmissions").JSONBody(backgroundReviewSubmissionCreateBody),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-draft","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/sub-draft", "include=app"),
+		asctest.JSON(http.StatusOK, backgroundReviewSubmissionDetailJSON("reviewSubmissions", "sub-draft", "READY_FOR_REVIEW", "IOS", "123456789")))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/sub-draft/items", "include=backgroundAssetVersion", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-draft/items"}}`))
+	reg.Register(asctest.POST("/v1/reviewSubmissionItems").JSONBody(backgroundReviewSubmissionItemBody("sub-draft", "asset-1-v1")),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.STATE_NOT_ALLOWED","detail":"already attached to another submission"}]}`))
+	// App Store Connect refuses to cancel the unsubmitted draft.
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/sub-draft").JSONBody(backgroundReviewSubmissionPatchBody("sub-draft", "canceled")),
+		asctest.JSON(http.StatusConflict, reviewSubmissionNotCancellableBody))
+
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
+		"background-assets", "submit",
+		"--app", "123456789",
+		"--all",
+		"--confirm",
+		"--output", "json",
+	)
+
+	if code == 0 {
+		t.Fatalf("expected a failing exit code when the first attach fails, got 0 (stderr %q)", stderr)
+	}
+	for _, want := range []string{
+		`to submission "sub-draft" failed; App Store Connect refused to cancel the submission, so it was kept with 0 item(s) attached`,
+		"Hint: It is likely an unsubmitted draft (READY_FOR_REVIEW)",
+		"asc review submissions-get --id sub-draft --include items",
+		"--review-submission-id sub-draft",
+		"asc review submissions-submit --id sub-draft --confirm",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr = %q, want it to contain %q", stderr, want)
+		}
+	}
+	if strings.Contains(stderr, "leaked") {
+		t.Fatalf("stderr = %q, want a refused draft cancel not reported as leaked", stderr)
+	}
+	if got := countBackgroundSubmitRequests(reg, http.MethodPatch, "/v1/reviewSubmissions/sub-draft"); got != 1 {
+		t.Errorf("expected only the rollback cancel PATCH and no submit, got %d PATCH request(s)", got)
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout on failure, got %q", stdout)

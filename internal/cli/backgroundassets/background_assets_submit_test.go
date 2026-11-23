@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type fakeSubmitClient struct {
@@ -192,6 +193,38 @@ func TestRollbackBackgroundAssetReviewSubmissionRetainsBothFailures(t *testing.T
 	}
 	if !errors.Is(err, cause) || !errors.Is(err, cancelErr) {
 		t.Fatalf("rollback error = %v, want both original and cancellation causes", err)
+	}
+}
+
+func TestRollbackBackgroundAssetReviewSubmissionKeepsDraftWhenCancelIsRefused(t *testing.T) {
+	client := newFakeSubmitClient()
+	cause := errors.New("invalid create response")
+	// App Store Connect refuses to cancel an unsubmitted draft (READY_FOR_REVIEW).
+	cancelErr := errors.New("Resource state is invalid.: Resource is not in cancellable state")
+	client.cancelErr = cancelErr
+
+	err := rollbackBackgroundAssetReviewSubmission(context.Background(), newBackgroundAssetsTestDeps(nil), client, "sub-1", "create review submission", cause)
+	if err == nil || !strings.Contains(err.Error(), `submission "sub-1" failed; App Store Connect refused to cancel it, so it was kept`) {
+		t.Fatalf("rollback error = %v, want kept submission detail", err)
+	}
+	if strings.Contains(err.Error(), "leaked") {
+		t.Fatalf("rollback error = %v, want a refused draft cancel not reported as leaked", err)
+	}
+	if !errors.Is(err, cause) || !errors.Is(err, cancelErr) {
+		t.Fatalf("rollback error = %v, want both original and cancellation causes", err)
+	}
+	hinted, ok := errors.AsType[*shared.HintedError](err)
+	if !ok {
+		t.Fatalf("rollback error = %T, want a hinted error", err)
+	}
+	for _, want := range []string{
+		"asc review submissions-get --id sub-1 --include items",
+		"--review-submission-id sub-1",
+		"asc review submissions-submit --id sub-1 --confirm",
+	} {
+		if !strings.Contains(hinted.Hint, want) {
+			t.Fatalf("hint = %q, want it to contain %q", hinted.Hint, want)
+		}
 	}
 }
 

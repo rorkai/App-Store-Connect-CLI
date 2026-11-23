@@ -193,9 +193,12 @@ Examples:
 				if err != nil {
 					if createdHere {
 						cancelErr := cancelBackgroundAssetReviewSubmission(ctx, d, client, currentSubmissionID)
-						if cancelErr == nil {
+						switch {
+						case cancelErr == nil:
 							return fmt.Errorf("background-assets submit: attach version %q (index %d, %d already attached) to submission %q failed; rolled back the submission: %w", item.BackgroundAssetVersionID, i, result.AttachedItems, currentSubmissionID, err)
-						} else {
+						case shared.IsReviewSubmissionNotCancellableError(cancelErr):
+							return keptBackgroundAssetReviewSubmissionError(currentSubmissionID, fmt.Errorf("background-assets submit: attach version %q (index %d, %d already attached) to submission %q failed; App Store Connect refused to cancel the submission, so it was kept with %d item(s) attached: %w", item.BackgroundAssetVersionID, i, result.AttachedItems, currentSubmissionID, result.AttachedItems, errors.Join(err, cancelErr)))
+						default:
 							return fmt.Errorf("background-assets submit: attach version %q (index %d, %d already attached) to submission %q failed; rollback also failed (submission %q is leaked with %d partial item(s)): %w", item.BackgroundAssetVersionID, i, result.AttachedItems, currentSubmissionID, currentSubmissionID, result.AttachedItems, errors.Join(err, cancelErr))
 						}
 					}
@@ -242,10 +245,31 @@ func cancelBackgroundAssetReviewSubmission(ctx context.Context, d *shared.Deps, 
 }
 
 func rollbackBackgroundAssetReviewSubmission(ctx context.Context, d *shared.Deps, client backgroundAssetSubmitClient, submissionID, stage string, cause error) error {
-	if cancelErr := cancelBackgroundAssetReviewSubmission(ctx, d, client, submissionID); cancelErr == nil {
+	cancelErr := cancelBackgroundAssetReviewSubmission(ctx, d, client, submissionID)
+	switch {
+	case cancelErr == nil:
 		return fmt.Errorf("background-assets submit: %s on newly created submission %q failed; rolled back the submission: %w", stage, submissionID, cause)
-	} else {
+	case shared.IsReviewSubmissionNotCancellableError(cancelErr):
+		return keptBackgroundAssetReviewSubmissionError(submissionID, fmt.Errorf("background-assets submit: %s on newly created submission %q failed; App Store Connect refused to cancel it, so it was kept: %w", stage, submissionID, errors.Join(cause, cancelErr)))
+	default:
 		return fmt.Errorf("background-assets submit: %s on newly created submission %q failed; rollback also failed (submission %q is leaked): %w", stage, submissionID, submissionID, errors.Join(cause, cancelErr))
+	}
+}
+
+// keptBackgroundAssetReviewSubmissionError explains a rollback App Store
+// Connect refused. Rollback runs before the final submit, so the submission is
+// normally an unsubmitted draft (READY_FOR_REVIEW), which App Store Connect does
+// not cancel. The draft is kept rather than leaked: the hint names how to
+// check it, reuse it with --review-submission-id, send it, or change it.
+func keptBackgroundAssetReviewSubmissionError(submissionID string, err error) error {
+	return &shared.HintedError{
+		Err: err,
+		Hint: fmt.Sprintf(
+			"It is likely an unsubmitted draft (READY_FOR_REVIEW), which App Store Connect does not cancel. Check it with `asc review submissions-get --id %s --include items`. To reuse it, run this command again with `--review-submission-id %s`; versions already attached are skipped. To send it as it is, run `asc review submissions-submit --id %s --confirm`. To change it, remove an item with `asc review items remove --id ITEM_ID --confirm`.",
+			submissionID,
+			submissionID,
+			submissionID,
+		),
 	}
 }
 
