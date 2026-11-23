@@ -43,6 +43,11 @@ func TestMetadataPullValidationErrors(t *testing.T) {
 			wantConcise:   true,
 		},
 		{
+			name:    "platform suffix in version",
+			args:    []string{"metadata", "pull", "--app", "app-1", "--version", "1.0.0/IOS", "--dir", "./metadata"},
+			wantErr: `Error: --version takes the version string alone; pass --version "1.0.0" --platform IOS`,
+		},
+		{
 			name:    "invalid include",
 			args:    []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3", "--dir", "./metadata", "--include", "screenshots"},
 			wantErr: "Error: --include supports localizations, app-clip, previews",
@@ -378,6 +383,47 @@ func TestMetadataPullVersionNotFound(t *testing.T) {
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+// TestMetadataPullAcceptsVersionID pulls by the App Store version ID that the
+// version-not-found error lists, reading the version string and platform from
+// the version itself instead of filtering by version string.
+func TestMetadataPullAcceptsVersionID(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	const versionID = "11111111-2222-4333-8444-555555555555"
+	outputDir := filepath.Join(t.TempDir(), "metadata")
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/appStoreVersions/"+versionID, "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"`+versionID+`","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"WAITING_FOR_REVIEW"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"WAITING_FOR_REVIEW"}}]}`))
+	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App EN"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/"+versionID+"/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"Desc EN"}}],"links":{"next":""}}`))
+
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "metadata", "pull", "--app", "app-1", "--version", versionID, "--dir", outputDir)
+	if runErr != nil {
+		t.Fatalf("run error: %v; stderr=%q", runErr, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	var payload struct {
+		Version   string `json:"version"`
+		VersionID string `json:"versionId"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if payload.Version != "1.2.3" || payload.VersionID != versionID {
+		t.Fatalf("version = %q, versionId = %q; want 1.2.3 and %s", payload.Version, payload.VersionID, versionID)
+	}
+	if _, err := os.Stat(filepath.Join(outputDir, "version", "1.2.3", "en-US.json")); err != nil {
+		t.Fatalf("expected the version file under its version string: %v", err)
 	}
 }
 

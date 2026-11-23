@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -42,7 +43,7 @@ func newMetadataPullCommand(d *shared.Deps) *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info", "appInfos", "App Info ID (optional override for apps with multiple app-infos)")
-	version := fs.String("version", "", "App version string (for example 1.2.3); defaults to the app's active editable version, then a developer-removed version, else the live version")
+	version := fs.String("version", "", "App version string (for example 1.2.3) or App Store version ID; defaults to the app's active editable version, then a developer-removed version, else the live version")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Output root directory (required)")
 	force := fs.Bool("force", false, "Replace existing files in --dir whose values differ from App Store Connect (files that already match are refreshed without it)")
@@ -66,7 +67,9 @@ When --version is omitted, the app's newest active editable App Store version is
 (PREPARE_FOR_SUBMISSION, DEVELOPER_REJECTED, REJECTED, METADATA_REJECTED,
 READY_FOR_REVIEW, WAITING_FOR_REVIEW, or INVALID_BINARY), then a
 DEVELOPER_REMOVED_FROM_SALE version, and finally the live version. The selected version is reported on stderr. Pass --platform when
-the app has candidate versions on more than one platform.
+the app has candidate versions on more than one platform. --version also takes an
+App Store version ID, such as the IDs a version-not-found error lists; the
+version's own string and platform are then used.
 
 Pulling again into the same --dir refreshes files that already hold the App Store
 Connect values, and App Clip or preview media left unchanged since the last pull.
@@ -77,6 +80,7 @@ Examples:
   asc metadata pull --app "APP_ID" --dir "./metadata"
   asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"
   asc metadata pull --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata"
+  asc metadata pull --app "APP_ID" --version "VERSION_ID" --dir "./metadata"
   asc metadata pull --app "APP_ID" --app-info "APP_INFO_ID" --version "1.2.3" --dir "./metadata"
   asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata" --force`,
 		FlagSet:   fs,
@@ -101,6 +105,10 @@ Examples:
 					return d.UsageError(err.Error())
 				}
 				platformValue = normalizedPlatform
+			}
+
+			if err := rejectPlatformInVersion(d, versionValue); err != nil {
+				return err
 			}
 
 			includes, err := parseIncludes(*include)
@@ -129,6 +137,20 @@ Examples:
 				versionIDValue = resolved.ID
 				versionStateValue = resolved.State
 				platformValue = resolved.Platform
+			} else if appStoreVersionIDPattern.MatchString(versionValue) {
+				// The version-not-found error lists each version's ID, so
+				// callers retry with one; read its version string and platform.
+				version, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, versionValue, platformValue)
+				if err != nil {
+					if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
+						err = shared.WithDiagnostic(err, diagnostic.Code, "--version")
+					}
+					return fmt.Errorf("metadata pull: %w", err)
+				}
+				versionIDValue = version.ID
+				versionValue = version.Attributes.VersionString
+				versionStateValue = asc.ResolveAppStoreVersionState(version.Attributes)
+				platformValue = string(version.Attributes.Platform)
 			} else {
 				versionIDValue, versionStateValue, err = resolveVersionID(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
 				if err != nil {
@@ -393,6 +415,28 @@ func parseIncludes(value string) ([]string, error) {
 	}
 	sort.Strings(result)
 	return result, nil
+}
+
+// appStoreVersionIDPattern matches an App Store version ID, which App Store
+// Connect issues as a UUID; version strings are numeric and dotted.
+var appStoreVersionIDPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// rejectPlatformInVersion answers a --version such as "1.0.0/IOS", which
+// joins the version string and platform, with the flags that take them.
+func rejectPlatformInVersion(d *shared.Deps, version string) error {
+	versionString, suffix, ok := strings.Cut(version, "/")
+	if !ok || !shared.IsAppStoreVersionString(strings.TrimSpace(versionString)) {
+		return nil
+	}
+	platform, err := shared.NormalizeAppStoreVersionPlatform(strings.TrimSpace(suffix))
+	if err != nil {
+		return nil
+	}
+	return shared.WithDiagnostic(
+		d.UsageErrorf("--version takes the version string alone; pass --version %q --platform %s", strings.TrimSpace(versionString), platform),
+		shared.DiagnosticInvalidInput,
+		"--version",
+	)
 }
 
 func resolveVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, appID, version, platform string) (string, string, error) {
