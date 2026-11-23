@@ -15,6 +15,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -458,16 +459,22 @@ func TestWebReviewSubscriptionsAttachPreflightFailsFast(t *testing.T) {
 	}
 }
 
-func TestWebReviewSubscriptionsAttachStopsBeforePostOnLentSession(t *testing.T) {
+func TestWebReviewSubscriptionsAttachReportsBrokerRefusal(t *testing.T) {
+	policyRefusal := &webcore.BrokerError{Status: http.StatusForbidden, Code: "REQUEST_NOT_LENT", Message: "not lent for this request"}
 	tests := []struct {
 		name         string
 		command      func(*shared.Deps) *ffcli.Command
 		args         []string
 		lent         bool
+		refusal      *webcore.BrokerError
 		wantRequests []string
+		wantLentStop bool
 	}{
-		{name: "AttachLent", command: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}, lent: true, wantRequests: []string{reviewSubscriptionsListRequest}},
-		{name: "AttachGroupLent", command: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1"}, lent: true, wantRequests: []string{reviewSubscriptionsListRequest}},
+		{name: "AttachLentRefused", command: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}, lent: true, refusal: policyRefusal, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1"}, wantLentStop: true},
+		{name: "AttachGroupLentRefused", command: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1"}, lent: true, refusal: policyRefusal, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1"}, wantLentStop: true},
+		{name: "AttachLentRateLimited", command: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}, lent: true, refusal: &webcore.BrokerError{Status: http.StatusTooManyRequests, Code: "RATE_LIMITED"}, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1"}},
+		{name: "AttachLentRelayed", command: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}, lent: true, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1", reviewSubscriptionsListRequest}},
+		{name: "AttachGroupLentRelayed", command: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1"}, lent: true, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1", reviewSubscriptionsListRequest}},
 		{name: "AttachDirect", command: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1"}, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1", reviewSubscriptionsListRequest}},
 		{name: "AttachGroupDirect", command: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1"}, wantRequests: []string{reviewSubscriptionsListRequest, "POST sub-1", reviewSubscriptionsListRequest}},
 	}
@@ -477,31 +484,41 @@ func TestWebReviewSubscriptionsAttachStopsBeforePostOnLentSession(t *testing.T) 
 				premiumGroupBody(t, monthlySubscription("READY_TO_SUBMIT", false)),
 				premiumGroupBody(t, monthlySubscription("READY_TO_SUBMIT", true)),
 			)
+			fake.postRefusal = tt.refusal
 			if tt.lent {
 				lendReviewSubscriptionsSession(t)
 			}
 
 			_, stderr, err := runReviewSubscriptionsCommand(t, tt.command, append([]string{"--app", "app-1", "--confirm", "--output", "json"}, tt.args...)...)
 			fake.assertRequests(t, tt.wantRequests...)
-			if !tt.lent {
+			if tt.refusal == nil {
 				if err != nil {
-					t.Fatalf("direct session attach failed: %v", err)
+					t.Fatalf("attach failed: %v", err)
 				}
 				return
 			}
 			if err == nil {
-				t.Fatal("expected a lent session to stop before the attach request")
+				t.Fatal("expected the broker's refusal to fail the attach")
+			}
+			if _, ok := errors.AsType[*webcore.BrokerError](err); !ok {
+				t.Fatalf("expected the broker's refusal to stay in the error chain, got %v", err)
+			}
+			// What the caller reads: the command's stderr, then the error as
+			// main prints it.
+			message := stderr + "\n" + errfmt.FormatStderr(err)
+			if !tt.wantLentStop {
+				if strings.Contains(message, "can't submit subscriptions for review") {
+					t.Fatalf("a %d broker refusal must not be reported as the broker's policy, got %q", tt.refusal.Status, message)
+				}
+				return
 			}
 			diagnostic, ok := shared.DiagnosticFromError(err)
 			if !ok || diagnostic.Code != shared.DiagnosticDependencyFailed {
 				t.Fatalf("expected %s diagnostic, got %+v (ok=%v)", shared.DiagnosticDependencyFailed, diagnostic, ok)
 			}
-			message := err.Error() + "\n" + stderr
-			if hinted, ok := errors.AsType[*shared.HintedError](err); ok {
-				message += "\n" + hinted.Hint
-			}
 			for _, want := range []string{
 				"can't submit subscriptions for review",
+				"(REQUEST_NOT_LENT): not lent for this request",
 				"App Store > Subscriptions",
 				`asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "VERSION_ID"`,
 			} {
@@ -971,6 +988,9 @@ func reviewSubscriptionGroupsBody(t *testing.T, groups ...reviewSubscriptionGrou
 type reviewSubscriptionsFake struct {
 	requests []string
 	labels   *[]string
+	// postRefusal, when set, is the broker's refusal of
+	// POST /iris/v1/subscriptionSubmissions.
+	postRefusal *webcore.BrokerError
 }
 
 // stubReviewSubscriptions answers the nth subscription group list with
@@ -1006,6 +1026,9 @@ func stubReviewSubscriptions(t *testing.T, listBodies ...string) *reviewSubscrip
 			}
 			id := payload.Data.Relationships.Subscription.Data.ID
 			fake.requests = append(fake.requests, "POST "+id)
+			if fake.postRefusal != nil {
+				return nil, fake.postRefusal
+			}
 			body := `{"data":{"id":"submission-1","type":"subscriptionSubmissions","attributes":{"submitWithNextAppStoreVersion":true},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"` + id + `"}}}}}`
 			return webJSONResponse(req, http.StatusCreated, body), nil
 		case req.Method == http.MethodDelete && strings.HasPrefix(req.URL.Path, "/iris/v1/subscriptionSubmissions/"):
