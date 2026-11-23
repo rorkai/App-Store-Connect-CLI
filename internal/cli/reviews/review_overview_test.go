@@ -75,6 +75,33 @@ func TestBuildReviewStatusResultMissingVersion(t *testing.T) {
 	}
 }
 
+// TestStaleReviewSubmissionNextActionNamesDraftItems checks that status and
+// doctor name the subscription items a reusable draft holds: submitting the
+// draft sends them to App Review with the version, so the advice must say so
+// and how to remove one first.
+func TestStaleReviewSubmissionNextActionNamesDraftItems(t *testing.T) {
+	snapshot := reviewSnapshot{
+		AppID:                 "123456789",
+		Version:               &reviewVersionContext{ID: "ver-1", Version: "1.2.3", Platform: "IOS", State: "DEVELOPER_REJECTED"},
+		ReviewDetailID:        "detail-1",
+		LatestSubmission:      &reviewSubmissionContext{ID: "review-sub-1", State: "COMPLETE"},
+		SubmissionItems:       &reviewSubmissionItemsContext{TotalCount: 1, RemovedCount: 1},
+		DraftSubmissionID:     "draft-1",
+		DraftHoldsOnlyVersion: true,
+		DraftStagedItems: []asc.ReviewSubmissionReceiptItem{
+			{Type: "subscriptionVersions", ID: "sub-ver-1", ReviewSubmissionItemID: "item-s"},
+		},
+	}
+	want := "Reuse draft review submission \"draft-1\": run `asc review items add --submission \"draft-1\" --item-type appStoreVersions --item-id \"ver-1\" --if-exists skip`, then `asc review submissions-submit --id \"draft-1\" --confirm`. It also holds subscriptionVersions sub-ver-1 (review item item-s), which go to App Review with it; to leave one out, first run `asc review items remove --id \"ITEM_ID\" --confirm`."
+
+	if got := buildReviewStatusResult(snapshot).NextAction; got != want {
+		t.Fatalf("status next action = %q, want %q", got, want)
+	}
+	if got := buildReviewDoctorResult(snapshot, validation.Report{}).NextAction; got != want {
+		t.Fatalf("doctor next action = %q, want %q", got, want)
+	}
+}
+
 func TestBuildReviewStatusResultExplainsRemovedOnlyCompletedSubmission(t *testing.T) {
 	snapshot := reviewSnapshot{
 		AppID: "123456789",

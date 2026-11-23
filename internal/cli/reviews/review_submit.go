@@ -9,6 +9,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/builds"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	submitcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
@@ -26,7 +27,10 @@ type reviewSubmitResult struct {
 	AlreadySubmitted bool                             `json:"alreadySubmitted,omitempty"`
 	WouldSubmit      bool                             `json:"wouldSubmit,omitempty"`
 	BuildAttachment  *submitcli.BuildAttachmentResult `json:"buildAttachment,omitempty"`
-	Messages         []string                         `json:"messages,omitempty"`
+	// ReviewItems lists every item submitted (or, with --dry-run, to be
+	// submitted) to App Review, the version first.
+	ReviewItems []asc.ReviewSubmissionReceiptItem `json:"reviewItems,omitempty"`
+	Messages    []string                          `json:"messages,omitempty"`
 }
 
 func newReviewSubmitCommand(d *shared.Deps) *ffcli.Command {
@@ -56,6 +60,14 @@ This is the easier modern wrapper around:
 Select the build with --build-id, or with --build-number or --latest, which
 only match builds of the version's app, version string, and platform. A
 selected build must be VALID; --wait waits for processing first.
+
+When the version is already in a draft review submission that also holds
+subscription or subscription group versions (for example staged with
+` + "`asc web review subscriptions attach --review-items`" + `), submitting the draft
+sends those items to App Review too. The command names each one on stderr
+before submitting (and with --dry-run), with how to remove it first, and the
+JSON receipt lists every submitted item in reviewItems, with named false for
+the items the command line did not name.
 
 Examples:
   asc review submit --app "123456789" --version "1.2.3" --build-id "BUILD_ID" --confirm
@@ -202,6 +214,7 @@ Examples:
 				AlreadySubmitted: submitResult.AlreadySubmitted,
 				WouldSubmit:      submitResult.WouldSubmit,
 				BuildAttachment:  submitResult.BuildAttachment,
+				ReviewItems:      submitResult.ReviewItems,
 				Messages:         submitResult.Messages,
 			}
 
