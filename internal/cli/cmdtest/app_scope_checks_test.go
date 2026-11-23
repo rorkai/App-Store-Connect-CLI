@@ -52,6 +52,27 @@ func TestSubmitStatusAndVersionsUpdateScopeToApp(t *testing.T) {
 			wantStdout: []string{`"id":"sub-live"`, `"state":"WAITING_FOR_REVIEW"`, `"versionId":"version-1"`},
 		},
 		{
+			name: "submit status app prefers the latest submitted over an undated draft",
+			args: []string{"submit", "status", "--app", "100000001"},
+			stubs: []stub{
+				{
+					matcher: asctest.GET("/v1/apps/100000001/reviewSubmissions", "limit=200"),
+					body: `{"data":[` +
+						`{"type":"reviewSubmissions","id":"sub-draft","attributes":{"state":"READY_FOR_REVIEW"}},` +
+						`{"type":"reviewSubmissions","id":"sub-done","attributes":{"state":"COMPLETE","submittedDate":"2026-03-01T00:00:00Z"}}]}`,
+				},
+				{
+					matcher: asctest.GET("/v1/reviewSubmissions/sub-done", "include=app"),
+					body:    `{"data":{"type":"reviewSubmissions","id":"sub-done","attributes":{"state":"COMPLETE","submittedDate":"2026-03-01T00:00:00Z"},"relationships":{"app":{"data":{"type":"apps","id":"100000001"}},"appStoreVersionForReview":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`,
+				},
+				{
+					matcher: asctest.GET("/v1/appStoreVersions/version-1"),
+					body:    `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}}`,
+				},
+			},
+			wantStdout: []string{`"id":"sub-done"`, `"state":"COMPLETE"`, `"versionId":"version-1"`},
+		},
+		{
 			name: "submit status refuses another app's submission",
 			args: []string{"submit", "status", "--app", "100000001", "--id", "sub-9"},
 			stubs: []stub{{
