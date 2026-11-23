@@ -37,6 +37,17 @@ func TestAssetLibraryVideoUploadKeepsProcessingPartialReceipt(t *testing.T) {
 	runLibraryVideoUploadCase(t, true, false, false)
 }
 
+// A failure after reservation must name the step it stopped in, on stderr and
+// in the partial receipt, so a caller can tell a failed transfer from a commit
+// Apple did not accept or a video Apple could not process.
+func TestAssetLibraryVideoUploadPartialReceiptNamesFailedPhase(t *testing.T) {
+	for _, phase := range []string{"transfer", "commit", "processing"} {
+		t.Run(phase, func(t *testing.T) {
+			runLibraryVideoUploadCaseWith(t, false, false, false, libraryVideoUploadAttributes{failPhase: phase})
+		})
+	}
+}
+
 func TestAssetLibraryVideoUploadObjectAspectRatio(t *testing.T) {
 	runLibraryVideoUploadCase(t, false, true, false)
 }
@@ -49,7 +60,7 @@ func runLibraryVideoUploadCase(t *testing.T, pending, objectSpec, requestDeadlin
 	runLibraryVideoUploadCaseWith(t, pending, objectSpec, requestDeadline, libraryVideoUploadAttributes{})
 }
 
-type libraryVideoUploadAttributes struct{ referenceName, timeCode, frameState string }
+type libraryVideoUploadAttributes struct{ referenceName, timeCode, frameState, failPhase string }
 
 func runLibraryVideoUploadCaseWith(t *testing.T, pending, objectSpec, requestDeadline bool, attributes libraryVideoUploadAttributes) {
 	if runtime.GOOS == "windows" {
@@ -109,18 +120,27 @@ printf '%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,
 			}
 			return jsonResponse(201, `{"data":{"id":"video","type":"appAssetLibraryVideos","attributes":{"state":"AWAITING_UPLOAD","uploadOperations":[{"method":"PUT","url":"https://storage.example/video","offset":0,"length":21}]}}}`)
 		case "PUT /video":
+			if attributes.failPhase == "transfer" {
+				return jsonResponse(http.StatusForbidden, "")
+			}
 			bytes, err := io.ReadAll(req.Body)
 			if err != nil || string(bytes) != string(content) || req.Header.Get("Authorization") != "" {
 				t.Fatal("incorrect or credentialed transfer")
 			}
 			return jsonResponse(200, "")
 		case "PATCH /v1/appAssetLibraryVideos/video":
+			if attributes.failPhase == "commit" {
+				return jsonResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","title":"commit rejected","detail":"commit rejected"}]}`)
+			}
 			bytes, _ := io.ReadAll(req.Body)
 			if string(bytes) != `{"data":{"type":"appAssetLibraryVideos","id":"video","attributes":{"uploaded":true}}}` {
 				t.Fatalf("commit %s", bytes)
 			}
 			return jsonResponse(200, `{"data":{"id":"video","type":"appAssetLibraryVideos"}}`)
 		case "GET /v1/appAssetLibraryVideos/video":
+			if attributes.failPhase == "processing" {
+				return jsonResponse(200, `{"data":{"id":"video","type":"appAssetLibraryVideos","attributes":{"state":"FAILED"}}}`)
+			}
 			if attributes.frameState != "" {
 				return jsonResponse(200, `{"data":{"id":"video","type":"appAssetLibraryVideos","attributes":{"state":"PREPARE_FOR_SUBMISSION","specId":"spec","videoAsset":"https://video.example/processed.mp4","previewFrameImage":{"image":{"templateUrl":"https://frame.example/{w}x{h}bb.{f}","width":1920,"height":1280},"state":{"errors":null,"warnings":null,"state":"`+attributes.frameState+`"}}}}}`)
 			}
@@ -147,7 +167,20 @@ printf '%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,
 		}
 		return
 	}
+	if attributes.failPhase != "" {
+		prefix := map[string]string{"transfer": "transfer video video:", "commit": "commit video video:", "processing": "wait for video video processing"}[attributes.failPhase]
+		if err == nil || !strings.HasPrefix(err.Error(), "asset-library videos upload: "+prefix) {
+			t.Fatalf("error = %v, want the %q step named", err, prefix)
+		}
+		if !strings.Contains(stdout, `"videoId":"video"`) || !strings.Contains(stdout, `"failedPhase":"`+attributes.failPhase+`"`) {
+			t.Fatalf("partial receipt does not name the %s phase: %s", attributes.failPhase, stdout)
+		}
+		return
+	}
 	if pending {
+		if !strings.Contains(stdout, `"failedPhase":"processing"`) {
+			t.Fatalf("processing deadline receipt does not name the phase: %s", stdout)
+		}
 		if !errors.Is(err, context.DeadlineExceeded) || errfmt.Classify(err).Hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=45m`)." {
 			t.Fatalf("processing deadline uses wrong hint: err=%v hint=%q", err, errfmt.Classify(err).Hint)
 		}

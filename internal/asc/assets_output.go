@@ -64,6 +64,9 @@ type AssetUploadFailureItem struct {
 	FileName string `json:"fileName,omitempty"`
 	FilePath string `json:"filePath,omitempty"`
 	Error    string `json:"error"`
+	// FailedPhase names the upload step the file stopped in (reserve,
+	// transfer, commit or processing) when the failure came from one.
+	FailedPhase string `json:"failedPhase,omitempty"`
 }
 
 // AppScreenshotUploadResult represents screenshot upload output.
