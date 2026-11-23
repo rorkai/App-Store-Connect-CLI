@@ -178,8 +178,9 @@ run only with ` + "`--confirm`" + `. A dry run reads the requirement's state but
 no answer and no file to Apple, because Apple's form takes them with every
 step. So a first ` + "`--confirm`" + ` can still be refused by Apple's form, for a field
 or file type only the form asks about; nothing is saved then. Read-only mode
-(` + "`ASC_READ_ONLY`" + `) allows ` + "`--dry-run`" + ` and refuses a save before reading the files. Apple verifies an affirmative answer, so its status stays
-` + "`COLLECTED_VERIFY_PENDING`" + ` after a save.
+(` + "`ASC_READ_ONLY`" + ` or ` + "`--read-only`" + `) allows ` + "`--dry-run`" + ` and refuses a
+save before reading the files. Apple verifies an affirmative answer, so
+its status stays ` + "`COLLECTED_VERIFY_PENDING`" + ` after a save.
 
 Examples:
   asc web apps compliance set --app "6748252780" --requirement SECURITY_ASSESSMENT --declared false --confirm

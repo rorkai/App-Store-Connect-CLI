@@ -23,13 +23,28 @@ func TestAccountStatusJSON(t *testing.T) {
 			want: []string{"asc web agreements status", "asc web business agreements list"},
 		},
 		{
-			// A lent web session cannot read agreements, so naming the
-			// agreement commands would send the caller into a refusal.
+			// Whether a broker lends the agreement pages is the broker's
+			// policy, so the check gives the hand-off for a broker that does
+			// not and the commands for one that does, without claiming either.
 			name:        "lent web session",
 			brokerURL:   "https://broker.example.com",
 			brokerToken: "broker-token",
-			want:        []string{"Account Holder", "https://appstoreconnect.apple.com/business", "https://developer.apple.com/account", "Program License Agreement"},
-			reject:      []string{"asc web", "asc "},
+			want:        []string{"may not lend", "Account Holder", "https://appstoreconnect.apple.com/business", "https://developer.apple.com/account", "Program License Agreement", "`asc web agreements status`", "`asc web business agreements list`"},
+			reject:      []string{"can't read"},
+		},
+		{
+			// A half-set broker config fails every web command, so the check
+			// names both variables instead of a broker policy.
+			name:        "broker token without a URL",
+			brokerToken: "broker-token",
+			want:        []string{"incomplete", "ASC_WEB_BROKER_URL", "ASC_WEB_BROKER_TOKEN"},
+			reject:      []string{"broker-token", "Account Holder", "may not lend"},
+		},
+		{
+			name:      "broker URL without a token",
+			brokerURL: "https://broker.example.com",
+			want:      []string{"incomplete", "ASC_WEB_BROKER_URL", "ASC_WEB_BROKER_TOKEN"},
+			reject:    []string{"Account Holder", "may not lend"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

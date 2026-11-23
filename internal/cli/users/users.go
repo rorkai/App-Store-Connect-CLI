@@ -363,7 +363,7 @@ func newUsersInviteCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "invite",
-		ShortUsage: "asc users invite --email EMAIL --first-name NAME --last-name NAME --roles ROLE[,ROLE...] [--all-apps | --visible-app APP_ID[,APP_ID...]] [--provisioning-allowed true|false] --confirm",
+		ShortUsage: "asc users invite --email EMAIL --first-name NAME --last-name NAME --roles ROLE[,ROLE...] [--all-apps | --visible-app APP_ID[,APP_ID...]] [--provisioning-allowed true|false] [--confirm]",
 		ShortHelp:  "Invite a user.",
 		LongHelp: `Invite a new user to App Store Connect.
 
