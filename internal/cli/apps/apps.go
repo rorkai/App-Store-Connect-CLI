@@ -156,13 +156,16 @@ func newAppsGetCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:   "View app details by ID.",
 		LongHelp: `View app details by ID.
 
+--id (or --app) also takes the app's bundle ID or exact name.
+
 Examples:
   asc apps view --id "APP_ID"
+  asc apps view --app "com.example.app"
   asc apps view --id "APP_ID" --app-info-fields state,primaryCategory --iap-fields versions --subscription-group-fields versions
   asc apps view --id "APP_ID" --include appInfos,appStoreVersions
   asc apps view --id "APP_ID" --output table
   asc apps view --id "APP_ID" --fields "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox" --output json`,
-		IDUsage:            "App Store Connect app ID",
+		IDUsage:            "App Store Connect app ID, bundle ID, or exact app name",
 		IDType:             "apps",
 		RequiredDiagnostic: true,
 		Flags: func(fs *flag.FlagSet) func() error {
@@ -198,6 +201,10 @@ Examples:
 			}
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			id, err := shared.ResolveAppIDWithLookup(ctx, client, id)
+			if err != nil {
+				return nil, err
+			}
 			includeValues := slices.Clone(requestedIncludes)
 			if len(appInfoFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "appInfos")
