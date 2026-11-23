@@ -327,7 +327,7 @@ func TestVerifyReviewSubmissionForSubmitRejectsMalformedDetailBeforeItemInspecti
 				}
 			}))
 
-			err := verifyReviewSubmissionForSubmit(context.Background(), client, "submission-1", "app-1", "IOS", "version-1")
+			_, err := verifyReviewSubmissionForSubmit(context.Background(), client, "submission-1", "app-1", "IOS", "version-1", false)
 			if err == nil || !strings.Contains(err.Error(), tt.wantSubstring) {
 				t.Fatalf("expected detail validation error containing %q, got %v", tt.wantSubstring, err)
 			}
@@ -472,7 +472,7 @@ func TestSubmitResolvedVersionRejectsTopLevelErrorsInDetailBeforeItemInspection(
 		}
 	}))
 
-	err := verifyReviewSubmissionForSubmit(context.Background(), client, "existing-submission", "app-1", "IOS", "version-1")
+	_, err := verifyReviewSubmissionForSubmit(context.Background(), client, "existing-submission", "app-1", "IOS", "version-1", false)
 	if err == nil || !strings.Contains(err.Error(), "top-level errors") {
 		t.Fatalf("expected top-level errors rejection, got %v", err)
 	}

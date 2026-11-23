@@ -94,22 +94,33 @@ type TestFlightPublishResult struct {
 	Publish                *TestFlightPublishStageResult     `json:"publish,omitempty"`
 }
 
+// ReviewSubmissionReceiptItem names one item a review submission sends to App
+// Review: its resource type and ID, and the review submission item that holds
+// it when known.
+type ReviewSubmissionReceiptItem struct {
+	Type                   string `json:"type"`
+	ID                     string `json:"id"`
+	ReviewSubmissionItemID string `json:"reviewSubmissionItemId,omitempty"`
+}
+
 // AppStorePublishResult captures the App Store publish workflow output.
 type AppStorePublishResult struct {
-	Mode         PublishMode                 `json:"mode,omitempty"`
-	DryRun       bool                        `json:"dryRun,omitempty"`
-	BuildVersion string                      `json:"buildVersion,omitempty"`
-	BuildNumber  string                      `json:"buildNumber,omitempty"`
-	BuildID      string                      `json:"buildId"`
-	VersionID    string                      `json:"versionId"`
-	SubmissionID string                      `json:"submissionId,omitempty"`
-	Uploaded     bool                        `json:"uploaded"`
-	Attached     bool                        `json:"attached"`
-	Submitted    bool                        `json:"submitted"`
-	Plan         []PublishPlanStep           `json:"plan,omitempty"`
-	Archive      *PublishArchiveStageResult  `json:"archive,omitempty"`
-	Export       *PublishExportStageResult   `json:"export,omitempty"`
-	Publish      *AppStorePublishStageResult `json:"publish,omitempty"`
+	Mode         PublishMode `json:"mode,omitempty"`
+	DryRun       bool        `json:"dryRun,omitempty"`
+	BuildVersion string      `json:"buildVersion,omitempty"`
+	BuildNumber  string      `json:"buildNumber,omitempty"`
+	BuildID      string      `json:"buildId"`
+	VersionID    string      `json:"versionId"`
+	SubmissionID string      `json:"submissionId,omitempty"`
+	Uploaded     bool        `json:"uploaded"`
+	Attached     bool        `json:"attached"`
+	Submitted    bool        `json:"submitted"`
+	// ReviewItems lists every item the review submission sent to App Review.
+	ReviewItems []ReviewSubmissionReceiptItem `json:"reviewItems,omitempty"`
+	Plan        []PublishPlanStep             `json:"plan,omitempty"`
+	Archive     *PublishArchiveStageResult    `json:"archive,omitempty"`
+	Export      *PublishExportStageResult     `json:"export,omitempty"`
+	Publish     *AppStorePublishStageResult   `json:"publish,omitempty"`
 }
 
 // Build processing states to poll for.

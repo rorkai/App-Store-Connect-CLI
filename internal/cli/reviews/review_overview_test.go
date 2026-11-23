@@ -75,6 +75,33 @@ func TestBuildReviewStatusResultMissingVersion(t *testing.T) {
 	}
 }
 
+// TestStaleReviewSubmissionNextActionNamesStagedItems checks that status and
+// doctor do not call a draft with subscription items plainly reusable: review
+// submit sends such a draft only with --include-staged-items, and submitting it
+// by ID sends those items too, so the advice must name them and the flag.
+func TestStaleReviewSubmissionNextActionNamesStagedItems(t *testing.T) {
+	snapshot := reviewSnapshot{
+		AppID:                 "123456789",
+		Version:               &reviewVersionContext{ID: "ver-1", Version: "1.2.3", Platform: "IOS", State: "DEVELOPER_REJECTED"},
+		ReviewDetailID:        "detail-1",
+		LatestSubmission:      &reviewSubmissionContext{ID: "review-sub-1", State: "COMPLETE"},
+		SubmissionItems:       &reviewSubmissionItemsContext{TotalCount: 1, RemovedCount: 1},
+		DraftSubmissionID:     "draft-1",
+		DraftHoldsOnlyVersion: true,
+		DraftStagedItems: []asc.ReviewSubmissionReceiptItem{
+			{Type: "subscriptionVersions", ID: "sub-ver-1", ReviewSubmissionItemID: "item-s"},
+		},
+	}
+	want := "Draft review submission \"draft-1\" also holds subscriptionVersions sub-ver-1, which go to App Review with it. To send them with this version, run `asc review submit --app \"123456789\" --version-id \"ver-1\" --build-id \"BUILD_ID\" --include-staged-items --confirm`; without --include-staged-items, review submit stops and lists them."
+
+	if got := buildReviewStatusResult(snapshot).NextAction; got != want {
+		t.Fatalf("status next action = %q, want %q", got, want)
+	}
+	if got := buildReviewDoctorResult(snapshot, validation.Report{}).NextAction; got != want {
+		t.Fatalf("doctor next action = %q, want %q", got, want)
+	}
+}
+
 func TestBuildReviewStatusResultExplainsRemovedOnlyCompletedSubmission(t *testing.T) {
 	snapshot := reviewSnapshot{
 		AppID: "123456789",

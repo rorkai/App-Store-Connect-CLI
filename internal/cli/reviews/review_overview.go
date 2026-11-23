@@ -48,9 +48,12 @@ type reviewSnapshot struct {
 	// DraftSubmissionID is a READY_FOR_REVIEW submission with no other version
 	// linked. DraftHoldsOnlyVersion is read only when the next action needs it:
 	// the draft is empty or holds the selected version plus only subscription
-	// items, the drafts review submit reuses.
+	// items, the drafts review submit reuses. DraftStagedItems are those
+	// subscription items, which review submit sends only with
+	// --include-staged-items.
 	DraftSubmissionID     string
 	DraftHoldsOnlyVersion bool
+	DraftStagedItems      []asc.ReviewSubmissionReceiptItem
 }
 
 type reviewStatusResult struct {
@@ -285,11 +288,12 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 		snapshot.SubmissionItems = &submissionItems
 	}
 	if snapshot.DraftSubmissionID != "" && reviewSnapshotHasOnlyRemovedItems(snapshot) {
-		holdsOnlyVersion, err := submitcli.ReviewSubmissionHoldsOnlyVersion(ctx, client, snapshot.DraftSubmissionID, selectedVersionID)
+		holdsOnlyVersion, stagedItems, err := submitcli.ReviewSubmissionHoldsOnlyVersion(ctx, client, snapshot.DraftSubmissionID, selectedVersionID)
 		if err != nil {
 			return snapshot, fmt.Errorf("fetch review submission items for %q: %w", snapshot.DraftSubmissionID, err)
 		}
 		snapshot.DraftHoldsOnlyVersion = holdsOnlyVersion
+		snapshot.DraftStagedItems = stagedItems
 	}
 
 	return snapshot, nil
@@ -517,8 +521,18 @@ func staleReviewSubmissionNextAction(snapshot reviewSnapshot) string {
 	versionID := strings.TrimSpace(snapshot.Version.ID)
 	if !snapshot.DraftHoldsOnlyVersion {
 		return fmt.Sprintf(
-			"Draft review submission %q holds other review items, so do not submit it for this version: run `asc review submit --app %q --version-id %q --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it is empty or holds this version plus subscription items, and otherwise creates a new submission.",
+			"Draft review submission %q holds other review items, so do not submit it for this version: run `asc review submit --app %q --version-id %q --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it is empty or holds this version plus subscription items (those only with --include-staged-items), and otherwise creates a new submission.",
 			draftID, strings.TrimSpace(snapshot.AppID), versionID,
+		)
+	}
+	if staged := snapshot.DraftStagedItems; len(staged) > 0 {
+		names := make([]string, 0, len(staged))
+		for _, item := range staged {
+			names = append(names, item.Type+" "+item.ID)
+		}
+		return fmt.Sprintf(
+			"Draft review submission %q also holds %s, which go to App Review with it. To send them with this version, run `asc review submit --app %q --version-id %q --build-id \"BUILD_ID\" --include-staged-items --confirm`; without --include-staged-items, review submit stops and lists them.",
+			draftID, strings.Join(names, ", "), strings.TrimSpace(snapshot.AppID), versionID,
 		)
 	}
 	return fmt.Sprintf(

@@ -33,7 +33,14 @@ type SubmitResolvedVersionOptions struct {
 	EnsureBuildAttached      bool
 	LookupExistingSubmission bool
 	DryRun                   bool
-	Emit                     func(string)
+	// IncludeStagedItems agrees to submit subscription items that a reused
+	// draft holds next to the version. Without it the flow refuses before
+	// any write and names them.
+	IncludeStagedItems bool
+	// StagedItemsRetry names how to send those items with the version when
+	// the flow refuses; it defaults to rerunning with --include-staged-items.
+	StagedItemsRetry string
+	Emit             func(string)
 }
 
 // SubmitResolvedVersionResult captures the outcome of creating/submitting a
@@ -44,7 +51,10 @@ type SubmitResolvedVersionResult struct {
 	AlreadySubmitted bool                   `json:"alreadySubmitted,omitempty"`
 	WouldSubmit      bool                   `json:"wouldSubmit,omitempty"`
 	BuildAttachment  *BuildAttachmentResult `json:"buildAttachment,omitempty"`
-	Messages         []string               `json:"messages,omitempty"`
+	// ReviewItems lists every item the submission sends (or, with DryRun,
+	// would send) to App Review, the version first.
+	ReviewItems []asc.ReviewSubmissionReceiptItem `json:"reviewItems,omitempty"`
+	Messages    []string                          `json:"messages,omitempty"`
 }
 
 // SubmissionLocalizationPreflightWith runs the submission-blocking
@@ -245,13 +255,28 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 		return result, unresolvedSubmissionError(unresolvedSubmissionID, versionID, buildToAttach)
 	}
 
-	if !opts.DryRun {
-		preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-		preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
-		preparationCancel()
-		if err != nil {
-			return result, fmt.Errorf("submit review: prepare review submission: %w", err)
+	// Read-only too: --dry-run names the same draft items and refuses the same
+	// way, before the build is attached.
+	preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
+	preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
+	preparationCancel()
+	if err != nil {
+		return result, fmt.Errorf("submit review: prepare review submission: %w", err)
+	}
+	if staged := preparedSubmission.stagedItems; len(staged) > 0 {
+		if !opts.IncludeStagedItems {
+			return result, stagedReviewItemsUsageError(d, &stagedReviewItemsError{
+				SubmissionID: preparedSubmission.reuseSubmissionID,
+				VersionID:    versionID,
+				Items:        staged,
+				Retry:        opts.StagedItemsRetry,
+			})
 		}
+		emit(fmt.Sprintf(
+			"Review submission %s also holds %s; --include-staged-items sends them to App Review with the version.",
+			preparedSubmission.reuseSubmissionID,
+			describeReviewItems(staged),
+		))
 	}
 
 	if opts.EnsureBuildAttached {
@@ -266,6 +291,7 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 
 	if opts.DryRun {
 		result.WouldSubmit = true
+		result.ReviewItems = reviewReceiptItems(versionID, preparedSubmission.versionItemID, preparedSubmission.stagedItems)
 		return result, nil
 	}
 
@@ -306,11 +332,16 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 			versionID,
 			appID,
 			platform,
+			opts.IncludeStagedItems,
 			emit,
 		)
 		if err != nil {
 			if createdSubmissionID != "" {
 				preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
+			}
+			if stagedErr, ok := errors.AsType[*stagedReviewItemsError](err); ok {
+				stagedErr.Retry = opts.StagedItemsRetry
+				return result, stagedReviewItemsUsageError(d, stagedErr)
 			}
 			return result, fmt.Errorf("submit review: add version to submission: %w", err)
 		}
@@ -319,16 +350,22 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 		}
 	}
 
-	if err := verifyReviewSubmissionForSubmit(
+	finalItems, err := verifyReviewSubmissionForSubmit(
 		submitCtx,
 		client,
 		submissionIDToSubmit,
 		appID,
 		platform,
 		versionID,
-	); err != nil {
+		opts.IncludeStagedItems,
+	)
+	if err != nil {
 		if submissionIDToSubmit == createdSubmissionID {
 			preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
+		}
+		if stagedErr, ok := errors.AsType[*stagedReviewItemsError](err); ok {
+			stagedErr.Retry = opts.StagedItemsRetry
+			return result, stagedReviewItemsUsageError(d, stagedErr)
 		}
 		return result, fmt.Errorf("submit review: final submission validation: %w", err)
 	}
@@ -344,7 +381,26 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 
 	result.SubmissionID = strings.TrimSpace(submitResp.Data.ID)
 	result.SubmittedDate = strings.TrimSpace(submitResp.Data.Attributes.SubmittedDate)
+	result.ReviewItems = reviewReceiptItems(versionID, finalItems.targetVersionItemID, finalItems.stagedItems)
 	return result, nil
+}
+
+// reviewReceiptItems lists what a submission sends to App Review: the version,
+// then any staged subscription items.
+func reviewReceiptItems(versionID, versionItemID string, staged []asc.ReviewSubmissionReceiptItem) []asc.ReviewSubmissionReceiptItem {
+	items := make([]asc.ReviewSubmissionReceiptItem, 0, 1+len(staged))
+	items = append(items, asc.ReviewSubmissionReceiptItem{
+		Type:                   string(asc.ResourceTypeAppStoreVersions),
+		ID:                     strings.TrimSpace(versionID),
+		ReviewSubmissionItemID: strings.TrimSpace(versionItemID),
+	})
+	return append(items, staged...)
+}
+
+// stagedReviewItemsUsageError reports err as a usage error (exit 2): the
+// command line is missing --include-staged-items for what the draft holds.
+func stagedReviewItemsUsageError(d *shared.Deps, err *stagedReviewItemsError) error {
+	return shared.WithDiagnostic(d.InvalidInputError(err.Error()), shared.DiagnosticRequiredInputMissing, "--include-staged-items")
 }
 
 func submitResolvedVersionPhaseContext(ctx context.Context, requestTimeout time.Duration) (context.Context, context.CancelFunc) {

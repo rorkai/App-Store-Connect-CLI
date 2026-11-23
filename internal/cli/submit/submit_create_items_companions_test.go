@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -84,7 +83,7 @@ func TestReviewSubmissionHoldsOnlyVersionMatchesReviewSubmitReuse(t *testing.T) 
 			client := newSubmitTestClient(t, submitRoundTripFunc(func(*http.Request) (*http.Response, error) {
 				return companionsItemsResponse(tt.items)
 			}))
-			got, err := ReviewSubmissionHoldsOnlyVersion(context.Background(), client, "submission-1", "version-1")
+			got, _, err := ReviewSubmissionHoldsOnlyVersion(context.Background(), client, "submission-1", "version-1")
 			if err != nil {
 				t.Fatalf("ReviewSubmissionHoldsOnlyVersion() error: %v", err)
 			}
@@ -96,8 +95,8 @@ func TestReviewSubmissionHoldsOnlyVersionMatchesReviewSubmitReuse(t *testing.T) 
 }
 
 // TestPrepareReviewSubmissionForCreateNamesStagedSubscriptionItemsOnReuse
-// checks that the reuse notice says the draft's subscription items go to
-// review with the version, so the caller is not surprised they were submitted.
+// checks that reusing a draft returns its subscription items by type, ID and
+// review item, so review submit can list them and refuse to send them unasked.
 func TestPrepareReviewSubmissionForCreateNamesStagedSubscriptionItemsOnReuse(t *testing.T) {
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
@@ -111,17 +110,14 @@ func TestPrepareReviewSubmissionForCreateNamesStagedSubscriptionItemsOnReuse(t *
 		}
 	}))
 
-	stderr := captureSubmitStderr(t, func(w io.Writer) {
-		got, err := prepareReviewSubmissionForCreate(context.Background(), w, client, "app-1", "IOS", "version-1", nil)
-		if err != nil {
-			t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
-		}
-		if got.reuseSubmissionID != "submission-1" {
-			t.Fatalf("expected submission-1 to be reused, got %#v", got)
-		}
-	})
-
-	if want := "Reusing existing review submission submission-1 because the target version is already attached; its 2 subscription review items are submitted with the version."; !strings.Contains(stderr, want) {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
+	got, err := prepareReviewSubmissionForCreate(context.Background(), io.Discard, client, "app-1", "IOS", "version-1", nil)
+	if err != nil {
+		t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
+	}
+	if got.reuseSubmissionID != "submission-1" || got.versionItemID != "item-v" {
+		t.Fatalf("expected submission-1 reused with version item item-v, got %#v", got)
+	}
+	if want := "subscriptionVersions sub-ver-1 (review item item-s), subscriptionGroupVersions group-ver-1 (review item item-g)"; describeReviewItems(got.stagedItems) != want {
+		t.Fatalf("staged items = %q, want %q", describeReviewItems(got.stagedItems), want)
 	}
 }

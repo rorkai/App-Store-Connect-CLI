@@ -266,13 +266,14 @@ func TestVerifyReviewSubmissionForSubmitRejectsWrongBinding(t *testing.T) {
 				}
 			}))
 
-			err := verifyReviewSubmissionForSubmit(
+			_, err := verifyReviewSubmissionForSubmit(
 				context.Background(),
 				client,
 				"submission-1",
 				"app-1",
 				"IOS",
 				"version-1",
+				false,
 			)
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("expected %q binding error, got %v", tt.want, err)

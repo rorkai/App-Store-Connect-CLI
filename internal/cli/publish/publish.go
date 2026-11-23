@@ -541,6 +541,7 @@ func newPublishAppStoreCommand(d *shared.Deps) *ffcli.Command {
 	metadataDir := fs.String("metadata-dir", "", "Metadata directory with version/<version>/*.json files to apply after ensuring the App Store version")
 	submit := fs.Bool("submit", false, "Submit for review after attaching build")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required with --submit)")
+	includeStagedItems := fs.Bool("include-staged-items", false, "With --submit: also submit the subscription items a reused draft holds next to the version")
 	dryRun := fs.Bool("dry-run", false, "Preview high-level publish plan without uploading or submitting")
 	wait := fs.Bool("wait", false, "Wait for build processing")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and build discovery")
@@ -562,6 +563,10 @@ Workflow:
 5. Attach the build to the version
 6. Optionally submit for review with --submit --confirm
 
+If the version is already in a draft review submission that also holds
+subscription items, --submit stops before changing the submission and lists
+them; add --include-staged-items to submit them with the version.
+
 Use ` + "`asc release stage`" + ` when you want metadata-driven preparation without
 submission. Use ` + "`asc validate`" + ` to run readiness checks before you add
 ` + "`--submit`" + `. Use ` + "`--dry-run`" + ` to preview the planned mutation
@@ -582,6 +587,9 @@ Examples:
 			if *submit && !*confirm && !*dryRun {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required with --submit")
 				return shared.MissingRequiredUsageError("--confirm")
+			}
+			if *includeStagedItems && !*submit {
+				return d.UsageError("--include-staged-items requires --submit")
 			}
 
 			resolvedAppInput := d.ResolveAppID(*appID)
@@ -916,6 +924,13 @@ Examples:
 					EnsureBuildAttached:      true,
 					LookupExistingSubmission: false,
 					DryRun:                   false,
+					IncludeStagedItems:       *includeStagedItems,
+					// Rerunning publish would upload again; the build is
+					// already uploaded, so name review submit instead.
+					StagedItemsRetry: fmt.Sprintf(
+						"run `asc review submit --app %q --version-id %q --build-id %q --include-staged-items --confirm`",
+						resolvedPublishAppID, versionResp.Data.ID, buildResp.Data.ID,
+					),
 					Emit: func(message string) {
 						fmt.Fprintln(d.IO.ErrOut, message)
 					},
@@ -923,6 +938,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
+				result.ReviewItems = submitResult.ReviewItems
 				if submitResult.BuildAttachment != nil {
 					result.Attached = submitResult.BuildAttachment.Attached || submitResult.BuildAttachment.AlreadyAttached
 				}
