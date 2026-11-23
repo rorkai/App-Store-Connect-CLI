@@ -3234,6 +3234,44 @@ func TestGetCredentialsWithSource_KeychainFailureReturnsSentinel(t *testing.T) {
 	}
 }
 
+// Listing stored credentials, as auth status does, must mark a keychain that
+// cannot be read the same way credential resolution does, so the command can
+// report it as an authentication failure instead of an unclassified one.
+func TestListCredentials_KeychainFailureReturnsSentinel(t *testing.T) {
+	const canceled = "Failed to query keychain: User canceled the operation. (-128)"
+	listings := map[string]func() ([]Credential, error){
+		"ListCredentials":         ListCredentials,
+		"ListCredentialSummaries": ListCredentialSummaries,
+	}
+	for name, list := range listings {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+			previousKeyringOpener := keyringOpener
+			previousLegacyKeyringOpener := legacyKeyringOpener
+			t.Cleanup(func() {
+				keyringOpener = previousKeyringOpener
+				legacyKeyringOpener = previousLegacyKeyringOpener
+			})
+			keyringOpener = func() (keyring.Keyring, error) {
+				return failingKeyring{err: errors.New(canceled)}, nil
+			}
+			legacyKeyringOpener = func() (keyring.Keyring, error) {
+				return nil, keyring.ErrNoAvailImpl
+			}
+
+			_, err := list()
+			if !errors.Is(err, ErrKeychainReadFailed) {
+				t.Fatalf("%s() error = %v, want ErrKeychainReadFailed", name, err)
+			}
+			if err.Error() != canceled {
+				t.Fatalf("%s() error text = %q, want %q", name, err, canceled)
+			}
+		})
+	}
+}
+
 // A keychain login from key content must keep the PEM in the keychain item and
 // write no key file beside the config.
 func TestStoreCredentialsPEMWithKeyTypeKeepsKeyInKeychain(t *testing.T) {

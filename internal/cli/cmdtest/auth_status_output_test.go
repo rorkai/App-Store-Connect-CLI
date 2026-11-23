@@ -468,3 +468,44 @@ func TestAuthStatusValidateFailsAStoredKeyBlockedByAnAgreement(t *testing.T) {
 		t.Fatalf("credentials = %+v, want the key reported failed with the agreement remediation", payload.Credentials)
 	}
 }
+
+// keychainListFailure stands in for the marked error the auth package returns
+// when the system keychain refuses this process, for example in a sandbox.
+type keychainListFailure struct{}
+
+func (keychainListFailure) Error() string {
+	return "Failed to query keychain: User interaction is not allowed. (-25308)"
+}
+
+func (keychainListFailure) Is(target error) bool { return target == authsvc.ErrKeychainReadFailed }
+
+func TestAuthStatusReportsUnreadableKeychainAsAuthFailure(t *testing.T) {
+	const wantStderr = "Error: auth status: cannot read the system keychain: Failed to query keychain: User interaction is not allowed. (-25308)\n" +
+		"Hint: This process cannot read the system keychain, for example inside an agent sandbox. Run `asc auth status` where the keychain is reachable, or set ASC_BYPASS_KEYCHAIN=1 to list only config-file and environment credentials.\n"
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "summaries", args: []string{"auth", "status"}},
+		{name: "validate", args: []string{"auth", "status", "--validate"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fail := func() ([]authsvc.Credential, error) { return nil, keychainListFailure{} }
+			t.Cleanup(authcmd.SetListCredentialSummaries(fail))
+			t.Cleanup(authcmd.SetListStoredCredentials(fail))
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != cmd.ExitAuth {
+				t.Fatalf("exit = %d, want %d; stderr=%q", code, cmd.ExitAuth, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if stderr != wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
+			}
+		})
+	}
+}

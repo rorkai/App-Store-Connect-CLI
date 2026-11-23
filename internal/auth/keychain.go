@@ -1286,7 +1286,7 @@ func ListCredentialSummaries() ([]Credential, error) {
 func listCredentialsFromSources(keychainList func() ([]Credential, error)) ([]Credential, error) {
 	keychainCreds, keychainErr := keychainList()
 	if keychainErr != nil && !isKeyringUnavailable(keychainErr) {
-		return nil, keychainErr
+		return nil, keychainReadError{keychainErr}
 	}
 
 	configCreds, configErr := listFromConfig()

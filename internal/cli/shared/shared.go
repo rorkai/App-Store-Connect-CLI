@@ -96,6 +96,13 @@ func unusableCredentialsError(err error, code DiagnosticCode) error {
 	return WithDiagnostic(missingAuthError{msg: err.Error(), cause: err}, code, "")
 }
 
+// UnreadableKeychainError reports a system keychain this process cannot read
+// the way credential resolution does: as an authentication failure with the
+// dependency_failed diagnostic. The message is err's text.
+func UnreadableKeychainError(err error) error {
+	return unusableCredentialsError(err, DiagnosticDependencyFailed)
+}
+
 var (
 	privateKeyTempMu    sync.Mutex
 	privateKeyTempPath  string
