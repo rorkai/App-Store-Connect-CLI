@@ -215,22 +215,34 @@ func apiAccessCheck(ctx context.Context, d *shared.Deps, appID string) (accountC
 }
 
 func agreementsAvailabilityCheck() accountCheck {
-	// A broker lends only App Store Connect reads and review messages, so
-	// under one the agreement commands would only meet its refusal.
-	if _, brokered, _ := webcore.BrokerFromEnv(); brokered {
+	const notInAPI = "account-level agreement status is not in the public App Store Connect API"
+	const agreementCommands = "`asc web agreements status` for Apple Developer Program agreements and App Store Connect agreement alerts, " +
+		"and `asc web business agreements list` for Business agreements such as the Paid Applications Schedule"
+	_, brokered, brokerErr := webcore.BrokerFromEnv()
+	switch {
+	case brokerErr != nil:
+		// Every web command fails on this config before reaching a broker,
+		// so fixing it comes before any broker policy.
 		return accountCheck{
 			Name:   "agreements",
 			Status: "unavailable",
-			Message: "account-level agreement status is not in the public App Store Connect API, and the web session lent through " +
-				webcore.WebBrokerURLEnv + " can't read it; " + webcore.BrokerAgreementsHandOff,
+			Message: notInAPI + ", and the web session broker configuration is incomplete or invalid (" + brokerErr.Error() + "); " +
+				"fix it, or unset both " + webcore.WebBrokerURLEnv + " and " + webcore.WebBrokerTokenEnv + " to use asc's own web session, then check it with " + agreementCommands,
+		}
+	case brokered:
+		// Which requests a broker lends is the broker's policy, and asking
+		// would take a network call, so give both outcomes.
+		return accountCheck{
+			Name:   "agreements",
+			Status: "unavailable",
+			Message: notInAPI + ", and the web session broker at " + webcore.WebBrokerURLEnv + " may not lend the agreement pages; " +
+				"if it does not, " + webcore.BrokerAgreementsHandOff + "; if it does, check it with " + agreementCommands,
 		}
 	}
 	return accountCheck{
-		Name:   "agreements",
-		Status: "unavailable",
-		Message: "account-level agreement status is not in the public App Store Connect API; check it with a web session: " +
-			"`asc web agreements status` for Apple Developer Program agreements and App Store Connect agreement alerts, " +
-			"and `asc web business agreements list` for Business agreements such as the Paid Applications Schedule",
+		Name:    "agreements",
+		Status:  "unavailable",
+		Message: notInAPI + "; check it with a web session: " + agreementCommands,
 	}
 }
 
