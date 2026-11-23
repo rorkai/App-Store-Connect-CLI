@@ -326,7 +326,7 @@ ok metadata plan --app X --version X --dir X
 ok pricing availability edit --app X --all-territories --available X --available-in-new-territories X
 ok pricing schedule create --app X --price X --base-territory X --output X
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes
-unknown-flag review details-get --version-id X --output X
+ok review details-get --version-id X --output X
 ok review details-update --id X --demo-account-required=X
 ok review submissions --help
 ok review submit --app X --version X --build-id X --confirm
@@ -364,7 +364,7 @@ ok localizations screenshot-sets list --localization-id X --include X --output X
 ok metadata pull --app X --version X --platform X --dir X --force
 ok metadata push --app X --version X --dir X --dry-run
 ok metadata push --app X --version X --platform X --dir X --if-exists X
-unknown-flag metadata validate --app X --version X --dir X --output X
+ok metadata validate --app X --version X --dir X --output X
 ok pricing availability create --app X --territory X --available X --available-in-new-territories X --output X
 ok pricing availability create --help
 ok pricing availability edit --app X --all-territories --available X --output X
@@ -669,7 +669,7 @@ ok app-events localizations placements list --localization-id X --include X
 ok app-events submit --event-id X --app X --confirm
 ok app-setup --help
 ok app-setup availability edit --app X --territory X --available X
-unknown-command app-setup availability view --app X --output X
+ok app-setup availability view --app X --output X
 ok app-setup categories set --app X --primary X --output X
 ok app-setup info --help
 ok app-setup info set --app X --content-rights X
@@ -810,7 +810,7 @@ ok metadata push --app X --version X --platform X --dir X --confirm
 ok metadata validate --dir X --check-urls --subscription-app --pretty
 ok metadata validate --dir X --output X X X X X -- X X --app X --version X --platform X --dir X --dry-run --output X
 ok metadata validate --dir X --subscription-app
-unknown-flag metadata validate --dir X --version X
+ok metadata validate --dir X --version X
 ok performance --help
 ok pricing availability territory-availabilities --availability X --paginate --output X
 ok pricing current
@@ -825,7 +825,7 @@ ok review attachments-list --review-detail X
 ok review attachments-upload --review-detail X --file X --output X
 ok review details create --help
 ok review details update --help
-unknown-flag review details view --version-id X --output X
+ok review details view --version-id X --output X
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --demo-account-name X --demo-account-password X --notes X --if-exists X --output X
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes X
@@ -980,7 +980,7 @@ unknown-flag app-infos get --app-info-id X --output X
 unknown-command app-infos localizations list --app-info-id X --output X
 unknown-command app-infos-localizations list --app-info X --output X
 unknown-command app-localizations list --app X --output X
-unknown-command app-setup availability view --app X
+ok app-setup availability view --app X
 unknown-flag app-setup info --output X
 unknown-flag app-setup info set --app X --content-rights X --confirm
 unknown-command app-store-version-localizations list --version-id X --output X
@@ -1006,7 +1006,7 @@ unknown-flag apps info edit --app X --version X --platform X --copy-from-version
 ok apps info get --app X --version X --platform X --output X
 unknown-flag apps info list --app-id X --output X
 unknown-command apps info localizations list --app-info-id X --output X
-unknown-flag apps info relationships --app X --output X
+ok apps info relationships --app X --output X
 unknown-flag apps info territory-age-ratings --app-info X --output X
 unknown-command apps info update --help
 unknown-command apps info update-name --app X --name X --output X
@@ -1151,15 +1151,15 @@ unknown-flag metadata push --app X --version X --platform X --dir X --include X 
 unknown-flag metadata push --app X --version X --platform X --dir X --validate
 unknown-flag metadata push --app X --version X --platform X --metadata-dir X --output X
 unknown-command metadata release-notes set --app X --version-id X --locale X --text X --output X
-unknown-flag metadata validate --app X --dir X
-unknown-flag metadata validate --app X --dir X --check-urls --output X
-unknown-flag metadata validate --app X --dir X --output X
-unknown-flag metadata validate --app X --platform X --dir X --output X
-unknown-flag metadata validate --app X --platform X --version X --dir X --output X
-unknown-flag metadata validate --app X --version X --dir X
+ok metadata validate --app X --dir X
+ok metadata validate --app X --dir X --check-urls --output X
+ok metadata validate --app X --dir X --output X
+ok metadata validate --app X --platform X --dir X --output X
+ok metadata validate --app X --platform X --version X --dir X --output X
+ok metadata validate --app X --version X --dir X
 unknown-flag metadata validate --app X --version X --files X --output X
-unknown-flag metadata validate --app X --version X --platform X --dir X
-unknown-flag metadata validate --app X --version X --platform X --dir X --check-urls --output X
+ok metadata validate --app X --version X --platform X --dir X
+ok metadata validate --app X --version X --platform X --dir X --check-urls --output X
 unknown-flag metadata validate --dir X --check-urls; X X X -- X X --app X --version X --platform X --dir X
 unknown-flag metadata validate --dir X --check-urls; X X X X X X X -- X X --app X --version X --platform X --dir X --dry-run
 unknown-flag metadata validate --dir X --version X --locale X --check-urls
@@ -1194,10 +1194,10 @@ unknown-flag review details-create --app X --version X --platform X --first-name
 unknown-flag review details-create --app X --version-id X --first-name X --last-name X --phone X --email X --output X
 unknown-flag review details-for-version --app X --version X --platform X --output X
 unknown-flag review details-for-version --app X --version-id X --output X
-unknown-flag review details-get --app X --output X
-unknown-flag review details-get --app X --version-id X --output X
-unknown-flag review details-get --version-id X
-unknown-flag review details-get --version-id X --pretty
+ok review details-get --app X --output X
+ok review details-get --app X --version-id X --output X
+ok review details-get --version-id X
+ok review details-get --version-id X --pretty
 unknown-flag review details-update --version-id X --demo-account-required=X --if-exists X --output X
 unknown-flag review details-update --version-id X --demo-account-required=X --if-exists X --pretty
 unknown-flag review details-update --version-id X --demo-account-required=X --output X
@@ -1291,8 +1291,8 @@ ok testflight groups testers add --help
 unknown-command testflight groups update --help
 unknown-flag testflight review edit --app X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
 ok testflight review get --app X
-unknown-flag testflight review submissions list --app X --output X
-unknown-flag testflight review submissions list --app X --output X X ---; X X X -- X X X --build-id X --output X
+ok testflight review submissions list --app X --output X
+ok testflight review submissions list --app X --output X X ---; X X X -- X X X --build-id X --output X
 unknown-command testflight review update --app X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
 unknown-flag testflight review view --help; X X --output X X
 unknown-flag testflight testers add-groups --id X --group-id X --output X

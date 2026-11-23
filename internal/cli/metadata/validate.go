@@ -45,6 +45,9 @@ type ValidateResult struct {
 	ErrorCount   int             `json:"errorCount"`
 	WarningCount int             `json:"warningCount"`
 	Valid        bool            `json:"valid"`
+
+	// versions lists the version directories validated, for the --app check.
+	versions []string
 }
 
 // newMetadataValidateCommand returns the metadata validate subcommand.
@@ -54,14 +57,18 @@ func newMetadataValidateCommand(d *shared.Deps) *ffcli.Command {
 	dir := fs.String("dir", "", "Metadata root directory (required)")
 	checkURLs := fs.Bool("check-urls", false, "Fetch support and privacy policy URLs to detect redirects and root pages")
 	subscriptionApp := fs.Bool("subscription-app", false, "Enable subscription-specific Terms of Use / EULA link checks")
+	version := fs.String("version", "", "Validate only this version's directory, version/<VERSION>, with app-info")
+	appID := fs.String("app", "", "Also check online that each validated version directory is an App Store version of this app (app ID, bundle ID, or exact name)")
+	platform := fs.String("platform", "", "Platform for the --app check: IOS, MAC_OS, TV_OS, or VISION_OS")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
-		ShortUsage: "asc metadata validate --dir \"./metadata\" [--check-urls] [--subscription-app]",
+		ShortUsage: "asc metadata validate --dir \"./metadata\" [--version VERSION] [--app APP_ID [--platform PLATFORM]] [--check-urls] [--subscription-app]",
 		ShortHelp:  "Validate canonical metadata files (offline by default).",
 		LongHelp: `Validate canonical metadata files. Validation is offline by default;
---check-urls opts into bounded HTTP checks.
+--check-urls opts into bounded HTTP checks and --app into an App Store
+version check.
 
 Checks:
   - strict JSON schema decode (unknown keys rejected)
@@ -72,8 +79,15 @@ Checks:
   - implausibly short app name and description values
   - optional subscription-app Terms of Use / EULA description link heuristic
 
+--version limits the check to version/<VERSION> and app-info, the files
+asc metadata push --version reads. --app also checks, online, that each
+validated version directory names an App Store version of that app, on
+--platform when given, so the push target exists before you push.
+
 Examples:
   asc metadata validate --dir "./metadata"
+  asc metadata validate --dir "./metadata" --version "1.2.3"
+  asc metadata validate --dir "./metadata" --app "APP_ID" --version "1.2.3" --platform IOS
   asc metadata validate --dir "./metadata" --check-urls
   asc metadata validate --dir "./metadata" --subscription-app
   asc metadata validate --dir "./metadata" --output table`,
@@ -85,12 +99,31 @@ Examples:
 				return metadataRequiredInputError(d, "--dir", "--dir is required")
 			}
 
+			appValue := strings.TrimSpace(*appID)
+			platformValue := strings.TrimSpace(*platform)
+			if platformValue != "" {
+				if appValue == "" {
+					return d.UsageError("--platform selects the App Store version --app checks; pass --app with it")
+				}
+				normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(platformValue)
+				if err != nil {
+					return d.UsageError(err.Error())
+				}
+				platformValue = normalizedPlatform
+			}
+
 			result, err := validateDirWithOptions(ctx, d, dirValue, validateDirOptions{
 				checkURLs:       *checkURLs,
 				subscriptionApp: *subscriptionApp,
+				version:         strings.TrimSpace(*version),
 			})
 			if err != nil {
 				return err
+			}
+			if appValue != "" {
+				if err := checkMetadataVersionsExistOnApp(ctx, d, appValue, platformValue, result.versions); err != nil {
+					return fmt.Errorf("metadata validate: %w", err)
+				}
 			}
 
 			if err := d.PrintOutputWithRenderers(
@@ -114,7 +147,38 @@ Examples:
 type validateDirOptions struct {
 	checkURLs       bool
 	subscriptionApp bool
-	urlChecker      metadataurl.Checker
+	// version, when set, limits the version checks to version/<version>.
+	version    string
+	urlChecker metadataurl.Checker
+}
+
+// checkMetadataVersionsExistOnApp checks that app, read through the caller's
+// key, has an App Store version for each version string, the way metadata push
+// resolves one. With no version directories it checks that the app is readable.
+func checkMetadataVersionsExistOnApp(ctx context.Context, d *shared.Deps, app, platform string, versions []string) error {
+	client, err := d.Client()
+	if err != nil {
+		return err
+	}
+	requestCtx, cancel := d.Timeout(ctx)
+	defer cancel()
+
+	appID, err := shared.ResolveAppIDWithLookup(requestCtx, client, app)
+	if err != nil {
+		return err
+	}
+	if len(versions) == 0 {
+		if _, err := client.GetAppWithOptions(requestCtx, appID); err != nil {
+			return err
+		}
+		return nil
+	}
+	for _, version := range versions {
+		if _, _, _, err := resolveVersion(requestCtx, d, client, appID, version, platform); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func validateDirWithOptions(ctx context.Context, d *shared.Deps, dir string, options validateDirOptions) (ValidateResult, error) {
@@ -190,12 +254,21 @@ func validateDirWithOptions(ctx context.Context, d *shared.Deps, dir string, opt
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return ValidateResult{}, fmt.Errorf("metadata validate: failed to read %s: %w", versionDir, err)
 	}
+	if options.version != "" {
+		if err := requireVersionDir(d, versionDir, options.version, versionEntries); err != nil {
+			return ValidateResult{}, err
+		}
+	}
 	if err == nil {
 		for _, versionEntry := range versionEntries {
 			if !versionEntry.IsDir() {
 				continue
 			}
 			version := versionEntry.Name()
+			if options.version != "" && version != options.version {
+				continue
+			}
+			result.versions = append(result.versions, version)
 			versionPath := filepath.Join(versionDir, version)
 			seenVersionLocales := make(map[string]string)
 
@@ -305,6 +378,26 @@ func validateDirWithOptions(ctx context.Context, d *shared.Deps, dir string, opt
 	result.Valid = result.ErrorCount == 0
 
 	return result, nil
+}
+
+// requireVersionDir reports a usage error when entries, the listing of
+// versionDir, has no directory named version.
+func requireVersionDir(d *shared.Deps, versionDir, version string, entries []os.DirEntry) error {
+	found := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if entry.Name() == version {
+			return nil
+		}
+		found = append(found, entry.Name())
+	}
+	present := "none"
+	if len(found) > 0 {
+		present = strings.Join(found, ", ")
+	}
+	return d.UsageErrorf("--version %q has no directory %s; version directories present: %s", version, filepath.Join(versionDir, version), present)
 }
 
 type metadataFieldIntentIssue struct {

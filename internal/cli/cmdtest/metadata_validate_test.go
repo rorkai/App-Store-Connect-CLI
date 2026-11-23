@@ -6,11 +6,13 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -734,6 +736,105 @@ func TestMetadataValidateSubscriptionTermsLink(t *testing.T) {
 			}
 			if payload.WarningCount == 0 || !found {
 				t.Fatalf("expected description warning, got %+v", payload)
+			}
+		})
+	}
+}
+
+// TestMetadataValidateChecksTheVersionPushReads covers --version, which limits
+// validation to the directory metadata push --version reads, and --app, which
+// checks online that the app has that App Store version.
+func TestMetadataValidateChecksTheVersionPushReads(t *testing.T) {
+	type stub struct {
+		matcher asctest.Matcher
+		body    string
+	}
+	versionsQuery := []string{"filter[versionString]=1.1", "filter[platform]=IOS", "limit=10"}
+	tests := []struct {
+		name      string
+		args      []string
+		stubs     []stub
+		wantErr   string
+		wantFiles int
+	}{
+		{
+			name:      "version skips the other version directories",
+			args:      []string{"--version", "1.1"},
+			wantFiles: 2,
+		},
+		{
+			name:    "version without a directory",
+			args:    []string{"--version", "2.0"},
+			wantErr: `--version "2.0" has no directory`,
+		},
+		{
+			name: "app has the version",
+			args: []string{"--app", "100000001", "--version", "1.1", "--platform", "IOS"},
+			stubs: []stub{{
+				matcher: asctest.GET("/v1/apps/100000001/appStoreVersions", versionsQuery...),
+				body:    `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.1","platform":"IOS"}}]}`,
+			}},
+			wantFiles: 2,
+		},
+		{
+			name: "app lacks the version",
+			args: []string{"--app", "100000001", "--version", "1.1", "--platform", "IOS"},
+			stubs: []stub{
+				{matcher: asctest.GET("/v1/apps/100000001/appStoreVersions", versionsQuery...), body: `{"data":[]}`},
+				{matcher: asctest.GET("/v1/apps/100000001/appStoreVersions", "filter[platform]=IOS", "limit=200"), body: `{"data":[]}`},
+				{matcher: asctest.GET("/v1/apps/100000001/appStoreVersions", "limit=200"), body: `{"data":[]}`},
+			},
+			wantErr: `metadata validate: app store version not found for version "1.1" and platform "IOS"`,
+		},
+		{
+			name:    "platform without app",
+			args:    []string{"--version", "1.1", "--platform", "IOS"},
+			wantErr: "--platform selects the App Store version --app checks; pass --app with it",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for name, body := range map[string]string{
+				"app-info/en-US.json":    `{"name":"Example App"}`,
+				"version/1.0/en-US.json": `{"description":"Example description","keywords":""}`,
+				"version/1.1/en-US.json": `{"description":"Example description for this release"}`,
+			} {
+				path := filepath.Join(dir, filepath.FromSlash(name))
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			reg := asctest.NewRegistry(t)
+			for _, stub := range test.stubs {
+				reg.Register(stub.matcher, asctest.JSON(http.StatusOK, stub.body))
+			}
+
+			args := append([]string{"metadata", "validate", "--dir", dir, "--output", "json"}, test.args...)
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
+
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+					t.Fatalf("err = %v, want %q", err, test.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("run error: %v (stderr %q)", err, stderr)
+			}
+			var result struct {
+				FilesScanned int  `json:"filesScanned"`
+				Valid        bool `json:"valid"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("unmarshal %q: %v", stdout, err)
+			}
+			if !result.Valid || result.FilesScanned != test.wantFiles {
+				t.Fatalf("result = %+v, want valid with %d files", result, test.wantFiles)
 			}
 		})
 	}

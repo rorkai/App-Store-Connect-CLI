@@ -839,7 +839,7 @@ func downloadAttachmentsForShow(
 	d *shared.Deps,
 	client *webcore.Client,
 	attachments []webcore.ReviewAttachment,
-	submissionID string,
+	refreshAttachments func(context.Context) ([]webcore.ReviewAttachment, error),
 	outDir string,
 	pattern string,
 	overwrite bool,
@@ -883,7 +883,7 @@ func downloadAttachmentsForShow(
 
 		if downloadErr != nil && (statusCode == http.StatusForbidden || statusCode == http.StatusGone) {
 			if refreshedIndex == nil {
-				refreshedAttachments, refreshErr := client.ListReviewAttachmentsBySubmission(ctx, submissionID, true)
+				refreshedAttachments, refreshErr := refreshAttachments(ctx)
 				if refreshErr != nil {
 					failures = append(failures, fmt.Sprintf("%s: refresh failed (%v)", attachment.FileName, refreshErr))
 					continue
@@ -967,15 +967,17 @@ Subcommands:
 func newWebReviewReplyCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web review reply", flag.ExitOnError)
 
+	appID := fs.String("app", "", "App Store Connect app ID; when set, the thread must belong to this app")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	message := fs.String("message", "", "Reply message body, at most 4,000 characters")
+	bodyFile := fs.String("body-file", "", "Read the reply message body from a regular file")
 	confirm := fs.Bool("confirm", false, "Confirm sending the reply")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "reply",
-		ShortUsage: "asc web review reply --thread-id THREAD_ID --message MESSAGE --confirm [flags]",
+		ShortUsage: "asc web review reply [--app APP_ID] --thread-id THREAD_ID (--message MESSAGE | --body-file FILE) --confirm [flags]",
 		ShortHelp:  "Send a Resolution Center reply.",
 		LongHelp: `WEB SESSION WORKFLOWS
 
@@ -984,13 +986,22 @@ Apple web-session API. The command creates one draft, sends it,
 and re-reads the thread to verify the created message. It never retries a send
 automatically because a failed response can follow a successful Apple write.
 
+Exactly one of --message or --body-file is required; the body is sent
+verbatim. With --app, the thread must belong to that app, as with
+"asc web review drafts".
+
+A thread holds one unsent draft, so the reply fails while the thread already
+has one; "asc web review threads --app APP_ID --drafts" shows it. When Apple
+refuses the send, nothing is posted and the created draft stays on the thread.
+
 Attachments are not supported by this command until Apple's attachment write
 contract is captured. The message body is never printed in the receipt or
 errors.
 
 Examples:
   asc web review reply --thread-id "THREAD_ID" --message "We updated the demo account." --confirm
-  asc web review reply --thread-id "THREAD_ID" --message "Please retry." --confirm --output json`,
+  asc web review reply --thread-id "THREAD_ID" --message "Please retry." --confirm --output json
+  asc web review reply --app "APP_ID" --thread-id "THREAD_ID" --body-file "./reply.txt" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1001,9 +1012,13 @@ Examples:
 			if trimmedThreadID == "" {
 				return d.UsageError("--thread-id is required")
 			}
-			messageBody := *message
-			if strings.TrimSpace(messageBody) == "" {
-				return d.UsageError("--message must not be empty")
+			trimmedAppID := strings.TrimSpace(*appID)
+			if webReviewDraftFlagProvided(fs, "app") && trimmedAppID == "" {
+				return d.UsageError("--app must not be empty")
+			}
+			messageBody, err := readWebReviewDraftBody(d, fs, *message, *bodyFile)
+			if err != nil {
+				return err
 			}
 			if err := validateResolutionCenterMessageLength(d, "--message", messageBody); err != nil {
 				return err
@@ -1018,6 +1033,11 @@ Examples:
 				return err
 			}
 			client := newWebClientFn(session)
+			if trimmedAppID != "" {
+				if err := requireWebReviewThreadUnderApp(requestCtx, client, "web review reply", trimmedAppID, trimmedThreadID); err != nil {
+					return err
+				}
+			}
 
 			var draft *webcore.ResolutionCenterDraftMessage
 			err = withWebSpinnerWith(d, "Creating Resolution Center reply draft", func() error {
@@ -1026,7 +1046,7 @@ Examples:
 				return err
 			})
 			if err != nil {
-				return webReviewMutationError(err, "web review reply")
+				return webReviewReplyDraftCreateError(requestCtx, client, trimmedThreadID, err)
 			}
 			if draft == nil || strings.TrimSpace(draft.ID) == "" {
 				return fmt.Errorf("web review reply failed: draft create returned no draft id; send was not attempted")
@@ -1039,7 +1059,7 @@ Examples:
 				return err
 			})
 			if err != nil {
-				return fmt.Errorf("web review reply failed: draft %s was created but send outcome is unknown; do not retry automatically: %w", draft.ID, err)
+				return webReviewReplySendError(trimmedThreadID, strings.TrimSpace(draft.ID), err)
 			}
 			if sent == nil || strings.TrimSpace(sent.ID) == "" {
 				return fmt.Errorf("web review reply failed: send response returned no message id; send outcome may be ambiguous and must not be retried")
@@ -1250,6 +1270,7 @@ func newWebReviewShowCommand(d *shared.Deps) *ffcli.Command {
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	submissionID := fs.String("submission", "", "Review submission ID (default: latest unresolved, else latest)")
+	threadID := fs.String("thread-id", "", "Show one Resolution Center thread of the app, whichever submission it belongs to")
 	outDir := fs.String("out", "", "Directory for auto-downloaded screenshots (default: ./.asc/web-review/<app>/<submission>)")
 	pattern := fs.String("pattern", "", "Optional filename glob filter for auto-download (for example: *.png)")
 	overwrite := fs.Bool("overwrite", false, "Overwrite existing files instead of suffixing")
@@ -1259,7 +1280,7 @@ func newWebReviewShowCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "show",
-		ShortUsage: "asc web review show --app APP_ID [--submission ID] [--out DIR] [--pattern GLOB] [--overwrite] [flags]",
+		ShortUsage: "asc web review show --app APP_ID [--submission ID | --thread-id THREAD_ID] [--out DIR] [--pattern GLOB] [--overwrite] [flags]",
 		ShortHelp:  "Show review details and auto-download screenshots.",
 		LongHelp: `WEB SESSION WORKFLOWS
 
@@ -1268,7 +1289,11 @@ auto-download available screenshots/attachments in the same command.
 
 Selection:
   - --submission ID          Use an explicit submission
-  - without --submission     Pick latest UNRESOLVED_ISSUES submission, otherwise latest submission
+  - --thread-id THREAD_ID    Show one thread of the app (an appThreads[].id),
+                             whichever submission it is attached to
+  - without either           Pick latest UNRESOLVED_ISSUES submission, otherwise latest submission
+
+With --thread-id, the thread must belong to --app; any other thread is refused.
 
 `,
 		FlagSet:   fs,
@@ -1281,6 +1306,23 @@ Selection:
 					shared.DiagnosticRequiredInputMissing,
 					"--app",
 				)
+			}
+			trimmedThreadID := strings.TrimSpace(*threadID)
+			if webReviewDraftFlagProvided(fs, "thread-id") {
+				if trimmedThreadID == "" {
+					return shared.WithDiagnostic(
+						d.UsageError("--thread-id must not be empty"),
+						shared.DiagnosticInvalidInput,
+						"--thread-id",
+					)
+				}
+				if strings.TrimSpace(*submissionID) != "" {
+					return shared.WithDiagnostic(
+						d.UsageError("--thread-id and --submission are mutually exclusive"),
+						shared.DiagnosticConflictingInput,
+						"--thread-id",
+					)
+				}
 			}
 			trimmedPattern := strings.TrimSpace(*pattern)
 			if trimmedPattern != "" {
@@ -1299,6 +1341,17 @@ Selection:
 				return err
 			}
 			client := webcore.NewClient(session)
+			if trimmedThreadID != "" {
+				return runWebReviewShowThread(requestCtx, d, client, webReviewShowThreadOptions{
+					AppID:     trimmedAppID,
+					ThreadID:  trimmedThreadID,
+					OutDir:    *outDir,
+					Pattern:   trimmedPattern,
+					Overwrite: *overwrite,
+					PlainText: *plainText,
+					Output:    output,
+				})
+			}
 
 			var submissions []webcore.ReviewSubmission
 			err = withWebSpinnerWith(d, "Loading review submissions", func() error {
@@ -1369,7 +1422,9 @@ Selection:
 					d,
 					client,
 					attachmentsWithURL,
-					selectedSubmission.ID,
+					func(ctx context.Context) ([]webcore.ReviewAttachment, error) {
+						return client.ListReviewAttachmentsBySubmission(ctx, selectedSubmission.ID, true)
+					},
 					outDirResolved,
 					trimmedPattern,
 					*overwrite,

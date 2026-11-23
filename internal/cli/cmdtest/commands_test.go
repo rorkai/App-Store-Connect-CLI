@@ -3000,7 +3000,7 @@ func TestSubmitValidationErrors(t *testing.T) {
 		{
 			name:    "status missing id",
 			args:    []string{"submit", "status"},
-			wantErr: "Error: --id or --version-id is required",
+			wantErr: "Error: --id, --version-id, or --app is required",
 		},
 		{
 			name:    "status id and version-id mutually exclusive",

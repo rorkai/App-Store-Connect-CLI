@@ -45,6 +45,8 @@ func TestWebReviewCommandsRejectInvalidFlagsWithUsageExit(t *testing.T) {
 		{name: "list rejects unknown state", args: []string{"web", "review", "list", "--app", "123456789", "--state", "UNRESOLVED_ISSUES,NOT_A_REAL_STATE"}, wantErr: "unsupported value"},
 		{name: "show requires app", args: []string{"web", "review", "show"}, wantErr: "--app is required"},
 		{name: "show rejects invalid pattern", args: []string{"web", "review", "show", "--app", "123456789", "--pattern", "["}, wantErr: "--pattern is invalid"},
+		{name: "show rejects thread id with submission", args: []string{"web", "review", "show", "--app", "123456789", "--thread-id", "thread-1", "--submission", "sub-1"}, wantErr: "--thread-id and --submission are mutually exclusive"},
+		{name: "show rejects empty thread id", args: []string{"web", "review", "show", "--app", "123456789", "--thread-id", " "}, wantErr: "--thread-id must not be empty"},
 		{name: "threads requires app", args: []string{"web", "review", "threads"}, wantErr: "--app is required"},
 		{name: "threads plain text requires drafts", args: []string{"web", "review", "threads", "--plain-text", "--app", "123456789"}, wantErr: "--plain-text requires --drafts"},
 		{name: "threads rejects positional arguments", args: []string{"web", "review", "threads", "--app", "123456789", "stray"}, wantErr: "unexpected argument"},

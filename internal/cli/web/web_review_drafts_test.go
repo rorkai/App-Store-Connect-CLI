@@ -192,7 +192,17 @@ func TestWebReviewDraftCreateVerifiesBodyAndReceipt(t *testing.T) {
 	}
 }
 
+// Without --draft-id, update and delete act on the thread's one draft that the
+// preflight read found, so the same requests go out either way.
 func TestWebReviewDraftUpdateAndDeleteVerifyExactDraft(t *testing.T) {
+	for _, selector := range [][]string{{"--draft-id", "draft-1"}, nil} {
+		t.Run(fmt.Sprintf("selector %v", selector), func(t *testing.T) {
+			testWebReviewDraftUpdateAndDelete(t, selector)
+		})
+	}
+}
+
+func testWebReviewDraftUpdateAndDelete(t *testing.T, selector []string) {
 	t.Run("update", func(t *testing.T) {
 		body := "updated\nbody"
 		requested := stubWebReviewDraftSequence(t, []webReviewDraftHTTPResponse{
@@ -201,10 +211,13 @@ func TestWebReviewDraftUpdateAndDeleteVerifyExactDraft(t *testing.T) {
 			{method: http.MethodPatch, path: "/iris/v1/resolutionCenterDraftMessages/draft-1", status: http.StatusOK, body: webReviewDraftResponse("draft-1", body)},
 			{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: webReviewDraftResponse("draft-1", body)},
 		})
-		command, d := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", body, "--confirm", "--output", "json")
+		command, d := webReviewDraftCommand(t, "update", append([]string{"--app", "app-1", "--thread-id", "thread-1", "--message", body, "--confirm", "--output", "json"}, selector...)...)
 		stdout, _ := runWebReviewCommand(t, d, func() error { return command.Exec(context.Background(), nil) })
 		if !strings.Contains(stdout, `"action":"updated"`) || !strings.Contains(stdout, `"verified":true`) {
 			t.Fatalf("unexpected update receipt: %s", stdout)
+		}
+		if !strings.Contains(stdout, `"draftId":"draft-1"`) {
+			t.Fatalf("update receipt %s, want draft-1", stdout)
 		}
 		if got := (*requested)[2].method; got != http.MethodPatch {
 			t.Fatalf("mutation method = %s, want PATCH", got)
@@ -218,7 +231,7 @@ func TestWebReviewDraftUpdateAndDeleteVerifyExactDraft(t *testing.T) {
 			{method: http.MethodDelete, path: "/iris/v1/resolutionCenterDraftMessages/draft-1", status: http.StatusNoContent, body: ""},
 			{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: `{"data":null}`},
 		})
-		command, d := webReviewDraftCommand(t, "delete", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--confirm", "--output", "json")
+		command, d := webReviewDraftCommand(t, "delete", append([]string{"--app", "app-1", "--thread-id", "thread-1", "--confirm", "--output", "json"}, selector...)...)
 		stdout, _ := runWebReviewCommand(t, d, func() error { return command.Exec(context.Background(), nil) })
 		if !strings.Contains(stdout, `"action":"deleted"`) || !strings.Contains(stdout, `"draftId":"draft-1"`) || !strings.Contains(stdout, `"verified":true`) {
 			t.Fatalf("unexpected delete receipt: %s", stdout)
@@ -279,19 +292,32 @@ func TestWebReviewDraftDeleteRejectsMissingVerificationData(t *testing.T) {
 	}
 }
 
-func TestWebReviewDraftUpdateRefusesMismatchedExistingDraftBeforeWrite(t *testing.T) {
-	requested := stubWebReviewDraftSequence(t, []webReviewDraftHTTPResponse{
-		{method: http.MethodGet, path: "/iris/v1/apps/app-1/resolutionCenterThreads", status: http.StatusOK, body: webReviewDraftSingleThreadFixture},
-		{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: webReviewDraftResponse("other-draft", "existing")},
-	})
-	command, d := webReviewDraftCommand(t, "update", "--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "new", "--confirm", "--output", "json")
-	var commandErr error
-	_, _ = captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
-	if commandErr == nil || !strings.Contains(commandErr.Error(), "not requested draft") {
-		t.Fatalf("expected draft ownership refusal, got %v", commandErr)
+func TestWebReviewDraftUpdateRefusesWrongDraftBeforeWrite(t *testing.T) {
+	tests := []struct {
+		name     string
+		existing string
+		selector []string
+		want     string
+	}{
+		{name: "mismatched --draft-id", existing: webReviewDraftResponse("other-draft", "existing"), selector: []string{"--draft-id", "draft-1"}, want: "not requested draft"},
+		{name: "no draft to default to", existing: `{"data":null}`, want: `create one with ` + "`" + `asc web review drafts create --app "app-1" --thread-id "thread-1" --message MESSAGE --confirm` + "`"},
 	}
-	if len(*requested) != 2 {
-		t.Fatalf("request count = %d, want 2 and no PATCH (%#v)", len(*requested), *requested)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requested := stubWebReviewDraftSequence(t, []webReviewDraftHTTPResponse{
+				{method: http.MethodGet, path: "/iris/v1/apps/app-1/resolutionCenterThreads", status: http.StatusOK, body: webReviewDraftSingleThreadFixture},
+				{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterDraftMessage", status: http.StatusOK, body: test.existing},
+			})
+			command, d := webReviewDraftCommand(t, "update", append([]string{"--app", "app-1", "--thread-id", "thread-1", "--message", "new", "--confirm", "--output", "json"}, test.selector...)...)
+			var commandErr error
+			_, _ = captureWebTestDeps(d, func() { commandErr = command.Exec(context.Background(), nil) })
+			if commandErr == nil || !strings.Contains(commandErr.Error(), test.want) {
+				t.Fatalf("error = %v, want %q", commandErr, test.want)
+			}
+			if len(*requested) != 2 {
+				t.Fatalf("request count = %d, want 2 and no PATCH (%#v)", len(*requested), *requested)
+			}
+		})
 	}
 }
 

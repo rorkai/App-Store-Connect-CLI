@@ -91,7 +91,7 @@ func TestRun_UnknownFlagSuggestionsPreserveTelemetryParameter(t *testing.T) {
 	}{
 		{
 			name:          "allowlisted name",
-			args:          []string{"submit", "status", "--app", "SECRET_VALUE"},
+			args:          []string{"review", "submissions-get", "--app", "SECRET_VALUE"},
 			wantContext:   "--app",
 			wantParameter: "--app",
 		},

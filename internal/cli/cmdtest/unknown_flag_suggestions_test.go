@@ -23,11 +23,11 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 		deps bool
 	}{
 		{
-			name: "submit status --app",
-			args: []string{"submit", "status", "--app", "PRIVATE_VALUE"},
-			want: "Error: unknown flag `--app` for `asc submit status`\n" +
+			name: "review submissions-get --app",
+			args: []string{"review", "submissions-get", "--app", "PRIVATE_VALUE"},
+			want: "Error: unknown flag `--app` for `asc review submissions-get`\n" +
 				"Try:\n  --id\n" +
-				"For help:\n  asc submit status --help\n",
+				"For help:\n  asc review submissions-get --help\n",
 		},
 		{
 			name: "builds groups list --app",
@@ -53,14 +53,6 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			deps: true,
 		},
 		{
-			name: "review details-get --version-id",
-			args: []string{"review", "details-get", "--version-id", "PRIVATE_VALUE"},
-			deps: true,
-			want: "Error: unknown flag `--version-id` for `asc review details-get`\n" +
-				"Try:\n  --id\n" +
-				"For help:\n  asc review details-get --help\n",
-		},
-		{
 			name: "profiles list --bundle-id",
 			args: []string{"profiles", "list", "--bundle-id", "PRIVATE_VALUE"},
 			want: "Error: unknown flag `--bundle-id` for `asc profiles list`\n" +
@@ -69,17 +61,17 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 		},
 		{
 			name: "single-dash spelling",
-			args: []string{"submit", "status", "-app", "PRIVATE_VALUE"},
-			want: "Error: unknown flag `-app` for `asc submit status`\n" +
+			args: []string{"review", "submissions-get", "-app", "PRIVATE_VALUE"},
+			want: "Error: unknown flag `-app` for `asc review submissions-get`\n" +
 				"Try:\n  --id\n" +
-				"For help:\n  asc submit status --help\n",
+				"For help:\n  asc review submissions-get --help\n",
 		},
 		{
 			name: "inline value is never echoed",
-			args: []string{"submit", "status", "--app=PRIVATE_VALUE"},
-			want: "Error: unknown flag `--app` for `asc submit status`\n" +
+			args: []string{"review", "submissions-get", "--app=PRIVATE_VALUE"},
+			want: "Error: unknown flag `--app` for `asc review submissions-get`\n" +
 				"Try:\n  --id\n" +
-				"For help:\n  asc submit status --help\n",
+				"For help:\n  asc review submissions-get --help\n",
 		},
 		{
 			name: "a path-valued --output answers --path",

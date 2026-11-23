@@ -1389,50 +1389,6 @@ func TestRun_UnknownFlagReturnsConciseRecovery(t *testing.T) {
 	}
 }
 
-func TestRun_MetadataValidateUnsupportedFlagsExplainDirectoryWorkflow(t *testing.T) {
-	resetReportFlags(t)
-
-	tests := []struct {
-		name            string
-		args            []string
-		unsupportedFlag string
-	}{
-		{name: "app", args: []string{"metadata", "validate", "--app", "PRIVATE_VALUE"}, unsupportedFlag: "--app"},
-		{name: "spaced version", args: []string{"metadata", "validate", "--version", "PRIVATE_VALUE"}, unsupportedFlag: "--version"},
-		{name: "equals version", args: []string{"metadata", "validate", "--version=PRIVATE_VALUE"}, unsupportedFlag: "--version"},
-		{name: "spaced numeric version", args: []string{"metadata", "validate", "--version", "1"}, unsupportedFlag: "--version"},
-		{name: "equals numeric version", args: []string{"metadata", "validate", "--version=1"}, unsupportedFlag: "--version"},
-		{name: "spaced zero version", args: []string{"metadata", "validate", "--version", "0"}, unsupportedFlag: "--version"},
-		{name: "equals zero version", args: []string{"metadata", "validate", "--version=0"}, unsupportedFlag: "--version"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureCommandOutput(t, func() {
-				if code := Run(test.args, "1.0.0"); code != ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, ExitUsage)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("stdout = %q, want empty", stdout)
-			}
-			want := "Error: unknown flag `" + test.unsupportedFlag + "` for `asc metadata validate`\n" +
-				"`asc metadata validate` reads from `--dir`; omit `--app` and `--version`. Run `asc metadata pull` first if needed.\n" +
-				"Try:\n" +
-				"  asc metadata validate --dir \"./metadata\"\n" +
-				"  asc metadata pull --app \"APP_ID\" --version \"1.2.3\" --dir \"./metadata\"\n" +
-				"For help:\n" +
-				"  asc metadata validate --help\n"
-			if stderr != want {
-				t.Fatalf("stderr = %q, want %q", stderr, want)
-			}
-			if strings.Contains(stderr, "PRIVATE_VALUE") {
-				t.Fatalf("stderr leaked unsupported flag value: %q", stderr)
-			}
-		})
-	}
-}
-
 func TestRun_GroupsBuildsListRecoversGroupsListFlags(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_APP_ID", "")
@@ -1471,38 +1427,6 @@ func TestRun_GroupsBuildsListRecoversGroupsListFlags(t *testing.T) {
 			}
 			if stderr != test.wantStderr {
 				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
-			}
-		})
-	}
-}
-
-func TestRun_MetadataValidateBareVersionPreservesGlobalFlagRecovery(t *testing.T) {
-	resetReportFlags(t)
-
-	for _, test := range []struct {
-		name string
-		args []string
-	}{
-		{name: "bare", args: []string{"metadata", "validate", "--version"}},
-		{name: "equals boolean", args: []string{"metadata", "validate", "--version=false"}},
-		{name: "spaced boolean", args: []string{"metadata", "validate", "--version", "true"}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureCommandOutput(t, func() {
-				if code := Run(test.args, "1.0.0"); code != ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, ExitUsage)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("stdout = %q, want empty", stdout)
-			}
-			want := "Error: unknown flag `--version` for `asc metadata validate`\n" +
-				"`--version` is a global flag; the flag and any required valid value must appear before the command name.\n" +
-				"For help:\n" +
-				"  asc --help\n"
-			if stderr != want {
-				t.Fatalf("stderr = %q, want %q", stderr, want)
 			}
 		})
 	}

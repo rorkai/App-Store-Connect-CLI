@@ -39,6 +39,8 @@ func TestResolveCommandAliasesRewritesOnlyUnknownReadVerbs(t *testing.T) {
 		{name: "verb after a real subgroup that has it", args: "review submissions list --app A", want: "review submissions list --app A"},
 		{name: "verb split before its noun", args: "builds beta-groups add --build-id B --group G", want: "builds add-groups --build-id B --group G"},
 		{name: "group given its view's flags", args: "apps info --app A --output json", want: "apps info view --app A --output json"},
+		{name: "relationships group given its view's flags", args: "apps info relationships --app A --output json", want: "apps info relationships view --app A --output json"},
+		{name: "app-setup availability given its view's flags", args: "app-setup availability --app A", want: "app-setup availability view --app A"},
 		{name: "collection group given its list's flags", args: "versions --app A --output json", want: "versions list --app A --output json"},
 		{name: "group without a curated leaf", args: "subscriptions --app A", want: "subscriptions --app A"},
 		{name: "group given a flag view lacks", args: "apps info --app A --bogus X", want: "apps info --app A --bogus X"},

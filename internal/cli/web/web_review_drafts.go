@@ -143,7 +143,7 @@ func newWebReviewDraftUpdateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web review drafts update", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
-	draftID := fs.String("draft-id", "", "Resolution Center draft message ID")
+	draftID := fs.String("draft-id", "", "Resolution Center draft message ID (defaults to the thread's one unsent draft)")
 	message := fs.String("message", "", "Draft message body, at most 4,000 characters")
 	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file")
 	confirm := fs.Bool("confirm", false, "Confirm updating the unsent draft")
@@ -152,10 +152,13 @@ func newWebReviewDraftUpdateCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc web review drafts update --app APP_ID --thread-id THREAD_ID --draft-id DRAFT_ID (--message MESSAGE | --body-file FILE) --confirm [flags]",
+		ShortUsage: "asc web review drafts update --app APP_ID --thread-id THREAD_ID [--draft-id DRAFT_ID] (--message MESSAGE | --body-file FILE) --confirm [flags]",
 		ShortHelp:  "Update an unsent Resolution Center draft.",
 		LongHelp: `Replace the body of one existing unsent draft on an app-scoped
 Resolution Center thread.
+
+A thread holds at most one unsent draft. --draft-id defaults to that draft;
+when given, it must match it.
 
 Exactly one of --message or --body-file is required. The body is preserved
 verbatim after blank-body validation. --confirm is required; this command does
@@ -174,8 +177,8 @@ Example:
 				return err
 			}
 			resolvedDraftID := strings.TrimSpace(*draftID)
-			if resolvedDraftID == "" {
-				return d.UsageError("--draft-id is required")
+			if webReviewDraftFlagProvided(fs, "draft-id") && resolvedDraftID == "" {
+				return d.UsageError("--draft-id must not be empty")
 			}
 			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
@@ -200,18 +203,19 @@ func newWebReviewDraftDeleteCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web review drafts delete", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
-	draftID := fs.String("draft-id", "", "Resolution Center draft message ID")
+	draftID := fs.String("draft-id", "", "Resolution Center draft message ID (defaults to the thread's one unsent draft)")
 	confirm := fs.Bool("confirm", false, "Confirm deleting the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
-		ShortUsage: "asc web review drafts delete --app APP_ID --thread-id THREAD_ID --draft-id DRAFT_ID --confirm [flags]",
+		ShortUsage: "asc web review drafts delete --app APP_ID --thread-id THREAD_ID [--draft-id DRAFT_ID] --confirm [flags]",
 		ShortHelp:  "Delete an unsent Resolution Center draft.",
 		LongHelp: `Delete one existing unsent draft from an app-scoped Resolution
-Center thread. --confirm is required. This command never sends a message and
-does not support attachments.
+Center thread. --draft-id defaults to the thread's one unsent draft; when
+given, it must match it. --confirm is required. This command never sends a
+message and does not support attachments.
 
 Example:
   asc web review drafts delete --app "APP_ID" --thread-id "THREAD_ID" --draft-id "DRAFT_ID" --confirm`,
@@ -226,8 +230,8 @@ Example:
 				return err
 			}
 			resolvedDraftID := strings.TrimSpace(*draftID)
-			if resolvedDraftID == "" {
-				return d.UsageError("--draft-id is required")
+			if webReviewDraftFlagProvided(fs, "draft-id") && resolvedDraftID == "" {
+				return d.UsageError("--draft-id must not be empty")
 			}
 			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
@@ -341,7 +345,7 @@ func executeWebReviewDraftMutation(ctx context.Context, d *shared.Deps, authFlag
 	}
 	client := newWebClientFn(session)
 
-	if err := preflightWebReviewDraftMutation(requestCtx, client, mutation); err != nil {
+	if err := preflightWebReviewDraftMutation(requestCtx, client, &mutation); err != nil {
 		return err
 	}
 
@@ -410,23 +414,13 @@ func webReviewDraftOperation(action string) string {
 	}
 }
 
-func preflightWebReviewDraftMutation(ctx context.Context, client *webcore.Client, mutation webReviewDraftMutation) error {
+// preflightWebReviewDraftMutation checks the thread and its draft before any
+// write. For update and delete without --draft-id it fills in the thread's
+// draft, which is the only one App Store Connect keeps on a thread.
+func preflightWebReviewDraftMutation(ctx context.Context, client *webcore.Client, mutation *webReviewDraftMutation) error {
 	operation := webReviewDraftOperation(mutation.Action)
-	threads, err := client.ListResolutionCenterThreadsByApp(ctx, mutation.AppID)
-	if err != nil {
-		return withWebAuthHint(err, "web review drafts "+operation)
-	}
-	matching := 0
-	for _, thread := range threads {
-		if strings.TrimSpace(thread.ID) == mutation.ThreadID {
-			matching++
-		}
-	}
-	if matching == 0 {
-		return fmt.Errorf("web review drafts %s refused: thread %q was not found under app %q", mutation.Action, mutation.ThreadID, mutation.AppID)
-	}
-	if matching > 1 {
-		return fmt.Errorf("web review drafts %s refused: thread %q appeared more than once under app %q", mutation.Action, mutation.ThreadID, mutation.AppID)
+	if err := requireWebReviewThreadUnderApp(ctx, client, "web review drafts "+operation, mutation.AppID, mutation.ThreadID); err != nil {
+		return err
 	}
 
 	existing, err := client.GetResolutionCenterDraftMessage(ctx, mutation.ThreadID, false)
@@ -444,11 +438,43 @@ func preflightWebReviewDraftMutation(ctx context.Context, client *webcore.Client
 		}
 	case "updated", "deleted":
 		if existing == nil || strings.TrimSpace(existing.ID) == "" {
+			if mutation.DraftID == "" && mutation.Action == "updated" {
+				return fmt.Errorf("web review drafts update refused: thread %q has no unsent draft; create one with `asc web review drafts create --app %q --thread-id %q --message MESSAGE --confirm`", mutation.ThreadID, mutation.AppID, mutation.ThreadID)
+			}
+			if mutation.DraftID == "" {
+				return fmt.Errorf("web review drafts delete refused: thread %q has no unsent draft", mutation.ThreadID)
+			}
 			return fmt.Errorf("web review drafts %s refused: thread %q has no draft %q", mutation.Action, mutation.ThreadID, mutation.DraftID)
+		}
+		if mutation.DraftID == "" {
+			mutation.DraftID = strings.TrimSpace(existing.ID)
 		}
 		if strings.TrimSpace(existing.ID) != mutation.DraftID {
 			return fmt.Errorf("web review drafts %s refused: thread %q has draft %q, not requested draft %q", mutation.Action, mutation.ThreadID, strings.TrimSpace(existing.ID), mutation.DraftID)
 		}
+	}
+	return nil
+}
+
+// requireWebReviewThreadUnderApp refuses a Resolution Center write unless the
+// thread appears exactly once among the app's threads, so an app selector
+// cannot be paired with another app's thread.
+func requireWebReviewThreadUnderApp(ctx context.Context, client *webcore.Client, command, appID, threadID string) error {
+	threads, err := client.ListResolutionCenterThreadsByApp(ctx, appID)
+	if err != nil {
+		return withWebAuthHint(err, command)
+	}
+	matching := 0
+	for _, thread := range threads {
+		if strings.TrimSpace(thread.ID) == threadID {
+			matching++
+		}
+	}
+	if matching == 0 {
+		return fmt.Errorf("%s refused: thread %q was not found under app %q", command, threadID, appID)
+	}
+	if matching > 1 {
+		return fmt.Errorf("%s refused: thread %q appeared more than once under app %q", command, threadID, appID)
 	}
 	return nil
 }

@@ -117,8 +117,8 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "fields[retentionMessages]": "referenceName", "include": "appInfos,inAppPurchases,subscriptionGroups,retentionMessages"},
 		},
 		{
-			name: "apps view", args: []string{"apps", "view", "--id", "app-1", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--retention-message-fields", "referenceName", "--output", "json"},
-			wantPath: "/v1/apps/app-1", response: `{"data":{"type":"apps","id":"app-1"}}`,
+			name: "apps view", args: []string{"apps", "view", "--id", "100000001", "--app-info-fields", "kidsAgeBand", "--iap-fields", "versions", "--subscription-group-fields", "versions", "--retention-message-fields", "referenceName", "--output", "json"},
+			wantPath: "/v1/apps/100000001", response: `{"data":{"type":"apps","id":"100000001"}}`,
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "fields[retentionMessages]": "referenceName", "include": "appInfos,inAppPurchases,subscriptionGroups,retentionMessages"},
 		},
 		{
@@ -221,7 +221,7 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 	// Values the spec lists that Apple production rejects.
 	appleRejects := map[string][]string{"/v1/apps/{id} --include": {"appEncryptionDeclarations"}}
 	appsList := []string{"apps", "list"}
-	appsView := []string{"apps", "view", "--id", "app-1"}
+	appsView := []string{"apps", "view", "--id", "100000001"}
 	infosList := []string{"apps", "info", "list", "--app", "app-1"}
 	infoView := []string{"apps", "info", "view", "--info-id", "info-1"}
 	ageRatingView := []string{"age-rating", "view", "--app-info-id", "info-1"}
@@ -237,11 +237,11 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 		{appsList, "--iap-fields", iaps, "/v1/apps", "/v1/apps", list},
 		{appsList, "--subscription-group-fields", groups, "/v1/apps", "/v1/apps", list},
 		{appsList, "--retention-message-fields", retention, "/v1/apps", "/v1/apps", list},
-		{appsView, "--app-info-fields", appInfos, "/v1/apps/{id}", "/v1/apps/app-1", app},
-		{appsView, "--iap-fields", iaps, "/v1/apps/{id}", "/v1/apps/app-1", app},
-		{appsView, "--subscription-group-fields", groups, "/v1/apps/{id}", "/v1/apps/app-1", app},
-		{appsView, "--retention-message-fields", retention, "/v1/apps/{id}", "/v1/apps/app-1", app},
-		{appsView, "--include", "include", "/v1/apps/{id}", "/v1/apps/app-1", app},
+		{appsView, "--app-info-fields", appInfos, "/v1/apps/{id}", "/v1/apps/100000001", app},
+		{appsView, "--iap-fields", iaps, "/v1/apps/{id}", "/v1/apps/100000001", app},
+		{appsView, "--subscription-group-fields", groups, "/v1/apps/{id}", "/v1/apps/100000001", app},
+		{appsView, "--retention-message-fields", retention, "/v1/apps/{id}", "/v1/apps/100000001", app},
+		{appsView, "--include", "include", "/v1/apps/{id}", "/v1/apps/100000001", app},
 		{infosList, "--fields", appInfos, "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
 		{infosList, "--age-rating-fields", ageRatings, "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
 		{infosList, "--include", "include", "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
