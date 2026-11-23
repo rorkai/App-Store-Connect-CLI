@@ -44,7 +44,10 @@ Use asc review items add with --item-type appAssetLibraryImages or
 appAssetLibraryVideos to add assets to a review submission, then use
 asc review submissions-submit --id SUBMISSION_ID --confirm to submit it.
 Separate asset review requires an approved app version. For the first app
-version, submit assets with that version.
+version, place the assets on the version with asc localizations placements
+create and submit the version: placed assets are reviewed with it, and adding
+them as review items fails with "Asset is locked by an embedded review
+submission".
 
 Examples:
   asc asset-library view --app APP_ID
