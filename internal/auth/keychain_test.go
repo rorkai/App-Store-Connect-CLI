@@ -3272,6 +3272,36 @@ func TestListCredentials_KeychainFailureReturnsSentinel(t *testing.T) {
 	}
 }
 
+// A corrupt entry in a keychain the process can read is not a keychain the
+// process cannot read: listing must report it as an invalid entry naming the
+// profile, not as a keychain read failure.
+func TestListCredentials_CorruptEntryIsNotAReadFailure(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	previousKeyringOpener := keyringOpener
+	previousLegacyKeyringOpener := legacyKeyringOpener
+	t.Cleanup(func() {
+		keyringOpener = previousKeyringOpener
+		legacyKeyringOpener = previousLegacyKeyringOpener
+	})
+	corrupt := keyring.NewArrayKeyring([]keyring.Item{{Key: keyringKey("broken"), Data: []byte("{")}})
+	keyringOpener = func() (keyring.Keyring, error) { return corrupt, nil }
+	legacyKeyringOpener = func() (keyring.Keyring, error) { return nil, keyring.ErrNoAvailImpl }
+
+	_, err := ListCredentials()
+	if errors.Is(err, ErrKeychainReadFailed) {
+		t.Fatalf("ListCredentials() error = %v, want it not marked as a keychain read failure", err)
+	}
+	invalid, ok := errors.AsType[*InvalidKeychainEntryError](err)
+	if !ok || invalid.Name != "broken" {
+		t.Fatalf("ListCredentials() error = %v, want an invalid entry for profile broken", err)
+	}
+	if want := `invalid keychain entry "asc:credential:broken": unexpected end of JSON input`; err.Error() != want {
+		t.Fatalf("ListCredentials() error text = %q, want %q", err, want)
+	}
+}
+
 // A keychain login from key content must keep the PEM in the keychain item and
 // write no key file beside the config.
 func TestStoreCredentialsPEMWithKeyTypeKeepsKeyInKeychain(t *testing.T) {

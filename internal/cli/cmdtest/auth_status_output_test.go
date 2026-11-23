@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -481,7 +482,7 @@ func (keychainListFailure) Is(target error) bool { return target == authsvc.ErrK
 
 func TestAuthStatusReportsUnreadableKeychainAsAuthFailure(t *testing.T) {
 	const wantStderr = "Error: auth status: cannot read the system keychain: Failed to query keychain: User interaction is not allowed. (-25308)\n" +
-		"Hint: This process cannot read the system keychain, for example inside an agent sandbox. Run `asc auth status` where the keychain is reachable, or set ASC_BYPASS_KEYCHAIN=1 to list only config-file and environment credentials.\n"
+		"Hint: This process cannot read the system keychain, for example inside an agent sandbox. Run `asc auth status` where the keychain is reachable. ASC_BYPASS_KEYCHAIN=1 lists only config-file and environment credentials: profiles stored in the keychain are not shown then, so an empty list does not mean none are stored.\n"
 	tests := []struct {
 		name string
 		args []string
@@ -507,5 +508,23 @@ func TestAuthStatusReportsUnreadableKeychainAsAuthFailure(t *testing.T) {
 				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
 			}
 		})
+	}
+}
+
+// A corrupt keychain entry is not a sandbox refusal: auth status must name the
+// profile and how to replace it instead of blaming keychain access.
+func TestAuthStatusReportsCorruptKeychainEntry(t *testing.T) {
+	const wantStderr = "Error: auth status: failed to list credentials: invalid keychain entry \"asc:credential:broken\": unexpected end of JSON input\n" +
+		"Hint: The keychain entry for profile \"broken\" is not valid. Remove it with `asc auth logout --name \"broken\" --confirm` and store the key again with `asc auth login`.\n"
+	fail := func() ([]authsvc.Credential, error) {
+		return nil, &authsvc.InvalidKeychainEntryError{Key: "asc:credential:broken", Name: "broken", Err: errors.New("unexpected end of JSON input")}
+	}
+	t.Cleanup(authcmd.SetListCredentialSummaries(fail))
+	t.Cleanup(authcmd.SetListStoredCredentials(fail))
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+
+	stdout, stderr, code := runWithDeps(t, nil, "auth", "status", "--validate")
+	if code != cmd.ExitError || stdout != "" || stderr != wantStderr {
+		t.Fatalf("exit=%d stdout=%q stderr=%q, want exit %d and %q", code, stdout, stderr, cmd.ExitError, wantStderr)
 	}
 }
