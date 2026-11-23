@@ -36,6 +36,11 @@ func TestSubscriptionReviewReadinessChecks_WarnsForReadyToSubmit(t *testing.T) {
 	if strings.Join(resolution.Commands, "\n") != strings.Join(wantCommands, "\n") {
 		t.Fatalf("resolution commands = %q, want %q", resolution.Commands, wantCommands)
 	}
+	// SUBMISSION_ID and VERSION_ID are placeholders the caller fills in from
+	// the listed versions and the app's review submission.
+	if !resolution.NeedsUserInput {
+		t.Fatalf("expected needsUserInput for the SUBMISSION_ID and VERSION_ID placeholders, got %+v", resolution)
+	}
 	for _, reject := range []string{"not the API", "web review subscriptions attach"} {
 		if strings.Contains(checks[0].Remediation, reject) {
 			t.Fatalf("remediation must not contain %q, got %q", reject, checks[0].Remediation)

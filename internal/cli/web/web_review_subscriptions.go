@@ -162,7 +162,7 @@ func reviewSubscriptionBrokerRefusalError(operation string, err error, notAttach
 	}
 	outcome := "nothing was attached"
 	if len(attached) > 0 {
-		outcome = fmt.Sprintf("%s attached before the refusal; %s did not", strings.Join(attached, ", "), strings.Join(notAttached, ", "))
+		outcome = fmt.Sprintf("%s attached before the refusal; %s did not", shared.SanitizeTerminal(strings.Join(attached, ", ")), shared.SanitizeTerminal(strings.Join(notAttached, ", ")))
 	}
 	return shared.WithDiagnostic(
 		&shared.HintedError{

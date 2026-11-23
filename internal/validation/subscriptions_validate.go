@@ -274,6 +274,7 @@ func resolutionForSubscriptionState(state, subscriptionID string) *Resolution {
 			fmt.Sprintf("asc subscriptions versions list --subscription-id %q", fallbackString(strings.TrimSpace(subscriptionID), "SUB_ID")),
 			`asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "VERSION_ID"`,
 		},
+		NeedsUserInput: true,
 	}
 }
 
