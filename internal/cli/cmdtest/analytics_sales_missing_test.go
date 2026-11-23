@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -124,33 +125,85 @@ func TestAnalyticsSalesAllowMissingDoesNotSwallowUnrelatedNotFound(t *testing.T)
 }
 
 func TestAnalyticsSalesReportFailureHints(t *testing.T) {
-	const hint = "Hint: Re-running the same request will not help until Apple has a report for it; try an earlier --date, or pass --allow-missing to get available=false instead of an error.\n"
+	const (
+		noSales      = "There were no sales for the date specified."
+		notPublished = "Report is not available yet. Daily reports for the Americas are available by 5 am Pacific Time."
+	)
+	// 2026-11-23 03:00 UTC is 2026-11-22 19:00 Pacific: Apple has published
+	// the DAILY report for 2026-11-21 but not the one for 2026-11-22.
+	now := time.Date(2026, 11, 23, 3, 0, 0, 0, time.UTC)
 	tests := []struct {
-		name     string
-		status   int
-		detail   string
-		wantCode int
-		wantHint string
+		name      string
+		status    int
+		detail    string
+		frequency string
+		date      string
+		extraArgs []string
+		wantCode  int
+		wantHint  string
 	}{
 		{
-			name:     "report not available yet",
-			status:   http.StatusNotFound,
-			detail:   "Report is not available yet. Daily reports for the Americas are available by 5 am Pacific Time.",
-			wantCode: cmd.ExitNotFound,
-			wantHint: hint,
+			name:      "no sales in a published day",
+			status:    http.StatusNotFound,
+			detail:    noSales,
+			frequency: "DAILY",
+			date:      "2026-11-01",
+			wantCode:  cmd.ExitNotFound,
+			wantHint:  "Apple publishes no DAILY report for a period without sales, so 2026-11-01 had no sales (for example, it is before the first sale); count it as zero, re-running will not change it. When looping over dates, add --allow-missing to get available=false with exit 0 for such periods.",
 		},
 		{
-			name:     "no sales",
-			status:   http.StatusNotFound,
-			detail:   "There were no sales for the date specified.",
-			wantCode: cmd.ExitNotFound,
-			wantHint: hint,
+			name:      "month that has not been published",
+			status:    http.StatusNotFound,
+			detail:    noSales,
+			frequency: "MONTHLY",
+			date:      "2026-11",
+			extraArgs: []string{"--decompress"},
+			wantCode:  cmd.ExitNotFound,
+			wantHint:  "Apple has not published the MONTHLY report for 2026-11 yet: MONTHLY reports appear five days after the month ends, by about 8 a.m. Pacific, so this one should appear on 2026-12-05. The latest MONTHLY report that should be published is 2026-10: asc analytics sales --vendor 12345678 --type SALES --subtype SUMMARY --frequency MONTHLY --date 2026-10 --decompress",
 		},
 		{
-			name:     "unrelated not found",
-			status:   http.StatusNotFound,
-			detail:   "The requested vendor account was not found.",
-			wantCode: cmd.ExitNotFound,
+			name:      "today has not been published",
+			status:    http.StatusNotFound,
+			detail:    notPublished,
+			frequency: "DAILY",
+			date:      "2026-11-22",
+			wantCode:  cmd.ExitNotFound,
+			wantHint:  "Apple has not published the DAILY report for 2026-11-22 yet: DAILY reports appear the day after, by about 8 a.m. Pacific, so this one should appear on 2026-11-23. The latest DAILY report that should be published is 2026-11-21: asc analytics sales --vendor 12345678 --type SALES --subtype SUMMARY --frequency DAILY --date 2026-11-21",
+		},
+		{
+			name:      "week that has not ended",
+			status:    http.StatusNotFound,
+			detail:    noSales,
+			frequency: "WEEKLY",
+			date:      "2026-11-16",
+			wantCode:  cmd.ExitNotFound,
+			wantHint:  "Apple has not published the WEEKLY report for 2026-11-22 yet: WEEKLY reports appear on the Monday after the week, by about 8 a.m. Pacific, so this one should appear on 2026-11-23. The latest WEEKLY report that should be published is 2026-11-15: asc analytics sales --vendor 12345678 --type SALES --subtype SUMMARY --frequency WEEKLY --date 2026-11-15",
+		},
+		{
+			name:      "year that has not ended",
+			status:    http.StatusNotFound,
+			detail:    noSales,
+			frequency: "YEARLY",
+			date:      "2026",
+			wantCode:  cmd.ExitNotFound,
+			wantHint:  "Apple has not published the YEARLY report for 2026 yet: YEARLY reports appear six days after the year ends, by about 8 a.m. Pacific, so this one should appear on 2027-01-06. The latest YEARLY report that should be published is 2025: asc analytics sales --vendor 12345678 --type SALES --subtype SUMMARY --frequency YEARLY --date 2025",
+		},
+		{
+			name:      "published day that Apple is late with",
+			status:    http.StatusNotFound,
+			detail:    notPublished,
+			frequency: "DAILY",
+			date:      "2026-11-21",
+			wantCode:  cmd.ExitNotFound,
+			wantHint:  "Apple has not published the DAILY report for 2026-11-21 yet, although it is usually out by now; re-running will not help until it is. The period before is 2026-11-20: asc analytics sales --vendor 12345678 --type SALES --subtype SUMMARY --frequency DAILY --date 2026-11-20, or add --allow-missing to get available=false instead of an error.",
+		},
+		{
+			name:      "unrelated not found",
+			status:    http.StatusNotFound,
+			detail:    "The requested vendor account was not found.",
+			frequency: "DAILY",
+			date:      "2026-11-01",
+			wantCode:  cmd.ExitNotFound,
 		},
 	}
 	for _, test := range tests {
@@ -162,13 +215,17 @@ func TestAnalyticsSalesReportFailureHints(t *testing.T) {
 				"--vendor", "12345678",
 				"--type", "SALES",
 				"--subtype", "SUMMARY",
-				"--frequency", "DAILY",
-				"--date", "2026-08-18",
+				"--frequency", test.frequency,
+				"--date", test.date,
 				"--output", outputPath,
 				"--output-format", "json",
 			}
+			args = append(args, test.extraArgs...)
 
-			stdout, stderr, code := runWithDeps(t, client, args...)
+			d, stdoutBuf, stderrBuf := newTestDeps(t, client)
+			d.Now = func() time.Time { return now }
+			code := cmd.RunWithDeps(args, "1.2.3", d)
+			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 			if code != test.wantCode {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, test.wantCode, stderr)
 			}
@@ -181,8 +238,8 @@ func TestAnalyticsSalesReportFailureHints(t *testing.T) {
 			if test.wantHint == "" && strings.Contains(stderr, "Hint:") {
 				t.Fatalf("stderr = %q, want no hint", stderr)
 			}
-			if test.wantHint != "" && (!strings.HasSuffix(stderr, test.wantHint) || strings.Count(stderr, "Hint:") != 1) {
-				t.Fatalf("stderr = %q, want one hint line %q", stderr, test.wantHint)
+			if want := "Hint: " + test.wantHint + "\n"; test.wantHint != "" && (!strings.HasSuffix(stderr, want) || strings.Count(stderr, "Hint:") != 1) {
+				t.Fatalf("stderr = %q, want one hint line %q", stderr, want)
 			}
 			if _, err := os.Stat(outputPath); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("output file stat error = %v, want not-exist", err)

@@ -30,6 +30,7 @@ Dated maintainer canary transcripts, authenticated browser/source captures, and 
 
 - Sales Reports require `YYYY-MM` for monthly reports and `YYYY` for yearly reports on the wire; the CLI accepts `YYYY-MM-DD` and reduces it to the live period identifier before sending.
 - Vendor number comes from Sales and Trends → Reports URL (`vendorNumber=...`).
+- `GET /v1/salesReports` answers 404 when Apple has no file for the period: either it is not published yet (daily reports the next day, weekly on the Monday after, monthly five days after the month ends, yearly six days after the year ends, by about 8 a.m. PT) or the published period had no qualifying sales. Apple's detail does not always tell these apart: an unfinished month returns "There were no sales for the date specified." The CLI keeps the 404 (exit 4) and its hint names the case by the availability schedule plus the latest published period. A wrong vendor number returns 500, not 404.
 - Sales Reports validates the report type/subtype/frequency/version tuple against Apple's endpoint table. Both `SUBSCRIPTION` `1_3` and `1_4` are accepted (`1_4` is the default and live-verified).
 - Use `--paginate` with `asc analytics view --processing-date` (`filter[processingDate]`) to search every report page, or `--next <links.next> --paginate` to resume. Use `--granularity "DAILY,WEEKLY,MONTHLY"` to filter by granularity. Raise `ASC_TIMEOUT` for long runs.
 
