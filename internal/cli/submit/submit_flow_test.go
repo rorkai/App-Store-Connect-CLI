@@ -911,6 +911,8 @@ func TestSubmitResolvedVersionStopsWhenVersionIsInUnresolvedSubmission(t *testin
 			default:
 				return nil, fmt.Errorf("unexpected review submission state filter %q", state)
 			}
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/rejected-submission/items":
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"REJECTED"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"/v1/reviewSubmissions/rejected-submission/items"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
 			createdSubmission = true
 			return submitJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-submission"}}`)
@@ -951,7 +953,11 @@ func TestSubmitResolvedVersionStopsWhenVersionIsInUnresolvedSubmission(t *testin
 	}
 }
 
-func TestSubmitResolvedVersionIgnoresUnresolvedSubmissionForAnotherVersion(t *testing.T) {
+// Catches regressions where a rejected submission that no longer holds the
+// version blocks a normal submit: one for another version, or one that still
+// links the version after its item was removed (App Store Connect keeps
+// appStoreVersionForReview on a submission whose only item is REMOVED).
+func TestSubmitResolvedVersionIgnoresUnresolvedSubmissionsWithoutTheVersion(t *testing.T) {
 	var submitted, added bool
 
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -959,16 +965,26 @@ func TestSubmitResolvedVersionIgnoresUnresolvedSubmissionForAnotherVersion(t *te
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
 			if req.URL.Query().Get("filter[state]") == string(asc.ReviewSubmissionStateUnresolvedIssues) {
 				return submitJSONResponse(http.StatusOK, `{
-					"data": [{
-						"type": "reviewSubmissions",
-						"id": "other-version-submission",
-						"attributes": {"state": "UNRESOLVED_ISSUES", "platform": "IOS"},
-						"relationships": {"appStoreVersionForReview": {"data": {"type": "appStoreVersions", "id": "version-0"}}}
-					}],
+					"data": [
+						{
+							"type": "reviewSubmissions",
+							"id": "other-version-submission",
+							"attributes": {"state": "UNRESOLVED_ISSUES", "platform": "IOS"},
+							"relationships": {"appStoreVersionForReview": {"data": {"type": "appStoreVersions", "id": "version-0"}}}
+						},
+						{
+							"type": "reviewSubmissions",
+							"id": "removed-version-submission",
+							"attributes": {"state": "UNRESOLVED_ISSUES", "platform": "IOS"},
+							"relationships": {"appStoreVersionForReview": {"data": {"type": "appStoreVersions", "id": "version-1"}}}
+						}
+					],
 					"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 				}`)
 			}
 			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/removed-version-submission/items":
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"removed-item","attributes":{"state":"REMOVED"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"/v1/reviewSubmissions/removed-version-submission/items"}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
 			return submitJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-submission","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission":
@@ -1019,6 +1035,9 @@ func TestSubmitResolvedVersionUnresolvedHintAttachesRequestedBuild(t *testing.T)
 				}],
 				"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
 			}`)
+		}
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/rejected-submission/items" {
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"REJECTED"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"/v1/reviewSubmissions/rejected-submission/items"}}`)
 		}
 		otherRequests = append(otherRequests, req.Method+" "+req.URL.RequestURI())
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
