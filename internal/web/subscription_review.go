@@ -24,6 +24,13 @@ type ReviewSubscription struct {
 	SubmitWithNextAppStoreVersionKnown bool   `json:"submitWithNextAppStoreVersionKnown"`
 }
 
+// ReviewSubscriptionSubmission captures the hidden submission resource returned by the web attach flow.
+type ReviewSubscriptionSubmission struct {
+	ID                            string `json:"id"`
+	SubscriptionID                string `json:"subscriptionId,omitempty"`
+	SubmitWithNextAppStoreVersion bool   `json:"submitWithNextAppStoreVersion"`
+}
+
 func decodeReviewSubscriptions(resources []jsonAPIResource, included []jsonAPIResource) []ReviewSubscription {
 	if len(resources) == 0 {
 		return []ReviewSubscription{}
@@ -137,6 +144,66 @@ func (c *Client) ListReviewSubscriptions(ctx context.Context, appID string) ([]R
 		return []ReviewSubscription{}, nil
 	}
 	return decoded, nil
+}
+
+// CreateSubscriptionSubmission attaches a subscription to the next app version review via the private web flow.
+func (c *Client) CreateSubscriptionSubmission(ctx context.Context, subscriptionID string) (ReviewSubscriptionSubmission, error) {
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if subscriptionID == "" {
+		return ReviewSubscriptionSubmission{}, fmt.Errorf("subscription id is required")
+	}
+
+	body := map[string]any{
+		"data": map[string]any{
+			"type": "subscriptionSubmissions",
+			"attributes": map[string]any{
+				"submitWithNextAppStoreVersion": true,
+			},
+			"relationships": map[string]any{
+				"subscription": map[string]any{
+					"data": map[string]string{
+						"type": "subscriptions",
+						"id":   subscriptionID,
+					},
+				},
+			},
+		},
+	}
+
+	responseBody, err := c.doRequest(ctx, http.MethodPost, "/subscriptionSubmissions", body)
+	if err != nil {
+		return ReviewSubscriptionSubmission{}, err
+	}
+
+	var payload struct {
+		Data jsonAPIResource `json:"data"`
+	}
+	if err := json.Unmarshal(responseBody, &payload); err != nil {
+		return ReviewSubscriptionSubmission{}, fmt.Errorf("failed to parse subscription submission response: %w", err)
+	}
+	if strings.TrimSpace(payload.Data.ID) == "" {
+		return ReviewSubscriptionSubmission{}, fmt.Errorf("failed to parse subscription submission response: missing submission id")
+	}
+	if submissionType := strings.TrimSpace(payload.Data.Type); submissionType == "" {
+		return ReviewSubscriptionSubmission{}, fmt.Errorf("failed to parse subscription submission response: missing submission resource type")
+	} else if submissionType != "subscriptionSubmissions" {
+		return ReviewSubscriptionSubmission{}, fmt.Errorf("failed to parse subscription submission response: unexpected resource type %q", payload.Data.Type)
+	}
+
+	result := ReviewSubscriptionSubmission{
+		ID:                            strings.TrimSpace(payload.Data.ID),
+		SubmitWithNextAppStoreVersion: boolAttr(payload.Data.Attributes, "submitWithNextAppStoreVersion"),
+	}
+	relationshipID, relationshipPresent, err := validateReviewSubmissionRelationship(payload.Data, "subscription", "subscriptions", subscriptionID)
+	if err != nil {
+		return ReviewSubscriptionSubmission{}, fmt.Errorf("failed to parse subscription submission response: %w", err)
+	}
+	if relationshipPresent {
+		result.SubscriptionID = relationshipID
+	} else {
+		result.SubscriptionID = subscriptionID
+	}
+	return result, nil
 }
 
 // DeleteSubscriptionSubmission detaches a subscription from the next app version review via the private web flow.

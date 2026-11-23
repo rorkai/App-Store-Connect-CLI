@@ -30,6 +30,8 @@ var webReviewAppScopedCommands = []struct {
 	{name: "drafts create", cmd: newWebReviewDraftCreateCommand, args: []string{"--thread-id", "thread-1", "--message", "Updated the demo account.", "--confirm"}},
 	{name: "drafts update", cmd: newWebReviewDraftUpdateCommand, args: []string{"--thread-id", "thread-1", "--draft-id", "draft-1", "--message", "Updated the demo account.", "--confirm"}},
 	{name: "drafts delete", cmd: newWebReviewDraftDeleteCommand, args: []string{"--thread-id", "thread-1", "--draft-id", "draft-1", "--confirm"}},
+	{name: "subscriptions attach", cmd: newWebReviewSubscriptionsAttachCommand, args: []string{"--subscription-id", "sub-1", "--confirm"}},
+	{name: "subscriptions attach-group", cmd: newWebReviewSubscriptionsAttachGroupCommand, args: []string{"--group-id", "group-1", "--confirm"}},
 	{name: "subscriptions remove", cmd: newWebReviewSubscriptionsRemoveCommand, args: []string{"--subscription-id", "sub-1", "--confirm"}},
 	{name: "subscriptions remove-group", cmd: newWebReviewSubscriptionsRemoveGroupCommand, args: []string{"--group-id", "group-1", "--confirm"}},
 	{name: "iaps attach", cmd: newWebReviewIAPsAttachCommand, args: []string{"--iap-id", "iap-1", "--confirm"}},

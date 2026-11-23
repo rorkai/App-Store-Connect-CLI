@@ -147,6 +147,7 @@ POST /iris/v1/resolutionCenterDraftMessages
 POST /iris/v1/resolutionCenterMessages
 POST /iris/v1/reviewSubmissionItems
 POST /iris/v1/subscriptionPlanAvailabilities
+POST /iris/v1/subscriptionSubmissions
 POST /iris/v1/userAppPermissions
 POST /iris/v2/apiKeys
 POST /iris/v2/appAvailabilities
