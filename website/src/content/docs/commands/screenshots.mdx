@@ -513,6 +513,15 @@ Remove screenshots from a version localization:
 asc screenshots delete --id "SCREENSHOT_ID" --confirm
 ```
 
+Deleting the last screenshot in a set leaves the empty set behind, and
+`asc validate` and `asc review doctor` block on it
+(`screenshots.required.set_nonempty`). To drop the set itself, for example so
+App Store Connect uses a larger display size's screenshots instead:
+
+```bash
+asc localizations screenshot-sets delete --id "SET_ID" --confirm
+```
+
 ## Complete Example Workflow
 
 ```bash

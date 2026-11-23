@@ -205,6 +205,18 @@ func publicAPIResolutionCommand(report Report, check CheckResult) fixCommand {
 			}
 			return userFix(command + fmt.Sprintf(" --path %q --device-type %q", "SCREENSHOTS_DIR", "DEVICE_TYPE"))
 		}
+	case "screenshots.required.set_nonempty":
+		// Deleting the screenshots of a set leaves the set behind. Either
+		// upload to it again or delete the set itself; which one is the
+		// developer's call.
+		appID, versionID := strings.TrimSpace(report.AppID), strings.TrimSpace(report.VersionID)
+		locale, deviceType := strings.TrimSpace(check.Locale), strings.TrimPrefix(check.displayType, "APP_")
+		if resourceID == "" || appID == "" || versionID == "" || locale == "" || deviceType == "" {
+			return fixCommand{}
+		}
+		deleteSet := fmt.Sprintf("asc localizations screenshot-sets delete --id %q --confirm", resourceID)
+		upload := fmt.Sprintf("asc screenshots upload --app %q --version-id %q --locale %q --path %q --device-type %q", appID, versionID, locale, "SCREENSHOTS_DIR", deviceType)
+		return userFix(upload, deleteSet)
 	}
 
 	if resourceID == "" {

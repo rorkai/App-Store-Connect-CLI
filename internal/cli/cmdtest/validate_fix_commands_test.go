@@ -112,3 +112,40 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateEmptyScreenshotSetOffersUploadOrDelete covers a set left empty
+// after its screenshots were deleted: uploading to it and deleting the set
+// both clear the blocker, so the report must name both commands.
+func TestValidateEmptyScreenshotSetOffersUploadOrDelete(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.screenshotsBySet = map[string]string{"set-1": `{"data":[]}`}
+	client := newValidateTestClient(t, fixture)
+	stdout, _, runErr := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, "validate", "--app", "app-1", "--version-id", "ver-1", "--output", "json")
+	if runErr == nil || !strings.Contains(runErr.Error(), "blocking issue(s)") {
+		t.Fatalf("run error = %v, want the blocking-issues error", runErr)
+	}
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("parse report: %v\n%s", err, stdout)
+	}
+
+	want := []string{
+		`asc screenshots upload --app "app-1" --version-id "ver-1" --locale "en-US" --path "SCREENSHOTS_DIR" --device-type "IPHONE_65"`,
+		`asc localizations screenshot-sets delete --id "set-1" --confirm`,
+	}
+	for _, check := range report.Checks {
+		if check.ID != "screenshots.required.set_nonempty" {
+			continue
+		}
+		if check.Resolution == nil || check.Resolution.Fixability != validation.FixabilityAPIFixable || !slices.Equal(check.Resolution.Commands, want) || !check.Resolution.NeedsUserInput {
+			t.Fatalf("resolution = %+v, want api-fixable commands %q with needsUserInput", check.Resolution, want)
+		}
+		for _, command := range want {
+			if !strings.Contains(check.Remediation, command) {
+				t.Fatalf("remediation = %q, want it to name %s", check.Remediation, command)
+			}
+		}
+		return
+	}
+	t.Fatalf("no screenshots.required.set_nonempty check in report: %+v", report.Checks)
+}
