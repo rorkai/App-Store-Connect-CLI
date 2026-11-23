@@ -464,19 +464,8 @@ func requireWebReviewThreadUnderApp(ctx context.Context, client *webcore.Client,
 	if err != nil {
 		return withWebAuthHint(err, command)
 	}
-	matching := 0
-	for _, thread := range threads {
-		if strings.TrimSpace(thread.ID) == threadID {
-			matching++
-		}
-	}
-	if matching == 0 {
-		return fmt.Errorf("%s refused: thread %q was not found under app %q", command, threadID, appID)
-	}
-	if matching > 1 {
-		return fmt.Errorf("%s refused: thread %q appeared more than once under app %q", command, threadID, appID)
-	}
-	return nil
+	_, err = findReviewThreadUnderApp(threads, command, appID, threadID)
+	return err
 }
 
 func verifyWebReviewDraftMutation(ctx context.Context, client *webcore.Client, mutation webReviewDraftMutation) (bool, error) {
