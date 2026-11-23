@@ -246,14 +246,9 @@ func (d AppComplianceDeclaration) field(formName, id string, constraint appCompl
 	}
 
 	if file != nil {
-		extension := strings.ToLower(path.Ext(file.Name))
-		fileType, known := appComplianceFileTypes[extension]
-		allowed := constraint.Validation.AllowedFileTypes
-		if len(allowed) == 0 {
-			allowed = slices.Sorted(maps.Keys(appComplianceFileTypes))
-		}
-		if !known || !slices.Contains(allowed, extension) {
-			return appComplianceField{}, fmt.Errorf("%q is not an accepted file type (%s)", file.Name, strings.Join(allowed, ", "))
+		fileType, err := appComplianceFileType(file, constraint.Validation.AllowedFileTypes)
+		if err != nil {
+			return appComplianceField{}, err
 		}
 		field.FileContent = &appComplianceFileContent{
 			FileData: base64.StdEncoding.EncodeToString(file.Data),
@@ -275,11 +270,31 @@ func (d AppComplianceDeclaration) field(formName, id string, constraint appCompl
 	return field, nil
 }
 
+// appComplianceFileType returns the content type of an evidence file, or
+// refuses one whose extension the form does not accept. With no list from the
+// form, every type this command knows is accepted.
+func appComplianceFileType(file *AppComplianceFile, allowed []string) (string, error) {
+	extension := strings.ToLower(path.Ext(file.Name))
+	fileType, known := appComplianceFileTypes[extension]
+	if len(allowed) == 0 {
+		allowed = slices.Sorted(maps.Keys(appComplianceFileTypes))
+	}
+	if !known || !slices.Contains(allowed, extension) {
+		return "", fmt.Errorf("%q is not an accepted file type (%s)", file.Name, strings.Join(allowed, ", "))
+	}
+	return fileType, nil
+}
+
 // SetAppComplianceDeclaration answers one App Compliance requirement. It
 // fills the form the way the website does: each answer is posted as a draft,
 // the form replies with the fields that answer opens, and the declaration is
 // saved once the form asks for nothing more. A form it cannot fill completely
 // is not saved.
+//
+// A dry run only reads the requirement and checks the evidence file types
+// locally. Every form step posts the draft answer and the last one carries the
+// evidence files, so a dry run must not walk the form. For the same reason the
+// form steps are writes to read-only mode, which refuses them.
 func (c *Client) SetAppComplianceDeclaration(ctx context.Context, accountID, appID string, declaration AppComplianceDeclaration) (*AppComplianceDeclarationResult, error) {
 	requirements, err := c.ListAppComplianceRequirements(ctx, accountID, appID)
 	if err != nil {
@@ -296,6 +311,26 @@ func (c *Client) SetAppComplianceDeclaration(ctx context.Context, accountID, app
 	requirement := requirements[index]
 	if requirement.Status == "COLLECTED_VERIFY_PENDING" {
 		return nil, fmt.Errorf("app compliance requirement %q is pending verification and cannot be changed", declaration.Requirement)
+	}
+	result := &AppComplianceDeclarationResult{
+		AppID:           appID,
+		RequirementID:   requirement.RequirementID,
+		RequirementName: requirement.RequirementName,
+		Declared:        declaration.Declared,
+		Status:          requirement.Status,
+		FormID:          requirement.FormID,
+		DryRun:          declaration.DryRun,
+	}
+	if declaration.DryRun {
+		for _, file := range []*AppComplianceFile{declaration.Proof, declaration.Report, declaration.ThirdPartyAuthorization} {
+			if file == nil {
+				continue
+			}
+			if _, err := appComplianceFileType(file, nil); err != nil {
+				return nil, err
+			}
+		}
+		return result, nil
 	}
 
 	// Evidence travels base64 in the last form-walk request and again in the
@@ -316,7 +351,7 @@ func (c *Client) SetAppComplianceDeclaration(ctx context.Context, accountID, app
 		if len(fields) > len(appComplianceFormFields[requirement.FormName]) {
 			return nil, fmt.Errorf("app compliance form for %q keeps asking for more fields", declaration.Requirement)
 		}
-		responseBody, err := c.doAppComplianceRequestWithHTTPClient(httpClient, readonly.WithReadIntent(ctx), appID, http.MethodPost,
+		responseBody, err := c.doAppComplianceRequestWithHTTPClient(httpClient, ctx, appID, http.MethodPost,
 			entityPath+"/requirements/"+url.PathEscape(requirement.RequirementID)+"/metadata",
 			map[string]any{
 				"accountId":     accountID,
@@ -364,19 +399,6 @@ func (c *Client) SetAppComplianceDeclaration(ctx context.Context, accountID, app
 		if given && !slices.ContainsFunc(fields, func(field appComplianceField) bool { return field.role == role }) {
 			return nil, fmt.Errorf("app compliance form for %q did not ask for all of the evidence in this answer; nothing was saved", declaration.Requirement)
 		}
-	}
-
-	result := &AppComplianceDeclarationResult{
-		AppID:           appID,
-		RequirementID:   requirement.RequirementID,
-		RequirementName: requirement.RequirementName,
-		Declared:        declaration.Declared,
-		Status:          requirement.Status,
-		FormID:          requirement.FormID,
-		DryRun:          declaration.DryRun,
-	}
-	if declaration.DryRun {
-		return result, nil
 	}
 
 	request := struct {

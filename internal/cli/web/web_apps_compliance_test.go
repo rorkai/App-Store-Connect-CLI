@@ -216,3 +216,54 @@ func TestWebAppsComplianceSetStopsOnUnreadableEvidence(t *testing.T) {
 		}
 	}
 }
+
+func TestWebAppsComplianceSetDryRunSaysNothingWasSent(t *testing.T) {
+	stubWebDeclarationSession(t, "account-123")
+	origSet := setWebAppComplianceDeclarationFn
+	t.Cleanup(func() { setWebAppComplianceDeclarationFn = origSet })
+	setWebAppComplianceDeclarationFn = func(ctx context.Context, client *webcore.Client, accountID, appID string, declaration webcore.AppComplianceDeclaration) (*webcore.AppComplianceDeclarationResult, error) {
+		return &webcore.AppComplianceDeclarationResult{
+			AppID: appID, RequirementID: "req-1", RequirementName: declaration.Requirement, Declared: declaration.Declared,
+			Status: "PENDING_COLLECT", DryRun: declaration.DryRun,
+		}, nil
+	}
+
+	dir := t.TempDir()
+	proof := filepath.Join(dir, "proof.pdf")
+	if err := os.WriteFile(proof, []byte("proof"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for name, test := range map[string]struct {
+		args       []string
+		wantStderr string
+	}{
+		"with evidence": {
+			args:       []string{"--declared", "true", "--proof", proof, "--report", proof},
+			wantStderr: "Dry run: nothing was sent to Apple; the answer and its evidence files were checked locally and not uploaded.\n",
+		},
+		"without evidence": {
+			args:       []string{"--declared", "false"},
+			wantStderr: "Dry run: nothing was sent to Apple; the answer was checked locally.\n",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAppsComplianceSetCommand(d)
+			args := append([]string{"--app", "app-1", "--requirement", "SECURITY_ASSESSMENT", "--dry-run", "--output", "json"}, test.args...)
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				if err := cmd.Exec(context.Background(), nil); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			})
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+			if !strings.Contains(stdout, `"dryRun":true`) {
+				t.Fatalf("stdout = %q, want a dry-run receipt", stdout)
+			}
+		})
+	}
+}
