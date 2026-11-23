@@ -251,7 +251,11 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 	// Read-only, so --dry-run runs it too and names the same draft items the
 	// real run submits.
 	preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-	preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
+	prepare := prepareReviewSubmissionForCreate
+	if opts.DryRun {
+		prepare = prepareReviewSubmissionForDryRun
+	}
+	preparedSubmission, err = prepare(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
 	preparationCancel()
 	if err != nil {
 		return result, fmt.Errorf("submit review: prepare review submission: %w", err)
@@ -384,9 +388,13 @@ func emitUnnamedReviewItems(emit func(string), submissionID, versionID string, s
 	emit = func(next func(string)) func(string) {
 		return func(message string) { next(shared.SanitizeTerminal(message)) }
 	}(emit)
-	sends := "sends them"
+	them := "them"
+	if len(staged) == 1 {
+		them = "it"
+	}
+	sends := "sends " + them
 	if dryRun {
-		sends = "would send them"
+		sends = "would send " + them
 	}
 	emit(fmt.Sprintf(
 		"Review submission %s holds %d item%s this command did not name; submitting it %s to App Review with version %s.",

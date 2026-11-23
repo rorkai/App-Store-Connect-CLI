@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 const (
@@ -149,5 +151,51 @@ func TestPrepareReviewSubmissionForCreatePrefersTheVersionsDraft(t *testing.T) {
 	}
 	if got.reuseSubmissionID != "submission-1" || len(got.stagedItems) != 1 {
 		t.Fatalf("expected the version's draft submission-1 with its staged item, got %#v", got)
+	}
+}
+
+// TestPrepareReviewSubmissionForCreatePrefersTheDraftHoldingTheVersionWithoutALink
+// covers drafts whose appStoreVersionForReview link is empty. An empty draft
+// listed first must not win over a later draft whose items hold the version:
+// the real run would add the version to the empty draft, get a 409, recover
+// into the version's draft and submit its staged items, while --dry-run named
+// none.
+func TestPrepareReviewSubmissionForCreatePrefersTheDraftHoldingTheVersionWithoutALink(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{"data":[`+
+				`{"type":"reviewSubmissions","id":"empty-draft","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}},`+
+				`{"type":"reviewSubmissions","id":"submission-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}`+
+				`],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/empty-draft/items":
+			return companionsItemsResponse("")
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/submission-1/items":
+			return companionsItemsResponse(companionsVersionItem + "," + companionsSubItem)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404"}]}`)
+		}
+	}))
+
+	got, err := prepareReviewSubmissionForCreate(context.Background(), io.Discard, client, "app-1", "IOS", "version-1", nil)
+	if err != nil {
+		t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
+	}
+	if got.reuseSubmissionID != "submission-1" || !got.reuseSubmissionHasVersion || len(got.stagedItems) != 1 {
+		t.Fatalf("expected the version's draft submission-1 with its staged item, got %#v", got)
+	}
+}
+
+// TestEmitUnnamedReviewItemsSingular checks the notice for one item reads
+// "1 item ... sends it".
+func TestEmitUnnamedReviewItemsSingular(t *testing.T) {
+	var got []string
+	emitUnnamedReviewItems(func(m string) { got = append(got, m) }, "draft-1", "version-1", []asc.ReviewSubmissionReceiptItem{
+		{Type: "subscriptionVersions", ID: "sub-ver-1", ReviewSubmissionItemID: "item-s"},
+	}, false)
+	want := "Review submission draft-1 holds 1 item this command did not name; submitting it sends it to App Review with version version-1."
+	if len(got) != 2 || got[0] != want {
+		t.Fatalf("messages = %q, want first %q", got, want)
 	}
 }

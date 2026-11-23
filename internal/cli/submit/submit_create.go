@@ -283,7 +283,19 @@ func prepareReviewSubmissionForCreate(
 	appID, platform, versionID string,
 	emit func(string),
 ) (submitCreateReviewSubmissionPreparation, error) {
-	return prepareReviewSubmissionForCreateWithPageLimit(ctx, stderr, client, appID, platform, versionID, emit, reviewSubmissionDiscoveryMaxPages)
+	return prepareReviewSubmission(ctx, stderr, client, appID, platform, versionID, emit, reviewSubmissionDiscoveryMaxPages, false)
+}
+
+// prepareReviewSubmissionForDryRun picks the draft the real run would reuse,
+// with the same reads, and says it would reuse it.
+func prepareReviewSubmissionForDryRun(
+	ctx context.Context,
+	stderr io.Writer,
+	client *asc.Client,
+	appID, platform, versionID string,
+	emit func(string),
+) (submitCreateReviewSubmissionPreparation, error) {
+	return prepareReviewSubmission(ctx, stderr, client, appID, platform, versionID, emit, reviewSubmissionDiscoveryMaxPages, true)
 }
 
 // reviewSubmissionDiscoveryMaxPages bounds untrusted links.next chains while
@@ -297,6 +309,18 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 	appID, platform, versionID string,
 	emit func(string),
 	maxPages int,
+) (submitCreateReviewSubmissionPreparation, error) {
+	return prepareReviewSubmission(ctx, stderr, client, appID, platform, versionID, emit, maxPages, false)
+}
+
+func prepareReviewSubmission(
+	ctx context.Context,
+	stderr io.Writer,
+	client *asc.Client,
+	appID, platform, versionID string,
+	emit func(string),
+	maxPages int,
+	dryRun bool,
 ) (submitCreateReviewSubmissionPreparation, error) {
 	if ctx == nil {
 		return submitCreateReviewSubmissionPreparation{}, fmt.Errorf("review submission preparation context is required")
@@ -400,10 +424,13 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 		}
 	}
 
-	// Inspect drafts linked to the target version first. An empty draft listed
-	// earlier would otherwise be picked, and the version's own draft, with any
-	// items staged next to it, would only be found after the build attach and
-	// a refused add, so --dry-run would name the wrong draft's items.
+	// Prefer the draft whose items hold the target version over an empty one.
+	// Picking an empty draft listed earlier would make the add of the version
+	// fail with a 409 and recover into the version's own draft, submitting the
+	// items staged there that --dry-run never named. Drafts linked to the
+	// version are inspected first, so the usual case reads one draft; an empty
+	// draft is kept as the fallback while the rest are inspected, because the
+	// appStoreVersionForReview link can be empty.
 	slices.SortStableFunc(submissions, func(a, b asc.ReviewSubmissionResource) int {
 		aLinked := reviewSubmissionAppStoreVersionID(&a) == targetVersionID
 		bLinked := reviewSubmissionAppStoreVersionID(&b) == targetVersionID
@@ -416,6 +443,11 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 		return 0
 	})
 
+	reuseVerb := "Reusing existing"
+	if dryRun {
+		reuseVerb = "Would reuse"
+	}
+	emptyDraftID := ""
 	for i := range submissions {
 		sub := submissions[i]
 		if sub.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
@@ -432,16 +464,18 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 			return submitCreateReviewSubmissionPreparation{}, fmt.Errorf("inspect ready review submission %q: %w", strings.TrimSpace(sub.ID), reuseErr)
 		}
 		if reusable {
-			if hasVersion {
-				summary := inspector.summaries[strings.TrimSpace(sub.ID)]
-				result.versionItemID = summary.targetVersionItemID
-				result.stagedItems = summary.stagedItems
-				emitMessage("Reusing existing review submission %s because the target version is already attached.", sub.ID)
-			} else {
-				emitMessage("Reusing existing review submission %s because it has no review items.", sub.ID)
+			if !hasVersion {
+				if emptyDraftID == "" {
+					emptyDraftID = strings.TrimSpace(sub.ID)
+				}
+				continue
 			}
+			summary := inspector.summaries[strings.TrimSpace(sub.ID)]
+			result.versionItemID = summary.targetVersionItemID
+			result.stagedItems = summary.stagedItems
+			emitMessage("%s review submission %s because the target version is already attached.", reuseVerb, sub.ID)
 			result.reuseSubmissionID = strings.TrimSpace(sub.ID)
-			result.reuseSubmissionHasVersion = hasVersion
+			result.reuseSubmissionHasVersion = true
 			return result, nil
 		}
 		if summary, ok := inspector.summaries[strings.TrimSpace(sub.ID)]; ok && summary.holdsOnlyStagedSubscriptionItems() {
@@ -461,6 +495,10 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 			targetVersionID,
 			sub.ID,
 		)
+	}
+	if emptyDraftID != "" {
+		emitMessage("%s review submission %s because it has no review items.", reuseVerb, emptyDraftID)
+		result.reuseSubmissionID = emptyDraftID
 	}
 	return result, nil
 }

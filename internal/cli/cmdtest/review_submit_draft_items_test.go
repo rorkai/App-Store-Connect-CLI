@@ -38,6 +38,7 @@ func TestReviewSubmitNamesDraftItemsItDidNotName(t *testing.T) {
 		name       string
 		args       []string
 		register   func(*asctest.Registry)
+		wantReuse  string
 		wantHeader string
 		wantSubmit string
 	}{
@@ -47,6 +48,7 @@ func TestReviewSubmitNamesDraftItemsItDidNotName(t *testing.T) {
 			register: func(reg *asctest.Registry) {
 				reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 			},
+			wantReuse:  "Would reuse review submission draft-1 because the target version is already attached.\n",
 			wantHeader: "Review submission draft-1 holds 2 items this command did not name; submitting it would send them to App Review with version version-1.\n",
 		},
 		{
@@ -59,6 +61,7 @@ func TestReviewSubmitNamesDraftItemsItDidNotName(t *testing.T) {
 				reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "include=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "limit=200"), asctest.JSON(http.StatusOK, stagedItemsDraftItemsJSON))
 				reg.Register(asctest.PATCH("/v1/reviewSubmissions/draft-1").JSONBody(`{"data":{"type":"reviewSubmissions","id":"draft-1","attributes":{"submitted":true}}}`), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"draft-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-04-08T00:00:00Z"}}}`))
 			},
+			wantReuse:  "Reusing existing review submission draft-1 because the target version is already attached.\n",
 			wantHeader: "Review submission draft-1 holds 2 items this command did not name; submitting it sends them to App Review with version version-1.\n",
 			wantSubmit: "draft-1",
 		},
@@ -87,6 +90,9 @@ func TestReviewSubmitNamesDraftItemsItDidNotName(t *testing.T) {
 			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
 			if err != nil {
 				t.Fatalf("run error: %v\nstderr=%s", err, stderr)
+			}
+			if !strings.Contains(stderr, tt.wantReuse) {
+				t.Fatalf("stderr = %q, want %q", stderr, tt.wantReuse)
 			}
 			if !strings.Contains(stderr, tt.wantHeader+itemLines) {
 				t.Fatalf("stderr = %q, want %q", stderr, tt.wantHeader+itemLines)
@@ -205,5 +211,37 @@ func TestPublishAppStoreSubmitNamesDraftItemsItDidNotName(t *testing.T) {
 	want := `[{"id":"version-1","named":true,"reviewSubmissionItemId":"item-v","type":"appStoreVersions"},{"id":"sub-ver-1","named":false,"reviewSubmissionItemId":"item-s","type":"subscriptionVersions"},{"id":"group-ver-1","named":false,"reviewSubmissionItemId":"item-g","type":"subscriptionGroupVersions"}]`
 	if string(got) != want {
 		t.Fatalf("reviewItems = %s, want %s", got, want)
+	}
+}
+
+// TestReviewSubmitDryRunFailsWhenDraftLookupFails pins that --dry-run now reads
+// the ready-for-review drafts the real run would reuse, so a failed read fails
+// the dry run (exit non-zero) instead of previewing a submit the real run would
+// not make. The registry has no write stubs, so it also proves nothing was
+// written.
+func TestReviewSubmitDryRunFailsWhenDraftLookupFails(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	registerSubmitPreflightAppInfos(reg, completeAgeRatingAttributes)
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "filter[platform]=IOS", "filter[state]=UNRESOLVED_ISSUES", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "filter[platform]=IOS", "filter[state]=READY_FOR_REVIEW", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"Forbidden"}]}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "submit", "--app", "app-1", "--version", "1.2.3", "--build-id", "build-1", "--dry-run", "--output", "json")
+	if err == nil {
+		t.Fatalf("expected the dry run to fail when the draft lookup fails\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+	if !strings.Contains(err.Error(), "prepare review submission") {
+		t.Fatalf("err = %v, want the draft lookup failure", err)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want no receipt", stdout)
 	}
 }
