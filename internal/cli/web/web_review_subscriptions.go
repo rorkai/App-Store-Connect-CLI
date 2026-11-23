@@ -2,8 +2,10 @@ package web
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -138,24 +140,37 @@ func reviewSubscriptionAttachPreflight(d *shared.Deps, appID string, subscriptio
 	)
 }
 
-// reviewSubscriptionLentSessionError stops an attach before
-// POST /iris/v1/subscriptionSubmissions when a broker lends the web session:
-// the broker does not relay that request, so sending it can never attach the
-// subscription. The refusal is the broker's policy, not the account's
-// permissions, and the App Store Connect API path still works.
-func reviewSubscriptionLentSessionError(operation string, subscriptionIDs []string) error {
+// reviewSubscriptionBrokerRefusalError explains a broker's 403 refusal of
+// POST /iris/v1/subscriptionSubmissions. The broker decides what a lent session
+// may send, so asc sends the request and reports the broker's own answer
+// rather than assuming its policy. The refusal is the broker's, not the
+// account's permissions, and the App Store Connect API path still works.
+// It returns nil for any other error, including a broker's rate limit or
+// outage, which a retry can fix. attached lists subscriptions an earlier
+// request in the same run attached.
+func reviewSubscriptionBrokerRefusalError(operation string, err error, notAttached, attached []string) error {
+	refusal, ok := errors.AsType[*webcore.BrokerError](err)
+	if !ok || refusal.Status != http.StatusForbidden {
+		return nil
+	}
 	subscriptionID := "SUB_ID"
 	each := ""
-	if len(subscriptionIDs) == 1 && strings.TrimSpace(subscriptionIDs[0]) != "" {
-		subscriptionID = strings.TrimSpace(subscriptionIDs[0])
+	if len(notAttached) == 1 && strings.TrimSpace(notAttached[0]) != "" {
+		subscriptionID = strings.TrimSpace(notAttached[0])
 	} else {
 		each = " for each subscription"
+	}
+	outcome := "nothing was attached"
+	if len(attached) > 0 {
+		outcome = fmt.Sprintf("%s attached before the refusal; %s did not", strings.Join(attached, ", "), strings.Join(notAttached, ", "))
 	}
 	return shared.WithDiagnostic(
 		&shared.HintedError{
 			Err: fmt.Errorf(
-				"web review subscriptions %s: this Apple session can't submit subscriptions for review: it is lent through a web session broker that does not relay POST /iris/v1/subscriptionSubmissions, so nothing was sent",
+				"web review subscriptions %s: this Apple session can't submit subscriptions for review: the web session broker lending it refused POST /iris/v1/subscriptionSubmissions, so %s: %w",
 				operation,
+				outcome,
+				refusal,
 			),
 			Hint: fmt.Sprintf(
 				"Add the subscription to the app's review submission with the App Store Connect API instead%s: `asc subscriptions versions list --subscription-id %q`, then `asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`. Or attach it in App Store Connect (App Store > Subscriptions), or ask the user to.",
@@ -721,14 +736,14 @@ func newWebReviewSubscriptionsAttachCommand(d *shared.Deps) *ffcli.Command {
 				if err := reviewSubscriptionAttachPreflight(d, trimmedAppID, *selected); err != nil {
 					return err
 				}
-				if session.Brokered {
-					return reviewSubscriptionLentSessionError("attach", []string{trimmedSubscriptionID})
-				}
 
 				submission, err := withWebSpinnerValueWith(d, "Attaching subscription to next app version", func() (webcore.ReviewSubscriptionSubmission, error) {
 					return client.CreateSubscriptionSubmission(requestCtx, trimmedSubscriptionID)
 				})
 				if err != nil {
+					if refusal := reviewSubscriptionBrokerRefusalError("attach", err, []string{trimmedSubscriptionID}, nil); refusal != nil {
+						return refusal
+					}
 					return withWebAuthHint(err, "web review subscriptions attach")
 				}
 
@@ -823,19 +838,21 @@ func newWebReviewSubscriptionsAttachGroupCommand(d *shared.Deps) *ffcli.Command 
 				}
 			}
 
-			if len(attachIDs) > 0 && session.Brokered {
-				return reviewSubscriptionLentSessionError("attach-group", attachIDs)
-			}
 			if len(attachIDs) > 0 {
+				attached := 0
 				err = withWebSpinnerWith(d, "Attaching subscription group to next app version", func() error {
 					for _, subscriptionID := range attachIDs {
 						if _, err := client.CreateSubscriptionSubmission(requestCtx, subscriptionID); err != nil {
 							return err
 						}
+						attached++
 					}
 					return nil
 				})
 				if err != nil {
+					if refusal := reviewSubscriptionBrokerRefusalError("attach-group", err, attachIDs[attached:], attachIDs[:attached]); refusal != nil {
+						return refusal
+					}
 					return withWebAuthHint(err, "web review subscriptions attach-group")
 				}
 			}

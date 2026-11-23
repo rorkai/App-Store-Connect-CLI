@@ -57,8 +57,12 @@ func Classify(err error) ClassifiedError {
 
 	// The broker answered, or was never asked, so this is not a network failure
 	// even though it reaches the caller through the HTTP client as a transport
-	// error; its message already names the next step.
+	// error; its message already names the next step. A command that wrapped
+	// the refusal in its own next step keeps that hint.
 	if _, ok := errors.AsType[*web.BrokerError](err); ok || errors.Is(err, web.ErrWebBrokerRequest) {
+		if hinted, ok := errors.AsType[*shared.HintedError](err); ok && hinted.Hint != "" {
+			return ClassifiedError{Message: err.Error(), Hint: hinted.Hint}
+		}
 		return ClassifiedError{Message: err.Error()}
 	}
 
