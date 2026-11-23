@@ -18,6 +18,12 @@ func NewAssetsScreenshotsDeleteCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Delete a screenshot by ID.",
 		LongHelp: `Delete a screenshot by ID.
 
+Deleting the last screenshot in a set leaves the empty set behind, which
+asc validate and asc review doctor report as screenshots.required.set_nonempty.
+To remove the set itself, for example so App Store Connect uses a larger
+display size's screenshots instead, run:
+  asc localizations screenshot-sets delete --id "SET_ID" --confirm
+
 Examples:
   asc screenshots delete --id "SCREENSHOT_ID" --confirm`,
 		IDFlag:             "id",
