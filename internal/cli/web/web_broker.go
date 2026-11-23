@@ -2,8 +2,10 @@ package web
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -84,4 +86,24 @@ func resolveBrokeredWebSession(ctx context.Context, d *shared.Deps, broker webco
 		return nil, d.UsageError(source + " does not match the account of the brokered web session")
 	}
 	return session, nil
+}
+
+// agreementsBrokerRefusalError explains a broker's 403 refusal of an agreement
+// read. The broker decides what a lent session may send, so asc sends the
+// request and reports the broker's answer rather than assuming its policy.
+// It returns nil for any other error, including a broker's rate limit or
+// outage, which a retry can fix.
+func agreementsBrokerRefusalError(operation string, err error) error {
+	refusal, ok := errors.AsType[*webcore.BrokerError](err)
+	if !ok || refusal.Status != http.StatusForbidden {
+		return nil
+	}
+	return shared.WithDiagnostic(
+		&shared.HintedError{
+			Err:  fmt.Errorf("%s failed: agreement status can't be read through the lent web session: %w", operation, err),
+			Hint: "The web session broker does not lend agreement pages, so do not retry; " + webcore.BrokerAgreementsHandOff + ".",
+		},
+		shared.DiagnosticDependencyFailed,
+		"",
+	)
 }

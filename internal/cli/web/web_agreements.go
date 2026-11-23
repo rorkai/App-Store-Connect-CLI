@@ -117,6 +117,9 @@ Example:
 				return statusErr
 			})
 			if err != nil {
+				if refusal := agreementsBrokerRefusalError("web agreements status", err); refusal != nil {
+					return refusal
+				}
 				return withWebAuthHint(err, "web agreements status")
 			}
 			if result == nil {

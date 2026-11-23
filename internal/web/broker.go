@@ -24,6 +24,13 @@ const (
 	brokerErrorBodyLimit = 64 << 10
 )
 
+// BrokerAgreementsHandOff says who reads agreement status, and where, when
+// the web session is lent through a broker: the agreement pages are not among
+// the requests a broker lends.
+const BrokerAgreementsHandOff = "ask the Account Holder to check Business agreements, such as the Paid Applications Schedule, " +
+	"in App Store Connect under Business > Agreements (https://appstoreconnect.apple.com/business), " +
+	"and the Apple Developer Program License Agreement at https://developer.apple.com/account"
+
 // ErrWebBrokerConfig reports an incomplete or invalid broker configuration.
 var ErrWebBrokerConfig = errors.New("invalid web session broker configuration")
 
