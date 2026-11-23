@@ -35,6 +35,15 @@ Every `POST`, `PATCH`, `PUT`, and `DELETE` request is refused before it is sent,
 * StoreKit retention messaging writes
 * Third-party writes issued by commands: Slack notifications, GitHub issue and pull request creation, Xcode Cloud usage alert webhooks, and ad hoc distribution publishing
 
+Switching an `asc web` session to another provider or team is refused too. With `--provider-id` or `--public-provider-id` naming a provider other than the one the session is on, the command stops before the switch request, leaves the session on its provider, and exits 6:
+
+```text
+Error: ASC_READ_ONLY is set; refusing to switch the web session from provider 111111 / AAAA111111 / Team A to provider 222222 / BBBB222222 / Team B
+Hint: The session stays on provider 111111 / AAAA111111 / Team A. To switch, run 'asc web auth login --provider-id 222222' with neither --read-only nor ASC_READ_ONLY set; later commands then run on provider 222222.
+```
+
+Naming the provider the session is already on is not a switch and still works. A web command run with `--dry-run` refuses the switch the same way, with usage exit code 2.
+
 A `--confirm` command is refused when it issues its write, so `asc bundle-ids delete --id "ABC123" --confirm` exits 6 without sending anything. Commands whose `--confirm` only guards a local change, such as `asc auth export-to-config` or `asc notarization staple`, still run: the mode refuses remote writes, not local ones.
 
 The refusal is one line on stderr and the process exits with code `6`:
@@ -55,7 +64,7 @@ The propagation is an inherited environment variable, not a sandbox. A step's sh
 
 * `GET`, `HEAD`, and `OPTIONS` requests, including `--paginate`
 * Reads that Apple transports as `POST`: analytics queries, Apple Ads `find`, `query`, `search`, and report endpoints, and Developer Portal listings proxied with `X-HTTP-Method-Override: GET`
-* Credential handling: JWT minting is local, and Apple Ads token exchange, web sign-in, and team selection only establish a session
+* Credential handling: JWT minting is local, and Apple Ads token exchange and web sign-in (password, two-factor code, resuming a cached session) only establish a session
 * Local-only commands: `asc auth`, `asc schema`, `asc workflow validate`, `asc search`, file inspection, and similar
 * Anonymous CLI usage telemetry, which is controlled separately and never touches account state
 

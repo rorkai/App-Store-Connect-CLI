@@ -10,6 +10,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -418,5 +420,109 @@ func TestWithWebAuthHintDoesNotRepeatDeveloperPortalSessionGuidance(t *testing.T
 		if want := "web app-groups assign failed: " + err.Error(); got != want {
 			t.Fatalf("withWebAuthHint() = %q, want %q", got, want)
 		}
+	}
+}
+
+// TestResolveWebSessionForCommandRefusesProviderSwitchWhenWritesAreOff covers
+// how a command passes its no-write setting to provider selection and renders
+// the refusal: read-only exits like every read-only refusal, --dry-run as a
+// usage error, and both keep the session cached on its own provider.
+func TestResolveWebSessionForCommandRefusesProviderSwitchWhenWritesAreOff(t *testing.T) {
+	const (
+		readOnlyHint = "The session stays on provider 111 / TEAM111 / Old Team. To switch, run 'asc web auth login --provider-id 222' with neither --read-only nor ASC_READ_ONLY set; later commands then run on provider 222."
+		dryRunHint   = "The session stays on provider 111 / TEAM111 / Old Team. To switch, run 'asc web auth login --provider-id 222' first (or run this command without --dry-run); a dry run on that provider then needs no switch."
+	)
+	tests := []struct {
+		name         string
+		readOnlyFlag bool
+		readOnlyEnv  string
+		dryRun       bool
+		wantSetting  string
+		wantHint     string
+	}{
+		{name: "writes allowed", wantSetting: ""},
+		{name: "read-only flag", readOnlyFlag: true, wantSetting: "--read-only", wantHint: readOnlyHint},
+		{name: "ASC_READ_ONLY", readOnlyEnv: "1", wantSetting: "ASC_READ_ONLY", wantHint: readOnlyHint},
+		{name: "dry-run", dryRun: true, wantSetting: "--dry-run", wantHint: dryRunHint},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv(readonly.EnvVar, test.readOnlyEnv)
+			readonly.SetFlagEnabled(test.readOnlyFlag)
+			t.Cleanup(func() { readonly.SetFlagEnabled(false) })
+
+			d, _, stderr := newWebTestDeps()
+			expected := &webcore.AuthSession{UserEmail: "user@example.com", ProviderID: 111}
+			restoreResolve := SetResolveWebSession(func(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
+				return expected, "cache", nil
+			})
+			t.Cleanup(restoreResolve)
+			origSelectProvider := selectWebProviderFn
+			origPersist := persistWebSessionFn
+			t.Cleanup(func() {
+				selectWebProviderFn = origSelectProvider
+				persistWebSessionFn = origPersist
+			})
+			selectWebProviderFn = func(ctx context.Context, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
+				if selection.RefuseSwitchUnder != test.wantSetting {
+					t.Fatalf("RefuseSwitchUnder = %q, want %q", selection.RefuseSwitchUnder, test.wantSetting)
+				}
+				if selection.RefuseSwitchUnder != "" {
+					return &webcore.ProviderSwitchRefusedError{
+						Setting:             selection.RefuseSwitchUnder,
+						CurrentProvider:     "111 / TEAM111 / Old Team",
+						RequestedProvider:   "222 / TEAM222 / New Team",
+						RequestedProviderID: 222,
+					}
+				}
+				session.ProviderID = selection.ProviderID
+				return nil
+			}
+			persisted := false
+			persistWebSessionFn = func(session *webcore.AuthSession) error {
+				persisted = true
+				if test.wantSetting != "" && session.ProviderID != 111 {
+					t.Fatalf("refused switch cached the session on provider %d, want 111", session.ProviderID)
+				}
+				return nil
+			}
+
+			fs := flag.NewFlagSet("web apps delete", flag.ContinueOnError)
+			dryRun := fs.Bool("dry-run", false, "")
+			flags := bindWebSessionFlags(fs)
+			*dryRun = test.dryRun
+			*flags.appleID = "user@example.com"
+			*flags.providerID = 222
+
+			_, _, cancel, err := resolveWebSessionForCommandWith(context.Background(), d, flags)
+			defer cancel()
+
+			if test.wantSetting == "" {
+				if err != nil || !persisted {
+					t.Fatalf("expected the switch to run and be cached, err = %v, persisted = %t", err, persisted)
+				}
+				return
+			}
+			if !persisted {
+				t.Fatal("refused switch dropped the session instead of caching it on its own provider")
+			}
+			wantMessage := test.wantSetting + " is set; refusing to switch the web session from provider 111 / TEAM111 / Old Team to provider 222 / TEAM222 / New Team"
+			if test.dryRun {
+				if !shared.IsReportedUsageError(err) || errors.Is(err, readonly.ErrRefused) {
+					t.Fatalf("expected a reported usage error that is not a read-only refusal, got %#v", err)
+				}
+				if want := "Error: " + wantMessage + "\nHint: " + test.wantHint + "\n"; stderr.String() != want {
+					t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+				}
+				return
+			}
+			if !errors.Is(err, readonly.ErrRefused) || err.Error() != wantMessage {
+				t.Fatalf("expected read-only refusal %q, got %v", wantMessage, err)
+			}
+			hinted, ok := errors.AsType[*shared.HintedError](err)
+			if !ok || hinted.Hint != test.wantHint {
+				t.Fatalf("expected hint %q, got %#v", test.wantHint, err)
+			}
+		})
 	}
 }

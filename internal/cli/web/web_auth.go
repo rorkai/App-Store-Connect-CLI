@@ -1690,6 +1690,21 @@ func restoreCachedWebProvider(ctx context.Context, d *shared.Deps, session, cach
 	return nil
 }
 
+// providerSwitchRefusal renders a refused provider switch with the command
+// that does switch. Under read-only mode it stays a read-only refusal (exit
+// 6); under --dry-run it is a usage error (exit 2) printed without the usage
+// page, like the other --dry-run conflicts.
+func providerSwitchRefusal(d *shared.Deps, refused *webcore.ProviderSwitchRefusedError) error {
+	var hint string
+	if refused.Setting == "--dry-run" {
+		hint = fmt.Sprintf("The session stays on provider %s. To switch, run 'asc web auth login --provider-id %d' first (or run this command without --dry-run); a dry run on that provider then needs no switch.", refused.CurrentProvider, refused.RequestedProviderID)
+		fmt.Fprintf(d.IO.ErrOut, "Error: %s\nHint: %s\n", refused.Error(), hint)
+		return shared.NewErrorWithCause(shared.NewReportedUsageError(shared.UsageErrorOther, refused.Error()), refused)
+	}
+	hint = fmt.Sprintf("The session stays on provider %s. To switch, run 'asc web auth login --provider-id %d' with neither --read-only nor ASC_READ_ONLY set; later commands then run on provider %d.", refused.CurrentProvider, refused.RequestedProviderID, refused.RequestedProviderID)
+	return &shared.HintedError{Err: refused, Hint: hint}
+}
+
 func selectResolvedWebSessionProviderWith(ctx context.Context, d *shared.Deps, session *webcore.AuthSession, selection webcore.ProviderSelection) error {
 	if selection.ProviderID == 0 && strings.TrimSpace(selection.PublicProviderID) == "" {
 		return nil
@@ -1699,6 +1714,12 @@ func selectResolvedWebSessionProviderWith(ctx context.Context, d *shared.Deps, s
 	providerCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	if err := selectWebProviderFn(providerCtx, session, selection); err != nil {
+		if refused, ok := errors.AsType[*webcore.ProviderSwitchRefusedError](err); ok {
+			// The session is still on its own provider. Cache it anyway, so a
+			// sign-in this command just made is not lost with the refusal.
+			printSessionCacheWriteWarningWith(d, persistWebSessionFn(session))
+			return providerSwitchRefusal(d, refused)
+		}
 		err = fmt.Errorf("web provider selection failed: %w", err)
 		if !errors.Is(err, webcore.ErrInvalidProviderSelection) {
 			return err
@@ -1796,8 +1817,8 @@ func newWebAuthLoginCommand(d *shared.Deps) *ffcli.Command {
 	appleID := fs.String("apple-id", "", "Apple Account email (defaults to "+webAppleIDEnv+", then the last or only cached session)")
 	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
 	twoFactorDelivery := bindTwoFactorDeliveryFlags(fs)
-	providerID := fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session")
-	publicProviderID := fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session")
+	providerID := fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session (refused under --read-only or --dry-run when it names another provider)")
+	publicProviderID := fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session (refused under --read-only or --dry-run when it names another provider)")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -1867,6 +1888,8 @@ Security-key example:
 Provider selection:
   - --public-provider-id selects the public App Store Connect provider/team ID
   - --provider-id selects Apple's numeric App Store Connect provider ID
+  - Under --read-only or ASC_READ_ONLY, signing in still works, but switching
+    an existing session to another provider is refused (exit 6)
 
 Examples:
   # Interactive (in a terminal)
@@ -1916,6 +1939,7 @@ Examples:
 			requestCtx, cancel := newWebRequestContextWith(ctx, d)
 			defer cancel()
 
+			selection.RefuseSwitchUnder = providerSwitchRefusalSetting(nil)
 			if err := selectResolvedWebSessionProviderWith(requestCtx, d, session, selection); err != nil {
 				return err
 			}
