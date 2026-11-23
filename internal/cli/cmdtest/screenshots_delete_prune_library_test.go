@@ -92,3 +92,48 @@ func TestScreenshotsDeletePruneLibraryReportsImageDeleteFailure(t *testing.T) {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
 }
+
+// The image is deleted only on a clear "no placements" answer. A response
+// that does not name the image or does not list placements keeps the image,
+// exits non-zero, and points at the placements check rather than at an
+// unchecked delete.
+func TestScreenshotsDeletePruneLibraryKeepsImageOnUnclearAnswer(t *testing.T) {
+	const image = `{"data":{"type":"appAssetLibraryImages","id":"shot-1"}}`
+	tests := []struct {
+		name       string
+		image      string
+		placements string
+	}{
+		{name: "placements without data", image: image, placements: `{}`},
+		{name: "placements with null data", image: image, placements: `{"data":null}`},
+		{name: "placements with only links", image: image, placements: `{"links":{}}`},
+		{name: "placements with errors", image: image, placements: `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR"}]}`},
+		{name: "placements data is not a list", image: image, placements: `{"data":{"type":"appAssetLibraryPlacements","id":"p-1"}}`},
+		{name: "image read names another image", image: `{"data":{"type":"appAssetLibraryImages","id":"shot-2"}}`},
+		{name: "image read names another type", image: `{"data":{"type":"appScreenshots","id":"shot-1"}}`},
+		{name: "image read without data", image: `{}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.DELETE("/v1/appScreenshots/shot-1"), asctest.JSON(http.StatusNoContent, ""))
+			reg.Register(asctest.GET("/v1/appAssetLibraryImages/shot-1"), asctest.JSON(http.StatusOK, test.image))
+			if test.placements != "" {
+				reg.Register(asctest.GET("/v1/appAssetLibraryImages/shot-1/placements", "limit=1"), asctest.JSON(http.StatusOK, test.placements))
+			}
+
+			stdout, _, err := runRootWithDeps(t, stubClient(t, reg), "screenshots", "delete", "--id", "shot-1", "--confirm", "--prune-library", "--output", "json")
+			if err == nil {
+				t.Fatalf("screenshots delete succeeded, want it to keep the image and fail; stdout: %s", stdout)
+			}
+			if !strings.Contains(err.Error(), `asc asset-library images placements --id "shot-1"`) {
+				t.Fatalf("error = %q, want it to point at the placements check", err.Error())
+			}
+			if strings.Contains(err.Error(), `images delete --id "shot-1" --confirm`) {
+				t.Fatalf("error = %q, want no unchecked delete command", err.Error())
+			}
+		})
+	}
+}

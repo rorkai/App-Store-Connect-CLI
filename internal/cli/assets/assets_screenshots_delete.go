@@ -3,6 +3,7 @@ package assets
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -71,9 +72,17 @@ Examples:
 			if !*pruneLibrary {
 				return d.PrintOutput(&asc.AssetDeleteResult{ID: screenshotID, Deleted: true}, *output.Output, *output.Pretty)
 			}
-			state, err := pruneScreenshotLibraryImage(requestCtx, client, screenshotID)
-			if err != nil {
-				return fmt.Errorf("screenshots delete: screenshot %s was deleted, but its Asset Library image was not: %w; to delete the image, run asc asset-library images delete --id %q --confirm", screenshotID, err, screenshotID)
+			// The prune gets its own timeout so a slow screenshot delete
+			// does not leave it too little time.
+			pruneCtx, pruneCancel := d.Timeout(ctx)
+			defer pruneCancel()
+			state, err := pruneScreenshotLibraryImage(pruneCtx, client, screenshotID)
+			var deleteErr *libraryImageDeleteError
+			switch {
+			case errors.As(err, &deleteErr):
+				return fmt.Errorf("screenshots delete: screenshot %s was deleted, but deleting its unplaced Asset Library image failed: %w; to retry, run asc asset-library images delete --id %q --confirm", screenshotID, deleteErr.err, screenshotID)
+			case err != nil:
+				return fmt.Errorf("screenshots delete: screenshot %s was deleted; its Asset Library image was kept because asc could not confirm that nothing places it: %w; check with asc asset-library images placements --id %q and delete the image only if no placement is listed", screenshotID, err, screenshotID)
 			}
 			result := &asc.ScreenshotDeleteResult{
 				ID:           screenshotID,
@@ -92,34 +101,58 @@ const (
 	screenshotLibraryImageAbsent  = "absent"
 )
 
+// libraryImageDeleteError marks a failure of the image DELETE itself, after
+// the checks found no placement.
+type libraryImageDeleteError struct{ err error }
+
+func (e *libraryImageDeleteError) Error() string { return e.err.Error() }
+
 // pruneScreenshotLibraryImage deletes the Asset Library image that shares a
-// deleted screenshot's ID, unless another placement still uses it.
+// deleted screenshot's ID, unless a placement still uses it. It deletes only
+// on a clear answer: the image read must name this image, and the placements
+// response must carry a data list. Anything else keeps the image.
 func pruneScreenshotLibraryImage(ctx context.Context, client *asc.Client, imageID string) (string, error) {
 	path := "/v1/appAssetLibraryImages/" + url.PathEscape(imageID)
 	// Placements of an unknown image ID come back as an empty list, so the
 	// image itself is read first to tell an absent image from an unplaced one.
-	_, err := client.RawRequest(ctx, "GET", path, nil)
+	raw, err := client.RawRequest(ctx, "GET", path, nil)
 	if asc.IsNotFound(err) {
 		return screenshotLibraryImageAbsent, nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("read it: %w", err)
 	}
-	raw, err := client.RawRequestWithQuery(ctx, "GET", path+"/placements", url.Values{"limit": {"1"}}, nil)
+	var image struct {
+		Data *struct {
+			Type string `json:"type"`
+			ID   string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(raw, &image); err != nil {
+		return "", fmt.Errorf("parse it: %w", err)
+	}
+	if image.Data == nil || image.Data.Type != "appAssetLibraryImages" || image.Data.ID != imageID {
+		return "", fmt.Errorf("the image read did not return appAssetLibraryImages %s", imageID)
+	}
+
+	raw, err = client.RawRequestWithQuery(ctx, "GET", path+"/placements", url.Values{"limit": {"1"}}, nil)
 	if err != nil {
 		return "", fmt.Errorf("list its placements: %w", err)
 	}
 	var placements struct {
-		Data []json.RawMessage `json:"data"`
+		Data *[]json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(raw, &placements); err != nil {
 		return "", fmt.Errorf("parse its placements: %w", err)
 	}
-	if len(placements.Data) > 0 {
+	if placements.Data == nil {
+		return "", fmt.Errorf("the placements response has no data list")
+	}
+	if len(*placements.Data) > 0 {
 		return screenshotLibraryImageKept, nil
 	}
 	if _, err := client.RawRequest(ctx, "DELETE", path, nil); err != nil {
-		return "", err
+		return "", &libraryImageDeleteError{err: err}
 	}
 	return screenshotLibraryImageDeleted, nil
 }
