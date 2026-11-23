@@ -15,6 +15,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -498,10 +499,9 @@ func TestWebReviewSubscriptionsAttachReportsBrokerRefusal(t *testing.T) {
 			if _, ok := errors.AsType[*webcore.BrokerError](err); !ok {
 				t.Fatalf("expected the broker's refusal to stay in the error chain, got %v", err)
 			}
-			message := err.Error() + "\n" + stderr
-			if hinted, ok := errors.AsType[*shared.HintedError](err); ok {
-				message += "\n" + hinted.Hint
-			}
+			// What the caller reads: the command's stderr, then the error as
+			// main prints it.
+			message := stderr + "\n" + errfmt.FormatStderr(err)
 			if !tt.wantLentStop {
 				if strings.Contains(message, "can't submit subscriptions for review") {
 					t.Fatalf("a %d broker refusal must not be reported as the broker's policy, got %q", tt.refusal.Status, message)
