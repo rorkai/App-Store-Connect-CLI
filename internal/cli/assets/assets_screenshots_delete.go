@@ -41,7 +41,10 @@ keeps the Asset Library image it was uploaded as, under the same ID. Add
 lists no placement for it; otherwise it is kept and reported as "kept". Right
 after the delete, the listed placement can be the one just removed, so rerun
 the check later with asc asset-library images placements --id SCREENSHOT_ID.
-A screenshot with no matching library image is reported as "absent".
+A screenshot with no matching library image is reported as "absent". If the
+placement check gives no clear answer the image is kept and reported as
+"checkFailed"; if the image delete fails it is reported as "deleteFailed".
+Both print the receipt with the error and exit non-zero.
 
 Examples:
   asc screenshots delete --id "SCREENSHOT_ID" --confirm
@@ -77,19 +80,31 @@ Examples:
 			pruneCtx, pruneCancel := d.Timeout(ctx)
 			defer pruneCancel()
 			state, err := pruneScreenshotLibraryImage(pruneCtx, client, screenshotID)
-			var deleteErr *libraryImageDeleteError
-			switch {
-			case errors.As(err, &deleteErr):
-				return fmt.Errorf("screenshots delete: screenshot %s was deleted, but deleting its unplaced Asset Library image failed: %w; to retry, run asc asset-library images delete --id %q --confirm", screenshotID, deleteErr.err, screenshotID)
-			case err != nil:
-				return fmt.Errorf("screenshots delete: screenshot %s was deleted; its Asset Library image was kept because asc could not confirm that nothing places it: %w; check with asc asset-library images placements --id %q and delete the image only if no placement is listed", screenshotID, err, screenshotID)
-			}
 			result := &asc.ScreenshotDeleteResult{
 				ID:           screenshotID,
 				Deleted:      true,
 				LibraryImage: &asc.ScreenshotLibraryImageResult{ID: screenshotID, State: state},
 			}
-			return d.PrintOutput(result, *output.Output, *output.Pretty)
+			if err == nil {
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
+			}
+			// The screenshot is gone either way, so the receipt still goes to
+			// stdout and names the step that failed; the command exits non-zero.
+			var deleteErr *libraryImageDeleteError
+			var pruneErr error
+			if errors.As(err, &deleteErr) {
+				result.LibraryImage.State = screenshotLibraryImageDeleteFailed
+				result.LibraryImage.Error = deleteErr.err.Error()
+				pruneErr = fmt.Errorf("screenshots delete: screenshot %s was deleted, but deleting its unplaced Asset Library image failed: %w; to retry, run asc asset-library images delete --id %q --confirm", screenshotID, deleteErr.err, screenshotID)
+			} else {
+				result.LibraryImage.State = screenshotLibraryImageCheckFailed
+				result.LibraryImage.Error = err.Error()
+				pruneErr = fmt.Errorf("screenshots delete: screenshot %s was deleted; its Asset Library image was kept because asc could not confirm that nothing places it: %w; check with asc asset-library images placements --id %q and delete the image only if no placement is listed", screenshotID, err, screenshotID)
+			}
+			if printErr := d.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
+				return errors.Join(pruneErr, printErr)
+			}
+			return shared.NewReportedError(pruneErr)
 		},
 	}
 }
@@ -99,6 +114,11 @@ const (
 	screenshotLibraryImageDeleted = "deleted"
 	screenshotLibraryImageKept    = "kept"
 	screenshotLibraryImageAbsent  = "absent"
+	// The image was not deleted: the placement check could not confirm that
+	// nothing places it.
+	screenshotLibraryImageCheckFailed = "checkFailed"
+	// The placement check found none, but the image DELETE failed.
+	screenshotLibraryImageDeleteFailed = "deleteFailed"
 )
 
 // libraryImageDeleteError marks a failure of the image DELETE itself, after

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
@@ -68,8 +69,8 @@ func TestScreenshotsDeletePruneLibrary(t *testing.T) {
 	}
 }
 
-// If the screenshot is gone but the image delete fails, the command exits
-// non-zero and says which half happened and how to finish it.
+// If the screenshot is gone but the image delete fails, the command prints
+// the receipt for what happened, exits non-zero, and says how to finish it.
 func TestScreenshotsDeletePruneLibraryReportsImageDeleteFailure(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -79,24 +80,28 @@ func TestScreenshotsDeletePruneLibraryReportsImageDeleteFailure(t *testing.T) {
 	reg.Register(asctest.GET("/v1/appAssetLibraryImages/shot-1/placements", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 	reg.Register(asctest.DELETE("/v1/appAssetLibraryImages/shot-1"), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR","title":"The asset cannot be deleted","detail":"The asset cannot be deleted in its current state."}]}`))
 
-	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), "screenshots", "delete", "--id", "shot-1", "--confirm", "--prune-library", "--output", "json")
-	if err == nil {
-		t.Fatalf("screenshots delete succeeded, want the image delete failure; stdout: %s", stdout)
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "screenshots", "delete", "--id", "shot-1", "--confirm", "--prune-library", "--output", "json")
+	if code == cmd.ExitSuccess {
+		t.Fatalf("screenshots delete exited 0, want the image delete failure; stdout: %s", stdout)
 	}
-	for _, want := range []string{"screenshot shot-1 was deleted", `asc asset-library images delete --id "shot-1" --confirm`} {
-		if !strings.Contains(err.Error(), want) {
-			t.Fatalf("error = %q, want it to contain %q", err.Error(), want)
+	for _, want := range []string{"Error: screenshots delete: screenshot shot-1 was deleted", `asc asset-library images delete --id "shot-1" --confirm`} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr = %q, want it to contain %q", stderr, want)
 		}
 	}
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
+	if got := strings.Count(stderr, "Error:"); got != 1 {
+		t.Fatalf("stderr has %d errors, want 1:\n%s", got, stderr)
+	}
+	const wantStdout = `{"id":"shot-1","deleted":true,"libraryImage":{"id":"shot-1","state":"deleteFailed","error":"The asset cannot be deleted: The asset cannot be deleted in its current state."}}`
+	if strings.TrimSpace(stdout) != wantStdout {
+		t.Fatalf("stdout = %s, want the partial receipt %s", stdout, wantStdout)
 	}
 }
 
 // The image is deleted only on a clear "no placements" answer. A response
 // that does not name the image or does not list placements keeps the image,
-// exits non-zero, and points at the placements check rather than at an
-// unchecked delete.
+// prints the receipt for the deleted screenshot, exits non-zero, and points
+// at the placements check rather than at an unchecked delete.
 func TestScreenshotsDeletePruneLibraryKeepsImageOnUnclearAnswer(t *testing.T) {
 	const image = `{"data":{"type":"appAssetLibraryImages","id":"shot-1"}}`
 	tests := []struct {
@@ -133,6 +138,10 @@ func TestScreenshotsDeletePruneLibraryKeepsImageOnUnclearAnswer(t *testing.T) {
 			}
 			if strings.Contains(err.Error(), `images delete --id "shot-1" --confirm`) {
 				t.Fatalf("error = %q, want no unchecked delete command", err.Error())
+			}
+			const wantPrefix = `{"id":"shot-1","deleted":true,"libraryImage":{"id":"shot-1","state":"checkFailed","error":"`
+			if !strings.HasPrefix(strings.TrimSpace(stdout), wantPrefix) {
+				t.Fatalf("stdout = %s, want the partial receipt starting %s", stdout, wantPrefix)
 			}
 		})
 	}
