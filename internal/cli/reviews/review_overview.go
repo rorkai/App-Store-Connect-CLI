@@ -606,6 +606,25 @@ func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 	return result
 }
 
+// unresolvedReviewSubmissionRemediation names the asc commands for a
+// submission App Review returned: read the rejection, then resolve the
+// REJECTED items and resubmit the same submission. It does not suggest
+// canceling: App Store Connect refuses to cancel an UNRESOLVED_ISSUES
+// submission, and the rejected version stays editable without it.
+func unresolvedReviewSubmissionRemediation(appID, submissionID string) string {
+	submissionID = strings.TrimSpace(submissionID)
+	if submissionID == "" {
+		return "Resolve the outstanding App Review issues in App Store Connect, then resubmit if needed."
+	}
+	return fmt.Sprintf(
+		"Read App Review's message with `asc web review show --app %q --submission %q`. Edit the version if the fix needs it, list the items with `asc review items list --submission %q`, mark each REJECTED item resolved with `asc review items update --id \"ITEM_ID\" --resolved true`, then resubmit with `asc review submissions-submit --id %q --confirm`.",
+		valueOrPlaceholder(strings.TrimSpace(appID), "APP_ID"),
+		submissionID,
+		submissionID,
+		submissionID,
+	)
+}
+
 func buildReviewDoctorResult(snapshot reviewSnapshot, report validation.Report) reviewDoctorResult {
 	result := reviewDoctorResult{
 		AppID:                  snapshot.AppID,
@@ -661,7 +680,7 @@ func buildReviewDoctorResult(snapshot reviewSnapshot, report validation.Report) 
 			ID:          "review.submission.unresolved_issues",
 			Severity:    validation.SeverityError,
 			Message:     "Latest review submission has unresolved issues in App Review",
-			Remediation: "Resolve the outstanding App Review issues in App Store Connect, then resubmit if needed.",
+			Remediation: unresolvedReviewSubmissionRemediation(snapshot.AppID, snapshot.LatestSubmission.ID),
 		}
 		result.BlockingChecks = append([]validation.CheckResult{synthetic}, result.BlockingChecks...)
 		result.Summary.Errors++

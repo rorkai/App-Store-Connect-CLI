@@ -942,11 +942,14 @@ func TestSubmitResolvedVersionStopsWhenVersionIsInUnresolvedSubmission(t *testin
 	for _, want := range []string{
 		`asc review items update --id "ITEM_ID" --resolved true`,
 		`asc review submissions-submit --id "rejected-submission" --confirm`,
-		`asc review submissions-cancel --id "rejected-submission" --confirm`,
 	} {
 		if !strings.Contains(hinted.Hint, want) {
 			t.Fatalf("expected hint to contain %q, got %q", want, hinted.Hint)
 		}
+	}
+	// App Store Connect refuses to cancel an UNRESOLVED_ISSUES submission.
+	if strings.Contains(hinted.Hint, "submissions-cancel") {
+		t.Fatalf("expected hint not to suggest canceling, got %q", hinted.Hint)
 	}
 	if createdSubmission || addedItem || readyQueried {
 		t.Fatalf("expected no further requests, got create=%v addItem=%v readyQuery=%v", createdSubmission, addedItem, readyQueried)
