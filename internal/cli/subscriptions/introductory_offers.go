@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -513,7 +514,10 @@ func createSubscriptionIntroductoryOffersForAllTerritories(
 		Total:           len(territories),
 	}
 
-	var operationErr, refused error
+	// The first failure supplies the exit code and outcome, unless a read-only
+	// refusal occurred, which keeps its own exit code.
+	var operationErr, refused, firstFailure error
+	rateLimited := 0
 	for _, territoryID := range territories {
 		if _, ok := existing[territoryID]; ok {
 			appendSubscriptionIntroductoryOfferCreateBulkSkip(summary, territoryID, "introductory offer already exists for territory")
@@ -537,6 +541,12 @@ func createSubscriptionIntroductoryOffersForAllTerritories(
 		if err != nil {
 			appendSubscriptionIntroductoryOfferCreateBulkFailure(summary, territoryID, err)
 			refused = shared.KeepReadOnlyRefusal(refused, err)
+			if firstFailure == nil {
+				firstFailure = err
+			}
+			if isSubscriptionIntroductoryOfferRateLimited(err) {
+				rateLimited++
+			}
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				operationErr = ctxErr
 				break
@@ -557,9 +567,28 @@ func createSubscriptionIntroductoryOffersForAllTerritories(
 		return shared.NewReportedError(fmt.Errorf("subscriptions introductory-offers create: operation stopped: %w", operationErr))
 	}
 	if summary.Failed > 0 {
-		return shared.NewReportedError(shared.NewErrorWithCause(fmt.Errorf("subscriptions introductory-offers create: %d territor%s failed", summary.Failed, pluralizeIntroductoryOfferCreateTerritories(summary.Failed)), refused))
+		cause := refused
+		if cause == nil {
+			cause = firstFailure
+		}
+		err := fmt.Errorf("subscriptions introductory-offers create: %d territor%s failed", summary.Failed, pluralizeIntroductoryOfferCreateTerritories(summary.Failed))
+		if rateLimited > 0 {
+			hinted := &shared.HintedError{
+				Err:  err,
+				Hint: fmt.Sprintf("App Store Connect rate-limited %d territor%s; rerun the same command later. Territories that already have an introductory offer are skipped.", rateLimited, pluralizeIntroductoryOfferCreateTerritories(rateLimited)),
+			}
+			return shared.NewReportedError(shared.NewErrorWithCause(hinted, cause))
+		}
+		return shared.NewReportedError(shared.NewErrorWithCause(err, cause))
 	}
 	return nil
+}
+
+// isSubscriptionIntroductoryOfferRateLimited reports whether App Store Connect
+// refused a create with HTTP 429, after the client's own retries ran out.
+func isSubscriptionIntroductoryOfferRateLimited(err error) bool {
+	var statusErr interface{ HTTPStatusCode() int }
+	return errors.As(err, &statusErr) && statusErr.HTTPStatusCode() == http.StatusTooManyRequests
 }
 
 func contextWithSubscriptionIntroductoryOfferCreateTimeout(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
