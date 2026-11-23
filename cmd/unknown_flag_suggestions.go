@@ -322,19 +322,21 @@ func guidanceFlagNames(rule removedFlagRule) []string {
 // when every key mapped and every value was read whole; otherwise the mapped
 // flags are named with placeholders, so a suggestion never carries a value the
 // caller did not give that exact key. When no key maps, the usual unknown-flag
-// answer applies.
-func filterSuggestion(analysis invocationAnalysis, commandName string, args []string) (string, bool) {
+// answer applies. A key that means a different thing to Apple than to the flag
+// of the same name (ambiguousFilterKeys) never carries a value, and its note
+// is returned for the caller to print.
+func filterSuggestion(analysis invocationAnalysis, commandName string, args []string) (string, []string, bool) {
 	command := analysis.command
 	if command == nil || command.FlagSet == nil {
-		return "", false
+		return "", nil, false
 	}
 	index := analysis.unknownIndex
 	if index < 0 || index >= len(args) || !hasValidFlagPrefix(args[index]) {
-		return "", false
+		return "", nil, false
 	}
 	pairs, exact, ok := readFilterArgs(args[index:])
 	if !ok {
-		return "", false
+		return "", nil, false
 	}
 
 	flags := make([]string, 0, len(pairs))
@@ -360,19 +362,34 @@ func filterSuggestion(analysis invocationAnalysis, commandName string, args []st
 		values = append(values, quoted)
 	}
 	if len(flags) == 0 {
-		return "", false
+		return "", nil, false
 	}
 
 	var suggestion strings.Builder
+	var notes []string
 	suggestion.WriteString(commandName)
 	for i, name := range flags {
 		value := values[i]
-		if !exact {
+		note, ambiguous := ambiguousFilterKeys[commandName][name]
+		if ambiguous {
+			notes = append(notes, note)
+		}
+		if !exact || ambiguous {
 			value = filterFlagPlaceholder(name)
 		}
 		suggestion.WriteString(" --" + name + " " + value)
 	}
-	return suggestion.String(), true
+	return suggestion.String(), notes, true
+}
+
+// ambiguousFilterKeys names, per command, the flags whose filter key means
+// something else to Apple. On /v1/builds, filter[version] is the build number
+// (CFBundleVersion), while `asc builds list --version` is the marketing
+// version, so a value given for `version` could belong to either flag.
+var ambiguousFilterKeys = map[string]map[string]string{
+	"asc builds list": {
+		"version": "Apple's filter[version] on builds is the build number; for that, use --build-number BUILD_NUMBER.",
+	},
 }
 
 // filterPair is one key and value read from a filter expression.
