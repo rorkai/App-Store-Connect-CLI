@@ -12,6 +12,7 @@ ok validate --app X --version-id X --output X
 ok metadata validate --dir X --check-urls
 ok search X
 ok api X X --output X
+ok api X X --json X --output X
 ok api X X --confirm --body X
 ok versions attach-build --version-id X --build-id X --output X
 ok metadata pull --app X --version X --dir X

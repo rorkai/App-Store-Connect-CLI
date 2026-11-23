@@ -96,6 +96,10 @@ Examples:
 				return d.UsageErrorf("api: %v", err)
 			}
 
+			if err := positionalBodyError(d, args, positional); err != nil {
+				return err
+			}
+
 			bodyProvided, bodyFileProvided := false, false
 			fs.Visit(func(f *flag.Flag) {
 				switch f.Name {
@@ -132,6 +136,37 @@ Examples:
 			return printResponse(d.IO.Out, response, *output.Pretty)
 		},
 	}
+}
+
+// positionalBodyError answers a JSON document passed as a positional
+// argument. No METHOD or PATH starts with `{` or `[`, so such an argument is
+// a request body. The usual cause is `--json BODY`: --json is the value-less
+// spelling of --output json, so the body after it lands among the
+// positionals.
+func positionalBodyError(d *shared.Deps, args, positional []string) error {
+	for _, argument := range positional {
+		trimmed := strings.TrimSpace(argument)
+		if !strings.HasPrefix(trimmed, "{") && !strings.HasPrefix(trimmed, "[") {
+			continue
+		}
+		if index := slices.Index(args, argument); index > 0 && followsJSONOutput(args[:index]) {
+			return d.UsageError("api: --json takes no value (it means --output json); pass the request body with --body '<json>' (or --body @file, or --body-file FILE)")
+		}
+		return d.UsageError("api: the request body is not a positional argument; pass it with --body '<json>' (or --body @file, or --body-file FILE)")
+	}
+	return nil
+}
+
+// followsJSONOutput reports whether before ends in --json, or in --output
+// json, the spelling the root may rewrite --json to.
+func followsJSONOutput(before []string) bool {
+	switch before[len(before)-1] {
+	case "--json", "-json", "--output=json", "-output=json":
+		return true
+	case "json":
+		return len(before) > 1 && (before[len(before)-2] == "--output" || before[len(before)-2] == "-output")
+	}
+	return false
 }
 
 type rawRequest struct {
@@ -679,6 +714,14 @@ func unknownOperationError(d *shared.Deps, method, path, shown string, unversion
 		fmt.Fprintf(&message, " Did you mean %s %s?", nearest[0].Method, fillTemplate(nearest[0].Path, path))
 		nearest = nearest[1:]
 	}
+	childAdvice := ""
+	if !hasCommand && !corrected {
+		childAdvice, err = childOperationAdvice(method, path)
+		if err != nil {
+			return fmt.Errorf("api: %w", err)
+		}
+		message.WriteString(childAdvice)
+	}
 	switch {
 	case len(nearest) > 0:
 		names := make([]string, 0, len(nearest))
@@ -686,11 +729,11 @@ func unknownOperationError(d *shared.Deps, method, path, shown string, unversion
 			names = append(names, endpoint.Method+" "+endpoint.Path)
 		}
 		label := "Nearest known operations"
-		if corrected || hasCommand {
+		if corrected || hasCommand || childAdvice != "" {
 			label = "Other known operations"
 		}
 		fmt.Fprintf(&message, " %s: %s.", label, strings.Join(names, ", "))
-	case !corrected && !hasCommand:
+	case !corrected && !hasCommand && childAdvice == "":
 		message.WriteString(" No indexed operation shares its resource, under any API version or a similar name: the App Store Connect API does not document it.")
 	}
 	if corrected || hasCommand || len(nearest) == 0 {
@@ -704,6 +747,110 @@ func unknownOperationError(d *shared.Deps, method, path, shown string, unversion
 	// The diagnostic keeps telemetry's failure parameter empty: the hint
 	// mentions --allow-unknown-path, but that flag did not cause the failure.
 	return shared.WithDiagnostic(d.UsageError(message.String()), shared.DiagnosticInvalidInput, "")
+}
+
+// childOperationAdvice answers a write to a parent's child collection,
+// /{version}/{parents}/{id}/{children}, which Apple does not serve: a child is
+// created at its own collection with a relationship to the parent, and
+// changed or deleted by its own ID. It names that operation, and for a create
+// the relationship the body needs, from the index, or returns "" when the
+// index has none.
+func childOperationAdvice(method, path string) (string, error) {
+	if method == http.MethodGet {
+		return "", nil
+	}
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	if len(segments) != 4 {
+		return "", nil
+	}
+	version, parents, parentID, children := segments[0], segments[1], segments[2], segments[3]
+	versions := append([]string{version}, slices.DeleteFunc([]string{"v1", "v2", "v3"}, func(v string) bool { return v == version })...)
+	// find returns the indexed path of method on /{version}/{suffix}, trying
+	// the request's API version first, with suffix's own values filled in.
+	find := func(method, suffix string) (string, bool, error) {
+		for _, v := range versions {
+			concrete := "/" + v + "/" + suffix
+			endpoint, ok, err := schema.MatchOperation(method, concrete)
+			if err != nil || ok {
+				return fillTemplate(endpoint.Path, concrete), ok, err
+			}
+		}
+		return "", false, nil
+	}
+
+	if method == http.MethodPost {
+		return createAdvice(versions, parents, parentID, children)
+	}
+
+	item, ok, err := find(method, children+"/{id}")
+	if err != nil || !ok {
+		return "", err
+	}
+	verb := "change"
+	if method == http.MethodDelete {
+		verb = "delete"
+	}
+	advice := fmt.Sprintf(" To %s one, use %s %s", verb, method, item)
+	list, ok, err := find(http.MethodGet, parents+"/"+parentID+"/"+children)
+	if err != nil {
+		return "", err
+	}
+	if ok {
+		advice += " with its ID from GET " + list
+	}
+	return advice + ".", nil
+}
+
+// createAdvice names the indexed create for children, preferring one whose
+// request takes a to-one relationship to the parent's type, and that
+// relationship filled in with the parent's ID. Without one it names the
+// create in the first API version that has it, with its required
+// relationships.
+func createAdvice(versions []string, parents, parentID, children string) (string, error) {
+	var fallback schema.Endpoint
+	for _, version := range versions {
+		create, ok, err := schema.MatchOperation(http.MethodPost, "/"+version+"/"+children)
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			continue
+		}
+		for _, name := range slices.Sorted(maps.Keys(create.RequestRelationships)) {
+			relationship := create.RequestRelationships[name]
+			if relationship.ResourceType != parents || relationship.Cardinality != "one" {
+				continue
+			}
+			var linkage struct {
+				Data struct {
+					Type string `json:"type"`
+					ID   string `json:"id"`
+				} `json:"data"`
+			}
+			linkage.Data.Type, linkage.Data.ID = parents, parentID
+			encoded, err := json.Marshal(linkage)
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf(" To create one, use POST %s with relationships.%s = %s.", create.Path, name, encoded), nil
+		}
+		if fallback.Path == "" {
+			fallback = create
+		}
+	}
+	if fallback.Path == "" {
+		return "", nil
+	}
+	var required []string
+	for _, name := range slices.Sorted(maps.Keys(fallback.RequestRelationships)) {
+		if relationship := fallback.RequestRelationships[name]; relationship.Required {
+			required = append(required, fmt.Sprintf("relationships.%s (%s)", name, relationship.ResourceType))
+		}
+	}
+	if len(required) == 0 {
+		return fmt.Sprintf(" To create one, use POST %s.", fallback.Path), nil
+	}
+	return fmt.Sprintf(" To create one, use POST %s with %s.", fallback.Path, strings.Join(required, ", ")), nil
 }
 
 // validateBody checks a request document against the matched operation's
