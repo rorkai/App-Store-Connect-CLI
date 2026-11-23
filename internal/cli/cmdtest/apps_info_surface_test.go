@@ -43,3 +43,18 @@ func TestAppsInfoViewIncludeFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 		}
 	}
 }
+
+func TestAppsInfoRelationshipsViewIncludesEveryCategory(t *testing.T) {
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}}]}`))
+	reg.Register(asctest.GET("/v1/appInfos/info-1", "include=primaryCategory,primarySubcategoryOne,primarySubcategoryTwo,secondaryCategory,secondarySubcategoryOne,secondarySubcategoryTwo"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-1"},"included":[{"type":"appCategories","id":"PRODUCTIVITY"}]}`))
+
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), "apps", "info", "relationships", "view", "--app", "app-1", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if !strings.Contains(stdout, `"included":[{"type":"appCategories","id":"PRODUCTIVITY"}]`) {
+		t.Fatalf("expected the included categories in output, got %q", stdout)
+	}
+}

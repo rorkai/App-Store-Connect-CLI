@@ -23,11 +23,13 @@ func newAppsInfoRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Get App Info category relationships.
 
 Examples:
+  asc apps info relationships view --app "APP_ID"
   asc apps info relationships primary-category --app "APP_ID"
   asc apps info relationships primary-category --info-id "APP_INFO_ID"`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			appsInfoRelationshipsViewCommand(d),
 			appsInfoCategoryRelationshipCommand(d,
 				"primary-category",
 				"Get the primary category for an app info.",
@@ -122,6 +124,69 @@ Examples:
 			resp, err := fetch(requestCtx, client, resolvedInfoID)
 			if err != nil {
 				return fmt.Errorf("apps info relationships %s: failed to fetch: %w", name, err)
+			}
+
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		},
+	}
+}
+
+// appInfoCategoryRelationships are the app info relationships the category
+// subcommands read one at a time.
+var appInfoCategoryRelationships = []string{
+	"primaryCategory",
+	"primarySubcategoryOne",
+	"primarySubcategoryTwo",
+	"secondaryCategory",
+	"secondarySubcategoryOne",
+	"secondarySubcategoryTwo",
+}
+
+// appsInfoRelationshipsViewCommand reads every category relationship of an
+// app info in one request: the app info with those relationships included.
+func appsInfoRelationshipsViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps info relationships view", flag.ExitOnError)
+
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
+	infoID := shared.BindResourceIDFlag(fs, "info-id", "appInfos", "App Info ID (optional override)")
+	output := d.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "view",
+		ShortUsage: "asc apps info relationships view [flags]",
+		ShortHelp:  "Get every category relationship for an app info.",
+		LongHelp: `Get every category relationship for an app info: the app info with its
+primary and secondary categories and subcategories included.
+
+Examples:
+  asc apps info relationships view --app "APP_ID"
+  asc apps info relationships view --info-id "APP_INFO_ID"`,
+		FlagSet:   fs,
+		UsageFunc: d.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			infoIDValue := strings.TrimSpace(*infoID)
+			resolvedAppID := d.ResolveAppID(*appID)
+			if resolvedAppID == "" && infoIDValue == "" {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --info-id is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("")
+			}
+
+			client, err := d.Client()
+			if err != nil {
+				return fmt.Errorf("apps info relationships view: %w", err)
+			}
+
+			requestCtx, cancel := d.Timeout(ctx)
+			defer cancel()
+
+			resolvedInfoID, err := d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
+			if err != nil {
+				return fmt.Errorf("apps info relationships view: %w", err)
+			}
+
+			resp, err := client.GetAppInfo(requestCtx, resolvedInfoID, asc.WithAppInfoInclude(appInfoCategoryRelationships))
+			if err != nil {
+				return fmt.Errorf("apps info relationships view: failed to fetch: %w", err)
 			}
 
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)

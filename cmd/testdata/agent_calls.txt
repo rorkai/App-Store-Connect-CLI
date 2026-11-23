@@ -669,7 +669,7 @@ ok app-events localizations placements list --localization-id X --include X
 ok app-events submit --event-id X --app X --confirm
 ok app-setup --help
 ok app-setup availability edit --app X --territory X --available X
-unknown-command app-setup availability view --app X --output X
+ok app-setup availability view --app X --output X
 ok app-setup categories set --app X --primary X --output X
 ok app-setup info --help
 ok app-setup info set --app X --content-rights X
@@ -980,7 +980,7 @@ unknown-flag app-infos get --app-info-id X --output X
 unknown-command app-infos localizations list --app-info-id X --output X
 unknown-command app-infos-localizations list --app-info X --output X
 unknown-command app-localizations list --app X --output X
-unknown-command app-setup availability view --app X
+ok app-setup availability view --app X
 unknown-flag app-setup info --output X
 unknown-flag app-setup info set --app X --content-rights X --confirm
 unknown-command app-store-version-localizations list --version-id X --output X
@@ -1006,7 +1006,7 @@ unknown-flag apps info edit --app X --version X --platform X --copy-from-version
 ok apps info get --app X --version X --platform X --output X
 unknown-flag apps info list --app-id X --output X
 unknown-command apps info localizations list --app-info-id X --output X
-unknown-flag apps info relationships --app X --output X
+ok apps info relationships --app X --output X
 unknown-flag apps info territory-age-ratings --app-info X --output X
 unknown-command apps info update --help
 unknown-command apps info update-name --app X --name X --output X

@@ -642,72 +642,9 @@ Examples:
 	}
 }
 
-// newPricingAvailabilityGetCommand returns the availability get subcommand.
+// newPricingAvailabilityGetCommand returns the availability view subcommand.
 func newPricingAvailabilityGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("pricing availability view", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	id := shared.BindResourceIDFlag(fs, "id", "appAvailabilities", "App availability ID")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc pricing availability view --app \"APP_ID\" | asc pricing availability view --id \"AVAILABILITY_ID\"",
-		ShortHelp:  "View app availability.",
-		LongHelp: `View app availability.
-
-Examples:
-  asc pricing availability view --app "123456789"
-  asc pricing availability view --id "AVAILABILITY_ID"`,
-		FlagSet:   fs,
-		UsageFunc: d.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			appValue := ""
-			if idValue == "" {
-				appValue = d.ResolveAppID(*appID)
-			}
-			if idValue == "" && appValue == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --id is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("")
-			}
-			if idValue != "" && strings.TrimSpace(*appID) != "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --id and --app are mutually exclusive")
-				return flag.ErrHelp
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("pricing availability view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			var resp *asc.AppAvailabilityV2Response
-			if idValue != "" {
-				resp, err = client.GetAppAvailabilityV2ByID(requestCtx, idValue)
-			} else {
-				resp, err = client.GetAppAvailabilityV2(requestCtx, appValue)
-			}
-			if err != nil {
-				if idValue == "" && asc.IsMissingResourceOfType(err, "appAvailabilities") {
-					safeAppID := asc.SanitizeTerminalText(appValue)
-					fmt.Fprintf(d.IO.ErrOut, "App %s has no availability configured yet; create it with: asc pricing availability create --app %s --territory \"USA\" --available true --available-in-new-territories true\n", safeAppID, safeAppID)
-					return shared.NewNotConfiguredReportedError(fmt.Errorf("pricing availability view: app %q has no availability configured", appValue))
-				}
-				if idValue == "" && shared.IsAppAvailabilityMissing(err) {
-					return shared.NewErrorWithCause(
-						fmt.Errorf("pricing availability view: app availability not found for app %q: %w", appValue, asc.ErrNotFound),
-						err,
-					)
-				}
-				return fmt.Errorf("pricing availability view: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
-		},
-	}
+	return shared.NewAvailabilityViewCommand(d, "pricing availability")
 }
 
 const territoryAvailabilitiesLimitMax = 200

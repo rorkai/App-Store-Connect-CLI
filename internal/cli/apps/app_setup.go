@@ -291,14 +291,16 @@ func newAppSetupAvailabilityCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "availability",
 		ShortUsage: "asc app-setup availability <subcommand> [flags]",
-		ShortHelp:  "Edit app availability.",
-		LongHelp: `Edit app availability for territories.
+		ShortHelp:  "View and edit app availability.",
+		LongHelp: `View and edit app availability for territories.
 
 Examples:
+  asc app-setup availability view --app "APP_ID"
   asc app-setup availability edit --app "APP_ID" --territory "USA,GBR" --available true
   asc app-setup availability edit --app "APP_ID" --all-territories --available true`,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			shared.NewAvailabilityViewCommand(d, "app-setup availability"),
 			newAppSetupAvailabilitySetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
