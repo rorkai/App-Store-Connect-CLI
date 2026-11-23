@@ -307,9 +307,13 @@ func TestWebReviewSubscriptionsSingleMutationReportsRefreshedState(t *testing.T)
 				premiumGroupBody(t, monthlySubscription("READY_TO_SUBMIT", tt.refreshedAttached)),
 			)
 
-			stdout, _, err := runReviewSubscriptionsCommand(t, tt.command, "--app", "app-1", "--subscription-id", tt.selector, "--confirm", "--output", "json")
+			stdout, stderr, err := runReviewSubscriptionsCommand(t, tt.command, "--app", "app-1", "--subscription-id", tt.selector, "--confirm", "--output", "json")
 			if err != nil {
 				t.Fatalf("exec error: %v", err)
+			}
+			// The web-session flow stays the default and is not deprecated.
+			if strings.Contains(stderr, "deprecated") {
+				t.Fatalf("unexpected deprecation warning for %s: %q", tt.wantOperation, stderr)
 			}
 
 			var payload reviewSubscriptionMutationOutput

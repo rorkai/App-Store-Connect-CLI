@@ -173,7 +173,7 @@ func reviewSubscriptionBrokerRefusalError(operation string, err error, notAttach
 				refusal,
 			),
 			Hint: fmt.Sprintf(
-				"Add the subscription to the app's review submission with the App Store Connect API instead%s: `asc subscriptions versions list --subscription-id %q`, then `asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`. Or attach it in App Store Connect (App Store > Subscriptions), or ask the user to.",
+				"Rerun with --review-items to add the subscription to the app's review submission with the App Store Connect API key instead%s, or do it by hand: `asc subscriptions versions list --subscription-id %q`, then `asc review items add --submission \"SUBMISSION_ID\" --item-type subscriptionVersions --item-id \"VERSION_ID\"`. Or attach it in App Store Connect (App Store > Subscriptions), or ask the user to.",
 				each,
 				subscriptionID,
 			),
@@ -685,6 +685,7 @@ func newWebReviewSubscriptionsAttachCommand(d *shared.Deps) *ffcli.Command {
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
 	confirm := fs.Bool("confirm", false, "Confirm the attach operation")
+	attachFlags := bindReviewSubscriptionAttachFlags(fs)
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
 
@@ -704,6 +705,19 @@ func newWebReviewSubscriptionsAttachCommand(d *shared.Deps) *ffcli.Command {
 				return d.UsageError("--subscription-id is required")
 			case !*confirm:
 				return d.RequireConfirm(*confirm)
+			}
+
+			if *attachFlags.reviewItems {
+				draftFlags, err := validateReviewSubscriptionAttachDraftFlags(d, fs, attachFlags)
+				if err != nil {
+					return err
+				}
+				return runReviewSubscriptionAttachWithReviewItems(ctx, d, reviewSubscriptionAttachRequest{
+					AppID: trimmedAppID, SubscriptionID: trimmedSubscriptionID, Draft: draftFlags, Output: *output.Output, Pretty: *output.Pretty,
+				})
+			}
+			if err := prepareWebSubscriptionAttach(d, fs); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
@@ -778,6 +792,7 @@ func newWebReviewSubscriptionsAttachGroupCommand(d *shared.Deps) *ffcli.Command 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	groupID := fs.String("group-id", "", "Subscription group ID or exact current name")
 	confirm := fs.Bool("confirm", false, "Confirm the attach-group operation")
+	attachFlags := bindReviewSubscriptionAttachFlags(fs)
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
 
@@ -797,6 +812,19 @@ func newWebReviewSubscriptionsAttachGroupCommand(d *shared.Deps) *ffcli.Command 
 				return d.UsageError("--group-id is required")
 			case !*confirm:
 				return d.RequireConfirm(*confirm)
+			}
+
+			if *attachFlags.reviewItems {
+				draftFlags, err := validateReviewSubscriptionAttachDraftFlags(d, fs, attachFlags)
+				if err != nil {
+					return err
+				}
+				return runReviewSubscriptionAttachGroupWithReviewItems(ctx, d, reviewSubscriptionAttachRequest{
+					AppID: trimmedAppID, GroupID: trimmedGroupID, Draft: draftFlags, Output: *output.Output, Pretty: *output.Pretty,
+				})
+			}
+			if err := prepareWebSubscriptionAttach(d, fs); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
