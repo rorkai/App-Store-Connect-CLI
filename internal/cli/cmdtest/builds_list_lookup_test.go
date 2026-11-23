@@ -54,6 +54,18 @@ func TestAppScopedCommandsResolveAppByBundleID(t *testing.T) {
 			deps:       true,
 		},
 		{
+			name:     "apps view",
+			args:     []string{"apps", "view", "--app", "com.example.view"},
+			bundleID: "com.example.view",
+			appID:    "100000002",
+			requests: []lookupRequest{{
+				matcher: asctest.GET("/v1/apps/100000002"),
+				body:    `{"data":{"type":"apps","id":"100000002"}}`,
+			}},
+			wantStdout: `"id":"100000002"`,
+			deps:       true,
+		},
+		{
 			name:     "testflight crashes list",
 			args:     []string{"testflight", "crashes", "list", "--app", "com.example.crashes"},
 			bundleID: "com.example.crashes",
