@@ -1291,8 +1291,8 @@ ok testflight groups testers add --help
 unknown-command testflight groups update --help
 unknown-flag testflight review edit --app X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
 ok testflight review get --app X
-unknown-flag testflight review submissions list --app X --output X
-unknown-flag testflight review submissions list --app X --output X X ---; X X X -- X X X --build-id X --output X
+ok testflight review submissions list --app X --output X
+ok testflight review submissions list --app X --output X X ---; X X X -- X X X --build-id X --output X
 unknown-command testflight review update --app X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --output X
 unknown-flag testflight review view --help; X X --output X X
 unknown-flag testflight testers add-groups --id X --group-id X --output X

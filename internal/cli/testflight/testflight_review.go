@@ -333,6 +333,7 @@ func newTestFlightReviewSubmissionsListCommand(d *shared.Deps) *ffcli.Command {
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to filter")
 	shared.BindFlagAlias(fs, "build", "build-id")
+	appFlag := fs.String("app", "", fmt.Sprintf("App Store Connect app ID, bundle ID, or exact name: without --build-id, list the submissions of its %d most recently uploaded builds; with --build-id, require the build to be this app's", reviewSubmissionsAppBuildsLimit))
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
@@ -340,12 +341,17 @@ func newTestFlightReviewSubmissionsListCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc testflight review submissions list --build-id \"BUILD_ID\" [flags]",
+		ShortUsage: "asc testflight review submissions list (--build-id \"BUILD_ID\" | --app \"APP_ID\") [flags]",
 		ShortHelp:  "List beta app review submissions.",
 		LongHelp: `List beta app review submissions.
 
+Apple lists beta app review submissions by build. --app lists them for the
+app's most recently uploaded builds, newest first; next to --build-id it
+checks that the build belongs to the app.
+
 Examples:
   asc testflight review submissions list --build-id "BUILD_ID"
+  asc testflight review submissions list --app "APP_ID"
   asc testflight review submissions list --build-id "BUILD_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
@@ -354,7 +360,8 @@ Examples:
 				return err
 			}
 			buildValue := strings.TrimSpace(*buildID)
-			if buildValue == "" {
+			appValue := strings.TrimSpace(*appFlag)
+			if buildValue == "" && appValue == "" {
 				return d.RequiredFlag("--build-id")
 			}
 
@@ -366,12 +373,23 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			buildIDs := []string{buildValue}
+			if appValue != "" {
+				buildIDs, err = reviewSubmissionsAppBuildIDs(requestCtx, client, appValue, buildValue)
+				if err != nil {
+					return fmt.Errorf("testflight review submissions list: %w", err)
+				}
+				if len(buildIDs) == 0 {
+					return d.PrintOutput(&asc.BetaAppReviewSubmissionsResponse{Data: []asc.Resource[asc.BetaAppReviewSubmissionAttributes]{}}, *output.Output, *output.Pretty)
+				}
+			}
+
 			opts := []asc.BetaAppReviewSubmissionsOption{
 				asc.Limit[asc.BetaAppReviewSubmissionsOption](*limit),
 				asc.NextURL[asc.BetaAppReviewSubmissionsOption](*next),
 			}
 
-			opts = append(opts, asc.WithBetaAppReviewSubmissionsBuildIDs([]string{buildValue}))
+			opts = append(opts, asc.WithBetaAppReviewSubmissionsBuildIDs(buildIDs))
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.BetaAppReviewSubmissionsOption](200))
@@ -399,6 +417,44 @@ Examples:
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// reviewSubmissionsAppBuildsLimit is how many of an app's most recent builds
+// --app reads submissions for: one page of builds, whose IDs Apple accepts in
+// one filter[build] value.
+const reviewSubmissionsAppBuildsLimit = 200
+
+// reviewSubmissionsAppBuildIDs returns the build IDs whose submissions --app
+// selects: buildID when it belongs to app, otherwise the app's most recently
+// uploaded builds.
+func reviewSubmissionsAppBuildIDs(ctx context.Context, client *asc.Client, app, buildID string) ([]string, error) {
+	appID, err := shared.ResolveAppIDWithLookup(ctx, client, app)
+	if err != nil {
+		return nil, err
+	}
+	if buildID != "" {
+		linkage, err := client.GetBuildAppRelationship(ctx, buildID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve app for build %q: %w", buildID, err)
+		}
+		if owner := strings.TrimSpace(linkage.Data.ID); owner != appID {
+			mismatch := fmt.Errorf("build %q belongs to app %q, not %q", buildID, owner, appID)
+			return nil, shared.WithDiagnostic(shared.NewValidationError(mismatch), shared.DiagnosticInvalidInput, "--build-id")
+		}
+		return []string{buildID}, nil
+	}
+	builds, err := client.GetBuilds(ctx, appID,
+		asc.WithBuildsSort("-uploadedDate"),
+		asc.Limit[asc.BuildsOption](reviewSubmissionsAppBuildsLimit),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list builds for app %q: %w", appID, err)
+	}
+	ids := make([]string, 0, len(builds.Data))
+	for _, build := range builds.Data {
+		ids = append(ids, build.ID)
+	}
+	return ids, nil
 }
 
 // newTestFlightReviewSubmissionsGetCommand retrieves a beta app review submission by ID.
