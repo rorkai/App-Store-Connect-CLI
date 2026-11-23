@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/kballard/go-shellquote"
@@ -246,5 +247,34 @@ func TestFixPrivateKeyFilePermissionsRepairsKeyTheOwnerCannotRead(t *testing.T) 
 	}
 	if err := ValidateKeyFile(path); err != nil {
 		t.Fatalf("ValidateKeyFile() after repair error: %v", err)
+	}
+}
+
+func TestPrivateKeyFileFixForUID(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose POSIX file owners")
+	}
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	writeECDSAPEM(t, keyPath, 0o644, true)
+	chmod := "chmod 600 " + keyPath
+	tests := []struct {
+		name         string
+		uid          int
+		wantCommands []string
+		wantOwned    bool
+	}{
+		{name: "owned by the caller", uid: os.Getuid(), wantCommands: []string{chmod}, wantOwned: true},
+		{name: "owned by another user", uid: os.Getuid() + 1, wantCommands: []string{`sudo chown "$(id -un)" ` + keyPath, chmod}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fix, err := privateKeyFileFixForUID(keyPath, tt.uid)
+			if err != nil {
+				t.Fatalf("privateKeyFileFixForUID() error: %v", err)
+			}
+			if fix.Mode != 0o644 || fix.OwnedByCaller != tt.wantOwned || !slices.Equal(fix.Commands, tt.wantCommands) {
+				t.Fatalf("fix = %+v, want mode 0644, owned %t, commands %q", fix, tt.wantOwned, tt.wantCommands)
+			}
+		})
 	}
 }

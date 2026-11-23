@@ -39,14 +39,58 @@ func filePermissionsTooPermissiveForOS(mode fs.FileMode, goos string) bool {
 // be rendered as a trustworthy copy-paste command, so callers receive
 // safe=false and must offer a command that does not embed the path.
 func FilePermissionRemediationCommand(path string) (command string, safe bool) {
+	target, safe := remediationTarget(path)
+	if !safe {
+		return "", false
+	}
+	return shellquote.Join("chmod", "600", target), true
+}
+
+func remediationTarget(path string) (string, bool) {
 	if path == "" || !utf8.ValidString(path) || containsNonDisplayableRune(path) {
 		return "", false
 	}
-	target := path
-	if strings.ContainsRune("-#=", rune(target[0])) {
-		target = "./" + target
+	if strings.ContainsRune("-#=", rune(path[0])) {
+		return "./" + path, true
 	}
-	return shellquote.Join("chmod", "600", target), true
+	return path, true
+}
+
+// PrivateKeyFileFix describes how to make a refused private key file readable
+// by its user alone.
+type PrivateKeyFileFix struct {
+	// Mode is the file's current permission bits.
+	Mode fs.FileMode
+	// OwnedByCaller is false when another user owns the file, so neither
+	// chmod nor --fix-permissions can change it until its owner changes.
+	OwnedByCaller bool
+	// Commands repair the file in order. It is empty when the path cannot be
+	// rendered as a trustworthy copy-paste command.
+	Commands []string
+}
+
+// PrivateKeyFileFixFor inspects the key file at path, without changing it, and
+// returns the commands that give the current user sole read and write access.
+func PrivateKeyFileFixFor(path string) (PrivateKeyFileFix, error) {
+	return privateKeyFileFixForUID(path, os.Getuid())
+}
+
+func privateKeyFileFixForUID(path string, uid int) (PrivateKeyFileFix, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return PrivateKeyFileFix{}, err
+	}
+	fix := PrivateKeyFileFix{Mode: info.Mode().Perm(), OwnedByCaller: !fileOwnedByOtherUser(info, uid)}
+	chmod, safe := FilePermissionRemediationCommand(path)
+	if !safe {
+		return fix, nil
+	}
+	if !fix.OwnedByCaller {
+		target, _ := remediationTarget(path)
+		fix.Commands = append(fix.Commands, `sudo chown "$(id -un)" `+shellquote.Join(target))
+	}
+	fix.Commands = append(fix.Commands, chmod)
+	return fix, nil
 }
 
 func containsNonDisplayableRune(value string) bool {
