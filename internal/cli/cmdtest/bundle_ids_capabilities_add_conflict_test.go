@@ -33,7 +33,23 @@ func TestBundleIDsCapabilitiesAddConflictHintNamesTheNextStep(t *testing.T) {
 			capability: "FAMILY_CONTROLS",
 			body:       fmt.Sprintf(notInEnum, "FAMILY_CONTROLS"),
 			want: fmt.Sprintf(wrongType, "FAMILY_CONTROLS") +
-				"Hint: The App Store Connect API cannot enable FAMILY_CONTROLS (Apple lists the capability types it accepts above), and retrying with other flags or --if-exists does not change that. Enable it on this App ID in the Apple Developer portal (Certificates, Identifiers & Profiles > Identifiers), then regenerate the provisioning profiles that use the App ID.\n",
+				"Hint: The App Store Connect API does not accept FAMILY_CONTROLS (Apple lists the capability types it accepts above), and retrying with other flags or --if-exists does not change that. If FAMILY_CONTROLS is a capability the Apple Developer portal offers, enable it on this App ID there (Certificates, Identifiers & Profiles > Identifiers), then regenerate the provisioning profiles that use the App ID.\n",
+		},
+		{
+			name:       "misspelling of a type the API accepts",
+			bundle:     "BUNDLE1234",
+			capability: "HEALTH_KIT",
+			body:       fmt.Sprintf(notInEnum, "HEALTH_KIT"),
+			want: fmt.Sprintf(wrongType, "HEALTH_KIT") +
+				`Hint: HEALTH_KIT is not a capability type the App Store Connect API recognizes; the closest one it accepts is HEALTHKIT: asc bundle-ids capabilities add --bundle "BUNDLE1234" --capability HEALTHKIT` + "\n",
+		},
+		{
+			name:       "type rejection reported after another errors entry",
+			bundle:     "BUNDLE1234",
+			capability: "GAMECENTER",
+			body:       `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"There is a problem with the request entity","detail":"The request entity is invalid"},{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.TYPE","title":"An attribute in the provided entity has the wrong type","detail":"'GAMECENTER' is not a valid value for the attribute 'capabilityType'. Expected one of: 'ICLOUD', 'GAME_CENTER'"}]}`,
+			want: "Error: bundle-ids capabilities add: failed to create: There is a problem with the request entity: The request entity is invalid\n\nAdditional errors:\n  - 'GAMECENTER' is not a valid value for the attribute 'capabilityType'. Expected one of: 'ICLOUD', 'GAME_CENTER'\n" +
+				`Hint: GAMECENTER is not a capability type the App Store Connect API recognizes; the closest one it accepts is GAME_CENTER: asc bundle-ids capabilities add --bundle "BUNDLE1234" --capability GAME_CENTER` + "\n",
 		},
 		{
 			name:       "Developer Portal-only type with a web command",

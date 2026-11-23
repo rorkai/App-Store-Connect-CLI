@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -389,6 +390,33 @@ func TestEntitlementCapabilitiesUsePublishedTypes(t *testing.T) {
 		if !strings.Contains(section, `"`+item.Capability+`"`) {
 			t.Fatalf("%s is not in the published CapabilityType enum", item.Capability)
 		}
+	}
+}
+
+// TestAPICapabilityTypesMatchPublishedEnum fails when an OpenAPI update adds
+// or drops a capability type, so the misspelling hint on capabilities add
+// never suggests a type Apple rejects or misses one it accepts.
+func TestAPICapabilityTypesMatchPublishedEnum(t *testing.T) {
+	data, err := os.ReadFile("../../../docs/openapi/latest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var spec struct {
+		Components struct {
+			Schemas struct {
+				CapabilityType struct {
+					Enum []string `json:"enum"`
+				} `json:"CapabilityType"`
+			} `json:"schemas"`
+		} `json:"components"`
+	}
+	if err := json.Unmarshal(data, &spec); err != nil {
+		t.Fatal(err)
+	}
+	published := slices.Sorted(slices.Values(spec.Components.Schemas.CapabilityType.Enum))
+	ours := slices.Sorted(slices.Values(apiCapabilityTypes))
+	if !slices.Equal(published, ours) {
+		t.Fatalf("apiCapabilityTypes = %v, published CapabilityType enum = %v", ours, published)
 	}
 }
 
