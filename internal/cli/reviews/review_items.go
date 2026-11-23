@@ -730,10 +730,11 @@ func findExistingReviewSubmissionItem(
 // an item App Review did not reject.
 const reviewItemResolveRejectedText = "can only be resolved when it is in REJECTED state"
 
-// withReviewItemResolveHint says which items take --resolved and what changes
-// a submission that has none: App Store Connect lets only REJECTED items be
-// marked resolved, and an UNRESOLVED_ISSUES submission without one is changed
-// by canceling it, which returns its version to the developer.
+// withReviewItemResolveHint says which items take --resolved and what to do
+// for a submission that has none: App Store Connect lets only REJECTED items be
+// marked resolved, and a submission without one is resubmitted as it is, after
+// editing the version if needed. It does not suggest canceling: App Store
+// Connect refuses to cancel an UNRESOLVED_ISSUES submission.
 func withReviewItemResolveHint(err error) error {
 	apiErr, ok := errors.AsType[*asc.APIError](err)
 	if !ok || apiErr.StatusCode != http.StatusConflict || !slices.ContainsFunc(append([]string{apiErr.Detail}, apiErr.AllDetails...), func(detail string) bool {
@@ -743,6 +744,6 @@ func withReviewItemResolveHint(err error) error {
 	}
 	return &shared.HintedError{
 		Err:  err,
-		Hint: "Only items App Review rejected (state REJECTED) take --resolved. See each item's state with `asc review items list --submission SUBMISSION_ID`. When none is REJECTED there is nothing to resolve: to change what an UNRESOLVED_ISSUES submission contains, cancel it with `asc review submissions-cancel --id SUBMISSION_ID --confirm`, which returns the version for editing, then submit again.",
+		Hint: "Only items App Review rejected (state REJECTED) take --resolved. See each item's state with `asc review items list --submission SUBMISSION_ID`. When none is REJECTED there is nothing to resolve: edit the version if the fix needs it, then resubmit with `asc review submissions-submit --id SUBMISSION_ID --confirm`.",
 	}
 }
