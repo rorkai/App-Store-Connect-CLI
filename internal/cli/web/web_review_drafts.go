@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -13,10 +14,44 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 const webReviewDraftBodyMaxBytes int64 = 1 << 20
+
+// resolutionCenterMessageMaxCharacters is the longest Resolution Center
+// message App Store Connect accepts. Apple answers a longer draft with a 409
+// ENTITY_ERROR.ATTRIBUTE.INVALID that does not name the limit.
+const resolutionCenterMessageMaxCharacters = 4000
+
+// validateResolutionCenterMessageLength refuses a body App Store Connect
+// would reject for its length. It counts like the App Review notes check:
+// characters rather than bytes, and a CRLF line break once, so it never
+// refuses a body App Store Connect would accept under another counting rule.
+func validateResolutionCenterMessageLength(d *shared.Deps, flagName, body string) error {
+	length := validation.ReviewNotesLength(body)
+	if length <= resolutionCenterMessageMaxCharacters {
+		return nil
+	}
+	over := length - resolutionCenterMessageMaxCharacters
+	unit := "characters"
+	if over == 1 {
+		unit = "character"
+	}
+	message := fmt.Sprintf("%s is %s characters; a Resolution Center message holds at most %s. Remove at least %s %s.",
+		flagName, formatWebReviewCount(length), formatWebReviewCount(resolutionCenterMessageMaxCharacters), formatWebReviewCount(over), unit)
+	return shared.WithDiagnostic(d.UsageError(message), shared.DiagnosticInvalidInput, flagName)
+}
+
+// formatWebReviewCount writes a non-negative count with thousands separators.
+func formatWebReviewCount(n int) string {
+	digits := strconv.Itoa(n)
+	for i := len(digits) - 3; i > 0; i -= 3 {
+		digits = digits[:i] + "," + digits[i:]
+	}
+	return digits
+}
 
 // newWebReviewDraftsCommand groups the unsent Resolution Center
 // draft operations. The send path remains exclusively on web review reply.
@@ -58,7 +93,7 @@ func newWebReviewDraftCreateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web review drafts create", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
-	message := fs.String("message", "", "Draft message body")
+	message := fs.String("message", "", "Draft message body, at most 4,000 characters")
 	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file")
 	confirm := fs.Bool("confirm", false, "Confirm creating the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
@@ -109,7 +144,7 @@ func newWebReviewDraftUpdateCommand(d *shared.Deps) *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	draftID := fs.String("draft-id", "", "Resolution Center draft message ID (defaults to the thread's one unsent draft)")
-	message := fs.String("message", "", "Draft message body")
+	message := fs.String("message", "", "Draft message body, at most 4,000 characters")
 	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file")
 	confirm := fs.Bool("confirm", false, "Confirm updating the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
@@ -253,6 +288,9 @@ func readWebReviewDraftBody(d *shared.Deps, fs *flag.FlagSet, message, bodyFile 
 		if strings.TrimSpace(message) == "" {
 			return "", d.UsageError("--message must not be empty")
 		}
+		if err := validateResolutionCenterMessageLength(d, "--message", message); err != nil {
+			return "", err
+		}
 		return message, nil
 	}
 
@@ -281,6 +319,9 @@ func readWebReviewDraftBody(d *shared.Deps, fs *flag.FlagSet, message, bodyFile 
 	messageBody := string(body)
 	if strings.TrimSpace(messageBody) == "" {
 		return "", d.UsageError("--body-file must contain a non-empty message body")
+	}
+	if err := validateResolutionCenterMessageLength(d, "--body-file", messageBody); err != nil {
+		return "", err
 	}
 	return messageBody, nil
 }
@@ -423,19 +464,8 @@ func requireWebReviewThreadUnderApp(ctx context.Context, client *webcore.Client,
 	if err != nil {
 		return withWebAuthHint(err, command)
 	}
-	matching := 0
-	for _, thread := range threads {
-		if strings.TrimSpace(thread.ID) == threadID {
-			matching++
-		}
-	}
-	if matching == 0 {
-		return fmt.Errorf("%s refused: thread %q was not found under app %q", command, threadID, appID)
-	}
-	if matching > 1 {
-		return fmt.Errorf("%s refused: thread %q appeared more than once under app %q", command, threadID, appID)
-	}
-	return nil
+	_, err = findReviewThreadUnderApp(threads, command, appID, threadID)
+	return err
 }
 
 func verifyWebReviewDraftMutation(ctx context.Context, client *webcore.Client, mutation webReviewDraftMutation) (bool, error) {

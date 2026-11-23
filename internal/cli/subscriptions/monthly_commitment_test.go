@@ -95,7 +95,7 @@ func TestValidateMonthlyCommitmentPriceRange(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := validateMonthlyCommitmentPriceRange(test.monthly, test.upfront)
+			err := validateMonthlyCommitmentPriceRange("sub-1", "NOR", test.monthly, test.upfront)
 			if test.wantErrPart == "" {
 				if err != nil {
 					t.Fatalf("validateMonthlyCommitmentPriceRange() error = %v", err)

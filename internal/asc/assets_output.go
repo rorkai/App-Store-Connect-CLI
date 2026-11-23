@@ -64,6 +64,9 @@ type AssetUploadFailureItem struct {
 	FileName string `json:"fileName,omitempty"`
 	FilePath string `json:"filePath,omitempty"`
 	Error    string `json:"error"`
+	// FailedPhase names the upload step the file stopped in (reserve,
+	// transfer, commit or processing) when the failure came from one.
+	FailedPhase string `json:"failedPhase,omitempty"`
 }
 
 // AppScreenshotUploadResult represents screenshot upload output.
@@ -160,6 +163,21 @@ type ExperimentTreatmentLocalizationPreviewUploadResult struct {
 type AssetDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
+}
+
+// ScreenshotDeleteResult is the screenshots delete --prune-library receipt.
+type ScreenshotDeleteResult struct {
+	ID           string                        `json:"id"`
+	Deleted      bool                          `json:"deleted"`
+	LibraryImage *ScreenshotLibraryImageResult `json:"libraryImage,omitempty"`
+}
+
+// ScreenshotLibraryImageResult reports what happened to the Asset Library
+// image that shares a deleted screenshot's ID: deleted, kept (another
+// placement uses it), or absent (no such image).
+type ScreenshotLibraryImageResult struct {
+	ID    string `json:"id"`
+	State string `json:"state"`
 }
 
 func appScreenshotSetsRows(resp *AppScreenshotSetsResponse) ([]string, [][]string) {
@@ -523,6 +541,16 @@ func screenshotSizesRows(result *ScreenshotSizesResult) ([]string, [][]string) {
 func assetDeleteResultRows(result *AssetDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{SanitizeTerminalText(result.ID), fmt.Sprintf("%t", result.Deleted)}}
+	return headers, rows
+}
+
+func screenshotDeleteResultRows(result *ScreenshotDeleteResult) ([]string, [][]string) {
+	headers := []string{"ID", "Deleted", "Library Image"}
+	libraryImage := ""
+	if result.LibraryImage != nil {
+		libraryImage = result.LibraryImage.State
+	}
+	rows := [][]string{{SanitizeTerminalText(result.ID), fmt.Sprintf("%t", result.Deleted), SanitizeTerminalText(libraryImage)}}
 	return headers, rows
 }
 

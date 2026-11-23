@@ -750,7 +750,7 @@ func NewAssetsScreenshotsUploadCommand(d *shared.Deps) *ffcli.Command {
 	platform := fs.String("platform", "", "Platform for app-scoped uploads: IOS, MAC_OS, TV_OS, VISION_OS (defaults to IOS for version strings; IDs use their actual platform)")
 	locale := fs.String("locale", "", "Upload one locale in app-scoped mode (requires --app with --version or --version-id); --path then points at that locale's screenshots")
 	path := fs.String("path", "", "Path to screenshot file or directory")
-	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65 or IPAD_PRO_3GEN_129)")
+	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65, IPAD_PRO_3GEN_129, or IPHONE_DUO)")
 	resume := fs.String("resume", "", "Resume a previous upload from a failure artifact")
 	skipExisting := fs.Bool("skip-existing", false, "Skip files whose MD5 checksum already exists in the target screenshot set")
 	replace := fs.Bool("replace", false, "Delete all existing screenshots from the target set before uploading (requires --confirm)")
@@ -806,7 +806,16 @@ it exits non-zero, prints the receipt, and writes a failure artifact for --resum
 
 --replace deletes every existing screenshot in each target set before uploading
 and therefore requires --confirm. Use --replace --dry-run to preview the
-deletions without --confirm.
+deletions without --confirm. Like asc screenshots delete, --replace keeps each
+deleted screenshot's Asset Library image, under the same ID as the
+"would-delete" assetId. Delete a leftover image that nothing else places with
+asc asset-library images delete --id ASSET_ID --confirm, or remove the old
+screenshots first with asc screenshots delete --prune-library.
+
+--device-type IPHONE_DUO uploads iPhone Duo screenshots like any other device
+type, in every mode above, including --locale and --replace. App Store Connect
+keeps them in an APP_IPHONE_DUO screenshot set, so --asset-library is not
+needed for Duo.
 
 --asset-library uses Apple's Asset Library instead of the deprecated screenshot
 sets; screenshot sets stay the default. It requires --version-localization.
@@ -831,6 +840,7 @@ it sends any request; ASC_UPLOAD_LOCK=0 skips the wait.
 
 Examples:
   asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" --path "./screenshots/en-US" --device-type "IPHONE_65"
+  asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" --path "./screenshots/duo" --device-type "IPHONE_DUO" --replace --confirm
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots/duo" --device-type "IPHONE_DUO" --asset-library --dry-run
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots/duo" --device-type "IPHONE_DUO" --asset-library
   asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" --path "./screenshots/en-US" --device-type "IPHONE_65" --replace --confirm
@@ -1057,6 +1067,9 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 		return nil, d.UsageError(err.Error())
 	}
 	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
+	if apiDisplayType != displayType && !opts.AssetLibrary {
+		fmt.Fprintf(d.IO.ErrOut, "Note: --device-type %s uploads to the %s screenshot set; App Store Connect has no separate %s set and stores those screenshots there.\n", deviceValue, apiDisplayType, displayType)
+	}
 
 	if locID != "" {
 		files, skipped, err := collectScreenshotUploadFiles(d.OSPath(pathValue), opts.MaxScreenshots)

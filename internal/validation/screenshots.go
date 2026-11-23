@@ -140,7 +140,8 @@ func screenshotPresenceChecks(primaryLocale string, versionLocs []VersionLocaliz
 			ResourceType: "appScreenshotSet",
 			ResourceID:   set.ID,
 			Message:      msg,
-			Remediation:  "Upload at least one screenshot to this set",
+			Remediation:  "Upload at least one screenshot to this set, or delete the empty set when a larger display size's screenshots should be used for this one",
+			displayType:  strings.TrimSpace(set.DisplayType),
 		})
 	}
 

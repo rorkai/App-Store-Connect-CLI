@@ -170,8 +170,9 @@ func TestAssetsScreenshotsUploadAcceptsIPhone69AliasAndLatestDimensions(t *testi
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	wantStderr := "Note: --device-type IPHONE_69 uploads to the APP_IPHONE_67 screenshot set; App Store Connect has no separate APP_IPHONE_69 set and stores those screenshots there.\n"
+	if stderr != wantStderr {
+		t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
 	}
 	if runErr == nil {
 		t.Fatal("expected network failure after validation, got nil")

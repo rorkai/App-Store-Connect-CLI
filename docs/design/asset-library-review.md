@@ -23,7 +23,7 @@ asc review submissions-submit --id SUBMISSION_ID --confirm
 
 The CLI also accepts `--item-type appAssetLibraryVideos` and `--include appAssetLibraryVideo`; successful public video submission has not been verified by the maintainer checks or the community image report.
 
-For the first app version, submit the assets together with the version. Assets assigned to an active parent submission cannot be submitted separately. Apple validates asset and submission readiness; adding an item alone does not submit it. The existing submission confirmation requirement remains in place. No actual submission was performed by the maintainers for this change.
+For the first app version, submit the assets together with the version. Assets assigned to an active parent submission cannot be submitted separately. A user report confirms this for a first version: after the header and search results images were placed on the version with `asc localizations placements create`, `asc review items add --item-type appAssetLibraryImages` failed for each image with `Asset is locked by an embedded review submission`. Submitting the version alone moved both images to `WAITING_FOR_REVIEW`. Apple validates asset and submission readiness; adding an item alone does not submit it. The existing submission confirmation requirement remains in place. No actual submission was performed by the maintainers for this change.
 
 In the community report, two apps accepted a separate asset submission while an app version was already `WAITING_FOR_REVIEW`, leaving two submissions waiting simultaneously. Both apps already had an approved live version. This does not relax the first-version requirement or the restriction on assets assigned to an active submission.
 

@@ -975,6 +975,62 @@ func assertAuthDiagnostic(t *testing.T, err error, code shared.DiagnosticCode, p
 	}
 }
 
+func TestAuthLoginKeyFileRefusalNamesTheFix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose POSIX key permissions")
+	}
+	if os.Getuid() == 0 {
+		t.Skip("root reads a key file whatever its mode")
+	}
+	tests := []struct {
+		name           string
+		mode           os.FileMode
+		wantDiagnostic shared.DiagnosticCode
+		wantError      string
+		wantFixFlag    bool
+	}{
+		{name: "readable by other users", mode: 0o644, wantDiagnostic: shared.DiagnosticFilePermissionsInsecure, wantError: "private key file is too permissive (mode 0644)", wantFixFlag: true},
+		{name: "unreadable by its owner", mode: 0o200, wantDiagnostic: shared.DiagnosticFilePermissionDenied, wantError: "permission denied"},
+	}
+	d := newAuthTestDeps()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			withTempRepo(t, func(string) {
+				keyPath := writeTempECDSAKeyFile(t)
+				if err := os.Chmod(keyPath, tt.mode); err != nil {
+					t.Fatalf("set key permissions: %v", err)
+				}
+				cmd := newAuthLoginCommand(d)
+				if err := cmd.FlagSet.Parse([]string{"--name", "demo", "--key-id", "KEY", "--issuer-id", "ISS", "--private-key", keyPath}); err != nil {
+					t.Fatalf("Parse() error: %v", err)
+				}
+				var execErr error
+				_, stderr := captureAuthOutput(t, d, func() {
+					execErr = cmd.Exec(context.Background(), []string{})
+				})
+				if execErr == nil || !strings.Contains(execErr.Error(), tt.wantError) {
+					t.Fatalf("error = %v, want %q", execErr, tt.wantError)
+				}
+				assertAuthDiagnostic(t, execErr, tt.wantDiagnostic, "--private-key")
+				wantFix := "To fix, run:\n  chmod 600 " + keyPath + "\n"
+				if !strings.Contains(stderr, wantFix) {
+					t.Fatalf("stderr = %q, want %q", stderr, wantFix)
+				}
+				if strings.Contains(stderr, "--fix-permissions") != tt.wantFixFlag {
+					t.Fatalf("stderr = %q, want --fix-permissions offered: %t", stderr, tt.wantFixFlag)
+				}
+				info, err := os.Stat(keyPath)
+				if err != nil {
+					t.Fatalf("Stat() error: %v", err)
+				}
+				if info.Mode().Perm() != tt.mode {
+					t.Fatalf("permissions = %#o, want %#o unchanged", info.Mode().Perm(), tt.mode)
+				}
+			})
+		})
+	}
+}
+
 func TestAuthSwitchCommand(t *testing.T) {
 	d := newAuthTestDeps()
 	t.Run("missing name", func(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -478,6 +479,79 @@ func TestWebReviewDraftValidatesBeforeSession(t *testing.T) {
 		command, _ := webReviewDraftCommand(t, "create", "--app", "app-1", "--thread-id", "thread-1", "--message", "one", "--body-file", "two", "--confirm", "--output", "json")
 		if err := command.Exec(context.Background(), nil); err == nil || !strings.Contains(err.Error(), "cannot be combined") {
 			t.Fatalf("expected body-source error, got %v", err)
+		}
+	})
+}
+
+func TestWebReviewMessageLengthLimit(t *testing.T) {
+	tooLong := strings.Repeat("a", 4001)
+	bodyFile := filepath.Join(t.TempDir(), "reply.txt")
+	if err := os.WriteFile(bodyFile, []byte(tooLong), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name    string
+		command func(d *shared.Deps) *ffcli.Command
+		args    []string
+		want    string
+	}{
+		{
+			name:    "reply --message",
+			command: newWebReviewReplyCommand,
+			args:    []string{"--thread-id", "thread-1", "--message", tooLong, "--confirm"},
+			want:    "--message is 4,001 characters; a Resolution Center message holds at most 4,000. Remove at least 1 character.",
+		},
+		{
+			name:    "drafts create --body-file",
+			command: newWebReviewDraftCreateCommand,
+			args:    []string{"--app", "app-1", "--thread-id", "thread-1", "--body-file", bodyFile, "--confirm"},
+			want:    "--body-file is 4,001 characters; a Resolution Center message holds at most 4,000. Remove at least 1 character.",
+		},
+		{
+			name:    "drafts update --message",
+			command: newWebReviewDraftUpdateCommand,
+			args:    []string{"--app", "app-1", "--thread-id", "thread-1", "--draft-id", "draft-1", "--message", tooLong, "--confirm"},
+			want:    "--message is 4,001 characters; a Resolution Center message holds at most 4,000. Remove at least 1 character.",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			original := resolveSessionFn
+			t.Cleanup(func() { resolveSessionFn = original })
+			calls := 0
+			resolveSessionFn = func(context.Context, string, string, string) (*webcore.AuthSession, string, error) {
+				calls++
+				return nil, "", errors.New("unexpected session resolution")
+			}
+			d, _, _ := newWebTestDeps()
+			command := test.command(d)
+			if err := command.FlagSet.Parse(test.args); err != nil {
+				t.Fatal(err)
+			}
+			var err error
+			_, stderr := captureWebTestDeps(d, func() { err = command.Exec(context.Background(), nil) })
+			if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, test.want) || calls != 0 {
+				t.Fatalf("error=%v stderr=%q session calls=%d, want usage error %q before authentication", err, stderr, calls, test.want)
+			}
+		})
+	}
+
+	t.Run("reply at the limit counts characters, not bytes", func(t *testing.T) {
+		atLimit := strings.Repeat("é", 4000)
+		requested := stubWebReviewDraftSequence(t, []webReviewDraftHTTPResponse{
+			{method: http.MethodPost, path: "/iris/v1/resolutionCenterDraftMessages", status: http.StatusCreated, body: webReviewDraftResponse("draft-1", atLimit)},
+			{method: http.MethodPost, path: "/iris/v1/resolutionCenterMessages", status: http.StatusCreated, body: `{"data":{"id":"message-1","type":"resolutionCenterMessages"}}`},
+			{method: http.MethodGet, path: "/iris/v1/resolutionCenterThreads/thread-1/resolutionCenterMessages", status: http.StatusOK, body: `{"data":[{"id":"message-1","type":"resolutionCenterMessages"}]}`},
+		})
+		d, _, _ := newWebTestDeps()
+		command := newWebReviewReplyCommand(d)
+		if err := command.FlagSet.Parse([]string{"--thread-id", "thread-1", "--message", atLimit, "--confirm", "--output", "json"}); err != nil {
+			t.Fatal(err)
+		}
+		var err error
+		_, _ = captureWebTestDeps(d, func() { err = command.Exec(context.Background(), nil) })
+		if err != nil || len(*requested) != 3 {
+			t.Fatalf("error=%v requests=%d, want the 4,000-character reply sent", err, len(*requested))
 		}
 	})
 }

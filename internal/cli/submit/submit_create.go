@@ -531,6 +531,17 @@ func (i *reviewSubmissionInspector) canReuse(ctx context.Context, submission *as
 	return true, false, nil
 }
 
+// ReviewSubmissionHoldsOnlyVersion reports whether a draft review submission
+// holds no items or only versionID, the same check review submit makes before
+// it reuses a draft. Submitting any other draft would also send its other items.
+func ReviewSubmissionHoldsOnlyVersion(ctx context.Context, client *asc.Client, submissionID, versionID string) (bool, error) {
+	summary, err := summarizeReviewSubmissionItems(ctx, client, submissionID, versionID)
+	if err != nil {
+		return false, err
+	}
+	return !summary.hasOtherItems, nil
+}
+
 // reviewSubmissionItemsMaxPages bounds untrusted links.next chains while
 // allowing a large realistic review-submission item collection (200 items per
 // page, up to 200,000 items).

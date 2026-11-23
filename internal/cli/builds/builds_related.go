@@ -13,18 +13,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-type buildBetaAppReviewSubmissionNotFoundError struct {
-	buildID string
-}
-
-func (e buildBetaAppReviewSubmissionNotFoundError) Error() string {
-	return fmt.Sprintf("builds beta-app-review-submission view: no beta app review submission found for build %q", e.buildID)
-}
-
-func (e buildBetaAppReviewSubmissionNotFoundError) Unwrap() error {
-	return asc.ErrNotFound
-}
-
 // newBuildsAppCommand returns the builds app command group.
 func newBuildsAppCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("app", flag.ExitOnError)
@@ -304,7 +292,12 @@ Examples:
 			if err != nil {
 				var missingErr asc.MissingBuildBetaAppReviewSubmissionError
 				if errors.As(err, &missingErr) {
-					return buildBetaAppReviewSubmissionNotFoundError{buildID: buildID}
+					// Apple answers 200 with {"data":null}: the build exists but was never
+					// submitted. Print Apple's envelope unchanged and say what to run next.
+					fmt.Fprintf(d.IO.ErrOut, "No beta app review submission exists for build %s. Submit it with: asc testflight review submit --build-id %q --confirm\n", buildID, buildID)
+					return d.PrintOutputRows(missingErr.Body, *output.Output, *output.Pretty,
+						[]string{"Build ID", "Beta App Review Submission"},
+						[][]string{{buildID, "none submitted"}})
 				}
 				return fmt.Errorf("builds beta-app-review-submission view: failed to fetch: %w", err)
 			}

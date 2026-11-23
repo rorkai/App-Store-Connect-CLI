@@ -12,6 +12,8 @@ import (
 // beta review submission relationship for an otherwise valid build.
 type MissingBuildBetaAppReviewSubmissionError struct {
 	BuildID string
+	// Body is Apple's unmodified response body, so reads can print the envelope.
+	Body json.RawMessage
 }
 
 func (e MissingBuildBetaAppReviewSubmissionError) Error() string {
@@ -47,7 +49,7 @@ func (c *Client) GetBuildBetaAppReviewSubmission(ctx context.Context, buildID st
 	}
 	// ASC returns HTTP 200 with {"data":null} when a build has no beta review submission yet.
 	if bytes.Equal(bytes.TrimSpace(envelope.Data), []byte("null")) {
-		return nil, MissingBuildBetaAppReviewSubmissionError{BuildID: buildID}
+		return nil, MissingBuildBetaAppReviewSubmissionError{BuildID: buildID, Body: json.RawMessage(data)}
 	}
 
 	var response BetaAppReviewSubmissionResponse

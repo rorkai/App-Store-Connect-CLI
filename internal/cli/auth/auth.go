@@ -446,23 +446,57 @@ func withNetworkDiagnostic(rendered, cause error) error {
 	return shared.WithDiagnostic(rendered, code, "")
 }
 
-// printPrivateKeyPermissionRemediation follows an over-permissive key failure
-// with the exact command that repairs the file and the flag that applies it, so
-// a first login recovers without consulting auth doctor. Other private-key
+// printPrivateKeyPermissionRemediation follows a key file refusal with the
+// exact commands that repair the file, so a first login recovers without
+// consulting auth doctor: chmod for an over-permissive key or one its owner
+// can't read, preceded by chown when another user owns the file. It offers
+// --fix-permissions only where that flag can apply the fix. Other private-key
 // failures print nothing.
 func printPrivateKeyPermissionRemediation(d *shared.Deps, cause error, keyPath string) {
-	if kind, ok := authsvc.PrivateKeyErrorKindOf(cause); !ok || kind != authsvc.PrivateKeyPermissionsInsecure {
+	kind, ok := authsvc.PrivateKeyErrorKindOf(cause)
+	if !ok || (kind != authsvc.PrivateKeyPermissionsInsecure && kind != authsvc.PrivateKeyPermissionDenied) {
 		return
 	}
-	if command, safe := authsvc.FilePermissionRemediationCommand(keyPath); safe {
-		fmt.Fprintf(
-			d.IO.ErrOut,
-			"To fix, run:\n  %s\nOr re-run with --fix-permissions to let asc change the file to 0600.\n",
-			shared.SanitizeTerminal(command),
-		)
+	fix, err := authsvc.PrivateKeyFileFixFor(keyPath)
+	if err != nil {
+		if kind == authsvc.PrivateKeyPermissionsInsecure {
+			fmt.Fprintln(d.IO.ErrOut, "Re-run with --fix-permissions to let asc change the file to 0600.")
+		}
 		return
 	}
-	fmt.Fprintln(d.IO.ErrOut, "Re-run with --fix-permissions to let asc change the file to 0600.")
+	// An owner who can already read the file was denied for another reason,
+	// such as a directory on its path, which no change to the file repairs.
+	if kind == authsvc.PrivateKeyPermissionDenied && fix.OwnedByCaller && fix.Mode&0o400 != 0 {
+		return
+	}
+	offerFlag := kind == authsvc.PrivateKeyPermissionsInsecure && fix.OwnedByCaller
+	if len(fix.Commands) == 0 {
+		switch {
+		case offerFlag:
+			fmt.Fprintln(d.IO.ErrOut, "Re-run with --fix-permissions to let asc change the file to 0600.")
+		case !fix.OwnedByCaller:
+			fmt.Fprintln(d.IO.ErrOut, "Another user owns this file: make yourself its owner, then change it to mode 0600.")
+		default:
+			fmt.Fprintln(d.IO.ErrOut, "Change the file to mode 0600 so only you can read it.")
+		}
+		return
+	}
+	fmt.Fprintln(d.IO.ErrOut, "To fix, run:")
+	for _, command := range fix.Commands {
+		fmt.Fprintf(d.IO.ErrOut, "  %s\n", shared.SanitizeTerminal(command))
+	}
+	if offerFlag {
+		fmt.Fprintln(d.IO.ErrOut, "Or re-run with --fix-permissions to let asc change the file to 0600.")
+	}
+}
+
+// privateKeyTooPermissiveMessage names the refused key file's mode, so the
+// caller sees which bits let other users read it.
+func privateKeyTooPermissiveMessage(keyPath string) string {
+	if info, err := os.Stat(keyPath); err == nil {
+		return fmt.Sprintf("private key file is too permissive (mode %#o); other users can read this credential", info.Mode().Perm())
+	}
+	return "private key file is too permissive; other users can read this credential"
 }
 
 func validateLoginNetwork(ctx context.Context, keyID, issuerID, keyPath, privateKeyPEM, keyType string) error {
@@ -751,7 +785,7 @@ so commands continue to work even if the original .p8 file is removed.`,
 				if err := authsvc.ValidateKeyFile(*keyPath); err != nil {
 					message := err.Error()
 					if kind, _ := authsvc.PrivateKeyErrorKindOf(err); kind == authsvc.PrivateKeyPermissionsInsecure {
-						message = "private key file is too permissive; other users can read this credential"
+						message = privateKeyTooPermissiveMessage(*keyPath)
 					}
 					rendered := shared.WithPrivateKeyDiagnostic(d.UsageErrorf("auth login: invalid private key: %s", message), err)
 					printPrivateKeyPermissionRemediation(d, err, *keyPath)

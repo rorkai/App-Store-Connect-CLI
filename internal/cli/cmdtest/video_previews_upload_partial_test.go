@@ -347,3 +347,97 @@ func TestVideoPreviewsUploadPosterFrame(t *testing.T) {
 		})
 	}
 }
+
+// A failed preview must name the step it stopped in, in its error and in the
+// receipt's failure entry, so a caller can tell a refused reservation, a failed
+// transfer, a commit Apple did not accept and a preview Apple could not process
+// apart.
+func TestVideoPreviewsUploadFailureNamesPhase(t *testing.T) {
+	tests := []struct {
+		phase     string
+		wantError string
+	}{
+		{phase: "reserve", wantError: "reserve preview: "},
+		{phase: "transfer", wantError: "transfer preview preview-1: "},
+		{phase: "commit", wantError: "commit preview preview-1: "},
+		{phase: "processing", wantError: "wait for preview preview-1 processing: "},
+	}
+	for _, test := range tests {
+		t.Run(test.phase, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			t.Setenv("ASC_APP_ID", "")
+			dir := t.TempDir()
+			size := writePreviewFile(t, filepath.Join(dir, "01-first.mov"))
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			rejected := func(status int) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: status,
+					Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"` + strconv.Itoa(status) + `","code":"ENTITY_ERROR","title":"rejected","detail":"rejected"}]}`)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			}
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appPreviewSets":
+					return statusJSONResponse(`{"data":[{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"}}],"links":{}}`), nil
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appPreviewSets/set-1/appPreviews":
+					return statusJSONResponse(`{"data":[],"links":{}}`), nil
+				case req.Method == http.MethodPost && req.URL.Path == "/v1/appPreviews":
+					if test.phase == "reserve" {
+						return rejected(http.StatusUnprocessableEntity)
+					}
+					return statusJSONResponse(fmt.Sprintf(`{"data":{"type":"appPreviews","id":"preview-1","attributes":{"assetDeliveryState":{"state":"AWAITING_UPLOAD"},"uploadOperations":[{"method":"PUT","url":"https://upload.example/preview-1","length":%d,"offset":0}]}}}`, size)), nil
+				case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+					if test.phase == "transfer" {
+						return &http.Response{StatusCode: http.StatusForbidden, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{}}, nil
+					}
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{}}, nil
+				case req.Method == http.MethodPatch && req.URL.Path == "/v1/appPreviews/preview-1":
+					if test.phase == "commit" {
+						return rejected(http.StatusUnprocessableEntity)
+					}
+					return statusJSONResponse(`{"data":{"type":"appPreviews","id":"preview-1","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`), nil
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appPreviews/preview-1":
+					return statusJSONResponse(`{"data":{"type":"appPreviews","id":"preview-1","attributes":{"assetDeliveryState":{"state":"FAILED","errors":[{"code":"VIDEO_ERROR","description":"video could not be processed"}]}}}}`), nil
+				case req.Method == http.MethodDelete && req.URL.Path == "/v1/appPreviews/preview-1":
+					return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{}}, nil
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			})
+
+			var exitCode int
+			stdout, stderr := captureOutput(t, func() {
+				exitCode = rootcmd.Run([]string{
+					"video-previews", "upload",
+					"--version-localization", "LOC_123",
+					"--path", dir,
+					"--device-type", "IPHONE_65",
+					"--output", "json",
+				}, "1.2.3")
+			})
+			if exitCode == rootcmd.ExitSuccess {
+				t.Fatal("expected a non-zero exit code")
+			}
+			if !strings.HasPrefix(stderr, "Error: video-previews upload: "+test.wantError) {
+				t.Fatalf("stderr = %q, want the %s step named", stderr, test.phase)
+			}
+			var payload struct {
+				Failures []struct {
+					FailedPhase string `json:"failedPhase"`
+					Error       string `json:"error"`
+				} `json:"failures"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("decode receipt: %v\nstdout=%s", err, stdout)
+			}
+			if len(payload.Failures) != 1 || payload.Failures[0].FailedPhase != test.phase || !strings.HasPrefix(payload.Failures[0].Error, test.wantError) {
+				t.Fatalf("failures = %+v, want one %s failure", payload.Failures, test.phase)
+			}
+		})
+	}
+}
