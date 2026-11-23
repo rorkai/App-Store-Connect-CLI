@@ -121,3 +121,33 @@ func TestPrepareReviewSubmissionForCreateNamesStagedSubscriptionItemsOnReuse(t *
 		t.Fatalf("staged items = %q, want %q", describeReviewItems(got.stagedItems), want)
 	}
 }
+
+// TestPrepareReviewSubmissionForCreatePrefersTheVersionsDraft lists an empty
+// draft before the draft that holds the version and staged subscription items.
+// Picking the empty one would attach the build and try to add the version
+// before the staged items came to light, so the version's draft must win and
+// the empty draft must not even be inspected.
+func TestPrepareReviewSubmissionForCreatePrefersTheVersionsDraft(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitJSONResponse(http.StatusOK, `{"data":[`+
+				`{"type":"reviewSubmissions","id":"empty-draft","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}},`+
+				`{"type":"reviewSubmissions","id":"submission-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"appStoreVersionForReview":{"data":{"type":"appStoreVersions","id":"version-1"}}}}`+
+				`],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/submission-1/items":
+			return companionsItemsResponse(companionsVersionItem + "," + companionsSubItem)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404"}]}`)
+		}
+	}))
+
+	got, err := prepareReviewSubmissionForCreate(context.Background(), io.Discard, client, "app-1", "IOS", "version-1", nil)
+	if err != nil {
+		t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
+	}
+	if got.reuseSubmissionID != "submission-1" || len(got.stagedItems) != 1 {
+		t.Fatalf("expected the version's draft submission-1 with its staged item, got %#v", got)
+	}
+}

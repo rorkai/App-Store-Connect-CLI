@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -434,6 +435,22 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 			return submitCreateReviewSubmissionPreparation{}, fmt.Errorf("query ready review submissions: response data[%d]: %w", i, err)
 		}
 	}
+
+	// Inspect drafts linked to the target version first. An empty draft listed
+	// earlier would otherwise be picked, and the version's own draft, with any
+	// items staged next to it, would only be found after the build attach and
+	// a refused add.
+	slices.SortStableFunc(submissions, func(a, b asc.ReviewSubmissionResource) int {
+		aLinked := reviewSubmissionAppStoreVersionID(&a) == targetVersionID
+		bLinked := reviewSubmissionAppStoreVersionID(&b) == targetVersionID
+		switch {
+		case aLinked && !bLinked:
+			return -1
+		case bLinked && !aLinked:
+			return 1
+		}
+		return 0
+	})
 
 	for i := range submissions {
 		sub := submissions[i]
