@@ -24,15 +24,34 @@ exit with usage code `2`, and `--reserve-only` rejects `--concurrency`,
 `--checksum`, `--wait`, `--test-notes` and `--verify-timeout` the way
 `--dry-run` does.
 
-## What changes in 7.4.0
+## Changed in 7.4.0: `--dry-run` sends nothing
 
-From 7.4.0, `asc builds upload --dry-run` sends nothing to App Store Connect. It
-checks the artifact, version, build number and credentials locally and prints
-what it would upload, without `uploadId`, `fileId` or `operations`.
+`asc builds upload --dry-run` sends nothing to App Store Connect, not even the
+app read. It checks the artifact, the IPA's bundle ID, version, build number and
+platform, and that credentials are configured, then prints what it would
+upload:
+
+```json
+{"dryRun":true,"app":"123456789","fileName":"app.ipa","fileSize":12345,"platform":"IOS","version":"1.0.0","buildNumber":"42","bundleId":"com.example.app"}
+```
+
+`app` is the `--app` value as given (a bundle ID or name is not looked up), and
+`bundleId` is omitted for `--pkg`. The receipt no longer has `uploadId`,
+`fileId` or `operations`, and the IPA's bundle ID is no longer compared with the
+app's. One line on stderr says so:
+
+```text
+Dry run: checked app.ipa locally; nothing was sent to App Store Connect. The app's bundle ID was not checked; use --reserve-only to check it and reserve the upload.
+```
+
+Exit codes: `0` when the local checks pass, `2` for the same flag conflicts as
+before, `3` when no credentials are configured. The 7.3.2 warning is gone.
+`--reserve-only` is unchanged.
 
 ## Migration
 
 - If a script uses `--dry-run` to get an upload ID or upload operations, switch
   to `--reserve-only` now. Its output is the same.
 - If a script uses `--dry-run` as a preflight check, keep it. From 7.4.0 it no
-  longer creates a build upload in your account.
+  longer creates a build upload in your account. Add `--reserve-only` to a
+  preflight that must also confirm the IPA belongs to the app.

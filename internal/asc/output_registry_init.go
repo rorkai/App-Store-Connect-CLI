@@ -421,6 +421,7 @@ func registerAllOutputRenderers() {
 		}
 		return nil
 	})
+	registerRows(buildUploadDryRunResultRows)
 	registerRows(buildExpireAllResultRows)
 	registerRows(appScreenshotListResultRows)
 	registerDirect(matrixResultTables)

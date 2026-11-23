@@ -21,6 +21,19 @@ type BuildUploadResult struct {
 	BuildID string `json:"buildId,omitempty"`
 }
 
+// BuildUploadDryRunResult is the receipt of builds upload --dry-run, which
+// checks the artifact locally and sends nothing to App Store Connect.
+type BuildUploadDryRunResult struct {
+	DryRun      bool   `json:"dryRun"`
+	App         string `json:"app"`
+	FileName    string `json:"fileName"`
+	FileSize    int64  `json:"fileSize"`
+	Platform    string `json:"platform"`
+	Version     string `json:"version"`
+	BuildNumber string `json:"buildNumber"`
+	BundleID    string `json:"bundleId,omitempty"`
+}
+
 // BuildBetaGroupsUpdateResult represents CLI output for build beta group updates.
 type BuildBetaGroupsUpdateResult struct {
 	BuildID  string   `json:"buildId"`
@@ -348,6 +361,21 @@ func buildUploadOperationsRows(operations []UploadOperation) ([]string, [][]stri
 		})
 	}
 	return headers, rows
+}
+
+func buildUploadDryRunResultRows(result *BuildUploadDryRunResult) ([]string, [][]string) {
+	headers := []string{"Dry Run", "App", "File Name", "File Size", "Platform", "Version", "Build Number", "Bundle ID"}
+	values := []string{
+		fmt.Sprintf("%t", result.DryRun),
+		result.App,
+		result.FileName,
+		fmt.Sprintf("%d", result.FileSize),
+		result.Platform,
+		result.Version,
+		result.BuildNumber,
+		result.BundleID,
+	}
+	return headers, [][]string{values}
 }
 
 func buildUploadResultRows(result *BuildUploadResult) ([]string, [][]string) {

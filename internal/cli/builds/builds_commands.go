@@ -21,9 +21,17 @@ const (
 	buildWaitDefaultTimeout = 30 * time.Minute
 )
 
-// buildsUploadDryRunReservesWarning announces that --dry-run stops reserving
-// the upload in 7.4.0 and names the flag that keeps doing it.
-const buildsUploadDryRunReservesWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). From 7.4.0, --dry-run sends nothing to App Store Connect and only checks the artifact locally; use --reserve-only to keep reserving the upload."
+// printBuildsUploadDryRun prints the --dry-run receipt. The dry run sends
+// nothing, so it cannot compare an IPA's bundle ID with the app's; the note
+// says so and names --reserve-only, which does.
+func printBuildsUploadDryRun(d *shared.Deps, result *asc.BuildUploadDryRunResult, output shared.OutputFlags) error {
+	next := "Use --reserve-only to reserve the upload."
+	if result.BundleID != "" {
+		next = "The app's bundle ID was not checked; use --reserve-only to check it and reserve the upload."
+	}
+	fmt.Fprintf(d.IO.ErrOut, "Dry run: checked %s locally; nothing was sent to App Store Connect. %s\n", result.FileName, next)
+	return d.PrintOutput(result, *output.Output, *output.Pretty)
+}
 
 // newBuildsUploadCommand returns a command to upload a build
 func newBuildsUploadCommand(d *shared.Deps) *ffcli.Command {
@@ -35,7 +43,7 @@ func newBuildsUploadCommand(d *shared.Deps) *ffcli.Command {
 	version := fs.String("version", "", "CFBundleShortVersionString (e.g., 1.0.0, auto-extracted from IPA if not provided)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (e.g., 123, auto-extracted from IPA if not provided)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (auto-detected for --ipa and --pkg)")
-	dryRun := fs.Bool("dry-run", false, "Reserve upload operations without uploading the file (deprecated: use --reserve-only; sends nothing from 7.4.0)")
+	dryRun := fs.Bool("dry-run", false, "Check the artifact and inputs locally without sending anything to App Store Connect")
 	reserveOnly := fs.Bool("reserve-only", false, "Reserve the upload in App Store Connect and print its upload operations without sending the file (creates a build upload)")
 	concurrency := fs.Int("concurrency", asc.DefaultUploadConcurrency, "Upload concurrency")
 	verifyChecksum := fs.Bool("checksum", false, "Verify upload checksums if provided by API")
@@ -63,9 +71,10 @@ ends before the build is visible, a notice on stderr explains how to look it up.
 When --test-notes is set, the command waits only until the build appears, then
 creates or updates the requested localization. Add --wait when the invocation
 must also wait for processing to complete.
-Use --reserve-only to create the build upload in App Store Connect and print its
-upload operations without sending the file. --dry-run does the same in this
-release but prints a warning: from 7.4.0 it sends nothing to App Store Connect.
+Use --dry-run to check the artifact, version, build number and credentials
+locally; it sends nothing to App Store Connect. Use --reserve-only to create the
+build upload in App Store Connect and print its upload operations without
+sending the file.
 Presigned URLs and request-header values are redacted from output by default.
 Pass --include-sensitive only when another tool must consume those capabilities.
 
@@ -77,6 +86,7 @@ its platform is automatically set to MAC_OS.
 Examples:
   asc builds upload --app "123456789" --ipa "path/to/app.ipa"
   asc builds upload --app "123456789" --ipa "app.ipa" --version "1.0.0" --build-number "123"
+  asc builds upload --app "123456789" --ipa "app.ipa" --dry-run
   asc builds upload --app "123456789" --ipa "app.ipa" --reserve-only
   asc builds upload --app "123456789" --ipa "app.ipa" --reserve-only --include-sensitive
   asc builds upload --app "123456789" --ipa "app.ipa" --test-notes "Test flow" --locale "en-US"
@@ -105,8 +115,8 @@ Examples:
 			if *dryRun && *reserveOnly {
 				return d.UsageError("builds upload: --dry-run and --reserve-only are mutually exclusive")
 			}
-			// Until 7.4.0, --dry-run reserves the upload exactly like
-			// --reserve-only; reserveFlag names whichever flag the caller passed.
+			// Both flags stop before the file is sent, so both reject the
+			// upload-only flags; reserveFlag names the one the caller passed.
 			reserve := *dryRun || *reserveOnly
 			reserveFlag := "--reserve-only"
 			if *dryRun {
@@ -269,13 +279,22 @@ Examples:
 				return invalidIPAFormat(fmt.Errorf("builds upload: missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and ")))
 			}
 
-			if *dryRun {
-				fmt.Fprintln(d.IO.ErrOut, buildsUploadDryRunReservesWarning)
-			}
-
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds upload: %w", err)
+			}
+
+			if *dryRun {
+				return printBuildsUploadDryRun(d, &asc.BuildUploadDryRunResult{
+					DryRun:      true,
+					App:         resolvedAppID,
+					FileName:    fileInfo.Name(),
+					FileSize:    fileInfo.Size(),
+					Platform:    string(platformValue),
+					Version:     versionValue,
+					BuildNumber: buildNumberValue,
+					BundleID:    ipaBundleID,
+				}, output)
 			}
 
 			timeoutValue := d.ResolveTimeout(shared.RequestTimeoutSetting, asc.DefaultTimeout)

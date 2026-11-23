@@ -37,7 +37,7 @@ func TestBuildsUploadResolvesExactBundleIDAndChecksIPAIdentityBeforeReservation(
 		"builds", "upload",
 		"--app", "com.example.demo",
 		"--ipa", ipaPath,
-		"--dry-run",
+		"--reserve-only",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestBuildsUploadAutoDetectsIPAPlatformBeforeReservation(t *testing.T) {
 		"builds", "upload",
 		"--app", "123456789",
 		"--ipa", ipaPath,
-		"--dry-run",
+		"--reserve-only",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestBuildsUploadRejectsMissingOrAmbiguousExactAppBeforeReservation(t *testi
 				"builds", "upload",
 				"--app", test.appInput,
 				"--ipa", ipaPath,
-				"--dry-run",
+				"--reserve-only",
 			}); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
@@ -190,7 +190,7 @@ func TestBuildsUploadRejectsBundleMismatchBeforeReservation(t *testing.T) {
 		"builds", "upload",
 		"--app", "123456789",
 		"--ipa", ipaPath,
-		"--dry-run",
+		"--reserve-only",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -219,7 +219,7 @@ func TestBuildsUploadRequiresTopLevelIPABundleIDBeforeAppLookup(t *testing.T) {
 		"builds", "upload",
 		"--app", "123456789",
 		"--ipa", ipaPath,
-		"--dry-run",
+		"--reserve-only",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
