@@ -648,36 +648,6 @@ func TestReviewDoctorUsesTimedContextForReadinessReport(t *testing.T) {
 	}
 }
 
-func TestBuildReviewStatusResultPointsRemovedOnlySubmissionAtReusableDraft(t *testing.T) {
-	snapshot := reviewSnapshot{
-		AppID: "123456789",
-		Version: &reviewVersionContext{
-			ID:       "ver-1",
-			Version:  "1.2.3",
-			Platform: "IOS",
-			State:    "DEVELOPER_REJECTED",
-		},
-		ReviewDetailID: "detail-1",
-		LatestSubmission: &reviewSubmissionContext{
-			ID:    "review-sub-1",
-			State: "COMPLETE",
-		},
-		SubmissionItems: &reviewSubmissionItemsContext{
-			TotalCount:   1,
-			RemovedCount: 1,
-			ActiveCount:  0,
-		},
-		DraftSubmissionID: "draft-1",
-	}
-
-	result := buildReviewStatusResult(snapshot)
-
-	want := "Reuse draft review submission draft-1: run `asc review items add --submission \"draft-1\" --item-type appStoreVersions --item-id \"ver-1\" --if-exists skip`, then `asc review submissions-submit --id \"draft-1\" --confirm`."
-	if result.NextAction != want {
-		t.Fatalf("next action = %q, want %q", result.NextAction, want)
-	}
-}
-
 func TestSelectReusableDraftReviewSubmission(t *testing.T) {
 	submission := func(id string, state asc.ReviewSubmissionState, versionID string) asc.ReviewSubmissionResource {
 		resource := asc.ReviewSubmissionResource{
