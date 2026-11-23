@@ -392,11 +392,13 @@ func TestConditionalSynonymTargetsExistSomewhere(t *testing.T) {
 	}
 }
 
-// TestRun_AppFilterNamesTheAppFlag covers the REST filter spellings callers
-// guess for an app (`--filter[app]=X`, `--filter app:X`): the error names the
-// command with `--app X`. Any other filter is left to the usual unknown-flag
-// answer, and so is a command without `--app`.
-func TestRun_AppFilterNamesTheAppFlag(t *testing.T) {
+// TestRun_FilterExpressionNamesTheMappedFlags covers the REST filter
+// spellings callers guess (`--filter[app]=X`, `--filter app:X`,
+// `--filter "app=X,version=7"`). The error names the command with the flags
+// those keys map to on it, and with values only when every key and value was
+// read exactly; otherwise it names the flags with placeholders. A filter whose
+// keys map to no flag on the command is left to the usual unknown-flag answer.
+func TestRun_FilterExpressionNamesTheMappedFlags(t *testing.T) {
 	tests := []struct {
 		args    []string
 		command string
@@ -407,9 +409,23 @@ func TestRun_AppFilterNamesTheAppFlag(t *testing.T) {
 		{args: []string{"builds", "list", "--filter[app]=1234567890", "--output", "json"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app 1234567890"},
 		{args: []string{"builds", "list", "--filter[app]", "1234567890"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app 1234567890"},
 		{args: []string{"builds", "list", "--filter=app=com.example.app"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app com.example.app"},
+		{args: []string{"builds", "list", "--filter[app]=My App"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app 'My App'"},
 		{args: []string{"versions", "list", "--filter[app]=1234567890"}, command: "asc versions list", flag: "--filter[app]", wantTry: "asc versions list --app 1234567890"},
-		{args: []string{"builds", "list", "--filter", "processingState:VALID"}, command: "asc builds list", flag: "--filter"},
-		{args: []string{"builds", "list", "--filter", "app:"}, command: "asc builds list", flag: "--filter"},
+		{args: []string{"builds", "list", "--filter", "app=1234567890,version=7"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app 1234567890 --version 7"},
+		{args: []string{"builds", "list", "--filter", "filter[app]=1234567890&filter[version]=7"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app 1234567890 --version 7"},
+		{args: []string{"builds", "list", "--filter[app]=1234567890", "--filter[processingState]=VALID"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app 1234567890 --processing-state VALID"},
+		{args: []string{"builds", "list", "--filter", "processingState:VALID"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --processing-state VALID"},
+		{args: []string{"versions", "list", "--filter", "app=1234567890,platform=IOS"}, command: "asc versions list", flag: "--filter", wantTry: "asc versions list --app 1234567890 --platform IOS"},
+		// A key with no exact flag, a piece without a key, a repeated key, a
+		// value holding another expression, or a missing value: no value is
+		// guessed, so the mapped flags are named with placeholders.
+		{args: []string{"builds", "list", "--filter", "app=1234567890,preReleaseVersion.version=7"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app APP_ID"},
+		{args: []string{"builds", "list", "--filter", "app=1234567890,version=7,1.1"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app APP_ID --version VERSION"},
+		{args: []string{"builds", "list", "--filter", "app=1234567890,app=987654321"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app APP_ID"},
+		{args: []string{"builds", "list", "--filter[app]=1234567890,version=7"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app APP_ID"},
+		{args: []string{"builds", "list", "--filter", "app:"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app APP_ID"},
+		{args: []string{"builds", "list", "--filter", "exclude-expired=true"}, command: "asc builds list", flag: "--filter"},
+		{args: []string{"builds", "list", "--filter", "limit=5"}, command: "asc builds list", flag: "--filter"},
 		{args: []string{"builds", "groups", "list", "--filter[app]=1234567890"}, command: "asc builds groups list", flag: "--filter[app]"},
 	}
 	for _, test := range tests {
@@ -425,8 +441,8 @@ func TestRun_AppFilterNamesTheAppFlag(t *testing.T) {
 			}
 			prefix := "Error: unknown flag `" + test.flag + "` for `" + test.command + "`\n"
 			if test.wantTry == "" {
-				if !strings.HasPrefix(stderr, prefix) || strings.Contains(stderr, test.command+" --app") {
-					t.Fatalf("stderr = %q, want the unknown flag without an --app line", stderr)
+				if !strings.HasPrefix(stderr, prefix) || strings.Contains(stderr, "Try:\n  "+test.command) {
+					t.Fatalf("stderr = %q, want the unknown flag without a command line to try", stderr)
 				}
 				return
 			}
