@@ -51,6 +51,7 @@ func TestAccountStatusJSON(t *testing.T) {
 	}
 
 	foundAPICheck := false
+	agreementsMessage := ""
 	for _, item := range checks {
 		check, ok := item.(map[string]any)
 		if !ok {
@@ -59,9 +60,17 @@ func TestAccountStatusJSON(t *testing.T) {
 		if check["name"] == "api_access" {
 			foundAPICheck = true
 		}
+		if check["name"] == "agreements" {
+			agreementsMessage, _ = check["message"].(string)
+		}
 	}
 	if !foundAPICheck {
 		t.Fatalf("expected api_access check in %v", checks)
+	}
+	for _, command := range []string{"asc web agreements status", "asc web business agreements list"} {
+		if !strings.Contains(agreementsMessage, command) {
+			t.Fatalf("expected agreements check to name %q, got %q", command, agreementsMessage)
+		}
 	}
 }
 
