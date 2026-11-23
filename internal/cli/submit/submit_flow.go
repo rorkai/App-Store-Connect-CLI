@@ -230,21 +230,22 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 		preparedSubmission submitCreateReviewSubmissionPreparation
 		err                error
 	)
-	if !opts.DryRun {
-		unresolvedCtx, unresolvedCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-		unresolvedSubmissionID, unresolvedErr := findUnresolvedSubmissionForVersion(unresolvedCtx, client, appID, platform, versionID)
-		unresolvedCancel()
-		if unresolvedErr != nil {
-			return result, fmt.Errorf("submit review: query unresolved review submissions: %w", unresolvedErr)
+	// Read-only, so --dry-run runs it too and refuses what the real run refuses.
+	unresolvedCtx, unresolvedCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
+	unresolvedSubmissionID, unresolvedErr := findUnresolvedSubmissionForVersion(unresolvedCtx, client, appID, platform, versionID)
+	unresolvedCancel()
+	if unresolvedErr != nil {
+		return result, fmt.Errorf("submit review: query unresolved review submissions: %w", unresolvedErr)
+	}
+	if unresolvedSubmissionID != "" {
+		buildToAttach := ""
+		if opts.EnsureBuildAttached {
+			buildToAttach = strings.TrimSpace(opts.BuildID)
 		}
-		if unresolvedSubmissionID != "" {
-			buildToAttach := ""
-			if opts.EnsureBuildAttached {
-				buildToAttach = strings.TrimSpace(opts.BuildID)
-			}
-			return result, unresolvedSubmissionError(unresolvedSubmissionID, versionID, buildToAttach)
-		}
+		return result, unresolvedSubmissionError(unresolvedSubmissionID, versionID, buildToAttach)
+	}
 
+	if !opts.DryRun {
 		preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
 		preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
 		preparationCancel()
