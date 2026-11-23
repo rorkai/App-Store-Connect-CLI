@@ -839,7 +839,7 @@ func downloadAttachmentsForShow(
 	d *shared.Deps,
 	client *webcore.Client,
 	attachments []webcore.ReviewAttachment,
-	submissionID string,
+	refreshAttachments func(context.Context) ([]webcore.ReviewAttachment, error),
 	outDir string,
 	pattern string,
 	overwrite bool,
@@ -883,7 +883,7 @@ func downloadAttachmentsForShow(
 
 		if downloadErr != nil && (statusCode == http.StatusForbidden || statusCode == http.StatusGone) {
 			if refreshedIndex == nil {
-				refreshedAttachments, refreshErr := client.ListReviewAttachmentsBySubmission(ctx, submissionID, true)
+				refreshedAttachments, refreshErr := refreshAttachments(ctx)
 				if refreshErr != nil {
 					failures = append(failures, fmt.Sprintf("%s: refresh failed (%v)", attachment.FileName, refreshErr))
 					continue
@@ -1251,6 +1251,7 @@ func newWebReviewShowCommand(d *shared.Deps) *ffcli.Command {
 
 	appID := fs.String("app", "", "App ID (or ASC_APP_ID env)")
 	submissionID := fs.String("submission", "", "Review submission ID (default: latest unresolved, else latest)")
+	threadID := fs.String("thread-id", "", "Show one Resolution Center thread of the app, whichever submission it belongs to")
 	outDir := fs.String("out", "", "Directory for auto-downloaded screenshots (default: ./.asc/web-review/<app>/<submission>)")
 	pattern := fs.String("pattern", "", "Optional filename glob filter for auto-download (for example: *.png)")
 	overwrite := fs.Bool("overwrite", false, "Overwrite existing files instead of suffixing")
@@ -1260,7 +1261,7 @@ func newWebReviewShowCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "show",
-		ShortUsage: "asc web review show --app APP_ID [--submission ID] [--out DIR] [--pattern GLOB] [--overwrite] [flags]",
+		ShortUsage: "asc web review show --app APP_ID [--submission ID | --thread-id THREAD_ID] [--out DIR] [--pattern GLOB] [--overwrite] [flags]",
 		ShortHelp:  "Show review details and auto-download screenshots.",
 		LongHelp: `WEB SESSION WORKFLOWS
 
@@ -1269,7 +1270,11 @@ auto-download available screenshots/attachments in the same command.
 
 Selection:
   - --submission ID          Use an explicit submission
-  - without --submission     Pick latest UNRESOLVED_ISSUES submission, otherwise latest submission
+  - --thread-id THREAD_ID    Show one thread of the app (an appThreads[].id),
+                             whichever submission it is attached to
+  - without either           Pick latest UNRESOLVED_ISSUES submission, otherwise latest submission
+
+With --thread-id, the thread must belong to --app; any other thread is refused.
 
 `,
 		FlagSet:   fs,
@@ -1282,6 +1287,23 @@ Selection:
 					shared.DiagnosticRequiredInputMissing,
 					"--app",
 				)
+			}
+			trimmedThreadID := strings.TrimSpace(*threadID)
+			if webReviewDraftFlagProvided(fs, "thread-id") {
+				if trimmedThreadID == "" {
+					return shared.WithDiagnostic(
+						d.UsageError("--thread-id must not be empty"),
+						shared.DiagnosticInvalidInput,
+						"--thread-id",
+					)
+				}
+				if strings.TrimSpace(*submissionID) != "" {
+					return shared.WithDiagnostic(
+						d.UsageError("--thread-id and --submission are mutually exclusive"),
+						shared.DiagnosticConflictingInput,
+						"--thread-id",
+					)
+				}
 			}
 			trimmedPattern := strings.TrimSpace(*pattern)
 			if trimmedPattern != "" {
@@ -1300,6 +1322,17 @@ Selection:
 				return err
 			}
 			client := webcore.NewClient(session)
+			if trimmedThreadID != "" {
+				return runWebReviewShowThread(requestCtx, d, client, webReviewShowThreadOptions{
+					AppID:     trimmedAppID,
+					ThreadID:  trimmedThreadID,
+					OutDir:    *outDir,
+					Pattern:   trimmedPattern,
+					Overwrite: *overwrite,
+					PlainText: *plainText,
+					Output:    output,
+				})
+			}
 
 			var submissions []webcore.ReviewSubmission
 			err = withWebSpinnerWith(d, "Loading review submissions", func() error {
@@ -1370,7 +1403,9 @@ Selection:
 					d,
 					client,
 					attachmentsWithURL,
-					selectedSubmission.ID,
+					func(ctx context.Context) ([]webcore.ReviewAttachment, error) {
+						return client.ListReviewAttachmentsBySubmission(ctx, selectedSubmission.ID, true)
+					},
 					outDirResolved,
 					trimmedPattern,
 					*overwrite,
