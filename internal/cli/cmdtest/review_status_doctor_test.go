@@ -378,7 +378,7 @@ func TestReviewStatusPointsCompleteSubmissionWithOnlyRemovedItemsAtDraft(t *test
 		"links":{"next":""}
 	}`))
 
-	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/draft-1/items"}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "include=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/draft-1/items"}}`))
 
 	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
 	if err != nil {
@@ -496,7 +496,7 @@ func TestReviewStatusDoesNotPointAtDraftHoldingOtherItems(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "include=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
 				"type":"reviewSubmissionItems",
