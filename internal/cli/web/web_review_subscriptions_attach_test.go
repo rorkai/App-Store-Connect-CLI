@@ -56,3 +56,39 @@ func TestRollbackReviewSubscriptionItemsRunsAfterTheCommandContextEnds(t *testin
 		t.Fatalf("sent %d requests, want the DELETE and the cancel only", got)
 	}
 }
+
+// TestRollbackReviewSubscriptionItemsKeepsADraftAppStoreConnectWontCancel
+// covers the usual rollback: the draft this run created is still unsubmitted
+// (READY_FOR_REVIEW), which App Store Connect refuses to cancel. The error must
+// not send the caller to a cancel that fails the same way.
+func TestRollbackReviewSubscriptionItemsKeepsADraftAppStoreConnectWontCancel(t *testing.T) {
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.DELETE("/v1/reviewSubmissionItems/item-added"), asctest.JSON(http.StatusNoContent, ``))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/rs-new").JSONBody(`{"data":{"type":"reviewSubmissions","id":"rs-new","attributes":{"canceled":true}}}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`))
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	writeAppCreateTestPEM(t, keyPath)
+	client, err := asc.NewClientWithHTTPClient("TEST_KEY", "TEST_ISSUER", keyPath, &http.Client{Transport: reg})
+	if err != nil {
+		t.Fatalf("create test client: %v", err)
+	}
+	d, _, _ := newWebTestDeps()
+
+	addErr := errors.New("add subscriptionVersions \"ver-1\": conflict")
+	items := []reviewSubscriptionReviewItem{
+		{ItemType: "appStoreVersions", ResourceID: "version-1", ReviewSubmissionItemID: "item-added", Added: true},
+	}
+	err = rollbackReviewSubscriptionItems(context.Background(), d, client, reviewSubscriptionDraftChoice{ID: "rs-new", Created: true}, items, addErr)
+
+	if !errors.Is(err, addErr) {
+		t.Fatalf("rollback error = %v, want it to wrap the add error", err)
+	}
+	if strings.Contains(err.Error(), "submissions-cancel") {
+		t.Fatalf("rollback error = %q, want no cancel advice for a draft App Store Connect won't cancel", err)
+	}
+	for _, want := range []string{"kept review submission rs-new", "asc review submissions-get --id \"rs-new\" --include items"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("rollback error = %q, want %q", err, want)
+		}
+	}
+}

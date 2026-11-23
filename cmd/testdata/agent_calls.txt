@@ -1369,3 +1369,4 @@ unknown-flag testflight groups testers list --app X --group X --output X
 unknown-flag web privacy catalog --app X --output X
 unknown-flag analytics instances --report-id X --output X
 unknown-command versions info --version-id X --json
+ok review attachments ls --review-detail X

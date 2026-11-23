@@ -37,7 +37,9 @@ web listing, which does not show review items, so they keep matching it.
   already have approved subscriptions in other groups.
 - **Rollback:** if adding an item fails or times out, the items this run added
   are removed and a draft this run created is canceled, on a fresh timeout.
-  Nothing is submitted for review.
+  App Store Connect usually refuses to cancel an unsubmitted draft; the draft
+  is then kept, and the error names how to check it and reuse it. Nothing is
+  submitted for review.
 - **Idempotent:** items already on the draft are reported with `added: false`
   and not sent again. A version already on another draft is a usage error with
   `--submission`.
