@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -214,5 +215,95 @@ func TestWebAppsComplianceSetStopsOnUnreadableEvidence(t *testing.T) {
 		if err := cmd.Exec(context.Background(), nil); err == nil || !strings.Contains(err.Error(), wantErr) {
 			t.Fatalf("expected %q error, got %v", wantErr, err)
 		}
+	}
+}
+
+func TestWebAppsComplianceSetDryRunSaysTheAnswerWasNotSent(t *testing.T) {
+	stubWebDeclarationSession(t, "account-123")
+	origSet := setWebAppComplianceDeclarationFn
+	t.Cleanup(func() { setWebAppComplianceDeclarationFn = origSet })
+	setWebAppComplianceDeclarationFn = func(ctx context.Context, client *webcore.Client, accountID, appID string, declaration webcore.AppComplianceDeclaration) (*webcore.AppComplianceDeclarationResult, error) {
+		return &webcore.AppComplianceDeclarationResult{
+			AppID: appID, RequirementID: "req-1", RequirementName: declaration.Requirement, Declared: declaration.Declared,
+			Status: "PENDING_COLLECT", DryRun: declaration.DryRun,
+		}, nil
+	}
+
+	dir := t.TempDir()
+	proof := filepath.Join(dir, "proof.pdf")
+	if err := os.WriteFile(proof, []byte("proof"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for name, test := range map[string]struct {
+		args       []string
+		wantStderr string
+	}{
+		"with evidence": {
+			args:       []string{"--declared", "true", "--proof", proof, "--report", proof},
+			wantStderr: "Dry run: the answer and its evidence files were not sent to Apple; only the requirements list was read.\n",
+		},
+		"without evidence": {
+			args:       []string{"--declared", "false"},
+			wantStderr: "Dry run: the answer was not sent to Apple; only the requirements list was read.\n",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAppsComplianceSetCommand(d)
+			args := append([]string{"--app", "app-1", "--requirement", "SECURITY_ASSESSMENT", "--dry-run", "--output", "json"}, test.args...)
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				if err := cmd.Exec(context.Background(), nil); err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			})
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+			if !strings.Contains(stdout, `"dryRun":true`) {
+				t.Fatalf("stdout = %q, want a dry-run receipt", stdout)
+			}
+		})
+	}
+}
+
+func TestWebAppsComplianceSetHelpSaysDryRunChecksLocally(t *testing.T) {
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAppsComplianceSetCommand(d)
+	const want = "--dry-run checks the answer and file types locally; Apple's own form checks run only with --confirm"
+	if got := cmd.FlagSet.Lookup("dry-run").Usage; !strings.Contains(got, "Apple's own form checks run only with --confirm") {
+		t.Fatalf("--dry-run usage = %q, want it to say Apple's form checks run only with --confirm", got)
+	}
+	help := strings.Join(strings.Fields(strings.ReplaceAll(cmd.LongHelp, "`", "")), " ")
+	for _, text := range []string{want, "a first --confirm can still be refused by Apple's form"} {
+		if !strings.Contains(help, text) {
+			t.Fatalf("long help does not say %q:\n%s", text, cmd.LongHelp)
+		}
+	}
+}
+
+func TestWebAppsComplianceSetReadOnlyRefusesBeforeReadingEvidence(t *testing.T) {
+	t.Setenv(readonly.EnvVar, "1")
+	origSet := setWebAppComplianceDeclarationFn
+	t.Cleanup(func() { setWebAppComplianceDeclarationFn = origSet })
+	setWebAppComplianceDeclarationFn = func(ctx context.Context, client *webcore.Client, accountID, appID string, declaration webcore.AppComplianceDeclaration) (*webcore.AppComplianceDeclarationResult, error) {
+		t.Fatalf("read-only mode reached App Store Connect: %#v", declaration)
+		return nil, nil
+	}
+
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAppsComplianceSetCommand(d)
+	missing := filepath.Join(t.TempDir(), "missing.pdf")
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "app-1", "--requirement", "SECURITY_ASSESSMENT", "--declared", "true",
+		"--proof", missing, "--report", missing, "--confirm",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	err := cmd.Exec(context.Background(), nil)
+	if !errors.Is(err, readonly.ErrRefused) {
+		t.Fatalf("error = %v, want readonly.ErrRefused before the evidence files are opened", err)
 	}
 }
