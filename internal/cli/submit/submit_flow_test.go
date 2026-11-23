@@ -876,3 +876,128 @@ func assertSubmitDiagnostic(t *testing.T, err error, want shared.DiagnosticCode)
 		t.Fatalf("expected diagnostic %q, got %+v (ok=%v) for %v", want, diagnostic, ok, err)
 	}
 }
+
+// Catches the regression where a version App Review returned with unresolved
+// issues made submit create a new review submission, fail to add the version
+// to it, and leave that empty submission behind.
+func TestSubmitResolvedVersionStopsWhenVersionIsInUnresolvedSubmission(t *testing.T) {
+	var readyQueried, createdSubmission, addedItem bool
+
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			switch state := req.URL.Query().Get("filter[state]"); state {
+			case string(asc.ReviewSubmissionStateUnresolvedIssues):
+				return submitJSONResponse(http.StatusOK, `{
+					"data": [
+						{
+							"type": "reviewSubmissions",
+							"id": "other-version-submission",
+							"attributes": {"state": "UNRESOLVED_ISSUES", "platform": "IOS"},
+							"relationships": {"appStoreVersionForReview": {"data": {"type": "appStoreVersions", "id": "version-0"}}}
+						},
+						{
+							"type": "reviewSubmissions",
+							"id": "rejected-submission",
+							"attributes": {"state": "UNRESOLVED_ISSUES", "platform": "IOS"},
+							"relationships": {"appStoreVersionForReview": {"data": {"type": "appStoreVersions", "id": "version-1"}}}
+						}
+					],
+					"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
+				}`)
+			case string(asc.ReviewSubmissionStateReadyForReview):
+				readyQueried = true
+				return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`)
+			default:
+				return nil, fmt.Errorf("unexpected review submission state filter %q", state)
+			}
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			createdSubmission = true
+			return submitJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-submission"}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			addedItem = true
+			return submitJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR"}]}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
+		AppID:     "app-1",
+		VersionID: "version-1",
+		Platform:  "IOS",
+	})
+	if err == nil {
+		t.Fatal("expected an error for a version held by an unresolved submission")
+	}
+	if !strings.Contains(err.Error(), "rejected-submission") || !strings.Contains(err.Error(), "no new submission was created") {
+		t.Fatalf("expected error to name the unresolved submission, got %v", err)
+	}
+	hinted, ok := errors.AsType[*shared.HintedError](err)
+	if !ok {
+		t.Fatalf("expected a hinted error, got %T", err)
+	}
+	for _, want := range []string{
+		`asc review items update --id "ITEM_ID" --resolved true`,
+		`asc review submissions-submit --id "rejected-submission" --confirm`,
+		`asc review submissions-cancel --id "rejected-submission" --confirm`,
+	} {
+		if !strings.Contains(hinted.Hint, want) {
+			t.Fatalf("expected hint to contain %q, got %q", want, hinted.Hint)
+		}
+	}
+	if createdSubmission || addedItem || readyQueried {
+		t.Fatalf("expected no further requests, got create=%v addItem=%v readyQuery=%v", createdSubmission, addedItem, readyQueried)
+	}
+}
+
+func TestSubmitResolvedVersionIgnoresUnresolvedSubmissionForAnotherVersion(t *testing.T) {
+	var submitted, added bool
+
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			if req.URL.Query().Get("filter[state]") == string(asc.ReviewSubmissionStateUnresolvedIssues) {
+				return submitJSONResponse(http.StatusOK, `{
+					"data": [{
+						"type": "reviewSubmissions",
+						"id": "other-version-submission",
+						"attributes": {"state": "UNRESOLVED_ISSUES", "platform": "IOS"},
+						"relationships": {"appStoreVersionForReview": {"data": {"type": "appStoreVersions", "id": "version-0"}}}
+					}],
+					"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
+				}`)
+			}
+			return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-submission","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-submission","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/new-submission/items":
+			if !added {
+				return submitJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/new-submission/items"}}`)
+			}
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"/v1/reviewSubmissions/new-submission/items"}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			added = true
+			return submitJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-submission":
+			submitted = true
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-submission","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-29T00:00:00Z"}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
+		AppID:     "app-1",
+		VersionID: "version-1",
+		Platform:  "IOS",
+	})
+	if err != nil {
+		t.Fatalf("SubmitResolvedVersion() error: %v", err)
+	}
+	if !submitted {
+		t.Fatal("expected the new submission to be submitted")
+	}
+}
