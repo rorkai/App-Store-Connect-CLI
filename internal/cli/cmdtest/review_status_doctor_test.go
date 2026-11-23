@@ -378,7 +378,7 @@ func TestReviewStatusPointsCompleteSubmissionWithOnlyRemovedItemsAtDraft(t *test
 		"links":{"next":""}
 	}`))
 
-	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/draft-1/items"}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "include=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/draft-1/items"}}`))
 
 	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
 	if err != nil {
@@ -496,7 +496,7 @@ func TestReviewStatusDoesNotPointAtDraftHoldingOtherItems(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "include=appStoreVersion,subscriptionGroupVersion,subscriptionVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
 				"type":"reviewSubmissionItems",
@@ -533,7 +533,7 @@ func TestReviewStatusDoesNotPointAtDraftHoldingOtherItems(t *testing.T) {
 	if payload["reviewState"] != "COMPLETE" {
 		t.Fatalf("expected reviewState COMPLETE, got %v", payload["reviewState"])
 	}
-	wantNextAction := "Draft review submission \"draft-1\" holds other review items, so do not submit it for this version: run `asc review submit --app \"123456789\" --version-id \"ver-1\" --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it holds nothing but this version and otherwise creates a new submission."
+	wantNextAction := "Draft review submission \"draft-1\" holds other review items, so do not submit it for this version: run `asc review submit --app \"123456789\" --version-id \"ver-1\" --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it is empty or holds this version plus subscription items, and otherwise creates a new submission."
 	if payload["nextAction"] != wantNextAction {
 		t.Fatalf("expected review submit next action, got %v", payload["nextAction"])
 	}

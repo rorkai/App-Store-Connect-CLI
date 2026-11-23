@@ -178,6 +178,28 @@ func TestBuildReviewDoctorResultAddsSyntheticUnresolvedIssuesBlocker(t *testing.
 	if result.NextAction == "" {
 		t.Fatal("expected next action")
 	}
+	// The remediation must name the asc commands for this submission, not
+	// send the user back to App Store Connect, and must not suggest a cancel
+	// App Store Connect refuses in this state.
+	for _, check := range result.BlockingChecks {
+		if check.ID != "review.submission.unresolved_issues" {
+			continue
+		}
+		for _, want := range []string{
+			`asc web review show --app "123456789" --submission "review-sub-1"`,
+			`asc review submissions-submit --id "review-sub-1" --confirm`,
+		} {
+			if !strings.Contains(check.Remediation, want) {
+				t.Fatalf("expected unresolved issues remediation to contain %q, got %q", want, check.Remediation)
+			}
+		}
+		// App Store Connect refuses to cancel an UNRESOLVED_ISSUES submission.
+		if strings.Contains(check.Remediation, "submissions-cancel") {
+			t.Fatalf("expected unresolved issues remediation not to suggest canceling, got %q", check.Remediation)
+		}
+		return
+	}
+	t.Fatal("expected unresolved issues blocker")
 }
 
 func TestBuildReviewDoctorResultAddsRemovedItemsOnlyBlocker(t *testing.T) {

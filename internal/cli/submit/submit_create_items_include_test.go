@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -92,7 +93,7 @@ func TestPrepareReviewSubmissionForCreateTreatsWhitespaceNextAsTerminal(t *testi
 // cannot distinguish a request that asks for linkage from one that does not, so it reports a fix as
 // working when the real API would still withhold the linkage.
 func respondLikeAppStoreConnectItems(req *http.Request) (*http.Response, error) {
-	for _, value := range req.URL.Query()["include"] {
+	for _, value := range strings.Split(req.URL.Query().Get("include"), ",") {
 		if value == "appStoreVersion" {
 			return submitJSONResponse(http.StatusOK, `{
 				"data": [{
@@ -138,7 +139,7 @@ func TestSummarizeReviewSubmissionItemsIncludesVersionRelationship(t *testing.T)
 		if req.URL.Path != "/v1/reviewSubmissions/submission-1/items" {
 			t.Fatalf("unexpected path %s", req.URL.Path)
 		}
-		for _, value := range req.URL.Query()["include"] {
+		for _, value := range strings.Split(req.URL.Query().Get("include"), ",") {
 			if value == "appStoreVersion" {
 				sawInclude = true
 			}

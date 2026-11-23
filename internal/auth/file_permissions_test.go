@@ -258,13 +258,14 @@ func TestPrivateKeyFileFixForUID(t *testing.T) {
 	writeECDSAPEM(t, keyPath, 0o644, true)
 	chmod := "chmod 600 " + keyPath
 	tests := []struct {
-		name         string
-		uid          int
-		wantCommands []string
-		wantOwned    bool
+		name          string
+		uid           int
+		wantCommands  []string
+		wantCanChange bool
 	}{
-		{name: "owned by the caller", uid: os.Getuid(), wantCommands: []string{chmod}, wantOwned: true},
+		{name: "owned by the caller", uid: os.Getuid(), wantCommands: []string{chmod}, wantCanChange: true},
 		{name: "owned by another user", uid: os.Getuid() + 1, wantCommands: []string{`sudo chown "$(id -un)" ` + keyPath, chmod}},
+		{name: "root, owned by another user", uid: 0, wantCommands: []string{chmod}, wantCanChange: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -272,8 +273,8 @@ func TestPrivateKeyFileFixForUID(t *testing.T) {
 			if err != nil {
 				t.Fatalf("privateKeyFileFixForUID() error: %v", err)
 			}
-			if fix.Mode != 0o644 || fix.OwnedByCaller != tt.wantOwned || !slices.Equal(fix.Commands, tt.wantCommands) {
-				t.Fatalf("fix = %+v, want mode 0644, owned %t, commands %q", fix, tt.wantOwned, tt.wantCommands)
+			if fix.Mode != 0o644 || fix.CanChangeMode != tt.wantCanChange || !slices.Equal(fix.Commands, tt.wantCommands) {
+				t.Fatalf("fix = %+v, want mode 0644, can change mode %t, commands %q", fix, tt.wantCanChange, tt.wantCommands)
 			}
 		})
 	}

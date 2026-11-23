@@ -56,6 +56,7 @@ var flagAliases = []flagAliasCase{
 	{"apps info relationships secondary-category", "id", "info-id"},
 	{"apps info relationships secondary-subcategory-one", "id", "info-id"},
 	{"apps info relationships secondary-subcategory-two", "id", "info-id"},
+	{"apps info relationships view", "id", "info-id"},
 	{"apps info territory-age-ratings list", "id", "info-id"},
 	{"apps info view", "app-info", "info-id"},
 	{"apps public descriptions", "id", "app"},

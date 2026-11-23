@@ -149,6 +149,7 @@ func appsInfoRelationshipsViewCommand(d *shared.Deps) *ffcli.Command {
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
 	infoID := shared.BindResourceIDFlag(fs, "info-id", "appInfos", "App Info ID (optional override)")
+	shared.BindFlagAlias(fs, "id", "info-id")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

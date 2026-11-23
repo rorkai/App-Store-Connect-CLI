@@ -22,9 +22,13 @@ func TestReviewSubmissionsCreateReportsPartialCreateID(t *testing.T) {
 		return client, nil
 	}, "review", "submissions-create", "--app", "app-1")
 
+	// The partial submission is an empty READY_FOR_REVIEW draft, which App
+	// Store Connect refuses to cancel, so the guidance must finish it instead.
 	if runErr == nil || !strings.Contains(runErr.Error(), "sub-partial") ||
-		!strings.Contains(runErr.Error(), "asc submit cancel --id sub-partial --confirm") {
-		t.Fatalf("run error = %v, want partial submission ID and cancellation guidance", runErr)
+		!strings.Contains(runErr.Error(), "asc review items add --submission sub-partial") ||
+		!strings.Contains(runErr.Error(), "asc review submissions-submit --id sub-partial --confirm") ||
+		strings.Contains(runErr.Error(), "submit cancel") {
+		t.Fatalf("run error = %v, want partial submission ID and draft guidance without a cancel", runErr)
 	}
 	if requests != 1 {
 		t.Fatalf("requests = %d, want one create request", requests)

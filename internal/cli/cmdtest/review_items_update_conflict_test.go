@@ -30,7 +30,7 @@ func TestReviewItemsUpdateResolveConflictNamesWhichItemsTakeIt(t *testing.T) {
 	}
 	want := "Error: review items update: Resource state is invalid.: Item can only be resolved when it is in REJECTED state.\n\n" +
 		"Additional errors:\n  - Cannot resolve because of state of reviewSubmission.\n" +
-		"Hint: Only items App Review rejected (state REJECTED) take --resolved. See each item's state with `asc review items list --submission SUBMISSION_ID`. When none is REJECTED there is nothing to resolve: to change what an UNRESOLVED_ISSUES submission contains, cancel it with `asc review submissions-cancel --id SUBMISSION_ID --confirm`, which returns the version for editing, then submit again.\n"
+		"Hint: Only items App Review rejected (state REJECTED) take --resolved. See each item's state with `asc review items list --submission SUBMISSION_ID`. When none is REJECTED there is nothing to resolve: edit the version if the fix needs it, then resubmit with `asc review submissions-submit --id SUBMISSION_ID --confirm`.\n"
 	if stderr != want {
 		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}

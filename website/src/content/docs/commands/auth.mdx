@@ -113,9 +113,11 @@ The private key file must not be readable by other users. Without
 diagnostic and names the file's mode. When the path can be displayed safely,
 it prints an exact, shell-quoted `chmod 600` command; otherwise it recommends
 `--fix-permissions` without embedding the path in executable-looking text.
-When another user owns the file, `chmod` and `--fix-permissions` can't change
-it, so the fix starts with `sudo chown "$(id -un)"` on the same path and
-`--fix-permissions` is not offered. A key its owner can't read fails with
+When another user owns the file and asc isn't running as root, `chmod` and
+`--fix-permissions` can't change it, so the fix starts with
+`sudo chown "$(id -un)"` on the same path and `--fix-permissions` is not
+offered. Root can change any file's mode, so as root asc prints only the
+`chmod 600` command and offers `--fix-permissions`, leaving the owner as is. A key its owner can't read fails with
 `file_permission_denied` and prints the same commands. With
 `--fix-permissions`, asc changes the file to `0600`, reports the change on
 stderr, and continues through the normal validation path. A symlinked or

@@ -215,9 +215,11 @@ func apiAccessCheck(ctx context.Context, d *shared.Deps, appID string) (accountC
 
 func agreementsAvailabilityCheck() accountCheck {
 	return accountCheck{
-		Name:    "agreements",
-		Status:  "unavailable",
-		Message: "account-level agreement status is not exposed in the current public App Store Connect API surface",
+		Name:   "agreements",
+		Status: "unavailable",
+		Message: "account-level agreement status is not in the public App Store Connect API; check it with a web session: " +
+			"`asc web agreements status` for Apple Developer Program agreements and App Store Connect agreement alerts, " +
+			"and `asc web business agreements list` for Business agreements such as the Paid Applications Schedule",
 	}
 }
 

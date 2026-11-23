@@ -388,13 +388,28 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 		}
 		if reusable {
 			if hasVersion {
-				emitMessage("Reusing existing review submission %s because the target version is already attached.", sub.ID)
+				if staged := inspector.summaries[strings.TrimSpace(sub.ID)].stagedSubscriptionItems; staged > 0 {
+					emitMessage("Reusing existing review submission %s because the target version is already attached; its %d subscription review item%s submitted with the version.", sub.ID, staged, pluralItemsAre(staged))
+				} else {
+					emitMessage("Reusing existing review submission %s because the target version is already attached.", sub.ID)
+				}
 			} else {
 				emitMessage("Reusing existing review submission %s because it has no review items.", sub.ID)
 			}
 			result.reuseSubmissionID = strings.TrimSpace(sub.ID)
 			result.reuseSubmissionHasVersion = hasVersion
 			return result, nil
+		}
+		if summary, ok := inspector.summaries[strings.TrimSpace(sub.ID)]; ok && summary.holdsOnlyStagedSubscriptionItems() {
+			// Cancelling it would undo what subscription attach staged; it
+			// goes to review on its own.
+			emitMessage(
+				"Skipped review submission %s because it holds only subscription review items and not version %s. Submit it on its own with `asc review submissions-submit --id %s --confirm`.",
+				sub.ID,
+				targetVersionID,
+				sub.ID,
+			)
+			continue
 		}
 		emitMessage(
 			"Skipped stale review submission %s because it is not exclusively usable for version %s. Cancel it explicitly with `asc submit cancel --id %s --confirm` if you intend to replace it.",
@@ -466,6 +481,22 @@ type reviewSubmissionItemSummary struct {
 	hasItems         bool
 	hasTargetVersion bool
 	hasOtherItems    bool
+	// stagedSubscriptionItems counts subscription and subscription group
+	// version items, which go to review with the app version.
+	stagedSubscriptionItems int
+}
+
+// holdsOnlyStagedSubscriptionItems reports whether a draft holds subscription
+// or subscription group versions and nothing else, not even an app version.
+func (s reviewSubmissionItemSummary) holdsOnlyStagedSubscriptionItems() bool {
+	return s.stagedSubscriptionItems > 0 && !s.hasTargetVersion && !s.hasOtherItems
+}
+
+// reusableForVersion reports whether review submit reuses a draft with these
+// items: it is empty, or it holds the target version and nothing else but
+// staged subscription items.
+func (s reviewSubmissionItemSummary) reusableForVersion() bool {
+	return !s.hasItems || (s.hasTargetVersion && !s.hasOtherItems)
 }
 
 // reviewSubmissionInspector answers reuse and cancellation questions about the
@@ -521,25 +552,29 @@ func (i *reviewSubmissionInspector) canReuse(ctx context.Context, submission *as
 	if err != nil {
 		return false, false, err
 	}
-	if itemSummary.hasItems {
-		if itemSummary.hasTargetVersion && !itemSummary.hasOtherItems {
-			return true, true, nil
-		}
+	if !itemSummary.reusableForVersion() {
 		return false, false, nil
 	}
-
-	return true, false, nil
+	return true, itemSummary.hasTargetVersion, nil
 }
 
 // ReviewSubmissionHoldsOnlyVersion reports whether a draft review submission
-// holds no items or only versionID, the same check review submit makes before
-// it reuses a draft. Submitting any other draft would also send its other items.
+// is empty or holds versionID with nothing else but subscription and
+// subscription group versions, the same check review submit makes before it
+// reuses a draft. Submitting any other draft would also send unrelated items.
 func ReviewSubmissionHoldsOnlyVersion(ctx context.Context, client *asc.Client, submissionID, versionID string) (bool, error) {
 	summary, err := summarizeReviewSubmissionItems(ctx, client, submissionID, versionID)
 	if err != nil {
 		return false, err
 	}
-	return !summary.hasOtherItems, nil
+	return summary.reusableForVersion(), nil
+}
+
+func pluralItemsAre(n int) string {
+	if n == 1 {
+		return " is"
+	}
+	return "s are"
 }
 
 // reviewSubmissionItemsMaxPages bounds untrusted links.next chains while
@@ -587,8 +622,8 @@ func summarizeReviewSubmissionItemsWithPageLimit(
 	resp, err := client.GetReviewSubmissionItemsStrict(
 		ctx,
 		submissionID,
-		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
-		asc.WithReviewSubmissionItemsFields([]string{"appStoreVersion"}),
+		asc.WithReviewSubmissionItemsInclude(reviewSubmissionItemLinkages),
+		asc.WithReviewSubmissionItemsFields(reviewSubmissionItemLinkages),
 		asc.Limit[asc.ReviewSubmissionItemsOption](200),
 	)
 	if err != nil {
@@ -651,6 +686,25 @@ func summarizeReviewSubmissionItemsWithPageLimit(
 	return summary, nil
 }
 
+// reviewSubmissionItemLinkages are the item relationships the summary reads:
+// the app version, and the subscription and subscription group versions that
+// App Store Connect reviews together with it.
+var reviewSubmissionItemLinkages = []string{"appStoreVersion", "subscriptionGroupVersion", "subscriptionVersion"}
+
+// isStagedSubscriptionItem reports whether item holds only a subscription or
+// subscription group version, as `asc web review subscriptions attach
+// --review-items` stages next to the app version. Such items travel with the
+// version, so they do not make its draft unrelated; any other item does.
+func isStagedSubscriptionItem(item asc.ReviewSubmissionItemResource) bool {
+	rel := item.Relationships
+	if rel == nil || reviewSubmissionItemVersionID(item) != "" {
+		return false
+	}
+	sub := rel.SubscriptionVersion != nil && rel.SubscriptionVersion.Data.Type == asc.ResourceTypeSubscriptionVersions && strings.TrimSpace(rel.SubscriptionVersion.Data.ID) != ""
+	group := rel.SubscriptionGroupVersion != nil && rel.SubscriptionGroupVersion.Data.Type == asc.ResourceTypeSubscriptionGroupVersions && strings.TrimSpace(rel.SubscriptionGroupVersion.Data.ID) != ""
+	return sub != group
+}
+
 func accumulateReviewSubmissionItemSummary(summary *reviewSubmissionItemSummary, items []asc.ReviewSubmissionItemResource, targetVersionID string) {
 	if summary == nil {
 		return
@@ -662,6 +716,8 @@ func accumulateReviewSubmissionItemSummary(summary *reviewSubmissionItemSummary,
 
 		versionID := reviewSubmissionItemVersionID(item)
 		switch {
+		case isStagedSubscriptionItem(item):
+			summary.stagedSubscriptionItems++
 		case targetVersionID != "" && versionID == targetVersionID:
 			summary.hasTargetVersion = true
 		case versionID != "":
@@ -751,8 +807,13 @@ func preserveCreatedReviewSubmission(stderr io.Writer, submissionID string, emit
 	if submissionID == "" {
 		return
 	}
+	// The submission is usually still an unsubmitted draft (READY_FOR_REVIEW),
+	// which App Store Connect refuses to cancel; it is only cancelable once a
+	// final submit reached App Review. Name the commands for both states.
 	message := fmt.Sprintf(
-		"Preserved newly created review submission %s instead of canceling it automatically because it may now contain review items. Retry the command if this run reports an error; it will reuse the draft when safe. To cancel it intentionally, run `asc submit cancel --id %s --confirm`.",
+		"Preserved newly created review submission %s instead of canceling it automatically because it may now contain review items. Retry the command if this run reports an error; it will reuse the draft when safe. Check its state with `asc review submissions-get --id %s --include items`. App Store Connect does not cancel an unsubmitted draft (READY_FOR_REVIEW): change it with `asc review items remove` or send it with `asc review submissions-submit --id %s --confirm`. Once it was submitted, cancel it with `asc submit cancel --id %s --confirm`.",
+		submissionID,
+		submissionID,
 		submissionID,
 		submissionID,
 	)

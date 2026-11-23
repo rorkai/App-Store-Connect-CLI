@@ -3,6 +3,8 @@ package submit
 import (
 	"context"
 	"net/http"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -41,8 +43,8 @@ func TestSummarizeReviewSubmissionItemsRequestsVersionRelationship(t *testing.T)
 		t.Fatalf("summarizeReviewSubmissionItems() error: %v", err)
 	}
 
-	if itemFields != "appStoreVersion" {
-		t.Fatalf("expected fields[reviewSubmissionItems]=appStoreVersion, got %q", itemFields)
+	if !slices.Contains(strings.Split(itemFields, ","), "appStoreVersion") {
+		t.Fatalf("expected fields[reviewSubmissionItems] to contain appStoreVersion, got %q", itemFields)
 	}
 	if !summary.hasTargetVersion {
 		t.Fatal("expected the summary to find the target version")
