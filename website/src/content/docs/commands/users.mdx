@@ -8,7 +8,7 @@ Manage users, roles, permissions, and invitations in App Store Connect.
 
 ```bash
 asc users list
-asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps
+asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps --confirm
 asc users update --id "USER_ID" --roles "DEVELOPER"
 ```
 
@@ -118,14 +118,16 @@ asc users invite \
   --first-name "Jane" \
   --last-name "Doe" \
   --roles "ADMIN" \
-  --all-apps
+  --all-apps \
+  --confirm
 
 asc users invite \
   --email "user@example.com" \
   --first-name "John" \
   --last-name "Smith" \
   --roles "DEVELOPER" \
-  --visible-app "APP_ID"
+  --visible-app "APP_ID" \
+  --confirm
 
 asc users invite \
   --email "user@example.com" \
@@ -133,7 +135,8 @@ asc users invite \
   --last-name "Doe" \
   --roles "DEVELOPER" \
   --all-apps \
-  --provisioning-allowed true
+  --provisioning-allowed true \
+  --confirm
 ```
 
 **Flags:**
@@ -145,10 +148,13 @@ asc users invite \
 * `--all-apps` - Grant access to all apps
 * `--visible-app` - Comma-separated app IDs for visible apps
 * `--provisioning-allowed` - Grant provisioning access: `true` or `false` (omit for Apple's default)
+* `--confirm` - Confirm sending the team invitation. Without it the invitation is still sent with a warning; a future release will require it
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
 **Note:** Either `--all-apps` or `--visible-app` is required (mutually exclusive).
+
+**Note:** The invitation gives the person a role on your App Store Connect team once they accept it. Adding a TestFlight tester does not need one.
 
 ## User Invitations
 
@@ -276,7 +282,8 @@ asc users invite \
   --first-name "Admin" \
   --last-name "User" \
   --roles "ADMIN" \
-  --all-apps
+  --all-apps \
+  --confirm
 ```
 
 ### Invite Developer for Specific App
@@ -287,7 +294,8 @@ asc users invite \
   --first-name "Dev" \
   --last-name "User" \
   --roles "DEVELOPER" \
-  --visible-app "123456789"
+  --visible-app "123456789" \
+  --confirm
 ```
 
 ### Update User Role
@@ -348,14 +356,16 @@ while IFS=, read -r email first_name last_name role apps; do
       --first-name "$first_name" \
       --last-name "$last_name" \
       --roles "$role" \
-      --all-apps
+      --all-apps \
+      --confirm
   else
     asc users invite \
       --email "$email" \
       --first-name "$first_name" \
       --last-name "$last_name" \
       --roles "$role" \
-      --visible-app "$apps"
+      --visible-app "$apps" \
+      --confirm
   fi
 done < users.csv
 ```

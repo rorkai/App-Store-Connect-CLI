@@ -299,6 +299,7 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 		wantCode   int
 		wantStdout string
 		wantStderr string
+		notStderr  []string
 	}{
 		{
 			name:       "already in every group",
@@ -338,7 +339,10 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 			testers:    noTesters,
 			groupRead:  `{"data":{"type":"betaGroups","id":"group-1","attributes":{"name":"Internal Testing","isInternalGroup":true}}}`,
 			wantCode:   cmd.ExitConflict,
-			wantStderr: "Tester(s) cannot be assigned\nHint: tester@example.com is not a tester of app app-1, and \"Internal Testing\" (group-1) is an internal group: internal groups take only users of your App Store Connect team who can see this app.",
+			wantStderr: "Tester(s) cannot be assigned\nHint: tester@example.com is not a tester of app app-1, and \"Internal Testing\" (group-1) is an internal group: internal groups take only users of your App Store Connect team who can see this app. To let the person test without joining the team, add them to an external group. Inviting them to the team (asc users invite) is a different, bigger action that gives them a team role; the Account Holder or an Admin decides it.\n",
+			// The hint must not hand over a runnable team invite: an agent
+			// asked to add a tester would grant a team role by following it.
+			notStderr: []string{"asc users invite --", "--roles", "DEVELOPER"},
 		},
 		{
 			name:       "not a tester, external group keeps Apple's error",
@@ -397,6 +401,11 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 			}
 			if !strings.Contains(stderr, test.wantStderr) {
 				t.Fatalf("stderr = %q, want it to contain %q", stderr, test.wantStderr)
+			}
+			for _, unwanted := range test.notStderr {
+				if strings.Contains(stderr, unwanted) {
+					t.Fatalf("stderr = %q, must not contain %q", stderr, unwanted)
+				}
 			}
 			if strings.Count(stderr, "Hint:") > 1 {
 				t.Fatalf("stderr has more than one hint:\n%s", stderr)

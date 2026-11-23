@@ -29,7 +29,7 @@ Examples:
   asc users view --id "USER_ID" --include visibleApps
   asc users update --id "USER_ID" --roles "ADMIN"
   asc users delete --id "USER_ID" --confirm
-  asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps
+  asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps --confirm
   asc users invites list
   asc users invites visible-apps list --id "INVITE_ID"
   asc users visible-apps list --id "USER_ID"
@@ -340,6 +340,12 @@ Examples:
 	})
 }
 
+// usersInviteConfirmWarning is printed when users invite runs without
+// --confirm. Inviting someone gives them a team role, so the command is moving
+// to the --confirm rule of other access-granting writes; until a later release
+// requires it, the invitation is still sent.
+const usersInviteConfirmWarning = "Warning: users invite sends an invitation to join your App Store Connect team and will require --confirm in a future release; pass --confirm to acknowledge."
+
 // newUsersInviteCommand returns the users invite subcommand.
 func newUsersInviteCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("invite", flag.ExitOnError)
@@ -352,18 +358,24 @@ func newUsersInviteCommand(d *shared.Deps) *ffcli.Command {
 	visibleApps := shared.BindOnceCSVFlag(fs, "visible-app", "Comma-separated app IDs for visible apps")
 	var provisioningAllowed shared.OptionalBool
 	fs.Var(&provisioningAllowed, "provisioning-allowed", "Grant provisioning access: true or false (omit for Apple's default)")
+	confirm := fs.Bool("confirm", false, "Confirm sending the team invitation (a future release requires it)")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "invite",
-		ShortUsage: "asc users invite --email EMAIL --first-name NAME --last-name NAME --roles ROLE[,ROLE...] [--all-apps | --visible-app APP_ID[,APP_ID...]] [--provisioning-allowed true|false]",
+		ShortUsage: "asc users invite --email EMAIL --first-name NAME --last-name NAME --roles ROLE[,ROLE...] [--all-apps | --visible-app APP_ID[,APP_ID...]] [--provisioning-allowed true|false] --confirm",
 		ShortHelp:  "Invite a user.",
 		LongHelp: `Invite a new user to App Store Connect.
 
+The invitation gives the person a role on your App Store Connect team once
+they accept it. Pass --confirm to acknowledge that. Without --confirm the
+invitation is still sent with a warning on stderr; a future release will
+require --confirm.
+
 Examples:
-  asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps
-  asc users invite --email "user@example.com" --first-name "John" --last-name "Smith" --roles "DEVELOPER" --visible-app "APP_ID"
-  asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "DEVELOPER" --all-apps --provisioning-allowed true`,
+  asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "ADMIN" --all-apps --confirm
+  asc users invite --email "user@example.com" --first-name "John" --last-name "Smith" --roles "DEVELOPER" --visible-app "APP_ID" --confirm
+  asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "DEVELOPER" --all-apps --provisioning-allowed true --confirm`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -414,6 +426,9 @@ Examples:
 			}
 			if clientErr != nil {
 				return fmt.Errorf("users invite: %w", clientErr)
+			}
+			if !*confirm {
+				fmt.Fprintln(d.IO.ErrOut, usersInviteConfirmWarning)
 			}
 
 			requestCtx, cancel := d.Timeout(ctx)

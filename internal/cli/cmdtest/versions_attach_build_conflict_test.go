@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -19,15 +20,23 @@ func TestVersionsAttachBuildConflictNamesTheBlocker(t *testing.T) {
 		inReviewBody  = `{"errors":[{"status":"409","code":"STATE_ERROR","title":"A relationship value is not acceptable for the current resource state.","detail":"The specified pre-release build could not be added.","source":{"pointer":"/data"}}]}`
 		usedBuildBody = `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"The specified pre-release build could not be added.","source":{"pointer":"/data"}}]}`
 	)
-	version := func(state string) string {
-		return `{"data":{"type":"appStoreVersions","id":"version-2","attributes":{"platform":"IOS","versionString":"1.0.1","appStoreState":"` + state + `","appVersionState":"` + state + `"}}}`
+	version := func(versionString, state string) string {
+		return `{"data":{"type":"appStoreVersions","id":"version-2","attributes":{"platform":"IOS","versionString":"` + versionString + `","appStoreState":"` + state + `","appVersionState":"` + state + `"}}}`
+	}
+	// A versionString is Apple data, so the suggested command quotes it;
+	// Windows shells have no neutral quoting for $( so it falls back to a
+	// placeholder there.
+	unsafeVersionFlag := `'1.0 $(touch pwned)'`
+	if runtime.GOOS == "windows" {
+		unsafeVersionFlag = "VERSION"
 	}
 	tests := []struct {
-		name       string
-		body       string
-		state      string
-		holder     string
-		wantStderr string
+		name          string
+		body          string
+		versionString string
+		state         string
+		holder        string
+		wantStderr    string
 	}{
 		{
 			name:       "version in review",
@@ -41,6 +50,14 @@ func TestVersionsAttachBuildConflictNamesTheBlocker(t *testing.T) {
 			state:      "PREPARE_FOR_SUBMISSION",
 			holder:     `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.0.0","appVersionState":"READY_FOR_DISTRIBUTION"}}}`,
 			wantStderr: "Hint: Build build-1 is already the build of version 1.0.0 (READY_FOR_DISTRIBUTION, id version-1), and a build ships with one version only. Attach a build no version uses yet (`asc builds list --app APP_ID --version 1.0.1`), or upload a new build for 1.0.1.\n",
+		},
+		{
+			name:          "version string with shell syntax is quoted in the suggested command",
+			body:          usedBuildBody,
+			versionString: "1.0 $(touch pwned)",
+			state:         "PREPARE_FOR_SUBMISSION",
+			holder:        `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.0.0","appVersionState":"READY_FOR_DISTRIBUTION"}}}`,
+			wantStderr:    "(`asc builds list --app APP_ID --version " + unsafeVersionFlag + "`), or upload a new build for 1.0 $(touch pwned).\n",
 		},
 		{
 			name:       "editable version and an unused build keep Apple's error",
@@ -57,7 +74,11 @@ func TestVersionsAttachBuildConflictNamesTheBlocker(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
 			reg.Register(asctest.PATCH("/v1/appStoreVersions/version-2/relationships/build"), asctest.JSON(http.StatusConflict, test.body))
-			reg.Register(asctest.GET("/v1/appStoreVersions/version-2"), asctest.JSON(http.StatusOK, version(test.state)))
+			versionString := test.versionString
+			if versionString == "" {
+				versionString = "1.0.1"
+			}
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-2"), asctest.JSON(http.StatusOK, version(versionString, test.state)))
 			if test.holder != "" {
 				reg.Register(asctest.GET("/v1/builds/build-1/appStoreVersion"), asctest.JSON(http.StatusOK, test.holder))
 			}

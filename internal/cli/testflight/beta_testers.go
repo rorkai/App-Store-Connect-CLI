@@ -376,8 +376,10 @@ or --build-id is required, and --app is required only to resolve --group.
 When the email is already a tester of the app, App Store Connect rejects the
 create with 409. add then reads that tester back, adds it to only the groups
 and builds it is missing, and prints the existing tester; stderr says what
-changed. An email outside your team cannot join an internal group: invite the
-person with asc users invite first.
+changed. An email outside your team cannot join an internal group: add the
+person to an external group instead. Inviting them to the team (asc users
+invite) gives them a team role and is for the Account Holder or an Admin to
+decide.
 
 Examples:
   asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
@@ -434,8 +436,10 @@ Examples:
 					if outcome != nil && len(outcome.internalGroups) > 0 {
 						return &shared.HintedError{
 							Err: fmt.Errorf("beta-testers add: failed to create: %w", err),
-							Hint: fmt.Sprintf("%s is not a tester of app %s, and %s is an internal group: internal groups take only users of your App Store Connect team who can see this app. Invite the person with `asc users invite --email %q --first-name NAME --last-name NAME --roles DEVELOPER --visible-app %q`, then retry, or add them to an external group.",
-								strings.TrimSpace(*email), resolvedAppID, strings.Join(outcome.internalGroups, ", "), strings.TrimSpace(*email), resolvedAppID),
+							// No runnable invite here: joining the team grants a
+							// team role, which is not what adding a tester asks for.
+							Hint: fmt.Sprintf("%s is not a tester of app %s, and %s is an internal group: internal groups take only users of your App Store Connect team who can see this app. To let the person test without joining the team, add them to an external group. Inviting them to the team (asc users invite) is a different, bigger action that gives them a team role; the Account Holder or an Admin decides it.",
+								strings.TrimSpace(*email), resolvedAppID, strings.Join(outcome.internalGroups, ", ")),
 						}
 					}
 					return fmt.Errorf("beta-testers add: failed to create: %w", err)
