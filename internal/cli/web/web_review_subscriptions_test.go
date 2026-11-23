@@ -310,11 +310,9 @@ func TestWebReviewSubscriptionsSingleMutationReportsRefreshedState(t *testing.T)
 			if err != nil {
 				t.Fatalf("exec error: %v", err)
 			}
-			// Transition: the web-session attach still works and says it is
-			// deprecated in favor of --review-items; remove does not warn.
-			const deprecation = "Warning: `asc web review subscriptions attach` through the web session is deprecated; add --review-items"
-			if got := strings.Contains(stderr, deprecation); got != (tt.wantOperation == "attach") {
-				t.Fatalf("deprecation warning shown = %t for %s, stderr %q", got, tt.wantOperation, stderr)
+			// The web-session flow stays the default and is not deprecated.
+			if strings.Contains(stderr, "deprecated") {
+				t.Fatalf("unexpected deprecation warning for %s: %q", tt.wantOperation, stderr)
 			}
 
 			var payload reviewSubscriptionMutationOutput

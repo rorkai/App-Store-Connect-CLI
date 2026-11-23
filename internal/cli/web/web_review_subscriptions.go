@@ -701,7 +701,7 @@ func newWebReviewSubscriptionsAttachCommand(d *shared.Deps) *ffcli.Command {
 					AppID: trimmedAppID, SubscriptionID: trimmedSubscriptionID, Draft: draftFlags, Output: *output.Output, Pretty: *output.Pretty,
 				})
 			}
-			if err := prepareWebSubscriptionAttach(d, fs, "attach"); err != nil {
+			if err := prepareWebSubscriptionAttach(d, fs); err != nil {
 				return err
 			}
 
@@ -808,7 +808,7 @@ func newWebReviewSubscriptionsAttachGroupCommand(d *shared.Deps) *ffcli.Command 
 					AppID: trimmedAppID, GroupID: trimmedGroupID, Draft: draftFlags, Output: *output.Output, Pretty: *output.Pretty,
 				})
 			}
-			if err := prepareWebSubscriptionAttach(d, fs, "attach-group"); err != nil {
+			if err := prepareWebSubscriptionAttach(d, fs); err != nil {
 				return err
 			}
 

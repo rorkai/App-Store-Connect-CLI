@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"slices"
@@ -16,7 +17,7 @@ import (
 // to the app's draft review submission through the App Store Connect API, the
 // same request as `asc review items add --item-type subscriptionVersions`. They
 // use the API key, not a web session. Without the flag they keep the
-// deprecated web-session flow.
+// web-session flow.
 
 // reviewSubscriptionSubmittableVersionStates are the subscription and
 // subscription group version states App Store Connect accepts as a review
@@ -42,8 +43,6 @@ var reviewSubscriptionWebSessionFlags = []string{
 	"apple-id", "two-factor-code-command", "two-factor-method", "two-factor-phone-id", "provider-id", "public-provider-id",
 }
 
-const reviewSubscriptionWebFlowDeprecation = "Warning: `asc web review subscriptions %s` through the web session is deprecated; add --review-items to add the subscription to the app's review submission with the App Store Connect API key instead. The web-session flow may be removed in a future major release.\n"
-
 // reviewSubscriptionAttachFlags are the flags of the review-items path.
 type reviewSubscriptionAttachFlags struct {
 	reviewItems  *bool
@@ -53,7 +52,7 @@ type reviewSubscriptionAttachFlags struct {
 
 func bindReviewSubscriptionAttachFlags(fs *flag.FlagSet) reviewSubscriptionAttachFlags {
 	return reviewSubscriptionAttachFlags{
-		reviewItems:  fs.Bool("review-items", false, "Add the subscription's version to the app's review submission with the App Store Connect API key instead of the deprecated web-session flow"),
+		reviewItems:  fs.Bool("review-items", false, "Add the subscription's version to the app's review submission with the App Store Connect API key instead of the web session"),
 		submissionID: fs.String("submission", "", "With --review-items: review submission ID (required when the app has several READY_FOR_REVIEW review submissions)"),
 		platform:     fs.String("platform", "IOS", "With --review-items: platform of the review submission; picks the app's draft on that platform, or creates one when the app has none: IOS, MAC_OS, TV_OS, VISION_OS"),
 	}
@@ -76,13 +75,13 @@ func flagWasSet(fs *flag.FlagSet, name string) bool {
 	return set
 }
 
-// prepareWebSubscriptionAttach checks the flags of the web-session flow and
-// prints its deprecation warning.
-func prepareWebSubscriptionAttach(d *shared.Deps, fs *flag.FlagSet, operation string) error {
+// prepareWebSubscriptionAttach checks the flags of the web-session flow. That
+// flow stays the default and is not deprecated: `list`, `remove` and
+// `asc validate` read Apple's web listing, which does not show review items.
+func prepareWebSubscriptionAttach(d *shared.Deps, fs *flag.FlagSet) error {
 	if flagWasSet(fs, "submission") || flagWasSet(fs, "platform") {
 		return d.UsageError("--submission and --platform require --review-items")
 	}
-	fmt.Fprintf(d.IO.ErrOut, reviewSubscriptionWebFlowDeprecation, operation)
 	return nil
 }
 
@@ -122,19 +121,43 @@ type reviewSubscriptionReviewItem struct {
 // subscriptions carry only what the App Store Connect API returned; the web
 // listing's attachment fields are not read on this path.
 type reviewSubscriptionReviewItemsOutput struct {
-	AppID                   string                           `json:"appId"`
-	Operation               string                           `json:"operation"`
-	GroupID                 string                           `json:"groupId,omitempty"`
-	GroupReferenceName      string                           `json:"groupReferenceName,omitempty"`
-	Changed                 bool                             `json:"changed"`
-	ReviewSubmissionID      string                           `json:"reviewSubmissionId,omitempty"`
-	ReviewSubmissionCreated bool                             `json:"reviewSubmissionCreated"`
-	Subscription            *webcore.ReviewSubscription      `json:"subscription,omitempty"`
-	ChangedCount            *int                             `json:"changedCount,omitempty"`
-	SkippedCount            *int                             `json:"skippedCount,omitempty"`
-	ChangedSubscriptions    []webcore.ReviewSubscription     `json:"changedSubscriptions,omitempty"`
-	Skipped                 []reviewSubscriptionMutationSkip `json:"skippedSubscriptions,omitempty"`
-	Items                   []reviewSubscriptionReviewItem   `json:"items"`
+	AppID                   string                              `json:"appId"`
+	Operation               string                              `json:"operation"`
+	GroupID                 string                              `json:"groupId,omitempty"`
+	GroupReferenceName      string                              `json:"groupReferenceName,omitempty"`
+	Changed                 bool                                `json:"changed"`
+	ReviewSubmissionID      string                              `json:"reviewSubmissionId,omitempty"`
+	ReviewSubmissionCreated bool                                `json:"reviewSubmissionCreated"`
+	Subscription            *reviewSubscriptionAPISubscription  `json:"subscription,omitempty"`
+	ChangedCount            *int                                `json:"changedCount,omitempty"`
+	SkippedCount            *int                                `json:"skippedCount,omitempty"`
+	ChangedSubscriptions    []reviewSubscriptionAPISubscription `json:"changedSubscriptions,omitempty"`
+	Skipped                 []reviewSubscriptionAPISkip         `json:"skippedSubscriptions,omitempty"`
+	Items                   []reviewSubscriptionReviewItem      `json:"items"`
+}
+
+// reviewSubscriptionAPISubscription is a subscription as the App Store
+// Connect API returned it; unlike the web listing it has no attachment state.
+type reviewSubscriptionAPISubscription struct {
+	ID                 string `json:"id"`
+	GroupID            string `json:"groupId,omitempty"`
+	GroupReferenceName string `json:"groupReferenceName,omitempty"`
+	ProductID          string `json:"productId,omitempty"`
+	Name               string `json:"name,omitempty"`
+	State              string `json:"state,omitempty"`
+}
+
+// reviewSubscriptionAPISkip is a subscription attach-group left out, and why.
+type reviewSubscriptionAPISkip struct {
+	Subscription reviewSubscriptionAPISubscription `json:"subscription"`
+	Reason       string                            `json:"reason"`
+}
+
+func apiSubscription(subscription webcore.ReviewSubscription) reviewSubscriptionAPISubscription {
+	return reviewSubscriptionAPISubscription{
+		ID: subscription.ID, GroupID: subscription.GroupID, GroupReferenceName: subscription.GroupReferenceName,
+		ProductID: subscription.ProductID, Name: subscription.Name, State: subscription.State,
+	}
 }
 
 func buildReviewSubscriptionReviewItemsRows(payload reviewSubscriptionReviewItemsOutput) [][]string {
@@ -441,12 +464,55 @@ func reviewSubscriptionAPIClient(d *shared.Deps, operation string) (*asc.Client,
 	return client, nil
 }
 
+// reviewSubscriptionPastApprovalStates are subscription states that only a
+// subscription approved at least once can be in.
+var reviewSubscriptionPastApprovalStates = []string{"APPROVED", "DEVELOPER_REMOVED_FROM_SALE", "REMOVED_FROM_SALE"}
+
+// reviewSubscriptionGroupVersion is one version of a subscription group.
+type reviewSubscriptionGroupVersion struct {
+	ID    string
+	State string
+}
+
+// loadReviewSubscriptionGroupVersions reads the version history of every
+// subscription group of the app.
+func loadReviewSubscriptionGroupVersions(ctx context.Context, client *asc.Client, subscriptions []webcore.ReviewSubscription) (map[string][]reviewSubscriptionGroupVersion, error) {
+	byGroup := map[string][]reviewSubscriptionGroupVersion{}
+	for _, subscription := range subscriptions {
+		groupID := strings.TrimSpace(subscription.GroupID)
+		if _, seen := byGroup[groupID]; seen || groupID == "" {
+			continue
+		}
+		versions, err := client.GetSubscriptionGroupVersions(ctx, groupID, asc.Limit[asc.SubscriptionGroupVersionsOption](200))
+		if err != nil {
+			return nil, fmt.Errorf("list versions of subscription group %q: %w", groupID, err)
+		}
+		byGroup[groupID] = []reviewSubscriptionGroupVersion{}
+		for _, version := range versions.Data {
+			byGroup[groupID] = append(byGroup[groupID], reviewSubscriptionGroupVersion{ID: strings.TrimSpace(version.ID), State: strings.TrimSpace(version.Attributes.State)})
+		}
+	}
+	return byGroup, nil
+}
+
+func groupWasApproved(versions []reviewSubscriptionGroupVersion) bool {
+	return slices.ContainsFunc(versions, func(version reviewSubscriptionGroupVersion) bool {
+		return slices.Contains(reviewSubscriptionApprovedVersionStates, version.State)
+	})
+}
+
 // appHasApprovedSubscription reports whether the app passed subscription
-// review before. Until it has, App Store Connect reviews its first
-// subscription together with an app version.
-func appHasApprovedSubscription(subscriptions []webcore.ReviewSubscription) bool {
+// review before, judged by group version history and by states only a once
+// approved subscription can have. Until it has, App Store Connect reviews its
+// first subscription together with an app version.
+func appHasApprovedSubscription(subscriptions []webcore.ReviewSubscription, groupVersions map[string][]reviewSubscriptionGroupVersion) bool {
+	for _, versions := range groupVersions {
+		if groupWasApproved(versions) {
+			return true
+		}
+	}
 	return slices.ContainsFunc(subscriptions, func(subscription webcore.ReviewSubscription) bool {
-		return strings.EqualFold(subscription.State, "APPROVED")
+		return slices.Contains(reviewSubscriptionPastApprovalStates, strings.ToUpper(strings.TrimSpace(subscription.State)))
 	})
 }
 
@@ -457,12 +523,14 @@ type reviewSubscriptionPlannedItem struct {
 	subscriptionID string
 }
 
-// planFirstSubscriptionCompanions returns the app version and, when the group
-// has never been approved, the subscription group version that must be on the
-// same draft as a first subscription.
-func planFirstSubscriptionCompanions(ctx context.Context, client *asc.Client, appID, groupID string, drafts reviewSubscriptionDrafts, draftID string) ([]reviewSubscriptionPlannedItem, error) {
+// planReviewSubscriptionCompanions returns what must be on the same draft as
+// the subscription: the app version for the app's first subscription, and the
+// group version whenever the group has never been approved.
+func planReviewSubscriptionCompanions(ctx context.Context, client *asc.Client, appID, groupID string, groupVersions map[string][]reviewSubscriptionGroupVersion, first bool, drafts reviewSubscriptionDrafts, draftID string) ([]reviewSubscriptionPlannedItem, error) {
 	planned := []reviewSubscriptionPlannedItem{}
-	if versionID, ok := drafts.firstOfType(draftID, asc.ReviewSubmissionItemTypeAppStoreVersion); ok {
+	if !first {
+		// The app passed subscription review before; no app version needed.
+	} else if versionID, ok := drafts.firstOfType(draftID, asc.ReviewSubmissionItemTypeAppStoreVersion); ok {
 		planned = append(planned, reviewSubscriptionPlannedItem{itemType: asc.ReviewSubmissionItemTypeAppStoreVersion, resourceID: versionID})
 	} else {
 		platform := drafts.Platforms[draftID]
@@ -491,18 +559,14 @@ func planFirstSubscriptionCompanions(ctx context.Context, client *asc.Client, ap
 		planned = append(planned, reviewSubscriptionPlannedItem{itemType: asc.ReviewSubmissionItemTypeAppStoreVersion, resourceID: versionID})
 	}
 
-	groupVersions, err := client.GetSubscriptionGroupVersions(ctx, groupID, asc.Limit[asc.SubscriptionGroupVersionsOption](200))
-	if err != nil {
-		return nil, fmt.Errorf("list versions of subscription group %q: %w", groupID, err)
+	versions := groupVersions[groupID]
+	if groupWasApproved(versions) {
+		return planned, nil
 	}
 	selected := ""
-	for _, version := range groupVersions.Data {
-		state := strings.TrimSpace(version.Attributes.State)
-		if slices.Contains(reviewSubscriptionApprovedVersionStates, state) {
-			return planned, nil
-		}
-		if slices.Contains(reviewSubscriptionSubmittableVersionStates, asc.SubscriptionVersionState(state)) {
-			selected = strings.TrimSpace(version.ID)
+	for _, version := range versions {
+		if slices.Contains(reviewSubscriptionSubmittableVersionStates, asc.SubscriptionVersionState(version.State)) {
+			selected = version.ID
 		}
 	}
 	if selected == "" {
@@ -521,7 +585,7 @@ func planFirstSubscriptionCompanions(ctx context.Context, client *asc.Client, ap
 // draft yet, in order. When one fails, it removes the items this run added
 // and cancels the draft if this run created it; nothing else is touched and
 // nothing is submitted.
-func applyReviewSubscriptionItems(ctx context.Context, client *asc.Client, drafts reviewSubscriptionDrafts, draft reviewSubscriptionDraftChoice, planned []reviewSubscriptionPlannedItem) ([]reviewSubscriptionReviewItem, error) {
+func applyReviewSubscriptionItems(ctx context.Context, d *shared.Deps, client *asc.Client, drafts reviewSubscriptionDrafts, draft reviewSubscriptionDraftChoice, planned []reviewSubscriptionPlannedItem) ([]reviewSubscriptionReviewItem, error) {
 	items := make([]reviewSubscriptionReviewItem, 0, len(planned))
 	for _, plan := range planned {
 		if existing, ok := drafts.Items[reviewItemKey(plan.itemType, plan.resourceID)]; ok && existing.SubmissionID == draft.ID {
@@ -533,15 +597,23 @@ func applyReviewSubscriptionItems(ctx context.Context, client *asc.Client, draft
 			err = fmt.Errorf("response has no id")
 		}
 		if err != nil {
-			err = fmt.Errorf("add %s %q to review submission %q: %w", plan.itemType, plan.resourceID, draft.ID, err)
-			return nil, rollbackReviewSubscriptionItems(ctx, client, draft, items, err)
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				err = fmt.Errorf("add %s %q to review submission %q: %w (the request may still have reached App Store Connect; check with `asc review items list --submission %q`)", plan.itemType, plan.resourceID, draft.ID, err, draft.ID)
+			} else {
+				err = fmt.Errorf("add %s %q to review submission %q: %w", plan.itemType, plan.resourceID, draft.ID, err)
+			}
+			return nil, rollbackReviewSubscriptionItems(ctx, d, client, draft, items, err)
 		}
 		items = append(items, reviewSubscriptionReviewItem{ItemType: string(plan.itemType), ResourceID: plan.resourceID, ReviewSubmissionItemID: strings.TrimSpace(created.Data.ID), SubscriptionID: plan.subscriptionID, Added: true})
 	}
 	return items, nil
 }
 
-func rollbackReviewSubscriptionItems(ctx context.Context, client *asc.Client, draft reviewSubscriptionDraftChoice, items []reviewSubscriptionReviewItem, addErr error) error {
+func rollbackReviewSubscriptionItems(ctx context.Context, d *shared.Deps, client *asc.Client, draft reviewSubscriptionDraftChoice, items []reviewSubscriptionReviewItem, addErr error) error {
+	// Undo on a fresh timeout that ignores the command's deadline and Ctrl-C,
+	// so a timed-out or interrupted add still cleans up after itself.
+	ctx, cancel := d.Timeout(context.WithoutCancel(ctx))
+	defer cancel()
 	notes := []string{}
 	for _, item := range slices.Backward(items) {
 		if !item.Added {
@@ -566,15 +638,19 @@ func rollbackReviewSubscriptionItems(ctx context.Context, client *asc.Client, dr
 	return fmt.Errorf("%w (%s)", addErr, strings.Join(notes, "; "))
 }
 
-func noteFirstSubscription(d *shared.Deps, appID string, planned []reviewSubscriptionPlannedItem) {
+func noteReviewSubscriptionCompanions(d *shared.Deps, appID string, first bool, planned []reviewSubscriptionPlannedItem) {
 	parts := []string{}
 	for _, plan := range planned {
 		if plan.itemType != asc.ReviewSubmissionItemTypeSubscriptionVersion {
 			parts = append(parts, fmt.Sprintf("%s %s", plan.itemType, plan.resourceID))
 		}
 	}
-	if len(parts) > 0 {
+	switch {
+	case len(parts) == 0:
+	case first:
 		fmt.Fprintf(d.IO.ErrOut, "App %s has no approved subscription yet, so its first subscription goes on the review submission with %s.\n", appID, strings.Join(parts, " and "))
+	default:
+		fmt.Fprintf(d.IO.ErrOut, "The subscription group was never approved, so the review submission also gets %s.\n", strings.Join(parts, " and "))
 	}
 }
 
@@ -603,6 +679,10 @@ func runReviewSubscriptionAttachWithReviewItems(ctx context.Context, d *shared.D
 	if err != nil {
 		return fmt.Errorf("web review subscriptions attach: %w", err)
 	}
+	groupVersions, err := loadReviewSubscriptionGroupVersions(requestCtx, client, subscriptions)
+	if err != nil {
+		return fmt.Errorf("web review subscriptions attach: %w", err)
+	}
 	selected, err := findReviewSubscription(subscriptions, req.SubscriptionID)
 	if err != nil {
 		return fmt.Errorf("subscription lookup for app %q failed: %w", req.AppID, withReviewSelectorDiagnostic(err, "--subscription-id"))
@@ -622,34 +702,33 @@ func runReviewSubscriptionAttachWithReviewItems(ctx context.Context, d *shared.D
 	if err != nil {
 		return fmt.Errorf("web review subscriptions attach: %w", err)
 	}
-	first := !appHasApprovedSubscription(subscriptions)
+	first := !appHasApprovedSubscription(subscriptions, groupVersions)
 
 	var draft reviewSubscriptionDraftChoice
 	if existing, ok := drafts.Items[reviewItemKey(asc.ReviewSubmissionItemTypeSubscriptionVersion, versionID)]; ok {
 		if req.Draft.SubmissionID != "" && existing.SubmissionID != req.Draft.SubmissionID {
 			return d.UsageErrorf("subscription %q is already on review submission %s; drop --submission or remove it there first with `asc review items remove --id %q --confirm`", subscription.ID, existing.SubmissionID, existing.ItemID)
 		}
+		if platform := drafts.Platforms[existing.SubmissionID]; req.Draft.PlatformSet && platform != req.Draft.Platform {
+			return d.UsageErrorf("subscription %q is already on review submission %s (%s), not on --platform %s; drop --platform or remove it there first with `asc review items remove --id %q --confirm`", subscription.ID, existing.SubmissionID, platform, req.Draft.Platform, existing.ItemID)
+		}
 		draft = reviewSubscriptionDraftChoice{ID: existing.SubmissionID}
 	}
 
 	var planned []reviewSubscriptionPlannedItem
 	plan := func(draftID string) error {
-		planned = nil
-		if first {
-			companions, err := planFirstSubscriptionCompanions(requestCtx, client, req.AppID, subscription.GroupID, drafts, draftID)
-			if err != nil {
-				return err
-			}
-			planned = companions
+		companions, err := planReviewSubscriptionCompanions(requestCtx, client, req.AppID, subscription.GroupID, groupVersions, first, drafts, draftID)
+		if err != nil {
+			return err
 		}
-		planned = append(planned, reviewSubscriptionPlannedItem{itemType: asc.ReviewSubmissionItemTypeSubscriptionVersion, resourceID: versionID, subscriptionID: subscription.ID})
+		planned = append(companions, reviewSubscriptionPlannedItem{itemType: asc.ReviewSubmissionItemTypeSubscriptionVersion, resourceID: versionID, subscriptionID: subscription.ID})
 		return nil
 	}
 	preplanned := false
 	if draft.ID == "" {
 		// With no draft, plan before creating one, so a missing app version
 		// creates nothing.
-		if first && req.Draft.SubmissionID == "" && len(drafts.IDs) == 0 {
+		if req.Draft.SubmissionID == "" && len(drafts.IDs) == 0 {
 			drafts.Platforms[""] = req.Draft.Platform
 			if err := plan(""); err != nil {
 				return fmt.Errorf("web review subscriptions attach: %w", err)
@@ -666,11 +745,9 @@ func runReviewSubscriptionAttachWithReviewItems(ctx context.Context, d *shared.D
 			return fmt.Errorf("web review subscriptions attach: %w", err)
 		}
 	}
-	if first {
-		noteFirstSubscription(d, req.AppID, planned)
-	}
+	noteReviewSubscriptionCompanions(d, req.AppID, first, planned)
 	items, err := withWebSpinnerValueWith(d, "Adding subscription to review submission", func() ([]reviewSubscriptionReviewItem, error) {
-		return applyReviewSubscriptionItems(requestCtx, client, drafts, draft, planned)
+		return applyReviewSubscriptionItems(requestCtx, d, client, drafts, draft, planned)
 	})
 	if err != nil {
 		return fmt.Errorf("web review subscriptions attach: %w", err)
@@ -680,7 +757,7 @@ func runReviewSubscriptionAttachWithReviewItems(ctx context.Context, d *shared.D
 		Operation:               "attach",
 		ReviewSubmissionID:      draft.ID,
 		ReviewSubmissionCreated: draft.Created,
-		Subscription:            &subscription,
+		Subscription:            new(apiSubscription(subscription)),
 		Items:                   items,
 		Changed:                 slices.ContainsFunc(items, func(item reviewSubscriptionReviewItem) bool { return item.Added }),
 	}
@@ -702,6 +779,10 @@ func runReviewSubscriptionAttachGroupWithReviewItems(ctx context.Context, d *sha
 	if err != nil {
 		return fmt.Errorf("web review subscriptions attach-group: %w", err)
 	}
+	groupVersions, err := loadReviewSubscriptionGroupVersions(requestCtx, client, subscriptions)
+	if err != nil {
+		return fmt.Errorf("web review subscriptions attach-group: %w", err)
+	}
 	selectedGroup, err := findReviewSubscriptionGroup(subscriptions, req.GroupID)
 	if err != nil {
 		return fmt.Errorf("subscription group lookup for app %q failed: %w", req.AppID, withReviewSelectorDiagnostic(err, "--group-id"))
@@ -714,7 +795,7 @@ func runReviewSubscriptionAttachGroupWithReviewItems(ctx context.Context, d *sha
 	}
 
 	toAttach := []reviewSubscriptionPlannedItem{}
-	attachedSubs := []webcore.ReviewSubscription{}
+	attachedSubs := []reviewSubscriptionAPISubscription{}
 	skipped := []reviewSubscriptionMutationSkip{}
 	for _, subscription := range groupSubscriptions {
 		if strings.EqualFold(subscription.State, "MISSING_METADATA") {
@@ -734,7 +815,7 @@ func runReviewSubscriptionAttachGroupWithReviewItems(ctx context.Context, d *sha
 			continue
 		}
 		toAttach = append(toAttach, reviewSubscriptionPlannedItem{itemType: asc.ReviewSubmissionItemTypeSubscriptionVersion, resourceID: versionID, subscriptionID: subscription.ID})
-		attachedSubs = append(attachedSubs, subscription)
+		attachedSubs = append(attachedSubs, apiSubscription(subscription))
 	}
 
 	payload := reviewSubscriptionReviewItemsOutput{
@@ -742,7 +823,6 @@ func runReviewSubscriptionAttachGroupWithReviewItems(ctx context.Context, d *sha
 		Operation:          "attach-group",
 		GroupID:            groupID,
 		GroupReferenceName: reviewSubscriptionGroupLabel(groupSubscriptions, groupID),
-		Skipped:            skipped,
 		Items:              []reviewSubscriptionReviewItem{},
 	}
 	if len(toAttach) == 0 {
@@ -756,13 +836,13 @@ func runReviewSubscriptionAttachGroupWithReviewItems(ctx context.Context, d *sha
 			return reviewSubscriptionNotReadyError(fmt.Errorf("web review subscriptions attach-group: group %q has no subscription that can be added to a review submission (%s)", groupID, strings.Join(reasons, "; ")), "--group-id")
 		}
 	} else {
-		first := !appHasApprovedSubscription(subscriptions)
+		first := !appHasApprovedSubscription(subscriptions, groupVersions)
 		var companions []reviewSubscriptionPlannedItem
 		preplanned := false
-		if first && req.Draft.SubmissionID == "" && len(drafts.IDs) == 0 {
+		if req.Draft.SubmissionID == "" && len(drafts.IDs) == 0 {
 			// With no draft, plan before creating one.
 			drafts.Platforms[""] = req.Draft.Platform
-			if companions, err = planFirstSubscriptionCompanions(requestCtx, client, req.AppID, groupID, drafts, ""); err != nil {
+			if companions, err = planReviewSubscriptionCompanions(requestCtx, client, req.AppID, groupID, groupVersions, first, drafts, ""); err != nil {
 				return fmt.Errorf("web review subscriptions attach-group: %w", err)
 			}
 			preplanned = true
@@ -771,17 +851,15 @@ func runReviewSubscriptionAttachGroupWithReviewItems(ctx context.Context, d *sha
 		if err != nil {
 			return err
 		}
-		if first && !preplanned {
-			if companions, err = planFirstSubscriptionCompanions(requestCtx, client, req.AppID, groupID, drafts, draft.ID); err != nil {
+		if !preplanned {
+			if companions, err = planReviewSubscriptionCompanions(requestCtx, client, req.AppID, groupID, groupVersions, first, drafts, draft.ID); err != nil {
 				return fmt.Errorf("web review subscriptions attach-group: %w", err)
 			}
 		}
 		planned := append(companions, toAttach...)
-		if first {
-			noteFirstSubscription(d, req.AppID, planned)
-		}
+		noteReviewSubscriptionCompanions(d, req.AppID, first, planned)
 		items, err := withWebSpinnerValueWith(d, "Adding subscription group to review submission", func() ([]reviewSubscriptionReviewItem, error) {
-			return applyReviewSubscriptionItems(requestCtx, client, drafts, draft, planned)
+			return applyReviewSubscriptionItems(requestCtx, d, client, drafts, draft, planned)
 		})
 		if err != nil {
 			return fmt.Errorf("web review subscriptions attach-group: %w", err)
@@ -791,6 +869,9 @@ func runReviewSubscriptionAttachGroupWithReviewItems(ctx context.Context, d *sha
 		payload.Items = items
 		payload.Changed = slices.ContainsFunc(items, func(item reviewSubscriptionReviewItem) bool { return item.Added })
 		payload.ChangedSubscriptions = attachedSubs
+	}
+	for _, skip := range skipped {
+		payload.Skipped = append(payload.Skipped, reviewSubscriptionAPISkip{Subscription: apiSubscription(skip.Subscription), Reason: skip.Reason})
 	}
 	changedCount, skippedCount := len(payload.ChangedSubscriptions), len(skipped)
 	payload.ChangedCount, payload.SkippedCount = &changedCount, &skippedCount

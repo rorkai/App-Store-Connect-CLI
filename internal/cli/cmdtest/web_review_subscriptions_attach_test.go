@@ -55,6 +55,7 @@ func attachTypedItemPost(relationship, resourceType, resourceID string) asctest.
 func registerFirstAttachLookups(reg *asctest.Registry) {
 	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, attachGroupsBody))
 	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(http.StatusOK, attachFirstSubsBody))
+	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachGroupVersionsBody("gv-1", "PREPARE_FOR_SUBMISSION")))
 	reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "PREPARE_FOR_SUBMISSION")))
 }
 
@@ -82,6 +83,7 @@ func attachItemCreated(itemID string) asctest.Responder {
 func registerAttachLookups(reg *asctest.Registry) {
 	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, attachGroupsBody))
 	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(http.StatusOK, attachSubsBody))
+	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachGroupVersionsBody("gv-1", "APPROVED")))
 }
 
 func registerAttachDrafts(reg *asctest.Registry, items map[string]string, ids ...string) {
@@ -122,8 +124,8 @@ func TestWebReviewSubscriptionsAttachReviewItems(t *testing.T) {
 				registerAttachDrafts(reg, nil, "rs-1")
 				reg.Register(attachItemPost("rs-1"), attachItemCreated("item-1"))
 			},
-			wantStdout:  []string{`"operation":"attach"`, `"changed":true`, `"reviewSubmissionId":"rs-1"`, `"reviewSubmissionCreated":false`, `"items":[{"itemType":"subscriptionVersions","resourceId":"ver-1","reviewSubmissionItemId":"item-1","subscriptionId":"sub-1","added":true}]`, `"id":"sub-1"`, `"submitWithNextAppStoreVersionKnown":false`},
-			rejectInOut: []string{`"submissionId"`},
+			wantStdout:  []string{`"operation":"attach"`, `"changed":true`, `"reviewSubmissionId":"rs-1"`, `"reviewSubmissionCreated":false`, `"items":[{"itemType":"subscriptionVersions","resourceId":"ver-1","reviewSubmissionItemId":"item-1","subscriptionId":"sub-1","added":true}]`, `"id":"sub-1"`},
+			rejectInOut: []string{`"submissionId"`, `submitWithNextAppStoreVersion`, `isAppStoreReviewInProgress`},
 		},
 		{
 			name: "reports an already attached version without a POST",
@@ -236,7 +238,6 @@ func TestWebReviewSubscriptionsAttachReviewItems(t *testing.T) {
 				registerFirstAttachLookups(reg)
 				registerAttachDrafts(reg, nil, "rs-1")
 				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[appVersionState]=DEVELOPER_REJECTED,INVALID_BINARY,METADATA_REJECTED,PREPARE_FOR_SUBMISSION,READY_FOR_REVIEW,REJECTED", "limit=200"), asctest.JSON(http.StatusOK, attachAppVersionsBody("app-v1")))
-				reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachGroupVersionsBody("gv-1", "PREPARE_FOR_SUBMISSION")))
 				reg.Register(attachTypedItemPost("appStoreVersion", "appStoreVersions", "app-v1"), attachItemCreated("item-app"))
 				reg.Register(attachTypedItemPost("subscriptionGroupVersion", "subscriptionGroupVersions", "gv-1"), attachItemCreated("item-group"))
 				reg.Register(attachItemPost("rs-1"), attachItemCreated("item-1"))
@@ -253,12 +254,64 @@ func TestWebReviewSubscriptionsAttachReviewItems(t *testing.T) {
 			args: []string{"attach", "--subscription-id", "sub-1"},
 			register: func(reg *asctest.Registry) {
 				registerFirstAttachLookups(reg)
-				registerAttachDrafts(reg, map[string]string{"rs-2": attachItemsBodyOf("rs-2", "item-app", "appStoreVersion", "appStoreVersions", "app-v1")}, "rs-1", "rs-2")
-				reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachGroupVersionsBody("gv-1", "APPROVED")))
+				twoItems := `{"data":[` +
+					`{"type":"reviewSubmissionItems","id":"item-app","attributes":{"state":"READY_FOR_REVIEW"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"app-v1"}}}},` +
+					`{"type":"reviewSubmissionItems","id":"item-group","attributes":{"state":"READY_FOR_REVIEW"},"relationships":{"subscriptionGroupVersion":{"data":{"type":"subscriptionGroupVersions","id":"gv-1"}}}}` +
+					`],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/rs-2/items"},"meta":{"paging":{"total":2,"limit":200}}}`
+				registerAttachDrafts(reg, map[string]string{"rs-2": twoItems}, "rs-1", "rs-2")
 				reg.Register(attachItemPost("rs-2"), attachItemCreated("item-1"))
 			},
-			wantStdout:  []string{`"reviewSubmissionId":"rs-2"`, `{"itemType":"appStoreVersions","resourceId":"app-v1","reviewSubmissionItemId":"item-app","added":false}`},
-			rejectInOut: []string{`subscriptionGroupVersions`},
+			wantStdout: []string{`"reviewSubmissionId":"rs-2"`, `{"itemType":"appStoreVersions","resourceId":"app-v1","reviewSubmissionItemId":"item-app","added":false}`, `{"itemType":"subscriptionGroupVersions","resourceId":"gv-1","reviewSubmissionItemId":"item-group","added":false}`},
+		},
+		{
+			name: "a never-approved group travels with its subscription even when the app has an approved one",
+			args: []string{"attach", "--subscription-id", "sub-9"},
+			register: func(reg *asctest.Registry) {
+				reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}},{"type":"subscriptionGroups","id":"group-2","attributes":{"referenceName":"New"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups"}}`))
+				reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-4","attributes":{"name":"Legacy","productId":"com.example.legacy","state":"APPROVED"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/subscriptions"}}`))
+				reg.Register(asctest.GET("/v1/subscriptionGroups/group-2/subscriptions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-9","attributes":{"name":"Fresh","productId":"com.example.fresh","state":"READY_TO_SUBMIT"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-2/subscriptions"}}`))
+				reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachGroupVersionsBody("gv-1", "APPROVED")))
+				reg.Register(asctest.GET("/v1/subscriptionGroups/group-2/versions", "limit=200"), asctest.JSON(http.StatusOK, attachGroupVersionsBody("gv-2", "PREPARE_FOR_SUBMISSION")))
+				reg.Register(asctest.GET("/v1/subscriptions/sub-9/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "PREPARE_FOR_SUBMISSION")))
+				registerAttachDrafts(reg, nil, "rs-1")
+				reg.Register(attachTypedItemPost("subscriptionGroupVersion", "subscriptionGroupVersions", "gv-2"), attachItemCreated("item-group"))
+				reg.Register(attachItemPost("rs-1"), attachItemCreated("item-1"))
+			},
+			wantStdout:  []string{`{"itemType":"subscriptionGroupVersions","resourceId":"gv-2","reviewSubmissionItemId":"item-group","added":true}`, `"subscriptionId":"sub-9"`},
+			rejectInOut: []string{`appStoreVersions`},
+		},
+		{
+			name: "a subscription approved once and now removed from sale still counts",
+			args: []string{"attach", "--subscription-id", "sub-1"},
+			register: func(reg *asctest.Registry) {
+				reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, attachGroupsBody))
+				reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"READY_TO_SUBMIT"}},{"type":"subscriptions","id":"sub-5","attributes":{"name":"Old","productId":"com.example.old","state":"DEVELOPER_REMOVED_FROM_SALE"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/subscriptions"}}`))
+				reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachGroupVersionsBody("gv-1", "APPROVED")))
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "PREPARE_FOR_SUBMISSION")))
+				registerAttachDrafts(reg, nil, "rs-1")
+				reg.Register(attachItemPost("rs-1"), attachItemCreated("item-1"))
+			},
+			wantStdout:  []string{`"items":[{"itemType":"subscriptionVersions","resourceId":"ver-1","reviewSubmissionItemId":"item-1","subscriptionId":"sub-1","added":true}]`},
+			rejectInOut: []string{`appStoreVersions`, `isAppStoreReviewInProgress`, `submitWithNextAppStoreVersion`},
+		},
+		{
+			name: "rejects --platform that does not match the draft already holding the version",
+			args: []string{"attach", "--subscription-id", "sub-1", "--platform", "MAC_OS"},
+			register: func(reg *asctest.Registry) {
+				registerAttachLookups(reg)
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "READY_FOR_REVIEW")))
+				registerAttachDrafts(reg, map[string]string{"rs-2": attachItemsBody("rs-2", "item-1", "ver-1")}, "rs-2")
+			},
+			wantUsage:  true,
+			wantStderr: []string{"subscription \"sub-1\" is already on review submission rs-2 (IOS), not on --platform MAC_OS"},
+		},
+		{
+			name:       "attach-group: --submission without --review-items is a usage error",
+			args:       []string{"attach-group", "--group-id", "group-1", "--submission", "rs-1"},
+			register:   func(reg *asctest.Registry) {},
+			webFlow:    true,
+			wantUsage:  true,
+			wantStderr: []string{"--submission and --platform require --review-items"},
 		},
 		{
 			name: "first subscription removes what it added when a later item fails",
@@ -267,7 +320,6 @@ func TestWebReviewSubscriptionsAttachReviewItems(t *testing.T) {
 				registerFirstAttachLookups(reg)
 				registerAttachDrafts(reg, nil, "rs-1")
 				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[appVersionState]=DEVELOPER_REJECTED,INVALID_BINARY,METADATA_REJECTED,PREPARE_FOR_SUBMISSION,READY_FOR_REVIEW,REJECTED", "limit=200"), asctest.JSON(http.StatusOK, attachAppVersionsBody("app-v1")))
-				reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachGroupVersionsBody("gv-1", "PREPARE_FOR_SUBMISSION")))
 				reg.Register(attachTypedItemPost("appStoreVersion", "appStoreVersions", "app-v1"), attachItemCreated("item-app"))
 				reg.Register(attachTypedItemPost("subscriptionGroupVersion", "subscriptionGroupVersions", "gv-1"), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"subscriptionGroupVersions with id 'gv-1' is not in valid state.","detail":"This resource cannot be reviewed, please check associated errors to see why."}]}`))
 				reg.Register(asctest.DELETE("/v1/reviewSubmissionItems/item-app"), asctest.JSON(http.StatusNoContent, ``))
