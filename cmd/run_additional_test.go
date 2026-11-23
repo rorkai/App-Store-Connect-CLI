@@ -1432,6 +1432,22 @@ func TestRun_GroupsBuildsListRecoversGroupsListFlags(t *testing.T) {
 	}
 }
 
+func TestRun_IAPVersionLocalizationsListExplainsProductID(t *testing.T) {
+	resetReportFlags(t)
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"iap", "versions", "localizations", "list", "--iap-id", "IAP_ID"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+	want := "Error: unknown flag `--iap-id` for `asc iap versions localizations list`\n" +
+		"Find the version ID first:\n  asc iap versions list --iap-id IAP_ID --include localizations --paginate\n" +
+		"Then list all localizations for that version:\n  asc iap versions localizations list --version-id VERSION_ID --paginate\n" +
+		"For help:\n  asc iap versions localizations list --help\n"
+	if stdout != "" || stderr != want {
+		t.Fatalf("stdout = %q, stderr = %q, want empty stdout and stderr %q", stdout, stderr, want)
+	}
+}
+
 func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")

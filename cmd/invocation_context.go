@@ -165,6 +165,15 @@ func printConciseUnknownFlag(stderr io.Writer, root *ffcli.Command, analysis inv
 		return
 	}
 	fmt.Fprintf(stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
+	if name, _ := flagLookupName(flagName); commandName == "asc iap versions localizations list" && name == "iap-id" {
+		fmt.Fprintln(stderr, "Find the version ID first:")
+		fmt.Fprintln(stderr, "  asc iap versions list --iap-id IAP_ID --include localizations --paginate")
+		fmt.Fprintln(stderr, "Then list all localizations for that version:")
+		fmt.Fprintln(stderr, "  asc iap versions localizations list --version-id VERSION_ID --paginate")
+		fmt.Fprintln(stderr, "For help:")
+		fmt.Fprintf(stderr, "  %s --help\n", commandName)
+		return
+	}
 	if suggestion, notes, ok := filterSuggestion(analysis, commandName, args); ok {
 		fmt.Fprintf(stderr, "Try:\n  %s\n", suggestion)
 		for _, note := range notes {
