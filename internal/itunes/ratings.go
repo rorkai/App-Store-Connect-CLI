@@ -54,6 +54,13 @@ func (e *allRatingsLookupError) Unwrap() error {
 
 // GetRatings fetches rating statistics for an app in a specific country.
 func (c *Client) GetRatings(ctx context.Context, appID, country string) (*AppRatings, error) {
+	return c.getRatings(ctx, appID, country, false)
+}
+
+// getRatings looks up an app's ratings in one country. With skipUnratedHistogram,
+// it does not request the histogram when the lookup reports no ratings, since
+// GetAllRatings drops those countries from its result.
+func (c *Client) getRatings(ctx context.Context, appID, country string, skipUnratedHistogram bool) (*AppRatings, error) {
 	normalizedCountry := strings.ToLower(strings.TrimSpace(country))
 	if normalizedCountry == "" {
 		normalizedCountry = "us"
@@ -77,6 +84,10 @@ func (c *Client) GetRatings(ctx context.Context, appID, country string) (*AppRat
 		CurrentVersionRating: app.CurrentVersionRating,
 		CurrentVersionCount:  app.CurrentVersionCount,
 		Histogram:            make(map[int]int64),
+	}
+
+	if skipUnratedHistogram && ratings.RatingCount == 0 {
+		return ratings, nil
 	}
 
 	// Histogram scraping is best-effort and must remain non-fatal.
@@ -186,7 +197,7 @@ func (c *Client) GetAllRatings(
 			}
 
 			countryCtx, countryCancel := newCountryContext(workCtx)
-			ratings, err := c.GetRatings(countryCtx, appID, country)
+			ratings, err := c.getRatings(countryCtx, appID, country, true)
 			countryErr := countryCtx.Err()
 			countryCancel()
 			if err != nil {
