@@ -3,9 +3,11 @@ package bundleids
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -187,10 +189,10 @@ the API cannot create, even when that capability is already enabled.`,
 					return findExistingBundleIDCapability(requestCtx, client, bundleValue, capabilityValue)
 				})
 				if resolveErr != nil {
-					return fmt.Errorf("bundle-ids capabilities add: failed to create: %w", resolveErr)
+					return withCapabilitiesAddConflictHint(fmt.Errorf("bundle-ids capabilities add: failed to create: %w", resolveErr), bundleValue, capabilityValue)
 				}
 				if !handled {
-					return fmt.Errorf("bundle-ids capabilities add: failed to create: %w", err)
+					return withCapabilitiesAddConflictHint(fmt.Errorf("bundle-ids capabilities add: failed to create: %w", err), bundleValue, capabilityValue)
 				}
 				resp = existing
 				outcome := "left unchanged"
@@ -450,6 +452,60 @@ func validateCapabilitySettings(settings []asc.CapabilitySetting) error {
 		}
 	}
 	return nil
+}
+
+// signInWithAppleSettings is the --settings value that enables Sign in with
+// Apple as a primary App ID; Apple rejects APPLE_ID_AUTH without a
+// configuration ("Please select at least one configuration for Sign In with
+// Apple.").
+const signInWithAppleSettings = `'[{"key":"APPLE_ID_AUTH_APP_CONSENT","options":[{"key":"PRIMARY_APP_CONSENT","enabled":true}]}]'`
+
+// capabilityTypeAPINames maps entitlement- and portal-style names agents use
+// for a capability to the type App Store Connect's API accepts.
+var capabilityTypeAPINames = map[string]string{
+	"APPLICATION_GROUPS": "APP_GROUPS",
+	"SIGN_IN_WITH_APPLE": "APPLE_ID_AUTH",
+}
+
+// withCapabilitiesAddConflictHint names the next step for the 409s Apple
+// returns on POST /v1/bundleIdCapabilities that are not existence conflicts:
+// a capability type outside the API's enum, Sign in with Apple without a
+// configuration, and a --bundle that is a bundle identifier rather than the
+// bundle ID's resource ID. Every other error is returned unchanged.
+func withCapabilitiesAddConflictHint(err error, bundle, capability string) error {
+	apiErr, ok := errors.AsType[*asc.APIError](err)
+	if !ok || apiErr.StatusCode != http.StatusConflict {
+		return err
+	}
+	hint := ""
+	switch {
+	case apiErr.Code == "ENTITY_ERROR.ATTRIBUTE.TYPE" && strings.Contains(apiErr.Detail, "for the attribute 'capabilityType'"):
+		hint = capabilityTypeRejectedHint(bundle, capability)
+	case strings.Contains(apiErr.Detail, "at least one configuration for Sign In with Apple"):
+		hint = fmt.Sprintf("Sign in with Apple needs a configuration. To enable it as a primary App ID: asc bundle-ids capabilities add --bundle %q --capability APPLE_ID_AUTH --settings %s", bundle, signInWithAppleSettings)
+	case apiErr.Code == "ENTITY_ERROR.RELATIONSHIP.INVALID" && strings.Contains(bundle, "."):
+		// Bundle ID resource IDs are alphanumeric; a dot means the caller
+		// passed the reverse-DNS identifier.
+		hint = fmt.Sprintf("--bundle takes the bundle ID's resource ID (for example ABCDE12345), not its identifier %q. Look the ID up with asc bundle-ids list --identifier %q, then rerun with --bundle set to it.", bundle, bundle)
+	}
+	if hint == "" {
+		return err
+	}
+	return &shared.HintedError{Err: err, Hint: hint}
+}
+
+func capabilityTypeRejectedHint(bundle, capability string) string {
+	if apiName, ok := capabilityTypeAPINames[capability]; ok {
+		hint := fmt.Sprintf("App Store Connect calls this capability %s: asc bundle-ids capabilities add --bundle %q --capability %s", apiName, bundle, apiName)
+		if apiName == "APPLE_ID_AUTH" {
+			hint += " --settings " + signInWithAppleSettings
+		}
+		return hint
+	}
+	if capability == "PRIVATE_CLOUD_COMPUTE" {
+		return fmt.Sprintf("PRIVATE_CLOUD_COMPUTE is a Developer Portal-only capability. Enable it through a web session with asc web bundle-ids capabilities enable --bundle-id %q --capability PRIVATE_CLOUD_COMPUTE --confirm", bundle)
+	}
+	return fmt.Sprintf("The App Store Connect API cannot enable %s (Apple lists the capability types it accepts above), and retrying with other flags or --if-exists does not change that. Enable it on this App ID in the Apple Developer portal (Certificates, Identifiers & Profiles > Identifiers), then regenerate the provisioning profiles that use the App ID.", capability)
 }
 
 // capabilitiesAddExistsCodes lists the Apple 409 codes accepted as "this
