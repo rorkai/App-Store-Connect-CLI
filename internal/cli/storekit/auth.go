@@ -95,7 +95,7 @@ Examples:
 			}
 			if !*skipValidation {
 				if err := authsvc.ValidateKeyFile(cleanPrivateKey); err != nil {
-					return d.UsageErrorf("storekit auth login: invalid private key: %v", err)
+					return d.InvalidInputErrorf("storekit auth login: invalid private key: %v", err)
 				}
 			}
 			credentials := storekitapi.Credentials{

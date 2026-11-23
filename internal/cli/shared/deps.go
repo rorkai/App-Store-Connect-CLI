@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -243,6 +244,26 @@ func (d *Deps) UsageError(message string) error {
 // UsageErrorf is UsageErrorf with the "Error:" line written to d's stderr.
 func (d *Deps) UsageErrorf(format string, args ...any) error {
 	return d.UsageError(fmt.Sprintf(format, args...))
+}
+
+// InvalidInputError reports input that was passed correctly on the command
+// line but whose content is refused, such as a private key file with open
+// permissions or a malformed key file. Like UsageError it writes the "Error:"
+// line to d's stderr and maps to the usage exit code 2 with the same usage
+// classification. Unlike UsageError it does not wrap flag.ErrHelp, so the
+// command's usage page is not printed after a message that already names the
+// problem and, where the caller adds them, the commands that fix it.
+func (d *Deps) InvalidInputError(message string) error {
+	trimmed := strings.TrimSpace(SanitizeTerminal(message))
+	if trimmed != "" {
+		fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", trimmed)
+	}
+	return NewReportedUsageError(classifyUsageMessage(trimmed), trimmed)
+}
+
+// InvalidInputErrorf is InvalidInputError with a formatted message.
+func (d *Deps) InvalidInputErrorf(format string, args ...any) error {
+	return d.InvalidInputError(fmt.Sprintf(format, args...))
 }
 
 // RequiredFlag is RequiredFlag with the "Error:" line written to d's stderr.

@@ -100,7 +100,7 @@ Examples:
 			}
 			if !*skipValidation {
 				if err := authsvc.ValidateKeyFile(*privateKey); err != nil {
-					return d.UsageErrorf("ads auth login: invalid private key: %v", err)
+					return d.InvalidInputErrorf("ads auth login: invalid private key: %v", err)
 				}
 			}
 
