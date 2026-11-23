@@ -967,15 +967,17 @@ Subcommands:
 func newWebReviewReplyCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("web review reply", flag.ExitOnError)
 
+	appID := fs.String("app", "", "App Store Connect app ID; when set, the thread must belong to this app")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	message := fs.String("message", "", "Reply message body")
+	bodyFile := fs.String("body-file", "", "Read the reply message body from a regular file")
 	confirm := fs.Bool("confirm", false, "Confirm sending the reply")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "reply",
-		ShortUsage: "asc web review reply --thread-id THREAD_ID --message MESSAGE --confirm [flags]",
+		ShortUsage: "asc web review reply [--app APP_ID] --thread-id THREAD_ID (--message MESSAGE | --body-file FILE) --confirm [flags]",
 		ShortHelp:  "Send a Resolution Center reply.",
 		LongHelp: `WEB SESSION WORKFLOWS
 
@@ -983,6 +985,10 @@ Send one reply to an App Store Connect Resolution Center thread through the
 Apple web-session API. The command creates one draft, sends it,
 and re-reads the thread to verify the created message. It never retries a send
 automatically because a failed response can follow a successful Apple write.
+
+Exactly one of --message or --body-file is required; the body is sent
+verbatim. With --app, the thread must belong to that app, as with
+"asc web review drafts".
 
 A thread holds one unsent draft, so the reply fails while the thread already
 has one; "asc web review threads --app APP_ID --drafts" shows it. When Apple
@@ -994,7 +1000,8 @@ errors.
 
 Examples:
   asc web review reply --thread-id "THREAD_ID" --message "We updated the demo account." --confirm
-  asc web review reply --thread-id "THREAD_ID" --message "Please retry." --confirm --output json`,
+  asc web review reply --thread-id "THREAD_ID" --message "Please retry." --confirm --output json
+  asc web review reply --app "APP_ID" --thread-id "THREAD_ID" --body-file "./reply.txt" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1005,9 +1012,13 @@ Examples:
 			if trimmedThreadID == "" {
 				return d.UsageError("--thread-id is required")
 			}
-			messageBody := *message
-			if strings.TrimSpace(messageBody) == "" {
-				return d.UsageError("--message must not be empty")
+			trimmedAppID := strings.TrimSpace(*appID)
+			if webReviewDraftFlagProvided(fs, "app") && trimmedAppID == "" {
+				return d.UsageError("--app must not be empty")
+			}
+			messageBody, err := readWebReviewDraftBody(d, fs, *message, *bodyFile)
+			if err != nil {
+				return err
 			}
 			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
@@ -1019,6 +1030,11 @@ Examples:
 				return err
 			}
 			client := newWebClientFn(session)
+			if trimmedAppID != "" {
+				if err := requireWebReviewThreadUnderApp(requestCtx, client, "web review reply", trimmedAppID, trimmedThreadID); err != nil {
+					return err
+				}
+			}
 
 			var draft *webcore.ResolutionCenterDraftMessage
 			err = withWebSpinnerWith(d, "Creating Resolution Center reply draft", func() error {
