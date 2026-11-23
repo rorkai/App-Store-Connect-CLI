@@ -784,8 +784,16 @@ func TestSubmitResolvedVersionPreservesCreatedSubmissionMissingTargetVersion(t *
 		t.Fatalf("expected missing target version error, got %v", err)
 	}
 	assertSubmitDiagnostic(t, err, shared.DiagnosticStateNotReady)
-	if !strings.Contains(strings.Join(got.Messages, "\n"), "asc submit cancel --id new-submission --confirm") {
-		t.Fatalf("expected preserved submission notice, got %#v", got.Messages)
+	// The preserved submission is a READY_FOR_REVIEW draft, which App Store
+	// Connect refuses to cancel, so the notice must also name the draft path.
+	messages := strings.Join(got.Messages, "\n")
+	for _, want := range []string{
+		"asc review submissions-submit --id new-submission --confirm",
+		"asc submit cancel --id new-submission --confirm",
+	} {
+		if !strings.Contains(messages, want) {
+			t.Fatalf("expected preserved submission notice to contain %q, got %#v", want, got.Messages)
+		}
 	}
 }
 
