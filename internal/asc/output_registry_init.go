@@ -517,6 +517,7 @@ func registerAllOutputRenderers() {
 	registerRows(appClipAdvancedExperienceImageUploadResultRows)
 	registerRows(appClipHeaderImageUploadResultRows)
 	registerRows(assetDeleteResultRows)
+	registerRows(screenshotDeleteResultRows)
 	registerRows(appClipAdvancedExperienceRemoveResultRows)
 	registerDirect(func(v *TestFlightPublishResult, render func([]string, [][]string)) error {
 		h, r := testFlightPublishResultRows(v)

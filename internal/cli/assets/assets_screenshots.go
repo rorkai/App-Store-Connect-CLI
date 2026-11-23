@@ -806,7 +806,11 @@ it exits non-zero, prints the receipt, and writes a failure artifact for --resum
 
 --replace deletes every existing screenshot in each target set before uploading
 and therefore requires --confirm. Use --replace --dry-run to preview the
-deletions without --confirm.
+deletions without --confirm. Like asc screenshots delete, --replace keeps each
+deleted screenshot's Asset Library image, under the same ID as the
+"would-delete" assetId. Delete a leftover image that nothing else places with
+asc asset-library images delete --id ASSET_ID --confirm, or remove the old
+screenshots first with asc screenshots delete --prune-library.
 
 --device-type IPHONE_DUO uploads iPhone Duo screenshots like any other device
 type, in every mode above, including --locale and --replace. App Store Connect

@@ -536,6 +536,21 @@ App Store Connect uses a larger display size's screenshots instead:
 asc localizations screenshot-sets delete --id "SET_ID" --confirm
 ```
 
+App Store Connect keeps the Asset Library image a screenshot was uploaded as,
+under the same ID, after the screenshot is deleted, and `--replace` leaves those
+images behind too. Add `--prune-library` to delete the image as well. It is
+deleted only when Apple lists no placement for it, and the receipt's
+`libraryImage.state` says `deleted`, `kept` or `absent`:
+
+```bash
+asc screenshots delete --id "SCREENSHOT_ID" --confirm --prune-library
+```
+
+`kept` means Apple still lists a placement for the image. Right after the
+delete that can be the placement just removed; check again later with
+`asc asset-library images placements --id "SCREENSHOT_ID"` before deleting the
+image with `asc asset-library images delete`.
+
 ## Complete Example Workflow
 
 ```bash
