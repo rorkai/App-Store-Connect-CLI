@@ -240,6 +240,20 @@ asc analytics download \
   --segment-id "SEGMENT_ID"
 ```
 
+#### Download a Complete Report Instance
+
+Use `--all-segments` with `--output-dir` to download each partition of one instance. Give a new directory under an existing parent. Each segment is a tab-delimited `.txt.gz` file. With `--decompress`, the command also saves a `.txt` copy. Use `--segment-id` and `--output` only in single-segment mode.
+
+```bash
+asc analytics download \
+  --request-id "REQUEST_ID" \
+  --instance-id "INSTANCE_ID" \
+  --all-segments \
+  --output-dir "./analytics-report"
+```
+
+The receipt lists the segment IDs, paths, and sizes. The output directory appears only after all segments are saved and any sizes and checksums Apple supplies have been verified.
+
 ### Delete Request
 
 Delete an analytics report request.
@@ -363,10 +377,12 @@ asc analytics requests \
   --app "$ASC_APP_ID" \
   --access-type ONGOING
 
-# 3. Download latest data
+# 3. Download a complete instance
 asc analytics download \
   --request-id "REQUEST_ID" \
   --instance-id "INSTANCE_ID" \
+  --all-segments \
+  --output-dir "./analytics-report" \
   --decompress
 ```
 

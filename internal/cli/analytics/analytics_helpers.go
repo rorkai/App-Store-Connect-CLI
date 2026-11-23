@@ -3,6 +3,7 @@ package analytics
 import (
 	"context"
 	"fmt"
+	"io"
 	"regexp"
 	"slices"
 	"strings"
@@ -626,6 +627,12 @@ func getAnalyticsReportSegmentsPage(ctx context.Context, d *shared.Deps, client 
 }
 
 func downloadAnalyticsReportToFile(ctx context.Context, d *shared.Deps, client *asc.Client, downloadURL, outputPath string) (int64, error) {
+	return streamAnalyticsReport(ctx, d, client, downloadURL, func(reader io.Reader) (int64, error) {
+		return d.WriteStreamToFile(outputPath, reader)
+	})
+}
+
+func streamAnalyticsReport(ctx context.Context, d *shared.Deps, client *asc.Client, downloadURL string, write func(io.Reader) (int64, error)) (int64, error) {
 	requestCtx, cancel := d.DownloadTimeout(ctx)
 	defer cancel()
 
@@ -635,7 +642,7 @@ func downloadAnalyticsReportToFile(ctx context.Context, d *shared.Deps, client *
 	}
 	defer download.Body.Close()
 
-	size, err := d.WriteStreamToFile(outputPath, download.Body)
+	size, err := write(download.Body)
 	if err != nil {
 		return 0, fmt.Errorf("failed to write report: %w", err)
 	}

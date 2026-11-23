@@ -547,6 +547,8 @@ func newAnalyticsDownloadCommand(d *shared.Deps) *ffcli.Command {
 	output := fs.String("output", "", "Output file path (default: analytics_report_{requestId}_{instanceId}.csv.gz)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .csv")
 	outputFlags := shared.BindMetadataOutputFlags(fs)
+	allSegments := fs.Bool("all-segments", false, "Download every segment of the report instance")
+	outputDir := fs.String("output-dir", "", "New output directory with an existing parent (required with --all-segments)")
 
 	return &ffcli.Command{
 		Name:       "download",
@@ -554,10 +556,15 @@ func newAnalyticsDownloadCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Download analytics report data.",
 		LongHelp: `Download analytics report data.
 
+Use --all-segments with --output-dir to get the complete report instance.
+This mode uses .txt.gz files, with a .txt copy per segment when --decompress is
+set. The directory is published after all segments are saved.
+
 Examples:
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --decompress
-  asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --segment-id "SEGMENT_ID"`,
+  asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --segment-id "SEGMENT_ID"
+  asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --all-segments --output-dir "./analytics-report"`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -575,6 +582,23 @@ Examples:
 			}
 			if _, err := asc.ValidateResourcePathSegment(*instanceID); err != nil {
 				return d.UsageErrorf("analytics download: --instance-id: %v", err)
+			}
+			destination := strings.TrimSpace(*outputDir)
+			if err := validateAnalyticsSegmentDownloadFlags(d, fs, *allSegments, destination); err != nil {
+				return err
+			}
+			if *allSegments {
+				if _, err := shared.ValidateOutputFormat(*outputFlags.OutputFormat, *outputFlags.Pretty); err != nil {
+					return d.UsageError(err.Error())
+				}
+				result, err := downloadAnalyticsInstance(ctx, d, strings.TrimSpace(*requestID), strings.TrimSpace(*instanceID), destination, *decompress)
+				if err != nil {
+					return fmt.Errorf("analytics download: %w", err)
+				}
+				if err := d.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty); err != nil {
+					return fmt.Errorf("analytics download: failed to print receipt for report saved to %q: %w", result.OutputDir, err)
+				}
+				return nil
 			}
 			if strings.TrimSpace(*segmentID) != "" {
 				if _, err := asc.ValidateResourcePathSegment(*segmentID); err != nil {
@@ -595,15 +619,9 @@ Examples:
 			// instance belongs to --request-id meant listing the instances of
 			// every report before it: about 40 requests per download against an
 			// hourly limit of 3,600.
-			segments, err := fetchAnalyticsReportSegmentsUntilMatch(ctx, d, client, strings.TrimSpace(*instanceID), strings.TrimSpace(*segmentID))
+			segments, err := analyticsDownloadSegments(ctx, d, client, strings.TrimSpace(*instanceID), strings.TrimSpace(*segmentID))
 			if err != nil {
-				if asc.IsNotFound(err) {
-					return analyticsNotFoundError(fmt.Errorf("analytics download: instance %q not found", strings.TrimSpace(*instanceID)), "--instance-id")
-				}
-				return fmt.Errorf("analytics download: failed to fetch segments: %w", err)
-			}
-			if len(segments) == 0 {
-				return analyticsNotReadyError(fmt.Errorf("analytics download: no segments available for instance %q", strings.TrimSpace(*instanceID)))
+				return fmt.Errorf("analytics download: %w", err)
 			}
 
 			selectedSegment := segments[0]
@@ -629,6 +647,7 @@ Examples:
 					Description: fmt.Sprintf("instance %q", strings.TrimSpace(*instanceID)),
 					Flag:        "--segment-id",
 					Candidates:  candidates,
+					Hint:        "Use --all-segments --output-dir PATH to download the complete report instance.",
 				})
 			}
 
