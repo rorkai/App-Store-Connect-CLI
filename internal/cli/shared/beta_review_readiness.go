@@ -24,6 +24,7 @@ type betaReviewReadinessClient interface {
 	GetBuildApp(ctx context.Context, buildID string) (*asc.AppResponse, error)
 	GetBetaAppLocalizations(ctx context.Context, opts ...asc.BetaAppLocalizationsOption) (*asc.BetaAppLocalizationsResponse, error)
 	GetBetaAppReviewDetails(ctx context.Context, opts ...asc.BetaAppReviewDetailsOption) (*asc.BetaAppReviewDetailsResponse, error)
+	GetBuildBuildBetaDetail(ctx context.Context, buildID string) (*asc.BuildBetaDetailResponse, error)
 }
 
 // ExplainBetaReviewSubmissionError adds to submitErr, Apple's 422 for a beta
@@ -31,16 +32,23 @@ type betaReviewReadinessClient interface {
 // command that sets it. Apple names at most one field per attempt, and for the
 // feedback email and review contact it says only "Missing requied data.".
 // Live (2026-11-22), a build was accepted once the beta app description,
-// feedback email and the four review contact fields were set.
+// feedback email and the four review contact fields were set. A build that
+// still needs export compliance is listed too.
+//
+// Apple also answers some apps whose information is complete with
+// "There was an error processing your request.: Please try again later." and
+// no field. Then it says that nothing asc can set is missing and who can
+// clear it, because callers otherwise keep editing fields and retrying.
 //
 // submitErr is returned unchanged when it is not a 422, when a read fails, or
-// when none of those fields is empty, so Apple's error is never replaced.
+// when nothing is missing and Apple named its own reason, so Apple's error is
+// never replaced.
 func ExplainBetaReviewSubmissionError(ctx context.Context, client betaReviewReadinessClient, buildID string, submitErr error) error {
 	var apiErr *asc.APIError
 	if !errors.As(submitErr, &apiErr) || apiErr.HTTPStatusCode() != http.StatusUnprocessableEntity {
 		return submitErr
 	}
-	explanation := describeMissingBetaReviewInfo(ctx, client, buildID)
+	explanation := describeMissingBetaReviewInfo(ctx, client, buildID, apiErr)
 	if explanation == "" {
 		return submitErr
 	}
@@ -64,7 +72,7 @@ func (e betaReviewSubmissionExplainedError) Unwrap() error { return e.err }
 // VerbatimText marks the error text as literal: Apple's message and commands.
 func (betaReviewSubmissionExplainedError) VerbatimText() {}
 
-func describeMissingBetaReviewInfo(ctx context.Context, client betaReviewReadinessClient, buildID string) string {
+func describeMissingBetaReviewInfo(ctx context.Context, client betaReviewReadinessClient, buildID string, apiErr *asc.APIError) string {
 	appResp, err := client.GetBuildApp(ctx, buildID)
 	if err != nil || appResp == nil || strings.TrimSpace(appResp.Data.ID) == "" {
 		return ""
@@ -79,12 +87,29 @@ func describeMissingBetaReviewInfo(ctx context.Context, client betaReviewReadine
 		return ""
 	}
 
+	// The external beta state is extra evidence: when it cannot be read, the
+	// TestFlight information above is still reported.
+	externalState := ""
+	if detail, err := client.GetBuildBuildBetaDetail(ctx, buildID); err == nil && detail != nil {
+		externalState = strings.ToUpper(strings.TrimSpace(detail.Data.Attributes.ExternalBuildState))
+	}
+
 	var missing, fixes []string
 	missing, fixes = appendMissingBetaLocalizationInfo(missing, fixes, appID, localizations.Data)
 	if len(details.Data) > 0 {
 		missing, fixes = appendMissingBetaReviewDetailInfo(missing, fixes, details.Data[0])
 	}
+	if externalState == externalBetaStateMissingExportCompliance {
+		missing = append(missing, "export compliance for build "+buildID)
+		fixes = append(fixes,
+			fmt.Sprintf("asc builds update --build-id %q --uses-non-exempt-encryption=false", buildID),
+			fmt.Sprintf("(or, if the app uses non-exempt encryption: asc encryption declarations assign-builds --id \"DECLARATION_ID\" --build-id %q)", buildID),
+		)
+	}
 	if len(missing) == 0 {
+		if externalState == externalBetaStateReadyForBetaSubmission && len(details.Data) > 0 && betaReviewErrorNamesNoReason(apiErr) {
+			return describeUnexplainedBetaReviewRejection(buildID, apiErr)
+		}
 		return ""
 	}
 
@@ -98,6 +123,33 @@ func describeMissingBetaReviewInfo(ctx context.Context, client betaReviewReadine
 		fmt.Fprintf(&b, "  %s\n", fix)
 	}
 	fmt.Fprintf(&b, "Then run again: asc testflight review submit --build-id %q --confirm", buildID)
+	return b.String()
+}
+
+// betaReviewErrorNamesNoReason reports whether every entry of Apple's 422 is
+// the bare ENTITY_UNPROCESSABLE or MISSING_REQUIRED_DATA code, which name no
+// cause, as opposed to a specific one such as another build in review.
+func betaReviewErrorNamesNoReason(apiErr *asc.APIError) bool {
+	if len(apiErr.AllCodes) == 0 {
+		return false
+	}
+	for _, code := range apiErr.AllCodes {
+		switch strings.ToUpper(strings.TrimSpace(code)) {
+		case "ENTITY_UNPROCESSABLE", "ENTITY_UNPROCESSABLE.MISSING_REQUIRED_DATA":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func describeUnexplainedBetaReviewRejection(buildID string, apiErr *asc.APIError) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "App Store Connect gave no reason (%s). Nothing asc can set is missing: ", SanitizeTerminal(apiErr.AllCodes[0]))
+	fmt.Fprintf(&b, "the beta app description, feedback email and beta app review contact are set, and build %s is %s.\n", SanitizeTerminal(buildID), externalBetaStateReadyForBetaSubmission)
+	b.WriteString("Editing TestFlight information or retrying the same request does not change this answer. Someone with App Store Connect access needs to:\n")
+	b.WriteString("  - accept any pending agreement (Account Holder): https://appstoreconnect.apple.com/agreements\n")
+	b.WriteString("  - or submit the build in App Store Connect > TestFlight, and contact Apple Developer Support (https://developer.apple.com/contact/) if it fails there too")
 	return b.String()
 }
 

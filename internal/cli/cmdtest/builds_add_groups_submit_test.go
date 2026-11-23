@@ -206,6 +206,8 @@ func TestBuildsAddGroupsSubmitExplainsMissingExternalTestingInfo(t *testing.T) {
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaAppLocalizations","id":"loc-1","attributes":{"description":"A beta","feedbackEmail":"beta@example.com","locale":"en-US"}}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/betaAppReviewDetails", "filter[app]=app-1"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaAppReviewDetails","id":"app-1","attributes":{"contactEmail":"dev@example.com","contactFirstName":"Ada","contactLastName":"Lovelace","contactPhone":null}}],"links":{}}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_SUBMISSION"}}}`))
 
 	_, _, runErr := runCommand(t, addGroupsSubmitArgs)
 	want := `builds add-groups: beta groups were added to build "build-1", but beta app review submission failed: Missing required information to submit for external testing: Missing requied data.

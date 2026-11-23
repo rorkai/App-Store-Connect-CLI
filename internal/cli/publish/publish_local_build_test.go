@@ -400,6 +400,7 @@ func TestPublishTestFlightUploadReportsStructuredRecoveryResultAfterBetaReviewFa
 		publishRequest{http.MethodGet, "/v1/builds/build-123/app", http.StatusOK, `{"data":{"type":"apps","id":"app-123"}}`},
 		publishRequest{http.MethodGet, "/v1/betaAppLocalizations", http.StatusOK, `{"data":[{"type":"betaAppLocalizations","id":"loc-1","attributes":{"description":"A beta","feedbackEmail":"beta@example.com","locale":"en-US"}}]}`},
 		publishRequest{http.MethodGet, "/v1/betaAppReviewDetails", http.StatusOK, `{"data":[{"type":"betaAppReviewDetails","id":"app-123","attributes":{"contactEmail":"dev@example.com","contactFirstName":"Ada","contactLastName":"Lovelace","contactPhone":"+1 408 555 0100"}}]}`},
+		publishRequest{http.MethodGet, "/v1/builds/build-123/buildBetaDetail", http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_SUBMISSION"}}}`},
 	)
 
 	stdout, _, runErr := runPublishCommand(t, newPublishTestFlightCommand, []string{
