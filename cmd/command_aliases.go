@@ -10,11 +10,13 @@ import (
 
 // readVerbAliases lists, per read verb callers guess, the subcommand names that
 // verb means, in preference order. Callers coming from other CLIs and REST
-// habits try `get` for the command asc names `view`, and `get` or `view` for
-// the few groups whose single-resource read is `info`.
+// habits try `get` for the command asc names `view`, `get` or `view` for the
+// few groups whose single-resource read is `info`, and the shell's `ls` for
+// `list`.
 var readVerbAliases = map[string][]string{
 	"get":  {"view", "info"},
 	"view": {"info"},
+	"ls":   {"list"},
 }
 
 // commandPathAliases maps, per command group, the paths callers guess from
@@ -28,24 +30,36 @@ var commandPathAliases = map[string]map[string][]string{
 		"app-info":              {"apps", "info"},
 		"app-infos":             {"apps", "info"},
 		"availability":          {"pricing", "availability"},
+		"build-uploads":         {"builds", "uploads"},
 		"submissions":           {"review", "submissions"},
 		"version-localizations": {"localizations"},
 	},
 	"asc apps": {
-		"versions": {"versions"},
+		"availability": {"pricing", "availability"},
+		"versions":     {"versions"},
 	},
 	"asc builds": {
 		"beta-groups": {"builds", "groups"},
+		"betagroups":  {"builds", "groups"},
 	},
-	// 5.0.0 removed the v1 subscription localization commands; their v2
-	// replacements are version-scoped and share the localization IDs.
 	"asc subscriptions": {
+		"availability":        {"subscriptions", "pricing", "availability"},
+		"intro-offers":        {"subscriptions", "offers", "introductory"},
+		"introductory-offers": {"subscriptions", "offers", "introductory"},
+		// 5.0.0 removed the v1 subscription localization commands; their v2
+		// replacements are version-scoped and share the localization IDs.
 		"localizations": {"subscriptions", "versions", "localizations"},
+		"prices":        {"subscriptions", "pricing", "prices"},
 	},
 	"asc testflight": {
 		"beta-groups":  {"testflight", "groups"},
 		"beta-testers": {"testflight", "testers"},
 		"builds":       {"builds"},
+	},
+	// Adding a build to a group is adding the group to the build; builds
+	// add-groups also takes the group as --group-id.
+	"asc testflight groups builds": {
+		"add": {"builds", "add-groups"},
 	},
 	"asc versions": {
 		"localizations": {"localizations"},
@@ -267,14 +281,15 @@ func compoundChild(group *ffcli.Command, first, second string) *ffcli.Command {
 // give the group flags and no subcommand: the single-resource read for a
 // resource an app has one of, the list for a collection.
 var groupFlagsLeaf = map[string]string{
-	"asc apps info":               "view",
-	"asc pricing availability":    "view",
-	"asc app-setup availability":  "view",
-	"asc apps info relationships": "view",
-	"asc versions":                "list",
-	"asc builds":                  "list",
-	"asc testflight groups":       "list",
-	"asc review submissions":      "list",
+	"asc apps info":                "view",
+	"asc pricing availability":     "view",
+	"asc app-setup availability":   "view",
+	"asc apps info relationships":  "view",
+	"asc versions":                 "list",
+	"asc builds":                   "list",
+	"asc testflight groups":        "list",
+	"asc testflight groups builds": "list",
+	"asc review submissions":       "list",
 }
 
 // groupViewForFlags returns the leaf groupFlagsLeaf names for group when args,

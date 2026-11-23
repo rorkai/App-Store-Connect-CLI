@@ -391,3 +391,49 @@ func TestConditionalSynonymTargetsExistSomewhere(t *testing.T) {
 		}
 	}
 }
+
+// TestRun_AppFilterNamesTheAppFlag covers the REST filter spellings callers
+// guess for an app (`--filter[app]=X`, `--filter app:X`): the error names the
+// command with `--app X`. Any other filter is left to the usual unknown-flag
+// answer, and so is a command without `--app`.
+func TestRun_AppFilterNamesTheAppFlag(t *testing.T) {
+	tests := []struct {
+		args    []string
+		command string
+		flag    string
+		wantTry string
+	}{
+		{args: []string{"builds", "list", "--filter", "app:1234567890", "--sort", "-uploadedDate"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app 1234567890"},
+		{args: []string{"builds", "list", "--filter[app]=1234567890", "--output", "json"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app 1234567890"},
+		{args: []string{"builds", "list", "--filter[app]", "1234567890"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app 1234567890"},
+		{args: []string{"builds", "list", "--filter=app=com.example.app"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app com.example.app"},
+		{args: []string{"versions", "list", "--filter[app]=1234567890"}, command: "asc versions list", flag: "--filter[app]", wantTry: "asc versions list --app 1234567890"},
+		{args: []string{"builds", "list", "--filter", "processingState:VALID"}, command: "asc builds list", flag: "--filter"},
+		{args: []string{"builds", "list", "--filter", "app:"}, command: "asc builds list", flag: "--filter"},
+		{args: []string{"builds", "groups", "list", "--filter[app]=1234567890"}, command: "asc builds groups list", flag: "--filter[app]"},
+	}
+	for _, test := range tests {
+		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
+			resetReportFlags(t)
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			prefix := "Error: unknown flag `" + test.flag + "` for `" + test.command + "`\n"
+			if test.wantTry == "" {
+				if !strings.HasPrefix(stderr, prefix) || strings.Contains(stderr, test.command+" --app") {
+					t.Fatalf("stderr = %q, want the unknown flag without an --app line", stderr)
+				}
+				return
+			}
+			want := prefix + "Try:\n  " + test.wantTry + "\nFor help:\n  " + test.command + " --help\n"
+			if stderr != want {
+				t.Fatalf("stderr = %q, want %q", stderr, want)
+			}
+		})
+	}
+}

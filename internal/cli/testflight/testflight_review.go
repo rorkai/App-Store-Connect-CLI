@@ -334,6 +334,7 @@ func newTestFlightReviewSubmissionsListCommand(d *shared.Deps) *ffcli.Command {
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to filter")
 	shared.BindFlagAlias(fs, "build", "build-id")
 	appFlag := fs.String("app", "", fmt.Sprintf("App Store Connect app ID, bundle ID, or exact name: without --build-id, list the submissions of its %d most recently uploaded builds; with --build-id, require the build to be this app's", reviewSubmissionsAppBuildsLimit))
+	shared.BindFlagAlias(fs, "app-id", "app")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)

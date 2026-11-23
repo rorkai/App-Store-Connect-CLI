@@ -18,6 +18,7 @@ func newBuildsAddGroupsCommand(d *shared.Deps) *ffcli.Command {
 
 	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	groups := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group IDs or names")
+	shared.BindFlagAlias(fs, "group-id", "group")
 	skipInternal := fs.Bool("skip-internal", false, "Skip internal beta groups instead of adding them")
 	dryRun := fs.Bool("dry-run", false, "Preview beta group assignment without adding groups")
 	submit := fs.Bool("submit", false, "Submit build for beta app review after adding external groups")

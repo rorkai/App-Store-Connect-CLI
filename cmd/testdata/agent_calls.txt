@@ -514,7 +514,7 @@ unknown-command app-store-versions get --id X --output X
 ok apps content-rights edit --app X --uses-third-party-content=X
 ok apps content-rights edit --app X --uses-third-party-content=X --output X
 ok apps get X
-unknown-flag apps info --app-id X --output X
+ok apps info --app-id X --output X
 ok apps info edit --app X --version X --platform X --locale X --keywords X
 ok apps versions list --app X --output X
 ok build-bundles file-sizes list --id X --paginate --output X
@@ -674,9 +674,9 @@ ok app-setup categories set --app X --primary X --output X
 ok app-setup info --help
 ok app-setup info set --app X --content-rights X
 unknown-flag app-setup info set --app X --content-rights X --content-rights-comment X
-unknown-command apps availability view --app X --output X
+ok apps availability view --app X --output X
 ok apps get --app X --json
-unknown-flag apps get --app-id X --output X
+ok apps get --app-id X --output X
 ok apps get X --output X
 unknown-flag apps info edit --app X --locale X --privacy-policy-url X --output X
 ok apps info edit --app X --locale X --support-url X --output X
@@ -871,7 +871,7 @@ ok subscriptions groups versions localizations update --help
 ok subscriptions groups versions view --version-id X --output X
 ok subscriptions list --app X
 ok subscriptions list --group-id X
-unknown-flag subscriptions list --subscription-group-id X --output X
+ok subscriptions list --subscription-group-id X --output X
 ok subscriptions offers --help
 ok subscriptions offers introductory --help
 ok subscriptions offers introductory create --subscription-id X --app X --all-territories --offer-duration X --offer-mode X --number-of-periods X --output X
@@ -916,7 +916,7 @@ ok testflight beta-groups list --app X --output X
 ok testflight beta-testers list --app X --output X
 ok testflight crashes list --app X --sort -createdDate --limit X --output X
 ok testflight crashes log --submission-id X
-unknown-flag testflight groups builds --group X --output X
+ok testflight groups builds --group X --output X
 ok testflight groups create --app X --name X
 ok testflight groups create --app X --name X --public-link-enabled --public-link-limit-enabled --public-link-limit X --feedback-enabled --build-id X --output X
 ok testflight groups edit --id X --public-link-enabled --public-link-limit X --output X
@@ -1014,7 +1014,7 @@ ok apps info view --app X --json
 unknown-command apps info-localizations list --app X --output X
 unknown-flag apps list --app X --output X
 unknown-command apps localizations list --app X --output X
-unknown-command apps ls
+ok apps ls
 unknown-command apps messages --app X --output X
 unknown-command apps pricing view --app X --output X
 unknown-flag apps public prices --bundle-id X --output X
@@ -1039,7 +1039,7 @@ ok apps versions list --help
 ok apps versions list X --output X
 ok apps versions localizations list --app X --version-id X --output X
 ok apps versions update --help
-unknown-flag apps view --app-id X
+ok apps view --app-id X
 unknown-command appstore review messages --json --team X --asc-app-id X
 unknown-command asc --help
 ok availability --app X --output X
@@ -1093,7 +1093,7 @@ unknown-flag builds list --filter[app]=X --limit X --sort -uploadedDate --output
 unknown-flag builds list --query X --query X --query X --output X
 unknown-flag builds list --team X --app-id X --json
 unknown-flag builds list --team X --bundle-id X --json
-unknown-command builds ls --app X --limit X --version X
+ok builds ls --app X --limit X --version X
 unknown-command builds relationships get --help
 unknown-flag builds test-notes create --build-id X --locale X --notes X
 unknown-flag builds test-notes create --build-id X --locale X --whats-new X --confirm
@@ -1236,17 +1236,17 @@ ok submissions get X
 unknown-command submissions-update X --canceled --json
 ok submit cancel --version-id X --json
 unknown-command subs --help
-unknown-command subscriptions availability --help
-unknown-command subscriptions availability view --subscription-id X --output X
+ok subscriptions availability --help
+ok subscriptions availability view --subscription-id X --output X
 unknown-flag subscriptions create --help; X X X --help; X X X X --help
 ok subscriptions get --id X
 unknown-command subscriptions groups subscriptions list --group-id X --output X
 unknown-flag subscriptions groups versions links versions --version-id X --output X
 unknown-command subscriptions images list --subscription-id X
-unknown-flag subscriptions list --subscription-group X --output X
+ok subscriptions list --subscription-group X --output X
 unknown-flag subscriptions localizations --subscription X --output X
 ok subscriptions localizations list --subscription-id X
-unknown-command subscriptions prices list --id X --output X
+unknown-flag subscriptions prices list --id X --output X
 unknown-flag subscriptions pricing --help; X X X X --help; X X X X X --help
 unknown-flag subscriptions pricing availability available-territories --id X --paginate --output X
 unknown-flag subscriptions pricing availability edit --subscription-id X --all-territories --available X --available-in-new-territories X
@@ -1282,7 +1282,7 @@ unknown-flag testflight crashes log --id X --output X
 unknown-flag testflight feedback view --id X
 unknown-flag testflight groups builds --app X --group X
 unknown-command testflight groups builds X --output X
-unknown-command testflight groups builds add --help
+ok testflight groups builds add --help
 unknown-flag testflight groups create --app X --name X --external --output X
 unknown-command testflight groups info --group X --output X X ---; X X X -- X X X X --group X --output X
 unknown-command testflight groups info --id X --output X
@@ -1340,7 +1340,7 @@ unknown-flag versions list --app-version X --output X
 unknown-flag versions list --filter[app]=X --output X
 ok versions localizations update --help
 unknown-flag versions localizations view --version-id X --locale X --output X
-unknown-command versions ls --app X --json
+ok versions ls --app X --json
 unknown-command versions read --version-id X
 unknown-command versions show --version-id X --include X --output X
 unknown-flag versions update --app X --version X --platform X --build X --output X
@@ -1348,3 +1348,24 @@ unknown-flag versions update --version-id X --build-id X --output X
 ok versions view --app X --version X --include X --json
 unknown-command whoami
 unknown-command whoami --json
+ok builds ls --output X
+ok builds ls --app X --platform X --limit X --output X
+ok builds betaGroups list --build-id X --output X
+ok testflight groups builds add --group-id X --build-id X --output X
+ok subscriptions intro-offers list --subscription-id X --output X
+ok subscriptions introductory-offers list --subscription-id X --limit X --output X
+ok subscriptions prices list --subscription-id X --output X
+ok build-uploads list --app X --limit X --output X
+unknown-command review details --app X --json
+ok apps view --app-id X --output X
+ok apps info view --id X --include X --output X
+ok iap versions view --id X --output X
+ok testflight review submissions list --app-id X --output X
+unknown-flag builds list --filter X --sort X --limit X --output X
+unknown-flag builds list --filter[app]=X --output X
+unknown-command versions X --platform X --json
+unknown-command apps info X
+unknown-flag testflight groups testers list --app X --group X --output X
+unknown-flag web privacy catalog --app X --output X
+unknown-flag analytics instances --report-id X --output X
+unknown-command versions info --version-id X --json
