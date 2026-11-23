@@ -266,7 +266,11 @@ func compoundChild(group *ffcli.Command, first, second string) *ffcli.Command {
 	first, second = strings.ToLower(first), strings.ToLower(second)
 	// Also the verb-noun order (`builds groups add` for `builds add-groups`).
 	candidates := []string{first + "-" + second, second + "-" + first}
-	if _, ok := readVerbAliases[second]; ok || second == "view" {
+	// A guessed read verb names the leaf its aliases mean: `ls` the
+	// first-list leaf, `get` and `view` the single-resource read.
+	if targets, ok := readVerbAliases[second]; ok && slices.Contains(targets, "list") {
+		candidates = append(candidates, first+"-list")
+	} else if ok || second == "view" {
 		candidates = append(candidates, first+"-get", first+"-view")
 	}
 	for _, name := range candidates {

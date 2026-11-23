@@ -35,6 +35,7 @@ func TestResolveCommandAliasesRewritesOnlyUnknownReadVerbs(t *testing.T) {
 		{name: "removed v1 group to its v2 replacement", args: "subscriptions localizations list --subscription-id S", want: "subscriptions versions localizations list --subscription-id S"},
 		{name: "split hyphenated verb", args: "review details create --version-id V", want: "review details-create --version-id V"},
 		{name: "split hyphenated read verb", args: "review details view --version-id V", want: "review details-get --version-id V"},
+		{name: "split hyphenated list verb", args: "review attachments ls --review-detail X", want: "review attachments-list --review-detail X"},
 		{name: "verb after a real subgroup", args: "review submissions get --id S", want: "review submissions-get --id S"},
 		{name: "verb after a real subgroup that has it", args: "review submissions list --app A", want: "review submissions list --app A"},
 		{name: "verb split before its noun", args: "builds beta-groups add --build-id B --group G", want: "builds add-groups --build-id B --group G"},
