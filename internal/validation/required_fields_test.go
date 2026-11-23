@@ -3,7 +3,7 @@ package validation
 import "testing"
 
 func TestRequiredFieldChecks_MissingPrimaryLocale(t *testing.T) {
-	checks := requiredFieldChecks("en-US", "1.2.3", "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
+	checks := requiredFieldChecks("en-US", "1.2.3", nil, "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
 		{Locale: "fr-FR", Description: "desc", Keywords: "kw", SupportURL: "https://example.com"},
 	}, []AppInfoLocalization{
 		{Locale: "fr-FR", Name: "Name", PrivacyPolicyURL: "https://example.com/privacy"},
@@ -15,7 +15,7 @@ func TestRequiredFieldChecks_MissingPrimaryLocale(t *testing.T) {
 }
 
 func TestRequiredFieldChecks_MissingFields(t *testing.T) {
-	checks := requiredFieldChecks("", "1.2.3", "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
+	checks := requiredFieldChecks("", "1.2.3", nil, "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
 		{Locale: "en-US"},
 	}, []AppInfoLocalization{
 		{Locale: "en-US"},
@@ -36,7 +36,7 @@ func TestRequiredFieldChecks_MissingFields(t *testing.T) {
 }
 
 func TestRequiredFieldChecks_SkipsWhatsNewOnInitialRelease(t *testing.T) {
-	checks := requiredFieldChecks("", "1.0", "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
+	checks := requiredFieldChecks("", "1.0", nil, "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
 		{Locale: "en-US", Description: "desc", Keywords: "kw", SupportURL: "https://example.com"},
 	}, []AppInfoLocalization{
 		{Locale: "en-US", Name: "Name", PrivacyPolicyURL: "https://example.com/privacy"},
@@ -48,7 +48,7 @@ func TestRequiredFieldChecks_SkipsWhatsNewOnInitialRelease(t *testing.T) {
 }
 
 func TestRequiredFieldChecks_WarnsWhatsNewOnUpdateRelease(t *testing.T) {
-	checks := requiredFieldChecks("", "1.0.1", "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
+	checks := requiredFieldChecks("", "1.0.1", nil, "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
 		{Locale: "en-US", Description: "desc", Keywords: "kw", SupportURL: "https://example.com"},
 	}, []AppInfoLocalization{
 		{Locale: "en-US", Name: "Name", PrivacyPolicyURL: "https://example.com/privacy"},
@@ -60,7 +60,7 @@ func TestRequiredFieldChecks_WarnsWhatsNewOnUpdateRelease(t *testing.T) {
 }
 
 func TestRequiredFieldChecks_FailsForNonEditableVersionState(t *testing.T) {
-	checks := requiredFieldChecks("", "1.2.3", "WAITING_FOR_REVIEW", false, []VersionLocalization{
+	checks := requiredFieldChecks("", "1.2.3", nil, "WAITING_FOR_REVIEW", false, []VersionLocalization{
 		{Locale: "en-US", Description: "desc", Keywords: "kw", SupportURL: "https://example.com"},
 	}, []AppInfoLocalization{
 		{Locale: "en-US", Name: "Name", PrivacyPolicyURL: "https://example.com/privacy"},
@@ -72,7 +72,7 @@ func TestRequiredFieldChecks_FailsForNonEditableVersionState(t *testing.T) {
 }
 
 func TestRequiredFieldChecks_AllowsReadyForReviewVersionState(t *testing.T) {
-	checks := requiredFieldChecks("", "1.2.3", "READY_FOR_REVIEW", false, []VersionLocalization{
+	checks := requiredFieldChecks("", "1.2.3", nil, "READY_FOR_REVIEW", false, []VersionLocalization{
 		{Locale: "en-US", Description: "desc", Keywords: "kw", SupportURL: "https://example.com"},
 	}, []AppInfoLocalization{
 		{Locale: "en-US", Name: "Name", PrivacyPolicyURL: "https://example.com/privacy"},
@@ -84,7 +84,7 @@ func TestRequiredFieldChecks_AllowsReadyForReviewVersionState(t *testing.T) {
 }
 
 func TestRequiredFieldChecks_WarnsWhenPrivacyPolicyMissing(t *testing.T) {
-	checks := requiredFieldChecks("", "1.2.3", "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
+	checks := requiredFieldChecks("", "1.2.3", nil, "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
 		{Locale: "en-US", Description: "desc", Keywords: "kw", SupportURL: "https://example.com"},
 	}, []AppInfoLocalization{
 		{Locale: "en-US", Name: "Name", Subtitle: "Subtitle"},
@@ -96,7 +96,7 @@ func TestRequiredFieldChecks_WarnsWhenPrivacyPolicyMissing(t *testing.T) {
 }
 
 func TestRequiredFieldChecks_SkipsPrivacyPolicyWarning_WhenSubscriptionsPresent(t *testing.T) {
-	checks := requiredFieldChecks("", "1.2.3", "PREPARE_FOR_SUBMISSION", true,
+	checks := requiredFieldChecks("", "1.2.3", nil, "PREPARE_FOR_SUBMISSION", true,
 		[]VersionLocalization{
 			{Locale: "en-US", Description: "desc", Keywords: "kw", SupportURL: "https://example.com"},
 		}, []AppInfoLocalization{
@@ -105,5 +105,34 @@ func TestRequiredFieldChecks_SkipsPrivacyPolicyWarning_WhenSubscriptionsPresent(
 
 	if hasCheckID(checks, "metadata.recommended.privacy_policy_url") {
 		t.Fatal("should suppress privacy policy warning when subscriptions/IAPs trigger the error")
+	}
+}
+
+func TestRequiredFieldChecks_WhatsNewFollowsPriorReleaseOverVersionString(t *testing.T) {
+	released := true
+	neverReleased := false
+	tests := []struct {
+		name            string
+		versionString   string
+		hasPriorRelease *bool
+		wantWarning     bool
+	}{
+		// First App Store version numbered other than 1.0 (issue #4043).
+		{name: "first release numbered 1.3", versionString: "1.3", hasPriorRelease: &neverReleased, wantWarning: false},
+		{name: "update after a released version", versionString: "1.3", hasPriorRelease: &released, wantWarning: true},
+		// A failed lookup keeps the version-string fallback.
+		{name: "unknown history falls back for 1.0", versionString: "1.0", hasPriorRelease: nil, wantWarning: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			checks := requiredFieldChecks("", tt.versionString, tt.hasPriorRelease, "PREPARE_FOR_SUBMISSION", false, []VersionLocalization{
+				{Locale: "en-US", Description: "desc", Keywords: "kw", SupportURL: "https://example.com"},
+			}, []AppInfoLocalization{
+				{Locale: "en-US", Name: "Name", PrivacyPolicyURL: "https://example.com/privacy"},
+			})
+			if got := hasCheckID(checks, "metadata.required.whats_new"); got != tt.wantWarning {
+				t.Fatalf("whatsNew warning = %v, want %v", got, tt.wantWarning)
+			}
+		})
 	}
 }

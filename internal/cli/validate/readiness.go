@@ -114,6 +114,7 @@ func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts Readines
 	}
 
 	var customProductPageLocalizations []validation.CustomProductPageLocalization
+	var hasPriorRelease *bool
 	customProductPageKeywordsSkipReason := ""
 
 	if err := runReadinessTasks(
@@ -273,6 +274,27 @@ func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts Readines
 			customProductPageLocalizations = fetched
 			return nil
 		},
+		func(taskCtx context.Context) error {
+			if !needsReleaseHistory(versionData) {
+				return nil
+			}
+			released, fetchErr := doReadinessRequest(taskCtx, func(requestCtx context.Context) (bool, error) {
+				return shared.AppUpdateRequiresWhatsNew(requestCtx, client, strings.TrimSpace(opts.AppID), platform)
+			})
+			if fetchErr != nil {
+				// The What's New check is advisory, so any failure other than
+				// cancellation keeps the version-string fallback.
+				if taskCtx.Err() != nil {
+					return taskCtx.Err()
+				}
+				if errors.Is(fetchErr, context.Canceled) {
+					return fetchErr
+				}
+				return nil
+			}
+			hasPriorRelease = &released
+			return nil
+		},
 	); err != nil {
 		return validation.Report{}, err
 	}
@@ -341,6 +363,7 @@ func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts Readines
 		VersionID:                   resolvedVersionID,
 		VersionString:               versionData.response.Data.Attributes.VersionString,
 		VersionState:                shared.ResolveAppStoreVersionState(versionData.response.Data.Attributes),
+		HasPriorRelease:             hasPriorRelease,
 		Platform:                    platform,
 		PrimaryLocale:               appInfoData.app.Attributes.PrimaryLocale,
 		VersionLocalizations:        versionLocalizations,
@@ -514,4 +537,19 @@ func readinessAvailabilitySkipReason(err error) (string, bool) {
 		return "Review app availability in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints could not be reached", true
 	}
 	return "", false
+}
+
+// needsReleaseHistory reports whether the What's New check needs the app's
+// release history: a version string other than "1.0" with an empty What's New
+// on some localization. "1.0" keeps its version-string answer without a read.
+func needsReleaseHistory(versionData versionReadinessData) bool {
+	if versionData.response == nil || validation.IsInitialReleaseVersionString(versionData.response.Data.Attributes.VersionString) {
+		return false
+	}
+	for _, loc := range versionData.localizations {
+		if strings.TrimSpace(loc.Attributes.WhatsNew) == "" {
+			return true
+		}
+	}
+	return false
 }

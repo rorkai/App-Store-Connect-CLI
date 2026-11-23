@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func requiredFieldChecks(primaryLocale string, versionString string, versionState string, hasActiveMonetization bool, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
+func requiredFieldChecks(primaryLocale string, versionString string, hasPriorRelease *bool, versionState string, hasActiveMonetization bool, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
 	var checks []CheckResult
 
 	normalizedState := strings.ToUpper(strings.TrimSpace(versionState))
@@ -50,11 +50,10 @@ func requiredFieldChecks(primaryLocale string, versionString string, versionStat
 		}
 	}
 
-	// Apple doesn't support a "What's New" section on initial App Store releases.
-	// In practice, these initial releases commonly use versionString "1.0" (or
-	// equivalent like "1.0.0"), and attempting to set `whatsNew` is rejected by
-	// the API. Avoid warning users for an uneditable field.
-	skipWhatsNew := isInitialReleaseVersionString(versionString)
+	// Apple doesn't support a "What's New" section on initial App Store releases,
+	// and attempting to set `whatsNew` is rejected by the API. Avoid warning
+	// users for an uneditable field.
+	skipWhatsNew := whatsNewNotApplicable(versionString, hasPriorRelease)
 
 	for _, loc := range versionLocs {
 		if strings.TrimSpace(loc.Description) == "" {
@@ -191,7 +190,21 @@ func hasLocaleAppInfo(localizations []AppInfoLocalization, locale string) bool {
 	return false
 }
 
-func isInitialReleaseVersionString(versionString string) bool {
+// whatsNewNotApplicable reports whether a version is the app's initial App
+// Store release, which has no "What's New". hasPriorRelease is whether the app
+// already has a released version on this platform; when it is known, it
+// decides, because a first release can carry any version number. When it is
+// nil, the versionString "1.0" (or equivalent like "1.0.0") is the fallback.
+func whatsNewNotApplicable(versionString string, hasPriorRelease *bool) bool {
+	if hasPriorRelease != nil {
+		return !*hasPriorRelease
+	}
+	return IsInitialReleaseVersionString(versionString)
+}
+
+// IsInitialReleaseVersionString reports whether versionString is "1.0" or an
+// equivalent like "1.0.0", the usual number of an initial App Store release.
+func IsInitialReleaseVersionString(versionString string) bool {
 	trimmed := strings.TrimSpace(versionString)
 	if trimmed == "" {
 		return false

@@ -192,6 +192,10 @@ type Input struct {
 	// BuildSDKName is the binary's DTSDKName, empty when no binary was
 	// inspected.
 	BuildSDKName string
+	// HasPriorRelease reports whether the app already has a released App Store
+	// version on this platform. It is nil when the history was not read, and
+	// the What's New check then falls back to the version string.
+	HasPriorRelease *bool
 	// Now is the time date-dependent checks read; zero means the current time.
 	Now time.Time
 }
