@@ -7,7 +7,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -296,11 +298,25 @@ func TestGetAllRatings_Aggregation(t *testing.T) {
 		"us": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":4.0,"userRatingCount":100}]}`,
 		"gb": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":5.0,"userRatingCount":50}]}`,
 		"de": `{"resultCount":0,"results":[]}`, // Not available in Germany
+		// Listed in Japan without ratings: no histogram request should follow.
+		"jp": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":0,"userRatingCount":0}]}`,
 		// Morocco is outside the original 115 histogram countries; its rating must still count.
 		"ma": `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test App","averageUserRating":3.0,"userRatingCount":3}]}`,
 	}
 
+	var (
+		requestsMu     sync.Mutex
+		lookupCount    int
+		histogramPaths []string
+	)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestsMu.Lock()
+		if r.URL.Path == "/lookup" {
+			lookupCount++
+		} else {
+			histogramPaths = append(histogramPaths, r.URL.Path)
+		}
+		requestsMu.Unlock()
 		if r.URL.Path == "/lookup" {
 			country := r.URL.Query().Get("country")
 			if country == "fr" {
@@ -361,6 +377,17 @@ func TestGetAllRatings_Aggregation(t *testing.T) {
 	}
 	if global.ByCountry[2].Country != "MA" {
 		t.Errorf("Third country = %q, want MA", global.ByCountry[2].Country)
+	}
+
+	// Every storefront is looked up, but only storefronts whose lookup reports
+	// ratings get a histogram request.
+	if lookupCount != len(AllPublicCountries()) {
+		t.Errorf("lookup requests = %d, want %d", lookupCount, len(AllPublicCountries()))
+	}
+	slices.Sort(histogramPaths)
+	wantHistogramPaths := []string{"/gb/customer-reviews/id123", "/ma/customer-reviews/id123", "/us/customer-reviews/id123"}
+	if !slices.Equal(histogramPaths, wantHistogramPaths) {
+		t.Errorf("histogram requests = %v, want %v", histogramPaths, wantHistogramPaths)
 	}
 }
 

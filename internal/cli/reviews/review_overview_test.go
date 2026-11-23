@@ -647,3 +647,79 @@ func TestReviewDoctorUsesTimedContextForReadinessReport(t *testing.T) {
 		t.Fatal("expected readiness report builder to be called")
 	}
 }
+
+func TestSelectReusableDraftReviewSubmission(t *testing.T) {
+	submission := func(id string, state asc.ReviewSubmissionState, versionID string) asc.ReviewSubmissionResource {
+		resource := asc.ReviewSubmissionResource{
+			ID:         id,
+			Attributes: asc.ReviewSubmissionAttributes{SubmissionState: state},
+		}
+		if versionID != "" {
+			resource.Relationships = &asc.ReviewSubmissionRelationships{
+				AppStoreVersionForReview: &asc.Relationship{
+					Data: asc.ResourceData{ID: versionID, Type: asc.ResourceTypeAppStoreVersions},
+				},
+			}
+		}
+		return resource
+	}
+
+	tests := []struct {
+		name        string
+		submissions []asc.ReviewSubmissionResource
+		versionID   string
+		want        string
+	}{
+		{
+			name: "empty draft is reused",
+			submissions: []asc.ReviewSubmissionResource{
+				submission("complete-1", asc.ReviewSubmissionStateComplete, "ver-1"),
+				submission("draft-1", asc.ReviewSubmissionStateReadyForReview, ""),
+			},
+			versionID: "ver-1",
+			want:      "draft-1",
+		},
+		{
+			name: "draft holding the version wins over an empty draft",
+			submissions: []asc.ReviewSubmissionResource{
+				submission("draft-empty", asc.ReviewSubmissionStateReadyForReview, ""),
+				submission("draft-ver", asc.ReviewSubmissionStateReadyForReview, "ver-1"),
+			},
+			versionID: "ver-1",
+			want:      "draft-ver",
+		},
+		{
+			name: "draft for another version is not reused",
+			submissions: []asc.ReviewSubmissionResource{
+				submission("draft-other", asc.ReviewSubmissionStateReadyForReview, "ver-2"),
+			},
+			versionID: "ver-1",
+			want:      "",
+		},
+		{
+			name: "submissions past the draft state are ignored",
+			submissions: []asc.ReviewSubmissionResource{
+				submission("waiting-1", asc.ReviewSubmissionStateWaitingForReview, ""),
+				submission("unresolved-1", asc.ReviewSubmissionStateUnresolvedIssues, "ver-1"),
+			},
+			versionID: "ver-1",
+			want:      "",
+		},
+		{
+			name: "no version selected",
+			submissions: []asc.ReviewSubmissionResource{
+				submission("draft-1", asc.ReviewSubmissionStateReadyForReview, ""),
+			},
+			versionID: "",
+			want:      "",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := selectReusableDraftReviewSubmission(test.submissions, test.versionID); got != test.want {
+				t.Fatalf("selectReusableDraftReviewSubmission() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}

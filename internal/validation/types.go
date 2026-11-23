@@ -104,6 +104,10 @@ type CheckResult struct {
 	ResourceType string      `json:"resourceType,omitempty"`
 	ResourceID   string      `json:"resourceId,omitempty"`
 	Resolution   *Resolution `json:"resolution,omitempty"`
+
+	// displayType is the screenshot display type a screenshot-set finding is
+	// about, so its fix command can name the set's device type.
+	displayType string
 }
 
 // Summary aggregates check counts by severity.

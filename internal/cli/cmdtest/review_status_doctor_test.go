@@ -309,6 +309,255 @@ func TestReviewStatusExplainsCompleteSubmissionWithOnlyRemovedItems(t *testing.T
 	}
 }
 
+func TestReviewStatusPointsCompleteSubmissionWithOnlyRemovedItemsAtDraft(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{
+					"platform":"IOS",
+					"versionString":"1.2.3",
+					"appVersionState":"DEVELOPER_REJECTED",
+					"createdDate":"2026-03-15T00:00:00Z"
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-1",
+			"attributes":{"contactEmail":"dev@example.com"}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-1",
+				"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
+					}
+				}
+			},
+			{
+				"type":"reviewSubmissions",
+				"id":"draft-1",
+				"attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},
+				"relationships":{
+					"appStoreVersionForReview":{"data":null}
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=state,appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissionItems",
+				"id":"item-1",
+				"attributes":{"state":"REMOVED"},
+				"relationships":{
+					"appStoreVersion":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
+					},
+					"reviewSubmission":{
+						"data":{"type":"reviewSubmissions","id":"review-sub-1"}
+					}
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
+
+	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/draft-1/items"}}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if itemRequests := countStatusRequests(reg, "/v1/reviewSubmissions/review-sub-1/items"); itemRequests != 1 {
+		t.Fatalf("expected 1 review submission item request, got %d", itemRequests)
+	}
+	if draftItemRequests := countStatusRequests(reg, "/v1/reviewSubmissions/draft-1/items"); draftItemRequests != 1 {
+		t.Fatalf("expected 1 draft item request, got %d", draftItemRequests)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+	if payload["reviewState"] != "COMPLETE" {
+		t.Fatalf("expected reviewState COMPLETE, got %v", payload["reviewState"])
+	}
+	wantNextAction := "Reuse draft review submission \"draft-1\": run `asc review items add --submission \"draft-1\" --item-type appStoreVersions --item-id \"ver-1\" --if-exists skip`, then `asc review submissions-submit --id \"draft-1\" --confirm`."
+	if payload["nextAction"] != wantNextAction {
+		t.Fatalf("expected draft reuse next action, got %v", payload["nextAction"])
+	}
+
+	blockers, ok := payload["blockers"].([]any)
+	if !ok {
+		t.Fatalf("expected blockers array, got %T", payload["blockers"])
+	}
+	if len(blockers) == 0 {
+		t.Fatal("expected stale submission blocker")
+	}
+
+	found := false
+	for _, blocker := range blockers {
+		if strings.Contains(blocker.(string), "no longer contains active review items") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected stale submission blocker in %v", blockers)
+	}
+}
+
+func TestReviewStatusDoesNotPointAtDraftHoldingOtherItems(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{
+					"platform":"IOS",
+					"versionString":"1.2.3",
+					"appVersionState":"DEVELOPER_REJECTED",
+					"createdDate":"2026-03-15T00:00:00Z"
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-1",
+			"attributes":{"contactEmail":"dev@example.com"}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-1",
+				"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
+					}
+				}
+			},
+			{
+				"type":"reviewSubmissions",
+				"id":"draft-1",
+				"attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"},
+				"relationships":{
+					"appStoreVersionForReview":{"data":null}
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=state,appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissionItems",
+				"id":"item-1",
+				"attributes":{"state":"REMOVED"},
+				"relationships":{
+					"appStoreVersion":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
+					},
+					"reviewSubmission":{
+						"data":{"type":"reviewSubmissions","id":"review-sub-1"}
+					}
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
+
+	reg.Register(asctest.GET("/v1/reviewSubmissions/draft-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissionItems",
+				"id":"draft-item-1",
+				"relationships":{
+					"appCustomProductPageVersion":{
+						"data":{"type":"appCustomProductPageVersions","id":"cpp-version-1"}
+					}
+				}
+			}
+		],
+		"links":{"self":"/v1/reviewSubmissions/draft-1/items"}
+	}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if itemRequests := countStatusRequests(reg, "/v1/reviewSubmissions/review-sub-1/items"); itemRequests != 1 {
+		t.Fatalf("expected 1 review submission item request, got %d", itemRequests)
+	}
+	if draftItemRequests := countStatusRequests(reg, "/v1/reviewSubmissions/draft-1/items"); draftItemRequests != 1 {
+		t.Fatalf("expected 1 draft item request, got %d", draftItemRequests)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+	if payload["reviewState"] != "COMPLETE" {
+		t.Fatalf("expected reviewState COMPLETE, got %v", payload["reviewState"])
+	}
+	wantNextAction := "Draft review submission \"draft-1\" holds other review items, so do not submit it for this version: run `asc review submit --app \"123456789\" --version-id \"ver-1\" --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it holds nothing but this version and otherwise creates a new submission."
+	if payload["nextAction"] != wantNextAction {
+		t.Fatalf("expected review submit next action, got %v", payload["nextAction"])
+	}
+
+	blockers, ok := payload["blockers"].([]any)
+	if !ok {
+		t.Fatalf("expected blockers array, got %T", payload["blockers"])
+	}
+	if len(blockers) == 0 {
+		t.Fatal("expected stale submission blocker")
+	}
+
+	found := false
+	for _, blocker := range blockers {
+		if strings.Contains(blocker.(string), "no longer contains active review items") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected stale submission blocker in %v", blockers)
+	}
+}
+
 func TestReviewStatusIgnoresUnrelatedActiveSubmissionItems(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -678,7 +927,7 @@ func TestReviewStatusPaginatesVersionsBeforeSelectingLatestTarget(t *testing.T) 
 			"attributes":{"contactEmail":"dev@example.com"}
 		}
 	}`))
-	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/draft-1/items"}}`))
 
 	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "status", "--app", "123456789")
 	if err != nil {

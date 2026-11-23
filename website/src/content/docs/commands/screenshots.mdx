@@ -454,6 +454,20 @@ asc screenshots upload --app "123456789" \
   --device-type "IPHONE_65"
 ```
 
+**iPhone Duo:**
+
+`--device-type "IPHONE_DUO"` uploads iPhone Duo screenshots the same way as
+any other device type, including `--locale` and `--replace`. App Store Connect
+keeps them in an `APP_IPHONE_DUO` screenshot set, so `--asset-library` is not
+needed:
+
+```bash
+asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" \
+  --path "./screenshots/duo" \
+  --device-type "IPHONE_DUO" \
+  --replace --confirm
+```
+
 ### Upload Through the Asset Library
 
 Apple has deprecated screenshot sets in favor of the Asset Library, without
@@ -513,15 +527,29 @@ Remove screenshots from a version localization:
 asc screenshots delete --id "SCREENSHOT_ID" --confirm
 ```
 
+Deleting the last screenshot in a set leaves the empty set behind, and
+`asc validate` and `asc review doctor` block on it
+(`screenshots.required.set_nonempty`). To drop the set itself, for example so
+App Store Connect uses a larger display size's screenshots instead:
+
+```bash
+asc localizations screenshot-sets delete --id "SET_ID" --confirm
+```
+
 App Store Connect keeps the Asset Library image a screenshot was uploaded as,
 under the same ID, after the screenshot is deleted, and `--replace` leaves those
 images behind too. Add `--prune-library` to delete the image as well. It is
-deleted only when no other placement uses it, and the receipt's
+deleted only when Apple lists no placement for it, and the receipt's
 `libraryImage.state` says `deleted`, `kept` or `absent`:
 
 ```bash
 asc screenshots delete --id "SCREENSHOT_ID" --confirm --prune-library
 ```
+
+`kept` means Apple still lists a placement for the image. Right after the
+delete that can be the placement just removed; check again later with
+`asc asset-library images placements --id "SCREENSHOT_ID"` before deleting the
+image with `asc asset-library images delete`.
 
 ## Complete Example Workflow
 

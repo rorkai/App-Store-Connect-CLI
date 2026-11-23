@@ -21,7 +21,8 @@ type webReviewShowThreadOptions struct {
 
 // findReviewThreadUnderApp returns the thread only when it appears exactly
 // once among the app's threads, so an app selector cannot be paired with
-// another app's thread.
+// another app's thread. requireWebReviewThreadUnderApp applies the same check
+// before Resolution Center writes.
 func findReviewThreadUnderApp(threads []webcore.ResolutionCenterThread, command, appID, threadID string) (webcore.ResolutionCenterThread, error) {
 	var found webcore.ResolutionCenterThread
 	matching := 0
@@ -32,11 +33,7 @@ func findReviewThreadUnderApp(threads []webcore.ResolutionCenterThread, command,
 		}
 	}
 	if matching == 0 {
-		return webcore.ResolutionCenterThread{}, shared.WithDiagnostic(
-			fmt.Errorf("%s refused: thread %q was not found under app %q", command, threadID, appID),
-			shared.DiagnosticResourceNotFound,
-			"--thread-id",
-		)
+		return webcore.ResolutionCenterThread{}, fmt.Errorf("%s refused: thread %q was not found under app %q", command, threadID, appID)
 	}
 	if matching > 1 {
 		return webcore.ResolutionCenterThread{}, fmt.Errorf("%s refused: thread %q appeared more than once under app %q", command, threadID, appID)

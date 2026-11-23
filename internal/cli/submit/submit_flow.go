@@ -231,6 +231,20 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 		err                error
 	)
 	if !opts.DryRun {
+		unresolvedCtx, unresolvedCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
+		unresolvedSubmissionID, unresolvedErr := findUnresolvedSubmissionForVersion(unresolvedCtx, client, appID, platform, versionID)
+		unresolvedCancel()
+		if unresolvedErr != nil {
+			return result, fmt.Errorf("submit review: query unresolved review submissions: %w", unresolvedErr)
+		}
+		if unresolvedSubmissionID != "" {
+			buildToAttach := ""
+			if opts.EnsureBuildAttached {
+				buildToAttach = strings.TrimSpace(opts.BuildID)
+			}
+			return result, unresolvedSubmissionError(unresolvedSubmissionID, versionID, buildToAttach)
+		}
+
 		preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
 		preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
 		preparationCancel()
@@ -341,4 +355,71 @@ func submitResolvedVersionPhaseContext(ctx context.Context, requestTimeout time.
 	}
 
 	return shared.ContextWithTimeoutDuration(shared.ContextWithoutTimeout(ctx), requestTimeout)
+}
+
+// findUnresolvedSubmissionForVersion returns the UNRESOLVED_ISSUES review
+// submission that still holds versionID, if any. App Review rejected that
+// submission, and the version stays in it until the developer resolves the
+// rejected items and resubmits it, or cancels it.
+func findUnresolvedSubmissionForVersion(ctx context.Context, client *asc.Client, appID, platform, versionID string) (string, error) {
+	submissions, err := shared.FetchAllReviewSubmissions(
+		ctx,
+		client,
+		appID,
+		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateUnresolvedIssues)}),
+		asc.WithReviewSubmissionsPlatforms([]string{platform}),
+		asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
+		asc.Limit[asc.ReviewSubmissionsOption](200),
+	)
+	if err != nil {
+		return "", err
+	}
+	targetVersionID := strings.TrimSpace(versionID)
+	for _, submission := range submissions {
+		if submission.Attributes.SubmissionState != asc.ReviewSubmissionStateUnresolvedIssues {
+			continue
+		}
+		if submission.Relationships == nil || submission.Relationships.AppStoreVersionForReview == nil {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(submission.Relationships.AppStoreVersionForReview.Data.ID), targetVersionID) {
+			return strings.TrimSpace(submission.ID), nil
+		}
+	}
+	return "", nil
+}
+
+// unresolvedSubmissionError stops a submit before it creates a review
+// submission that cannot take the version, and names the two ways forward.
+// The check runs before the requested build is attached, so when buildID is
+// set the hint attaches it first; otherwise the resubmit would send the build
+// App Review rejected.
+func unresolvedSubmissionError(submissionID, versionID, buildID string) error {
+	attachStep := ""
+	if buildID != "" {
+		attachStep = fmt.Sprintf(
+			"attach build %q with `asc versions attach-build --version-id %q --build-id %q` (it was not attached), ",
+			buildID,
+			strings.TrimSpace(versionID),
+			buildID,
+		)
+	}
+	return &shared.HintedError{
+		Err: shared.WithDiagnostic(
+			fmt.Errorf(
+				"submit review: version %s is still in review submission %s, which App Review returned with unresolved issues; no new submission was created",
+				strings.TrimSpace(versionID),
+				submissionID,
+			),
+			shared.DiagnosticResourceConflict,
+			"",
+		),
+		Hint: fmt.Sprintf(
+			"To resubmit it, %slist its items with `asc review items list --submission %q`, mark each REJECTED item resolved with `asc review items update --id \"ITEM_ID\" --resolved true`, then run `asc review submissions-submit --id %q --confirm`. To change the version first, cancel it with `asc review submissions-cancel --id %q --confirm`, then submit again.",
+			attachStep,
+			submissionID,
+			submissionID,
+			submissionID,
+		),
+	}
 }

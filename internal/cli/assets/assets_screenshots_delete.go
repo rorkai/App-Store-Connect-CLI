@@ -28,11 +28,19 @@ func NewAssetsScreenshotsDeleteCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Delete a screenshot by ID.",
 		LongHelp: `Delete a screenshot by ID.
 
+Deleting the last screenshot in a set leaves the empty set behind, which
+asc validate and asc review doctor report as screenshots.required.set_nonempty.
+To remove the set itself, for example so App Store Connect uses a larger
+display size's screenshots instead, run:
+  asc localizations screenshot-sets delete --id "SET_ID" --confirm
+
 Deleting a screenshot removes it from its screenshot set, but App Store Connect
 keeps the Asset Library image it was uploaded as, under the same ID. Add
---prune-library to delete that image too. The image is deleted only when no
-other placement uses it; otherwise it is kept and reported as "kept". A
-screenshot with no matching library image is reported as "absent".
+--prune-library to delete that image too. The image is deleted only when Apple
+lists no placement for it; otherwise it is kept and reported as "kept". Right
+after the delete, the listed placement can be the one just removed, so rerun
+the check later with asc asset-library images placements --id SCREENSHOT_ID.
+A screenshot with no matching library image is reported as "absent".
 
 Examples:
   asc screenshots delete --id "SCREENSHOT_ID" --confirm
