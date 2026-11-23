@@ -53,14 +53,6 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			deps: true,
 		},
 		{
-			name: "review details-get --version-id",
-			args: []string{"review", "details-get", "--version-id", "PRIVATE_VALUE"},
-			deps: true,
-			want: "Error: unknown flag `--version-id` for `asc review details-get`\n" +
-				"Try:\n  --id\n" +
-				"For help:\n  asc review details-get --help\n",
-		},
-		{
 			name: "profiles list --bundle-id",
 			args: []string{"profiles", "list", "--bundle-id", "PRIVATE_VALUE"},
 			want: "Error: unknown flag `--bundle-id` for `asc profiles list`\n" +

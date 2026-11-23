@@ -31,24 +31,52 @@ const (
 func newReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("details-get", flag.ExitOnError)
 
-	detailID := shared.BindResourceIDFlag(fs, "id", "appStoreReviewDetails", "App Store review detail ID (required)")
+	detailID := shared.BindResourceIDFlag(fs, "id", "appStoreReviewDetails", "App Store review detail ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID: get that version's review detail")
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact name: get the review detail of its editable (else live) version, or require --version-id to be this app's")
+	platform := fs.String("platform", "", "Platform of the version --app picks when the app has several: IOS, MAC_OS, TV_OS, VISION_OS")
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "details-get",
-		ShortUsage: "asc review details-get --id \"DETAIL_ID\"",
-		ShortHelp:  "Get an App Store review detail by ID.",
-		LongHelp: `Get an App Store review detail by ID.
+		ShortUsage: "asc review details-get --id \"DETAIL_ID\" | --version-id \"VERSION_ID\" | --app \"APP_ID\"",
+		ShortHelp:  "Get an App Store review detail by ID, version, or app.",
+		LongHelp: `Get an App Store review detail by ID, by its App Store version, or for an
+app's editable version (its live version when none is editable).
+
+With --version-id, --app also checks that the version belongs to the app.
 
 Examples:
-  asc review details-get --id "DETAIL_ID"`,
+  asc review details-get --id "DETAIL_ID"
+  asc review details-get --version-id "VERSION_ID"
+  asc review details-get --app "APP_ID"
+  asc review details-get --app "APP_ID" --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
-			if detailValue == "" {
+			versionValue := strings.TrimSpace(*versionID)
+			appValue := strings.TrimSpace(*appID)
+			platformValue := strings.TrimSpace(*platform)
+			if detailValue == "" && versionValue == "" && appValue == "" {
 				return d.RequiredFlag("--id")
+			}
+			if detailValue != "" && versionValue != "" {
+				return shared.WithDiagnostic(d.UsageError("--id and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "--version-id")
+			}
+			if detailValue != "" && appValue != "" {
+				return shared.WithDiagnostic(d.UsageError("--app selects the review detail through the app's version; pass --app with or without --version-id, not with --id"), shared.DiagnosticConflictingInput, "--app")
+			}
+			if platformValue != "" {
+				if appValue == "" || versionValue != "" {
+					return shared.WithDiagnostic(d.UsageError("--platform picks the version for --app; pass it with --app and without --version-id"), shared.DiagnosticConflictingInput, "--platform")
+				}
+				normalized, err := shared.NormalizeAppStoreVersionPlatform(platformValue)
+				if err != nil {
+					return shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
+				}
+				platformValue = normalized
 			}
 
 			client, err := d.Client()
@@ -59,13 +87,36 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppStoreReviewDetail(requestCtx, detailValue)
-			if err != nil {
-				return fmt.Errorf("review details-get: failed to fetch: %w", err)
+			if detailValue != "" {
+				resp, err := client.GetAppStoreReviewDetail(requestCtx, detailValue)
+				if err != nil {
+					return fmt.Errorf("review details-get: failed to fetch: %w", err)
+				}
+
+				shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
+				return d.PrintOutput(presentableReviewDetail(resp, *includeSensitive), *output.Output, *output.Pretty)
 			}
 
-			shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
-			return d.PrintOutput(presentableReviewDetail(resp, *includeSensitive), *output.Output, *output.Pretty)
+			if appValue != "" {
+				resolvedAppID, err := shared.ResolveAppIDWithLookup(requestCtx, client, appValue)
+				if err != nil {
+					return fmt.Errorf("review details-get: %w", err)
+				}
+				if versionValue != "" {
+					if _, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, versionValue, ""); err != nil {
+						return fmt.Errorf("review details-get: %w", err)
+					}
+				} else {
+					selected, err := shared.ResolveDefaultAppStoreVersion(requestCtx, client, resolvedAppID, platformValue)
+					if err != nil {
+						return fmt.Errorf("review details-get: %w", err)
+					}
+					fmt.Fprintln(d.IO.ErrOut, selected.Note("--version-id"))
+					versionValue = selected.ID
+				}
+			}
+
+			return printReviewDetailForVersion(requestCtx, d, client, "review details-get", versionValue, *includeSensitive, output)
 		},
 	}
 }
@@ -101,40 +152,46 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, versionValue)
-			if err != nil {
-				if asc.IsNotFound(err) {
-					if _, versionErr := client.GetAppStoreVersion(requestCtx, versionValue); versionErr != nil {
-						return fmt.Errorf("review details-for-version: failed to fetch: %w", versionErr)
-					}
-					message := reviewDetailNotConfiguredMessage(versionValue)
-					warnNotConfigured(d, message)
-					result := reviewDetailNotConfiguredResult{
-						VersionID:  versionValue,
-						Configured: false,
-						Message:    message,
-					}
-					return d.PrintOutputWithRenderers(
-						result,
-						*output.Output,
-						*output.Pretty,
-						func() error {
-							renderNotConfiguredState(d, "Review Detail", "versionId", versionValue, message, false)
-							return nil
-						},
-						func() error {
-							renderNotConfiguredState(d, "Review Detail", "versionId", versionValue, message, true)
-							return nil
-						},
-					)
-				}
-				return fmt.Errorf("review details-for-version: failed to fetch: %w", err)
-			}
-
-			shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
-			return d.PrintOutput(presentableReviewDetail(resp, *includeSensitive), *output.Output, *output.Pretty)
+			return printReviewDetailForVersion(requestCtx, d, client, "review details-for-version", versionValue, *includeSensitive, output)
 		},
 	}
+}
+
+// printReviewDetailForVersion prints the review detail of versionID, or the
+// not-configured state when the version exists without one.
+func printReviewDetailForVersion(ctx context.Context, d *shared.Deps, client *asc.Client, command, versionValue string, includeSensitive bool, output shared.OutputFlags) error {
+	resp, err := client.GetAppStoreReviewDetailForVersion(ctx, versionValue)
+	if err != nil {
+		if asc.IsNotFound(err) {
+			if _, versionErr := client.GetAppStoreVersion(ctx, versionValue); versionErr != nil {
+				return fmt.Errorf("%s: failed to fetch: %w", command, versionErr)
+			}
+			message := reviewDetailNotConfiguredMessage(versionValue)
+			warnNotConfigured(d, message)
+			result := reviewDetailNotConfiguredResult{
+				VersionID:  versionValue,
+				Configured: false,
+				Message:    message,
+			}
+			return d.PrintOutputWithRenderers(
+				result,
+				*output.Output,
+				*output.Pretty,
+				func() error {
+					renderNotConfiguredState(d, "Review Detail", "versionId", versionValue, message, false)
+					return nil
+				},
+				func() error {
+					renderNotConfiguredState(d, "Review Detail", "versionId", versionValue, message, true)
+					return nil
+				},
+			)
+		}
+		return fmt.Errorf("%s: failed to fetch: %w", command, err)
+	}
+
+	shared.WarnIncludeSensitive(d.IO.ErrOut, includeSensitive)
+	return d.PrintOutput(presentableReviewDetail(resp, includeSensitive), *output.Output, *output.Pretty)
 }
 
 func newReviewDetailsCreateCommand(d *shared.Deps) *ffcli.Command {

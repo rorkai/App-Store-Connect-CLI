@@ -232,3 +232,102 @@ func TestReviewDetailsForVersionPreservesErrorForUnknownVersionID(t *testing.T) 
 		t.Fatalf("expected unknown version to remain a hard error, got %v", runErr)
 	}
 }
+
+func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
+	type stub struct {
+		matcher asctest.Matcher
+		body    string
+	}
+	detail := stub{
+		matcher: asctest.GET("/v1/appStoreVersions/version-1/appStoreReviewDetail"),
+		body:    `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"notes":"Sign in with the demo account"}}}`,
+	}
+	versionOf := func(versionID, appID string) stub {
+		return stub{
+			matcher: asctest.GET("/v1/appStoreVersions/"+versionID, "include=app"),
+			body:    `{"data":{"type":"appStoreVersions","id":"` + versionID + `","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"` + appID + `"}}}}}`,
+		}
+	}
+	tests := []struct {
+		name       string
+		args       []string
+		stubs      []stub
+		wantStdout string
+		wantStderr string
+		wantErr    string
+	}{
+		{
+			name:       "version ID",
+			args:       []string{"--version-id", "version-1"},
+			stubs:      []stub{detail},
+			wantStdout: `"id":"detail-1"`,
+		},
+		{
+			name:       "version ID of the app",
+			args:       []string{"--app", "100000001", "--version-id", "version-1"},
+			stubs:      []stub{versionOf("version-1", "100000001"), detail},
+			wantStdout: `"id":"detail-1"`,
+		},
+		{
+			name:    "version ID of another app",
+			args:    []string{"--app", "100000001", "--version-id", "version-9"},
+			stubs:   []stub{versionOf("version-9", "200000002")},
+			wantErr: `version "version-9" belongs to app "200000002", not "100000001"`,
+		},
+		{
+			name: "app alone reads its editable version",
+			args: []string{"--app", "100000001"},
+			stubs: []stub{
+				{
+					matcher: asctest.GET("/v1/apps/100000001/appStoreVersions", "filter[appVersionState]=DEVELOPER_REJECTED,INVALID_BINARY,METADATA_REJECTED,PREPARE_FOR_SUBMISSION,READY_FOR_REVIEW,REJECTED,WAITING_FOR_REVIEW", "limit=200"),
+					body:    `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.1","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}]}`,
+				},
+				detail,
+			},
+			wantStdout: `"id":"detail-1"`,
+			wantStderr: "Using version 1.1 (PREPARE_FOR_SUBMISSION) for platform IOS; pass --version-id to override",
+		},
+		{
+			name:    "detail ID with app",
+			args:    []string{"--id", "detail-1", "--app", "100000001"},
+			wantErr: "--app selects the review detail through the app's version; pass --app with or without --version-id, not with --id",
+		},
+		{
+			name:    "detail ID with version ID",
+			args:    []string{"--id", "detail-1", "--version-id", "version-1"},
+			wantErr: "--id and --version-id are mutually exclusive",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_APP_ID", "")
+			reg := asctest.NewRegistry(t)
+			for _, stub := range test.stubs {
+				reg.Register(stub.matcher, asctest.JSON(http.StatusOK, stub.body))
+			}
+
+			args := append([]string{"review", "details-get", "--output", "json"}, test.args...)
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
+
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error()+stderr, test.wantErr) {
+					t.Fatalf("err = %v, stderr = %q, want %q", err, stderr, test.wantErr)
+				}
+				if stdout != "" {
+					t.Fatalf("expected no output, got %q", stdout)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if !strings.Contains(stdout, test.wantStdout) {
+				t.Fatalf("stdout = %q, want %s", stdout, test.wantStdout)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+		})
+	}
+}
