@@ -238,7 +238,11 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 			return result, fmt.Errorf("submit review: query unresolved review submissions: %w", unresolvedErr)
 		}
 		if unresolvedSubmissionID != "" {
-			return result, unresolvedSubmissionError(unresolvedSubmissionID, versionID)
+			buildToAttach := ""
+			if opts.EnsureBuildAttached {
+				buildToAttach = strings.TrimSpace(opts.BuildID)
+			}
+			return result, unresolvedSubmissionError(unresolvedSubmissionID, versionID, buildToAttach)
 		}
 
 		preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
@@ -387,7 +391,19 @@ func findUnresolvedSubmissionForVersion(ctx context.Context, client *asc.Client,
 
 // unresolvedSubmissionError stops a submit before it creates a review
 // submission that cannot take the version, and names the two ways forward.
-func unresolvedSubmissionError(submissionID, versionID string) error {
+// The check runs before the requested build is attached, so when buildID is
+// set the hint attaches it first; otherwise the resubmit would send the build
+// App Review rejected.
+func unresolvedSubmissionError(submissionID, versionID, buildID string) error {
+	attachStep := ""
+	if buildID != "" {
+		attachStep = fmt.Sprintf(
+			"attach build %q with `asc versions attach-build --version-id %q --build-id %q` (it was not attached), ",
+			buildID,
+			strings.TrimSpace(versionID),
+			buildID,
+		)
+	}
 	return &shared.HintedError{
 		Err: shared.WithDiagnostic(
 			fmt.Errorf(
@@ -399,7 +415,8 @@ func unresolvedSubmissionError(submissionID, versionID string) error {
 			"",
 		),
 		Hint: fmt.Sprintf(
-			"To resubmit it, list its items with `asc review items list --submission %q`, mark each REJECTED item resolved with `asc review items update --id \"ITEM_ID\" --resolved true`, then run `asc review submissions-submit --id %q --confirm`. To change the version first, cancel it with `asc review submissions-cancel --id %q --confirm`, then submit again.",
+			"To resubmit it, %slist its items with `asc review items list --submission %q`, mark each REJECTED item resolved with `asc review items update --id \"ITEM_ID\" --resolved true`, then run `asc review submissions-submit --id %q --confirm`. To change the version first, cancel it with `asc review submissions-cancel --id %q --confirm`, then submit again.",
+			attachStep,
 			submissionID,
 			submissionID,
 			submissionID,

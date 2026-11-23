@@ -1001,3 +1001,77 @@ func TestSubmitResolvedVersionIgnoresUnresolvedSubmissionForAnotherVersion(t *te
 		t.Fatal("expected the new submission to be submitted")
 	}
 }
+
+// Catches the regression where submitting a new build for a rejected version
+// stopped before attaching it, and the hint resubmitted the rejected build.
+func TestSubmitResolvedVersionUnresolvedHintAttachesRequestedBuild(t *testing.T) {
+	var otherRequests []string
+
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions" &&
+			req.URL.Query().Get("filter[state]") == string(asc.ReviewSubmissionStateUnresolvedIssues) {
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "rejected-submission",
+					"attributes": {"state": "UNRESOLVED_ISSUES", "platform": "IOS"},
+					"relationships": {"appStoreVersionForReview": {"data": {"type": "appStoreVersions", "id": "version-1"}}}
+				}],
+				"links": {"self": "/v1/apps/app-1/reviewSubmissions"}
+			}`)
+		}
+		otherRequests = append(otherRequests, req.Method+" "+req.URL.RequestURI())
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	}))
+
+	_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
+		AppID:               "app-1",
+		VersionID:           "version-1",
+		Platform:            "IOS",
+		BuildID:             "build-6",
+		EnsureBuildAttached: true,
+	})
+	if err == nil {
+		t.Fatal("expected an error for a version held by an unresolved submission")
+	}
+	hinted, ok := errors.AsType[*shared.HintedError](err)
+	if !ok {
+		t.Fatalf("expected a hinted error, got %T", err)
+	}
+	attach := `asc versions attach-build --version-id "version-1" --build-id "build-6"`
+	resubmit := `asc review submissions-submit --id "rejected-submission" --confirm`
+	attachAt, resubmitAt := strings.Index(hinted.Hint, attach), strings.Index(hinted.Hint, resubmit)
+	if attachAt < 0 || resubmitAt < 0 || attachAt > resubmitAt {
+		t.Fatalf("expected hint to attach the requested build before resubmitting, got %q", hinted.Hint)
+	}
+	if len(otherRequests) > 0 {
+		t.Fatalf("expected nothing written when the check fires, got %v", otherRequests)
+	}
+}
+
+func TestSubmitResolvedVersionStopsWhenUnresolvedQueryFails(t *testing.T) {
+	var otherRequests []string
+
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions" &&
+			req.URL.Query().Get("filter[state]") == string(asc.ReviewSubmissionStateUnresolvedIssues) {
+			return submitJSONResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"forbidden"}]}`)
+		}
+		otherRequests = append(otherRequests, req.Method+" "+req.URL.RequestURI())
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	}))
+
+	_, err := SubmitResolvedVersionWith(context.Background(), shared.DefaultDeps(), client, SubmitResolvedVersionOptions{
+		AppID:               "app-1",
+		VersionID:           "version-1",
+		Platform:            "IOS",
+		BuildID:             "build-6",
+		EnsureBuildAttached: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "query unresolved review submissions") {
+		t.Fatalf("expected the unresolved submission query error, got %v", err)
+	}
+	if len(otherRequests) > 0 {
+		t.Fatalf("expected no request after the failed query, got %v", otherRequests)
+	}
+}
