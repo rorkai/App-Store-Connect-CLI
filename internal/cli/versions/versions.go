@@ -818,6 +818,7 @@ func newVersionsUpdateCommand(d *shared.Deps) *ffcli.Command {
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	shared.BindFlagAlias(fs, "id", "version-id")
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact name: require --version-id to be this app's version before updating")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
 	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")
@@ -849,8 +850,12 @@ the attribute for versions that never carried the setting. --paginate matters
 here because the oldest versions, the ones this setting usually targets, fall
 past the first page.
 
+--app checks that --version-id belongs to that app before anything is sent;
+a version of another app is refused.
+
 Examples:
   asc versions update --version-id "VERSION_ID" --copyright "2026 My Company"
+  asc versions update --app "APP_ID" --version-id "VERSION_ID" --copyright "2026 My Company"
   asc versions update --version-id "VERSION_ID" --release-type MANUAL
   asc versions update --version-id "VERSION_ID" --review-type NOTARIZATION
   asc versions update --version-id "VERSION_ID" --release-type SCHEDULED --earliest-release-date "2026-02-01T08:00:00+00:00"
@@ -902,6 +907,16 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+
+			if appValue := strings.TrimSpace(*appID); appValue != "" {
+				resolvedAppID, err := shared.ResolveAppIDWithLookup(requestCtx, client, appValue)
+				if err != nil {
+					return fmt.Errorf("versions update: %w", err)
+				}
+				if _, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, strings.TrimSpace(*versionID), ""); err != nil {
+					return fmt.Errorf("versions update: %w", err)
+				}
+			}
 
 			attrs := asc.AppStoreVersionUpdateAttributes{}
 			if *copyright != "" {

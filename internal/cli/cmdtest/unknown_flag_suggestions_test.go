@@ -23,11 +23,11 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 		deps bool
 	}{
 		{
-			name: "submit status --app",
-			args: []string{"submit", "status", "--app", "PRIVATE_VALUE"},
-			want: "Error: unknown flag `--app` for `asc submit status`\n" +
+			name: "review submissions-get --app",
+			args: []string{"review", "submissions-get", "--app", "PRIVATE_VALUE"},
+			want: "Error: unknown flag `--app` for `asc review submissions-get`\n" +
 				"Try:\n  --id\n" +
-				"For help:\n  asc submit status --help\n",
+				"For help:\n  asc review submissions-get --help\n",
 		},
 		{
 			name: "builds groups list --app",
@@ -61,17 +61,17 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 		},
 		{
 			name: "single-dash spelling",
-			args: []string{"submit", "status", "-app", "PRIVATE_VALUE"},
-			want: "Error: unknown flag `-app` for `asc submit status`\n" +
+			args: []string{"review", "submissions-get", "-app", "PRIVATE_VALUE"},
+			want: "Error: unknown flag `-app` for `asc review submissions-get`\n" +
 				"Try:\n  --id\n" +
-				"For help:\n  asc submit status --help\n",
+				"For help:\n  asc review submissions-get --help\n",
 		},
 		{
 			name: "inline value is never echoed",
-			args: []string{"submit", "status", "--app=PRIVATE_VALUE"},
-			want: "Error: unknown flag `--app` for `asc submit status`\n" +
+			args: []string{"review", "submissions-get", "--app=PRIVATE_VALUE"},
+			want: "Error: unknown flag `--app` for `asc review submissions-get`\n" +
 				"Try:\n  --id\n" +
-				"For help:\n  asc submit status --help\n",
+				"For help:\n  asc review submissions-get --help\n",
 		},
 		{
 			name: "a path-valued --output answers --path",
