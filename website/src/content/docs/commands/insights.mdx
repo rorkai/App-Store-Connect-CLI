@@ -93,8 +93,8 @@ Provides transaction-level insights from sales reports:
 * `download_units` - First-time app downloads (free or paid; excludes redownloads and updates)
 * `monetized_units` - Units with revenue (app + IAP/subscriptions linked to app)
 * `units` - Total units across all transaction types
-* `developer_proceeds` - Total developer proceeds
-* `customer_price` - Total customer price
+* `developer_proceeds` - Total developer proceeds (`Units` x per-unit `Developer Proceeds`, so refunds reduce it)
+* `customer_price` - Total billed to customers (`Units` x per-unit `Customer Price`, so refunds reduce it)
 * `report_rows` - Number of sales report rows processed
 * `active_devices` - Not derivable (marked unavailable)
 
@@ -155,12 +155,42 @@ asc insights weekly \
     {
       "name": "developer_proceeds",
       "unit": "currency",
+      "currency": "USD",
       "thisWeek": 3456.78,
       "lastWeek": 3200.50,
       "delta": 256.28,
       "deltaPercent": 8.01,
-      "status": "ok"
+      "status": "ok",
+      "byCurrency": [
+        {
+          "currency": "USD",
+          "thisWeek": 3456.78,
+          "lastWeek": 3200.50,
+          "delta": 256.28,
+          "deltaPercent": 8.01
+        }
+      ]
     }
+  ]
+}
+```
+
+**Currencies:**
+
+Monetary metrics are totaled per currency (`Currency of Proceeds` for proceeds, `Customer Currency` for customer price) and are never converted or added across currencies.
+
+* When every amount in both periods shares one currency, the metric reports a single total, names it in `currency`, and repeats it in `byCurrency`.
+* When amounts span several currencies, the metric is `unavailable` with a `reason`, and `byCurrency` carries one comparison per currency. Table and Markdown output add one row per currency.
+
+```json
+{
+  "name": "developer_proceeds",
+  "unit": "currency",
+  "status": "unavailable",
+  "reason": "developer proceeds totals are in multiple currencies (JPY, USD) and cannot be summed; totals are reported per currency",
+  "byCurrency": [
+    { "currency": "JPY", "thisWeek": 1500.00, "lastWeek": 1000.00, "delta": 500.00, "deltaPercent": 50.00 },
+    { "currency": "USD", "thisWeek": 210.00, "lastWeek": 200.00, "delta": 10.00, "deltaPercent": 5.00 }
   ]
 }
 ```
@@ -190,10 +220,10 @@ asc insights daily \
 
 * `renewal_rows` - Count of rows where `Subscription` contains "Renewal"
 * `renewal_units` - Units from renewal rows
-* `renewal_developer_proceeds` - Developer proceeds from renewals
+* `renewal_developer_proceeds` - Developer proceeds from renewals (per currency, as in weekly sales insights)
 * `subscription_rows` - Count of rows with subscription data
 * `subscription_units` - Units from subscription rows
-* `subscription_developer_proceeds` - Developer proceeds from subscriptions
+* `subscription_developer_proceeds` - Developer proceeds from subscriptions (per currency, as in weekly sales insights)
 * `monetized_units` - Total units with revenue (app + linked IAP/subscriptions)
 * `report_rows` - Total rows processed
 

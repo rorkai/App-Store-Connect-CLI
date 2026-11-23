@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -21,7 +22,7 @@ func TestSalesParserPreservesScopeAndOrder(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if metrics.RowCount != 3 || metrics.UnitsTotal != 1 || metrics.MonetizedUnitsTotal != 0 || metrics.DownloadUnitsTotal != 1 || metrics.DeveloperProceedsTotal != 3 || metrics.SubscriptionRows != 2 || metrics.RenewalRows != 1 {
+			if metrics.RowCount != 3 || metrics.UnitsTotal != 1 || metrics.MonetizedUnitsTotal != 0 || metrics.DownloadUnitsTotal != 1 || metrics.DeveloperProceedsByCurrency[""] != 1 || metrics.SubscriptionRows != 2 || metrics.RenewalRows != 1 {
 				t.Fatalf("unexpected ordered app/IAP metrics: %+v", metrics)
 			}
 		})
@@ -42,7 +43,7 @@ func TestSalesParserFullStreamErrorsPrecedeHeaderValidation(t *testing.T) {
 				if err == nil || !strings.Contains(err.Error(), "parse report rows:") {
 					t.Fatalf("expected row-read error before header validation, got %v", err)
 				}
-				if metrics != (SalesMetrics{}) {
+				if !reflect.DeepEqual(metrics, SalesMetrics{}) {
 					t.Fatalf("partial metrics escaped a corrupt stream: %+v", metrics)
 				}
 			})
@@ -63,7 +64,7 @@ func TestSalesParserEmptyAndHeaderOnly(t *testing.T) {
 					if err == nil || err.Error() != tc.wantErr {
 						t.Fatalf("error=%v, want %q", err, tc.wantErr)
 					}
-					if metrics != (SalesMetrics{}) {
+					if !reflect.DeepEqual(metrics, SalesMetrics{}) {
 						t.Fatalf("unexpected metrics: %+v", metrics)
 					}
 				} else if err != nil || metrics.RowCount != 0 || !metrics.UnitsColumnPresent || !metrics.DownloadUnitsAvailable {

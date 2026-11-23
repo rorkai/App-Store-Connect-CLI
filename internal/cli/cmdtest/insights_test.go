@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -168,7 +169,7 @@ func TestInsightsWeeklySalesJSON(t *testing.T) {
 		t.Fatalf("unexpected monetized units totals: %v", monetizedMetric)
 	}
 	proceedsMetric := findMetric(t, metrics, "developer_proceeds")
-	if proceedsMetric["thisWeek"] != 2.5 || proceedsMetric["lastWeek"] != 1.25 {
+	if proceedsMetric["thisWeek"] != 5.0 || proceedsMetric["lastWeek"] != 1.25 {
 		t.Fatalf("unexpected proceeds totals: %v", proceedsMetric)
 	}
 	unavailableMetric := findMetric(t, metrics, "active_devices")
@@ -244,17 +245,18 @@ func TestInsightsDailySalesJSON(t *testing.T) {
 		}
 	}`))
 	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=DAILY", "filter[reportDate]=2026-02-18", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
-		"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Price",
-		"foo\texample-sku-1\tapp-1\t\t \t1\t0.00\t0.00",
-		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t2.46\t3.99",
-		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tNew\t1\t1.23\t1.99",
-		"foo\tother-sku\tapp-999\tother-sku\tRenewal\t99\t9.99\t9.99",
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCurrency of Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t \t1\t0.00\tUSD\t0.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t2\t2.46\tUSD\t3.99",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t-1\t2.46\tUSD\t-3.99",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tNew\t1\t1.23\tUSD\t1.99",
+		"foo\tother-sku\tapp-999\tother-sku\tRenewal\t99\t9.99\tUSD\t9.99",
 		"",
 	}, "\n")))
 	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=DAILY", "filter[reportDate]=2026-02-17", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
-		"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Price",
-		"foo\texample-sku-1\tapp-1\t\t \t2\t0.00\t0.00",
-		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t1.11\t1.49",
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCurrency of Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t \t2\t0.00\tUSD\t0.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t1.11\tUSD\t1.49",
 		"",
 	}, "\n")))
 
@@ -292,8 +294,13 @@ func TestInsightsDailySalesJSON(t *testing.T) {
 		t.Fatalf("unexpected renewal units totals: %v", renewalUnits)
 	}
 	renewalProceeds := findMetric(t, metrics, "renewal_developer_proceeds")
-	if renewalProceeds["thisDay"] != 2.46 || renewalProceeds["previousDay"] != 1.11 {
+	// Two renewals at 2.46 per unit less one refunded unit.
+	if renewalProceeds["thisDay"] != 2.46 || renewalProceeds["previousDay"] != 1.11 || renewalProceeds["currency"] != "USD" {
 		t.Fatalf("unexpected renewal proceeds totals: %v", renewalProceeds)
+	}
+	subscriptionProceeds := findMetric(t, metrics, "subscription_developer_proceeds")
+	if subscriptionProceeds["thisDay"] != 3.69 || subscriptionProceeds["previousDay"] != 1.11 {
+		t.Fatalf("unexpected subscription proceeds totals: %v", subscriptionProceeds)
 	}
 	subscriptionUnits := findMetric(t, metrics, "subscription_units")
 	if subscriptionUnits["thisDay"] != 2.0 || subscriptionUnits["previousDay"] != 1.0 {
@@ -481,6 +488,175 @@ func TestInsightsWeeklyAnalyticsNestedForbiddenReturnsUnavailable(t *testing.T) 
 	reportsMetric := findMetric(t, metrics, "reports_available")
 	if reportsMetric["status"] != "unavailable" {
 		t.Fatalf("expected reports_available unavailable, got %v", reportsMetric["status"])
+	}
+}
+
+const insightsSalesCurrencyHeader = "Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Currency\tCurrency of Proceeds\tCustomer Price"
+
+func TestInsightsWeeklySalesMoneyTotalsUseUnitsAndCurrency(t *testing.T) {
+	tests := []struct {
+		name         string
+		thisWeek     []string
+		lastWeek     []string
+		wantProceeds string
+		wantPrice    string
+		wantReason   []string
+	}{
+		{
+			name: "single currency with multi-unit and refund rows",
+			thisWeek: []string{
+				"foo\texample-sku-1\tapp-1\t\t \t10\t0.00\tJPY\tJPY\t0.00",
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t4\t3.50\tUSD\tUSD\t5.00",
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t-1\t3.50\tUSD\tUSD\t-5.00",
+			},
+			lastWeek: []string{
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t2\t3.50\tUSD\tUSD\t5.00",
+			},
+			wantProceeds: `{"name":"developer_proceeds","unit":"currency","currency":"USD","thisWeek":10.5,"lastWeek":7,"delta":3.5,"deltaPercent":50,"status":"ok",
+				"byCurrency":[{"currency":"USD","thisWeek":10.5,"lastWeek":7,"delta":3.5,"deltaPercent":50}]}`,
+			wantPrice: `{"name":"customer_price","unit":"currency","currency":"USD","thisWeek":15,"lastWeek":10,"delta":5,"deltaPercent":50,"status":"ok",
+				"byCurrency":[{"currency":"USD","thisWeek":15,"lastWeek":10,"delta":5,"deltaPercent":50}]}`,
+		},
+		{
+			name: "multiple currencies are never summed",
+			thisWeek: []string{
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t2\t3.50\tUSD\tUSD\t5.00",
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t1\t500\tJPY\tJPY\t800",
+			},
+			lastWeek: []string{
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t1\t3.50\tUSD\tUSD\t5.00",
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t2\t500\tJPY\tJPY\t800",
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t1\t3.00\tEUR\tEUR\t4.50",
+			},
+			wantProceeds: `{"name":"developer_proceeds","unit":"currency","status":"unavailable","byCurrency":[
+				{"currency":"EUR","thisWeek":0,"lastWeek":3,"delta":-3,"deltaPercent":-100},
+				{"currency":"JPY","thisWeek":500,"lastWeek":1000,"delta":-500,"deltaPercent":-50},
+				{"currency":"USD","thisWeek":7,"lastWeek":3.5,"delta":3.5,"deltaPercent":100}]}`,
+			wantPrice: `{"name":"customer_price","unit":"currency","status":"unavailable","byCurrency":[
+				{"currency":"EUR","thisWeek":0,"lastWeek":4.5,"delta":-4.5,"deltaPercent":-100},
+				{"currency":"JPY","thisWeek":800,"lastWeek":1600,"delta":-800,"deltaPercent":-50},
+				{"currency":"USD","thisWeek":10,"lastWeek":5,"delta":5,"deltaPercent":100}]}`,
+			wantReason: []string{"EUR", "JPY", "USD"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reg := registerInsightsSalesReports(t, "WEEKLY", "2026-02-22", tt.thisWeek, "2026-02-15", tt.lastWeek)
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16")
+			if err != nil || stderr != "" {
+				t.Fatalf("run error: %v, stderr=%q", err, stderr)
+			}
+			metrics := decodeInsightsMetrics(t, stdout)
+			assertInsightsCurrencyMetric(t, findMetric(t, metrics, "developer_proceeds"), tt.wantProceeds, tt.wantReason)
+			assertInsightsCurrencyMetric(t, findMetric(t, metrics, "customer_price"), tt.wantPrice, tt.wantReason)
+		})
+	}
+}
+
+func TestInsightsDailySalesProceedsSplitByCurrency(t *testing.T) {
+	reg := registerInsightsSalesReports(t, "DAILY", "2026-02-18", []string{
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t3\t2.50\tUSD\tUSD\t4.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t300\tJPY\tJPY\t450",
+	}, "2026-02-17", []string{
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t2.50\tUSD\tUSD\t4.00",
+	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "daily", "--app", "app-1", "--vendor", "12345678", "--date", "2026-02-18")
+	if err != nil || stderr != "" {
+		t.Fatalf("run error: %v, stderr=%q", err, stderr)
+	}
+	metrics := decodeInsightsMetrics(t, stdout)
+	for _, name := range []string{"renewal_developer_proceeds", "subscription_developer_proceeds"} {
+		assertInsightsCurrencyMetric(t, findMetric(t, metrics, name), `{"name":"`+name+`","unit":"currency","status":"unavailable","byCurrency":[
+			{"currency":"JPY","thisDay":300,"previousDay":0,"delta":300},
+			{"currency":"USD","thisDay":7.5,"previousDay":2.5,"delta":5,"deltaPercent":200}]}`, []string{"JPY", "USD"})
+	}
+}
+
+func TestInsightsWeeklySalesMarkdownListsEachCurrency(t *testing.T) {
+	reg := registerInsightsSalesReports(t, "WEEKLY", "2026-02-22", []string{
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t2\t3.50\tUSD\tUSD\t5.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t1\t500\tJPY\tUSD\t800",
+	}, "2026-02-15", []string{
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t \t1\t3.50\tUSD\tUSD\t5.00",
+	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16", "--output", "markdown")
+	if err != nil || stderr != "" {
+		t.Fatalf("run error: %v, stderr=%q", err, stderr)
+	}
+
+	// metric, unit, thisWeek, lastWeek, delta, deltaPercent, status
+	var got [][]string
+	for line := range strings.SplitSeq(stdout, "\n") {
+		cells := strings.Split(strings.Trim(line, "|"), "|")
+		for i := range cells {
+			cells[i] = strings.TrimSpace(cells[i])
+		}
+		if len(cells) == 8 && (cells[0] == "developer_proceeds" || cells[0] == "customer_price") {
+			got = append(got, cells[:7])
+		}
+	}
+	want := [][]string{
+		{"developer_proceeds", "USD", "507.00", "3.50", "503.50", "14385.71", "ok"},
+		{"customer_price", "currency", "n/a", "n/a", "n/a", "n/a", "unavailable"},
+		{"customer_price", "JPY", "800.00", "0.00", "800.00", "n/a", "ok"},
+		{"customer_price", "USD", "10.00", "5.00", "5.00", "100.00", "ok"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected money rows\n got: %v\nwant: %v", got, want)
+	}
+}
+
+func registerInsightsSalesReports(t *testing.T, frequency, thisDate string, thisRows []string, previousDate string, previousRows []string) *asctest.Registry {
+	t.Helper()
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
+		"data":{"type":"apps","id":"app-1","attributes":{"name":"Example App","bundleId":"com.example.app","sku":"example-sku-1"}}
+	}`))
+	for date, rows := range map[string][]string{thisDate: thisRows, previousDate: previousRows} {
+		report := strings.Join(append([]string{insightsSalesCurrencyHeader}, rows...), "\n") + "\n"
+		reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]="+frequency, "filter[reportDate]="+date, "filter[version]=1_0"), insightsGzipResponse(report))
+	}
+	return reg
+}
+
+func decodeInsightsMetrics(t *testing.T, stdout string) []any {
+	t.Helper()
+	var payload struct {
+		Metrics []any `json:"metrics"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+	return payload.Metrics
+}
+
+// assertInsightsCurrencyMetric compares every field except the reason prose,
+// which only has to name the currencies that could not be summed.
+func assertInsightsCurrencyMetric(t *testing.T, got map[string]any, wantJSON string, wantReason []string) {
+	t.Helper()
+	reason, _ := got["reason"].(string)
+	for _, currency := range wantReason {
+		if !strings.Contains(reason, currency) {
+			t.Errorf("expected reason to name %s, got %q", currency, reason)
+		}
+	}
+	if len(wantReason) == 0 && reason != "" {
+		t.Errorf("expected no reason, got %q", reason)
+	}
+	delete(got, "reason")
+
+	var want map[string]any
+	if err := json.Unmarshal([]byte(wantJSON), &want); err != nil {
+		t.Fatalf("unmarshal want: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		gotJSON, _ := json.Marshal(got)
+		wantJSON, _ := json.Marshal(want)
+		t.Errorf("metric mismatch\n got: %s\nwant: %s", gotJSON, wantJSON)
 	}
 }
 
