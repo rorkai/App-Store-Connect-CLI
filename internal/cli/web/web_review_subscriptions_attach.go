@@ -63,8 +63,9 @@ type reviewSubscriptionDraftItem struct {
 // reviewSubscriptionDrafts holds the app's READY_FOR_REVIEW review
 // submissions and the subscription versions already on them.
 type reviewSubscriptionDrafts struct {
-	IDs   []string
-	Items map[string]reviewSubscriptionDraftItem
+	IDs       []string
+	Platforms map[string]asc.Platform
+	Items     map[string]reviewSubscriptionDraftItem
 }
 
 // loadAPIReviewSubscriptions lists every subscription of the app with its
@@ -144,7 +145,7 @@ func resolveReviewSubscriptionVersion(ctx context.Context, client *asc.Client, s
 // loadReviewSubscriptionDrafts lists the app's draft review submissions and
 // the subscription versions already on them.
 func loadReviewSubscriptionDrafts(ctx context.Context, client *asc.Client, appID string) (reviewSubscriptionDrafts, error) {
-	drafts := reviewSubscriptionDrafts{Items: map[string]reviewSubscriptionDraftItem{}}
+	drafts := reviewSubscriptionDrafts{Platforms: map[string]asc.Platform{}, Items: map[string]reviewSubscriptionDraftItem{}}
 	submissions, err := shared.FetchAllReviewSubmissions(ctx, client, appID,
 		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateReadyForReview)}),
 		asc.Limit[asc.ReviewSubmissionsOption](200),
@@ -158,6 +159,7 @@ func loadReviewSubscriptionDrafts(ctx context.Context, client *asc.Client, appID
 			continue
 		}
 		drafts.IDs = append(drafts.IDs, submissionID)
+		drafts.Platforms[submissionID] = submission.Attributes.Platform
 		if err := collectReviewSubscriptionDraftItems(ctx, client, submissionID, drafts.Items); err != nil {
 			return drafts, err
 		}
@@ -196,33 +198,92 @@ func collectReviewSubscriptionDraftItems(ctx context.Context, client *asc.Client
 	return nil
 }
 
+// reviewSubscriptionDraftChoice is the draft items are added to, and whether
+// this run created it.
+type reviewSubscriptionDraftChoice struct {
+	ID      string
+	Created bool
+}
+
 // selectReviewSubscriptionDraft picks the draft to add items to: --submission
-// when given, the only draft, or a new one for --platform when there is none.
-func selectReviewSubscriptionDraft(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, drafts *reviewSubscriptionDrafts, selectedID string, platform asc.Platform) (string, error) {
-	if selectedID != "" {
-		if !slices.Contains(drafts.IDs, selectedID) {
-			return "", d.UsageError("--submission must identify a READY_FOR_REVIEW review submission of --app")
+// when given, the only draft (on --platform when it is set), or a new one for
+// --platform when there is none.
+func selectReviewSubscriptionDraft(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, drafts *reviewSubscriptionDrafts, opts reviewSubscriptionDraftFlags) (reviewSubscriptionDraftChoice, error) {
+	if opts.SubmissionID != "" {
+		if !slices.Contains(drafts.IDs, opts.SubmissionID) {
+			return reviewSubscriptionDraftChoice{}, d.UsageError("--submission must identify a READY_FOR_REVIEW review submission of --app")
 		}
-		return selectedID, nil
+		return reviewSubscriptionDraftChoice{ID: opts.SubmissionID}, nil
 	}
-	switch len(drafts.IDs) {
+	candidates := drafts.IDs
+	if opts.PlatformSet && len(drafts.IDs) > 0 {
+		candidates = slices.DeleteFunc(slices.Clone(drafts.IDs), func(id string) bool { return drafts.Platforms[id] != opts.Platform })
+		if len(candidates) == 0 {
+			listed := make([]string, 0, len(drafts.IDs))
+			for _, id := range drafts.IDs {
+				listed = append(listed, fmt.Sprintf("%s (%s)", id, drafts.Platforms[id]))
+			}
+			return reviewSubscriptionDraftChoice{}, d.UsageErrorf("--platform %s does not match the app's READY_FOR_REVIEW review submission %s; drop --platform or pick one with --submission", opts.Platform, strings.Join(listed, ", "))
+		}
+	}
+	switch len(candidates) {
 	case 1:
-		return drafts.IDs[0], nil
+		return reviewSubscriptionDraftChoice{ID: candidates[0]}, nil
 	case 0:
-		created, err := client.CreateReviewSubmission(ctx, appID, platform)
+		created, err := client.CreateReviewSubmission(ctx, appID, opts.Platform)
 		if err != nil {
-			return "", fmt.Errorf("create review submission for app %q: %w", appID, err)
+			return reviewSubscriptionDraftChoice{}, fmt.Errorf("create review submission for app %q: %w", appID, err)
 		}
 		createdID := strings.TrimSpace(created.Data.ID)
 		if createdID == "" {
-			return "", fmt.Errorf("create review submission for app %q: response has no id", appID)
+			return reviewSubscriptionDraftChoice{}, fmt.Errorf("create review submission for app %q: response has no id", appID)
 		}
 		drafts.IDs = append(drafts.IDs, createdID)
-		fmt.Fprintf(d.IO.ErrOut, "Created review submission %s (%s) for app %s; it is a draft and is not submitted for review.\n", createdID, platform, appID)
-		return createdID, nil
+		drafts.Platforms[createdID] = opts.Platform
+		fmt.Fprintf(d.IO.ErrOut, "Created review submission %s (%s) for app %s; it is a draft and is not submitted for review.\n", createdID, opts.Platform, appID)
+		return reviewSubscriptionDraftChoice{ID: createdID, Created: true}, nil
 	default:
-		return "", d.UsageErrorf("multiple READY_FOR_REVIEW review submissions; select one with --submission: %s", strings.Join(drafts.IDs, ", "))
+		return reviewSubscriptionDraftChoice{}, d.UsageErrorf("multiple READY_FOR_REVIEW review submissions; select one with --submission: %s", strings.Join(candidates, ", "))
 	}
+}
+
+// withCreatedDraftCleanup cancels a draft this run created when adding its
+// first item failed, so no empty review submission is left behind. Only that
+// draft is touched; canceling never submits anything.
+func withCreatedDraftCleanup(ctx context.Context, client *asc.Client, draft reviewSubscriptionDraftChoice, addErr error) error {
+	if !draft.Created {
+		return addErr
+	}
+	if _, err := client.CancelReviewSubmission(ctx, draft.ID); err != nil {
+		return fmt.Errorf("%w (review submission %s, which this run created, is still an empty draft; cancel it with `asc review submissions-cancel --id %q --confirm`: %w)", addErr, draft.ID, draft.ID, err)
+	}
+	return fmt.Errorf("%w (canceled review submission %s, which this run created)", addErr, draft.ID)
+}
+
+// reviewSubscriptionNotReadyError marks an attach that cannot proceed until
+// the subscription changes, as the web flow's preflight did.
+func reviewSubscriptionNotReadyError(err error, parameter string) error {
+	return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticStateNotReady, parameter)
+}
+
+func reviewSubscriptionMissingMetadataError(appID, subscriptionID string) error {
+	return &shared.HintedError{
+		Err:  reviewSubscriptionNotReadyError(fmt.Errorf("web review subscriptions attach: subscription %q is MISSING_METADATA, so App Store Connect will not accept it on a review submission; nothing was sent", subscriptionID), "--subscription-id"),
+		Hint: fmt.Sprintf("Run `asc validate subscriptions --app %q` to see what is missing, then retry.", appID),
+	}
+}
+
+// reviewSubscriptionAPIClient returns the API client, and tells a caller who
+// only has the web session these commands used before what changed.
+func reviewSubscriptionAPIClient(d *shared.Deps, operation string) (*asc.Client, error) {
+	client, err := d.Client()
+	if err != nil {
+		return nil, &shared.HintedError{
+			Err:  fmt.Errorf("web review subscriptions %s: %w", operation, err),
+			Hint: "`asc web review subscriptions " + operation + "` now uses the App Store Connect API key, not the web session. Set up a key with `asc auth login`, then retry.",
+		}
+	}
+	return client, nil
 }
 
 func reviewSubscriptionNoVersionError(operation, subscriptionID string, states []string) error {
@@ -231,7 +292,7 @@ func reviewSubscriptionNoVersionError(operation, subscriptionID string, states [
 		seen = strings.Join(states, ", ")
 	}
 	return &shared.HintedError{
-		Err: fmt.Errorf("web review subscriptions %s: subscription %q has no version that can be added to a review submission (version states: %s)", operation, subscriptionID, seen),
+		Err: reviewSubscriptionNotReadyError(fmt.Errorf("web review subscriptions %s: subscription %q has no version that can be added to a review submission (version states: %s)", operation, subscriptionID, seen), "--subscription-id"),
 		Hint: fmt.Sprintf(
 			"A version in WAITING_FOR_REVIEW or IN_REVIEW is already submitted. Create a new one with `asc subscriptions versions create --subscription-id %q`, then retry.",
 			subscriptionID,
@@ -239,22 +300,38 @@ func reviewSubscriptionNoVersionError(operation, subscriptionID string, states [
 	}
 }
 
+// reviewSubscriptionDraftFlags are the validated --submission and --platform.
+type reviewSubscriptionDraftFlags struct {
+	SubmissionID string
+	Platform     asc.Platform
+	PlatformSet  bool
+}
+
 func bindReviewSubscriptionAttachFlags(fs *flag.FlagSet) (submissionID, platform *string) {
 	submissionID = fs.String("submission", "", "Review submission ID (required when the app has several READY_FOR_REVIEW review submissions)")
-	platform = fs.String("platform", "IOS", "Platform for a new review submission when the app has none: IOS, MAC_OS, TV_OS, VISION_OS")
+	platform = fs.String("platform", "IOS", "Platform of the review submission: picks the app's draft on that platform, or creates one when the app has none: IOS, MAC_OS, TV_OS, VISION_OS")
 	return submissionID, platform
 }
 
-func validateReviewSubscriptionAttachDraftFlags(d *shared.Deps, submissionID, platform string) (string, asc.Platform, error) {
+func validateReviewSubscriptionAttachDraftFlags(d *shared.Deps, fs *flag.FlagSet, submissionID, platform string) (reviewSubscriptionDraftFlags, error) {
 	trimmedSubmissionID := strings.TrimSpace(submissionID)
 	if submissionID != "" && trimmedSubmissionID == "" {
-		return "", "", d.UsageError("--submission must not be blank")
+		return reviewSubscriptionDraftFlags{}, d.UsageError("--submission must not be blank")
 	}
 	normalized, err := shared.NormalizeAppStoreVersionPlatform(platform)
 	if err != nil {
-		return "", "", shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
+		return reviewSubscriptionDraftFlags{}, shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
 	}
-	return trimmedSubmissionID, asc.Platform(normalized), nil
+	platformSet := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "platform" {
+			platformSet = true
+		}
+	})
+	if platformSet && trimmedSubmissionID != "" {
+		return reviewSubscriptionDraftFlags{}, d.UsageError("--platform only applies when a new review submission is created; drop it when --submission is set")
+	}
+	return reviewSubscriptionDraftFlags{SubmissionID: trimmedSubmissionID, Platform: asc.Platform(normalized), PlatformSet: platformSet}, nil
 }
 
 // newWebReviewSubscriptionsAttachCommand adds a subscription's version to the app's review submission.
@@ -298,7 +375,7 @@ Examples:
 			case trimmedSubscriptionID == "":
 				return d.UsageError("--subscription-id is required")
 			}
-			selectedSubmissionID, selectedPlatform, err := validateReviewSubscriptionAttachDraftFlags(d, *submissionID, *platform)
+			draftFlags, err := validateReviewSubscriptionAttachDraftFlags(d, fs, *submissionID, *platform)
 			if err != nil {
 				return err
 			}
@@ -307,9 +384,9 @@ Examples:
 			}
 			warnDeprecatedReviewSubscriptionAttachWebFlags(d, fs, "attach")
 
-			client, err := d.Client()
+			client, err := reviewSubscriptionAPIClient(d, "attach")
 			if err != nil {
-				return fmt.Errorf("web review subscriptions attach: %w", err)
+				return err
 			}
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
@@ -325,6 +402,9 @@ Examples:
 				return fmt.Errorf("subscription lookup for app %q failed: %w", trimmedAppID, withReviewSelectorDiagnostic(err, "--subscription-id"))
 			}
 			subscription := *selected
+			if strings.EqualFold(subscription.State, "MISSING_METADATA") {
+				return reviewSubscriptionMissingMetadataError(trimmedAppID, subscription.ID)
+			}
 
 			versionID, states, err := resolveReviewSubscriptionVersion(requestCtx, client, subscription.ID)
 			if err != nil {
@@ -344,22 +424,25 @@ Examples:
 				SubscriptionVersionID: versionID,
 			}
 			existing, attached := drafts.Items[versionID]
-			if attached && (selectedSubmissionID == "" || existing.SubmissionID == selectedSubmissionID) {
+			switch {
+			case attached && draftFlags.SubmissionID != "" && existing.SubmissionID != draftFlags.SubmissionID:
+				return d.UsageErrorf("subscription %q is already on review submission %s; drop --submission or remove it there first with `asc review items remove --id %q --confirm`", subscription.ID, existing.SubmissionID, existing.ItemID)
+			case attached:
 				payload.SubmissionID = existing.SubmissionID
 				payload.ReviewSubmissionItemID = existing.ItemID
-			} else {
-				draftID, err := selectReviewSubscriptionDraft(requestCtx, d, client, trimmedAppID, &drafts, selectedSubmissionID, selectedPlatform)
+			default:
+				draft, err := selectReviewSubscriptionDraft(requestCtx, d, client, trimmedAppID, &drafts, draftFlags)
 				if err != nil {
 					return err
 				}
 				itemID, err := withWebSpinnerValueWith(d, "Adding subscription to review submission", func() (string, error) {
-					return createReviewSubscriptionItem(requestCtx, client, draftID, versionID)
+					return createReviewSubscriptionItem(requestCtx, client, draft.ID, versionID)
 				})
 				if err != nil {
-					return fmt.Errorf("web review subscriptions attach: %w", err)
+					return fmt.Errorf("web review subscriptions attach: %w", withCreatedDraftCleanup(requestCtx, client, draft, err))
 				}
 				payload.Changed = true
-				payload.SubmissionID = draftID
+				payload.SubmissionID = draft.ID
 				payload.ReviewSubmissionItemID = itemID
 			}
 			subscription.SubmitWithNextAppStoreVersion = true
@@ -429,7 +512,7 @@ Examples:
 			case trimmedGroupID == "":
 				return d.UsageError("--group-id is required")
 			}
-			selectedSubmissionID, selectedPlatform, err := validateReviewSubscriptionAttachDraftFlags(d, *submissionID, *platform)
+			draftFlags, err := validateReviewSubscriptionAttachDraftFlags(d, fs, *submissionID, *platform)
 			if err != nil {
 				return err
 			}
@@ -438,9 +521,9 @@ Examples:
 			}
 			warnDeprecatedReviewSubscriptionAttachWebFlags(d, fs, "attach-group")
 
-			client, err := d.Client()
+			client, err := reviewSubscriptionAPIClient(d, "attach-group")
 			if err != nil {
-				return fmt.Errorf("web review subscriptions attach-group: %w", err)
+				return err
 			}
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
@@ -497,10 +580,11 @@ Examples:
 				Operation:          "attach-group",
 			}
 			if len(toAttach) > 0 {
-				draftID, err := selectReviewSubscriptionDraft(requestCtx, d, client, trimmedAppID, &drafts, selectedSubmissionID, selectedPlatform)
+				draft, err := selectReviewSubscriptionDraft(requestCtx, d, client, trimmedAppID, &drafts, draftFlags)
 				if err != nil {
 					return err
 				}
+				draftID := draft.ID
 				payload.SubmissionID = draftID
 				err = withWebSpinnerWith(d, "Adding subscription group to review submission", func() error {
 					for _, item := range toAttach {
@@ -515,6 +599,8 @@ Examples:
 				if err != nil {
 					if len(payload.Changed) > 0 {
 						err = fmt.Errorf("%w (already added to review submission %s: %s)", err, draftID, strings.Join(reviewSubscriptionIDs(payload.Changed), ", "))
+					} else {
+						err = withCreatedDraftCleanup(requestCtx, client, draft, err)
 					}
 					return fmt.Errorf("web review subscriptions attach-group: %w", err)
 				}
@@ -523,7 +609,7 @@ Examples:
 				for _, skip := range skipped {
 					reasons = append(reasons, fmt.Sprintf("%s: %s", skip.Subscription.ID, skip.Reason))
 				}
-				return fmt.Errorf("web review subscriptions attach-group: group %q has no subscription that can be added to a review submission (%s)", trimmedGroupID, strings.Join(reasons, "; "))
+				return reviewSubscriptionNotReadyError(fmt.Errorf("web review subscriptions attach-group: group %q has no subscription that can be added to a review submission (%s)", trimmedGroupID, strings.Join(reasons, "; ")), "--group-id")
 			}
 			payload.ChangedCount = len(payload.Changed)
 			payload.Skipped = skipped

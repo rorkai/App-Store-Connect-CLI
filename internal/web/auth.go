@@ -1886,7 +1886,7 @@ func isReviewAttachmentMutation(method, path string) bool {
 		return false
 	}
 	switch strings.TrimSpace(path) {
-	case "/subscriptionSubmissions", "/inAppPurchaseSubmissions", "/reviewSubmissionItems":
+	case "/inAppPurchaseSubmissions", "/reviewSubmissionItems":
 		return true
 	default:
 		return false

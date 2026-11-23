@@ -39,7 +39,8 @@ func attachItemsBody(submissionID, itemID, versionID string) string {
 	return `{"data":[{"type":"reviewSubmissionItems","id":"` + itemID + `","attributes":{"state":"READY_FOR_REVIEW"},"relationships":{"subscriptionVersion":{"data":{"type":"subscriptionVersions","id":"` + versionID + `"}}}}],"included":[{"type":"subscriptionVersions","id":"` + versionID + `","attributes":{"version":1,"state":"READY_FOR_REVIEW"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/` + submissionID + `/items"},"meta":{"paging":{"total":1,"limit":200}}}`
 }
 
-func attachItemPost(submissionID, versionID string) asctest.Matcher {
+func attachItemPost(submissionID string) asctest.Matcher {
+	const versionID = "ver-1"
 	return asctest.POST("/v1/reviewSubmissionItems").JSONBody(`{"data":{"type":"reviewSubmissionItems","relationships":{"reviewSubmission":{"data":{"type":"reviewSubmissions","id":"` + submissionID + `"}},"subscriptionVersion":{"data":{"type":"subscriptionVersions","id":"` + versionID + `"}}}}}`)
 }
 
@@ -73,6 +74,11 @@ func TestWebReviewSubscriptionsAttachUsesReviewSubmissionItems(t *testing.T) {
 		wantStdout  []string
 		wantStderr  []string
 		rejectInOut []string
+		// wantDiagnostic is the diagnostic code the error must carry.
+		wantDiagnostic string
+		// webSessionOnly runs without API key auth, as a caller that only has
+		// the web session the command used before.
+		webSessionOnly bool
 	}{
 		{
 			name: "adds the version to the only draft by product ID",
@@ -81,7 +87,7 @@ func TestWebReviewSubscriptionsAttachUsesReviewSubmissionItems(t *testing.T) {
 				registerAttachLookups(reg)
 				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "PREPARE_FOR_SUBMISSION")))
 				registerAttachDrafts(reg, nil, "rs-1")
-				reg.Register(attachItemPost("rs-1", "ver-1"), attachItemCreated("item-1"))
+				reg.Register(attachItemPost("rs-1"), attachItemCreated("item-1"))
 			},
 			wantStdout: []string{`"operation":"attach"`, `"changed":true`, `"submissionId":"rs-1"`, `"reviewSubmissionItemId":"item-1"`, `"subscriptionVersionId":"ver-1"`, `"id":"sub-1"`, `"submitWithNextAppStoreVersion":true`},
 		},
@@ -104,7 +110,7 @@ func TestWebReviewSubscriptionsAttachUsesReviewSubmissionItems(t *testing.T) {
 				registerAttachDrafts(reg, nil)
 				reg.Register(asctest.POST("/v1/reviewSubmissions").JSONBody(`{"data":{"type":"reviewSubmissions","attributes":{"platform":"MAC_OS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
 					asctest.JSON(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"rs-new","attributes":{"platform":"MAC_OS","state":"READY_FOR_REVIEW"}}}`))
-				reg.Register(attachItemPost("rs-new", "ver-1"), attachItemCreated("item-new"))
+				reg.Register(attachItemPost("rs-new"), attachItemCreated("item-new"))
 			},
 			wantStdout: []string{`"changed":true`, `"submissionId":"rs-new"`},
 			wantStderr: []string{
@@ -130,7 +136,79 @@ func TestWebReviewSubscriptionsAttachUsesReviewSubmissionItems(t *testing.T) {
 				registerAttachLookups(reg)
 				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "WAITING_FOR_REVIEW")))
 			},
-			wantErr: []string{`subscription "sub-1" has no version that can be added to a review submission (version states: WAITING_FOR_REVIEW)`, `asc subscriptions versions create --subscription-id "sub-1"`},
+			wantErr:        []string{`subscription "sub-1" has no version that can be added to a review submission (version states: WAITING_FOR_REVIEW)`, `asc subscriptions versions create --subscription-id "sub-1"`},
+			wantDiagnostic: "state_not_ready",
+		},
+		{
+			name: "refuses a MISSING_METADATA subscription before any write",
+			args: []string{"attach", "--subscription-id", "sub-2"},
+			register: func(reg *asctest.Registry) {
+				registerAttachLookups(reg)
+			},
+			wantErr:        []string{`subscription "sub-2" is MISSING_METADATA`, `asc validate subscriptions --app "app-1"`},
+			wantDiagnostic: "state_not_ready",
+		},
+		{
+			name: "cancels the draft it created when Apple refuses the item",
+			args: []string{"attach", "--subscription-id", "sub-1"},
+			register: func(reg *asctest.Registry) {
+				registerAttachLookups(reg)
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "PREPARE_FOR_SUBMISSION")))
+				registerAttachDrafts(reg, nil)
+				reg.Register(asctest.POST("/v1/reviewSubmissions"), asctest.JSON(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"rs-new","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}}`))
+				reg.Register(attachItemPost("rs-new"), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"subscriptionVersions with id 'ver-1' is not in valid state.","detail":"This resource cannot be reviewed, please check associated errors to see why.","meta":{"associatedErrors":{"/v1/subscriptionVersions/ver-1":[{"code":"ENTITY_ERROR.ATTRIBUTE.REQUIRED","detail":"You must upload a screenshot before submitting a subscription for review."}]}}}]}`))
+				reg.Register(asctest.PATCH("/v1/reviewSubmissions/rs-new").JSONBody(`{"data":{"type":"reviewSubmissions","id":"rs-new","attributes":{"canceled":true}}}`),
+					asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"rs-new","attributes":{"platform":"IOS","state":"CANCELING"}}}`))
+			},
+			wantErr: []string{"not in valid state", "canceled review submission rs-new, which this run created"},
+		},
+		{
+			name:       "rejects --platform together with --submission before any request",
+			args:       []string{"attach", "--subscription-id", "sub-1", "--submission", "rs-1", "--platform", "MAC_OS"},
+			register:   func(reg *asctest.Registry) {},
+			wantUsage:  true,
+			wantStderr: []string{"--platform only applies when a new review submission is created; drop it when --submission is set"},
+		},
+		{
+			name: "rejects --platform that does not match the app's draft",
+			args: []string{"attach", "--subscription-id", "sub-1", "--platform", "MAC_OS"},
+			register: func(reg *asctest.Registry) {
+				registerAttachLookups(reg)
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "PREPARE_FOR_SUBMISSION")))
+				registerAttachDrafts(reg, nil, "rs-1")
+			},
+			wantUsage:  true,
+			wantStderr: []string{"--platform MAC_OS does not match the app's READY_FOR_REVIEW review submission rs-1 (IOS)"},
+		},
+		{
+			name: "refuses to add a version that is already on another draft",
+			args: []string{"attach", "--subscription-id", "sub-1", "--submission", "rs-1"},
+			register: func(reg *asctest.Registry) {
+				registerAttachLookups(reg)
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "READY_FOR_REVIEW")))
+				registerAttachDrafts(reg, map[string]string{"rs-2": attachItemsBody("rs-2", "item-1", "ver-1")}, "rs-1", "rs-2")
+			},
+			wantUsage:  true,
+			wantStderr: []string{"subscription \"sub-1\" is already on review submission rs-2"},
+		},
+		{
+			name:           "tells a web-session-only caller that attach needs the API key",
+			args:           []string{"attach", "--subscription-id", "sub-1"},
+			register:       func(reg *asctest.Registry) {},
+			webSessionOnly: true,
+			wantErr:        []string{"now uses the App Store Connect API key, not the web session", "asc auth login"},
+		},
+		{
+			name: "attach-group reports a group with nothing to add as not ready",
+			args: []string{"attach-group", "--group-id", "group-1"},
+			register: func(reg *asctest.Registry) {
+				registerAttachLookups(reg)
+				registerAttachDrafts(reg, nil, "rs-1")
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "WAITING_FOR_REVIEW")))
+				reg.Register(asctest.GET("/v1/subscriptions/sub-3/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-3", "IN_REVIEW")))
+			},
+			wantErr:        []string{`group "group-1" has no subscription that can be added to a review submission`},
+			wantDiagnostic: "state_not_ready",
 		},
 		{
 			name: "attach-group adds attachable subscriptions and skips the rest",
@@ -140,7 +218,7 @@ func TestWebReviewSubscriptionsAttachUsesReviewSubmissionItems(t *testing.T) {
 				registerAttachDrafts(reg, map[string]string{"rs-1": attachItemsBody("rs-1", "item-3", "ver-3")}, "rs-1")
 				reg.Register(asctest.GET("/v1/subscriptions/sub-1/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-1", "PREPARE_FOR_SUBMISSION")))
 				reg.Register(asctest.GET("/v1/subscriptions/sub-3/versions", "limit=200"), asctest.JSON(http.StatusOK, attachVersionsBody("ver-3", "READY_FOR_REVIEW")))
-				reg.Register(attachItemPost("rs-1", "ver-1"), attachItemCreated("item-1"))
+				reg.Register(attachItemPost("rs-1"), attachItemCreated("item-1"))
 			},
 			wantStdout: []string{`"operation":"attach-group"`, `"submissionId":"rs-1"`, `"changedCount":1`, `"skippedCount":2`, `"reason":"state is MISSING_METADATA`, `"reason":"already on review submission rs-1"`},
 		},
@@ -148,6 +226,12 @@ func TestWebReviewSubscriptionsAttachUsesReviewSubmissionItems(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
+			if tt.webSessionOnly {
+				for _, name := range []string{"ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY_PATH", "ASC_BEARER_TOKEN", "ASC_BEARER_TOKEN_COMMAND"} {
+					t.Setenv(name, "")
+				}
+				t.Setenv("ASC_WEB_SESSION", "session-placeholder")
+			}
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
 			reg.Install()
@@ -173,6 +257,12 @@ func TestWebReviewSubscriptionsAttachUsesReviewSubmissionItems(t *testing.T) {
 				}
 			case err != nil:
 				t.Fatalf("run error: %v\nstderr=%s", err, stderr)
+			}
+			if tt.wantDiagnostic != "" {
+				diagnostic, ok := shared.DiagnosticFromError(err)
+				if !ok || string(diagnostic.Code) != tt.wantDiagnostic {
+					t.Fatalf("diagnostic = %+v (found %t), want %s", diagnostic, ok, tt.wantDiagnostic)
+				}
 			}
 			for _, want := range tt.wantStdout {
 				if !strings.Contains(stdout, want) {
