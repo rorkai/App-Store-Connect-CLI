@@ -1057,6 +1057,9 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 		return nil, d.UsageError(err.Error())
 	}
 	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
+	if apiDisplayType != displayType && !opts.AssetLibrary {
+		fmt.Fprintf(d.IO.ErrOut, "Note: --device-type %s uploads to the %s screenshot set; App Store Connect has no separate %s set and stores those screenshots there.\n", deviceValue, apiDisplayType, displayType)
+	}
 
 	if locID != "" {
 		files, skipped, err := collectScreenshotUploadFiles(d.OSPath(pathValue), opts.MaxScreenshots)
