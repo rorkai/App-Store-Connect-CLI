@@ -454,6 +454,20 @@ asc screenshots upload --app "123456789" \
   --device-type "IPHONE_65"
 ```
 
+**iPhone Duo:**
+
+`--device-type "IPHONE_DUO"` uploads iPhone Duo screenshots the same way as
+any other device type, including `--locale` and `--replace`. App Store Connect
+keeps them in an `APP_IPHONE_DUO` screenshot set, so `--asset-library` is not
+needed:
+
+```bash
+asc screenshots upload --app "123456789" --version "1.2.3" --locale "en-US" \
+  --path "./screenshots/duo" \
+  --device-type "IPHONE_DUO" \
+  --replace --confirm
+```
+
 ### Upload Through the Asset Library
 
 Apple has deprecated screenshot sets in favor of the Asset Library, without
