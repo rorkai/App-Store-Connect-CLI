@@ -186,7 +186,7 @@ func selectAppSubmissionStatusTarget(ctx context.Context, d *shared.Deps, client
 	}
 	if len(candidates) > 0 {
 		sort.SliceStable(candidates, func(i, j int) bool {
-			return reviewSubmissionSortKey(candidates[i]).less(reviewSubmissionSortKey(candidates[j]))
+			return appSubmissionStatusSortKey(candidates[i]).less(appSubmissionStatusSortKey(candidates[j]))
 		})
 		return strings.TrimSpace(candidates[0].ID), "", nil
 	}
@@ -404,6 +404,21 @@ func reviewSubmissionSortKey(submission asc.ReviewSubmissionResource) reviewSubm
 		hasSubmitted:  hasSubmitted,
 		id:            strings.TrimSpace(submission.ID),
 	}
+}
+
+// appSubmissionStatusSortKey orders an app's review submissions the way the
+// submit status --app help promises: one in review or waiting for review
+// first, then the most recently submitted. Every other state ranks by its
+// submitted date alone, so an undated draft left by a failed submit does not
+// hide a submission App Review completed.
+func appSubmissionStatusSortKey(submission asc.ReviewSubmissionResource) reviewSubmissionCandidateKey {
+	key := reviewSubmissionSortKey(submission)
+	switch submission.Attributes.SubmissionState {
+	case asc.ReviewSubmissionStateInReview, asc.ReviewSubmissionStateWaitingForReview:
+	default:
+		key.statePriority = 0
+	}
+	return key
 }
 
 func (k reviewSubmissionCandidateKey) less(other reviewSubmissionCandidateKey) bool {

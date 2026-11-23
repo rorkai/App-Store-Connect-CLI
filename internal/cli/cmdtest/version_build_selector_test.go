@@ -46,6 +46,8 @@ func (tr *versionTrainTransport) RoundTrip(req *http.Request) (*http.Response, e
 				"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}},
 			"included":[{"type":"apps","id":"123456789","attributes":{"bundleId":"com.example.app","name":"Example"}}]
 		}`)
+	case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/reviewSubmissions" && query.Get("filter[state]") == "UNRESOLVED_ISSUES":
+		return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
 	case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
 		if query.Get("filter[app]") != "123456789" || query.Get("filter[version]") != "1.2.0" || query.Get("filter[platform]") != tr.platform {
 			tr.t.Fatalf("pre-release lookup must be scoped to the version train, got %s", req.URL.RawQuery)
