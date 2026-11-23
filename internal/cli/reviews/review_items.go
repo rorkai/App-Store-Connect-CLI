@@ -276,10 +276,10 @@ func reviewItemsAddCommand(d *shared.Deps, name, errorPrefix, shortUsage, exampl
 
 Asset Library images and videos can be reviewed separately after the app has
 an approved version. An asset placed on an App Store version (asc localizations
-placements create) is reviewed with that version and cannot be added as its own
-item: App Store Connect answers "Asset is locked by an embedded review
-submission". For the first app version, place the assets on the version and
-submit the version. App Store Connect validates asset readiness when the
+placements create) while that version is in, or goes into, a review submission
+is reviewed with the version: adding it as its own item fails with "Asset is
+locked by an embedded review submission". For the first app version, place the
+assets on the version and submit the version. App Store Connect validates asset readiness when the
 submission is submitted.
 
 --if-exists controls what happens when App Store Connect answers 409 because

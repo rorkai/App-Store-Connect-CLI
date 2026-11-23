@@ -76,12 +76,16 @@ const reviewSubmissionClosedText = "reviewsubmission state does not allow adding
 // reviewItemNotReviewableHint points at the associated errors Apple already
 // listed and the read that explains the common ones.
 func reviewItemNotReviewableHint(apiErr *asc.APIError, itemType asc.ReviewSubmissionItemType, itemID string) string {
+	var hint string
 	if associatedErrorsMention(apiErr, reviewItemEmbeddedAssetText) {
-		return reviewItemEmbeddedAssetHint
-	}
-	hint := "App Store Connect cannot review this item yet: fix the associated errors listed above, then add it again."
-	if itemType == asc.ReviewSubmissionItemTypeAppStoreVersion {
-		hint += fmt.Sprintf(" `asc validate --app APP_ID --version-id %s` lists what the version is missing.", itemID)
+		// Fixing the errors and adding the asset again cannot work, so this
+		// replaces the generic advice; the additions below still apply.
+		hint = reviewItemEmbeddedAssetHint
+	} else {
+		hint = "App Store Connect cannot review this item yet: fix the associated errors listed above, then add it again."
+		if itemType == asc.ReviewSubmissionItemTypeAppStoreVersion {
+			hint += fmt.Sprintf(" `asc validate --app APP_ID --version-id %s` lists what the version is missing.", itemID)
+		}
 	}
 	for _, resource := range slices.Sorted(maps.Keys(apiErr.AssociatedErrors)) {
 		for _, entry := range apiErr.AssociatedErrors[resource] {
@@ -97,12 +101,13 @@ func reviewItemNotReviewableHint(apiErr *asc.APIError, itemType asc.ReviewSubmis
 }
 
 // reviewItemEmbeddedAssetText is in the associated error Apple lists for an
-// Asset Library image placed on an app version: "Asset is locked by an
-// embedded review submission." There is nothing to fix on the asset; it is
-// reviewed with the version it is placed on, and adding it again cannot work.
+// Asset Library image that is locked to another review submission: "Asset is
+// locked by an embedded review submission." It was reported for images placed
+// on a version that went into review; submitting that version took them with
+// it. There is nothing to fix on the asset, and adding it again cannot work.
 const reviewItemEmbeddedAssetText = "locked by an embedded review submission"
 
-const reviewItemEmbeddedAssetHint = "This asset is placed on an app version, so App Store Connect reviews it with that version and does not take it as a separate item. Submit the version instead, for example with `asc review submit`, and the placed assets go with it."
+const reviewItemEmbeddedAssetHint = "App Store Connect locks an asset that is placed on an app version (`asc localizations placements create`) while that version is in, or goes into, a review submission; the asset is then reviewed with the version, not as its own item. Submit the version with `asc review submit --app APP_ID --version-id VERSION_ID --build-id BUILD_ID --confirm`, and the assets placed on it go with it."
 
 // reviewComplianceRequirementText is in the associated error Apple lists on
 // the app's appInfos, once per open requirement: "Cannot submit version due to
