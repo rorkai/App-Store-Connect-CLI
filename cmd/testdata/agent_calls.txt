@@ -1371,3 +1371,7 @@ unknown-flag web privacy catalog --app X --output X
 unknown-flag analytics instances --report-id X --output X
 unknown-command versions info --version-id X --json
 ok review attachments ls --review-detail X
+unknown-flag builds list --filter app=X,version=X
+unknown-flag builds list --filter app:X
+unknown-flag builds list --filter[app]=X
+unknown-flag versions list --filter app=X,platform=X

@@ -165,8 +165,12 @@ func printConciseUnknownFlag(stderr io.Writer, root *ffcli.Command, analysis inv
 		return
 	}
 	fmt.Fprintf(stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
-	if suggestion, ok := appFilterSuggestion(analysis, commandName, args); ok {
-		fmt.Fprintf(stderr, "Try:\n  %s\nFor help:\n  %s --help\n", suggestion, commandName)
+	if suggestion, notes, ok := filterSuggestion(analysis, commandName, args); ok {
+		fmt.Fprintf(stderr, "Try:\n  %s\n", suggestion)
+		for _, note := range notes {
+			fmt.Fprintln(stderr, note)
+		}
+		fmt.Fprintf(stderr, "For help:\n  %s --help\n", commandName)
 		return
 	}
 	// A recovery path that later became a real command, such as
