@@ -63,13 +63,14 @@ func TestMonthlyCommitmentResolvedPriceCallersUseFreshDeadlinePerPage(t *testing
 		{
 			name: "validate upfront prices",
 			run: func(ctx context.Context, client *asc.Client) error {
-				return validateMonthlyCommitmentUpfrontPrices(ctx, shared.DefaultDeps(), client, "sub-1", nil, "9.99")
+				_, err := validateMonthlyCommitmentUpfrontPrices(ctx, shared.DefaultDeps(), client, "sub-1", nil, "9.99")
+				return err
 			},
 		},
 		{
 			name: "prepare monthly prices",
 			run: func(ctx context.Context, client *asc.Client) error {
-				_, err := prepareMonthlySubscriptionPrices(ctx, shared.DefaultDeps(), client, "sub-1", nil, "9.99", subscriptionPricingToday(shared.DefaultDeps()))
+				_, err := prepareMonthlySubscriptionPrices(ctx, shared.DefaultDeps(), client, "sub-1", nil, "9.99", nil, subscriptionPricingToday(shared.DefaultDeps()))
 				return err
 			},
 		},

@@ -169,9 +169,10 @@ Examples:
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to fetch upfront price: %w", err)
 			}
 			if summary.CurrentPrice == nil || strings.TrimSpace(summary.CurrentPrice.Amount) == "" {
-				return fmt.Errorf("subscriptions pricing monthly-commitment enable: current upfront price is missing for %s", priceTerritoryID)
+				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", missingUpfrontPriceError(
+					fmt.Errorf("current upfront price is missing for %s", priceTerritoryID), id, []string{priceTerritoryID}, "--price-territory"))
 			}
-			if err := validateMonthlyCommitmentPriceRange(monthlyPrice, summary.CurrentPrice.Amount); err != nil {
+			if err := validateMonthlyCommitmentPriceRange(id, priceTerritoryID, monthlyPrice, summary.CurrentPrice.Amount); err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
 
@@ -196,10 +197,11 @@ Examples:
 				availabilityTerritoryIDs = unionSubscriptionPlanAvailabilityTerritories(currentTerritoryIDs, territoryIDs)
 			}
 
-			if err := validateMonthlyCommitmentUpfrontPrices(ctx, d, client, id, availabilityTerritoryIDs, monthlyPrice); err != nil {
+			upfrontPrices, err := validateMonthlyCommitmentUpfrontPrices(ctx, d, client, id, availabilityTerritoryIDs, monthlyPrice)
+			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
-			monthlyPriceCreates, err := prepareMonthlySubscriptionPrices(ctx, d, client, id, availabilityTerritoryIDs, monthlyPrice, effectiveAt)
+			monthlyPriceCreates, err := prepareMonthlySubscriptionPrices(ctx, d, client, id, availabilityTerritoryIDs, monthlyPrice, upfrontPrices, effectiveAt)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
@@ -485,7 +487,11 @@ func printMonthlyCommitmentTerritoryWarning(d *shared.Deps, excluded []string) {
 	fmt.Fprintf(d.IO.ErrOut, "Warning: monthly-commitment billing is unavailable in %s; removed from --territories.\n", strings.Join(excluded, ","))
 }
 
-func validateMonthlyCommitmentPriceRange(monthlyPrice string, upfrontPrice string) error {
+// validateMonthlyCommitmentPriceRange checks that 12 payments of monthlyPrice
+// total from the territory's upfront annual price to 1.5 times it. A price
+// outside that range is the caller's input to fix, so the error is a
+// validation result whose hint names the monthly prices that fit.
+func validateMonthlyCommitmentPriceRange(subscriptionID, territoryID, monthlyPrice, upfrontPrice string) error {
 	monthly, err := parsePositiveMoneyRat(monthlyPrice, "--price")
 	if err != nil {
 		return err
@@ -498,15 +504,56 @@ func validateMonthlyCommitmentPriceRange(monthlyPrice string, upfrontPrice strin
 	total := new(big.Rat).Mul(monthly, big.NewRat(12, 1))
 	max := new(big.Rat).Mul(upfront, big.NewRat(3, 2))
 	if total.Cmp(upfront) < 0 || total.Cmp(max) > 0 {
-		return fmt.Errorf(
-			"monthly commitment total %s is outside the allowed range [%s, %s] based on upfront price %s",
-			formatMoneyRat(total),
-			formatMoneyRat(upfront),
-			formatMoneyRat(max),
-			formatMoneyRat(upfront),
-		)
+		minMonthly, maxMonthly := monthlyCommitmentPriceBounds(upfront)
+		return shared.WithDiagnostic(&shared.HintedError{
+			Err: shared.NewValidationError(fmt.Errorf(
+				"monthly commitment total %s is outside the allowed range [%s, %s] based on upfront price %s",
+				formatMoneyRat(total),
+				formatMoneyRat(upfront),
+				formatMoneyRat(max),
+				formatMoneyRat(upfront),
+			)),
+			Hint: fmt.Sprintf(
+				"In %s, pass a --price from %s to %s, so that 12 payments total from the upfront annual price to 1.5 times it. List the prices Apple offers in that range with %s.",
+				territoryID, minMonthly, maxMonthly, monthlyPricePointsCommand(subscriptionID, territoryID, minMonthly, maxMonthly),
+			),
+		}, shared.DiagnosticInvalidInput, "--price")
 	}
 	return nil
+}
+
+// monthlyCommitmentPriceBounds returns the lowest and highest monthly prices,
+// in cents, whose 12 payments total from upfront to 1.5 times upfront.
+func monthlyCommitmentPriceBounds(upfront *big.Rat) (string, string) {
+	cents := func(total *big.Rat, roundUp bool) string {
+		perMonth := new(big.Rat).Mul(total, big.NewRat(100, 12))
+		quotient, remainder := new(big.Int).QuoRem(perMonth.Num(), perMonth.Denom(), new(big.Int))
+		if roundUp && remainder.Sign() > 0 {
+			quotient.Add(quotient, big.NewInt(1))
+		}
+		return formatMoneyRat(new(big.Rat).SetFrac(quotient, big.NewInt(100)))
+	}
+	return cents(upfront, true), cents(new(big.Rat).Mul(upfront, big.NewRat(3, 2)), false)
+}
+
+func monthlyPricePointsCommand(subscriptionID, territoryID, minMonthly, maxMonthly string) string {
+	command := fmt.Sprintf("`asc subscriptions pricing price-points list --subscription-id %q --territory %s --paginate", subscriptionID, territoryID)
+	if minMonthly != "" {
+		command += fmt.Sprintf(" --min-price %s --max-price %s", minMonthly, maxMonthly)
+	}
+	return command + "`"
+}
+
+// missingUpfrontPriceError reports territories that have no UPFRONT price yet,
+// which monthly-commitment billing builds on, with the commands that set one.
+func missingUpfrontPriceError(err error, subscriptionID string, territoryIDs []string, parameter string) error {
+	return shared.WithDiagnostic(&shared.HintedError{
+		Err: shared.NewValidationError(err),
+		Hint: fmt.Sprintf(
+			"Monthly-commitment billing needs an UPFRONT price in each territory first. Set one in %s with `asc subscriptions pricing prices set --subscription-id %q --territory %s --price \"PRICE\"`, or in every territory from one base price with `asc subscriptions pricing equalize --subscription-id %q --base-price \"PRICE\" --confirm`, then run this command again.",
+			strings.Join(territoryIDs, ", "), subscriptionID, territoryIDs[0], subscriptionID,
+		),
+	}, shared.DiagnosticStateNotReady, parameter)
 }
 
 func parsePositiveMoneyRat(value string, label string) (*big.Rat, error) {
@@ -532,7 +579,7 @@ func validateMonthlyCommitmentUpfrontPrices(
 	subscriptionID string,
 	territoryIDs []string,
 	monthlyPrice string,
-) error {
+) (map[string]string, error) {
 	resolved, err := fetchResolvedSubscriptionPrices(
 		ctx,
 		d,
@@ -545,7 +592,7 @@ func validateMonthlyCommitmentUpfrontPrices(
 		"",
 	)
 	if err != nil {
-		return fmt.Errorf("failed to fetch UPFRONT subscription prices: %w", err)
+		return nil, fmt.Errorf("failed to fetch UPFRONT subscription prices: %w", err)
 	}
 
 	upfrontPrices := make(map[string]string, len(resolved.Prices))
@@ -566,16 +613,18 @@ func validateMonthlyCommitmentUpfrontPrices(
 		}
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("current UPFRONT subscription price is missing for %s", strings.Join(missing, ","))
+		return nil, missingUpfrontPriceError(
+			fmt.Errorf("current UPFRONT subscription price is missing for %s", strings.Join(missing, ",")),
+			subscriptionID, missing, "--territories")
 	}
 
 	for _, territoryID := range territoryIDs {
 		territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
-		if err := validateMonthlyCommitmentPriceRange(monthlyPrice, upfrontPrices[territoryID]); err != nil {
-			return fmt.Errorf("monthly price is invalid for %s: %w", territoryID, err)
+		if err := validateMonthlyCommitmentPriceRange(subscriptionID, territoryID, monthlyPrice, upfrontPrices[territoryID]); err != nil {
+			return nil, fmt.Errorf("monthly price is invalid for %s: %w", territoryID, err)
 		}
 	}
-	return nil
+	return upfrontPrices, nil
 }
 
 type monthlySubscriptionPriceCreate struct {
@@ -590,6 +639,7 @@ func prepareMonthlySubscriptionPrices(
 	subscriptionID string,
 	territoryIDs []string,
 	monthlyPrice string,
+	upfrontPrices map[string]string,
 	effectiveAt time.Time,
 ) ([]monthlySubscriptionPriceCreate, error) {
 	resolvedPrices, err := fetchResolvedSubscriptionPrices(
@@ -633,7 +683,17 @@ func prepareMonthlySubscriptionPrices(
 
 		pricePointID, err := shared.ResolvePricePointByPrice(tiers, monthlyPrice)
 		if err != nil {
-			return nil, fmt.Errorf("resolve monthly price for %s: %w", territoryID, err)
+			// --price is already a valid positive amount, so the only failure
+			// left is a price that is not one of the territory's price points.
+			minMonthly, maxMonthly := "", ""
+			if upfront, parseErr := parsePositiveMoneyRat(upfrontPrices[normalizedTerritoryID], "upfront price"); parseErr == nil {
+				minMonthly, maxMonthly = monthlyCommitmentPriceBounds(upfront)
+			}
+			return nil, shared.WithDiagnostic(&shared.HintedError{
+				Err: shared.NewValidationError(fmt.Errorf("resolve monthly price for %s: %w", territoryID, err)),
+				Hint: fmt.Sprintf("List the prices Apple offers in %s with %s and pass one of them as --price.",
+					normalizedTerritoryID, monthlyPricePointsCommand(subscriptionID, normalizedTerritoryID, minMonthly, maxMonthly)),
+			}, shared.DiagnosticInvalidInput, "--price")
 		}
 		resolvedMonthlyPrice := monthlyPrice
 		for _, tier := range tiers {
