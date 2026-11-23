@@ -103,6 +103,11 @@ func TestReviewItemsAddConflictHintNamesTheNextStep(t *testing.T) {
 			wantHint: " The item is already on submission submission-0: inspect it with `asc review submissions-get --id submission-0 --include items`, and submit that one or remove the item from it with `asc review items remove`.",
 		},
 		{
+			name:     "asset placed on a version",
+			body:     reviewItemsAddAssociatedBody("/appAssetLibraryImages/image-1", "Asset is locked by an embedded review submission."),
+			wantHint: "Hint: This asset is placed on an app version, so App Store Connect reviews it with that version and does not take it as a separate item. Submit the version instead, for example with `asc review submit`, and the placed assets go with it.\n",
+		},
+		{
 			name:     "submission no longer a draft, another draft exists",
 			body:     submissionNotDraftBody,
 			state:    "UNRESOLVED_ISSUES",
