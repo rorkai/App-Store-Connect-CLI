@@ -2,7 +2,9 @@ package analytics
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"net/http"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -62,7 +64,15 @@ Examples:
 			}
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
-			return client.GetAnalyticsReportInstance(ctx, id)
+			instance, err := client.GetAnalyticsReportInstance(ctx, id)
+			if apiErr, ok := errors.AsType[*asc.APIError](err); ok && apiErr.HTTPStatusCode() == http.StatusNotFound {
+				return nil, &shared.HintedError{
+					Err: err,
+					Hint: "Find current instance IDs with `asc analytics reports links --report-id REPORT_ID --paginate --output json` (use `data[].id`) " +
+						"or `asc analytics view --request-id REQUEST_ID --paginate --output json` (use `data[].instances[].id`).",
+				}
+			}
+			return instance, err
 		},
 	})
 }

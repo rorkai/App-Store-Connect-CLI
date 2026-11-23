@@ -149,3 +149,69 @@ func TestRunAnalyticsLookupFailureOutcome(t *testing.T) {
 		})
 	}
 }
+
+func TestRunAnalyticsInstanceLookupHint(t *testing.T) {
+	tests := []struct {
+		status  int
+		code    string
+		detail  string
+		exit    int
+		outcome telemetry.OutcomeKind
+		hint    string
+	}{
+		{
+			status:  http.StatusNotFound,
+			code:    "NOT_FOUND",
+			detail:  "There is no resource of type 'analyticsReportInstances' with id 'report-1'",
+			exit:    ExitNotFound,
+			outcome: telemetry.OutcomeNotFound,
+			hint:    "Find current instance IDs with `asc analytics reports links --report-id REPORT_ID --paginate --output json` (use `data[].id`) or `asc analytics view --request-id REQUEST_ID --paginate --output json` (use `data[].instances[].id`).",
+		},
+		{
+			status:  http.StatusForbidden,
+			code:    "FORBIDDEN",
+			detail:  "The API key does not have access to this resource",
+			exit:    ExitAuth,
+			outcome: telemetry.OutcomeAuthError,
+			hint:    "Check that your API key has the right role/permissions for this operation in App Store Connect.",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.code, func(t *testing.T) {
+			resetReportFlags(t)
+			t.Chdir(t.TempDir())
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.Method != http.MethodGet || req.URL.RequestURI() != "/v1/analyticsReportInstances/report-1" {
+					t.Errorf("unexpected request: %s %s", req.Method, req.URL)
+					http.NotFound(w, req)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(test.status)
+				fmt.Fprintf(w, `{"errors":[{"status":"%d","code":%q,"detail":%q}]}`, test.status, test.code, test.detail)
+			}))
+			t.Cleanup(server.Close)
+			client := newHTTPStatusTestClient(t, server.URL)
+			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+
+			originalEmitTelemetry := emitTelemetry
+			t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+			var gotContext telemetry.EventContext
+			emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+				gotContext = eventContext
+			}
+			stdout, stderr := captureCommandOutput(t, func() {
+				args := []string{"analytics", "instances", "view", "--instance-id", "report-1", "--output", "json"}
+				if code := Run(args, "7.3.1"); code != test.exit {
+					t.Errorf("Run() exit code = %d, want %d", code, test.exit)
+				}
+			})
+			if stdout != "" || !strings.Contains(stderr, test.detail) || !strings.HasSuffix(stderr, "\nHint: "+test.hint+"\n") {
+				t.Errorf("stdout = %q, stderr = %q, want empty stdout, Apple detail %q and hint %q", stdout, stderr, test.detail, test.hint)
+			}
+			if gotContext.HTTPStatus != test.status || gotContext.OutcomeKind != test.outcome || gotContext.FailureStage != telemetry.FailureStageRequest {
+				t.Errorf("telemetry = %+v, want HTTP %d and outcome %q at request stage", gotContext, test.status, test.outcome)
+			}
+		})
+	}
+}
