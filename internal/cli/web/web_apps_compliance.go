@@ -142,7 +142,7 @@ func newWebAppsComplianceSetCommand(d *shared.Deps) *ffcli.Command {
 	var thirdParty shared.OptionalBool
 	fs.Var(&thirdParty, "third-party-technology", "Whether third-party technology powers the app's AI features: true or false (AI_GENERATED_CONTENT with --declared true)")
 	authorization := fs.String("third-party-authorization", "", "Authorization or usage agreement from the third-party technology (file; with --third-party-technology true)")
-	dryRun := fs.Bool("dry-run", false, "Check the answer and file types locally without sending anything to Apple; Apple's own form checks run only with --confirm")
+	dryRun := fs.Bool("dry-run", false, "Check the answer and file types locally; only the requirements list is read from Apple, and Apple's own form checks run only with --confirm")
 	confirm := fs.Bool("confirm", false, "Confirm saving the declaration (required unless --dry-run)")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
