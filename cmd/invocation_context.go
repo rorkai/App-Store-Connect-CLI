@@ -165,6 +165,10 @@ func printConciseUnknownFlag(stderr io.Writer, root *ffcli.Command, analysis inv
 		return
 	}
 	fmt.Fprintf(stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
+	if suggestion, ok := appFilterSuggestion(analysis, commandName, args); ok {
+		fmt.Fprintf(stderr, "Try:\n  %s\nFor help:\n  %s --help\n", suggestion, commandName)
+		return
+	}
 	// A recovery path that later became a real command, such as
 	// `testflight groups builds list`, still recovers when every flag belongs
 	// to the old destination.

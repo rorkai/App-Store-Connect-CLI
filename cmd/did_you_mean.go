@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 
@@ -23,11 +24,9 @@ const maxUnknownChildSuggestions = 3
 // observed ones and ranks ahead of the nearest-name suggester.
 //
 // The table also maps the paths agents guess from older or sibling command
-// shapes: subscription metadata that now lives under versions
-// (`asc subscriptions localizations`), resources nested one level deeper than
-// the guess (`asc subscriptions prices`), and spellings borrowed from a sibling
-// group (`asc subscriptions review-screenshots`, after `asc iap
-// review-screenshots`). The "asc" key covers root-level guesses, where the
+// shapes, such as spellings borrowed from a sibling group (`asc subscriptions
+// review-screenshots`, after `asc iap review-screenshots`). A guess that means
+// exactly one command is a command alias in command_aliases.go instead. The "asc" key covers root-level guesses, where the
 // nearest-name suggester otherwise names an unrelated command (`asc app-info`
 // is not `asc ipa-info`).
 //
@@ -64,10 +63,6 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"show":   {"asc apps view --id APP_ID", "asc apps info view --app APP_ID"},
 		"find":   {"asc apps list --name NAME", "asc apps list --bundle-id BUNDLE_ID"},
 		"search": {"asc apps list --name NAME", "asc apps list --bundle-id BUNDLE_ID"},
-		"availability": {
-			"asc pricing availability view --app APP_ID",
-			"asc pricing availability edit --app APP_ID --territory TERRITORIES --available true",
-		},
 	},
 	"asc auth": {
 		"whoami":    {"asc auth status", "asc auth doctor"},
@@ -162,22 +157,9 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"add": {
 			"asc subscriptions create --group-id GROUP_ID --reference-name NAME --product-id PRODUCT_ID --subscription-period PERIOD",
 		},
-		"prices": {
-			"asc subscriptions pricing prices list --subscription-id SUBSCRIPTION_ID",
-			"asc subscriptions pricing prices set --subscription-id SUBSCRIPTION_ID --price PRICE --territory TERRITORY",
-		},
-		"availability": {
-			"asc subscriptions pricing availability view --subscription-id SUBSCRIPTION_ID",
-			"asc subscriptions pricing availability edit --subscription-id SUBSCRIPTION_ID --territories TERRITORIES",
-		},
 		"review-screenshots": {
 			"asc subscriptions review screenshots create --subscription-id SUBSCRIPTION_ID --file FILE_PATH",
 			"asc subscriptions review screenshots view --screenshot-id SCREENSHOT_ID",
-		},
-		"introductory-offers": {
-			"asc subscriptions offers introductory list --subscription-id SUBSCRIPTION_ID",
-			"asc subscriptions offers introductory create --subscription-id SUBSCRIPTION_ID --territory TERRITORY " +
-				"--offer-duration DURATION --offer-mode MODE --number-of-periods PERIODS",
 		},
 	},
 	"asc subscriptions groups": {
@@ -233,6 +215,7 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"status":    {"asc versions list --app APP_ID", "asc review status --app APP_ID"},
 		"show":      {"asc versions view --version-id VERSION_ID", "asc versions list --app APP_ID"},
 		"get-build": {"asc versions view --version-id VERSION_ID --include-build", "asc builds info --build-id BUILD_ID"},
+		"build":     {"asc versions view --version-id VERSION_ID --include-build", "asc builds info --build-id BUILD_ID"},
 	},
 }
 
@@ -262,6 +245,20 @@ var genericChildAliases = map[string][]string{
 	"destroy": {"delete"},
 }
 
+// appIDOperandLeaf names, per command group, the leaf whose --app takes the App
+// Store Connect app ID callers give the group as a bare operand (`asc versions
+// 1234567890`). Groups whose operand could also be a build or version number
+// are left out.
+var appIDOperandLeaf = map[string]string{
+	"asc apps info": "view",
+	"asc versions":  "list",
+}
+
+// appIDOperandPattern matches an App Store Connect app ID. App IDs have at
+// least nine digits, so a short number, which could be a version or build
+// number, never matches.
+var appIDOperandPattern = regexp.MustCompile(`^[1-9][0-9]{8,19}$`)
+
 // unknownChildSuggestions returns the strongest non-empty suggestion tier for
 // an unknown subcommand of command (rendered as commandName): curated synonyms
 // for the exact token, then generic verb aliases the group can satisfy, then
@@ -278,6 +275,10 @@ func unknownChildSuggestions(command *ffcli.Command, commandName, token string) 
 		}
 		seen[invocation] = struct{}{}
 		suggestions = append(suggestions, invocation)
+	}
+
+	if leaf, ok := appIDOperandLeaf[commandName]; ok && appIDOperandPattern.MatchString(token) {
+		return []string{commandName + " " + leaf + " --app " + token}
 	}
 
 	normalized := strings.ToLower(strings.TrimSpace(token))

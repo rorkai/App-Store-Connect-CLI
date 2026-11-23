@@ -170,6 +170,7 @@ Examples:
 		RequiredDiagnostic: true,
 		Flags: func(fs *flag.FlagSet) func() error {
 			shared.BindFlagAlias(fs, "app", "id")
+			shared.BindFlagAlias(fs, "app-id", "id")
 			fields := fs.String("fields", "", "App attribute fields to return, comma-separated: "+strings.Join(appAttributeFields, ", "))
 			appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
 			iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))

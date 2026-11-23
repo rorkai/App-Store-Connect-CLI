@@ -239,30 +239,6 @@ func TestRun_UnknownChildMapsLegacyAndAsymmetricPaths(t *testing.T) {
 			want:  []string{"asc testflight groups list --app APP_ID", "asc testflight testers list --app APP_ID"},
 		},
 		{
-			args:  []string{"apps", "availability"},
-			group: "asc apps",
-			want: []string{
-				"asc pricing availability view --app APP_ID",
-				"asc pricing availability edit --app APP_ID --territory TERRITORIES --available true",
-			},
-		},
-		{
-			args:  []string{"subscriptions", "prices"},
-			group: "asc subscriptions",
-			want: []string{
-				"asc subscriptions pricing prices list --subscription-id SUBSCRIPTION_ID",
-				"asc subscriptions pricing prices set --subscription-id SUBSCRIPTION_ID --price PRICE --territory TERRITORY",
-			},
-		},
-		{
-			args:  []string{"subscriptions", "availability"},
-			group: "asc subscriptions",
-			want: []string{
-				"asc subscriptions pricing availability view --subscription-id SUBSCRIPTION_ID",
-				"asc subscriptions pricing availability edit --subscription-id SUBSCRIPTION_ID --territories TERRITORIES",
-			},
-		},
-		{
 			args:  []string{"subscriptions", "review-screenshots"},
 			group: "asc subscriptions",
 			want: []string{
@@ -271,20 +247,19 @@ func TestRun_UnknownChildMapsLegacyAndAsymmetricPaths(t *testing.T) {
 			},
 		},
 		{
-			args:  []string{"subscriptions", "introductory-offers"},
-			group: "asc subscriptions",
-			want: []string{
-				"asc subscriptions offers introductory list --subscription-id SUBSCRIPTION_ID",
-				"asc subscriptions offers introductory create --subscription-id SUBSCRIPTION_ID --territory TERRITORY " +
-					"--offer-duration DURATION --offer-mode MODE --number-of-periods PERIODS",
-			},
-		},
-		{
 			args:  []string{"subscriptions", "groups", "localizations"},
 			group: "asc subscriptions groups",
 			want: []string{
 				"asc subscriptions groups versions list --group-id GROUP_ID",
 				"asc subscriptions groups versions localizations list --version-id VERSION_ID",
+			},
+		},
+		{
+			args:  []string{"versions", "build"},
+			group: "asc versions",
+			want: []string{
+				"asc versions view --version-id VERSION_ID --include-build",
+				"asc builds info --build-id BUILD_ID",
 			},
 		},
 		{
@@ -777,5 +752,54 @@ func TestUnknownChildSynonymsMirrorDocumentedExamples(t *testing.T) {
 
 	for invocation := range unusedExceptions {
 		t.Errorf("synonymsVerifiedAgainstValidation lists %q, which the table no longer suggests", invocation)
+	}
+}
+
+// TestRun_UnknownChildAppIDNamesTheAppFlag covers an App Store Connect app ID
+// given where a group expects a subcommand (`asc versions 1234567890`): the
+// error names the command and the `--app` flag that take it. A short number
+// can be a version or build number, so it gets no such line.
+func TestRun_UnknownChildAppIDNamesTheAppFlag(t *testing.T) {
+	root := RootCommand("1.0.0")
+	for group, leaf := range appIDOperandLeaf {
+		command := resolveCommandPath(root, append(strings.Fields(strings.TrimPrefix(group, "asc")), leaf))
+		if command == nil || command.FlagSet == nil || command.FlagSet.Lookup("app") == nil {
+			t.Fatalf("%s %s does not resolve to a command with --app", group, leaf)
+		}
+	}
+
+	tests := []struct {
+		args    []string
+		group   string
+		wantTry string
+	}{
+		{args: []string{"versions", "1234567890", "--platform", "IOS"}, group: "asc versions", wantTry: "asc versions list --app 1234567890"},
+		{args: []string{"apps", "info", "1234567890"}, group: "asc apps info", wantTry: "asc apps info view --app 1234567890"},
+		{args: []string{"versions", "2"}, group: "asc versions"},
+		{args: []string{"versions", "12345678901234567890123"}, group: "asc versions"},
+	}
+	for _, test := range tests {
+		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
+			resetReportFlags(t)
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			prefix := "Error: unknown command `" + test.group + " " + test.args[len(strings.Fields(test.group))-1] + "`\n"
+			if test.wantTry == "" {
+				if !strings.HasPrefix(stderr, prefix) || strings.Contains(stderr, "--app "+test.args[len(test.args)-1]) {
+					t.Fatalf("stderr = %q, want the unknown command without an --app line", stderr)
+				}
+				return
+			}
+			want := prefix + "Try:\n  " + test.wantTry + "\nFor help:\n  " + test.group + " --help\n"
+			if stderr != want {
+				t.Fatalf("stderr = %q, want %q", stderr, want)
+			}
+		})
 	}
 }

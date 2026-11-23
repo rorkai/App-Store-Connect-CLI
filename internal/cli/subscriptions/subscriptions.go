@@ -347,6 +347,8 @@ func newSubscriptionsListCommand(d *shared.Deps) *ffcli.Command {
 
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
 	shared.BindFlagAlias(fs, "group", "group-id")
+	shared.BindFlagAlias(fs, "subscription-group", "group-id")
+	shared.BindFlagAlias(fs, "subscription-group-id", "group-id")
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env); lists subscriptions across all groups")
 	fields := fs.String("fields", "", "Sparse fields for subscriptions")
 	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")

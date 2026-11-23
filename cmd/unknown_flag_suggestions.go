@@ -311,3 +311,47 @@ func guidanceFlagNames(rule removedFlagRule) []string {
 	}
 	return names
 }
+
+// appFilterSuggestion answers the App Store Connect REST filter spellings
+// callers guess for an app (`--filter[app]=X`, `--filter app:X`,
+// `--filter app=X`) on a command that selects its app with --app, by naming
+// that command with `--app X`. It does not run the command: --filter is not a
+// flag asc maps, and any other filter key stays an unknown flag.
+func appFilterSuggestion(analysis invocationAnalysis, commandName string, args []string) (string, bool) {
+	command := analysis.command
+	if command == nil || command.FlagSet == nil || command.FlagSet.Lookup("app") == nil {
+		return "", false
+	}
+	index := analysis.unknownIndex
+	if index < 0 || index >= len(args) || !hasValidFlagPrefix(args[index]) {
+		return "", false
+	}
+	name, inlineValue, hasInlineValue := strings.Cut(strings.TrimLeft(args[index], "-"), "=")
+	value := inlineValue
+	if !hasInlineValue {
+		if index+1 >= len(args) || strings.HasPrefix(args[index+1], "-") {
+			return "", false
+		}
+		value = args[index+1]
+	}
+	switch strings.ToLower(name) {
+	case "filter[app]":
+	case "filter":
+		separator := strings.IndexAny(value, ":=")
+		if separator < 0 || !strings.EqualFold(strings.TrimSpace(value[:separator]), "app") {
+			return "", false
+		}
+		value = value[separator+1:]
+	default:
+		return "", false
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", false
+	}
+	quoted, ok := shared.ShellQuote(value)
+	if !ok {
+		return "", false
+	}
+	return commandName + " --app " + quoted, true
+}

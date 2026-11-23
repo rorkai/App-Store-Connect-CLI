@@ -246,6 +246,7 @@ func newIAPVersionsViewCommand(d *shared.Deps) *ffcli.Command {
 		RequiredDiagnostic: true,
 		Deps:               d,
 		Flags: func(fs *flag.FlagSet) func() error {
+			shared.BindFlagAlias(fs, "id", "version-id")
 			include := fs.String("include", "", "Include relationships: inAppPurchase,image,images,localizations")
 			imagesLimit := fs.Int("images-limit", 0, "Maximum included images (1-50)")
 			localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
