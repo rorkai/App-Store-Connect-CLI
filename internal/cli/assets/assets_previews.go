@@ -861,23 +861,23 @@ func uploadPreviewAsset(ctx context.Context, client *asc.Client, setID, filePath
 
 	created, err := client.CreateAppPreview(ctx, setID, info.Name(), info.Size(), mimeType)
 	if err != nil {
-		return result, err
+		return result, asc.WithUploadPhase(asc.UploadPhaseReserve, fmt.Errorf("reserve preview: %w", err))
 	}
 	result.AssetID = created.Data.ID
 	if created.Data.Attributes.AssetDeliveryState != nil {
 		result.State = created.Data.Attributes.AssetDeliveryState.State
 	}
 	if len(created.Data.Attributes.UploadOperations) == 0 {
-		return result, fmt.Errorf("no upload operations returned for %q", info.Name())
+		return result, asc.WithUploadPhase(asc.UploadPhaseReserve, fmt.Errorf("reserve preview: no upload operations returned for %q", info.Name()))
 	}
 
 	if err := client.UploadAssetFromFile(ctx, file, info.Size(), created.Data.Attributes.UploadOperations); err != nil {
-		return result, err
+		return result, asc.WithUploadPhase(asc.UploadPhaseTransfer, fmt.Errorf("transfer preview %s: %w", created.Data.ID, err))
 	}
 
 	updated, err := client.UpdateAppPreview(ctx, created.Data.ID, true, checksum.Hash)
 	if err != nil {
-		return result, err
+		return result, asc.WithUploadPhase(asc.UploadPhaseCommit, fmt.Errorf("commit preview %s: %w", created.Data.ID, err))
 	}
 	if updated.Data.Attributes.AssetDeliveryState != nil {
 		result.State = updated.Data.Attributes.AssetDeliveryState.State
@@ -888,7 +888,7 @@ func uploadPreviewAsset(ctx context.Context, client *asc.Client, setID, filePath
 		result.State = state
 	}
 	if err != nil {
-		return result, err
+		return result, asc.WithUploadPhase(asc.UploadPhaseProcessing, fmt.Errorf("wait for preview %s processing: %w", created.Data.ID, err))
 	}
 
 	return result, nil
@@ -1132,9 +1132,10 @@ func previewUploadFailureReceipt(results []asc.AssetUploadResultItem, err error)
 		results = append(results, failedResult)
 	}
 	return results, []asc.AssetUploadFailureItem{{
-		FileName: failedResult.FileName,
-		FilePath: failedResult.FilePath,
-		Error:    err.Error(),
+		FileName:    failedResult.FileName,
+		FilePath:    failedResult.FilePath,
+		Error:       err.Error(),
+		FailedPhase: string(asc.UploadPhaseOf(err)),
 	}}
 }
 

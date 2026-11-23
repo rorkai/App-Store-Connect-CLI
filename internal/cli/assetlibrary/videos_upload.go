@@ -71,7 +71,8 @@ Requires ffprobe (FFmpeg) to inspect the file. Dimensions, frame rate, duration,
 audio and file size must match Apple's current asset reference specifications.
 ASC_UPLOAD_TIMEOUT bounds upload and processing (default 30m for videos, since
 Apple commonly takes 10 to 15 minutes to process one). Failures after reservation print
-a partial receipt with the video ID; no automatic deletion occurs.
+a partial receipt with the video ID and failedPhase, the step that stopped:
+transfer, commit or processing. No automatic deletion occurs.
 
 --time-code sets the poster frame on the upload request, and the command waits
 for Apple to finish that frame. A frame Apple cannot generate fails the command.

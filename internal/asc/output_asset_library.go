@@ -164,6 +164,9 @@ type AssetLibraryVideoUploadResult struct {
 	SpecID               string `json:"specId,omitempty"`
 	Width                int    `json:"width,omitempty"`
 	Height               int    `json:"height,omitempty"`
+	// FailedPhase names the step a failed upload stopped in: reserve,
+	// transfer, commit or processing. It is empty when the upload finished.
+	FailedPhase string `json:"failedPhase,omitempty"`
 }
 
 func assetLibraryVideoUploadRows(result *AssetLibraryVideoUploadResult) ([]string, [][]string) {
