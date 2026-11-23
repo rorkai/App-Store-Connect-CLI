@@ -2,7 +2,9 @@ package testflight
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -16,6 +18,26 @@ func crashLogFetchError(err error) error {
 		return &shared.HintedError{Err: err, Hint: crashLogNotFoundHint}
 	}
 	return err
+}
+
+// crashLogBySubmissionFetchError tells a submission without a crash log from
+// an unknown submission. Apple answers GET
+// /v1/betaFeedbackCrashSubmissions/{id}/crashLog for a submission that exists
+// but has no crash log with a 404 naming the betaCrashLogs type, and for an
+// unknown submission with one naming betaFeedbackCrashSubmissions.
+func crashLogBySubmissionFetchError(err error, submissionID string) error {
+	var apiErr *asc.APIError
+	if !asc.IsNotFound(err) || !errors.As(err, &apiErr) || !strings.Contains(apiErr.Detail, "'betaCrashLogs'") {
+		return crashLogFetchError(err)
+	}
+	quoted, ok := shared.ShellQuote(submissionID)
+	if !ok {
+		quoted = "SUBMISSION_ID"
+	}
+	return &shared.HintedError{
+		Err:  fmt.Errorf("testflight crashes log: failed to fetch: %w", err),
+		Hint: fmt.Sprintf("This crash submission has no crash log; App Store Connect stores none for it, so retrying will not help. `asc testflight crashes view --submission-id %s` shows the rest of the report.", quoted),
+	}
 }
 
 func runCrashLogByCrashLogID(ctx context.Context, d *shared.Deps, crashLogID string, output shared.OutputFlags) error {

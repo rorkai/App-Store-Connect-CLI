@@ -236,7 +236,7 @@ func runCrashLogBySubmissionID(ctx context.Context, d *shared.Deps, submissionID
 
 	resp, err := client.GetBetaFeedbackCrashSubmissionCrashLog(requestCtx, submissionID)
 	if err != nil {
-		return crashLogFetchError(err)
+		return crashLogBySubmissionFetchError(err, submissionID)
 	}
 
 	return d.PrintOutput(resp, *output.Output, *output.Pretty)
