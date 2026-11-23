@@ -2,6 +2,7 @@ package analytics
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"regexp"
 	"slices"
@@ -186,8 +187,17 @@ func validateAnalyticsRequestID(value string) error {
 	return nil
 }
 
-func analyticsDownloadDefaultOutput(requestID, instanceID string) string {
-	return fmt.Sprintf("analytics_report_%s_%s.csv.gz", strings.TrimSpace(requestID), sanitizeAnalyticsFilenameComponent(instanceID))
+func analyticsDownloadDefaultOutput(requestID, instanceID, segmentID string) string {
+	prefix := fmt.Sprintf("analytics_report_%s_", strings.TrimSpace(requestID))
+	instance := sanitizeAnalyticsFilenameComponent(instanceID)
+	suffix := ".csv.gz"
+	if segmentID = strings.TrimSpace(segmentID); segmentID != "" {
+		digest := sha256.Sum256([]byte(segmentID))
+		suffix = fmt.Sprintf("_segment_%x%s", digest[:16], suffix)
+		const maxFilenameBytes = 255
+		instance = instance[:min(len(instance), maxFilenameBytes-len(prefix)-len(suffix))]
+	}
+	return prefix + instance + suffix
 }
 
 func sanitizeAnalyticsFilenameComponent(value string) string {

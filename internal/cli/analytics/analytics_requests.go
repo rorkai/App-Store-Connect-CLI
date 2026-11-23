@@ -544,7 +544,7 @@ func newAnalyticsDownloadCommand(d *shared.Deps) *ffcli.Command {
 	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Analytics report request ID")
 	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Analytics report instance ID")
 	segmentID := shared.BindResourceIDFlag(fs, "segment-id", "analyticsReportSegments", "Analytics report segment ID (required if multiple)")
-	output := fs.String("output", "", "Output file path (default: analytics_report_{requestId}_{instanceId}.csv.gz)")
+	output := fs.String("output", "", "Output file path (default: analytics_report_{requestId}_{instanceId}.csv.gz, with a segment-specific suffix when --segment-id is set)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .csv")
 	outputFlags := shared.BindMetadataOutputFlags(fs)
 
@@ -582,7 +582,7 @@ Examples:
 				}
 			}
 
-			defaultOutput := analyticsDownloadDefaultOutput(*requestID, *instanceID)
+			defaultOutput := analyticsDownloadDefaultOutput(*requestID, *instanceID, *segmentID)
 			compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".csv", *decompress)
 
 			client, err := d.Client()

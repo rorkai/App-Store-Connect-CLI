@@ -38,7 +38,7 @@ func TestAnalyticsDownloadDefaultOutputSanitizesInstanceID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := analyticsDownloadDefaultOutput(requestID, tt.instanceID)
+			got := analyticsDownloadDefaultOutput(requestID, tt.instanceID, "")
 			if got != tt.want {
 				t.Fatalf("analyticsDownloadDefaultOutput() = %q, want %q", got, tt.want)
 			}
