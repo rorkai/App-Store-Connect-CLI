@@ -28,7 +28,7 @@ func newAnalyticsSalesCommand(d *shared.Deps) *ffcli.Command {
 	shared.BindFlagAlias(fs, "output-file", "output")
 	shared.BindFlagAlias(fs, "output-path", "output")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .tsv")
-	allowMissing := fs.Bool("allow-missing", false, "Return available=false when Apple says the report is unavailable or the period had no sales")
+	allowMissing := fs.Bool("allow-missing", false, "Return available=false (exit 0) when Apple says the report is unavailable or the period had no sales; use it when looping over dates")
 	outputFlags := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -127,7 +127,17 @@ Examples:
 				}
 				err = fmt.Errorf("analytics sales: failed to download report: %w", err)
 				if isMissingSalesReportError(err) {
-					return &shared.HintedError{Err: err, Hint: missingSalesReportHint}
+					retry := salesReportRetry{
+						vendor:     strings.TrimSpace(*vendor),
+						reportType: salesType,
+						subType:    subType,
+						frequency:  freq,
+						decompress: *decompress,
+					}
+					if strings.TrimSpace(*version) != "" {
+						retry.version = reportVersion
+					}
+					return &shared.HintedError{Err: err, Hint: missingSalesReportHint(err, retry, reportDate, d.Now())}
 				}
 				return err
 			}
@@ -165,8 +175,6 @@ Examples:
 	}
 }
 
-const missingSalesReportHint = "Re-running the same request will not help until Apple has a report for it; try an earlier --date, or pass --allow-missing to get available=false instead of an error."
-
 func isMissingSalesReportError(err error) bool {
 	if !errors.Is(err, asc.ErrNotFound) {
 		return false
@@ -177,7 +185,14 @@ func isMissingSalesReportError(err error) bool {
 		return false
 	}
 
-	detail := strings.ToLower(strings.TrimSpace(apiErr.Detail))
-	return strings.Contains(detail, "no sales for the date specified") ||
-		(apiErr.StatusCode == http.StatusNotFound && strings.HasPrefix(detail, "report is not available yet."))
+	return isNoSalesDetail(apiErr) ||
+		(apiErr.StatusCode == http.StatusNotFound && strings.HasPrefix(normalizedSalesDetail(apiErr), "report is not available yet."))
+}
+
+func isNoSalesDetail(apiErr *asc.APIError) bool {
+	return strings.Contains(normalizedSalesDetail(apiErr), "no sales for the date specified")
+}
+
+func normalizedSalesDetail(apiErr *asc.APIError) string {
+	return strings.ToLower(strings.TrimSpace(apiErr.Detail))
 }
