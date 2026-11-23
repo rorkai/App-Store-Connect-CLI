@@ -221,7 +221,7 @@ asc analytics download \
 **Optional Flags:**
 
 * `--segment-id` - Specific segment ID (required if multiple segments)
-* `--output` - Custom output path (default: `analytics_report_{requestId}_{instanceId}.csv.gz`)
+* `--output` - Custom output path. The default is `analytics_report_{requestId}_{instanceId}.csv.gz`. With `--segment-id`, the default adds a segment-specific suffix before `.csv.gz`.
 * `--decompress` - Decompress to `.csv` format
 
 **Examples:**
