@@ -513,6 +513,16 @@ Remove screenshots from a version localization:
 asc screenshots delete --id "SCREENSHOT_ID" --confirm
 ```
 
+App Store Connect keeps the Asset Library image a screenshot was uploaded as,
+under the same ID, after the screenshot is deleted, and `--replace` leaves those
+images behind too. Add `--prune-library` to delete the image as well. It is
+deleted only when no other placement uses it, and the receipt's
+`libraryImage.state` says `deleted`, `kept` or `absent`:
+
+```bash
+asc screenshots delete --id "SCREENSHOT_ID" --confirm --prune-library
+```
+
 ## Complete Example Workflow
 
 ```bash
