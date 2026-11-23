@@ -1142,18 +1142,18 @@ Subscription JSON includes both `submitWithNextAppStoreVersion` and
 omitted the attachment attribute and the boolean value is not authoritative.
 
 `asc web review subscriptions attach` and `attach-group` send
-`POST /iris/v1/subscriptionSubmissions` through the web session by default.
-That flow is deprecated and prints a warning. Add `--review-items`
-to add the subscription's version to the app's draft review
+`POST /iris/v1/subscriptionSubmissions` through the web session. Add
+`--review-items` to add the subscription's version to the app's draft review
 submission with the App Store Connect API key instead, like
 `asc review items add --item-type subscriptionVersions`; it also works when the
-web session is lent through a broker. Until the app has an approved
-subscription, its first subscription goes on the same submission as an app
-version, plus the subscription group version when the group was never
-approved. With several drafts, pick one with `--submission`; with none, one is
-created for `--platform` (default `IOS`). Nothing is submitted for review. Its
-receipt uses `reviewSubmissionId` and an `items` list; it does not read or
-report the web listing's attachment fields.
+web session is lent through a broker. Until the app has had a subscription
+approved, its first subscription goes on the same submission as an app version
+(whose metadata must be complete), and the group version is added whenever the
+group was never approved. With several drafts, pick one with `--submission`;
+with none, one is created for `--platform` (default `IOS`). Nothing is
+submitted for review; `asc review submit --app "123456789" --version-id "VERSION_ID" --confirm` reuses that draft. Its
+receipt uses `reviewSubmissionId` and an `items` list. `list` and `remove` read
+the web listing, which does not show review items.
 
 ```bash
 asc web review subscriptions attach --app "123456789" --subscription-id "SUB_ID" --review-items --confirm

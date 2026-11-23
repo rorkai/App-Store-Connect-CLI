@@ -1,29 +1,16 @@
 # Subscription attach can use review submission items
 
 Added in 7.3.0. `asc web review subscriptions attach` and `attach-group` take a
-new `--review-items` flag. With it, they add the subscription's
-version to the app's draft review submission through the App Store Connect
-API, the same request as `asc review items add --item-type subscriptionVersions`,
-using the API key instead of the Apple web session. It also works when the web
-session is lent through a broker, where the web-session flow cannot send its
-request.
+new `--review-items` flag. With it, they add the subscription's version to the
+app's draft review submission through the App Store Connect API, the same
+request as `asc review items add --item-type subscriptionVersions`, using the
+API key instead of the Apple web session. It also works when the web session is
+lent through a broker, where the web-session flow cannot send its request.
 
-## Deprecated: the web-session flow
-
-Without `--review-items`, both commands work as before (web session,
-`POST /iris/v1/subscriptionSubmissions`, same flags and JSON receipt) and now
-print:
-
-```text
-Warning: `asc web review subscriptions attach` through the web session is deprecated; add --review-items to add the subscription to the app's review submission with the App Store Connect API key instead. The web-session flow may be removed in a future major release.
-```
-
-Migration: add `--review-items`, set up an API key (`asc auth login`) if you
-only had a web session, and drop the web-session flags (`--apple-id`,
-`--two-factor-code-command`, `--two-factor-method`, `--two-factor-phone-id`,
-`--provider-id`, `--public-provider-id`), which are a usage error with
-`--review-items`. Read the new receipt keys below instead of `submissionId`.
-Making `--review-items` the default is left to a major release.
+Without `--review-items` nothing changes: the commands use the web session
+(`POST /iris/v1/subscriptionSubmissions`) with the same flags and JSON receipt.
+That flow is not deprecated. `list`, `remove` and `asc validate` read Apple's
+web listing, which does not show review items, so they keep matching it.
 
 ## `--review-items` behavior
 
@@ -31,23 +18,39 @@ Making `--review-items` the default is left to a major release.
   used. With several, pass `--submission SUBMISSION_ID` (a usage error lists
   them). With none, a draft is created for `--platform` (default `IOS`).
   An explicit `--platform` picks the draft on that platform; it is a usage
-  error with `--submission`, or when every draft is on another platform.
-  `--submission` and `--platform` are a usage error without `--review-items`.
-- **First subscription:** until the app has an `APPROVED` subscription, App
-  Store Connect reviews its first subscription with an app version. The
-  command then also adds the app's submittable App Store version on the
-  draft's platform, and, when the group was never approved, the group's
-  submittable subscription group version. It prefers the draft that already
-  holds an app version. With no submittable app version it stops before any
+  error with `--submission`, when every draft is on another platform, or when
+  the version is already on a draft for another platform. `--submission` and
+  `--platform` are a usage error without `--review-items`, and the web-session
+  flags are a usage error with it.
+- **First subscription:** until the app has had a subscription approved
+  (judged by subscription group version history and by states only a once
+  approved subscription has), App Store Connect reviews its first subscription
+  with an app version. The command then also adds the app's submittable App
+  Store version on the draft's platform, and prefers the draft that already
+  holds one. Apple checks that version's metadata when it is added, so it must
+  be complete (description, keywords, support URL, copyright, category, review
+  details, screenshots); otherwise Apple's 409 lists what is missing and
+  nothing stays added. With no submittable app version it stops before any
   write and names `asc versions create`.
-- **Rollback:** if adding an item fails, the items this run added are removed
-  and a draft this run created is canceled. Nothing is submitted for review.
+- **New subscription group:** whenever the subscription's group has never been
+  approved, the group's submittable version is added too, also for apps that
+  already have approved subscriptions in other groups.
+- **Rollback:** if adding an item fails or times out, the items this run added
+  are removed and a draft this run created is canceled, on a fresh timeout.
+  Nothing is submitted for review.
 - **Idempotent:** items already on the draft are reported with `added: false`
   and not sent again. A version already on another draft is a usage error with
   `--submission`.
 - **Not ready:** a `MISSING_METADATA` subscription, or one with no submittable
   version, is refused before any write (`state_not_ready`). `attach-group`
   lists such subscriptions as skipped.
+
+## Submitting the draft
+
+`asc review submit --version-id VERSION_ID` now reuses a draft that holds the
+version plus subscription or subscription group versions, the draft
+`--review-items` builds, instead of creating a second one. Any other extra item
+still makes it skip the draft.
 
 ## `--review-items` receipt
 
@@ -58,11 +61,11 @@ A new shape. It reports only what the App Store Connect API returned:
   `subscriptionVersions`), `resourceId`, `reviewSubmissionItemId`,
   `subscriptionId`, `added`;
 - `subscription` (attach) or `changedSubscriptions`/`skippedSubscriptions`
-  (attach-group), from the API; `submitWithNextAppStoreVersionKnown` is
-  `false` because the web listing is not read.
+  (attach-group) with `id`, `groupId`, `groupReferenceName`, `productId`,
+  `name` and `state`. The web listing's attachment fields are not included.
 
-The receipt has no `submissionId`; that key keeps its meaning (the web flow's
-subscriptionSubmission ID) on the default path.
+The receipt has no `submissionId`; that key keeps its meaning on the default
+path.
 
 ## Not changed
 
