@@ -44,6 +44,23 @@ func (e keychainReadError) Error() string        { return e.err.Error() }
 func (e keychainReadError) Unwrap() error        { return e.err }
 func (e keychainReadError) Is(target error) bool { return target == ErrKeychainReadFailed }
 
+// InvalidKeychainEntryError reports a stored credential whose keychain item
+// the process could read but not decode. It is a corrupt entry, not a keychain
+// the process cannot read, so it is not marked ErrKeychainReadFailed by the
+// listings.
+type InvalidKeychainEntryError struct {
+	// Key is the keychain item key; Name is the profile it stores.
+	Key  string
+	Name string
+	Err  error
+}
+
+func (e *InvalidKeychainEntryError) Error() string {
+	return fmt.Sprintf("invalid keychain entry %q: %v", e.Key, e.Err)
+}
+
+func (e *InvalidKeychainEntryError) Unwrap() error { return e.Err }
+
 // ErrDefaultCredentialsNotFound indicates that stored credentials exist, but no
 // default selection resolves for the current no-profile lookup.
 var ErrDefaultCredentialsNotFound = errors.New("default credentials not found")
@@ -1286,7 +1303,10 @@ func ListCredentialSummaries() ([]Credential, error) {
 func listCredentialsFromSources(keychainList func() ([]Credential, error)) ([]Credential, error) {
 	keychainCreds, keychainErr := keychainList()
 	if keychainErr != nil && !isKeyringUnavailable(keychainErr) {
-		return nil, keychainErr
+		if _, corrupt := errors.AsType[*InvalidKeychainEntryError](keychainErr); corrupt {
+			return nil, keychainErr
+		}
+		return nil, keychainReadError{keychainErr}
 	}
 
 	configCreds, configErr := listFromConfig()
@@ -2149,7 +2169,7 @@ func credentialFromKeyringKey(
 	}
 	var payload credentialPayload
 	if err := json.Unmarshal(item.Data, &payload); err != nil {
-		return Credential{}, false, fmt.Errorf("invalid keychain entry %q: %w", key, err)
+		return Credential{}, false, &InvalidKeychainEntryError{Key: key, Name: strings.TrimPrefix(key, keyringItemPrefix), Err: err}
 	}
 	name := strings.TrimPrefix(key, keyringItemPrefix)
 	descriptionMetadata := parseCredentialMetadataDescription(item.Description)

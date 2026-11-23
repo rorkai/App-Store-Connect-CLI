@@ -1198,6 +1198,10 @@ Examples:
 }
 
 // AuthStatus command factory
+// unreadableKeychainHint is the next step when auth status cannot list the
+// system keychain, which agent sandboxes commonly refuse.
+const unreadableKeychainHint = "This process cannot read the system keychain, for example inside an agent sandbox. Run `asc auth status` where the keychain is reachable. ASC_BYPASS_KEYCHAIN=1 lists only config-file and environment credentials: profiles stored in the keychain are not shown then, so an empty list does not mean none are stored."
+
 func newAuthStatusCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("auth status", flag.ExitOnError)
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", defaultAuthStatusOutputFormat(d), "Output format: table, json", "table", "json")
@@ -1238,6 +1242,20 @@ Examples:
 			var listWarning *authsvc.CredentialsWarning
 			if err != nil {
 				warning, ok := errors.AsType[*authsvc.CredentialsWarning](err)
+				if corrupt, isCorrupt := errors.AsType[*authsvc.InvalidKeychainEntryError](err); !ok && isCorrupt {
+					return &shared.HintedError{
+						Err: fmt.Errorf("auth status: failed to list credentials: %w", err),
+						Hint: shared.SanitizeTerminal(fmt.Sprintf(
+							"The keychain entry for profile %q is not valid. Remove it with `asc auth logout --name %q --confirm` and store the key again with `asc auth login`.",
+							corrupt.Name, corrupt.Name)),
+					}
+				}
+				if !ok && errors.Is(err, authsvc.ErrKeychainReadFailed) {
+					return &shared.HintedError{
+						Err:  shared.UnreadableKeychainError(fmt.Errorf("auth status: cannot read the system keychain: %w", err)),
+						Hint: unreadableKeychainHint,
+					}
+				}
 				if !ok {
 					return fmt.Errorf("auth status: failed to list credentials: %w", err)
 				}
