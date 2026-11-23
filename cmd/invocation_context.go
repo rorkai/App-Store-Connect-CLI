@@ -165,9 +165,6 @@ func printConciseUnknownFlag(stderr io.Writer, root *ffcli.Command, analysis inv
 		return
 	}
 	fmt.Fprintf(stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
-	if printMetadataValidateFlagRecovery(stderr, flagName, commandName, analysis, args) {
-		return
-	}
 	// A recovery path that later became a real command, such as
 	// `testflight groups builds list`, still recovers when every flag belongs
 	// to the old destination.
@@ -202,49 +199,6 @@ func printConciseUnknownFlag(stderr io.Writer, root *ffcli.Command, analysis inv
 	))
 	fmt.Fprintln(stderr, "For help:")
 	fmt.Fprintf(stderr, "  %s --help\n", commandName)
-}
-
-func printMetadataValidateFlagRecovery(stderr io.Writer, flagName, commandName string, analysis invocationAnalysis, args []string) bool {
-	if commandName != "asc metadata validate" || (flagName != "--app" && flagName != "--version") {
-		return false
-	}
-	if flagName == "--version" && !metadataVersionValueProvided(analysis, args) {
-		return false
-	}
-
-	fmt.Fprintln(stderr, "`asc metadata validate` reads from `--dir`; omit `--app` and `--version`. Run `asc metadata pull` first if needed.")
-	fmt.Fprintln(stderr, "Try:")
-	fmt.Fprintln(stderr, `  asc metadata validate --dir "./metadata"`)
-	fmt.Fprintln(stderr, `  asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"`)
-	fmt.Fprintln(stderr, "For help:")
-	fmt.Fprintln(stderr, "  asc metadata validate --help")
-	return true
-}
-
-func metadataVersionValueProvided(analysis invocationAnalysis, args []string) bool {
-	if _, value, found := strings.Cut(analysis.unknownToken, "="); found {
-		return isMetadataVersionValue(value)
-	}
-	nextIndex := analysis.unknownIndex + 1
-	if nextIndex < 0 || nextIndex >= len(args) {
-		return false
-	}
-	return isMetadataVersionValue(args[nextIndex])
-}
-
-func isMetadataVersionValue(value string) bool {
-	value = strings.TrimSpace(value)
-	if value == "" || strings.HasPrefix(value, "-") {
-		return false
-	}
-	// flag.ParseBool accepts 1 and 0, but both are also valid app-version
-	// components. Treat numeric spellings as metadata values and reserve the
-	// global-flag recovery for textual booleans.
-	if value == "1" || value == "0" {
-		return true
-	}
-	_, boolErr := strconv.ParseBool(value)
-	return boolErr != nil
 }
 
 func passedFlagNames(args []string) []string {

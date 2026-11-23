@@ -364,7 +364,7 @@ ok localizations screenshot-sets list --localization-id X --include X --output X
 ok metadata pull --app X --version X --platform X --dir X --force
 ok metadata push --app X --version X --dir X --dry-run
 ok metadata push --app X --version X --platform X --dir X --if-exists X
-unknown-flag metadata validate --app X --version X --dir X --output X
+ok metadata validate --app X --version X --dir X --output X
 ok pricing availability create --app X --territory X --available X --available-in-new-territories X --output X
 ok pricing availability create --help
 ok pricing availability edit --app X --all-territories --available X --output X
@@ -810,7 +810,7 @@ ok metadata push --app X --version X --platform X --dir X --confirm
 ok metadata validate --dir X --check-urls --subscription-app --pretty
 ok metadata validate --dir X --output X X X X X -- X X --app X --version X --platform X --dir X --dry-run --output X
 ok metadata validate --dir X --subscription-app
-unknown-flag metadata validate --dir X --version X
+ok metadata validate --dir X --version X
 ok performance --help
 ok pricing availability territory-availabilities --availability X --paginate --output X
 ok pricing current
@@ -1151,15 +1151,15 @@ unknown-flag metadata push --app X --version X --platform X --dir X --include X 
 unknown-flag metadata push --app X --version X --platform X --dir X --validate
 unknown-flag metadata push --app X --version X --platform X --metadata-dir X --output X
 unknown-command metadata release-notes set --app X --version-id X --locale X --text X --output X
-unknown-flag metadata validate --app X --dir X
-unknown-flag metadata validate --app X --dir X --check-urls --output X
-unknown-flag metadata validate --app X --dir X --output X
-unknown-flag metadata validate --app X --platform X --dir X --output X
-unknown-flag metadata validate --app X --platform X --version X --dir X --output X
-unknown-flag metadata validate --app X --version X --dir X
+ok metadata validate --app X --dir X
+ok metadata validate --app X --dir X --check-urls --output X
+ok metadata validate --app X --dir X --output X
+ok metadata validate --app X --platform X --dir X --output X
+ok metadata validate --app X --platform X --version X --dir X --output X
+ok metadata validate --app X --version X --dir X
 unknown-flag metadata validate --app X --version X --files X --output X
-unknown-flag metadata validate --app X --version X --platform X --dir X
-unknown-flag metadata validate --app X --version X --platform X --dir X --check-urls --output X
+ok metadata validate --app X --version X --platform X --dir X
+ok metadata validate --app X --version X --platform X --dir X --check-urls --output X
 unknown-flag metadata validate --dir X --check-urls; X X X -- X X --app X --version X --platform X --dir X
 unknown-flag metadata validate --dir X --check-urls; X X X X X X X -- X X --app X --version X --platform X --dir X --dry-run
 unknown-flag metadata validate --dir X --version X --locale X --check-urls
