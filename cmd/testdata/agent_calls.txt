@@ -326,7 +326,7 @@ ok metadata plan --app X --version X --dir X
 ok pricing availability edit --app X --all-territories --available X --available-in-new-territories X
 ok pricing schedule create --app X --price X --base-territory X --output X
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --notes
-unknown-flag review details-get --version-id X --output X
+ok review details-get --version-id X --output X
 ok review details-update --id X --demo-account-required=X
 ok review submissions --help
 ok review submit --app X --version X --build-id X --confirm
@@ -825,7 +825,7 @@ ok review attachments-list --review-detail X
 ok review attachments-upload --review-detail X --file X --output X
 ok review details create --help
 ok review details update --help
-unknown-flag review details view --version-id X --output X
+ok review details view --version-id X --output X
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --demo-account-name X --demo-account-password X --notes X --if-exists X --output X
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes
 ok review details-create --version-id X --contact-first-name X --contact-last-name X --contact-email X --contact-phone X --demo-account-required=X --notes X
@@ -1194,10 +1194,10 @@ unknown-flag review details-create --app X --version X --platform X --first-name
 unknown-flag review details-create --app X --version-id X --first-name X --last-name X --phone X --email X --output X
 unknown-flag review details-for-version --app X --version X --platform X --output X
 unknown-flag review details-for-version --app X --version-id X --output X
-unknown-flag review details-get --app X --output X
-unknown-flag review details-get --app X --version-id X --output X
-unknown-flag review details-get --version-id X
-unknown-flag review details-get --version-id X --pretty
+ok review details-get --app X --output X
+ok review details-get --app X --version-id X --output X
+ok review details-get --version-id X
+ok review details-get --version-id X --pretty
 unknown-flag review details-update --version-id X --demo-account-required=X --if-exists X --output X
 unknown-flag review details-update --version-id X --demo-account-required=X --if-exists X --pretty
 unknown-flag review details-update --version-id X --demo-account-required=X --output X
