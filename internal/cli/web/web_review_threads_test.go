@@ -608,3 +608,81 @@ func TestReviewAppThreadsContextIsIndependentOfRequestBudget(t *testing.T) {
 		t.Fatalf("expected a fresh budget, got %s", remaining)
 	}
 }
+
+func TestWebReviewShowThreadIDReadsThreadOfAnEarlierSubmission(t *testing.T) {
+	requested := stubWebReviewSession(t, map[string]string{
+		"/iris/v1/apps/app-1/resolutionCenterThreads":                          reviewThreadsAppFixture,
+		"/iris/v1/resolutionCenterThreads/thread-sub/resolutionCenterMessages": `{"data": [{"id": "msg-1", "type": "resolutionCenterMessages", "attributes": {"createdDate": "2026-02-25T00:00:00Z", "messageBody": "Guideline 2.1"}}]}`,
+		"/iris/v1/reviewRejections":                                            `{"data": []}`,
+	})
+
+	d, _, _ := newWebTestDeps()
+	cmd := newWebReviewShowCommand(d)
+	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--thread-id", "thread-sub", "--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stdout, _ := runWebReviewCommand(t, d, func() error { return cmd.Exec(context.Background(), nil) })
+
+	var payload struct {
+		Selection string `json:"selection"`
+		Threads   []struct {
+			Thread struct {
+				ID                 string `json:"id"`
+				ReviewSubmissionID string `json:"reviewSubmissionId"`
+			} `json:"thread"`
+			Messages []struct {
+				ID          string `json:"id"`
+				MessageBody string `json:"messageBody"`
+			} `json:"messages"`
+		} `json:"threads"`
+		AppThreads []struct {
+			ID string `json:"id"`
+		} `json:"appThreads"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("failed to parse output %q: %v", stdout, err)
+	}
+	if payload.Selection != "thread" {
+		t.Fatalf("selection = %q, want thread: %s", payload.Selection, stdout)
+	}
+	if len(payload.Threads) != 1 || payload.Threads[0].Thread.ID != "thread-sub" || payload.Threads[0].Thread.ReviewSubmissionID != "sub-1" {
+		t.Fatalf("expected only the requested thread with its submission: %s", stdout)
+	}
+	if len(payload.Threads[0].Messages) != 1 || payload.Threads[0].Messages[0].ID != "msg-1" || payload.Threads[0].Messages[0].MessageBody != "Guideline 2.1" {
+		t.Fatalf("expected the thread's messages: %s", stdout)
+	}
+	if len(payload.AppThreads) != 1 || payload.AppThreads[0].ID != "thread-app" {
+		t.Fatalf("expected the app's other threads under appThreads: %s", stdout)
+	}
+	for _, path := range *requested {
+		if path == "/iris/v1/apps/app-1/reviewSubmissions" || path == "/iris/v1/resolutionCenterThreads" {
+			t.Fatalf("--thread-id must not select a submission, requested %v", *requested)
+		}
+	}
+}
+
+func TestWebReviewShowThreadIDRefusesThreadOfAnotherApp(t *testing.T) {
+	requested := stubWebReviewSession(t, map[string]string{
+		"/iris/v1/apps/app-1/resolutionCenterThreads": reviewThreadsAppFixture,
+	})
+
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebReviewShowCommand(d)
+	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--thread-id", "thread-other", "--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	var err error
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
+	if err == nil {
+		t.Fatalf("expected a thread outside the app to be refused, got %s", stdout)
+	}
+	if want := `web review show refused: thread "thread-other" was not found under app "app-1"`; !strings.Contains(err.Error(), want) {
+		t.Fatalf("error = %v, want %q", err, want)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no output for a refused thread, got %s", stdout)
+	}
+	if len(*requested) != 1 {
+		t.Fatalf("expected only the app thread lookup before refusing, requested %v", *requested)
+	}
+}

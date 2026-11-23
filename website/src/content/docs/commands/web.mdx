@@ -1117,7 +1117,7 @@ Inspect app review and rejection information, send Resolution Center text replie
 Available commands:
 
 * `asc web review list` - list review submissions for an app
-* `asc web review show` - inspect one submission and related messages/screenshots, including app-scoped Resolution Center threads the selected submission does not cover
+* `asc web review show` - inspect one submission and related messages/screenshots, including app-scoped Resolution Center threads the selected submission does not cover; `--thread-id` shows one of the app's threads (an `appThreads[].id`) with its messages, whichever submission it is attached to
 * `asc web review threads` - list every Resolution Center thread on an app, including binary, metadata, and informational threads; `--drafts` reads each unsent draft (`--plain-text` projects HTML to plain text)
 * `asc web review drafts` - create, update, or delete one unsent Resolution Center draft
 * `asc web review subscriptions` - inspect and mutate next-version subscription review selection
