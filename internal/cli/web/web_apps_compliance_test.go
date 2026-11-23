@@ -273,8 +273,8 @@ func TestWebAppsComplianceSetHelpSaysDryRunChecksLocally(t *testing.T) {
 	d, _, _ := newWebTestDeps()
 	cmd := newWebAppsComplianceSetCommand(d)
 	const want = "--dry-run checks the answer and file types locally; Apple's own form checks run only with --confirm"
-	if got := cmd.FlagSet.Lookup("dry-run").Usage; !strings.Contains(got, "Apple's own form checks run only with --confirm") {
-		t.Fatalf("--dry-run usage = %q, want it to say Apple's form checks run only with --confirm", got)
+	if got := cmd.FlagSet.Lookup("dry-run").Usage; !strings.Contains(got, "Apple's own form checks run only with --confirm") || strings.Contains(got, "without sending anything") {
+		t.Fatalf("--dry-run usage = %q, want it to say Apple's form checks run only with --confirm, and not claim nothing is sent (the requirements list is read)", got)
 	}
 	help := strings.Join(strings.Fields(strings.ReplaceAll(cmd.LongHelp, "`", "")), " ")
 	for _, text := range []string{want, "a first --confirm can still be refused by Apple's form"} {
