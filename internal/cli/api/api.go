@@ -581,8 +581,10 @@ func rejectNonJSONOperation(d *shared.Deps, method, templatePath string) error {
 // keyed by method and path template, to the asc command that serves what a
 // caller means by it. These are the unindexed requests callers send most:
 // relationships Apple does not expose, collections Apple reads through
-// another resource, and data only asc's own commands reach. `{id}` in a
-// command is the request's first path ID. TestNativeCommandsAreUnindexed
+// another resource, nested paths Apple serves one level at a time, and data
+// only asc's own commands reach. A `{name}` segment in a key matches any path
+// segment, and `{name}` in a command is the first segment it matched, so
+// `{id}` in a one-ID path is the request's ID. TestNativeCommandsAreUnindexed
 // keeps every key out of the index, and
 // TestAPIUnknownPathNamesTheNativeCommand resolves every command.
 var nativeCommands = map[string]string{
@@ -602,10 +604,15 @@ var nativeCommands = map[string]string{
 	"GET /v1/apps/{id}/appPrices":                     "asc pricing current --app {id}",
 	"GET /v1/apps/{id}/availableTerritories":          "asc pricing availability view --app {id}",
 	"GET /v1/apps/{id}/appDataUsages":                 "asc web privacy pull --app {id}",
+	"POST /v1/betaGroups/{id}/builds":                 "asc builds add-groups --build-id BUILD_ID --group {id}",
+	"POST /v1/builds/{id}/betaGroups":                 "asc builds add-groups --build-id {id} --group GROUP_ID",
+
+	"GET /v1/apps/{app}/appStoreVersions/{id}/appStoreVersionLocalizations":                              "asc localizations list --version {id}",
+	"GET /v1/appStoreVersions/{version}/appStoreVersionLocalizations/{id}/appStoreVersionScreenshotSets": "asc screenshots list --version-localization {id}",
 }
 
 // nativeCommand returns the command nativeCommands names for an unindexed
-// request, with the request's first path ID filled in.
+// request, with the request's path IDs filled in.
 func nativeCommand(method, path string) (string, bool) {
 	segments := strings.Split(strings.Trim(path, "/"), "/")
 	for key, command := range nativeCommands {
@@ -617,11 +624,11 @@ func nativeCommand(method, path string) (string, bool) {
 		if len(parts) != len(segments) {
 			continue
 		}
-		id, matched := "", true
+		ids, matched := map[string]string{}, true
 		for i, part := range parts {
-			if part == "{id}" {
-				if id == "" {
-					id = segments[i]
+			if strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") {
+				if _, ok := ids[part]; !ok {
+					ids[part] = segments[i]
 				}
 				continue
 			}
@@ -633,14 +640,16 @@ func nativeCommand(method, path string) (string, bool) {
 		if !matched {
 			continue
 		}
-		if strings.Contains(command, "{id}") {
+		// One pass, so an ID that spells a placeholder stays as given.
+		pairs := make([]string, 0, 2*len(ids))
+		for placeholder, id := range ids {
 			quoted, ok := shared.ShellQuote(id)
 			if !ok {
 				quoted = "ID"
 			}
-			command = strings.ReplaceAll(command, "{id}", quoted)
+			pairs = append(pairs, placeholder, quoted)
 		}
-		return command, true
+		return strings.NewReplacer(pairs...).Replace(command), true
 	}
 	return "", false
 }

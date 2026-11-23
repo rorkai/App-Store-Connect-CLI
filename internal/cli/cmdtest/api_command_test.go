@@ -376,8 +376,9 @@ var apiNativeCommandAdvice = regexp.MustCompile("Use `(asc [^`]+)`\\.")
 // command or flag.
 func TestAPIUnknownPathNamesTheNativeCommand(t *testing.T) {
 	tests := []struct {
-		path string
-		want string
+		method string
+		path   string
+		want   string
 	}{
 		{path: "/v1/builds/B1/betaGroups", want: "asc builds groups list --build-id B1"},
 		{path: "/v1/builds/B1/relationships/betaGroups", want: "asc builds groups list --build-id B1"},
@@ -395,14 +396,26 @@ func TestAPIUnknownPathNamesTheNativeCommand(t *testing.T) {
 		{path: "/v1/apps/123/appPrices", want: "asc pricing current --app 123"},
 		{path: "/v1/apps/123/availableTerritories", want: "asc pricing availability view --app 123"},
 		{path: "/v1/apps/123/appDataUsages", want: "asc web privacy pull --app 123"},
+		{path: "/v1/apps/123/appStoreVersions/V1/appStoreVersionLocalizations", want: "asc localizations list --version V1"},
+		{path: "/v1/appStoreVersions/V1/appStoreVersionLocalizations/L1/appStoreVersionScreenshotSets", want: "asc screenshots list --version-localization L1"},
+		{method: "POST", path: "/v1/betaGroups/G1/builds", want: "asc builds add-groups --build-id BUILD_ID --group G1"},
+		{method: "POST", path: "/v1/builds/B1/betaGroups", want: "asc builds add-groups --build-id B1 --group GROUP_ID"},
 	}
 	root := RootCommand("1.2.3")
 	for _, test := range tests {
-		t.Run(test.path, func(t *testing.T) {
+		method := test.method
+		if method == "" {
+			method = "GET"
+		}
+		t.Run(method+" "+test.path, func(t *testing.T) {
 			client := func() (*asc.Client, error) {
 				return nil, errors.New("client factory must not run during validation")
 			}
-			_, stderr, code := runWithDeps(t, client, "api", "GET", test.path)
+			args := []string{"api", method, test.path}
+			if method != "GET" {
+				args = append(args, "--confirm", "--body", `{"data":[{"type":"builds","id":"B1"}]}`)
+			}
+			_, stderr, code := runWithDeps(t, client, args...)
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 			}
