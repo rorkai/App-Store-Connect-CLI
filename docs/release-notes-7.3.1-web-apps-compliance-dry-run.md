@@ -16,13 +16,14 @@ Now:
   It sends no form request and no file, and stderr says so:
 
   ```text
-  Dry run: nothing was sent to Apple; the answer and its evidence files were checked locally and not uploaded.
+  Dry run: the answer and its evidence files were not sent to Apple; only the requirements list was read.
   ```
 
-- Read-only mode refuses the command at the first form request, before any
-  answer or file is sent.
+- Read-only mode refuses a save before the evidence files are read, and the
+  first form request is refused as well, so no answer or file is sent.
 
-One thing to know: because a dry run no longer fills Apple's form, it cannot
-report a field that only the form asks for, or a file type the form narrows
-further. `--confirm` still fills the form first and saves nothing if it cannot
-answer every field.
+One thing to know: `--dry-run` checks the answer and file types locally;
+Apple's own form checks run only with `--confirm`. Because a dry run no longer
+fills Apple's form, a first `--confirm` can still be refused by Apple's form,
+for a field only the form asks for or a file type the form narrows further.
+`--confirm` fills the form before saving and saves nothing when it is refused.
