@@ -48,9 +48,12 @@ web listing, which does not show review items, so they keep matching it.
 ## Submitting the draft
 
 `asc review submit --version-id VERSION_ID` now reuses a draft that holds the
-version plus subscription or subscription group versions, the draft
-`--review-items` builds, instead of creating a second one. Any other extra item
-still makes it skip the draft.
+version plus subscription or subscription group versions (the draft
+`--review-items` builds for a first subscription) instead of creating a second
+one. Any other extra item still makes it skip the draft. A draft with only subscription items (no app
+version), which `--review-items` builds when the app already has an approved
+subscription, is still skipped; submit it with
+`asc review submissions-submit --id SUBMISSION_ID --confirm`.
 
 ## `--review-items` receipt
 

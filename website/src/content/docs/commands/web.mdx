@@ -1151,7 +1151,12 @@ approved, its first subscription goes on the same submission as an app version
 (whose metadata must be complete), and the group version is added whenever the
 group was never approved. With several drafts, pick one with `--submission`;
 with none, one is created for `--platform` (default `IOS`). Nothing is
-submitted for review; `asc review submit --app "123456789" --version-id "VERSION_ID" --confirm` reuses that draft. Its
+submitted for review. When the draft holds the app version (always for a first
+subscription), `asc review submit --app "123456789" --version-id "VERSION_ID" --confirm`
+reuses it and submits the subscription items with the version. A draft with
+only subscription items, which is what an app with an approved subscription
+gets, is skipped by `asc review submit`; submit it with
+`asc review submissions-submit --id "SUBMISSION_ID" --confirm`. Its
 receipt uses `reviewSubmissionId` and an `items` list. `list` and `remove` read
 the web listing, which does not show review items.
 
