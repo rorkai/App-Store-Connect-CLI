@@ -400,6 +400,17 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 			result.reuseSubmissionHasVersion = hasVersion
 			return result, nil
 		}
+		if summary, ok := inspector.summaries[strings.TrimSpace(sub.ID)]; ok && summary.holdsOnlyStagedSubscriptionItems() {
+			// Cancelling it would undo what subscription attach staged; it
+			// goes to review on its own.
+			emitMessage(
+				"Skipped review submission %s because it holds only subscription review items and not version %s. Submit it on its own with `asc review submissions-submit --id %s --confirm`.",
+				sub.ID,
+				targetVersionID,
+				sub.ID,
+			)
+			continue
+		}
 		emitMessage(
 			"Skipped stale review submission %s because it is not exclusively usable for version %s. Cancel it explicitly with `asc submit cancel --id %s --confirm` if you intend to replace it.",
 			sub.ID,
@@ -473,6 +484,12 @@ type reviewSubmissionItemSummary struct {
 	// stagedSubscriptionItems counts subscription and subscription group
 	// version items, which go to review with the app version.
 	stagedSubscriptionItems int
+}
+
+// holdsOnlyStagedSubscriptionItems reports whether a draft holds subscription
+// or subscription group versions and nothing else, not even an app version.
+func (s reviewSubmissionItemSummary) holdsOnlyStagedSubscriptionItems() bool {
+	return s.stagedSubscriptionItems > 0 && !s.hasTargetVersion && !s.hasOtherItems
 }
 
 // reusableForVersion reports whether review submit reuses a draft with these
