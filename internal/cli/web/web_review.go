@@ -969,7 +969,7 @@ func newWebReviewReplyCommand(d *shared.Deps) *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID; when set, the thread must belong to this app")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
-	message := fs.String("message", "", "Reply message body")
+	message := fs.String("message", "", "Reply message body, at most 4,000 characters")
 	bodyFile := fs.String("body-file", "", "Read the reply message body from a regular file")
 	confirm := fs.Bool("confirm", false, "Confirm sending the reply")
 	authFlags := bindWebSessionFlags(fs)
@@ -1018,6 +1018,9 @@ Examples:
 			}
 			messageBody, err := readWebReviewDraftBody(d, fs, *message, *bodyFile)
 			if err != nil {
+				return err
+			}
+			if err := validateResolutionCenterMessageLength(d, "--message", messageBody); err != nil {
 				return err
 			}
 			if err := d.RequireConfirm(*confirm); err != nil {
