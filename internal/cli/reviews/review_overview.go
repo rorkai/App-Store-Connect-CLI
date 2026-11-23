@@ -44,6 +44,9 @@ type reviewSnapshot struct {
 	ReviewDetailID   string
 	LatestSubmission *reviewSubmissionContext
 	SubmissionItems  *reviewSubmissionItemsContext
+	// DraftSubmissionID is a READY_FOR_REVIEW submission that is empty or
+	// already holds the selected version, so the next step can reuse it.
+	DraftSubmissionID string
 }
 
 type reviewStatusResult struct {
@@ -269,6 +272,7 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 		selectedVersionID = strings.TrimSpace(versionContext.ID)
 	}
 	snapshot.LatestSubmission = selectRelevantReviewSubmission(reviewSubmissions, selectedVersionID)
+	snapshot.DraftSubmissionID = selectReusableDraftReviewSubmission(reviewSubmissions, selectedVersionID)
 	if selectedVersionID != "" && shouldInspectReviewSubmissionItems(snapshot.LatestSubmission) {
 		submissionItems, err := summarizeReviewSubmissionItems(ctx, client, snapshot.LatestSubmission.ID, selectedVersionID)
 		if err != nil {
@@ -365,6 +369,29 @@ func selectRelevantReviewSubmission(submissions []asc.ReviewSubmissionResource, 
 		SubmittedDate: strings.TrimSpace(best.Attributes.SubmittedDate),
 	}
 	return &context
+}
+
+// selectReusableDraftReviewSubmission returns the ID of a READY_FOR_REVIEW
+// submission that already holds versionID or holds no version yet, so the next
+// step can reuse that draft instead of creating another submission.
+func selectReusableDraftReviewSubmission(submissions []asc.ReviewSubmissionResource, versionID string) string {
+	normalizedVersionID := strings.TrimSpace(versionID)
+	if normalizedVersionID == "" {
+		return ""
+	}
+	emptyDraftID := ""
+	for _, submission := range submissions {
+		if !strings.EqualFold(strings.TrimSpace(string(submission.Attributes.SubmissionState)), string(asc.ReviewSubmissionStateReadyForReview)) {
+			continue
+		}
+		switch submissionVersionID := reviewSubmissionVersionID(submission); {
+		case strings.EqualFold(submissionVersionID, normalizedVersionID):
+			return strings.TrimSpace(submission.ID)
+		case submissionVersionID == "" && emptyDraftID == "":
+			emptyDraftID = strings.TrimSpace(submission.ID)
+		}
+	}
+	return emptyDraftID
 }
 
 func reviewSubmissionVersionID(submission asc.ReviewSubmissionResource) string {
@@ -471,8 +498,15 @@ func staleReviewSubmissionBlocker() string {
 	return "Latest completed review submission no longer contains active review items because all items were removed."
 }
 
-func staleReviewSubmissionNextAction() string {
-	return "Create a fresh review submission for the current version."
+func staleReviewSubmissionNextAction(snapshot reviewSnapshot) string {
+	draftID := strings.TrimSpace(snapshot.DraftSubmissionID)
+	if draftID == "" || snapshot.Version == nil || strings.TrimSpace(snapshot.Version.ID) == "" {
+		return "Create a fresh review submission for the current version."
+	}
+	versionID := strings.TrimSpace(snapshot.Version.ID)
+	return "Reuse draft review submission " + draftID + ": run `asc review items add --submission \"" + draftID +
+		"\" --item-type appStoreVersions --item-id \"" + versionID + "\" --if-exists skip`, then `asc review submissions-submit --id \"" +
+		draftID + "\" --confirm`."
 }
 
 func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
@@ -530,7 +564,7 @@ func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 	if len(result.Blockers) > 0 {
 		switch {
 		case hasOnlyRemovedItems:
-			result.NextAction = staleReviewSubmissionNextAction()
+			result.NextAction = staleReviewSubmissionNextAction(snapshot)
 		case strings.Contains(result.Blockers[0], "review detail"):
 			result.NextAction = "Create or update the App Store review detail for the current version."
 		case strings.Contains(strings.ToLower(result.Blockers[0]), "unresolved issues"):
@@ -621,7 +655,7 @@ func buildReviewDoctorResult(snapshot reviewSnapshot, report validation.Report) 
 			ID:          "review.submission.removed_items_only",
 			Severity:    validation.SeverityError,
 			Message:     staleReviewSubmissionBlocker(),
-			Remediation: staleReviewSubmissionNextAction(),
+			Remediation: staleReviewSubmissionNextAction(snapshot),
 		}
 		result.BlockingChecks = append(result.BlockingChecks, synthetic)
 		result.Summary.Errors++
@@ -637,7 +671,7 @@ func buildReviewDoctorResult(snapshot reviewSnapshot, report validation.Report) 
 
 	switch {
 	case reviewSnapshotHasOnlyRemovedItems(snapshot):
-		result.NextAction = staleReviewSubmissionNextAction()
+		result.NextAction = staleReviewSubmissionNextAction(snapshot)
 	case len(result.BlockingChecks) > 0 && strings.TrimSpace(result.BlockingChecks[0].Remediation) != "":
 		result.NextAction = result.BlockingChecks[0].Remediation
 	case len(result.BlockingChecks) > 0:
