@@ -69,10 +69,15 @@ Examples:
 					partialErr.Response.Data.Type == asc.ResourceTypeReviewSubmissions {
 					submissionID := strings.TrimSpace(partialErr.Response.Data.ID)
 					if submissionID != "" {
+						// The submission is an empty unsubmitted draft
+						// (READY_FOR_REVIEW), which App Store Connect refuses to
+						// cancel, so name the commands that finish it instead.
 						return fmt.Errorf(
-							"app-events submit: review submission %q may have been created, but no event was added or submitted; inspect it with `asc review submissions-get --id %s` or cancel it with `asc submit cancel --id %s --confirm`: %w",
+							"app-events submit: review submission %q may have been created, but no event was added or submitted; inspect it with `asc review submissions-get --id %s`. App Store Connect does not cancel an unsubmitted draft (READY_FOR_REVIEW): add the event with `asc review items add --submission %s --item-type appEvents --item-id %s` and send it with `asc review submissions-submit --id %s --confirm`: %w",
 							submissionID,
 							submissionID,
+							submissionID,
+							id,
 							submissionID,
 							err,
 						)
