@@ -361,6 +361,11 @@ func submitResolvedVersionPhaseContext(ctx context.Context, requestTimeout time.
 // submission that still holds versionID, if any. App Review rejected that
 // submission, and the version stays in it until the developer resolves the
 // rejected items and resubmits it, or cancels it.
+//
+// appStoreVersionForReview alone is not enough: App Store Connect keeps that
+// link after the version's item is removed from the submission. A linked
+// submission counts only when one of its items is the version and is not
+// REMOVED.
 func findUnresolvedSubmissionForVersion(ctx context.Context, client *asc.Client, appID, platform, versionID string) (string, error) {
 	submissions, err := shared.FetchAllReviewSubmissions(
 		ctx,
@@ -382,11 +387,57 @@ func findUnresolvedSubmissionForVersion(ctx context.Context, client *asc.Client,
 		if submission.Relationships == nil || submission.Relationships.AppStoreVersionForReview == nil {
 			continue
 		}
-		if strings.EqualFold(strings.TrimSpace(submission.Relationships.AppStoreVersionForReview.Data.ID), targetVersionID) {
-			return strings.TrimSpace(submission.ID), nil
+		if !strings.EqualFold(strings.TrimSpace(submission.Relationships.AppStoreVersionForReview.Data.ID), targetVersionID) {
+			continue
+		}
+		submissionID := strings.TrimSpace(submission.ID)
+		holdsVersion, err := reviewSubmissionHoldsActiveVersion(ctx, client, submissionID, targetVersionID)
+		if err != nil {
+			return "", fmt.Errorf("list items of review submission %s: %w", submissionID, err)
+		}
+		if holdsVersion {
+			return submissionID, nil
 		}
 	}
 	return "", nil
+}
+
+// reviewSubmissionHoldsActiveVersion reports whether submissionID has an item
+// for versionID that is not REMOVED.
+func reviewSubmissionHoldsActiveVersion(ctx context.Context, client *asc.Client, submissionID, versionID string) (bool, error) {
+	resp, err := client.GetReviewSubmissionItemsStrict(
+		ctx,
+		submissionID,
+		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
+		asc.Limit[asc.ReviewSubmissionItemsOption](200),
+	)
+	if err != nil {
+		return false, err
+	}
+	if resp == nil || resp.Data == nil {
+		return false, fmt.Errorf("review submission items response data is required")
+	}
+
+	holdsVersion := false
+	consume := func(pageResponse asc.PaginatedResponse) error {
+		page, ok := pageResponse.(*asc.ReviewSubmissionItemsResponse)
+		if !ok || page == nil {
+			return fmt.Errorf("unexpected review submission items response type %T", pageResponse)
+		}
+		for _, item := range page.Data {
+			if reviewSubmissionItemVersionID(item) == versionID && !strings.EqualFold(strings.TrimSpace(item.Attributes.State), "REMOVED") {
+				holdsVersion = true
+			}
+		}
+		return nil
+	}
+	fetchNext := func(fetchCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetReviewSubmissionItemsStrict(fetchCtx, submissionID, asc.NextURL[asc.ReviewSubmissionItemsOption](strings.TrimSpace(nextURL)))
+	}
+	if err := asc.PaginateEachWithMaxPages(ctx, resp, fetchNext, consume, reviewSubmissionItemsMaxPages); err != nil {
+		return false, err
+	}
+	return holdsVersion, nil
 }
 
 // unresolvedSubmissionError stops a submit before it creates a review
