@@ -14,6 +14,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	authsvc "github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 // NewAccountCommand returns the account command group built on d.
@@ -214,6 +215,16 @@ func apiAccessCheck(ctx context.Context, d *shared.Deps, appID string) (accountC
 }
 
 func agreementsAvailabilityCheck() accountCheck {
+	// A broker lends only App Store Connect reads and review messages, so
+	// under one the agreement commands would only meet its refusal.
+	if _, brokered, _ := webcore.BrokerFromEnv(); brokered {
+		return accountCheck{
+			Name:   "agreements",
+			Status: "unavailable",
+			Message: "account-level agreement status is not in the public App Store Connect API, and the web session lent through " +
+				webcore.WebBrokerURLEnv + " can't read it; " + webcore.BrokerAgreementsHandOff,
+		}
+	}
 	return accountCheck{
 		Name:   "agreements",
 		Status: "unavailable",

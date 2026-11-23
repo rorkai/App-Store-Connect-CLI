@@ -302,3 +302,66 @@ func TestWebBrokerAppsCreateNamesTheBrokeredSession(t *testing.T) {
 		t.Fatalf("stderr=%q", stderr)
 	}
 }
+
+// Agreement status lives on Apple pages a broker does not lend. When the
+// broker refuses them, the caller learns who can read the agreements and
+// where, instead of retrying or signing in again.
+func TestWebBrokerAgreementsRefusalNamesTheAccountHolderHandOff(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		args         []string
+		status       int
+		body         string
+		wantHandOff  bool
+		wantExitCode int
+	}{
+		{name: "agreements status refused", args: []string{"web", "agreements", "status"}, status: http.StatusForbidden, body: `{"error":{"code":"ASC_WEB_REQUEST_NOT_ALLOWED","message":"this request is not lent"}}`, wantHandOff: true, wantExitCode: cmd.ExitAuth},
+		{name: "business agreements list refused", args: []string{"web", "business", "agreements", "list"}, status: http.StatusForbidden, body: `{"error":{"code":"ASC_WEB_REQUEST_NOT_ALLOWED","message":"this request is not lent"}}`, wantHandOff: true, wantExitCode: cmd.ExitAuth},
+		{name: "agreements status rate limited", args: []string{"web", "agreements", "status"}, status: http.StatusTooManyRequests, body: `{"error":{"code":"RATE_LIMITED","message":"slow down"}}`, wantExitCode: 39},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, cache := webBrokerFixture(t, "")
+			var requests []string
+			broker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests = append(requests, r.Method+" "+r.URL.Path)
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/appstoreconnect.apple.com/olympus/v1/session" {
+					w.Header().Set("X-Asc-Web-Broker-Upstream", "1")
+					_, _ = io.WriteString(w, `{"provider":{"providerId":42,"publicProviderId":"TEAM42"},"user":{"emailAddress":"user@example.com"}}`)
+					return
+				}
+				w.WriteHeader(tc.status)
+				_, _ = io.WriteString(w, tc.body)
+			}))
+			t.Cleanup(broker.Close)
+			t.Setenv("ASC_WEB_BROKER_URL", broker.URL)
+
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(tc.args, "test") })
+			if code != tc.wantExitCode {
+				t.Fatalf("exit=%d, want %d; stdout=%q stderr=%q", code, tc.wantExitCode, stdout, stderr)
+			}
+			if len(requests) != 2 {
+				t.Fatalf("expected the session read and one refused request, got %v", requests)
+			}
+			handOff := []string{
+				"Account Holder",
+				"https://appstoreconnect.apple.com/business",
+				"https://developer.apple.com/account",
+				"do not retry",
+			}
+			for _, want := range handOff {
+				if got := strings.Contains(stderr, want); got != tc.wantHandOff {
+					t.Fatalf("contains %q = %v, want %v; stderr=%q", want, got, tc.wantHandOff, stderr)
+				}
+			}
+			if !strings.Contains(stderr, "web session broker refused the request") {
+				t.Fatalf("expected the broker's own refusal, stderr=%q", stderr)
+			}
+			if tc.wantHandOff && (strings.Contains(stderr, "asc web auth login") || strings.Contains(stderr, "network connection") || strings.Contains(strings.ToLower(stderr), "permission")) {
+				t.Fatalf("the refusal must not suggest a sign-in, a network problem, or missing permissions: %q", stderr)
+			}
+			assertWebSessionCacheEmpty(t, cache)
+		})
+	}
+}

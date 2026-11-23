@@ -131,6 +131,9 @@ Example:
 				return withWebAuthHint(err, "web business agreements list")
 			}
 			response, err := newWebClientFn(session).ListBusinessAgreements(requestCtx)
+			if refusal := agreementsBrokerRefusalError("web business agreements list", err); refusal != nil {
+				return refusal
+			}
 			if err != nil {
 				return withWebAuthHint(err, "web business agreements list")
 			}
