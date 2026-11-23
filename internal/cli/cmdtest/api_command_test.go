@@ -44,6 +44,17 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: "api: unexpected argument \"extra\"",
 		},
 		{
+			// --json is --output json, so the body after it is a stray positional.
+			name:    "json body after --json",
+			args:    []string{"api", "post", "/v1/inAppPurchaseLocalizations", "--json", `{"data":{"type":"inAppPurchaseLocalizations"}}`, "--output", "json"},
+			wantErr: "api: --json takes no value (it means --output json); pass the request body with --body '<json>' (or --body @file, or --body-file FILE)",
+		},
+		{
+			name:    "json body as a positional",
+			args:    []string{"api", "POST", "/v1/betaGroups", "--confirm", ` [{"type":"builds"}]`},
+			wantErr: "api: the request body is not a positional argument; pass it with --body '<json>' (or --body @file, or --body-file FILE)",
+		},
+		{
 			name:    "unsupported method",
 			args:    []string{"api", "PUT", "/v1/apps"},
 			wantErr: "api: METHOD must be one of GET, POST, PATCH, DELETE",
@@ -319,6 +330,32 @@ func TestAPIUnknownPathAnswersWithWhatToSend(t *testing.T) {
 			name:      "indexed resource without a close operation",
 			args:      []string{"api", "POST", "/v1/apps/123/requestTestNotification", "--confirm"},
 			want:      "Nearest known operations: ",
+			wantAllow: true,
+		},
+		{
+			// A child is created at its own top-level path, with a
+			// relationship to the parent, not under the parent's path.
+			name:      "create under the parent's path",
+			args:      []string{"api", "POST", "v1/inAppPurchases/IAP1/inAppPurchaseLocalizations", "--confirm", "--body", `{"data":{"type":"inAppPurchaseLocalizations"}}`},
+			want:      `api: POST /v1/inAppPurchases/IAP1/inAppPurchaseLocalizations is not in the embedded schema index. To create one, use POST /v1/inAppPurchaseLocalizations with relationships.inAppPurchaseV2 = {"data":{"type":"inAppPurchases","id":"IAP1"}}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			name:      "create under the parent's path in another API version",
+			args:      []string{"api", "POST", "/v2/inAppPurchases/IAP1/inAppPurchaseLocalizations", "--confirm", "--body", `{"data":{"type":"inAppPurchaseLocalizations"}}`},
+			want:      `To create one, use POST /v1/inAppPurchaseLocalizations with relationships.inAppPurchaseV2 = {"data":{"type":"inAppPurchases","id":"IAP1"}}.`,
+			wantAllow: true,
+		},
+		{
+			name:      "update under the parent's path",
+			args:      []string{"api", "PATCH", "/v1/inAppPurchases/IAP1/inAppPurchaseLocalizations", "--confirm", "--body", `{"data":{"type":"inAppPurchaseLocalizations"}}`},
+			want:      "To change one, use PATCH /v1/inAppPurchaseLocalizations/{id} with its ID from GET /v2/inAppPurchases/IAP1/inAppPurchaseLocalizations. Other known operations: ",
+			wantAllow: true,
+		},
+		{
+			name:      "delete under the parent's path",
+			args:      []string{"api", "DELETE", "/v1/inAppPurchases/IAP1/inAppPurchaseLocalizations", "--confirm"},
+			want:      "To delete one, use DELETE /v1/inAppPurchaseLocalizations/{id} with its ID from GET /v2/inAppPurchases/IAP1/inAppPurchaseLocalizations. Other known operations: ",
 			wantAllow: true,
 		},
 		{
