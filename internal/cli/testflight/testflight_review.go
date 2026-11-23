@@ -421,7 +421,9 @@ Examples:
 
 // reviewSubmissionsAppBuildsLimit is how many of an app's most recent builds
 // --app reads submissions for: one page of builds, whose IDs Apple accepts in
-// one filter[build] value.
+// one filter[build] value. At 200 IDs the URL is about 7.9 KB; Apple answers
+// HTTP 500 once it passes about 8.3 KB (docs/API_NOTES.md), so raising this
+// needs the filter split across requests.
 const reviewSubmissionsAppBuildsLimit = 200
 
 // reviewSubmissionsAppBuildIDs returns the build IDs whose submissions --app
