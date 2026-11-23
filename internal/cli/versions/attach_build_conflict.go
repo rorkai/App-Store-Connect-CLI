@@ -62,8 +62,15 @@ func withAttachBuildConflictHint(ctx context.Context, client *asc.Client, versio
 	if holderState == "" {
 		holderState = strings.TrimSpace(holder.Data.Attributes.AppStoreState)
 	}
+	// versionString is Apple data; quote it before it goes into a command
+	// someone may paste into a shell, and fall back to a placeholder when no
+	// rendering is safe in every shell.
+	versionFlag, ok := shared.ShellQuote(attrs.VersionString)
+	if !ok {
+		versionFlag = "VERSION"
+	}
 	return &shared.HintedError{Err: attachErr, Hint: fmt.Sprintf(
 		"Build %s is already the build of version %s (%s, id %s), and a build ships with one version only. Attach a build no version uses yet (`asc builds list --app APP_ID --version %s`), or upload a new build for %s.",
-		buildID, holder.Data.Attributes.VersionString, holderState, holderID, attrs.VersionString, attrs.VersionString,
+		buildID, holder.Data.Attributes.VersionString, holderState, holderID, versionFlag, attrs.VersionString,
 	)}
 }
