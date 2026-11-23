@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	submitcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
 	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -44,9 +45,11 @@ type reviewSnapshot struct {
 	ReviewDetailID   string
 	LatestSubmission *reviewSubmissionContext
 	SubmissionItems  *reviewSubmissionItemsContext
-	// DraftSubmissionID is a READY_FOR_REVIEW submission that is empty or
-	// already holds the selected version, so the next step can reuse it.
-	DraftSubmissionID string
+	// DraftSubmissionID is a READY_FOR_REVIEW submission with no other version
+	// linked. DraftHoldsOnlyVersion is read only when the next action needs it:
+	// the draft holds no items or only the selected version.
+	DraftSubmissionID     string
+	DraftHoldsOnlyVersion bool
 }
 
 type reviewStatusResult struct {
@@ -280,6 +283,13 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 		}
 		snapshot.SubmissionItems = &submissionItems
 	}
+	if snapshot.DraftSubmissionID != "" && reviewSnapshotHasOnlyRemovedItems(snapshot) {
+		holdsOnlyVersion, err := submitcli.ReviewSubmissionHoldsOnlyVersion(ctx, client, snapshot.DraftSubmissionID, selectedVersionID)
+		if err != nil {
+			return snapshot, fmt.Errorf("fetch review submission items for %q: %w", snapshot.DraftSubmissionID, err)
+		}
+		snapshot.DraftHoldsOnlyVersion = holdsOnlyVersion
+	}
 
 	return snapshot, nil
 }
@@ -504,9 +514,16 @@ func staleReviewSubmissionNextAction(snapshot reviewSnapshot) string {
 		return "Create a fresh review submission for the current version."
 	}
 	versionID := strings.TrimSpace(snapshot.Version.ID)
-	return "Reuse draft review submission " + draftID + ": run `asc review items add --submission \"" + draftID +
-		"\" --item-type appStoreVersions --item-id \"" + versionID + "\" --if-exists skip`, then `asc review submissions-submit --id \"" +
-		draftID + "\" --confirm`."
+	if !snapshot.DraftHoldsOnlyVersion {
+		return fmt.Sprintf(
+			"Draft review submission %q holds other review items, so do not submit it for this version: run `asc review submit --app %q --version-id %q --build-id \"BUILD_ID\" --confirm`, which reuses a draft only when it holds nothing but this version and otherwise creates a new submission.",
+			draftID, strings.TrimSpace(snapshot.AppID), versionID,
+		)
+	}
+	return fmt.Sprintf(
+		"Reuse draft review submission %q: run `asc review items add --submission %q --item-type appStoreVersions --item-id %q --if-exists skip`, then `asc review submissions-submit --id %q --confirm`.",
+		draftID, draftID, versionID, draftID,
+	)
 }
 
 func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
