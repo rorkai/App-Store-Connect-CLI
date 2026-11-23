@@ -626,7 +626,11 @@ func rollbackReviewSubscriptionItems(ctx context.Context, d *shared.Deps, client
 		notes = append(notes, fmt.Sprintf("removed review item %s (%s %s), which this run added", item.ReviewSubmissionItemID, item.ItemType, item.ResourceID))
 	}
 	if draft.Created {
-		if _, err := client.CancelReviewSubmission(ctx, draft.ID); err != nil {
+		if _, err := client.CancelReviewSubmission(ctx, draft.ID); shared.IsReviewSubmissionNotCancellableError(err) {
+			// The draft is still unsubmitted (READY_FOR_REVIEW), which App Store
+			// Connect does not cancel; it stays as a draft to reuse or change.
+			notes = append(notes, fmt.Sprintf("kept review submission %s, which this run created: App Store Connect does not cancel an unsubmitted draft. Check it with `asc review submissions-get --id %q --include items`; run this command again to reuse it, or remove an item with `asc review items remove --id ITEM_ID --confirm`", draft.ID, draft.ID))
+		} else if err != nil {
 			notes = append(notes, fmt.Sprintf("review submission %s, which this run created, is still a draft; cancel it with `asc review submissions-cancel --id %q --confirm`: %v", draft.ID, draft.ID, err))
 		} else {
 			notes = append(notes, fmt.Sprintf("canceled review submission %s, which this run created", draft.ID))
