@@ -529,6 +529,27 @@ func TestWebReviewSubscriptionsAttachReportsBrokerRefusal(t *testing.T) {
 	}
 }
 
+// The subscription IDs in the refusal come from the web listing, so terminal
+// control sequences in them must not reach the caller's terminal.
+func TestReviewSubscriptionBrokerRefusalErrorSanitizesListedIDs(t *testing.T) {
+	refusal := &webcore.BrokerError{Status: http.StatusForbidden, Code: "REQUEST_NOT_LENT", Message: "not lent for this request"}
+	attached := "sub-1\x1b[2K\r"
+	notAttached := "sub-2\x1b]0;title\a"
+	err := reviewSubscriptionBrokerRefusalError("attach-group", refusal, []string{notAttached}, []string{attached})
+	if err == nil {
+		t.Fatal("expected a refusal error")
+	}
+	message := errfmt.FormatStderr(err)
+	for _, control := range []string{"\x1b", "\r", "\a"} {
+		if strings.Contains(message, control) {
+			t.Fatalf("expected no terminal control %q in the refusal, got %q", control, message)
+		}
+	}
+	if !strings.Contains(message, "attached before the refusal") || !strings.Contains(message, "sub-1") || !strings.Contains(message, "sub-2") {
+		t.Fatalf("expected both subscription IDs in the outcome, got %q", message)
+	}
+}
+
 // lendReviewSubscriptionsSession marks the stubbed web session as one a
 // broker lends, keeping its transport.
 func lendReviewSubscriptionsSession(t *testing.T) {
