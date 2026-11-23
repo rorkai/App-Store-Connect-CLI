@@ -174,10 +174,13 @@ type ScreenshotDeleteResult struct {
 
 // ScreenshotLibraryImageResult reports what happened to the Asset Library
 // image that shares a deleted screenshot's ID: deleted, kept (another
-// placement uses it), or absent (no such image).
+// placement uses it), absent (no such image), checkFailed (kept because the
+// placement check gave no clear answer), or deleteFailed (the image DELETE
+// failed). Error carries the failure for the last two.
 type ScreenshotLibraryImageResult struct {
 	ID    string `json:"id"`
 	State string `json:"state"`
+	Error string `json:"error,omitempty"`
 }
 
 func appScreenshotSetsRows(resp *AppScreenshotSetsResponse) ([]string, [][]string) {

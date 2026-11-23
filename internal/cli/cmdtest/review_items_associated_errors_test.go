@@ -76,6 +76,7 @@ func reviewItemsAddAssociatedBody(resource, detail string) string {
 }
 
 func TestReviewItemsAddConflictHintNamesTheNextStep(t *testing.T) {
+	const embeddedAssetHint = "App Store Connect locks an asset that is placed on an app version (`asc localizations placements create`) while that version is in, or goes into, a review submission; the asset is then reviewed with the version, not as its own item. Submit the version with `asc review submit --app APP_ID --version-id VERSION_ID --build-id BUILD_ID --confirm`, and the assets placed on it go with it."
 	submission := func(state string) string {
 		return fmt.Sprintf(`{"data":{"type":"reviewSubmissions","id":"submission-1","attributes":{"platform":"IOS","state":%q},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`, state)
 	}
@@ -105,7 +106,12 @@ func TestReviewItemsAddConflictHintNamesTheNextStep(t *testing.T) {
 		{
 			name:     "asset placed on a version",
 			body:     reviewItemsAddAssociatedBody("/appAssetLibraryImages/image-1", "Asset is locked by an embedded review submission."),
-			wantHint: "Hint: This asset is placed on an app version, so App Store Connect reviews it with that version and does not take it as a separate item. Submit the version instead, for example with `asc review submit`, and the placed assets go with it.\n",
+			wantHint: "Hint: " + embeddedAssetHint + "\n",
+		},
+		{
+			name:     "asset placed on a version, with a compliance requirement",
+			body:     `{"errors":[{"status":"409","code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"appStoreVersions with id 'version-1' is not in valid state.","detail":"This resource cannot be reviewed, please check associated errors to see why.","meta":{"associatedErrors":{"/appAssetLibraryImages/image-1":[{"status":"409","code":"STATE_ERROR","detail":"Asset is locked by an embedded review submission."}],"/v1/appInfos/info-1":[{"status":"409","code":"STATE_ERROR","detail":"Cannot submit version due to unfulfilled compliance requirement."}]}}}]}`,
+			wantHint: "Hint: " + embeddedAssetHint + " App Store Connect does not review the app until every compliance requirement has an answer.",
 		},
 		{
 			name:     "submission no longer a draft, another draft exists",
