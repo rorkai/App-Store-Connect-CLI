@@ -24,7 +24,7 @@ func Validate(input Input, strict bool) Report {
 
 	checks := make([]CheckResult, 0)
 	checks = append(checks, metadataLengthChecks(input.VersionLocalizations, input.AppInfoLocalizations)...)
-	checks = append(checks, requiredFieldChecks(input.PrimaryLocale, input.VersionString, input.VersionState, activeMonetization, input.VersionLocalizations, input.AppInfoLocalizations)...)
+	checks = append(checks, requiredFieldChecks(input.PrimaryLocale, input.VersionString, input.FirstVersion, input.VersionState, activeMonetization, input.VersionLocalizations, input.AppInfoLocalizations)...)
 	checks = append(checks, reviewDetailsChecks(input.ReviewDetails)...)
 	checks = append(checks, categoryChecks(input.AppInfoID, input.PrimaryCategoryID)...)
 	checks = append(checks, contentRightsChecks(input.AppID, input.ContentRightsDeclaration)...)

@@ -115,9 +115,16 @@ func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts Readines
 
 	var customProductPageLocalizations []validation.CustomProductPageLocalization
 	customProductPageKeywordsSkipReason := ""
+	var firstVersion *bool
 
 	if err := runReadinessTasks(
 		ctx,
+		func(taskCtx context.Context) error {
+			// Best effort: a failed read leaves firstVersion unknown, and the
+			// What's New check falls back to the version number.
+			firstVersion = readinessFirstVersion(taskCtx, client, opts.AppID, resolvedVersionID, platform)
+			return nil
+		},
 		func(taskCtx context.Context) error {
 			return resolveMultipleAppInfoAgeRating(
 				taskCtx,
@@ -341,6 +348,7 @@ func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts Readines
 		VersionID:                   resolvedVersionID,
 		VersionString:               versionData.response.Data.Attributes.VersionString,
 		VersionState:                shared.ResolveAppStoreVersionState(versionData.response.Data.Attributes),
+		FirstVersion:                firstVersion,
 		Platform:                    platform,
 		PrimaryLocale:               appInfoData.app.Attributes.PrimaryLocale,
 		VersionLocalizations:        versionLocalizations,
@@ -514,4 +522,38 @@ func readinessAvailabilitySkipReason(err error) (string, bool) {
 		return "Review app availability in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints could not be reached", true
 	}
 	return "", false
+}
+
+// readinessFirstVersion reports whether versionID is the app's only App Store
+// version on platform, which App Store Connect treats as its first version
+// (no What's New). It returns nil when the answer is unknown: no platform, a
+// failed read, or more versions than one page holds.
+func readinessFirstVersion(ctx context.Context, client *asc.Client, appID, versionID, platform string) *bool {
+	appID, versionID, platform = strings.TrimSpace(appID), strings.TrimSpace(versionID), strings.TrimSpace(platform)
+	if appID == "" || versionID == "" || platform == "" {
+		return nil
+	}
+	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.AppStoreVersionsResponse, error) {
+		return client.GetAppStoreVersions(requestCtx, appID,
+			asc.WithAppStoreVersionsPlatforms([]string{platform}),
+			asc.Limit[asc.AppStoreVersionsOption](200),
+		)
+	})
+	if err != nil || resp == nil {
+		return nil
+	}
+	first := strings.TrimSpace(resp.Links.Next) == ""
+	seen := false
+	for _, item := range resp.Data {
+		if item.ID == versionID {
+			seen = true
+			continue
+		}
+		first = false
+	}
+	if !seen && first {
+		// The listing does not hold the version being checked; don't guess.
+		return nil
+	}
+	return &first
 }
