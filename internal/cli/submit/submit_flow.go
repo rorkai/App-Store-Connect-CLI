@@ -44,7 +44,10 @@ type SubmitResolvedVersionResult struct {
 	AlreadySubmitted bool                   `json:"alreadySubmitted,omitempty"`
 	WouldSubmit      bool                   `json:"wouldSubmit,omitempty"`
 	BuildAttachment  *BuildAttachmentResult `json:"buildAttachment,omitempty"`
-	Messages         []string               `json:"messages,omitempty"`
+	// ReviewItems lists every item the submission sends (or, with DryRun,
+	// would send) to App Review, the version first.
+	ReviewItems []asc.ReviewSubmissionReceiptItem `json:"reviewItems,omitempty"`
+	Messages    []string                          `json:"messages,omitempty"`
 }
 
 // SubmissionLocalizationPreflightWith runs the submission-blocking
@@ -245,13 +248,13 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 		return result, unresolvedSubmissionError(unresolvedSubmissionID, versionID, buildToAttach)
 	}
 
-	if !opts.DryRun {
-		preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-		preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
-		preparationCancel()
-		if err != nil {
-			return result, fmt.Errorf("submit review: prepare review submission: %w", err)
-		}
+	// Read-only, so --dry-run runs it too and names the same draft items the
+	// real run submits.
+	preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
+	preparedSubmission, err = prepareReviewSubmissionForCreate(preparationCtx, d.IO.ErrOut, client, appID, platform, versionID, emit)
+	preparationCancel()
+	if err != nil {
+		return result, fmt.Errorf("submit review: prepare review submission: %w", err)
 	}
 
 	if opts.EnsureBuildAttached {
@@ -266,6 +269,8 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 
 	if opts.DryRun {
 		result.WouldSubmit = true
+		emitUnnamedReviewItems(emit, preparedSubmission.reuseSubmissionID, versionID, preparedSubmission.stagedItems, true)
+		result.ReviewItems = reviewReceiptItems(versionID, preparedSubmission.versionItemID, preparedSubmission.stagedItems)
 		return result, nil
 	}
 
@@ -319,19 +324,22 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 		}
 	}
 
-	if err := verifyReviewSubmissionForSubmit(
+	finalItems, err := verifyReviewSubmissionForSubmit(
 		submitCtx,
 		client,
 		submissionIDToSubmit,
 		appID,
 		platform,
 		versionID,
-	); err != nil {
+	)
+	if err != nil {
 		if submissionIDToSubmit == createdSubmissionID {
 			preserveCreatedReviewSubmission(d.IO.ErrOut, createdSubmissionID, emit)
 		}
 		return result, fmt.Errorf("submit review: final submission validation: %w", err)
 	}
+
+	emitUnnamedReviewItems(emit, submissionIDToSubmit, versionID, finalItems.stagedItems, false)
 
 	submitResp, err := client.SubmitReviewSubmission(submitCtx, submissionIDToSubmit)
 	if err != nil {
@@ -344,7 +352,53 @@ func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Clie
 
 	result.SubmissionID = strings.TrimSpace(submitResp.Data.ID)
 	result.SubmittedDate = strings.TrimSpace(submitResp.Data.Attributes.SubmittedDate)
+	result.ReviewItems = reviewReceiptItems(versionID, finalItems.targetVersionItemID, finalItems.stagedItems)
 	return result, nil
+}
+
+// reviewReceiptItems lists what a submission sends to App Review: the version
+// the command line named, then any staged subscription items it did not name.
+func reviewReceiptItems(versionID, versionItemID string, staged []asc.ReviewSubmissionReceiptItem) []asc.ReviewSubmissionReceiptItem {
+	items := make([]asc.ReviewSubmissionReceiptItem, 0, 1+len(staged))
+	items = append(items, asc.ReviewSubmissionReceiptItem{
+		Type:                   string(asc.ResourceTypeAppStoreVersions),
+		ID:                     strings.TrimSpace(versionID),
+		ReviewSubmissionItemID: strings.TrimSpace(versionItemID),
+		Named:                  true,
+	})
+	for _, item := range staged {
+		item.Named = false
+		items = append(items, item)
+	}
+	return items
+}
+
+// emitUnnamedReviewItems names each item a reused draft submits with the
+// version although the command line did not name it, and how to remove it
+// before submitting. It reports only; the submit goes ahead. The IDs come from
+// App Store Connect, so terminal control characters are stripped.
+func emitUnnamedReviewItems(emit func(string), submissionID, versionID string, staged []asc.ReviewSubmissionReceiptItem, dryRun bool) {
+	if len(staged) == 0 {
+		return
+	}
+	emit = func(next func(string)) func(string) {
+		return func(message string) { next(shared.SanitizeTerminal(message)) }
+	}(emit)
+	sends := "sends them"
+	if dryRun {
+		sends = "would send them"
+	}
+	emit(fmt.Sprintf(
+		"Review submission %s holds %d item%s this command did not name; submitting it %s to App Review with version %s.",
+		submissionID, len(staged), pluralS(len(staged)), sends, versionID,
+	))
+	for _, item := range staged {
+		emit(fmt.Sprintf(
+			"Not named: %s. To leave it out, remove it before submitting: asc review items remove --id %q --confirm",
+			DescribeReviewItems([]asc.ReviewSubmissionReceiptItem{item}),
+			item.ReviewSubmissionItemID,
+		))
+	}
 }
 
 func submitResolvedVersionPhaseContext(ctx context.Context, requestTimeout time.Duration) (context.Context, context.CancelFunc) {

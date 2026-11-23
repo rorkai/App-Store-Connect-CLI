@@ -48,9 +48,11 @@ type reviewSnapshot struct {
 	// DraftSubmissionID is a READY_FOR_REVIEW submission with no other version
 	// linked. DraftHoldsOnlyVersion is read only when the next action needs it:
 	// the draft is empty or holds the selected version plus only subscription
-	// items, the drafts review submit reuses.
+	// items, the drafts review submit reuses. DraftStagedItems are those
+	// subscription items, which go to App Review with the draft.
 	DraftSubmissionID     string
 	DraftHoldsOnlyVersion bool
+	DraftStagedItems      []asc.ReviewSubmissionReceiptItem
 }
 
 type reviewStatusResult struct {
@@ -285,11 +287,12 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 		snapshot.SubmissionItems = &submissionItems
 	}
 	if snapshot.DraftSubmissionID != "" && reviewSnapshotHasOnlyRemovedItems(snapshot) {
-		holdsOnlyVersion, err := submitcli.ReviewSubmissionHoldsOnlyVersion(ctx, client, snapshot.DraftSubmissionID, selectedVersionID)
+		holdsOnlyVersion, stagedItems, err := submitcli.ReviewSubmissionHoldsOnlyVersion(ctx, client, snapshot.DraftSubmissionID, selectedVersionID)
 		if err != nil {
 			return snapshot, fmt.Errorf("fetch review submission items for %q: %w", snapshot.DraftSubmissionID, err)
 		}
 		snapshot.DraftHoldsOnlyVersion = holdsOnlyVersion
+		snapshot.DraftStagedItems = stagedItems
 	}
 
 	return snapshot, nil
@@ -521,10 +524,17 @@ func staleReviewSubmissionNextAction(snapshot reviewSnapshot) string {
 			draftID, strings.TrimSpace(snapshot.AppID), versionID,
 		)
 	}
-	return fmt.Sprintf(
+	next := fmt.Sprintf(
 		"Reuse draft review submission %q: run `asc review items add --submission %q --item-type appStoreVersions --item-id %q --if-exists skip`, then `asc review submissions-submit --id %q --confirm`.",
 		draftID, draftID, versionID, draftID,
 	)
+	if staged := snapshot.DraftStagedItems; len(staged) > 0 {
+		next += fmt.Sprintf(
+			" It also holds %s, which go to App Review with it; to leave one out, first run `asc review items remove --id \"ITEM_ID\" --confirm`.",
+			submitcli.DescribeReviewItems(staged),
+		)
+	}
+	return next
 }
 
 func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {

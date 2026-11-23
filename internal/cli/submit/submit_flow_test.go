@@ -833,7 +833,8 @@ func TestReviewSubmissionValidationFailuresAreClassified(t *testing.T) {
 			state: "READY_FOR_REVIEW",
 			items: targetItem + "," + otherItem,
 			run: func(client *asc.Client) error {
-				return verifyReviewSubmissionForSubmit(context.Background(), client, "sub-1", "app-1", "IOS", "version-1")
+				_, err := verifyReviewSubmissionForSubmit(context.Background(), client, "sub-1", "app-1", "IOS", "version-1")
+				return err
 			},
 			want: shared.DiagnosticResourceConflict,
 		},
@@ -852,7 +853,8 @@ func TestReviewSubmissionValidationFailuresAreClassified(t *testing.T) {
 			state: "WAITING_FOR_REVIEW",
 			items: targetItem,
 			run: func(client *asc.Client) error {
-				return verifyReviewSubmissionForSubmit(context.Background(), client, "sub-1", "app-1", "IOS", "version-1")
+				_, err := verifyReviewSubmissionForSubmit(context.Background(), client, "sub-1", "app-1", "IOS", "version-1")
+				return err
 			},
 			want: shared.DiagnosticStateNotReady,
 		},
