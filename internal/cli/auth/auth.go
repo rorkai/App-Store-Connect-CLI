@@ -449,9 +449,9 @@ func withNetworkDiagnostic(rendered, cause error) error {
 // printPrivateKeyPermissionRemediation follows a key file refusal with the
 // exact commands that repair the file, so a first login recovers without
 // consulting auth doctor: chmod for an over-permissive key or one its owner
-// can't read, preceded by chown when another user owns the file. It offers
-// --fix-permissions only where that flag can apply the fix. Other private-key
-// failures print nothing.
+// can't read, preceded by chown when another user owns the file and the
+// caller is not root. It offers --fix-permissions only where that flag can
+// apply the fix. Other private-key failures print nothing.
 func printPrivateKeyPermissionRemediation(d *shared.Deps, cause error, keyPath string) {
 	kind, ok := authsvc.PrivateKeyErrorKindOf(cause)
 	if !ok || (kind != authsvc.PrivateKeyPermissionsInsecure && kind != authsvc.PrivateKeyPermissionDenied) {
@@ -466,15 +466,15 @@ func printPrivateKeyPermissionRemediation(d *shared.Deps, cause error, keyPath s
 	}
 	// An owner who can already read the file was denied for another reason,
 	// such as a directory on its path, which no change to the file repairs.
-	if kind == authsvc.PrivateKeyPermissionDenied && fix.OwnedByCaller && fix.Mode&0o400 != 0 {
+	if kind == authsvc.PrivateKeyPermissionDenied && fix.CanChangeMode && fix.Mode&0o400 != 0 {
 		return
 	}
-	offerFlag := kind == authsvc.PrivateKeyPermissionsInsecure && fix.OwnedByCaller
+	offerFlag := kind == authsvc.PrivateKeyPermissionsInsecure && fix.CanChangeMode
 	if len(fix.Commands) == 0 {
 		switch {
 		case offerFlag:
 			fmt.Fprintln(d.IO.ErrOut, "Re-run with --fix-permissions to let asc change the file to 0600.")
-		case !fix.OwnedByCaller:
+		case !fix.CanChangeMode:
 			fmt.Fprintln(d.IO.ErrOut, "Another user owns this file: make yourself its owner, then change it to mode 0600.")
 		default:
 			fmt.Fprintln(d.IO.ErrOut, "Change the file to mode 0600 so only you can read it.")

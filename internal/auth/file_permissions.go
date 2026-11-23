@@ -61,9 +61,10 @@ func remediationTarget(path string) (string, bool) {
 type PrivateKeyFileFix struct {
 	// Mode is the file's current permission bits.
 	Mode fs.FileMode
-	// OwnedByCaller is false when another user owns the file, so neither
-	// chmod nor --fix-permissions can change it until its owner changes.
-	OwnedByCaller bool
+	// CanChangeMode is false when another user owns the file and the caller
+	// is not root, so neither chmod nor --fix-permissions can change it until
+	// its owner changes. Root can change any file's mode.
+	CanChangeMode bool
 	// Commands repair the file in order. It is empty when the path cannot be
 	// rendered as a trustworthy copy-paste command.
 	Commands []string
@@ -80,12 +81,12 @@ func privateKeyFileFixForUID(path string, uid int) (PrivateKeyFileFix, error) {
 	if err != nil {
 		return PrivateKeyFileFix{}, err
 	}
-	fix := PrivateKeyFileFix{Mode: info.Mode().Perm(), OwnedByCaller: !fileOwnedByOtherUser(info, uid)}
+	fix := PrivateKeyFileFix{Mode: info.Mode().Perm(), CanChangeMode: uid == 0 || !fileOwnedByOtherUser(info, uid)}
 	chmod, safe := FilePermissionRemediationCommand(path)
 	if !safe {
 		return fix, nil
 	}
-	if !fix.OwnedByCaller {
+	if !fix.CanChangeMode {
 		target, _ := remediationTarget(path)
 		fix.Commands = append(fix.Commands, `sudo chown "$(id -un)" `+shellquote.Join(target))
 	}
