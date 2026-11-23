@@ -1148,6 +1148,9 @@ func parsePrivacyDeclarationFile(d *shared.Deps, path string) (privacyDeclaratio
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&declaration); err != nil {
+		if isPrivacyDeclarationShapeError(err) {
+			return privacyDeclarationFile{}, fmt.Errorf("invalid privacy declaration JSON: %w; %s", err, privacyDeclarationShape)
+		}
 		return privacyDeclarationFile{}, fmt.Errorf("invalid privacy declaration JSON: %w", err)
 	}
 	var trailing json.RawMessage
@@ -1163,6 +1166,25 @@ func parsePrivacyDeclarationFile(d *shared.Deps, path string) (privacyDeclaratio
 		return privacyDeclarationFile{}, err
 	}
 	return declarationFromTupleSet(tuples), nil
+}
+
+// privacyDeclarationShape states the declaration file format. It follows a
+// field or type error, because the decoder only names the first field it
+// rejects and a hand-written file often differs in several.
+const privacyDeclarationShape = `the file has "schemaVersion": 1 and "dataUsages", and each dataUsages entry has only "category", "purposes" (array) and "dataProtections" (array), ` +
+	`for example {"category":"EMAIL_ADDRESS","purposes":["APP_FUNCTIONALITY"],"dataProtections":["DATA_LINKED_TO_YOU"]}; ` +
+	`linked, not linked and tracking are dataProtections values ("DATA_LINKED_TO_YOU", "DATA_NOT_LINKED_TO_YOU", "DATA_USED_TO_TRACK_YOU"), ` +
+	`and an app that collects nothing has one entry {"dataProtections":["DATA_NOT_COLLECTED"]}; ` +
+	"start from `asc web privacy pull --app APP_ID --out FILE` and list tokens with `asc web privacy catalog`"
+
+// isPrivacyDeclarationShapeError reports whether a decode error comes from a
+// field the declaration does not have or a value of the wrong JSON type, as
+// opposed to malformed JSON.
+func isPrivacyDeclarationShapeError(err error) bool {
+	if _, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
+		return true
+	}
+	return strings.HasPrefix(err.Error(), "json: unknown field ")
 }
 
 // privacyDeclarationRoot anchors privacy declaration reads and writes to the
@@ -1872,6 +1894,11 @@ func newWebPrivacyPlanCommand(d *shared.Deps) *ffcli.Command {
 Compute a deterministic diff between local declaration JSON and remote
 app data usage tuples.
 
+--file takes the JSON that pull writes: {"schemaVersion":1,"dataUsages":[...]},
+where each entry has "category", "purposes" (array) and "dataProtections"
+(array), for example
+{"category":"EMAIL_ADDRESS","purposes":["APP_FUNCTIONALITY"],"dataProtections":["DATA_LINKED_TO_YOU"]}.
+
 Declarations that contain UNKNOWN_OR_MISSING (unrepresentable remote data)
 are rejected before any planning against the live app.
 
@@ -1958,6 +1985,11 @@ func newWebPrivacyApplyCommand(d *shared.Deps) *ffcli.Command {
 Apply local declaration tuples to remote app data usages.
 This command never calls Apple's publish endpoint automatically, but applying
 usage mutations may still update Apple's published-state metadata.
+
+--file takes the JSON that pull writes: {"schemaVersion":1,"dataUsages":[...]},
+where each entry has "category", "purposes" (array) and "dataProtections"
+(array), for example
+{"category":"EMAIL_ADDRESS","purposes":["APP_FUNCTIONALITY"],"dataProtections":["DATA_LINKED_TO_YOU"]}.
 
 Declarations that contain UNKNOWN_OR_MISSING (unrepresentable remote data)
 are rejected before any create, update, or delete.
