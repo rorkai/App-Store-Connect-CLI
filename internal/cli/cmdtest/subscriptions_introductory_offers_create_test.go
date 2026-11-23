@@ -833,8 +833,8 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesPartialFailureReturn
 			"--all-territories",
 		}, "1.2.3")
 	})
-	if code != rootcmd.ExitError {
-		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitError)
+	if code != rootcmd.ExitHTTPUnprocessable {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitHTTPUnprocessable)
 	}
 	if want := "Error: subscriptions introductory-offers create: 1 territory failed\n"; stderr != want {
 		t.Fatalf("stderr = %q, want %q", stderr, want)

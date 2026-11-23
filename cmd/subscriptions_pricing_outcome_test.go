@@ -246,3 +246,81 @@ func TestRunSubscriptionsPricesImportRowFailureClassification(t *testing.T) {
 		})
 	}
 }
+
+func TestRunSubscriptionsIntroductoryOffersCreatePartialFailureKeepsTerritoryCause(t *testing.T) {
+	const rerunHint = "Hint: App Store Connect rate-limited 1 territory; rerun the same command later. Territories that already have an introductory offer are skipped.\n"
+	tests := []struct {
+		name        string
+		status      int
+		body        string
+		wantExit    int
+		wantOutcome telemetry.OutcomeKind
+		wantStderr  string
+	}{
+		{
+			name:        "rate limited territory",
+			status:      http.StatusTooManyRequests,
+			body:        `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED","title":"The request rate limit has been reached.","detail":"We've received too many requests for this API."}]}`,
+			wantExit:    39,
+			wantOutcome: telemetry.OutcomeAPIClientError,
+			wantStderr:  "Error: subscriptions introductory-offers create: 1 territory failed\n" + rerunHint,
+		},
+		{
+			name:        "rejected territory",
+			status:      http.StatusUnprocessableEntity,
+			body:        `{"errors":[{"status":"422","code":"ENTITY_ERROR","title":"invalid","detail":"duplicate territory"}]}`,
+			wantExit:    ExitHTTPUnprocessable,
+			wantOutcome: telemetry.OutcomeAPIClientError,
+			wantStderr:  "Error: subscriptions introductory-offers create: 1 territory failed\n",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_MAX_RETRIES", "0")
+			run := runSubscriptionPricingCommand(
+				t, func(w http.ResponseWriter, req *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					switch {
+					case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/subscriptionAvailability":
+						fmt.Fprint(w, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1"}}`)
+					case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionAvailabilities/avail-1/availableTerritories":
+						fmt.Fprint(w, `{"data":[{"type":"territories","id":"CAN"},{"type":"territories","id":"USA"}],"links":{}}`)
+					case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/introductoryOffers":
+						fmt.Fprint(w, `{"data":[],"links":{}}`)
+					case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionIntroductoryOffers":
+						body, _ := io.ReadAll(req.Body)
+						if strings.Contains(string(body), `"id":"CAN"`) {
+							w.WriteHeader(test.status)
+							fmt.Fprint(w, test.body)
+							return
+						}
+						w.WriteHeader(http.StatusCreated)
+						fmt.Fprint(w, `{"data":{"type":"subscriptionIntroductoryOffers","id":"intro-usa"}}`)
+					default:
+						t.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
+						w.WriteHeader(http.StatusInternalServerError)
+					}
+				},
+				"subscriptions", "offers", "introductory", "create",
+				"--subscription-id", "8000000001",
+				"--all-territories",
+				"--offer-duration", "ONE_WEEK",
+				"--offer-mode", "FREE_TRIAL",
+				"--number-of-periods", "1",
+			)
+
+			if run.exitCode != test.wantExit {
+				t.Fatalf("exit code = %d, want %d; stderr=%q", run.exitCode, test.wantExit, run.stderr)
+			}
+			if run.stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", run.stderr, test.wantStderr)
+			}
+			if !strings.Contains(run.stdout, `"created":1`) || !strings.Contains(run.stdout, `"territory":"CAN"`) {
+				t.Fatalf("stdout = %q, want summary with one created offer and the CAN failure", run.stdout)
+			}
+			if run.context.OutcomeKind != test.wantOutcome || int(run.context.HTTPStatus) != test.status {
+				t.Fatalf("telemetry context = %+v, want %s with HTTP %d", run.context, test.wantOutcome, test.status)
+			}
+		})
+	}
+}
