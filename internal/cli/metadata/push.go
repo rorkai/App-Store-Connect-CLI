@@ -509,9 +509,6 @@ func resolveMetadataPushAppInfoID(
 	dir string,
 	versionState string,
 ) (string, error) {
-	if appInfoID != "" {
-		return d.ResolveOwnedAppInfoID(ctx, client, appID, appInfoID)
-	}
 	return resolveMetadataAppInfoID(ctx, d, client, appID, appInfoID, version, platform, dir, versionState, func(aid, v, p, d, infoID string) string {
 		return buildMetadataAppInfoExample(commandName, aid, v, p, d, infoID) + " --dry-run"
 	})
@@ -530,7 +527,7 @@ func resolveMetadataAppInfoID(
 	buildExample exampleBuilderFunc,
 ) (string, error) {
 	if appInfoID != "" {
-		return appInfoID, nil
+		return d.ResolveOwnedAppInfoID(ctx, client, appID, appInfoID)
 	}
 
 	resp, err := client.GetAppInfos(ctx, appID)

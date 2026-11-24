@@ -131,6 +131,8 @@ func TestMetadataPullBeforeFirstVersion(t *testing.T) {
 		reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", query, "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	}
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/appInfos/info", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
 	reg.Register(asctest.GET("/v1/appInfos/info/appInfoLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc","attributes":{"locale":"en-US","name":"Fixture"}}]}`))
 	root := RootCommand("test")
 	if err := root.Parse([]string{"metadata", "pull", "--app", "app-1", "--app-info", "info", "--dir", outputDir}); err != nil {

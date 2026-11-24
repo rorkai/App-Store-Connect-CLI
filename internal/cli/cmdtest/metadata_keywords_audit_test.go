@@ -313,6 +313,8 @@ func stubMetadataKeywordsAuditAmbiguousAppInfo(t *testing.T, override bool) {
 			],
 			"links":{}
 		}`))
+	reg.Register(asctest.GET("/v1/appInfos/info-override", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-override","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
 	reg.Register(asctest.GET("/v1/appInfos/info-override/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{
 			"data":[

@@ -155,6 +155,8 @@ func TestMetadataCategoriesPullPreservesFileWhenAppInfoIsMissing(t *testing.T) {
 	for _, relationship := range []string{"primaryCategory", "primarySubcategoryOne", "primarySubcategoryTwo", "secondaryCategory", "secondarySubcategoryOne", "secondarySubcategoryTwo"} {
 		reg.Register(asctest.GET("/v1/appInfos/missing-app-info/relationships/"+relationship), notFound)
 	}
+	reg.Register(asctest.GET("/v1/appInfos/missing-app-info", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"missing-app-info","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
 	reg.Register(asctest.GET("/v1/appInfos/missing-app-info"), notFound)
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
