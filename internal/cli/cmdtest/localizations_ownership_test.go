@@ -63,7 +63,9 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 	const updated = "PATCH /v1/appStoreVersionLocalizations/loc-1"
 	const versionData = `"type":"appStoreVersions","id":"ver-1"`
 	const matchingApp = `,"relationships":{"app":{"data":{"type":"apps","id":"1234567890"}}}`
-	bundleApps := map[string]string{"com.example.owner": "1234567890", "com.example.other": "9876543210"}
+	bundleApps := map[string]string{"com.example.owner": "1234567890", "com.example.other": "9876543210", "com.example.own": "1234567890"}
+	// Apple's filter[bundleId] also returns apps whose bundle ID starts with the value.
+	const prefixSiblings = `{"data":[{"type":"apps","id":"9876543210","attributes":{"bundleId":"com.example.owner"}},{"type":"apps","id":"1234567890","attributes":{"bundleId":"com.example.own"}}]}`
 	for _, operation := range []string{"create", "update"} {
 		for _, tt := range []struct {
 			name      string
@@ -83,6 +85,7 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 			{"matching bundle ID", "com.example.owner", "", versionData + matchingApp, ""},
 			{"matching environment bundle ID", "", "com.example.owner", versionData + matchingApp, ""},
 			{"mismatched environment bundle ID", "", "com.example.other", versionData + matchingApp, `belongs to app "1234567890", not "9876543210"`},
+			{"environment bundle ID that another app's bundle ID starts with", "", "com.example.own", versionData + matchingApp, ""},
 			{"missing version ID", "1234567890", "", `"type":"appStoreVersions"` + matchingApp, `expected app store version "ver-1", got ""`},
 			{"different version ID", "1234567890", "", `"type":"appStoreVersions","id":"ver-2"` + matchingApp, `expected app store version "ver-1", got "ver-2"`},
 			{"wrong version type", "1234567890", "", `"type":"appInfos","id":"ver-1"` + matchingApp, `expected resource type "appStoreVersions", got "appInfos"`},
@@ -97,6 +100,9 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 					request := req.Method + " " + req.URL.RequestURI()
 					requests = append(requests, request)
 					if req.URL.Path == "/v1/apps" {
+						if req.URL.Query().Get("filter[bundleId]") == "com.example.own" {
+							return locUpdateJSONResponse(prefixSiblings)
+						}
 						if appID := bundleApps[req.URL.Query().Get("filter[bundleId]")]; appID != "" {
 							return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"` + appID + `"}]}`)
 						}
