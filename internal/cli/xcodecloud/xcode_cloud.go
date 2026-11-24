@@ -123,6 +123,7 @@ Examples:
 			hasGitRefID := strings.TrimSpace(*gitReferenceID) != ""
 			hasPullRequestID := strings.TrimSpace(*pullRequestID) != ""
 			hasSourceRunID := strings.TrimSpace(*sourceRunID) != ""
+			hasExplicitAppID := strings.TrimSpace(*appID) != ""
 
 			if hasWorkflowName && hasWorkflowID {
 				return d.UsageError("--workflow and --workflow-id are mutually exclusive")
@@ -134,6 +135,9 @@ Examples:
 				return d.UsageError("--branch, --git-reference-id, and --pull-request-id are mutually exclusive")
 			}
 			if hasSourceRunID {
+				if hasExplicitAppID {
+					return d.UsageError("--app cannot be combined with --source-run-id; source-run-id determines the workflow")
+				}
 				if hasWorkflowName || hasWorkflowID {
 					return d.UsageError("--source-run-id is mutually exclusive with --workflow and --workflow-id")
 				}
@@ -141,6 +145,9 @@ Examples:
 					return d.UsageError("--source-run-id is mutually exclusive with --branch, --git-reference-id, and --pull-request-id")
 				}
 			} else {
+				if hasWorkflowID && hasExplicitAppID {
+					return d.UsageError("--app cannot be combined with --workflow-id; use --workflow with --app to resolve a workflow by name")
+				}
 				if !hasWorkflowName && !hasWorkflowID {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --workflow or --workflow-id is required")
 					return shared.MissingRequiredUsageError("")
