@@ -156,6 +156,22 @@ At least one field flag must be provided.`,
 					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
 					output:                output,
 				}
+				versionParams := updateVersionParams{
+					description:          *description,
+					keywords:             *keywords,
+					whatsNew:             *whatsNew,
+					promotionalText:      *promotionalText,
+					supportURL:           *supportURL,
+					marketingURL:         *marketingURL,
+					clearPromotionalText: *clearPromotionalText,
+				}
+				if hasAnyVersionField(versionParams) {
+					return shared.WithDiagnostic(
+						d.UsageError("--type version is required for version update flags"),
+						shared.DiagnosticRequiredInputMissing,
+						"--type",
+					)
+				}
 				if !hasAnyAppInfoField(params) {
 					return d.UpdateFlagRequired(fs, name, subtitle, clearSubtitle, privacyPolicyURL, clearPrivacyPolicyURL, privacyChoicesURL, privacyPolicyText)
 				}
