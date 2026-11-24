@@ -46,60 +46,72 @@ func TestBuildsUploadDryRunRejectsExplicitConcurrency(t *testing.T) {
 	}
 }
 
-func TestBuildsUploadDryRunSucceedsWithDefaultConcurrency(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+func TestBuildsUploadReservationFlagsReserveWithoutUploading(t *testing.T) {
+	const dryRunWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). In a future release, --dry-run will check the artifact locally without contacting App Store Connect. Use --reserve-only to keep reserving uploads.\n"
 
-	ipaPath := writeBuildUploadIPA(t, "com.example.demo")
+	tests := []struct {
+		flag        string
+		wantWarning bool
+	}{
+		{flag: "--reserve-only"},
+		{flag: "--dry-run", wantWarning: true},
+	}
+	for _, test := range tests {
+		t.Run(test.flag, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	reg := asctest.NewRegistry(t)
-	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/123456789"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`))
-	reg.Register(asctest.POST("/v1/buildUploads").JSONBody(`{"data":{"type":"buildUploads","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"}}}`))
-	reg.Register(asctest.POST("/v1/buildUploadFiles").JSONBody(buildUploadFileRequestBody(t, ipaPath)),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`))
+			ipaPath := writeBuildUploadIPA(t, "com.example.demo")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/123456789"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`))
+			reg.Register(asctest.POST("/v1/buildUploads").JSONBody(`{"data":{"type":"buildUploads","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"}}}`))
+			reg.Register(asctest.POST("/v1/buildUploadFiles").JSONBody(buildUploadFileRequestBody(t, ipaPath)),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`))
 
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"builds", "upload",
-			"--app", "123456789",
-			"--ipa", ipaPath,
-			"--version", "1.0.0",
-			"--build-number", "42",
-			"--dry-run",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
 
-	if runErr != nil {
-		t.Fatalf("expected dry-run to succeed with default concurrency, got %v", runErr)
-	}
-	if !strings.Contains(stdout, "upload-1") {
-		t.Fatalf("expected reserved upload in output, got %q", stdout)
-	}
-	if strings.Contains(stdout, "https://upload.example.com/part-1") ||
-		strings.Contains(stdout, "application/octet-stream") {
-		t.Fatalf("default dry-run output exposed upload capabilities: %q", stdout)
-	}
-	if !strings.Contains(stdout, `"(redacted)"`) {
-		t.Fatalf("default dry-run output did not mark withheld upload capabilities: %q", stdout)
-	}
-	uploadRequests := 0
-	for _, req := range reg.Requests() {
-		if req.Method == http.MethodPut {
-			uploadRequests++
-		}
-	}
-	if got := uploadRequests; got != 0 {
-		t.Fatalf("expected no chunk uploads in dry-run, got %d", got)
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"builds", "upload",
+					"--app", "123456789",
+					"--ipa", ipaPath,
+					"--version", "1.0.0",
+					"--build-number", "42",
+					test.flag,
+					"--output", "json",
+				}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr != nil {
+				t.Fatalf("expected %s to succeed with default concurrency, got %v", test.flag, runErr)
+			}
+			if !strings.Contains(stdout, `"uploadId":"upload-1"`) {
+				t.Fatalf("expected reserved upload in output, got %q", stdout)
+			}
+			if strings.Contains(stdout, "https://upload.example.com/part-1") ||
+				strings.Contains(stdout, "application/octet-stream") {
+				t.Fatalf("default %s output exposed upload capabilities: %q", test.flag, stdout)
+			}
+			if !strings.Contains(stdout, `"(redacted)"`) {
+				t.Fatalf("default %s output did not mark withheld upload capabilities: %q", test.flag, stdout)
+			}
+			if got := strings.Contains(stderr, dryRunWarning); got != test.wantWarning {
+				t.Fatalf("stderr has the --dry-run warning = %t, want %t; stderr %q", got, test.wantWarning, stderr)
+			}
+			for _, req := range reg.Requests() {
+				if req.Method != http.MethodGet && req.Method != http.MethodPost {
+					t.Fatalf("expected only the app read and the reservation, got %s %s", req.Method, req.URL)
+				}
+			}
+		})
 	}
 }
 

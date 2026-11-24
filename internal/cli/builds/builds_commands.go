@@ -21,6 +21,8 @@ const (
 	buildWaitDefaultTimeout = 30 * time.Minute
 )
 
+const buildsUploadDryRunReservesWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). In a future release, --dry-run will check the artifact locally without contacting App Store Connect. Use --reserve-only to keep reserving uploads."
+
 // newBuildsUploadCommand returns a command to upload a build
 func newBuildsUploadCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("upload", flag.ExitOnError)
@@ -31,7 +33,8 @@ func newBuildsUploadCommand(d *shared.Deps) *ffcli.Command {
 	version := fs.String("version", "", "CFBundleShortVersionString (e.g., 1.0.0, auto-extracted from IPA if not provided)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (e.g., 123, auto-extracted from IPA if not provided)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (auto-detected for --ipa and --pkg)")
-	dryRun := fs.Bool("dry-run", false, "Reserve upload operations without uploading the file")
+	dryRun := fs.Bool("dry-run", false, "Reserve upload operations without uploading the file (deprecated for reservations, use --reserve-only)")
+	reserveOnly := fs.Bool("reserve-only", false, "Reserve the upload in App Store Connect and print its upload operations without sending the file (creates a build upload)")
 	concurrency := fs.Int("concurrency", asc.DefaultUploadConcurrency, "Upload concurrency")
 	verifyChecksum := fs.Bool("checksum", false, "Verify upload checksums if provided by API")
 	testNotes := fs.String("test-notes", "", "What to Test notes (waits for build discovery)")
@@ -58,7 +61,10 @@ ends before the build is visible, a notice on stderr explains how to look it up.
 When --test-notes is set, the command waits only until the build appears, then
 creates or updates the requested localization. Add --wait when the invocation
 must also wait for processing to complete.
-Use --dry-run to only reserve the upload operations.
+Use --reserve-only to create the build upload in App Store Connect and print its
+upload operations without sending the file. --dry-run still reserves the upload
+and prints a warning. In a future release, --dry-run will check the artifact
+locally without contacting App Store Connect.
 Presigned URLs and request-header values are redacted from output by default.
 Pass --include-sensitive only when another tool must consume those capabilities.
 
@@ -70,8 +76,8 @@ its platform is automatically set to MAC_OS.
 Examples:
   asc builds upload --app "123456789" --ipa "path/to/app.ipa"
   asc builds upload --app "123456789" --ipa "app.ipa" --version "1.0.0" --build-number "123"
-  asc builds upload --app "123456789" --ipa "app.ipa" --dry-run
-  asc builds upload --app "123456789" --ipa "app.ipa" --dry-run --include-sensitive
+  asc builds upload --app "123456789" --ipa "app.ipa" --reserve-only
+  asc builds upload --app "123456789" --ipa "app.ipa" --reserve-only --include-sensitive
   asc builds upload --app "123456789" --ipa "app.ipa" --test-notes "Test flow" --locale "en-US"
   asc builds upload --app "123456789" --pkg "path/to/app.pkg" --version "1.0.0" --build-number "123"`,
 		FlagSet:   fs,
@@ -95,11 +101,19 @@ Examples:
 				fmt.Fprintf(d.IO.ErrOut, "Error: --ipa and --pkg are mutually exclusive\n\n")
 				return flag.ErrHelp
 			}
+			if *dryRun && *reserveOnly {
+				return d.UsageError("builds upload: --dry-run and --reserve-only are mutually exclusive")
+			}
+			reserve := *dryRun || *reserveOnly
+			reserveFlag := "--reserve-only"
+			if *dryRun {
+				reserveFlag = "--dry-run"
+			}
 			if *verifyTimeout < 0 {
 				return d.UsageError("--verify-timeout must be zero or greater")
 			}
-			if *dryRun && *verifyTimeout > 0 {
-				return d.UsageError("--verify-timeout is not supported with --dry-run")
+			if reserve && *verifyTimeout > 0 {
+				return d.UsageError("--verify-timeout is not supported with " + reserveFlag)
 			}
 
 			// Determine file path and UTI based on provided flag
@@ -162,15 +176,15 @@ Examples:
 					concurrencySet = true
 				}
 			})
-			if *dryRun {
+			if reserve {
 				if concurrencySet {
-					return d.UsageError("builds upload: --concurrency is not supported with --dry-run")
+					return d.UsageError("builds upload: --concurrency is not supported with " + reserveFlag)
 				}
 				if *verifyChecksum {
-					return d.UsageError("builds upload: --checksum is not supported with --dry-run")
+					return d.UsageError("builds upload: --checksum is not supported with " + reserveFlag)
 				}
 				if *wait {
-					return d.UsageError("builds upload: --wait is not supported with --dry-run")
+					return d.UsageError("builds upload: --wait is not supported with " + reserveFlag)
 				}
 			} else if *concurrency < 1 {
 				return d.UsageError("builds upload: --concurrency must be at least 1")
@@ -187,8 +201,8 @@ Examples:
 				return shared.MissingRequiredUsageError("--test-notes")
 			}
 			if testNotesValue != "" {
-				if *dryRun {
-					return d.UsageError("builds upload: --test-notes is not supported with --dry-run")
+				if reserve {
+					return d.UsageError("builds upload: --test-notes is not supported with " + reserveFlag)
 				}
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 					return d.UsageErrorf("builds upload: %v", err)
@@ -252,6 +266,10 @@ Examples:
 				return invalidIPAFormat(fmt.Errorf("builds upload: missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and ")))
 			}
 
+			if *dryRun {
+				fmt.Fprintln(d.IO.ErrOut, buildsUploadDryRunReservesWarning)
+			}
+
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds upload: %w", err)
@@ -311,7 +329,7 @@ Examples:
 				Operations: outputOperations,
 			}
 
-			if !*dryRun {
+			if !reserve {
 				if len(fileResp.Data.Attributes.UploadOperations) == 0 {
 					return fmt.Errorf("builds upload: no upload operations returned")
 				}
