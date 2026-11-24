@@ -181,7 +181,7 @@ Examples:
 					return err
 				}
 				resolveCtx, resolveCancel := d.Timeout(ctx)
-				id, err = shared.ResolveSubscriptionID(resolveCtx, client, resolvedAppID, id)
+				id, err = shared.ResolveSubscriptionIDWithAppLookup(resolveCtx, client, resolvedAppID, id)
 				resolveCancel()
 				if err != nil {
 					return err
@@ -505,7 +505,7 @@ Examples:
 				return err
 			}
 			resolveCtx, resolveCancel := d.Timeout(ctx)
-			subscription, err = shared.ResolveSubscriptionID(resolveCtx, client, resolvedAppID, subscription)
+			subscription, err = shared.ResolveSubscriptionIDWithAppLookup(resolveCtx, client, resolvedAppID, subscription)
 			resolveCancel()
 			if err != nil {
 				return err
@@ -893,7 +893,7 @@ Examples:
 					return err
 				}
 				resolveCtx, resolveCancel := d.Timeout(ctx)
-				id, err = shared.ResolveSubscriptionID(resolveCtx, client, resolvedAppID, id)
+				id, err = shared.ResolveSubscriptionIDWithAppLookup(resolveCtx, client, resolvedAppID, id)
 				resolveCancel()
 				if err != nil {
 					return err

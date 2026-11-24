@@ -64,7 +64,7 @@ func selectorJSONResponse(body string) *http.Response {
 }
 
 func registerMonthlySubscriptionLookup(reg *asctest.Registry) {
-	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/1/subscriptionGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`))
 	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "filter[productId]=com.example.monthly", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}]}`))
@@ -72,11 +72,11 @@ func registerMonthlySubscriptionLookup(reg *asctest.Registry) {
 
 func TestIAPContentGetResolvesStableSelectorViaASCAppID(t *testing.T) {
 	setupStableSelectorAuth(t)
-	t.Setenv("ASC_APP_ID", "app-123")
+	t.Setenv("ASC_APP_ID", "123")
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[productId]=com.example.pro", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "filter[productId]=com.example.pro", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`))
 	reg.Register(asctest.GET("/v2/inAppPurchases/iap-1/content"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-1"}}`))
@@ -111,14 +111,14 @@ func TestIAPContentGetResolvesNumericStableSelectorWhenAppProvided(t *testing.T)
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-2024","attributes":{"name":"Spring Sale","productId":"2024","inAppPurchaseType":"CONSUMABLE"}}]}`))
 	reg.Register(asctest.GET("/v2/inAppPurchases/iap-2024/content"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"iap", "content", "view",
-		"--app", "app-123",
+		"--app", "123",
 		"--iap-id", "2024",
 	})
 	if runErr != nil {
@@ -144,22 +144,37 @@ func TestIAPContentGetResolvesNumericStableSelectorWhenAppProvided(t *testing.T)
 	}
 }
 
-func TestIAPContentGetFallsBackToNumericIDWhenLookupErrors(t *testing.T) {
+func TestIAPContentGetResolvesConfiguredBundleBeforeMembership(t *testing.T) {
 	setupStableSelectorAuth(t)
-	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_APP_ID", "com.example.app")
 
-	reg := asctest.NewRegistry(t)
-	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
-		asctest.JSON(http.StatusForbidden, `{
-					"errors":[{"status":"403","code":"FORBIDDEN.REQUIRED_ROLE","detail":"forbidden"}]
-				}`))
-	reg.Register(asctest.GET("/v2/inAppPurchases/2024/content"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`))
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch req.URL.Path {
+		case "/v1/apps":
+			if got := req.URL.Query().Get("filter[bundleId]"); got != "com.example.app" {
+				t.Fatalf("expected bundle app lookup, got %q", got)
+			}
+			return selectorJSONResponse(`{"data":[{"type":"apps","id":"app-123","attributes":{"bundleId":"com.example.app","name":"Example"}}],"links":{"next":""}}`), nil
+		case "/v1/apps/app-123/inAppPurchasesV2":
+			if got := req.URL.Query().Get("filter[productId]"); got != "2024" {
+				t.Fatalf("expected numeric product lookup, got %q", got)
+			}
+			return selectorJSONResponse(`{"data":[{"type":"inAppPurchases","id":"iap-2024","attributes":{"name":"Spring Sale","productId":"2024","inAppPurchaseType":"CONSUMABLE"}}],"links":{"next":""}}`), nil
+		case "/v2/inAppPurchases/iap-2024/content":
+			return selectorJSONResponse(`{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"iap", "content", "view",
-		"--app", "app-123",
 		"--iap-id", "2024",
 	})
 	if runErr != nil {
@@ -168,55 +183,64 @@ func TestIAPContentGetFallsBackToNumericIDWhenLookupErrors(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests := len(reg.Requests()); requests != 2 {
-		t.Fatalf("expected lookup attempt followed by direct fetch, got %d requests", requests)
+	if requests != 3 {
+		t.Fatalf("expected app lookup, scoped membership, and content requests, got %d", requests)
 	}
-
-	var out struct {
-		Data struct {
-			ID string `json:"id"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
-		t.Fatalf("unmarshal output: %v\nstdout: %s", err, stdout)
-	}
-	if out.Data.ID != "content-2024" {
-		t.Fatalf("expected content id content-2024, got %q", out.Data.ID)
+	if !strings.Contains(stdout, `"id":"content-2024"`) {
+		t.Fatalf("expected content output, got %q", stdout)
 	}
 }
 
-func TestStableSelectorFallsBackToNumericIDAfterLookupTimeout(t *testing.T) {
+func TestIAPContentGetRejectsNumericIDWhenLookupErrors(t *testing.T) {
+	setupStableSelectorAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
+		asctest.JSON(http.StatusForbidden, `{
+					"errors":[{"status":"403","code":"FORBIDDEN.REQUIRED_ROLE","detail":"forbidden"}]
+				}`))
+
+	stdout, stderr, runErr := runRootCommand(t, []string{
+		"iap", "content", "view",
+		"--app", "123",
+		"--iap-id", "2024",
+	})
+	if runErr == nil || !strings.Contains(runErr.Error(), "resolve in-app purchase by product ID") {
+		t.Fatalf("expected lookup error before direct fetch, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if requests := len(reg.Requests()); requests != 1 {
+		t.Fatalf("expected lookup attempt with no direct fetch, got %d requests", requests)
+	}
+}
+
+func TestStableSelectorRejectsNumericIDAfterLookupTimeout(t *testing.T) {
 	tests := []struct {
 		name       string
 		args       []string
 		lookupPath string
-		fetchPath  string
-		body       string
-		wantStdout string
 	}{
 		{
 			name:       "iap content view",
-			args:       []string{"iap", "content", "view", "--app", "app-123", "--iap-id", "2024"},
-			lookupPath: "/v1/apps/app-123/inAppPurchasesV2",
-			fetchPath:  "/v2/inAppPurchases/2024/content",
-			body:       `{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`,
-			wantStdout: `"id":"content-2024"`,
+			args:       []string{"iap", "content", "view", "--app", "123", "--iap-id", "2024"},
+			lookupPath: "/v1/apps/123/inAppPurchasesV2",
 		},
 		{
 			name:       "subscription versions list",
-			args:       []string{"subscriptions", "versions", "list", "--app", "app-123", "--subscription-id", "2024"},
-			lookupPath: "/v1/apps/app-123/subscriptionGroups",
-			fetchPath:  "/v1/subscriptions/2024/versions",
-			body:       `{"data":[]}`,
-			wantStdout: `"data"`,
+			args:       []string{"subscriptions", "versions", "list", "--app", "123", "--subscription-id", "2024"},
+			lookupPath: "/v1/apps/123/subscriptionGroups",
 		},
 		{
 			name:       "win-back offer links",
-			args:       []string{"subscriptions", "offers", "win-back", "links", "--app", "app-123", "--subscription-id", "2024"},
-			lookupPath: "/v1/apps/app-123/subscriptionGroups",
-			fetchPath:  "/v1/subscriptions/2024/relationships/winBackOffers",
-			body:       `{"data":[]}`,
-			wantStdout: `"data"`,
+			args:       []string{"subscriptions", "offers", "win-back", "links", "--app", "123", "--subscription-id", "2024"},
+			lookupPath: "/v1/apps/123/subscriptionGroups",
 		},
 	}
 
@@ -235,11 +259,6 @@ func TestStableSelectorFallsBackToNumericIDAfterLookupTimeout(t *testing.T) {
 				switch req.URL.Path {
 				case test.lookupPath:
 					return lookupTimeout(req)
-				case test.fetchPath:
-					if err := req.Context().Err(); err != nil {
-						t.Fatalf("expected fresh fetch context after lookup timeout, got %v", err)
-					}
-					return selectorJSONResponse(test.body), nil
 				default:
 					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 					return nil, nil
@@ -247,17 +266,17 @@ func TestStableSelectorFallsBackToNumericIDAfterLookupTimeout(t *testing.T) {
 			})
 
 			stdout, stderr, runErr := runRootCommand(t, test.args)
-			if runErr != nil {
-				t.Fatalf("expected nil error, got %v", runErr)
+			if runErr == nil || !strings.Contains(runErr.Error(), "request failed") {
+				t.Fatalf("expected lookup timeout before direct fetch, got %v", runErr)
 			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requests != 2 {
-				t.Fatalf("expected lookup timeout followed by direct fetch, got %d requests", requests)
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if !strings.Contains(stdout, test.wantStdout) {
-				t.Fatalf("expected stdout to contain %q, got %q", test.wantStdout, stdout)
+			if requests != 1 {
+				t.Fatalf("expected lookup timeout with no direct fetch, got %d requests", requests)
 			}
 		})
 	}
@@ -269,17 +288,20 @@ func TestIAPContentViewDoesNotSuppressNumericAmbiguity(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
-	reg.Register(asctest.GET("/v1/apps/app-123/inAppPurchasesV2", "filter[name]=2024", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[
-					{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"2024","productId":"com.example.one","inAppPurchaseType":"CONSUMABLE"}},
+					{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"2024","productId":"com.example.one","inAppPurchaseType":"CONSUMABLE"}}
+				],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=page-2&limit=200"}}`))
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "cursor=page-2", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
 					{"type":"inAppPurchases","id":"iap-2","attributes":{"name":"2024","productId":"com.example.two","inAppPurchaseType":"CONSUMABLE"}}
-				]}`))
+				],"links":{"next":""}}`))
 
 	_, _, runErr := runRootCommand(t, []string{
 		"iap", "content", "view",
-		"--app", "app-123",
+		"--app", "123",
 		"--iap-id", "2024",
 	})
 	if runErr == nil {
@@ -288,8 +310,8 @@ func TestIAPContentViewDoesNotSuppressNumericAmbiguity(t *testing.T) {
 	if !strings.Contains(runErr.Error(), "pass --iap-id with one of:") {
 		t.Fatalf("expected disambiguation guidance, got %v", runErr)
 	}
-	if requests := len(reg.Requests()); requests != 2 {
-		t.Fatalf("expected product-id and name lookup requests before error, got %d", requests)
+	if requests := len(reg.Requests()); requests != 3 {
+		t.Fatalf("expected product-id and two paginated scan requests before error, got %d", requests)
 	}
 }
 
@@ -305,7 +327,7 @@ func TestSubscriptionReviewScreenshotGetResolvesStableSelectorWithAppFlag(t *tes
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "review", "app-store-screenshot", "view",
-		"--app", "app-1",
+		"--app", "1",
 		"--subscription-id", "com.example.monthly",
 	})
 	if runErr != nil {
@@ -343,7 +365,7 @@ func TestSubscriptionPromotedPurchaseViewResolvesStableSelectorWithAppFlag(t *te
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "promoted-purchases", "view",
-		"--app", "app-1",
+		"--app", "1",
 		"--subscription-id", "com.example.monthly",
 		"--iap-fields", "versions",
 		"--subscription-fields", "versions",
@@ -365,12 +387,12 @@ func TestIAPOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	for _, query := range []string{"filter[productId]=com.example.missing", "filter[name]=com.example.missing", ""} {
-		reg.Register(asctest.GET("/v1/apps/app-1/inAppPurchasesV2", query, "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+		reg.Register(asctest.GET("/v1/apps/1/inAppPurchasesV2", query, "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	}
 
 	_, _, runErr := runRootCommand(t, []string{
 		"iap", "offer-codes", "create",
-		"--app", "app-1",
+		"--app", "1",
 		"--iap-id", "com.example.missing",
 		"--name", "SPRING",
 		"--prices", "usa:pp-us",
@@ -392,14 +414,14 @@ func TestSubscriptionsOfferCodesCreateStopsBeforeMutationWhenLookupFails(t *test
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	for _, query := range []string{"filter[productId]=com.example.missing", "filter[name]=com.example.missing", ""} {
-		reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"),
+		reg.Register(asctest.GET("/v1/apps/1/subscriptionGroups", "limit=200"),
 			asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`))
 		reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", query, "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	}
 
 	_, _, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "offer-codes", "create",
-		"--app", "app-1",
+		"--app", "1",
 		"--subscription-id", "com.example.missing",
 		"--name", "SPRING",
 		"--offer-eligibility", "STACK_WITH_INTRO_OFFERS",
@@ -431,7 +453,7 @@ func TestSubscriptionsOfferCodesCreateFreeTrialResolvesStableSelector(t *testing
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "offer-codes", "create",
-		"--app", "app-1",
+		"--app", "1",
 		"--subscription-id", "com.example.monthly",
 		"--name", "SPRING",
 		"--offer-eligibility", "STACK_WITH_INTRO_OFFERS",
@@ -493,7 +515,7 @@ func TestWinBackOffersLinksResolvesStableSelector(t *testing.T) {
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "win-back", "links",
-		"--app", "app-1",
+		"--app", "1",
 		"--subscription-id", "com.example.monthly",
 	})
 	if runErr != nil {

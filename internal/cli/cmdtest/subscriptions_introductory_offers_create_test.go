@@ -232,7 +232,7 @@ func TestSubscriptionsIntroductoryOffersCreateSelectorAndPostShareOperationTimeo
 	var postDeadlineDelta time.Duration
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/1/subscriptionGroups":
 			var ok bool
 			lookupDeadline, ok = req.Context().Deadline()
 			if !ok {
@@ -270,7 +270,7 @@ func TestSubscriptionsIntroductoryOffersCreateSelectorAndPostShareOperationTimeo
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "offers", "introductory", "create",
-			"--app", "app-1",
+			"--app", "1",
 			"--subscription-id", "com.example.monthly",
 			"--offer-duration", "ONE_MONTH",
 			"--offer-mode", "FREE_TRIAL",
@@ -452,7 +452,7 @@ func TestSubscriptionsIntroductoryOffersCreateSingleTerritoryDryRunSkipsSubscrip
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "introductory", "create",
 		"--subscription-id", "com.example.monthly",
-		"--app", "app-1",
+		"--app", "1",
 		"--offer-duration", "ONE_MONTH",
 		"--offer-mode", "FREE_TRIAL",
 		"--number-of-periods", "1",

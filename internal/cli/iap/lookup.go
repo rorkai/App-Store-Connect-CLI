@@ -19,7 +19,7 @@ func resolveIAPLookupID(ctx context.Context, d *shared.Deps, client *asc.Client,
 	if err := d.RequireAppForStableSelector(resolvedAppID, selector, "--iap-id"); err != nil {
 		return "", err
 	}
-	return shared.ResolveIAPID(ctx, client, resolvedAppID, selector)
+	return shared.ResolveIAPIDWithAppLookup(ctx, client, resolvedAppID, selector)
 }
 
 func resolveIAPLookupIDWithTimeout(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {

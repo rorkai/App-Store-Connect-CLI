@@ -28,10 +28,12 @@ type sequenceIAPLookupStub struct {
 	responses []*asc.InAppPurchasesV2Response
 	errs      []error
 	calls     int
+	appIDs    []string
 }
 
-func (s *sequenceIAPLookupStub) GetInAppPurchasesV2(_ context.Context, _ string, _ ...asc.IAPOption) (*asc.InAppPurchasesV2Response, error) {
+func (s *sequenceIAPLookupStub) GetInAppPurchasesV2(_ context.Context, appID string, _ ...asc.IAPOption) (*asc.InAppPurchasesV2Response, error) {
 	s.calls++
+	s.appIDs = append(s.appIDs, appID)
 	idx := s.calls - 1
 	if len(s.errs) != 0 {
 		errIdx := idx
@@ -58,13 +60,15 @@ type sequenceSubscriptionLookupStub struct {
 	groupResponses []*asc.SubscriptionGroupsResponse
 	groupErrors    []error
 	groupCalls     int
+	appIDs         []string
 
 	subscriptionResponses map[string][]*asc.SubscriptionsResponse
 	subscriptionCalls     map[string]int
 }
 
-func (s *sequenceSubscriptionLookupStub) GetSubscriptionGroups(_ context.Context, _ string, _ ...asc.SubscriptionGroupsOption) (*asc.SubscriptionGroupsResponse, error) {
+func (s *sequenceSubscriptionLookupStub) GetSubscriptionGroups(_ context.Context, appID string, _ ...asc.SubscriptionGroupsOption) (*asc.SubscriptionGroupsResponse, error) {
 	s.groupCalls++
+	s.appIDs = append(s.appIDs, appID)
 	idx := s.groupCalls - 1
 	if len(s.groupErrors) != 0 {
 		errIdx := idx
@@ -214,12 +218,51 @@ func TestResolveIAPID_WithAppContextResolvesNumericProductID(t *testing.T) {
 	}
 }
 
-func TestResolveIAPID_WithAppContextFallsBackToNumericPassthroughWhenLookupMisses(t *testing.T) {
+func TestResolveIAPID_WithAppContextRejectsNumericResourceOutsideSelectedApp(t *testing.T) {
 	stub := &sequenceIAPLookupStub{
 		responses: []*asc.InAppPurchasesV2Response{
 			iapResponse(),
 			iapResponse(),
+		},
+	}
+
+	_, err := ResolveIAPID(context.Background(), stub, "app-1", "2024")
+	if err == nil {
+		t.Fatal("expected numeric resource outside selected app to fail closed")
+	}
+	if !errors.Is(err, errSelectorNotFound) {
+		t.Fatalf("expected selector-not-found error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), `in-app purchase resource ID "2024" is not a member of selected app "app-1"`) {
+		t.Fatalf("expected selected-app resource-ID diagnostic, got %v", err)
+	}
+	if stub.calls != 2 {
+		t.Fatalf("expected product and full-scan lookups before rejection, got %d calls", stub.calls)
+	}
+}
+
+func TestResolveIAPID_WithAppContextRejectsNumericResourceWhenLookupErrors(t *testing.T) {
+	stub := &sequenceIAPLookupStub{
+		errs: []error{errors.New("lookup temporarily unavailable")},
+	}
+
+	_, err := ResolveIAPID(context.Background(), stub, "app-1", "2024")
+	if err == nil {
+		t.Fatal("expected lookup error to reject numeric resource")
+	}
+	if stub.calls != 1 {
+		t.Fatalf("expected single lookup attempt before rejection, got %d calls", stub.calls)
+	}
+}
+
+func TestResolveIAPID_WithAppContextResolvesNumericResourceIDAfterPaginatedScan(t *testing.T) {
+	firstPage := iapResponse()
+	firstPage.Links.Next = "next-page"
+	stub := &sequenceIAPLookupStub{
+		responses: []*asc.InAppPurchasesV2Response{
 			iapResponse(),
+			firstPage,
+			iapResponse(iapLookupFixture{id: "2024", productID: "com.example.pro", name: "Pro"}),
 		},
 	}
 
@@ -228,27 +271,15 @@ func TestResolveIAPID_WithAppContextFallsBackToNumericPassthroughWhenLookupMisse
 		t.Fatalf("ResolveIAPID() error: %v", err)
 	}
 	if got != "2024" {
-		t.Fatalf("expected numeric passthrough fallback, got %q", got)
+		t.Fatalf("expected selected app resource ID, got %q", got)
 	}
 	if stub.calls != 3 {
-		t.Fatalf("expected product, name, and full-scan lookups before fallback, got %d calls", stub.calls)
+		t.Fatalf("expected product and two full-scan pages, got %d calls", stub.calls)
 	}
-}
-
-func TestResolveIAPID_WithAppContextFallsBackToNumericPassthroughWhenLookupErrors(t *testing.T) {
-	stub := &sequenceIAPLookupStub{
-		errs: []error{errors.New("lookup temporarily unavailable")},
-	}
-
-	got, err := ResolveIAPID(context.Background(), stub, "app-1", "2024")
-	if err != nil {
-		t.Fatalf("ResolveIAPID() error: %v", err)
-	}
-	if got != "2024" {
-		t.Fatalf("expected numeric passthrough fallback, got %q", got)
-	}
-	if stub.calls != 1 {
-		t.Fatalf("expected single lookup attempt before fallback, got %d calls", stub.calls)
+	for _, appID := range stub.appIDs {
+		if appID != "app-1" {
+			t.Fatalf("expected every IAP membership lookup to use selected app, got %q", appID)
+		}
 	}
 }
 
@@ -436,7 +467,28 @@ func TestResolveSubscriptionID_WithAppContextResolvesNumericName(t *testing.T) {
 	}
 }
 
-func TestResolveSubscriptionID_WithAppContextFallsBackToNumericPassthroughWhenLookupMisses(t *testing.T) {
+func TestResolveSubscriptionID_WithAppContextResolvesNumericProductID(t *testing.T) {
+	stub := &sequenceSubscriptionLookupStub{
+		groupResponses: []*asc.SubscriptionGroupsResponse{
+			subscriptionGroupsResponse("group-1"),
+		},
+		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
+			"group-1": {
+				subscriptionsResponse(subscriptionLookupFixture{id: "sub-2024", productID: "2024", name: "Spring Sale"}),
+			},
+		},
+	}
+
+	got, err := ResolveSubscriptionID(context.Background(), stub, "app-1", "2024")
+	if err != nil {
+		t.Fatalf("ResolveSubscriptionID() error: %v", err)
+	}
+	if got != "sub-2024" {
+		t.Fatalf("expected resolved subscription ID sub-2024, got %q", got)
+	}
+}
+
+func TestResolveSubscriptionID_WithAppContextRejectsNumericResourceOutsideSelectedApp(t *testing.T) {
 	stub := &sequenceSubscriptionLookupStub{
 		groupResponses: []*asc.SubscriptionGroupsResponse{
 			subscriptionGroupsResponse("group-1"),
@@ -450,32 +502,62 @@ func TestResolveSubscriptionID_WithAppContextFallsBackToNumericPassthroughWhenLo
 		},
 	}
 
-	got, err := ResolveSubscriptionID(context.Background(), stub, "app-1", "2024")
-	if err != nil {
-		t.Fatalf("ResolveSubscriptionID() error: %v", err)
+	_, err := ResolveSubscriptionID(context.Background(), stub, "app-1", "2024")
+	if err == nil {
+		t.Fatal("expected numeric resource outside selected app to fail closed")
 	}
-	if got != "2024" {
-		t.Fatalf("expected numeric passthrough fallback, got %q", got)
+	if !errors.Is(err, errSelectorNotFound) {
+		t.Fatalf("expected selector-not-found error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), `subscription resource ID "2024" is not a member of selected app "app-1"`) {
+		t.Fatalf("expected selected-app resource-ID diagnostic, got %v", err)
 	}
 	if stub.groupCalls == 0 {
-		t.Fatal("expected lookup attempt before numeric fallback")
+		t.Fatal("expected lookup attempt before rejection")
 	}
 }
 
-func TestResolveSubscriptionID_WithAppContextFallsBackToNumericPassthroughWhenLookupErrors(t *testing.T) {
+func TestResolveSubscriptionID_WithAppContextRejectsNumericResourceWhenLookupErrors(t *testing.T) {
 	stub := &sequenceSubscriptionLookupStub{
 		groupErrors: []error{errors.New("lookup temporarily unavailable")},
 	}
 
+	_, err := ResolveSubscriptionID(context.Background(), stub, "app-1", "2024")
+	if err == nil {
+		t.Fatal("expected lookup error to reject numeric resource")
+	}
+	if stub.groupCalls != 1 {
+		t.Fatalf("expected single lookup attempt before rejection, got %d", stub.groupCalls)
+	}
+}
+
+func TestResolveSubscriptionID_WithAppContextResolvesNumericResourceIDAfterPaginatedScan(t *testing.T) {
+	firstPage := subscriptionsResponse()
+	firstPage.Links.Next = "next-page"
+	stub := &sequenceSubscriptionLookupStub{
+		groupResponses: []*asc.SubscriptionGroupsResponse{
+			subscriptionGroupsResponse("group-1"),
+		},
+		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
+			"group-1": {
+				subscriptionsResponse(),
+				firstPage,
+				subscriptionsResponse(subscriptionLookupFixture{id: "2024", productID: "com.example.pro", name: "Pro"}),
+			},
+		},
+	}
+
 	got, err := ResolveSubscriptionID(context.Background(), stub, "app-1", "2024")
 	if err != nil {
 		t.Fatalf("ResolveSubscriptionID() error: %v", err)
 	}
 	if got != "2024" {
-		t.Fatalf("expected numeric passthrough fallback, got %q", got)
+		t.Fatalf("expected selected app resource ID, got %q", got)
 	}
-	if stub.groupCalls != 1 {
-		t.Fatalf("expected single lookup attempt before fallback, got %d", stub.groupCalls)
+	for _, appID := range stub.appIDs {
+		if appID != "app-1" {
+			t.Fatalf("expected every subscription group lookup to use selected app, got %q", appID)
+		}
 	}
 }
 

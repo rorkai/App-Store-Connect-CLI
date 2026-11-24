@@ -29,7 +29,7 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesResolvesSubscriptionSelect
 			t.Fatal("expected authorization header")
 		}
 		switch req.URL.Path {
-		case "/v1/apps/app-1/subscriptionGroups":
+		case "/v1/apps/1/subscriptionGroups":
 			return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1"}]}`), nil
 		case "/v1/subscriptionGroups/group-1/subscriptions":
 			if got := req.URL.Query().Get("filter[productId]"); got != "com.example.monthly" {
@@ -51,7 +51,7 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesResolvesSubscriptionSelect
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "pricing", "availability", "available-territories",
-		"--app", "app-1",
+		"--app", "1",
 		"--subscription-id", "com.example.monthly",
 		"--limit", "7",
 		"--output", "json",
@@ -121,7 +121,7 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesRequiresSubscriptionForApp
 	_, _, runErr := runRootCommand(t, []string{
 		"subscriptions", "pricing", "availability", "available-territories",
 		"--availability-id", "avail-1",
-		"--app", "app-1",
+		"--app", "1",
 	})
 	if runErr == nil || !strings.Contains(runErr.Error(), "--app requires --subscription-id") {
 		t.Fatalf("expected app selector error, got %v", runErr)

@@ -19,7 +19,7 @@ func resolveSubscriptionLookupID(ctx context.Context, d *shared.Deps, client *as
 	if err := d.RequireAppForStableSelector(resolvedAppID, selector, "--subscription-id"); err != nil {
 		return "", err
 	}
-	return shared.ResolveSubscriptionID(ctx, client, resolvedAppID, selector)
+	return shared.ResolveSubscriptionIDWithAppLookup(ctx, client, resolvedAppID, selector)
 }
 
 func resolveSubscriptionLookupIDWithTimeout(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
