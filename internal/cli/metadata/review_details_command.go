@@ -51,9 +51,10 @@ demoAccountPassword, and notes. Only supplied fields are managed; omitted
 fields stay unchanged. Nulls, empty strings, unknown and duplicate fields fail.
 
 Example file:
-  {"contactFirstName":"Dev","contactPhone":"+1 408 555 0100","notes":"Use the guest flow."}
+  {"contactFirstName":"Dev","contactPhone":"+1 408 555 0100","demoAccountRequired":false,"notes":"Use the guest flow."}
 
-A new record needs contactFirstName and contactPhone. When demoAccountRequired
+A new record needs contactFirstName, contactPhone and an explicit
+demoAccountRequired value (true or false). When demoAccountRequired
 is true, both demoAccountName and demoAccountPassword must be present in the
 file or existing record. Passwords must use "@env:NAME" or "@file:relative-path";
 file references stay beneath the JSON file's directory. Output redacts passwords.
@@ -111,7 +112,7 @@ Examples:
 			maps.Copy(desired, remote)
 			maps.Copy(desired, local)
 			if remote == nil {
-				for _, field := range []string{"contactFirstName", "contactPhone"} {
+				for _, field := range []string{"contactFirstName", "contactPhone", "demoAccountRequired"} {
 					if strings.TrimSpace(desired[field]) == "" {
 						return d.UsageErrorf("%s is required to create review details", field)
 					}

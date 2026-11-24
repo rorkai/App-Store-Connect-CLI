@@ -136,6 +136,7 @@ func TestReviewDetailsPlanSetAndRepeat(t *testing.T) {
 func TestReviewDetailsSetRejectsIncompleteCreateAndDemoState(t *testing.T) {
 	for _, tc := range []struct{ remote, body, want string }{
 		{`{"data":null}`, `{"notes":"hello"}`, "contactFirstName"},
+		{`{"data":null}`, `{"contactFirstName":"Dev","contactPhone":"+1 408 555 0100"}`, "demoAccountRequired"},
 		{`{"data":{"type":"appStoreReviewDetails","id":"d1","attributes":{"demoAccountRequired":true}}}`, `{"notes":"hello"}`, "demoAccountName"},
 	} {
 		reg := asctest.NewRegistry(t)
