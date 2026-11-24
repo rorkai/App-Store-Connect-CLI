@@ -156,6 +156,13 @@ At least one field flag must be provided.`,
 					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
 					output:                output,
 				}
+				if hasAnyActiveProvidedFlag(fs, versionFieldNames...) {
+					return shared.WithDiagnostic(
+						d.UsageError("--type version is required for version update flags"),
+						shared.DiagnosticRequiredInputMissing,
+						"--type",
+					)
+				}
 				if !hasAnyAppInfoField(params) {
 					return d.UpdateFlagRequired(fs, name, subtitle, clearSubtitle, privacyPolicyURL, clearPrivacyPolicyURL, privacyChoicesURL, privacyPolicyText)
 				}
@@ -175,6 +182,13 @@ At least one field flag must be provided.`,
 					marketingURL:         *marketingURL,
 					clearPromotionalText: *clearPromotionalText,
 					output:               output,
+				}
+				if hasAnyActiveProvidedFlag(fs, appInfoFieldNames...) {
+					return shared.WithDiagnostic(
+						d.UsageError("--type app-info is required for app-info update flags"),
+						shared.DiagnosticRequiredInputMissing,
+						"--type",
+					)
 				}
 				if !hasAnyVersionField(params) {
 					return d.UpdateFlagRequired(fs, description, keywords, whatsNew, promotionalText, clearPromotionalText, supportURL, marketingURL)
@@ -234,6 +248,39 @@ func flagProvided(fs *flag.FlagSet, name string) bool {
 		}
 	})
 	return provided
+}
+
+var appInfoFieldNames = []string{
+	"name",
+	"subtitle",
+	"privacy-policy-url",
+	"privacy-choices-url",
+	"privacy-policy-text",
+	"clear-subtitle",
+	"clear-privacy-policy-url",
+}
+
+var versionFieldNames = []string{
+	"description",
+	"keywords",
+	"whats-new",
+	"promotional-text",
+	"clear-promotional-text",
+	"support-url",
+	"marketing-url",
+}
+
+func hasAnyActiveProvidedFlag(fs *flag.FlagSet, names ...string) bool {
+	for _, name := range names {
+		if !flagProvided(fs, name) {
+			continue
+		}
+		if strings.HasPrefix(name, "clear-") && fs.Lookup(name).Value.String() != "true" {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 type updateAppInfoParams struct {
