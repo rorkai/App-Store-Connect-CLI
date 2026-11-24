@@ -8,15 +8,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-// AppCandidates converts apps into ambiguity candidates (ID, name, bundle ID).
-func AppCandidates(apps []asc.Resource[asc.AppAttributes]) []AmbiguousCandidate {
-	candidates := make([]AmbiguousCandidate, 0, len(apps))
-	for _, app := range apps {
-		candidates = append(candidates, appCandidate(app))
-	}
-	return candidates
-}
-
 func appCandidate(app asc.Resource[asc.AppAttributes]) AmbiguousCandidate {
 	return AmbiguousCandidate{
 		ID:    strings.TrimSpace(app.ID),

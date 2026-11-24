@@ -103,8 +103,9 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 						if req.URL.Query().Get("filter[bundleId]") == "com.example.own" {
 							return locUpdateJSONResponse(prefixSiblings)
 						}
-						if appID := bundleApps[req.URL.Query().Get("filter[bundleId]")]; appID != "" {
-							return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"` + appID + `"}]}`)
+						bundleID := req.URL.Query().Get("filter[bundleId]")
+						if appID := bundleApps[bundleID]; appID != "" {
+							return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"` + appID + `","attributes":{"bundleId":"` + bundleID + `"}}]}`)
 						}
 					}
 					switch request {
@@ -127,7 +128,7 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 				var wantRequests []string
 				selectedApp := cmp.Or(tt.app, tt.envApp)
 				if _, isBundleID := bundleApps[selectedApp]; isBundleID {
-					wantRequests = append(wantRequests, "GET /v1/apps?filter%5BbundleId%5D="+selectedApp+"&limit=2")
+					wantRequests = append(wantRequests, "GET /v1/apps?filter%5BbundleId%5D="+selectedApp+"&limit=200")
 				}
 				if selectedApp != "" {
 					wantRequests = append(wantRequests, lookup)

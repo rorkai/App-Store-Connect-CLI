@@ -285,14 +285,9 @@ func doctorMigrationSuggestionResolver(d *shared.Deps) authsvc.MigrationSuggesti
 		defer cancel()
 
 		if needsAppLookup {
-			appIdentifier := strings.TrimSpace(input.AppIdentifier)
-			appsResp, err := client.GetApps(
-				requestCtx,
-				asc.WithAppsBundleIDs([]string{appIdentifier}),
-				asc.Limit[asc.AppsOption](1),
-			)
-			if err == nil && len(appsResp.Data) > 0 {
-				appID = strings.TrimSpace(appsResp.Data[0].ID)
+			appID, err = shared.ResolveAppIDByExactBundleID(requestCtx, client, input.AppIdentifier)
+			if err != nil {
+				return result
 			}
 		}
 		if appID == "" {
