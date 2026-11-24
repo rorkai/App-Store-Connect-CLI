@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -139,15 +140,13 @@ Examples:
 				versionValue != "" &&
 				d.ResolveAppID(*appID) != "" &&
 				shared.IsAppStoreVersionString(versionValue)
-			if strings.TrimSpace(*next) == "" && d.ResolveAppID(*appID) == "" {
-				switch {
-				case normalizedType == shared.LocalizationTypeVersion && versionValue == "":
-					fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations (or pass --app to use the app's editable or live version)")
-					return shared.MissingRequiredUsageError("--version")
-				case normalizedType == shared.LocalizationTypeAppInfo:
-					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
-					return shared.MissingRequiredUsageError("--app")
-				}
+			if strings.TrimSpace(*next) == "" && d.ResolveAppID(*appID) == "" && normalizedType == shared.LocalizationTypeVersion && versionValue == "" {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations (or pass --app to use the app's editable or live version)")
+				return shared.MissingRequiredUsageError("--version")
+			}
+			if normalizedType == shared.LocalizationTypeAppInfo && d.ResolveAppID(*appID) == "" {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
+				return shared.MissingRequiredUsageError("--app")
 			}
 			normalizedPlatform := ""
 			if platformProvided {
@@ -284,6 +283,7 @@ Examples:
 				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := d.ResolveAppID(*appID)
+				nextValue := strings.TrimSpace(*next)
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 					return shared.MissingRequiredUsageError("--app")
@@ -298,9 +298,24 @@ Examples:
 				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 
-				appInfo, err := d.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
-				if err != nil {
-					return fmt.Errorf("localizations list: %w", err)
+				appInfo := strings.TrimSpace(*appInfoID)
+				if nextValue != "" {
+					nextInfoID, nextErr := appInfoLocalizationsAppInfoID(nextValue)
+					if nextErr != nil {
+						return d.UsageErrorf("localizations list: %v", nextErr)
+					}
+					if appInfo != "" && appInfo != nextInfoID {
+						return d.UsageErrorf("localizations list: --app-info %q does not match the --next target %q", appInfo, nextInfoID)
+					}
+					appInfo, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, nextInfoID, "--app-info")
+					if err != nil {
+						return fmt.Errorf("localizations list: %w", err)
+					}
+				} else {
+					appInfo, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, appInfo, "--app-info")
+					if err != nil {
+						return fmt.Errorf("localizations list: %w", err)
+					}
 				}
 
 				opts := []asc.AppInfoLocalizationsOption{
@@ -328,6 +343,13 @@ Examples:
 
 					// Fetch all remaining pages
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						nextInfoID, nextErr := appInfoLocalizationsAppInfoID(nextURL)
+						if nextErr != nil {
+							return nil, nextErr
+						}
+						if nextInfoID != appInfo {
+							return nil, fmt.Errorf("--next target %q does not match selected app info %q", nextInfoID, appInfo)
+						}
 						return client.GetAppInfoLocalizations(ctx, appInfo, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
 					})
 					if err != nil {
@@ -391,6 +413,22 @@ func resolveLocalizationsVersionString(ctx context.Context, d *shared.Deps, clie
 		return "", d.AmbiguousUsageErrorWithKind(ambiguous, usageKind)
 	}
 	return strings.TrimSpace(resp.Data[0].ID), nil
+}
+
+func appInfoLocalizationsAppInfoID(nextValue string) (string, error) {
+	parsed, err := url.Parse(nextValue)
+	if err != nil {
+		return "", fmt.Errorf("--next is not a valid app-info localizations URL: %w", err)
+	}
+	parts := strings.Split(parsed.Path, "/")
+	if len(parts) != 5 || parts[0] != "" || parts[1] != "v1" || parts[2] != "appInfos" || parts[4] != "appInfoLocalizations" {
+		return "", fmt.Errorf("--next must target /v1/appInfos/{id}/appInfoLocalizations")
+	}
+	appInfoID := parts[3]
+	if appInfoID == "" || appInfoID == "." || appInfoID == ".." || strings.Contains(appInfoID, "%") {
+		return "", fmt.Errorf("--next must contain an app info ID")
+	}
+	return appInfoID, nil
 }
 
 // versionLocalizationIncludeList reports the relationships the App Store
@@ -499,6 +537,7 @@ Examples:
 				return d.PrintOutput(&result, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := d.ResolveAppID(*appID)
+				nextValue := strings.TrimSpace(*next)
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 					return shared.MissingRequiredUsageError("--app")
@@ -511,9 +550,24 @@ Examples:
 				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 
-				appInfo, err := d.ResolveAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
-				if err != nil {
-					return fmt.Errorf("localizations download: %w", err)
+				appInfo := strings.TrimSpace(*appInfoID)
+				if nextValue != "" {
+					nextInfoID, nextErr := appInfoLocalizationsAppInfoID(nextValue)
+					if nextErr != nil {
+						return d.UsageErrorf("localizations download: %v", nextErr)
+					}
+					if appInfo != "" && appInfo != nextInfoID {
+						return d.UsageErrorf("localizations download: --app-info %q does not match the --next target %q", appInfo, nextInfoID)
+					}
+					appInfo, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, nextInfoID, "--app-info")
+					if err != nil {
+						return fmt.Errorf("localizations download: %w", err)
+					}
+				} else {
+					appInfo, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, appInfo, "--app-info")
+					if err != nil {
+						return fmt.Errorf("localizations download: %w", err)
+					}
 				}
 
 				opts := []asc.AppInfoLocalizationsOption{
@@ -530,6 +584,13 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					nextInfoID, nextErr := appInfoLocalizationsAppInfoID(nextURL)
+					if nextErr != nil {
+						return nil, nextErr
+					}
+					if nextInfoID != appInfo {
+						return nil, fmt.Errorf("--next target %q does not match selected app info %q", nextInfoID, appInfo)
+					}
 					return client.GetAppInfoLocalizations(ctx, appInfo, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
 				})
 				if err != nil {

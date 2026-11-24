@@ -42,7 +42,7 @@ func planAppInfoLocalizationUpsertTo(
 	locale string,
 	values map[string]string,
 ) (*AppInfoLocalizationUpsertPlan, error) {
-	resolvedAppInfoID, err := resolveOwnedAppInfoIDTo(ctx, stderr, client, appID, appInfoID)
+	resolvedAppInfoID, err := resolveOwnedAppInfoIDTo(ctx, stderr, client, appID, appInfoID, "--app-info")
 	if err != nil {
 		return nil, err
 	}

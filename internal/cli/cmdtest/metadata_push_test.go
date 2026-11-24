@@ -1360,14 +1360,14 @@ func TestMetadataPushRejectsAmbiguousAppInfoWithActionableRemediation(t *testing
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}
 				],
 				"links":{"next":""}
 			}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 		asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},
@@ -1382,7 +1382,7 @@ func TestMetadataPushRejectsAmbiguousAppInfoWithActionableRemediation(t *testing
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "push",
-			"--app", "app-1",
+			"--app", "100000001",
 			"--version", "1.2.3",
 			"--platform", "IOS",
 			"--dir", dir,
@@ -1399,10 +1399,10 @@ func TestMetadataPushRejectsAmbiguousAppInfoWithActionableRemediation(t *testing
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, `Error: 2 app infos match app "app-1"; pass --app-info with one of:`) {
+	if !strings.Contains(stderr, `Error: 2 app infos match app "100000001"; pass --app-info with one of:`) {
 		t.Fatalf("expected ambiguous app-info error, got %q", stderr)
 	}
-	if !strings.Contains(stderr, `asc apps info list --app "app-1"`) {
+	if !strings.Contains(stderr, `asc apps info list --app "100000001"`) {
 		t.Fatalf("expected remediation to mention apps info list, got %q", stderr)
 	}
 	if !strings.Contains(stderr, `--app-info "appinfo-1"`) {
@@ -1428,7 +1428,7 @@ func TestMetadataPushDryRunUsesExplicitAppInfoOverride(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}
@@ -1436,7 +1436,7 @@ func TestMetadataPushDryRunUsesExplicitAppInfoOverride(t *testing.T) {
 				"links":{"next":""}
 			}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-override", "include=app"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"appinfo-override","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"appinfo-override","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-override/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 
@@ -1446,7 +1446,7 @@ func TestMetadataPushDryRunUsesExplicitAppInfoOverride(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "push",
-			"--app", "app-1",
+			"--app", "100000001",
 			"--app-info", "appinfo-override",
 			"--version", "1.2.3",
 			"--platform", "IOS",

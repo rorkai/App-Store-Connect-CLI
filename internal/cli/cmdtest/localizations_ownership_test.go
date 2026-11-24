@@ -24,7 +24,7 @@ func TestAppInfoLocalizationWritesRejectOtherApp(t *testing.T) {
 				requests = append(requests, request)
 				switch req.Method + " " + req.URL.Path {
 				case "GET /v1/appInfos/info-b":
-					return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"info-b","relationships":{"app":{"data":{"type":"apps","id":"app-b"}}}}}`)
+					return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"info-b","relationships":{"app":{"data":{"type":"apps","id":"100000002"}}}}}`)
 				case "GET /v1/appInfos/info-b/appInfoLocalizations":
 					return locUpdateJSONResponse(`{"data":[{"type":"appInfoLocalizations","id":"loc-b","attributes":{"locale":"en-US","subtitle":"Old"}}]}`)
 				case "PATCH /v1/appInfoLocalizations/loc-b":
@@ -32,7 +32,7 @@ func TestAppInfoLocalizationWritesRejectOtherApp(t *testing.T) {
 				}
 				return nil, fmt.Errorf("unexpected request %s", request)
 			})
-			args := []string{"localizations", operation, "--type", "app-info", "--app", "app-a", "--app-info", "info-b", "--locale", "en-US", "--output", "json"}
+			args := []string{"localizations", operation, "--type", "app-info", "--app", "100000001", "--app-info", "info-b", "--locale", "en-US", "--output", "json"}
 			if operation == "update" {
 				args = append(args, "--subtitle", "Updated")
 			} else {
@@ -46,7 +46,7 @@ func TestAppInfoLocalizationWritesRejectOtherApp(t *testing.T) {
 			stdout, stderr := captureOutput(t, func() {
 				code = cmd.Run(args, "6.5.3")
 			})
-			if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, `belongs to app "app-b", not "app-a"`) {
+			if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, `belongs to app "100000002", not "100000001"`) {
 				t.Errorf("cross-app %s: exit=%d stdout=%q stderr=%q", operation, code, stdout, stderr)
 			}
 			if len(requests) != 1 || requests[0] != "GET /v1/appInfos/info-b?include=app" {

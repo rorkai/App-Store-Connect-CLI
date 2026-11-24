@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -102,7 +103,20 @@ Examples:
 			defer cancel()
 
 			resolvedInfoID := infoIDValue
-			if resolvedInfoID == "" && strings.TrimSpace(*next) == "" {
+			nextValue := strings.TrimSpace(*next)
+			if resolvedAppID != "" && nextValue != "" {
+				nextInfoID, nextErr := territoryAgeRatingsAppInfoID(nextValue)
+				if nextErr != nil {
+					return d.UsageErrorf("apps info territory-age-ratings list: %v", nextErr)
+				}
+				if infoIDValue != "" && infoIDValue != nextInfoID {
+					return d.UsageErrorf("apps info territory-age-ratings list: --info-id %q does not match the --next target %q", infoIDValue, nextInfoID)
+				}
+				resolvedInfoID, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, nextInfoID, "--info-id")
+				if err != nil {
+					return fmt.Errorf("apps info territory-age-ratings list: %w", err)
+				}
+			} else if nextValue == "" {
 				resolvedInfoID, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: %w", err)
@@ -124,6 +138,15 @@ Examples:
 					return fmt.Errorf("apps info territory-age-ratings list: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					if resolvedAppID != "" {
+						nextInfoID, nextErr := territoryAgeRatingsAppInfoID(nextURL)
+						if nextErr != nil {
+							return nil, nextErr
+						}
+						if nextInfoID != resolvedInfoID {
+							return nil, fmt.Errorf("--next target %q does not match selected app info %q", nextInfoID, resolvedInfoID)
+						}
+					}
 					return client.GetAppInfoTerritoryAgeRatings(ctx, resolvedInfoID, asc.NextURL[asc.TerritoryAgeRatingsOption](nextURL))
 				})
 				if err != nil {
@@ -140,6 +163,22 @@ Examples:
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func territoryAgeRatingsAppInfoID(nextValue string) (string, error) {
+	parsed, err := url.Parse(nextValue)
+	if err != nil {
+		return "", fmt.Errorf("--next is not a valid territory age-ratings URL: %w", err)
+	}
+	parts := strings.Split(parsed.Path, "/")
+	if len(parts) != 5 || parts[0] != "" || parts[1] != "v1" || parts[2] != "appInfos" || parts[4] != "territoryAgeRatings" {
+		return "", fmt.Errorf("--next must target /v1/appInfos/{id}/territoryAgeRatings when --app is selected")
+	}
+	appInfoID := parts[3]
+	if appInfoID == "" || appInfoID == "." || appInfoID == ".." || strings.Contains(appInfoID, "%") {
+		return "", fmt.Errorf("--next must contain an app info ID")
+	}
+	return appInfoID, nil
 }
 
 func normalizeTerritoryAgeRatingFields(value string) ([]string, error) {

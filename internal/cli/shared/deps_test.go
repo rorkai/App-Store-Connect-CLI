@@ -524,46 +524,46 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "ResolveAppInfoID",
 			process: func() (any, error) {
-				return DefaultDeps().ResolveAppInfoID(context.Background(), appInfosClient, "app-1", "")
+				return DefaultDeps().ResolveAppInfoID(context.Background(), appInfosClient, "123456789", "")
 			},
 			deps: func(d *Deps) (any, error) {
-				return d.ResolveAppInfoID(context.Background(), appInfosClient, "app-1", "")
+				return d.ResolveAppInfoID(context.Background(), appInfosClient, "123456789", "")
 			},
 		},
 		{
 			name: "ResolveAppInfoIDWithFlag",
 			process: func() (any, error) {
-				return DefaultDeps().ResolveAppInfoIDWithFlag(context.Background(), appInfosClient, "app-1", "", "--app-info-id")
+				return DefaultDeps().ResolveAppInfoIDWithFlag(context.Background(), appInfosClient, "123456789", "", "--app-info-id")
 			},
 			deps: func(d *Deps) (any, error) {
-				return d.ResolveAppInfoIDWithFlag(context.Background(), appInfosClient, "app-1", "", "--app-info-id")
+				return d.ResolveAppInfoIDWithFlag(context.Background(), appInfosClient, "123456789", "", "--app-info-id")
 			},
 		},
 		{
 			name: "ResolveOwnedAppInfoID",
 			process: func() (any, error) {
-				return DefaultDeps().ResolveOwnedAppInfoID(context.Background(), appInfosClient, "app-1", "")
+				return DefaultDeps().ResolveOwnedAppInfoID(context.Background(), appInfosClient, "123456789", "")
 			},
 			deps: func(d *Deps) (any, error) {
-				return d.ResolveOwnedAppInfoID(context.Background(), appInfosClient, "app-1", "")
+				return d.ResolveOwnedAppInfoID(context.Background(), appInfosClient, "123456789", "")
 			},
 		},
 		{
 			name: "PlanAppInfoLocalizationUpsert",
 			process: func() (any, error) {
-				return DefaultDeps().PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"name": "Outslept"})
+				return DefaultDeps().PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "123456789", "", "en-US", map[string]string{"name": "Outslept"})
 			},
 			deps: func(d *Deps) (any, error) {
-				return d.PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"name": "Outslept"})
+				return d.PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "123456789", "", "en-US", map[string]string{"name": "Outslept"})
 			},
 		},
 		{
 			name: "PlanAppInfoLocalizationUpsert without a name to create",
 			process: func() (any, error) {
-				return DefaultDeps().PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"subtitle": "Sleep better"})
+				return DefaultDeps().PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "123456789", "", "en-US", map[string]string{"subtitle": "Sleep better"})
 			},
 			deps: func(d *Deps) (any, error) {
-				return d.PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "app-1", "", "en-US", map[string]string{"subtitle": "Sleep better"})
+				return d.PlanAppInfoLocalizationUpsert(context.Background(), appInfosClient, "123456789", "", "en-US", map[string]string{"subtitle": "Sleep better"})
 			},
 		},
 		{
