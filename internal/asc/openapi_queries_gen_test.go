@@ -722,6 +722,12 @@ var generatedQueries = map[string]generatedQuery{
 			"limit[automaticPrices]":              WithIAPPriceScheduleAutomaticPricesLimit,
 		},
 	},
+	"inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated": {
+		build: buildIAPAvailabilityQuery,
+		options: map[string]any{
+			"include": WithIAPAvailabilityInclude,
+		},
+	},
 	"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated": {
 		build:   buildIAPLocalizationsQuery,
 		options: map[string]any{},

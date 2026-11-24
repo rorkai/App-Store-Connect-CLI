@@ -126,13 +126,15 @@ func (c *Client) GetInAppPurchasePriceSchedule(ctx context.Context, iapID string
 }
 
 // GetInAppPurchaseAvailability sends GET /v2/inAppPurchases/{id}/inAppPurchaseAvailability (inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated).
-func (c *Client) GetInAppPurchaseAvailability(ctx context.Context, iapID string) (*InAppPurchaseAvailabilityResponse, error) {
+func (c *Client) GetInAppPurchaseAvailability(ctx context.Context, iapID string, opts ...IAPAvailabilityOption) (*InAppPurchaseAvailabilityResponse, error) {
 	iapID = strings.TrimSpace(iapID)
 	if iapID == "" {
 		return nil, fmt.Errorf("iapID is required")
 	}
+	query := applyOptions(opts)
 	return getJSON[InAppPurchaseAvailabilityResponse](ctx, c, readRequest{
-		Path: fmt.Sprintf("/v2/inAppPurchases/%s/inAppPurchaseAvailability", iapID),
+		Path:  fmt.Sprintf("/v2/inAppPurchases/%s/inAppPurchaseAvailability", iapID),
+		Query: buildIAPAvailabilityQuery(query),
 	})
 }
 
@@ -227,6 +229,26 @@ func (c *Client) GetInAppPurchase(ctx context.Context, iapID string) (*InAppPurc
 	return getJSON[InAppPurchaseResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/inAppPurchases/%s", strings.TrimSpace(iapID)),
 	})
+}
+
+// IAPAvailabilityOption sets the query of GET /v2/inAppPurchases/{id}/inAppPurchaseAvailability (inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated).
+type IAPAvailabilityOption func(*iapAvailabilityQuery)
+
+type iapAvailabilityQuery struct {
+	include []string
+}
+
+// WithIAPAvailabilityInclude sets include.
+func WithIAPAvailabilityInclude(include []string) IAPAvailabilityOption {
+	return func(q *iapAvailabilityQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildIAPAvailabilityQuery(query *iapAvailabilityQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
+	return values.Encode()
 }
 
 // IAPLocalizationsOption sets the query of GET /v2/inAppPurchases/{id}/inAppPurchaseLocalizations (inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated).
