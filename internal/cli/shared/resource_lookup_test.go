@@ -45,7 +45,7 @@ func TestScopedPaginationURLBindsCollectionPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := scopedPaginationURL(tt.nextURL, expectedPath)
+			got, err := ScopedPaginationURL(tt.nextURL, expectedPath)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected pagination URL rejection, got %q", got)
@@ -53,14 +53,14 @@ func TestScopedPaginationURLBindsCollectionPath(t *testing.T) {
 				return
 			}
 			if err != nil {
-				t.Fatalf("scopedPaginationURL() error: %v", err)
+				t.Fatalf("ScopedPaginationURL() error: %v", err)
 			}
 			wantURL := tt.wantURL
 			if wantURL == "" {
 				wantURL = tt.nextURL
 			}
 			if got != wantURL {
-				t.Fatalf("scopedPaginationURL() = %q, want %q", got, wantURL)
+				t.Fatalf("ScopedPaginationURL() = %q, want %q", got, wantURL)
 			}
 		})
 	}

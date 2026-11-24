@@ -156,6 +156,133 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesRejectsConflictingSelector
 	}
 }
 
+func TestSubscriptionsAvailabilityAvailableTerritoriesRejectsNextWithSelectorsBeforeClient(t *testing.T) {
+	setupStableSelectorAuth(t)
+	next := "https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/avail-1/availableTerritories?cursor=next"
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "availability", args: []string{"--availability-id", "avail-1"}, want: "--availability-id"},
+		{name: "subscription", args: []string{"--subscription-id", "sub-1"}, want: "--subscription-id"},
+		{name: "app", args: []string{"--app", "app-1"}, want: "--app"},
+		{name: "empty availability", args: []string{"--availability-id", ""}, want: "--availability-id"},
+		{name: "empty subscription", args: []string{"--subscription-id", ""}, want: "--subscription-id"},
+		{name: "empty app", args: []string{"--app", ""}, want: "--app must not be empty"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requests := 0
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+				return nil, nil
+			})
+			args := append([]string{"subscriptions", "pricing", "availability", "available-territories", "--next", next}, test.args...)
+			_, _, runErr := runRootCommand(t, args)
+			wantError := "--next cannot be combined with " + test.want
+			if test.name == "empty app" {
+				wantError = test.want
+			}
+			if runErr == nil || !strings.Contains(runErr.Error(), wantError) {
+				t.Fatalf("expected %s, got %v", wantError, runErr)
+			}
+			if requests != 0 {
+				t.Fatalf("expected zero requests, got %d", requests)
+			}
+		})
+	}
+}
+
+func TestSubscriptionsAvailabilityAvailableTerritoriesAllowsStandaloneNextCursor(t *testing.T) {
+	setupStableSelectorAuth(t)
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.URL.Path != "/v1/subscriptionAvailabilities/avail-1/availableTerritories" || req.URL.Query().Get("cursor") != "next" {
+			t.Fatalf("unexpected standalone cursor request: %s", req.URL.String())
+		}
+		return selectorJSONResponse(`{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`), nil
+	})
+	stdout, stderr, runErr := runRootCommand(t, []string{"subscriptions", "pricing", "availability", "available-territories", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/avail-1/availableTerritories?cursor=next", "--output", "json"})
+	if runErr != nil {
+		t.Fatalf("expected nil error, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if requests != 1 {
+		t.Fatalf("expected one standalone cursor request, got %d", requests)
+	}
+	if !strings.Contains(stdout, `"id":"USA"`) {
+		t.Fatalf("expected USA output, got %q", stdout)
+	}
+}
+
+func TestSubscriptionsAvailabilityAvailableTerritoriesPaginatesSameAvailability(t *testing.T) {
+	setupStableSelectorAuth(t)
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.URL.Path != "/v1/subscriptionAvailabilities/avail-1/availableTerritories" {
+			t.Fatalf("unexpected request path: %s", req.URL.String())
+		}
+		switch req.URL.Query().Get("cursor") {
+		case "":
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				t.Fatalf("expected limit=200, got %q", got)
+			}
+			return selectorJSONResponse(`{"data":[{"type":"territories","id":"USA"}],"links":{"next":"/v1/subscriptionAvailabilities/avail-1/availableTerritories?cursor=next"}}`), nil
+		case "next":
+			return selectorJSONResponse(`{"data":[{"type":"territories","id":"FRA"}],"links":{"next":""}}`), nil
+		default:
+			t.Fatalf("unexpected cursor %q", req.URL.Query().Get("cursor"))
+			return nil, nil
+		}
+	})
+	stdout, stderr, runErr := runRootCommand(t, []string{"subscriptions", "pricing", "availability", "available-territories", "--availability-id", "avail-1", "--paginate", "--output", "json"})
+	if runErr != nil {
+		t.Fatalf("expected nil error, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if requests != 2 {
+		t.Fatalf("expected two same-availability requests, got %d", requests)
+	}
+	if !strings.Contains(stdout, `"id":"USA"`) || !strings.Contains(stdout, `"id":"FRA"`) {
+		t.Fatalf("expected both territory pages, got %q", stdout)
+	}
+}
+
+func TestSubscriptionsAvailabilityAvailableTerritoriesRejectsDriftedContinuation(t *testing.T) {
+	setupStableSelectorAuth(t)
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.URL.Path != "/v1/subscriptionAvailabilities/avail-1/availableTerritories" {
+			t.Fatalf("unexpected follow-up request: %s", req.URL.String())
+		}
+		return selectorJSONResponse(`{"data":[{"type":"territories","id":"USA"}],"links":{"next":"/v1/subscriptionAvailabilities/avail-2/availableTerritories?cursor=drift"}}`), nil
+	})
+	_, _, runErr := runRootCommand(t, []string{"subscriptions", "pricing", "availability", "available-territories", "--availability-id", "avail-1", "--paginate"})
+	if runErr == nil || !strings.Contains(runErr.Error(), "escaped scoped collection") {
+		t.Fatalf("expected scoped continuation refusal, got %v", runErr)
+	}
+	if requests != 1 {
+		t.Fatalf("expected no follow-up request after drift, got %d requests", requests)
+	}
+}
+
 func TestSubscriptionsAvailabilityAvailableTerritoriesRequiresSubscriptionForApp(t *testing.T) {
 	_, _, runErr := runRootCommand(t, []string{
 		"subscriptions", "pricing", "availability", "available-territories",

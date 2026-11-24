@@ -358,7 +358,7 @@ func listIAPCandidates(ctx context.Context, client iapSelectorClient, appID stri
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			path := fmt.Sprintf("/v1/apps/%s/inAppPurchasesV2", strings.TrimSpace(appID))
-			nextURL, err := scopedPaginationURL(nextURL, path)
+			nextURL, err := ScopedPaginationURL(nextURL, path)
 			if err != nil {
 				return nil, err
 			}
@@ -412,7 +412,7 @@ func listSubscriptionGroupIDs(ctx context.Context, client subscriptionSelectorCl
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			path := fmt.Sprintf("/v1/apps/%s/subscriptionGroups", strings.TrimSpace(appID))
-			nextURL, err := scopedPaginationURL(nextURL, path)
+			nextURL, err := ScopedPaginationURL(nextURL, path)
 			if err != nil {
 				return nil, err
 			}
@@ -455,7 +455,7 @@ func listSubscriptionsForGroup(ctx context.Context, client subscriptionSelectorC
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			path := fmt.Sprintf("/v1/subscriptionGroups/%s/subscriptions", strings.TrimSpace(groupID))
-			nextURL, err := scopedPaginationURL(nextURL, path)
+			nextURL, err := ScopedPaginationURL(nextURL, path)
 			if err != nil {
 				return nil, err
 			}
@@ -476,7 +476,7 @@ func listSubscriptionsForGroup(ctx context.Context, client subscriptionSelectorC
 	return candidates, nil
 }
 
-func scopedPaginationURL(nextURL, expectedPath string) (string, error) {
+func ScopedPaginationURL(nextURL, expectedPath string) (string, error) {
 	trimmed := strings.TrimSpace(nextURL)
 	parsed, err := url.Parse(trimmed)
 	if err != nil {
