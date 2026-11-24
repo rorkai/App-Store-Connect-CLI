@@ -336,6 +336,7 @@ func resolveSubscriptionCandidate(ctx context.Context, client subscriptionSelect
 }
 
 func listIAPCandidates(ctx context.Context, client iapSelectorClient, appID string, opts ...asc.IAPOption) ([]ExactSelectorCandidate, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	opts = append([]asc.IAPOption{asc.Limit[asc.IAPOption](200)}, opts...)
 	firstPage, err := client.GetInAppPurchasesV2(ctx, appID, opts...)
 	if err != nil {
@@ -391,6 +392,7 @@ func listSubscriptionCandidates(ctx context.Context, client subscriptionSelector
 }
 
 func listSubscriptionGroupIDs(ctx context.Context, client subscriptionSelectorClient, appID string) ([]string, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := client.GetSubscriptionGroups(ctx, appID, asc.Limit[asc.SubscriptionGroupsOption](200))
 	if err != nil {
 		return nil, err
@@ -433,6 +435,7 @@ func listSubscriptionGroupIDs(ctx context.Context, client subscriptionSelectorCl
 }
 
 func listSubscriptionsForGroup(ctx context.Context, client subscriptionSelectorClient, groupID string, opts ...asc.SubscriptionsOption) ([]ExactSelectorCandidate, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	opts = append([]asc.SubscriptionsOption{asc.Limit[asc.SubscriptionsOption](200)}, opts...)
 	firstPage, err := client.GetSubscriptions(ctx, groupID, opts...)
 	if err != nil {

@@ -234,6 +234,7 @@ func executeScreenshotReviewPlan(ctx context.Context, d *shared.Deps, opts scree
 
 	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
+	requestCtx = asc.WithNoRedirectReads(requestCtx)
 
 	resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
 	if err != nil {
@@ -440,7 +441,7 @@ func executeScreenshotReviewPlan(ctx context.Context, d *shared.Deps, opts scree
 	// for the lookups above: each group reserves, uploads, commits and then
 	// polls asset delivery. Derive the upload budget from the un-deadlined
 	// parent so uploadScreenshots can apply the upload timeout per group.
-	uploadParentCtx := shared.ContextWithoutTimeout(ctx)
+	uploadParentCtx := asc.WithNoRedirectReads(shared.ContextWithoutTimeout(ctx))
 	for _, key := range groupKeys {
 		files := cloneSortedFiles(groupedFiles[key])
 		uploadResult, err := uploadScreenshots(uploadParentCtx, d, client, key.localizationID, key.displayType, files, opts.SkipExisting, opts.Replace, !opts.Apply)
@@ -478,6 +479,7 @@ func printScreenshotReviewPlanResult(d *shared.Deps, result *screenshotReviewPla
 }
 
 func resolveScreenshotPlanVersion(ctx context.Context, client *asc.Client, appID, version, versionID, platform string) (string, string, string, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	if strings.TrimSpace(versionID) != "" {
 		versionData, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, versionID, platform)
 		if err != nil {

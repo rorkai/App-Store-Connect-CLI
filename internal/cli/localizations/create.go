@@ -216,6 +216,7 @@ var localizationsCreateExistsCodes = []string{"ENTITY_ERROR.ATTRIBUTE.INVALID.DU
 // referred to, keyed by locale. It reports found=false when the version has no
 // such locale so the caller can surface the original conflict.
 func findExistingVersionLocalization(ctx context.Context, client *asc.Client, versionID, locale string) (*asc.AppStoreVersionLocalizationResponse, bool, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := client.GetAppStoreVersionLocalizations(ctx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	if err != nil {
 		return nil, false, err
