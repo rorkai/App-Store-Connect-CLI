@@ -317,8 +317,8 @@ func guidanceFlagNames(rule removedFlagRule) []string {
 // naming the command with the flags those filter keys map to on it. It does
 // not run the command: --filter is not a flag asc maps.
 //
-// A key maps only to a flag of exactly that name (camelCase read as
-// kebab-case) that selects the app or filters results. Values are printed only
+// A key maps only to a flag of exactly that name (in any case, camelCase read
+// as kebab-case) that selects the app or filters results. Values are printed only
 // when every key mapped and every value was read whole; otherwise the mapped
 // flags are named with placeholders, so a suggestion never carries a value the
 // caller did not give that exact key. When no key maps, the usual unknown-flag
@@ -479,24 +479,17 @@ func filterBracketKey(name string) (string, bool) {
 var filterKeyPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
 
 // filterKeyFlag names the flag a filter key maps to exactly on a command: the
-// flag spelled like the key, read as kebab-case, that selects the app or whose
-// help says it filters. A value-less boolean flag never maps.
+// flag spelled like the key, whatever its case and with or without hyphens
+// (`processingState`, `PROCESSINGSTATE` and `processing-state` all name
+// --processing-state), that selects the app or whose help says it filters. A
+// value-less boolean flag never maps.
 func filterKeyFlag(flags *flag.FlagSet, key string) (string, bool) {
 	if !filterKeyPattern.MatchString(key) {
 		return "", false
 	}
-	var name strings.Builder
-	for i, r := range key {
-		if r >= 'A' && r <= 'Z' {
-			if i > 0 {
-				name.WriteByte('-')
-			}
-			r += 'a' - 'A'
-		}
-		name.WriteRune(r)
-	}
+	spelling := func(name string) string { return strings.ToLower(strings.ReplaceAll(name, "-", "")) }
 	for _, candidate := range suggestibleFlags(flags) {
-		if candidate.Name != name.String() || isBoolFlag(candidate) {
+		if spelling(candidate.Name) != spelling(key) || isBoolFlag(candidate) {
 			continue
 		}
 		if candidate.Name == "app" || strings.HasPrefix(strings.ToLower(candidate.Usage), "filter by") {
