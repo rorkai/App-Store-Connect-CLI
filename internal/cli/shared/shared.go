@@ -1815,6 +1815,25 @@ func rejectGivenEmptyAppFlag(path []*ffcli.Command, stderr io.Writer) error {
 	return WithDiagnostic(usageErrorTo(stderr, "--app must not be empty"), DiagnosticInvalidInput, "--app")
 }
 
+type AppSelectorSource uint8
+
+const (
+	AppSelectorFromFlag AppSelectorSource = iota
+	AppSelectorFromConfiguration
+)
+
+type AppSelector struct {
+	Value  string
+	Source AppSelectorSource
+}
+
+func (d *Deps) ResolveAppSelector(appID string) AppSelector {
+	if strings.TrimSpace(appID) != "" {
+		return AppSelector{Value: d.ResolveAppID(appID), Source: AppSelectorFromFlag}
+	}
+	return AppSelector{Value: d.ResolveAppID(appID), Source: AppSelectorFromConfiguration}
+}
+
 func resolveAppID(appID string) string {
 	return resolveAppIDWith(os.LookupEnv, appID)
 }

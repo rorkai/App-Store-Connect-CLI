@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -184,15 +185,17 @@ func ResolveIAPID(ctx context.Context, client iapSelectorClient, appID, selector
 
 	candidate, err := resolveIAPCandidate(ctx, client, resolvedAppID, selector)
 	if err != nil {
-		// Preserve legacy raw-ID behavior for numeric selectors when app-scoped lookup
-		// misses or fails, but keep ambiguity errors so callers still get the
-		// disambiguation guidance for selector-shaped values like "2024".
-		if shouldFallbackToRawNumericSelector(needsLookup, err) {
-			return selector, nil
-		}
 		return "", err
 	}
 	return candidate.ID, nil
+}
+
+func ResolveIAPIDWithAppSelector(ctx context.Context, client *asc.Client, appSelector AppSelector, selector string) (string, error) {
+	appID, err := resolveProductAppID(ctx, client, appSelector)
+	if err != nil {
+		return "", err
+	}
+	return ResolveIAPID(ctx, client, appID, selector)
 }
 
 // ResolveSubscriptionID resolves a subscription selector to its canonical ASC ID.
@@ -215,15 +218,24 @@ func ResolveSubscriptionID(ctx context.Context, client subscriptionSelectorClien
 
 	candidate, err := resolveSubscriptionCandidate(ctx, client, resolvedAppID, selector)
 	if err != nil {
-		// Preserve legacy raw-ID behavior for numeric selectors when app-scoped lookup
-		// misses or fails, but keep ambiguity errors so callers still get the
-		// disambiguation guidance for selector-shaped values like "2024".
-		if shouldFallbackToRawNumericSelector(needsLookup, err) {
-			return selector, nil
-		}
 		return "", err
 	}
 	return candidate.ID, nil
+}
+
+func ResolveSubscriptionIDWithAppSelector(ctx context.Context, client *asc.Client, appSelector AppSelector, selector string) (string, error) {
+	appID, err := resolveProductAppID(ctx, client, appSelector)
+	if err != nil {
+		return "", err
+	}
+	return ResolveSubscriptionID(ctx, client, appID, selector)
+}
+
+func resolveProductAppID(ctx context.Context, client *asc.Client, appSelector AppSelector) (string, error) {
+	if appSelector.Source == AppSelectorFromConfiguration && isAppBundleIdentifier(appSelector.Value) {
+		return ResolveAppIDByExactBundleID(ctx, client, appSelector.Value)
+	}
+	return ResolveAppIDWithExactLookup(ctx, client, appSelector.Value)
 }
 
 func resolveIAPCandidate(ctx context.Context, client iapSelectorClient, appID, selector string) (ExactSelectorCandidate, error) {
@@ -234,6 +246,24 @@ func resolveIAPCandidate(ctx context.Context, client iapSelectorClient, appID, s
 
 	candidate, err := resolveExactProductIDCandidate(selector, "in-app purchase", candidates)
 	if err == nil || !errors.Is(err, errSelectorNotFound) {
+		return candidate, err
+	}
+	if isNumericSelectorID(selector) {
+		candidates, err = listIAPCandidates(ctx, client, appID)
+		if err != nil {
+			return ExactSelectorCandidate{}, fmt.Errorf("resolve in-app purchase by ID: %w", err)
+		}
+		candidate, err = resolveExactResourceIDCandidate(selector, "in-app purchase", candidates)
+		if err == nil {
+			return candidate, nil
+		}
+		if !errors.Is(err, errSelectorNotFound) {
+			return candidate, err
+		}
+		candidate, err = resolveExactNameCandidate(selector, "in-app purchase", candidates)
+		if errors.Is(err, errSelectorNotFound) {
+			return ExactSelectorCandidate{}, fmt.Errorf("in-app purchase resource ID %q is not a member of selected app %q: %w", selector, appID, err)
+		}
 		return candidate, err
 	}
 
@@ -252,6 +282,11 @@ func resolveIAPCandidate(ctx context.Context, client iapSelectorClient, appID, s
 		return ExactSelectorCandidate{}, fmt.Errorf("resolve in-app purchase by name: %w", err)
 	}
 
+	candidate, err = resolveExactResourceIDCandidate(selector, "in-app purchase", candidates)
+	if err == nil || !errors.Is(err, errSelectorNotFound) {
+		return candidate, err
+	}
+
 	return resolveExactNameCandidate(selector, "in-app purchase", candidates)
 }
 
@@ -263,6 +298,24 @@ func resolveSubscriptionCandidate(ctx context.Context, client subscriptionSelect
 
 	candidate, err := resolveExactProductIDCandidate(selector, "subscription", candidates)
 	if err == nil || !errors.Is(err, errSelectorNotFound) {
+		return candidate, err
+	}
+	if isNumericSelectorID(selector) {
+		candidates, err = listSubscriptionCandidates(ctx, client, appID)
+		if err != nil {
+			return ExactSelectorCandidate{}, fmt.Errorf("resolve subscription by ID: %w", err)
+		}
+		candidate, err = resolveExactResourceIDCandidate(selector, "subscription", candidates)
+		if err == nil {
+			return candidate, nil
+		}
+		if !errors.Is(err, errSelectorNotFound) {
+			return candidate, err
+		}
+		candidate, err = resolveExactNameCandidate(selector, "subscription", candidates)
+		if errors.Is(err, errSelectorNotFound) {
+			return ExactSelectorCandidate{}, fmt.Errorf("subscription resource ID %q is not a member of selected app %q: %w", selector, appID, err)
+		}
 		return candidate, err
 	}
 
@@ -279,6 +332,11 @@ func resolveSubscriptionCandidate(ctx context.Context, client subscriptionSelect
 	candidates, err = listSubscriptionCandidates(ctx, client, appID)
 	if err != nil {
 		return ExactSelectorCandidate{}, fmt.Errorf("resolve subscription by name: %w", err)
+	}
+
+	candidate, err = resolveExactResourceIDCandidate(selector, "subscription", candidates)
+	if err == nil || !errors.Is(err, errSelectorNotFound) {
+		return candidate, err
 	}
 
 	return resolveExactNameCandidate(selector, "subscription", candidates)
@@ -299,6 +357,11 @@ func listIAPCandidates(ctx context.Context, client iapSelectorClient, appID stri
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			path := fmt.Sprintf("/v1/apps/%s/inAppPurchasesV2", strings.TrimSpace(appID))
+			nextURL, err := ScopedPaginationURL(nextURL, path)
+			if err != nil {
+				return nil, err
+			}
 			return client.GetInAppPurchasesV2(ctx, appID, asc.NextURL[asc.IAPOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
@@ -348,6 +411,11 @@ func listSubscriptionGroupIDs(ctx context.Context, client subscriptionSelectorCl
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			path := fmt.Sprintf("/v1/apps/%s/subscriptionGroups", strings.TrimSpace(appID))
+			nextURL, err := ScopedPaginationURL(nextURL, path)
+			if err != nil {
+				return nil, err
+			}
 			return client.GetSubscriptionGroups(ctx, appID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
@@ -386,6 +454,11 @@ func listSubscriptionsForGroup(ctx context.Context, client subscriptionSelectorC
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			path := fmt.Sprintf("/v1/subscriptionGroups/%s/subscriptions", strings.TrimSpace(groupID))
+			nextURL, err := ScopedPaginationURL(nextURL, path)
+			if err != nil {
+				return nil, err
+			}
 			return client.GetSubscriptions(ctx, groupID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
@@ -401,6 +474,29 @@ func listSubscriptionsForGroup(ctx context.Context, client subscriptionSelectorC
 	}
 
 	return candidates, nil
+}
+
+func ScopedPaginationURL(nextURL, expectedPath string) (string, error) {
+	trimmed := strings.TrimSpace(nextURL)
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("invalid pagination URL: %w", err)
+	}
+	if parsed.Scheme == "" {
+		if parsed.Host != "" || strings.HasPrefix(trimmed, "//") || !strings.HasPrefix(parsed.Path, "/") {
+			return "", fmt.Errorf("pagination URL must be a root-relative path or HTTPS App Store Connect URL")
+		}
+	} else {
+		if !strings.EqualFold(parsed.Scheme, "https") || parsed.Host == "" || parsed.User != nil || !asc.IsAPIHost(parsed.Host) {
+			return "", fmt.Errorf("pagination URL must be an HTTPS App Store Connect URL")
+		}
+		parsed.Scheme = "https"
+		trimmed = parsed.String()
+	}
+	if parsed.Path != expectedPath {
+		return "", fmt.Errorf("pagination URL escaped scoped collection: expected path %q, got %q", expectedPath, parsed.Path)
+	}
+	return trimmed, nil
 }
 
 func mapIAPCandidates(resources []asc.Resource[asc.InAppPurchaseV2Attributes]) []ExactSelectorCandidate {
@@ -474,6 +570,18 @@ func resolveExactNameCandidate(selector, resourceName string, candidates []Exact
 	)
 }
 
+func resolveExactResourceIDCandidate(selector, resourceName string, candidates []ExactSelectorCandidate) (ExactSelectorCandidate, error) {
+	return resolveUniqueSelectorCandidate(
+		selector,
+		resourceName,
+		"ID",
+		candidates,
+		func(candidate ExactSelectorCandidate, selector string) bool {
+			return strings.TrimSpace(candidate.ID) == selector
+		},
+	)
+}
+
 func resolveUniqueSelectorCandidate(
 	selector string,
 	resourceName string,
@@ -507,10 +615,6 @@ func resolveUniqueSelectorCandidate(
 			matches:      matches,
 		}
 	}
-}
-
-func shouldFallbackToRawNumericSelector(needsLookup bool, err error) bool {
-	return !needsLookup && !errors.Is(err, errSelectorAmbiguous)
 }
 
 func isNumericSelectorID(value string) bool {
