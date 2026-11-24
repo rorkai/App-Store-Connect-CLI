@@ -36,6 +36,9 @@ func AppStoreVersionAppID(resp *AppStoreVersionResponse) (string, error) {
 	if appID == "" {
 		return "", fmt.Errorf("app relationship missing for app store version %q", strings.TrimSpace(resp.Data.ID))
 	}
+	if appType := relationships.App.Data.Type; appType != ResourceTypeApps {
+		return "", fmt.Errorf("expected app relationship type %q, got %q for app store version %q", ResourceTypeApps, appType, resp.Data.ID)
+	}
 	return appID, nil
 }
 
