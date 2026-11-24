@@ -118,7 +118,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			vid, err = resolveLocalizationMutationVersionID(requestCtx, d, client, vid, *appID, normalizedPlatform)
+			vid, err = ResolveVersionIDForMutation(requestCtx, d, client, vid, *appID, normalizedPlatform)
 			if err != nil {
 				return fmt.Errorf("localizations create: %w", err)
 			}
@@ -220,7 +220,11 @@ func findExistingVersionLocalization(ctx context.Context, client *asc.Client, ve
 	if err != nil {
 		return nil, false, err
 	}
+	resourcePath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID)
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		if err := asc.ValidateVersionLocalizationNextURL(nextURL, resourcePath); err != nil {
+			return nil, err
+		}
 		return client.GetAppStoreVersionLocalizations(ctx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 	})
 	if err != nil {

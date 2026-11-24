@@ -191,7 +191,7 @@ func ResolveIAPID(ctx context.Context, client iapSelectorClient, appID, selector
 }
 
 func ResolveIAPIDWithAppSelector(ctx context.Context, client *asc.Client, appSelector AppSelector, selector string) (string, error) {
-	appID, err := resolveProductAppID(ctx, client, appSelector)
+	appID, err := ResolveScopedAppID(ctx, client, appSelector)
 	if err != nil {
 		return "", err
 	}
@@ -224,18 +224,11 @@ func ResolveSubscriptionID(ctx context.Context, client subscriptionSelectorClien
 }
 
 func ResolveSubscriptionIDWithAppSelector(ctx context.Context, client *asc.Client, appSelector AppSelector, selector string) (string, error) {
-	appID, err := resolveProductAppID(ctx, client, appSelector)
+	appID, err := ResolveScopedAppID(ctx, client, appSelector)
 	if err != nil {
 		return "", err
 	}
 	return ResolveSubscriptionID(ctx, client, appID, selector)
-}
-
-func resolveProductAppID(ctx context.Context, client *asc.Client, appSelector AppSelector) (string, error) {
-	if appSelector.Source == AppSelectorFromConfiguration && isAppBundleIdentifier(appSelector.Value) {
-		return ResolveAppIDByExactBundleID(ctx, client, appSelector.Value)
-	}
-	return ResolveAppIDWithExactLookup(ctx, client, appSelector.Value)
 }
 
 func resolveIAPCandidate(ctx context.Context, client iapSelectorClient, appID, selector string) (ExactSelectorCandidate, error) {
