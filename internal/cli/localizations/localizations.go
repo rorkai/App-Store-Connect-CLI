@@ -766,11 +766,12 @@ func normalizeLocalizationVersionSelector(d *shared.Deps, version, appID, platfo
 }
 
 func resolveLocalizationMutationVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, version, appID, platform string) (string, error) {
+	appID = strings.TrimSpace(d.ResolveAppID(appID))
 	if shared.IsAppStoreVersionString(version) {
-		return resolveLocalizationsVersionString(ctx, d, client, d.ResolveAppID(appID), version, platform)
+		return resolveLocalizationsVersionString(ctx, d, client, appID, version, platform)
 	}
-	if appID = strings.TrimSpace(appID); appID != "" {
-		if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, d.ResolveAppID(appID), version, ""); err != nil {
+	if appID != "" {
+		if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, version, ""); err != nil {
 			if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
 				err = shared.WithDiagnostic(err, diagnostic.Code, "--version")
 			}

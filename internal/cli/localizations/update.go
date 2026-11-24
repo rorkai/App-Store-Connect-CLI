@@ -60,8 +60,8 @@ Connect.
 
 For version localizations, --version accepts a version ID, or a version string
 such as 1.2.3 with --app (or ASC_APP_ID). Use --platform when the string exists
-on multiple platforms. With a version ID, an explicit --app verifies the
-version belongs to that app before updating.
+on multiple platforms. With a version ID, the app selected by --app,
+ASC_APP_ID, or the CLI config must own that version before updating.
 
 Pass the exact locale value already stored in App Store Connect. Common accepted
 forms include en-US, de-DE, ja, ar-SA, zh-Hans, and zh-Hant.

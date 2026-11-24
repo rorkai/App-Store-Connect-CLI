@@ -55,7 +55,7 @@ func TestAppInfoLocalizationWritesRejectOtherApp(t *testing.T) {
 	}
 }
 
-func TestVersionLocalizationWritesCheckExplicitApp(t *testing.T) {
+func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 	const lookup = "GET /v1/appStoreVersions/ver-1?include=app"
 	const list = "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations?limit=200"
 	const created = "POST /v1/appStoreVersionLocalizations"
@@ -66,21 +66,27 @@ func TestVersionLocalizationWritesCheckExplicitApp(t *testing.T) {
 		for _, tt := range []struct {
 			name      string
 			app       string
+			envApp    string
 			data      string
 			wantError string
 		}{
-			{"matching", "app-1", versionData + matchingApp, ""},
-			{"matching app self-link", "https://api.appstoreconnect.apple.com/v1/apps/app-1", versionData + matchingApp, ""},
-			{"mismatched", "app-1", versionData + `,"relationships":{"app":{"data":{"type":"apps","id":"app-2"}}}`, `belongs to app "app-2", not "app-1"`},
-			{"missing", "app-1", versionData, `app relationship missing for app store version "ver-1"`},
-			{"missing version ID", "app-1", `"type":"appStoreVersions"` + matchingApp, `expected app store version "ver-1", got ""`},
-			{"different version ID", "app-1", `"type":"appStoreVersions","id":"ver-2"` + matchingApp, `expected app store version "ver-1", got "ver-2"`},
-			{"wrong version type", "app-1", `"type":"appInfos","id":"ver-1"` + matchingApp, `expected resource type "appStoreVersions", got "appInfos"`},
-			{"wrong app relationship type", "app-1", versionData + `,"relationships":{"app":{"data":{"type":"builds","id":"app-1"}}}`, `expected app relationship type "apps", got "builds"`},
+			{"matching", "app-1", "", versionData + matchingApp, ""},
+			{"matching app self-link", "https://api.appstoreconnect.apple.com/v1/apps/app-1", "", versionData + matchingApp, ""},
+			{"mismatched", "app-1", "", versionData + `,"relationships":{"app":{"data":{"type":"apps","id":"app-2"}}}`, `belongs to app "app-2", not "app-1"`},
+			{"missing", "app-1", "", versionData, `app relationship missing for app store version "ver-1"`},
+			{"matching environment app", "", "https://api.appstoreconnect.apple.com/v1/apps/app-1", versionData + matchingApp, ""},
+			{"mismatched environment app", "", "app-2", versionData + matchingApp, `belongs to app "app-1", not "app-2"`},
+			{"flag overrides environment app", "app-1", "app-2", versionData + matchingApp, ""},
+			{"no app selected", "", "", versionData + matchingApp, ""},
+			{"missing version ID", "app-1", "", `"type":"appStoreVersions"` + matchingApp, `expected app store version "ver-1", got ""`},
+			{"different version ID", "app-1", "", `"type":"appStoreVersions","id":"ver-2"` + matchingApp, `expected app store version "ver-1", got "ver-2"`},
+			{"wrong version type", "app-1", "", `"type":"appInfos","id":"ver-1"` + matchingApp, `expected resource type "appStoreVersions", got "appInfos"`},
+			{"wrong app relationship type", "app-1", "", versionData + `,"relationships":{"app":{"data":{"type":"builds","id":"app-1"}}}`, `expected app relationship type "apps", got "builds"`},
 		} {
 			t.Run(operation+"/"+tt.name, func(t *testing.T) {
 				setupLocUpdateAuth(t)
 				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+				t.Setenv("ASC_APP_ID", tt.envApp)
 				var requests []string
 				stubTransport(t, func(req *http.Request) (*http.Response, error) {
 					request := req.Method + " " + req.URL.RequestURI()
@@ -96,10 +102,16 @@ func TestVersionLocalizationWritesCheckExplicitApp(t *testing.T) {
 						return nil, fmt.Errorf("unexpected request %s", request)
 					}
 				})
-				args := []string{"localizations", operation, "--app", tt.app, "--version", "ver-1", "--locale", "en-US", "--whats-new", "New", "--description", "Description", "--keywords", "focus", "--support-url", "https://example.com/support", "--output", "json"}
+				args := []string{"localizations", operation, "--version", "ver-1", "--locale", "en-US", "--whats-new", "New", "--description", "Description", "--keywords", "focus", "--support-url", "https://example.com/support", "--output", "json"}
+				if tt.app != "" {
+					args = append(args, "--app", tt.app)
+				}
 				var code int
 				stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
-				wantRequests := []string{lookup}
+				var wantRequests []string
+				if tt.app != "" || tt.envApp != "" {
+					wantRequests = append(wantRequests, lookup)
+				}
 				if tt.wantError != "" {
 					if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, tt.wantError) {
 						t.Errorf("exit=%d stdout=%q stderr=%q, want ownership failure %q", code, stdout, stderr, tt.wantError)
