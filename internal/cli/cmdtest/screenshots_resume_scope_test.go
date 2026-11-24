@@ -18,6 +18,8 @@ func TestRunScreenshotsResumeRequiresIndependentScopeAndLiveMembership(t *testin
 		name                                         string
 		pending, upload, drift, ownerDrift, unscoped bool
 		change                                       string
+		pagination, nextURL                          string
+		relative                                     bool
 		wantWrites                                   int
 	}{
 		{name: "scoped reorder", wantWrites: 1},
@@ -35,6 +37,21 @@ func TestRunScreenshotsResumeRequiresIndependentScopeAndLiveMembership(t *testin
 		{name: "membership drift before pending read", pending: true, drift: true},
 		{name: "membership drift before reservation", upload: true, drift: true},
 		{name: "ownership drift before reorder", ownerDrift: true},
+		{name: "owned absolute pagination", pagination: "all", wantWrites: 1},
+		{name: "owned relative pagination", pagination: "all", relative: true, wantWrites: 1},
+		{name: "foreign localization continuation", pagination: "sets", nextURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/other/appScreenshotSets?cursor=outside"},
+		{name: "foreign inventory continuation", pagination: "inventory", nextURL: "https://api.appstoreconnect.apple.com/v1/appScreenshotSets/other/appScreenshots?cursor=outside"},
+		{name: "foreign ordering continuation", pagination: "order", nextURL: "https://api.appstoreconnect.apple.com/v1/appScreenshotSets/other/relationships/appScreenshots?cursor=outside"},
+		{name: "inventory changed collection", pagination: "inventory", nextURL: "https://api.appstoreconnect.apple.com/v1/appScreenshotSets/set-1/relationships/appScreenshots?cursor=outside"},
+		{name: "ordering changed collection", pagination: "order", nextURL: "https://api.appstoreconnect.apple.com/v1/appScreenshotSets/set-1/appScreenshots?cursor=outside"},
+		{name: "encoded collection alias", pagination: "inventory", nextURL: "https://api.appstoreconnect.apple.com/v1/appScreenshotSets/%73et-1/appScreenshots?cursor=outside"},
+		{name: "query-only continuation", pagination: "sets", nextURL: "?cursor=outside"},
+		{name: "untrusted continuation origin", pagination: "inventory", nextURL: "https://invalid.example/v1/appScreenshotSets/set-1/appScreenshots?cursor=outside"},
+		{name: "continuation userinfo", pagination: "order", nextURL: "https://wrong@api.appstoreconnect.apple.com/v1/appScreenshotSets/set-1/relationships/appScreenshots?cursor=outside"},
+		{name: "alternate supported origin sets", pagination: "sets", nextURL: "https://api.enterprise.developer.apple.com/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets?cursor=outside"},
+		{name: "alternate supported origin inventory", pagination: "inventory", nextURL: "https://api.enterprise.developer.apple.com/v1/appScreenshotSets/set-1/appScreenshots?cursor=outside"},
+		{name: "alternate supported origin ordering", pagination: "order", nextURL: "https://api.enterprise.developer.apple.com/v1/appScreenshotSets/set-1/relationships/appScreenshots?cursor=outside"},
+		{name: "continuation fragment", pagination: "order", nextURL: "https://api.appstoreconnect.apple.com/v1/appScreenshotSets/set-1/relationships/appScreenshots?cursor=outside#foreign"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
@@ -92,11 +109,46 @@ func TestRunScreenshotsResumeRequiresIndependentScopeAndLiveMembership(t *testin
 				t.Fatal(err)
 			}
 			writes, detailReads, inventoryReads, ownerReads := 0, 0, 0, 0
+			pageReads, offScopeReads := 0, 0
 			committed := false
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				if r.Method != http.MethodGet {
 					writes++
+				}
+				if r.URL.Query().Get("cursor") == "outside" {
+					offScopeReads++
+					if err := json.NewEncoder(w).Encode(map[string]any{"data": []any{}}); err != nil {
+						t.Error(err)
+					}
+					return
+				}
+				collection := func(kind string, data []map[string]any) map[string]any {
+					response := map[string]any{"data": data}
+					if tc.pagination != "all" && tc.pagination != kind {
+						return response
+					}
+					if r.URL.Query().Get("cursor") == "page-2" {
+						pageReads++
+						if kind != "sets" {
+							response["data"] = data[1:]
+						}
+						return response
+					}
+					next := tc.nextURL
+					if next == "" {
+						next = r.URL.Path + "?cursor=page-2&limit=1"
+						if !tc.relative {
+							next = "https://api.appstoreconnect.apple.com" + next
+						}
+						if kind == "sets" {
+							response["data"] = []map[string]any{}
+						} else {
+							response["data"] = data[:1]
+						}
+					}
+					response["links"] = map[string]string{"next": next}
+					return response
 				}
 				var response any
 				switch r.Method + " " + r.URL.Path {
@@ -114,23 +166,23 @@ func TestRunScreenshotsResumeRequiresIndependentScopeAndLiveMembership(t *testin
 					}
 					response = map[string]any{"data": map[string]any{"type": "appStoreVersions", "id": "VERSION_123", "attributes": map[string]string{"platform": "IOS"}, "relationships": map[string]any{"app": map[string]any{"data": map[string]string{"type": "apps", "id": appID}}}}}
 				case "GET /v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
-					response = map[string]any{"data": []map[string]any{{"type": "appScreenshotSets", "id": "set-1", "attributes": map[string]string{"screenshotDisplayType": "APP_IPHONE_65"}}}}
+					response = collection("sets", []map[string]any{{"type": "appScreenshotSets", "id": "set-1", "attributes": map[string]string{"screenshotDisplayType": "APP_IPHONE_65"}}})
 				case "GET /v1/appScreenshotSets/set-1/appScreenshots":
 					inventoryReads++
 					if tc.drift && inventoryReads > 1 && !slices.Contains(members, "intruder") {
 						members = append(members, "intruder")
 					}
-					resources := make([]map[string]string, 0, len(members))
+					resources := make([]map[string]any, 0, len(members))
 					for _, id := range members {
-						resources = append(resources, map[string]string{"type": "appScreenshots", "id": id})
+						resources = append(resources, map[string]any{"type": "appScreenshots", "id": id})
 					}
-					response = map[string]any{"data": resources}
+					response = collection("inventory", resources)
 				case "GET /v1/appScreenshotSets/set-1/relationships/appScreenshots":
-					resources := make([]map[string]string, 0, len(members))
+					resources := make([]map[string]any, 0, len(members))
 					for _, id := range members {
-						resources = append(resources, map[string]string{"type": "appScreenshots", "id": id})
+						resources = append(resources, map[string]any{"type": "appScreenshots", "id": id})
 					}
-					response = map[string]any{"data": resources}
+					response = collection("order", resources)
 				case "GET /v1/appScreenshots/pending":
 					detailReads++
 					state := "AWAITING_UPLOAD"
@@ -180,6 +232,15 @@ func TestRunScreenshotsResumeRequiresIndependentScopeAndLiveMembership(t *testin
 			stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), args...)
 			if (runErr == nil) != (tc.wantWrites > 0) || writes != tc.wantWrites {
 				t.Fatalf("writes=%d want=%d stdout=%s stderr=%s err=%v", writes, tc.wantWrites, stdout, stderr, runErr)
+			}
+			if offScopeReads != 0 {
+				t.Fatalf("sent %d off-scope continuation reads", offScopeReads)
+			}
+			if tc.pagination == "all" && pageReads != 6 {
+				t.Fatalf("continuation reads = %d, want 6", pageReads)
+			}
+			if tc.nextURL != "" && !strings.Contains(stderr+fmt.Sprint(runErr), "screenshot pagination") {
+				t.Fatalf("missing pagination refusal: %s %v", stderr, runErr)
 			}
 			if tc.wantWrites == 0 && detailReads != 0 {
 				t.Fatalf("denied resume read %d pending asset details", detailReads)

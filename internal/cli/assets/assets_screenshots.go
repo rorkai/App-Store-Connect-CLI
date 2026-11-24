@@ -157,7 +157,7 @@ type screenshotLocaleAssetFiles struct {
 
 var appStoreVersionScreenshotSetAccess = ScreenshotSetAccess{
 	List: func(ctx context.Context, client *asc.Client, localizationID string, requestContext asc.RequestContextFunc) (*asc.AppScreenshotSetsResponse, error) {
-		return client.GetAllAppScreenshotSets(ctx, localizationID, asc.WithAppScreenshotSetsRequestContext(requestContext))
+		return getScopedAppScreenshotSets(ctx, client, localizationID, requestContext)
 	},
 	Create: func(ctx context.Context, client *asc.Client, localizationID, displayType string) (*asc.AppScreenshotSetResponse, error) {
 		return client.CreateAppScreenshotSet(ctx, localizationID, displayType)

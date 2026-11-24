@@ -84,7 +84,7 @@ func replacementInventory(ctx context.Context, cfg screenshotUploadConfig[asc.Ap
 	if set.ID != setID {
 		return nil, nil, fmt.Errorf("replacement screenshot set no longer belongs to the selected localization and device")
 	}
-	response, err := cfg.Client.GetAllAppScreenshots(ctx, setID, asc.WithAppScreenshotsRequestContext(cfg.RequestContext))
+	response, err := getScopedAppScreenshots(ctx, cfg.Client, setID, cfg.RequestContext)
 	if err != nil {
 		return nil, nil, err
 	}
