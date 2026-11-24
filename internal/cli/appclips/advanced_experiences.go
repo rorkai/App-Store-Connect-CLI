@@ -347,7 +347,11 @@ Examples:
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app-clip-id or --bundle-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
-			appValue := strings.TrimSpace(d.ResolveAppID(*appID))
+			if appClipValue != "" && bundleValue != "" {
+				return d.UsageError("--app-clip-id and --bundle-id are mutually exclusive")
+			}
+			appSelector := d.ResolveAppSelector(*appID)
+			appValue := strings.TrimSpace(appSelector.Value)
 			if appClipValue == "" && appValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required with --bundle-id")
 				return shared.MissingRequiredUsageError("--app")
@@ -360,6 +364,13 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+
+			if appValue != "" {
+				appValue, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				if err != nil {
+					return fmt.Errorf("app-clips advanced-experiences create: failed to resolve app %q: %w", appSelector.Value, err)
+				}
+			}
 
 			appClipValue, err = resolveAppClipID(requestCtx, client, appValue, appClipValue, bundleValue)
 			if err != nil {
