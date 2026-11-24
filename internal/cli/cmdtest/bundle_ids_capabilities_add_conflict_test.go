@@ -52,6 +52,22 @@ func TestBundleIDsCapabilitiesAddConflictHintNamesTheNextStep(t *testing.T) {
 				"Hint: The App Store Connect API does not accept HEALTHKIT_RECALIBRATE_ESTIMATES (Apple lists the capability types it accepts above), and retrying with other flags or --if-exists does not change that. If HEALTHKIT_RECALIBRATE_ESTIMATES is a capability the Apple Developer portal offers, enable it on this App ID there (Certificates, Identifiers & Profiles > Identifiers), then regenerate the provisioning profiles that use the App ID.\n",
 		},
 		{
+			name:       "longer lower-case hyphenated name that starts with a type the API accepts",
+			bundle:     "BUNDLE1234",
+			capability: "healthkit-recalibrate-estimates",
+			body:       fmt.Sprintf(notInEnum, "healthkit-recalibrate-estimates"),
+			want: fmt.Sprintf(wrongType, "healthkit-recalibrate-estimates") +
+				"Hint: The App Store Connect API does not accept HEALTHKIT-RECALIBRATE-ESTIMATES (Apple lists the capability types it accepts above), and retrying with other flags or --if-exists does not change that. If HEALTHKIT-RECALIBRATE-ESTIMATES is a capability the Apple Developer portal offers, enable it on this App ID there (Certificates, Identifiers & Profiles > Identifiers), then regenerate the provisioning profiles that use the App ID.\n",
+		},
+		{
+			name:       "longer hyphenated name that starts with a two-word type the API accepts",
+			bundle:     "BUNDLE1234",
+			capability: "APPLE-PAY-LATER",
+			body:       fmt.Sprintf(notInEnum, "APPLE-PAY-LATER"),
+			want: fmt.Sprintf(wrongType, "APPLE-PAY-LATER") +
+				"Hint: The App Store Connect API does not accept APPLE-PAY-LATER (Apple lists the capability types it accepts above), and retrying with other flags or --if-exists does not change that. If APPLE-PAY-LATER is a capability the Apple Developer portal offers, enable it on this App ID there (Certificates, Identifiers & Profiles > Identifiers), then regenerate the provisioning profiles that use the App ID.\n",
+		},
+		{
 			name:       "type rejection reported after another errors entry",
 			bundle:     "BUNDLE1234",
 			capability: "GAMECENTER",

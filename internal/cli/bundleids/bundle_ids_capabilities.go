@@ -555,13 +555,14 @@ func closestAPICapabilityTypes(capability string) []string {
 		candidates[i] = toSuggest(capabilityType)
 	}
 	matches := suggest.Commands(toSuggest(capability), candidates)
+	words := "-" + strings.ToLower(strings.TrimSpace(toSuggest(capability))) + "-"
+	matches = slices.DeleteFunc(matches, func(apiType string) bool {
+		return strings.Contains(words, "-"+apiType+"-")
+	})
 	for i, match := range matches {
 		matches[i] = strings.ToUpper(strings.ReplaceAll(match, "-", "_"))
 	}
-	words := "_" + strings.ToUpper(strings.TrimSpace(capability)) + "_"
-	return slices.DeleteFunc(matches, func(apiType string) bool {
-		return strings.Contains(words, "_"+apiType+"_")
-	})
+	return matches
 }
 
 // capabilitiesAddExistsCodes lists the Apple 409 codes accepted as "this
