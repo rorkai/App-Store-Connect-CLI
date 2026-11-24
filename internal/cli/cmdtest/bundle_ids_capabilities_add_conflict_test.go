@@ -44,6 +44,14 @@ func TestBundleIDsCapabilitiesAddConflictHintNamesTheNextStep(t *testing.T) {
 				`Hint: HEALTH_KIT is not a capability type the App Store Connect API recognizes; the closest one it accepts is HEALTHKIT: asc bundle-ids capabilities add --bundle "BUNDLE1234" --capability HEALTHKIT` + "\n",
 		},
 		{
+			name:       "longer name that starts with a type the API accepts",
+			bundle:     "BUNDLE1234",
+			capability: "HEALTHKIT_RECALIBRATE_ESTIMATES",
+			body:       fmt.Sprintf(notInEnum, "HEALTHKIT_RECALIBRATE_ESTIMATES"),
+			want: fmt.Sprintf(wrongType, "HEALTHKIT_RECALIBRATE_ESTIMATES") +
+				"Hint: The App Store Connect API does not accept HEALTHKIT_RECALIBRATE_ESTIMATES (Apple lists the capability types it accepts above), and retrying with other flags or --if-exists does not change that. If HEALTHKIT_RECALIBRATE_ESTIMATES is a capability the Apple Developer portal offers, enable it on this App ID there (Certificates, Identifiers & Profiles > Identifiers), then regenerate the provisioning profiles that use the App ID.\n",
+		},
+		{
 			name:       "type rejection reported after another errors entry",
 			bundle:     "BUNDLE1234",
 			capability: "GAMECENTER",
