@@ -174,7 +174,7 @@ func TestIAPPromotedPurchaseViewResolvesStableSelector441(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupSubmitCreateAuth(t)
 			if tt.useAppEnv {
-				t.Setenv("ASC_APP_ID", "app-1")
+				t.Setenv("ASC_APP_ID", "1")
 			} else {
 				t.Setenv("ASC_APP_ID", "")
 			}
@@ -186,7 +186,7 @@ func TestIAPPromotedPurchaseViewResolvesStableSelector441(t *testing.T) {
 				}
 				w.Header().Set("Content-Type", "application/json")
 				switch req.URL.Path {
-				case "/v1/apps/app-1/inAppPurchasesV2":
+				case "/v1/apps/1/inAppPurchasesV2":
 					productValues := req.URL.Query()["filter[productId]"]
 					nameValues := req.URL.Query()["filter[name]"]
 					if len(productValues) == 1 {
@@ -224,7 +224,7 @@ func TestIAPPromotedPurchaseViewResolvesStableSelector441(t *testing.T) {
 				"--output", "json",
 			}
 			if !tt.useAppEnv {
-				args = append(args, "--app", "app-1")
+				args = append(args, "--app", "1")
 			}
 			stdout, stderr := captureOutput(t, func() {
 				code := cmd.Run(args, "1.2.3")
@@ -268,7 +268,7 @@ func TestIAPPromotedPurchaseViewStableSelectorErrors441(t *testing.T) {
 				t.Fatalf("request method = %s, want GET", req.Method)
 			}
 			w.Header().Set("Content-Type", "application/json")
-			if req.URL.Path != "/v1/apps/app-1/inAppPurchasesV2" {
+			if req.URL.Path != "/v1/apps/1/inAppPurchasesV2" {
 				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			}
 			if req.URL.Query().Get("filter[productId]") == "Premium" {
@@ -283,7 +283,7 @@ func TestIAPPromotedPurchaseViewStableSelectorErrors441(t *testing.T) {
 		setIAPRelatedTestServerClient(t, server)
 
 		_, stderr := captureOutput(t, func() {
-			if code := cmd.Run([]string{"iap", "promoted-purchases", "view", "--app", "app-1", "--iap-id", "Premium"}, "1.2.3"); code == cmd.ExitSuccess {
+			if code := cmd.Run([]string{"iap", "promoted-purchases", "view", "--app", "1", "--iap-id", "Premium"}, "1.2.3"); code == cmd.ExitSuccess {
 				t.Fatal("expected ambiguity failure")
 			}
 		})
@@ -303,7 +303,7 @@ func TestIAPPromotedPurchaseViewStableSelectorErrors441(t *testing.T) {
 			if req.Method != http.MethodGet {
 				t.Fatalf("request method = %s, want GET", req.Method)
 			}
-			if req.URL.Path != "/v1/apps/app-1/inAppPurchasesV2" {
+			if req.URL.Path != "/v1/apps/1/inAppPurchasesV2" {
 				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			}
 			assertExactQueryValues441(t, req, map[string]string{"filter[productId]": "com.example.pro", "limit": "200"})
@@ -315,7 +315,7 @@ func TestIAPPromotedPurchaseViewStableSelectorErrors441(t *testing.T) {
 		setIAPRelatedTestServerClient(t, server)
 
 		_, stderr := captureOutput(t, func() {
-			if code := cmd.Run([]string{"iap", "promoted-purchases", "view", "--app", "app-1", "--iap-id", "com.example.pro"}, "1.2.3"); code == cmd.ExitSuccess {
+			if code := cmd.Run([]string{"iap", "promoted-purchases", "view", "--app", "1", "--iap-id", "com.example.pro"}, "1.2.3"); code == cmd.ExitSuccess {
 				t.Fatal("expected lookup error")
 			}
 		})
