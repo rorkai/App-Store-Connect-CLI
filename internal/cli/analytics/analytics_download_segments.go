@@ -72,6 +72,10 @@ func downloadAnalyticsInstance(ctx context.Context, d *shared.Deps, requestID, i
 	defer root.Close()
 	parent, err := root.OpenRoot()
 	if err != nil {
+		if _, statErr := os.Lstat(parentPath); errors.Is(statErr, os.ErrNotExist) {
+			missing := fmt.Errorf("parent directory of --output-dir does not exist: %q", filepath.Dir(outputDir))
+			return nil, shared.ClassifyLocalFileError(shared.NewErrorWithCause(missing, statErr), "--output-dir", "")
+		}
 		return nil, shared.ClassifyLocalFileError(fmt.Errorf("open output directory parent: %w", err), "--output-dir", "")
 	}
 	defer parent.Close()
