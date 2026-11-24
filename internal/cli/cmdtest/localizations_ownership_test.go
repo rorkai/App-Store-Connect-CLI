@@ -63,12 +63,14 @@ func TestVersionLocalizationWritesCheckExplicitApp(t *testing.T) {
 	for _, operation := range []string{"create", "update"} {
 		for _, tt := range []struct {
 			name         string
+			app          string
 			relationship string
 			wantError    string
 		}{
-			{"matching", `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}`, ""},
-			{"mismatched", `,"relationships":{"app":{"data":{"type":"apps","id":"app-2"}}}`, `belongs to app "app-2", not "app-1"`},
-			{"missing", "", `app relationship missing for app store version "ver-1"`},
+			{"matching", "app-1", `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}`, ""},
+			{"matching app self-link", "https://api.appstoreconnect.apple.com/v1/apps/app-1", `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}`, ""},
+			{"mismatched", "app-1", `,"relationships":{"app":{"data":{"type":"apps","id":"app-2"}}}`, `belongs to app "app-2", not "app-1"`},
+			{"missing", "app-1", "", `app relationship missing for app store version "ver-1"`},
 		} {
 			t.Run(operation+"/"+tt.name, func(t *testing.T) {
 				setupLocUpdateAuth(t)
@@ -88,7 +90,7 @@ func TestVersionLocalizationWritesCheckExplicitApp(t *testing.T) {
 						return nil, fmt.Errorf("unexpected request %s", request)
 					}
 				})
-				args := []string{"localizations", operation, "--app", "app-1", "--version", "ver-1", "--locale", "en-US", "--whats-new", "New", "--description", "Description", "--keywords", "focus", "--support-url", "https://example.com/support", "--output", "json"}
+				args := []string{"localizations", operation, "--app", tt.app, "--version", "ver-1", "--locale", "en-US", "--whats-new", "New", "--description", "Description", "--keywords", "focus", "--support-url", "https://example.com/support", "--output", "json"}
 				var code int
 				stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
 				wantRequests := []string{lookup}

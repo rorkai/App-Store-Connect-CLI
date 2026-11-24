@@ -770,7 +770,7 @@ func resolveLocalizationMutationVersionID(ctx context.Context, d *shared.Deps, c
 		return resolveLocalizationsVersionString(ctx, d, client, d.ResolveAppID(appID), version, platform)
 	}
 	if appID = strings.TrimSpace(appID); appID != "" {
-		if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, version, ""); err != nil {
+		if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, d.ResolveAppID(appID), version, ""); err != nil {
 			if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
 				err = shared.WithDiagnostic(err, diagnostic.Code, "--version")
 			}
