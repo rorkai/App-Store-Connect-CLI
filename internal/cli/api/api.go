@@ -760,11 +760,15 @@ func unknownOperationError(d *shared.Deps, method, path, shown string, unversion
 }
 
 // childOperationAdvice answers a write to a parent's child collection,
-// /{version}/{parents}/{id}/{children}, which Apple does not serve: a child is
-// created at its own collection with a relationship to the parent, and
-// changed or deleted by its own ID. It names that operation, and for a create
-// the relationship the body needs, from the index, or returns "" when the
-// index has none.
+// /{version}/{parents}/{id}/{children}, which Apple does not serve. When the
+// index has a POST or DELETE on the parent's relationship path,
+// /{parents}/{id}/relationships/{children}, the write links or unlinks
+// children and that operation is the answer. Otherwise a child is created at
+// its own collection with a relationship to the parent, and changed or
+// deleted by its own ID: it names that operation, and for a create the
+// relationship the body needs, from the index, or returns "" when the index
+// has none. A PATCH names both the child's own update and the relationship
+// PATCH that replaces the linked set.
 func childOperationAdvice(method, path string) (string, error) {
 	if method == http.MethodGet {
 		return "", nil
@@ -788,13 +792,30 @@ func childOperationAdvice(method, path string) (string, error) {
 		return "", false, nil
 	}
 
+	link, ok, err := find(method, parents+"/"+parentID+"/relationships/"+children)
+	if err != nil {
+		return "", err
+	}
+	replaceLinks := ""
+	if ok {
+		parent := strings.TrimSuffix(link, "/relationships/"+children)
+		const linkageBody = `{"data":[{"type":"TYPE","id":"ID"}]}`
+		switch method {
+		case http.MethodPost:
+			return fmt.Sprintf(" To link existing %s to %s, use POST %s with the resources to link in the body: %s.", children, parent, link, linkageBody), nil
+		case http.MethodDelete:
+			return fmt.Sprintf(" To unlink %s from %s without deleting them, use DELETE %s with the resources to unlink in the body: %s.", children, parent, link, linkageBody), nil
+		}
+		replaceLinks = fmt.Sprintf(" To replace which %s are linked to %s, use %s %s.", children, parent, method, link)
+	}
+
 	if method == http.MethodPost {
 		return createAdvice(versions, parents, parentID, children)
 	}
 
 	item, ok, err := find(method, children+"/{id}")
 	if err != nil || !ok {
-		return "", err
+		return replaceLinks, err
 	}
 	verb := "change"
 	if method == http.MethodDelete {
@@ -808,7 +829,7 @@ func childOperationAdvice(method, path string) (string, error) {
 	if ok {
 		advice += " with its ID from GET " + list
 	}
-	return advice + ".", nil
+	return advice + "." + replaceLinks, nil
 }
 
 // createAdvice names the indexed create for children, preferring one whose

@@ -374,6 +374,46 @@ func TestAPIUnknownPathAnswersWithWhatToSend(t *testing.T) {
 			wantAllow: true,
 		},
 		{
+			// Apple unlinks a to-many child through the parent's relationship
+			// path; deleting the child's own resource is a different request.
+			name:      "unlink under the parent's path",
+			args:      []string{"api", "DELETE", "/v1/betaTesters/5/betaGroups", "--confirm"},
+			want:      `api: DELETE /v1/betaTesters/5/betaGroups is not in the embedded schema index. To unlink betaGroups from /v1/betaTesters/5 without deleting them, use DELETE /v1/betaTesters/5/relationships/betaGroups with the resources to unlink in the body: {"data":[{"type":"TYPE","id":"ID"}]}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			name:      "unlink testers under an app's path",
+			args:      []string{"api", "DELETE", "/v1/apps/123/betaTesters", "--confirm"},
+			want:      `api: DELETE /v1/apps/123/betaTesters is not in the embedded schema index. To unlink betaTesters from /v1/apps/123 without deleting them, use DELETE /v1/apps/123/relationships/betaTesters with the resources to unlink in the body: {"data":[{"type":"TYPE","id":"ID"}]}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			name:      "unlink testers under a group's path",
+			args:      []string{"api", "DELETE", "/v1/betaGroups/5/betaTesters", "--confirm"},
+			want:      `api: DELETE /v1/betaGroups/5/betaTesters is not in the embedded schema index. To unlink betaTesters from /v1/betaGroups/5 without deleting them, use DELETE /v1/betaGroups/5/relationships/betaTesters with the resources to unlink in the body: {"data":[{"type":"TYPE","id":"ID"}]}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			name:      "link under the parent's path",
+			args:      []string{"api", "POST", "/v1/betaGroups/5/betaTesters", "--confirm", "--body", `{"data":[]}`},
+			want:      `api: POST /v1/betaGroups/5/betaTesters is not in the embedded schema index. To link existing betaTesters to /v1/betaGroups/5, use POST /v1/betaGroups/5/relationships/betaTesters with the resources to link in the body: {"data":[{"type":"TYPE","id":"ID"}]}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			// A PATCH may mean one child or the whole link, so both are named.
+			name:      "update under a parent with a relationship operation",
+			args:      []string{"api", "PATCH", "/v1/appScreenshotSets/5/appScreenshots", "--confirm", "--body", `{"data":[]}`},
+			want:      "To change one, use PATCH /v1/appScreenshots/{id} with its ID from GET /v1/appScreenshotSets/5/appScreenshots. To replace which appScreenshots are linked to /v1/appScreenshotSets/5, use PATCH /v1/appScreenshotSets/5/relationships/appScreenshots. Other known operations: ",
+			wantAllow: true,
+		},
+		{
+			// The index has no DELETE on a profile's certificates relationship.
+			name:      "delete under a parent without a relationship operation",
+			args:      []string{"api", "DELETE", "/v1/profiles/5/certificates", "--confirm"},
+			want:      "api: DELETE /v1/profiles/5/certificates is not in the embedded schema index. To delete one, use DELETE /v1/certificates/{id} with its ID from GET /v1/profiles/5/certificates. Other known operations: ",
+			wantAllow: true,
+		},
+		{
 			name: "resource the index does not know",
 			args: []string{"api", "GET", "/v1/agreements"},
 			want: "No indexed operation shares its resource",
