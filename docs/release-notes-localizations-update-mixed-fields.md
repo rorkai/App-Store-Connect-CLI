@@ -9,9 +9,10 @@ localization (`--type app-info`). Each kind has its own field flags.
 | `version` | `--description`, `--keywords`, `--whats-new`, `--promotional-text`, `--clear-promotional-text`, `--support-url`, `--marketing-url` |
 | `app-info` | `--name`, `--subtitle`, `--clear-subtitle`, `--privacy-policy-url`, `--clear-privacy-policy-url`, `--privacy-choices-url`, `--privacy-policy-text` |
 
-Through 7.3.1, a call that passed field flags of both kinds was accepted. The
-flags of the selected type were sent, and the flags of the other type were
-dropped without a message:
+Through 7.3.1, a call that set fields of both kinds was accepted. The fields of
+the selected type were sent, and the fields of the other type were dropped
+without a message. Only a `--clear-*` flag of the other type was already
+refused, with exit code `2`:
 
 ```bash
 # 7.3.1: updated the description; --name was ignored
