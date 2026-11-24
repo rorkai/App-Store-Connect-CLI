@@ -35,6 +35,7 @@ func newReviewDetailsFileCommand(d *shared.Deps, apply bool) *ffcli.Command {
 		name, help = "set", "Create or update review details from a JSON file."
 	}
 	fs := d.NewFlagSet(name, flag.ExitOnError)
+	appID := fs.String("app", "", "App Store Connect app ID to constrain the version (or ASC_APP_ID env)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	file := fs.String("file", "", "Review information JSON file (required)")
 	output := d.BindOutputFlags(fs)
@@ -63,6 +64,10 @@ plan reads Apple state and prints the difference. set validates the entire file,
 reads current state, writes only changed fields, and verifies them by reading
 back. An identical second set reports noop and sends no mutation. Concurrent
 edits can still conflict; inspect the error and plan again.
+
+When --app, ASC_APP_ID, or the configured default selects an app, the version
+must belong to it before details are read or changed. Without a selected app,
+--version-id alone selects the resource.
 
 Examples:
   asc review details plan --version-id VERSION_ID --file review-information.json
@@ -100,8 +105,14 @@ Examples:
 			}
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
-			if _, err := client.GetAppStoreVersion(requestCtx, id); err != nil {
-				return fmt.Errorf("review details %s: read version: %w", name, err)
+			var versionErr error
+			if selectedAppID := d.ResolveAppID(*appID); selectedAppID != "" {
+				_, versionErr = shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, selectedAppID, id, "")
+			} else {
+				_, versionErr = client.GetAppStoreVersion(requestCtx, id)
+			}
+			if versionErr != nil {
+				return fmt.Errorf("review details %s: read version: %w", name, versionErr)
 			}
 			target := metadataSettingTarget{versionID: id}
 			remote, err := scope.fetch(requestCtx, d, client, target)

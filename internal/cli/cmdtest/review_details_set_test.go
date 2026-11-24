@@ -46,12 +46,16 @@ func TestReviewDetailsSetValidatesWholeFileBeforeRequests(t *testing.T) {
 func TestReviewDetailsPlanSetAndRepeat(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 	t.Setenv("ASC_DEMO_ACCOUNT_PASSWORD", "fixture-password")
+	t.Setenv("ASC_APP_ID", "app-b")
 	var current map[string]any
 	var writes int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == http.MethodGet && r.URL.Path == "/v1/appStoreVersions/v1" {
-			if err := json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"id": "v1", "type": "appStoreVersions"}}); err != nil {
+			if r.URL.Query().Get("include") != "app" {
+				t.Errorf("scoped version read must include app ownership: %s", r.URL.RawQuery)
+			}
+			if err := json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"id": "v1", "type": "appStoreVersions", "relationships": map[string]any{"app": map[string]any{"data": map[string]any{"type": "apps", "id": "app-b"}}}}}); err != nil {
 				t.Error(err)
 			}
 			return
@@ -145,6 +149,71 @@ func TestReviewDetailsSetRejectsIncompleteCreateAndDemoState(t *testing.T) {
 		_, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details", "set", "--version-id", "v1", "--file", reviewDetailsFile(t, tc.body))
 		if !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, tc.want) {
 			t.Fatalf("stderr=%q err=%v", stderr, err)
+		}
+	}
+}
+
+func TestReviewDetailsEnforcesSelectedAppBeforeReadingDetails(t *testing.T) {
+	env := func(value string) *string { return &value }
+	for _, command := range []string{"plan", "set"} {
+		for _, tc := range []struct {
+			name, flagApp, configApp string
+			envApp                   *string
+			scoped, allowed          bool
+		}{
+			{name: "explicit mismatch", flagApp: "app-a", envApp: env("app-b"), configApp: "app-b", scoped: true},
+			{name: "environment mismatch", envApp: env("app-a"), configApp: "app-b", scoped: true},
+			{name: "default mismatch", configApp: "app-a", scoped: true},
+			{name: "explicit overrides environment and default", flagApp: "app-b", envApp: env("app-a"), configApp: "app-a", scoped: true, allowed: true},
+			{name: "environment overrides default", envApp: env("app-b"), configApp: "app-a", scoped: true, allowed: true},
+			{name: "matching default", configApp: "app-b", scoped: true, allowed: true},
+			{name: "empty environment disables default", envApp: env(""), configApp: "app-a", allowed: true},
+			{name: "resource only", allowed: true},
+		} {
+			t.Run(command+"/"+tc.name, func(t *testing.T) {
+				configPath := filepath.Join(t.TempDir(), "config.json")
+				configData, err := json.Marshal(map[string]string{"app_id": tc.configApp})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(configPath, configData, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("ASC_CONFIG_PATH", configPath)
+				t.Setenv("ASC_APP_ID", "")
+				if tc.envApp == nil {
+					if err := os.Unsetenv("ASC_APP_ID"); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					t.Setenv("ASC_APP_ID", *tc.envApp)
+				}
+				reg := asctest.NewRegistry(t)
+				var query []string
+				if tc.scoped {
+					query = []string{"include=app"}
+				}
+				reg.Register(asctest.GET("/v1/appStoreVersions/v1", query...),
+					asctest.JSON(http.StatusOK, `{"data":{"id":"v1","type":"appStoreVersions","relationships":{"app":{"data":{"id":"app-b","type":"apps"}}}}}`))
+				if tc.allowed {
+					reg.Register(asctest.GET("/v1/appStoreVersions/v1/appStoreReviewDetail"),
+						asctest.JSON(http.StatusOK, `{"data":{"id":"d1","type":"appStoreReviewDetails","attributes":{"notes":"Unchanged"}}}`))
+				}
+				args := []string{"review", "details", command, "--version-id", "v1", "--file", reviewDetailsFile(t, `{"notes":"Unchanged"}`)}
+				if tc.flagApp != "" {
+					args = append(args, "--app", tc.flagApp)
+				}
+				stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+				if tc.allowed {
+					if code != 0 || !strings.Contains(stdout, `"action":"noop"`) {
+						t.Fatalf("stdout=%q stderr=%q code=%d", stdout, stderr, code)
+					}
+				} else {
+					if code != 1 || stdout != "" || !strings.Contains(stderr, "belongs to app") || len(reg.Requests()) != 1 {
+						t.Fatalf("stdout=%q stderr=%q code=%d request count=%d", stdout, stderr, code, len(reg.Requests()))
+					}
+				}
+			})
 		}
 	}
 }
