@@ -110,6 +110,22 @@ At least one field flag must be provided.`,
 			if flagProvided(fs, "platform") && strings.TrimSpace(*platform) == "" {
 				return d.UsageError("--platform must not be empty")
 			}
+			versionFields, appInfoFields := activeProvidedFlags(fs, versionFieldNames...), activeProvidedFlags(fs, appInfoFieldNames...)
+			if len(versionFields) > 0 && len(appInfoFields) > 0 {
+				conflicting := appInfoFields[0]
+				if normalizedType == shared.LocalizationTypeAppInfo {
+					conflicting = versionFields[0]
+				}
+				return shared.WithDiagnostic(
+					d.UsageErrorf(
+						"localizations update: version fields (%s) and app-info fields (%s) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+						strings.Join(versionFields, ", "),
+						strings.Join(appInfoFields, ", "),
+					),
+					shared.DiagnosticConflictingInput,
+					conflicting,
+				)
+			}
 
 			if normalizedType == shared.LocalizationTypeAppInfo && flagProvided(fs, "platform") {
 				return d.UsageError("--platform requires --type version")
@@ -156,7 +172,7 @@ At least one field flag must be provided.`,
 					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
 					output:                output,
 				}
-				if hasAnyActiveProvidedFlag(fs, versionFieldNames...) {
+				if len(versionFields) > 0 {
 					return shared.WithDiagnostic(
 						d.UsageError("--type version is required for version update flags"),
 						shared.DiagnosticRequiredInputMissing,
@@ -183,7 +199,7 @@ At least one field flag must be provided.`,
 					clearPromotionalText: *clearPromotionalText,
 					output:               output,
 				}
-				if hasAnyActiveProvidedFlag(fs, appInfoFieldNames...) {
+				if len(appInfoFields) > 0 {
 					return shared.WithDiagnostic(
 						d.UsageError("--type app-info is required for app-info update flags"),
 						shared.DiagnosticRequiredInputMissing,
@@ -270,7 +286,8 @@ var versionFieldNames = []string{
 	"marketing-url",
 }
 
-func hasAnyActiveProvidedFlag(fs *flag.FlagSet, names ...string) bool {
+func activeProvidedFlags(fs *flag.FlagSet, names ...string) []string {
+	var active []string
 	for _, name := range names {
 		if !flagProvided(fs, name) {
 			continue
@@ -278,9 +295,9 @@ func hasAnyActiveProvidedFlag(fs *flag.FlagSet, names ...string) bool {
 		if strings.HasPrefix(name, "clear-") && fs.Lookup(name).Value.String() != "true" {
 			continue
 		}
-		return true
+		active = append(active, "--"+name)
 	}
-	return false
+	return active
 }
 
 type updateAppInfoParams struct {

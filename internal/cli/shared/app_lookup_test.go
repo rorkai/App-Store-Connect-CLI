@@ -189,11 +189,14 @@ func TestResolveAppIDWithLookup_AmbiguousName(t *testing.T) {
 
 func TestResolveAppIDLookupsRejectSingleBundleSample(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		resolve func(context.Context, appLookupClient, string) (string, error)
+		name      string
+		resolve   func(context.Context, appLookupClient, string) (string, error)
+		wantCalls int
 	}{
-		{name: "lookup", resolve: ResolveAppIDWithLookup},
-		{name: "exact lookup", resolve: ResolveAppIDWithExactLookup},
+		// The lookup reads a wider bundle ID page for an exact match before it
+		// reports the sample; neither falls back to the name lookup.
+		{name: "lookup", resolve: ResolveAppIDWithLookup, wantCalls: 2},
+		{name: "exact lookup", resolve: ResolveAppIDWithExactLookup, wantCalls: 1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
@@ -208,8 +211,8 @@ func TestResolveAppIDLookupsRejectSingleBundleSample(t *testing.T) {
 			if !strings.Contains(err.Error(), "sample matches") || !strings.Contains(err.Error(), "app-1") {
 				t.Fatalf("expected sample candidate error, got %v", err)
 			}
-			if stub.calls != 1 {
-				t.Fatalf("expected one lookup and no fallback, got %d calls", stub.calls)
+			if stub.calls != test.wantCalls {
+				t.Fatalf("expected %d bundle ID lookups and no name fallback, got %d calls", test.wantCalls, stub.calls)
 			}
 		})
 	}
@@ -366,5 +369,54 @@ func TestResolveAppIDWithExactLookup_NumericPassthroughTakesPriorityOverExactNam
 	}
 	if stub.calls != 0 {
 		t.Fatalf("expected numeric passthrough without lookup calls, got %d", stub.calls)
+	}
+}
+
+func TestResolveAppIDWithLookup_ExactBundleIDWinsOverPrefixSiblings(t *testing.T) {
+	page := func(hasNext bool, apps ...[2]string) *asc.AppsResponse {
+		resp := &asc.AppsResponse{}
+		for _, app := range apps {
+			resp.Data = append(resp.Data, asc.Resource[asc.AppAttributes]{ID: app[0], Attributes: asc.AppAttributes{BundleID: app[1]}})
+		}
+		if hasNext {
+			resp.Links.Next = "https://api.appstoreconnect.apple.com/v1/apps?cursor=next"
+		}
+		return resp
+	}
+	exact, dev, beta := [2]string{"app-exact", "com.example.app"}, [2]string{"app-dev", "com.example.app.dev"}, [2]string{"app-beta", "com.example.app.beta"}
+
+	for _, test := range []struct {
+		name      string
+		input     string
+		pages     []*asc.AppsResponse
+		want      string
+		wantErr   string
+		wantCalls int
+	}{
+		{name: "exact match with a longer sibling", pages: []*asc.AppsResponse{page(false, dev, exact)}, want: "app-exact", wantCalls: 1},
+		{name: "exact match in another letter case", input: "com.example.APP", pages: []*asc.AppsResponse{page(false, exact, dev)}, want: "app-exact", wantCalls: 1},
+		{name: "two siblings and no exact match", pages: []*asc.AppsResponse{page(false, dev, beta)}, wantErr: `2 apps match "com.example.app"; pass --app with one of:`, wantCalls: 1},
+		{name: "one result that is not exact", pages: []*asc.AppsResponse{page(false, dev)}, want: "app-dev", wantCalls: 1},
+		{name: "exact match beyond the first page", pages: []*asc.AppsResponse{page(true, dev, beta), page(false, dev, beta, exact)}, want: "app-exact", wantCalls: 2},
+		{name: "no exact match on a truncated wider page", pages: []*asc.AppsResponse{page(true, dev, beta), page(true, dev, beta)}, wantErr: "sample matches", wantCalls: 2},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stub := &sequenceAppLookupStub{responses: test.pages}
+			input := test.input
+			if input == "" {
+				input = "com.example.app"
+			}
+			got, err := ResolveAppIDWithLookup(context.Background(), stub, input)
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+					t.Fatalf("error = %v, want it to contain %q", err, test.wantErr)
+				}
+			} else if err != nil || got != test.want {
+				t.Fatalf("resolved %q, %v, want %q", got, err, test.want)
+			}
+			if stub.calls != test.wantCalls {
+				t.Fatalf("lookups = %d, want %d", stub.calls, test.wantCalls)
+			}
+		})
 	}
 }

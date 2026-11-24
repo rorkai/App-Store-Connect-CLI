@@ -105,13 +105,24 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 	if bundlePageHasNext && len(byBundle.Data) == 0 {
 		return "", MarkAmbiguousSelectionSample(AmbiguousError("app", "--app", resolved, nil))
 	}
-	if len(byBundle.Data) == 1 {
-		if bundlePageHasNext {
-			return "", MarkAmbiguousSelectionSample(AmbiguousError("app", "--app", resolved, AppCandidates(byBundle.Data)))
-		}
+	if len(byBundle.Data) == 1 && !bundlePageHasNext {
 		return strings.TrimSpace(byBundle.Data[0].ID), nil
 	}
-	if len(byBundle.Data) > 1 {
+	if len(byBundle.Data) > 0 {
+		if exact, ok := exactBundleIDApp(byBundle.Data, resolved); ok {
+			return exact, nil
+		}
+		if bundlePageHasNext {
+			wider, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{resolved}), asc.Limit[asc.AppsOption](200))
+			if err != nil {
+				return "", fmt.Errorf("resolve app by bundle ID: %w", err)
+			}
+			if wider != nil {
+				if exact, ok := exactBundleIDApp(wider.Data, resolved); ok {
+					return exact, nil
+				}
+			}
+		}
 		ambiguous := AmbiguousError("app", "--app", resolved, AppCandidates(byBundle.Data))
 		if bundlePageHasNext {
 			ambiguous = MarkAmbiguousSelectionSample(ambiguous)
@@ -165,6 +176,24 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 		return "", MarkAmbiguousSelectionSample(AmbiguousError("app", "--app", resolved, fuzzyMatches))
 	}
 	return "", fmt.Errorf("app %q not found (expected app ID, exact bundle ID, or exact app name)", resolved)
+}
+
+// exactBundleIDApp returns the one app in apps whose bundle ID is bundleID.
+// App Store Connect's filter[bundleId] also returns apps whose bundle ID only
+// starts with the value: `asc apps view --id com.rudrankriyam.fussion` listed
+// com.rudrankriyam.fussionn as a second match (2026-11-24, asc 7.3.1).
+func exactBundleIDApp(apps []asc.Resource[asc.AppAttributes], bundleID string) (string, bool) {
+	exact := ""
+	for _, app := range apps {
+		if !strings.EqualFold(strings.TrimSpace(app.Attributes.BundleID), bundleID) {
+			continue
+		}
+		if exact != "" {
+			return "", false
+		}
+		exact = strings.TrimSpace(app.ID)
+	}
+	return exact, exact != ""
 }
 
 func findExactAppNameMatches(ctx context.Context, client appLookupClient, name string, useNameFilter bool) ([]AmbiguousCandidate, error) {

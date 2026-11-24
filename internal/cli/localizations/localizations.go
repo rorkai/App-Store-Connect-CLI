@@ -770,13 +770,18 @@ func resolveLocalizationMutationVersionID(ctx context.Context, d *shared.Deps, c
 	if shared.IsAppStoreVersionString(version) {
 		return resolveLocalizationsVersionString(ctx, d, client, appID, version, platform)
 	}
-	if appID != "" {
-		if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, version, ""); err != nil {
-			if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
-				err = shared.WithDiagnostic(err, diagnostic.Code, "--version")
-			}
-			return "", fmt.Errorf("verify version ownership: %w", err)
+	if appID == "" {
+		return version, nil
+	}
+	ownerAppID, err := shared.ResolveAppIDWithLookup(ctx, client, appID)
+	if err != nil {
+		return "", fmt.Errorf("verify version ownership: %w", err)
+	}
+	if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, ownerAppID, version, ""); err != nil {
+		if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
+			err = shared.WithDiagnostic(err, diagnostic.Code, "--version")
 		}
+		return "", fmt.Errorf("verify version ownership: %w", err)
 	}
 	return version, nil
 }

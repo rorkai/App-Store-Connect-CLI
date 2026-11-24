@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -61,7 +62,10 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 	const created = "POST /v1/appStoreVersionLocalizations"
 	const updated = "PATCH /v1/appStoreVersionLocalizations/loc-1"
 	const versionData = `"type":"appStoreVersions","id":"ver-1"`
-	const matchingApp = `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}`
+	const matchingApp = `,"relationships":{"app":{"data":{"type":"apps","id":"1234567890"}}}`
+	bundleApps := map[string]string{"com.example.owner": "1234567890", "com.example.other": "9876543210", "com.example.own": "1234567890"}
+	// Apple's filter[bundleId] also returns apps whose bundle ID starts with the value.
+	const prefixSiblings = `{"data":[{"type":"apps","id":"9876543210","attributes":{"bundleId":"com.example.owner"}},{"type":"apps","id":"1234567890","attributes":{"bundleId":"com.example.own"}}]}`
 	for _, operation := range []string{"create", "update"} {
 		for _, tt := range []struct {
 			name      string
@@ -70,18 +74,22 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 			data      string
 			wantError string
 		}{
-			{"matching", "app-1", "", versionData + matchingApp, ""},
-			{"matching app self-link", "https://api.appstoreconnect.apple.com/v1/apps/app-1", "", versionData + matchingApp, ""},
-			{"mismatched", "app-1", "", versionData + `,"relationships":{"app":{"data":{"type":"apps","id":"app-2"}}}`, `belongs to app "app-2", not "app-1"`},
-			{"missing", "app-1", "", versionData, `app relationship missing for app store version "ver-1"`},
-			{"matching environment app", "", "https://api.appstoreconnect.apple.com/v1/apps/app-1", versionData + matchingApp, ""},
-			{"mismatched environment app", "", "app-2", versionData + matchingApp, `belongs to app "app-1", not "app-2"`},
-			{"flag overrides environment app", "app-1", "app-2", versionData + matchingApp, ""},
+			{"matching", "1234567890", "", versionData + matchingApp, ""},
+			{"matching app self-link", "https://api.appstoreconnect.apple.com/v1/apps/1234567890", "", versionData + matchingApp, ""},
+			{"mismatched", "1234567890", "", versionData + `,"relationships":{"app":{"data":{"type":"apps","id":"9876543210"}}}`, `belongs to app "9876543210", not "1234567890"`},
+			{"missing", "1234567890", "", versionData, `app relationship missing for app store version "ver-1"`},
+			{"matching environment app", "", "https://api.appstoreconnect.apple.com/v1/apps/1234567890", versionData + matchingApp, ""},
+			{"mismatched environment app", "", "9876543210", versionData + matchingApp, `belongs to app "1234567890", not "9876543210"`},
+			{"flag overrides environment app", "1234567890", "9876543210", versionData + matchingApp, ""},
 			{"no app selected", "", "", versionData + matchingApp, ""},
-			{"missing version ID", "app-1", "", `"type":"appStoreVersions"` + matchingApp, `expected app store version "ver-1", got ""`},
-			{"different version ID", "app-1", "", `"type":"appStoreVersions","id":"ver-2"` + matchingApp, `expected app store version "ver-1", got "ver-2"`},
-			{"wrong version type", "app-1", "", `"type":"appInfos","id":"ver-1"` + matchingApp, `expected resource type "appStoreVersions", got "appInfos"`},
-			{"wrong app relationship type", "app-1", "", versionData + `,"relationships":{"app":{"data":{"type":"builds","id":"app-1"}}}`, `expected app relationship type "apps", got "builds"`},
+			{"matching bundle ID", "com.example.owner", "", versionData + matchingApp, ""},
+			{"matching environment bundle ID", "", "com.example.owner", versionData + matchingApp, ""},
+			{"mismatched environment bundle ID", "", "com.example.other", versionData + matchingApp, `belongs to app "1234567890", not "9876543210"`},
+			{"environment bundle ID that another app's bundle ID starts with", "", "com.example.own", versionData + matchingApp, ""},
+			{"missing version ID", "1234567890", "", `"type":"appStoreVersions"` + matchingApp, `expected app store version "ver-1", got ""`},
+			{"different version ID", "1234567890", "", `"type":"appStoreVersions","id":"ver-2"` + matchingApp, `expected app store version "ver-1", got "ver-2"`},
+			{"wrong version type", "1234567890", "", `"type":"appInfos","id":"ver-1"` + matchingApp, `expected resource type "appStoreVersions", got "appInfos"`},
+			{"wrong app relationship type", "1234567890", "", versionData + `,"relationships":{"app":{"data":{"type":"builds","id":"1234567890"}}}`, `expected app relationship type "apps", got "builds"`},
 		} {
 			t.Run(operation+"/"+tt.name, func(t *testing.T) {
 				setupLocUpdateAuth(t)
@@ -91,6 +99,14 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 				stubTransport(t, func(req *http.Request) (*http.Response, error) {
 					request := req.Method + " " + req.URL.RequestURI()
 					requests = append(requests, request)
+					if req.URL.Path == "/v1/apps" {
+						if req.URL.Query().Get("filter[bundleId]") == "com.example.own" {
+							return locUpdateJSONResponse(prefixSiblings)
+						}
+						if appID := bundleApps[req.URL.Query().Get("filter[bundleId]")]; appID != "" {
+							return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"` + appID + `"}]}`)
+						}
+					}
 					switch request {
 					case lookup:
 						return locUpdateJSONResponse(`{"data":{` + tt.data + `}}`)
@@ -109,7 +125,11 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 				var code int
 				stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
 				var wantRequests []string
-				if tt.app != "" || tt.envApp != "" {
+				selectedApp := cmp.Or(tt.app, tt.envApp)
+				if _, isBundleID := bundleApps[selectedApp]; isBundleID {
+					wantRequests = append(wantRequests, "GET /v1/apps?filter%5BbundleId%5D="+selectedApp+"&limit=2")
+				}
+				if selectedApp != "" {
 					wantRequests = append(wantRequests, lookup)
 				}
 				if tt.wantError != "" {
