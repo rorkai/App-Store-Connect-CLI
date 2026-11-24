@@ -541,7 +541,7 @@ func compareMoneyMetric(name, metricLabel string, baseline, comparison insights.
 			Name:       name,
 			Unit:       "currency",
 			Status:     "unavailable",
-			Reason:     insights.MixedCurrencyReason(metricLabel+" totals", comparisons),
+			Reason:     insights.CurrencyTotalsUnavailableReason(metricLabel+" totals", comparisons),
 			ByCurrency: breakdown,
 		}
 	}

@@ -596,16 +596,19 @@ func TestInsightsWeeklySalesDoesNotCompareIncompleteCurrency(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
 		row         string
+		wantReason  string
 		eurComplete bool
 	}{
 		{
 			name:        "zero-unit partial refund",
 			row:         "foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t0\t1.17\tUSD\tUSD\t-1.67",
+			wantReason:  "a nonzero amount has zero Units and may be a partial refund",
 			eurComplete: true,
 		},
 		{
-			name: "unknown proceeds currency",
-			row:  "foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t1.17\tUSD\t\t1.67",
+			name:       "unknown proceeds currency",
+			row:        "foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t1.17\tUSD\t\t1.67",
+			wantReason: "a sales report row is missing a currency code",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -622,6 +625,9 @@ func TestInsightsWeeklySalesDoesNotCompareIncompleteCurrency(t *testing.T) {
 				t.Fatalf("run error: %v, stderr=%q", err, stderr)
 			}
 			metric := findMetric(t, decodeInsightsMetrics(t, stdout), "developer_proceeds")
+			if metric["status"] != "unavailable" || metric["reason"] != tc.wantReason {
+				t.Errorf("expected unavailable proceeds with reason %q, got %v", tc.wantReason, metric)
+			}
 			breakdown, ok := metric["byCurrency"].([]any)
 			if !ok || len(breakdown) != 2 {
 				t.Fatalf("expected EUR and USD comparison, got %v", metric)
@@ -641,6 +647,53 @@ func TestInsightsWeeklySalesDoesNotCompareIncompleteCurrency(t *testing.T) {
 					t.Errorf("incomplete current period cannot be compared, got %v", amount)
 				}
 			}
+		})
+	}
+}
+
+func TestSalesCurrencyIncompleteReasonInRenderedOutput(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		args      []string
+		metric    string
+		separator string
+	}{
+		{
+			name:      "daily table",
+			args:      []string{"insights", "daily", "--date", "2026-02-18", "--output", "table"},
+			metric:    "renewal_developer_proceeds",
+			separator: "│",
+		},
+		{
+			name:      "compare markdown",
+			args:      []string{"analytics", "compare", "--source", "sales", "--from", "2026-02-17", "--to", "2026-02-18", "--frequency", "DAILY", "--output", "markdown"},
+			metric:    "developer_proceeds",
+			separator: "|",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := registerInsightsSalesReports(t, "DAILY", "2026-02-18", []string{
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t\t2.50\tUSD\tUSD\t4.00",
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t300\tJPY\tJPY\t450",
+			}, "2026-02-17", []string{
+				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t2.50\tUSD\tUSD\t4.00",
+			})
+			args := append(tc.args, "--app", "app-1", "--vendor", "12345678", "--by-currency")
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
+			if err != nil || stderr != "" {
+				t.Fatalf("run error: %v, stderr=%q", err, stderr)
+			}
+			for line := range strings.SplitSeq(stdout, "\n") {
+				cells := strings.Split(strings.Trim(line, tc.separator), tc.separator)
+				if len(cells) != 8 || strings.TrimSpace(cells[0]) != tc.metric || strings.TrimSpace(cells[1]) != "currency" {
+					continue
+				}
+				if strings.TrimSpace(cells[6]) != "unavailable" || strings.TrimSpace(cells[7]) != "a sales report row has no valid Units value" {
+					t.Errorf("expected parent metric to explain missing units, got %q", line)
+				}
+				return
+			}
+			t.Fatalf("missing parent metric %q in %s", tc.metric, stdout)
 		})
 	}
 }

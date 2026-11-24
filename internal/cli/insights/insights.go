@@ -488,10 +488,13 @@ func CurrencyLabel(currency string) string {
 	return currency
 }
 
-// MixedCurrencyReason explains why a monetary metric has no single total.
-func MixedCurrencyReason(metricLabel string, comparisons []CurrencyComparison) string {
+// CurrencyTotalsUnavailableReason explains why a monetary metric has no single total.
+func CurrencyTotalsUnavailableReason(metricLabel string, comparisons []CurrencyComparison) string {
 	labels := make([]string, 0, len(comparisons))
 	for _, comparison := range comparisons {
+		if comparison.Reason != "" {
+			return comparison.Reason
+		}
 		labels = append(labels, CurrencyLabel(comparison.Currency))
 	}
 	return fmt.Sprintf("%s are in multiple currencies (%s) and cannot be summed; totals are reported per currency", metricLabel, strings.Join(labels, ", "))
@@ -1434,7 +1437,7 @@ func weeklyMoneyMetric(name, label string, available bool, thisWeek, lastWeek Sa
 			Delta: amount.Delta, DeltaPercent: amount.DeltaPercent, Status: "ok", ByCurrency: breakdown,
 		}
 	default:
-		metric := unavailableMetric(name, "currency", MixedCurrencyReason(label, comparisons))
+		metric := unavailableMetric(name, "currency", CurrencyTotalsUnavailableReason(label, comparisons))
 		metric.ByCurrency = breakdown
 		return metric
 	}
@@ -1475,7 +1478,7 @@ func dailyMoneyMetric(name, label string, available bool, thisDay, previousDay S
 			Delta: amount.Delta, DeltaPercent: amount.DeltaPercent, Status: "ok", ByCurrency: breakdown,
 		}
 	default:
-		metric := unavailableDailyMetric(name, "currency", MixedCurrencyReason(label, comparisons))
+		metric := unavailableDailyMetric(name, "currency", CurrencyTotalsUnavailableReason(label, comparisons))
 		metric.ByCurrency = breakdown
 		return metric
 	}
