@@ -93,6 +93,7 @@ parse successfully before comparison output is produced.
 Monetary metrics multiply the report's per-unit amounts by Units, so refunds reduce them.
 They are totaled per currency and never converted: a metric has one total only when every
 amount shares a currency, otherwise it is unavailable and byCurrency lists each currency.
+Totals are in whole cents. A paid row with a blank currency makes its metric unavailable.
 
 Examples:
   asc analytics compare --source sales --vendor "12345678" --app "123456789" --from "2026-01-01" --to "2026-02-01" --frequency DAILY
@@ -420,6 +421,11 @@ func aggregateSalesMetrics(a, b insights.SalesMetrics) insights.SalesMetrics {
 		RenewalRows:                             a.RenewalRows + b.RenewalRows,
 		RenewalUnitsTotal:                       a.RenewalUnitsTotal + b.RenewalUnitsTotal,
 		RenewalDeveloperProceedsByCurrency:      a.RenewalDeveloperProceedsByCurrency.Plus(b.RenewalDeveloperProceedsByCurrency),
+
+		DeveloperProceedsMissingCurrencyRows:             a.DeveloperProceedsMissingCurrencyRows + b.DeveloperProceedsMissingCurrencyRows,
+		CustomerPriceMissingCurrencyRows:                 a.CustomerPriceMissingCurrencyRows + b.CustomerPriceMissingCurrencyRows,
+		SubscriptionDeveloperProceedsMissingCurrencyRows: a.SubscriptionDeveloperProceedsMissingCurrencyRows + b.SubscriptionDeveloperProceedsMissingCurrencyRows,
+		RenewalDeveloperProceedsMissingCurrencyRows:      a.RenewalDeveloperProceedsMissingCurrencyRows + b.RenewalDeveloperProceedsMissingCurrencyRows,
 	}
 }
 
@@ -437,11 +443,17 @@ func buildCompareMetrics(baseline, comparison insights.SalesMetrics) []compareMe
 		compareCurrencyMetric("developer_proceeds", "developer proceeds",
 			baseline.DeveloperProceedsByCurrency, comparison.DeveloperProceedsByCurrency,
 			baseline.UnitsColumnPresent && baseline.DeveloperProceedsColumnPresent,
-			comparison.UnitsColumnPresent && comparison.DeveloperProceedsColumnPresent),
+			comparison.UnitsColumnPresent && comparison.DeveloperProceedsColumnPresent,
+			insights.MissingCurrencyReason("developer proceeds", insights.ProceedsCurrencyColumn,
+				insights.MissingCurrencyPeriod{Rows: baseline.DeveloperProceedsMissingCurrencyRows, Phrase: "in the baseline period"},
+				insights.MissingCurrencyPeriod{Rows: comparison.DeveloperProceedsMissingCurrencyRows, Phrase: "in the comparison period"})),
 		compareCurrencyMetric("customer_price", "customer price",
 			baseline.CustomerPriceByCurrency, comparison.CustomerPriceByCurrency,
 			baseline.UnitsColumnPresent && baseline.CustomerPriceColumnPresent,
-			comparison.UnitsColumnPresent && comparison.CustomerPriceColumnPresent),
+			comparison.UnitsColumnPresent && comparison.CustomerPriceColumnPresent,
+			insights.MissingCurrencyReason("customer price", insights.CustomerCurrencyColumn,
+				insights.MissingCurrencyPeriod{Rows: baseline.CustomerPriceMissingCurrencyRows, Phrase: "in the baseline period"},
+				insights.MissingCurrencyPeriod{Rows: comparison.CustomerPriceMissingCurrencyRows, Phrase: "in the comparison period"})),
 		compareMetricFromValues("subscription_units", "count", "subscription units",
 			baseline.SubscriptionUnitsTotal, comparison.SubscriptionUnitsTotal,
 			baseline.SubscriptionColumnPresent && baseline.UnitsColumnPresent,
@@ -477,12 +489,16 @@ func compareMetricFromValues(name, unit, metricLabel string, baselineValue, comp
 			Reason: compareMetricAvailabilityReason(metricLabel, baselineAvailable, comparisonAvailable),
 		}
 	}
+	delta := comparisonValue - baselineValue
+	if unit == "currency" {
+		delta = insights.RoundMoney(delta)
+	}
 	m := compareMetric{
 		Name:       name,
 		Unit:       unit,
 		Baseline:   ptrFloat(baselineValue),
 		Comparison: ptrFloat(comparisonValue),
-		Delta:      ptrFloat(comparisonValue - baselineValue),
+		Delta:      ptrFloat(delta),
 		Status:     "ok",
 	}
 	if baselineValue == 0 {
@@ -493,16 +509,18 @@ func compareMetricFromValues(name, unit, metricLabel string, baselineValue, comp
 		}
 		return m
 	}
-	deltaPercent := ((comparisonValue - baselineValue) / baselineValue) * 100
-	m.DeltaPercent = ptrFloat(deltaPercent)
+	m.DeltaPercent = ptrFloat(delta / baselineValue * 100)
 	return m
 }
 
 // compareCurrencyMetric reports a monetary total only when every amount in both
 // periods is in one currency; otherwise the totals stay split in ByCurrency.
-func compareCurrencyMetric(name, metricLabel string, baseline, comparison insights.CurrencyAmounts, baselineAvailable, comparisonAvailable bool) compareMetric {
+func compareCurrencyMetric(name, metricLabel string, baseline, comparison insights.CurrencyAmounts, baselineAvailable, comparisonAvailable bool, missingCurrencyReason string) compareMetric {
 	if !baselineAvailable || !comparisonAvailable {
 		return compareMetricFromValues(name, "currency", metricLabel, 0, 0, baselineAvailable, comparisonAvailable)
+	}
+	if missingCurrencyReason != "" {
+		return compareMetric{Name: name, Unit: "currency", Status: "unavailable", Reason: missingCurrencyReason}
 	}
 	// Baseline is the earlier period, so it is the "previous" side.
 	comparisons := insights.CompareCurrencyAmounts(comparison, baseline)

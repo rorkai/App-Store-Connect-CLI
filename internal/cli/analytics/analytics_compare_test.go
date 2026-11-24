@@ -398,6 +398,36 @@ func TestBuildCompareMetrics(t *testing.T) {
 	}
 }
 
+func TestBuildCompareMetrics_MoneyIsWholeCentsAndBlankCurrencyIsUnavailable(t *testing.T) {
+	// Two daily reports of 0.10 and 0.20 sum to 0.30000000000000004 in float64.
+	baseline := aggregateSalesMetrics(
+		insights.SalesMetrics{
+			UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, CustomerPriceColumnPresent: true,
+			DeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 0.10},
+			CustomerPriceByCurrency:     insights.CurrencyAmounts{"USD": 0.10},
+		},
+		insights.SalesMetrics{
+			UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, CustomerPriceColumnPresent: true,
+			DeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 0.20},
+			CustomerPriceByCurrency:     insights.CurrencyAmounts{"USD": 0.20},
+			// One report had a paid row whose Customer Currency was blank.
+			CustomerPriceMissingCurrencyRows: 1,
+		},
+	)
+	comparison := insights.SalesMetrics{
+		UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, CustomerPriceColumnPresent: true,
+		DeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 0.40},
+		CustomerPriceByCurrency:     insights.CurrencyAmounts{"USD": 0.40},
+	}
+
+	metrics := buildCompareMetrics(baseline, comparison)
+	assertCompareMetricJSON(t, metrics, "developer_proceeds", `{"name":"developer_proceeds","unit":"currency","currency":"USD",
+		"baseline":0.3,"comparison":0.4,"delta":0.1,"deltaPercent":33.333333333333336,"status":"ok",
+		"byCurrency":[{"currency":"USD","baseline":0.3,"comparison":0.4,"delta":0.1,"deltaPercent":33.333333333333336}]}`)
+	assertCompareMetricJSON(t, metrics, "customer_price", `{"name":"customer_price","unit":"currency","status":"unavailable",
+		"reason":"customer price cannot be totaled: 1 row in the baseline period has an amount but a blank Customer Currency"}`)
+}
+
 func TestBuildCompareMetrics_ExplainsMissingColumns(t *testing.T) {
 	baseline := insights.SalesMetrics{}
 	comparison := insights.SalesMetrics{UnitsColumnPresent: true, DownloadUnitsAvailable: true}
