@@ -24,9 +24,6 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
                     "-out", cert, "-days", "1"], capture_output=True, check=True)
     subprocess.run(["openssl", "genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256",
                     "-out", asc_key], capture_output=True, check=True)
-    tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
-    tls_context.load_cert_chain(cert, tls_key)
     requests, errors, groups, products, subscriptions = [], [], [], [], []
     fail_product = True
     fail_localization = False
@@ -47,6 +44,9 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
                 while (line := self.rfile.readline()) and line != b"\r\n":
                     pass
                 self.request.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                tls_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
+                tls_context.load_cert_chain(cert, tls_key)
                 with tls_context.wrap_socket(self.request, server_side=True) as tls:
                     with tls.makefile("rb") as stream:
                         method, url, _ = stream.readline().decode().split()
