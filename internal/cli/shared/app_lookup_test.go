@@ -326,6 +326,47 @@ func TestResolveAppIDWithLookup_ExactBundleIDWinsOverPrefixSiblings(t *testing.T
 	}
 }
 
+func TestResolveAppIDWithLookupRejectsForeignContinuationPath(t *testing.T) {
+	foreignPage := func(path string) *asc.AppsResponse {
+		resp := appsResponseFromApps(nil)
+		resp.Links.Next = "https://api.appstoreconnect.apple.com" + path + "?cursor=next"
+		return resp
+	}
+	for _, test := range []struct {
+		name      string
+		selector  string
+		responses []*asc.AppsResponse
+		wantCalls int
+	}{
+		{
+			name:      "bundle lookup",
+			selector:  "com.example.app",
+			responses: []*asc.AppsResponse{foreignPage("/v1/subscriptionGroups")},
+			wantCalls: 1,
+		},
+		{
+			name:     "name lookup",
+			selector: "Example App",
+			responses: []*asc.AppsResponse{
+				appsResponseFromApps(nil),
+				foreignPage("/v1/subscriptionGroups"),
+			},
+			wantCalls: 2,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stub := &sequenceAppLookupStub{responses: test.responses}
+			_, err := ResolveAppIDWithLookup(context.Background(), stub, test.selector)
+			if err == nil || !strings.Contains(err.Error(), "pagination URL") {
+				t.Fatalf("expected foreign continuation to fail closed, got %v", err)
+			}
+			if stub.calls != test.wantCalls {
+				t.Fatalf("lookups = %d, want %d proof calls and no foreign-page fetch", stub.calls, test.wantCalls)
+			}
+		})
+	}
+}
+
 func TestScopedAppLookupsRequireExactIdentity(t *testing.T) {
 	for _, lookup := range []struct {
 		name    string

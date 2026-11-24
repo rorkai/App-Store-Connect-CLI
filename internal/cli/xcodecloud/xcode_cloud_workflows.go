@@ -74,8 +74,8 @@ func xcodeCloudWorkflowsListCommand(d *shared.Deps, name, shortUsage, shortHelp,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
-		LookupParent: func(ctx context.Context, client *asc.Client, appID string) (string, error) {
-			resolvedAppID, err := resolveXcodeCloudAppID(ctx, d, client, appID)
+		LookupParentSelector: func(ctx context.Context, client *asc.Client, appSelector shared.AppSelector) (string, error) {
+			resolvedAppID, err := resolveXcodeCloudAppID(ctx, client, appSelector)
 			if err != nil {
 				return "", fmt.Errorf("xcode-cloud workflows: %w", err)
 			}

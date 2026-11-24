@@ -79,6 +79,74 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesResolvesSubscriptionSelect
 	}
 }
 
+func TestSubscriptionsAvailabilitySelectorRefusesScopedCollectionRedirects(t *testing.T) {
+	tests := []struct {
+		name           string
+		redirectPath   string
+		redirectTarget string
+		wantRequests   []string
+	}{
+		{
+			name:           "app subscription groups",
+			redirectPath:   "/v1/apps/1/subscriptionGroups",
+			redirectTarget: "/v1/apps/other/subscriptionGroups",
+			wantRequests:   []string{"GET /v1/apps/1/subscriptionGroups"},
+		},
+		{
+			name:           "group subscriptions",
+			redirectPath:   "/v1/subscriptionGroups/group-1/subscriptions",
+			redirectTarget: "/v1/subscriptionGroups/other/subscriptions",
+			wantRequests: []string{
+				"GET /v1/apps/1/subscriptionGroups",
+				"GET /v1/subscriptionGroups/group-1/subscriptions",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupStableSelectorAuth(t)
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+			var requests []string
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				request := req.Method + " " + req.URL.Path
+				requests = append(requests, request)
+				if req.Method != http.MethodGet {
+					return jsonHTTPResponse(http.StatusInternalServerError, `{"errors":[{"title":"unexpected mutation"}]}`), nil
+				}
+				if req.URL.Path == tt.redirectPath {
+					response := jsonHTTPResponse(http.StatusTemporaryRedirect, `{"errors":[{"title":"synthetic redirect"}]}`)
+					response.Header.Set("Location", "https://api.appstoreconnect.apple.com"+tt.redirectTarget)
+					return response, nil
+				}
+				if req.URL.Path == tt.redirectTarget {
+					return jsonHTTPResponse(http.StatusInternalServerError, `{"errors":[{"title":"unexpected redirected read"}]}`), nil
+				}
+				if req.URL.Path == "/v1/apps/1/subscriptionGroups" {
+					return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1"}],"links":{}}`), nil
+				}
+				return jsonHTTPResponse(http.StatusInternalServerError, `{"errors":[{"title":"unexpected request"}]}`), nil
+			})
+
+			stdout, _, runErr := runRootCommand(t, []string{
+				"subscriptions", "pricing", "availability", "available-territories",
+				"--app", "1", "--subscription-id", "com.example.monthly", "--output", "json",
+			})
+			if runErr == nil {
+				t.Fatal("expected scoped redirect to fail")
+			}
+			if stdout != "" {
+				t.Fatalf("expected no output after scoped redirect, got %q", stdout)
+			}
+			if got, want := strings.Join(requests, "\n"), strings.Join(tt.wantRequests, "\n"); got != want {
+				t.Fatalf("requests=%v, want only scoped proof GETs %v", requests, tt.wantRequests)
+			}
+		})
+	}
+}
+
 func TestSubscriptionsAvailabilityAvailableTerritoriesRejectsConfiguredBundleNameCollision(t *testing.T) {
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "com.example.collision")

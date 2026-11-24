@@ -94,6 +94,7 @@ func ResolveAppIDByExactBundleID(ctx context.Context, client appLookupClient, bu
 }
 
 func findAppIDByExactBundleID(ctx context.Context, client appLookupClient, bundleID string) (string, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	first, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{bundleID}), asc.Limit[asc.AppsOption](200))
 	if err != nil {
 		return "", fmt.Errorf("resolve app by bundle ID: %w", err)
@@ -106,6 +107,10 @@ func findAppIDByExactBundleID(ctx context.Context, client appLookupClient, bundl
 	seen := map[string]struct{}{}
 	var matches []AmbiguousCandidate
 	err = asc.PaginateEach(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		nextURL, err := ScopedPaginationURL(nextURL, "/v1/apps")
+		if err != nil {
+			return nil, err
+		}
 		return client.GetApps(ctx, asc.NextURL[asc.AppsOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		for _, app := range page.(*asc.AppsResponse).Data {
@@ -138,6 +143,7 @@ func findExactAppNameMatches(ctx context.Context, client appLookupClient, name s
 	if name == "" || client == nil {
 		return nil, nil
 	}
+	ctx = asc.WithNoRedirectReads(ctx)
 
 	opts := []asc.AppsOption{asc.Limit[asc.AppsOption](200)}
 	if useNameFilter {
@@ -178,6 +184,10 @@ func findExactAppNameMatches(ctx context.Context, client appLookupClient, name s
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			nextURL, err := ScopedPaginationURL(nextURL, "/v1/apps")
+			if err != nil {
+				return nil, err
+			}
 			return client.GetApps(ctx, asc.NextURL[asc.AppsOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {

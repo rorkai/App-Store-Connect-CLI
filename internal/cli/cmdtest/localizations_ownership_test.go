@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -370,5 +372,106 @@ func TestVersionLocalizationCreateConflictRejectsPaginationDrift(t *testing.T) {
 	}
 	if len(requests) != 3 || strings.Contains(strings.Join(requests, "\n"), "PATCH ") || strings.Contains(strings.Join(requests, "\n"), "ver-2") {
 		t.Fatalf("requests=%v, want expected POST conflict then one scoped page only", requests)
+	}
+}
+
+func TestVersionLocalizationUploadRefusesRedirectBeforeWrite(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "en-US.strings")
+	if err := os.WriteFile(inputPath, []byte("\"description\" = \"Updated\";\n\"whatsNew\" = \"Fixture notes\";\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	var requests []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		mu.Unlock()
+		switch r.URL.Path {
+		case "/v1/appStoreVersions/ver-1":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+		case "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+			http.Redirect(w, r, "/v1/appStoreVersions/other/appStoreVersionLocalizations", http.StatusTemporaryRedirect)
+		case "/v1/appStoreVersions/other/appStoreVersionLocalizations":
+			http.Error(w, "unexpected redirected version localization read", http.StatusInternalServerError)
+		default:
+			http.Error(w, "unexpected version localization request", http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	stdout, _, code := runWithDeps(t, stubServerClient(t, server), "localizations", "upload", "--app", "123456789", "--version", "ver-1", "--path", inputPath)
+	if code != cmd.ExitError || stdout != "" {
+		t.Fatalf("redirected version localization upload exit=%d stdout=%q, want error and no output", code, stdout)
+	}
+	mu.Lock()
+	got := append([]string(nil), requests...)
+	mu.Unlock()
+	if !slices.Equal(got, []string{"GET /v1/appStoreVersions/ver-1", "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations"}) {
+		t.Fatalf("version localization requests=%v, want scoped version proof and one refused collection read with no write", got)
+	}
+}
+
+func TestVersionLocalizationUpdateRefusesRedirectBeforeWrite(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{
+			name: "version ID collection",
+			args: []string{"localizations", "update", "--app", "123456789", "--version", "ver-1", "--locale", "en-US", "--description", "Updated"},
+			want: []string{
+				"GET /v1/appStoreVersions/ver-1",
+				"GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations",
+			},
+		},
+		{
+			name: "version string resolution",
+			args: []string{"localizations", "update", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--locale", "en-US", "--description", "Updated"},
+			want: []string{"GET /v1/apps/123456789/appStoreVersions"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			var mu sync.Mutex
+			var requests []string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				requests = append(requests, r.Method+" "+r.URL.Path)
+				mu.Unlock()
+				switch r.Method + " " + r.URL.Path {
+				case "GET /v1/appStoreVersions/ver-1":
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+				case "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+					http.Redirect(w, r, "/fixture/redirect-sentinel", http.StatusTemporaryRedirect)
+				case "GET /v1/apps/123456789/appStoreVersions":
+					http.Redirect(w, r, "/fixture/redirect-sentinel", http.StatusTemporaryRedirect)
+				case "GET /fixture/redirect-sentinel":
+					http.Error(w, "unexpected redirected read", http.StatusInternalServerError)
+				default:
+					http.Error(w, "unexpected request", http.StatusInternalServerError)
+				}
+			}))
+			t.Cleanup(server.Close)
+
+			stdout, _, code := runWithDeps(t, stubServerClient(t, server), tt.args...)
+			if code != cmd.ExitError || stdout != "" {
+				t.Fatalf("redirected version localization update exit=%d stdout=%q, want error and no output", code, stdout)
+			}
+			mu.Lock()
+			got := append([]string(nil), requests...)
+			mu.Unlock()
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("version localization update requests=%v, want scoped read refusal and no follow-up or write", got)
+			}
+			for _, request := range got {
+				if strings.HasPrefix(request, "PATCH ") || strings.HasPrefix(request, "POST ") {
+					t.Fatalf("version localization update sent a write after redirect: %v", got)
+				}
+			}
+		})
 	}
 }

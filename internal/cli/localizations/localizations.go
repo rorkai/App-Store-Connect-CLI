@@ -844,7 +844,7 @@ func ResolveVersionIDForMutation(ctx context.Context, d *shared.Deps, client *as
 	appSelector := d.ResolveAppSelector(appID)
 	appID = appSelector.Value
 	if shared.IsAppStoreVersionString(version) {
-		return resolveLocalizationsVersionString(ctx, d, client, appID, version, platform)
+		return resolveLocalizationsVersionString(asc.WithNoRedirectReads(ctx), d, client, appID, version, platform)
 	}
 	if appID == "" {
 		return version, nil

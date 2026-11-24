@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -251,8 +252,13 @@ func GetOrderedAppScreenshotIDs(ctx context.Context, client *asc.Client, setID s
 		return nil, err
 	}
 
+	expectedPath := fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", url.PathEscape(setID))
 	return collectOrderedLinkageIDs(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, "", asc.NextURL[asc.LinkagesOption](nextURL))
+		canonicalURL, err := client.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+		if err != nil {
+			return nil, err
+		}
+		return client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, "", asc.NextURL[asc.LinkagesOption](canonicalURL))
 	})
 }
 
