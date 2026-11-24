@@ -25,6 +25,7 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
     subprocess.run(["openssl", "genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256",
                     "-out", asc_key], capture_output=True, check=True)
     tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
     tls_context.load_cert_chain(cert, tls_key)
     requests, errors, groups, products, subscriptions = [], [], [], [], []
     fail_product = True
