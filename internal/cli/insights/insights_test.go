@@ -84,16 +84,18 @@ func TestParseSalesReportMetrics(t *testing.T) {
 	if metrics.MonetizedUnitsTotal != 5 {
 		t.Fatalf("unexpected monetized units totals: %+v", metrics)
 	}
-	if !metrics.DeveloperProceedsColumnPresent || metrics.DeveloperProceedsTotal != 2 {
+	// Money columns are per unit: 3 x 0.75 + 2 x 1.25 and 3 x 1.00 + 2 x 2.00.
+	// This report has no currency columns, so totals land under the empty code.
+	if !metrics.DeveloperProceedsColumnPresent || metrics.DeveloperProceedsByCurrency[""] != 4.75 {
 		t.Fatalf("unexpected developer proceeds totals: %+v", metrics)
 	}
-	if !metrics.CustomerPriceColumnPresent || metrics.CustomerPriceTotal != 3 {
+	if !metrics.CustomerPriceColumnPresent || metrics.CustomerPriceByCurrency[""] != 7 {
 		t.Fatalf("unexpected customer price totals: %+v", metrics)
 	}
 	if !metrics.SubscriptionColumnPresent || metrics.SubscriptionRows != 2 || metrics.SubscriptionUnitsTotal != 5 {
 		t.Fatalf("unexpected subscription totals: %+v", metrics)
 	}
-	if metrics.RenewalRows != 1 || metrics.RenewalUnitsTotal != 3 || metrics.RenewalDeveloperProceeds != 0.75 {
+	if metrics.RenewalRows != 1 || metrics.RenewalUnitsTotal != 3 || metrics.RenewalDeveloperProceedsByCurrency[""] != 2.25 {
 		t.Fatalf("unexpected renewal totals: %+v", metrics)
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
+	"math"
 	"net/http"
 	"slices"
 	"strconv"
@@ -79,6 +81,10 @@ The output is deterministic JSON by default and can be rendered as table/markdow
 
 For --source sales, totals are scoped to the selected app and include linked in-app purchases
 and subscriptions by matching Parent Identifier against the app SKU.
+
+Monetary metrics multiply the report's per-unit amounts by Units, so refunds reduce them.
+They are totaled per currency and never converted: a metric has one total only when every
+amount shares a currency, otherwise it is unavailable and byCurrency lists each currency.
 
 Examples:
   asc insights weekly --app "123456789" --source analytics --week "2026-02-16"
@@ -154,6 +160,10 @@ func newInsightsDailyCommand(d *shared.Deps) *ffcli.Command {
 This command is sales-only and app-scoped. It compares the selected day to the previous day.
 Renewal metrics are derived from rows where Subscription equals "Renewal" for products linked to the app.
 
+Proceeds metrics multiply the report's per-unit amounts by Units, so refunds reduce them.
+They are totaled per currency and never converted: a metric has one total only when every
+amount shares a currency, otherwise it is unavailable and byCurrency lists each currency.
+
 Examples:
   asc insights daily --app "123456789" --vendor "12345678" --date "2026-02-20"
   asc insights daily --app "123456789" --vendor "12345678" --date "2026-02-20" --output table`,
@@ -221,14 +231,25 @@ type weekRange struct {
 }
 
 type weeklyMetric struct {
-	Name         string   `json:"name"`
-	Unit         string   `json:"unit,omitempty"`
-	ThisWeek     *float64 `json:"thisWeek,omitempty"`
-	LastWeek     *float64 `json:"lastWeek,omitempty"`
-	Delta        *float64 `json:"delta,omitempty"`
+	Name         string                 `json:"name"`
+	Unit         string                 `json:"unit,omitempty"`
+	Currency     string                 `json:"currency,omitempty"`
+	ThisWeek     *float64               `json:"thisWeek,omitempty"`
+	LastWeek     *float64               `json:"lastWeek,omitempty"`
+	Delta        *float64               `json:"delta,omitempty"`
+	DeltaPercent *float64               `json:"deltaPercent,omitempty"`
+	Status       string                 `json:"status"`
+	Reason       string                 `json:"reason,omitempty"`
+	ByCurrency   []weeklyCurrencyAmount `json:"byCurrency,omitempty"`
+}
+
+// weeklyCurrencyAmount is one currency's share of a monetary weekly metric.
+type weeklyCurrencyAmount struct {
+	Currency     string   `json:"currency"`
+	ThisWeek     float64  `json:"thisWeek"`
+	LastWeek     float64  `json:"lastWeek"`
+	Delta        float64  `json:"delta"`
 	DeltaPercent *float64 `json:"deltaPercent,omitempty"`
-	Status       string   `json:"status"`
-	Reason       string   `json:"reason,omitempty"`
 }
 
 type dailyInsightsResponse struct {
@@ -251,14 +272,25 @@ type dailyInsightsSource struct {
 }
 
 type dailyMetric struct {
-	Name         string   `json:"name"`
-	Unit         string   `json:"unit,omitempty"`
-	ThisDay      *float64 `json:"thisDay,omitempty"`
-	PreviousDay  *float64 `json:"previousDay,omitempty"`
-	Delta        *float64 `json:"delta,omitempty"`
+	Name         string                `json:"name"`
+	Unit         string                `json:"unit,omitempty"`
+	Currency     string                `json:"currency,omitempty"`
+	ThisDay      *float64              `json:"thisDay,omitempty"`
+	PreviousDay  *float64              `json:"previousDay,omitempty"`
+	Delta        *float64              `json:"delta,omitempty"`
+	DeltaPercent *float64              `json:"deltaPercent,omitempty"`
+	Status       string                `json:"status"`
+	Reason       string                `json:"reason,omitempty"`
+	ByCurrency   []dailyCurrencyAmount `json:"byCurrency,omitempty"`
+}
+
+// dailyCurrencyAmount is one currency's share of a monetary daily metric.
+type dailyCurrencyAmount struct {
+	Currency     string   `json:"currency"`
+	ThisDay      float64  `json:"thisDay"`
+	PreviousDay  float64  `json:"previousDay"`
+	Delta        float64  `json:"delta"`
 	DeltaPercent *float64 `json:"deltaPercent,omitempty"`
-	Status       string   `json:"status"`
-	Reason       string   `json:"reason,omitempty"`
 }
 
 type reportWeekWindow struct {
@@ -267,26 +299,107 @@ type reportWeekWindow struct {
 }
 
 // SalesMetrics holds aggregated metrics from a parsed sales report.
+//
+// Monetary totals are row amounts (Units x the per-unit column) grouped by
+// currency. The *ColumnPresent flags only describe the per-unit column; a total
+// also needs the Units column.
 type SalesMetrics struct {
-	RowCount                       int
-	UnitsColumnPresent             bool
-	DownloadUnitsAvailable         bool
-	DeveloperProceedsColumnPresent bool
-	CustomerPriceColumnPresent     bool
-	SubscriptionColumnPresent      bool
-	UnitsTotal                     float64
-	DownloadUnitsTotal             float64
-	MonetizedUnitsTotal            float64
-	DeveloperProceedsTotal         float64
-	CustomerPriceTotal             float64
-	SubscriptionRows               int
-	SubscriptionUnitsTotal         float64
-	SubscriptionDeveloperProceeds  float64
-	SubscriptionCustomerPrice      float64
-	RenewalRows                    int
-	RenewalUnitsTotal              float64
-	RenewalDeveloperProceeds       float64
-	RenewalCustomerPrice           float64
+	RowCount                                int
+	UnitsColumnPresent                      bool
+	DownloadUnitsAvailable                  bool
+	DeveloperProceedsColumnPresent          bool
+	CustomerPriceColumnPresent              bool
+	SubscriptionColumnPresent               bool
+	UnitsTotal                              float64
+	DownloadUnitsTotal                      float64
+	MonetizedUnitsTotal                     float64
+	DeveloperProceedsByCurrency             CurrencyAmounts
+	CustomerPriceByCurrency                 CurrencyAmounts
+	SubscriptionRows                        int
+	SubscriptionUnitsTotal                  float64
+	SubscriptionDeveloperProceedsByCurrency CurrencyAmounts
+	RenewalRows                             int
+	RenewalUnitsTotal                       float64
+	RenewalDeveloperProceedsByCurrency      CurrencyAmounts
+}
+
+// CurrencyAmounts holds monetary totals keyed by upper-case ISO currency code.
+// Amounts in different currencies are never added together. The empty key
+// collects amounts from reports that do not say which currency they are in.
+type CurrencyAmounts map[string]float64
+
+// Plus returns the per-currency sum of c and other without modifying either.
+func (c CurrencyAmounts) Plus(other CurrencyAmounts) CurrencyAmounts {
+	if len(c) == 0 && len(other) == 0 {
+		return nil
+	}
+	sum := make(CurrencyAmounts, max(len(c), len(other)))
+	maps.Copy(sum, c)
+	for currency, amount := range other {
+		sum[currency] += amount
+	}
+	return sum
+}
+
+// add records one row's amount. Zero amounts are skipped so free downloads do
+// not make a report look like it holds money in their storefront's currency.
+func (c *CurrencyAmounts) add(currency string, amount float64) {
+	if amount == 0 {
+		return
+	}
+	if *c == nil {
+		*c = make(CurrencyAmounts)
+	}
+	(*c)[currency] += amount
+}
+
+// CurrencyComparison pairs one currency's totals across two compared periods.
+type CurrencyComparison struct {
+	Currency string
+	Current  float64
+	Previous float64
+}
+
+// CompareCurrencyAmounts pairs the per-currency totals of two periods, sorted
+// by currency code. A currency missing from one period compares against zero.
+func CompareCurrencyAmounts(current, previous CurrencyAmounts) []CurrencyComparison {
+	currencies := make([]string, 0, len(current)+len(previous))
+	for currency := range current {
+		currencies = append(currencies, currency)
+	}
+	for currency := range previous {
+		if _, seen := current[currency]; !seen {
+			currencies = append(currencies, currency)
+		}
+	}
+	slices.Sort(currencies)
+
+	comparisons := make([]CurrencyComparison, 0, len(currencies))
+	for _, currency := range currencies {
+		comparisons = append(comparisons, CurrencyComparison{
+			Currency: currency,
+			Current:  current[currency],
+			Previous: previous[currency],
+		})
+	}
+	return comparisons
+}
+
+// CurrencyLabel names a currency code for people, including the empty code.
+func CurrencyLabel(currency string) string {
+	if currency == "" {
+		return "unknown"
+	}
+	return currency
+}
+
+// MixedCurrencyReason explains why a monetary metric has no single total.
+func MixedCurrencyReason(metricLabel string, comparisons []CurrencyComparison) string {
+	labels := make([]string, 0, len(comparisons))
+	for _, comparison := range comparisons {
+		labels = append(labels, CurrencyLabel(comparison.Currency))
+	}
+	return fmt.Sprintf("%s are in multiple currencies (%s) and cannot be summed; totals are reported per currency", metricLabel, strings.Join(labels, ", "))
 }
 
 // Unexported alias so all internal references keep compiling with the old name.
@@ -389,17 +502,15 @@ func collectDailyInsights(ctx context.Context, client *asc.Client, now func() ti
 	}
 
 	metrics := make([]dailyMetric, 0, 8)
-	metrics = append(metrics, dailyMetricFromOptionalTotals(
+	metrics = append(metrics, dailyCountMetricFromOptionalTotals(
 		"renewal_rows",
-		"count",
 		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent && availabilityReason == "",
 		float64(thisData.RenewalRows),
 		float64(prevData.RenewalRows),
 		resolveSalesReason("subscription column", availabilityReason, thisData.SubscriptionColumnPresent, prevData.SubscriptionColumnPresent),
 	))
-	metrics = append(metrics, dailyMetricFromOptionalTotals(
+	metrics = append(metrics, dailyCountMetricFromOptionalTotals(
 		"renewal_units",
-		"count",
 		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent &&
 			thisData.UnitsColumnPresent && prevData.UnitsColumnPresent &&
 			availabilityReason == "",
@@ -407,27 +518,25 @@ func collectDailyInsights(ctx context.Context, client *asc.Client, now func() ti
 		prevData.RenewalUnitsTotal,
 		resolveSalesReason("renewal units", availabilityReason, thisData.UnitsColumnPresent && thisData.SubscriptionColumnPresent, prevData.UnitsColumnPresent && prevData.SubscriptionColumnPresent),
 	))
-	metrics = append(metrics, dailyMetricFromOptionalTotals(
+	thisSubscriptionProceedsAvailable := thisData.SubscriptionColumnPresent && developerProceedsAvailable(thisData)
+	prevSubscriptionProceedsAvailable := prevData.SubscriptionColumnPresent && developerProceedsAvailable(prevData)
+	metrics = append(metrics, dailyCurrencyMetric(
 		"renewal_developer_proceeds",
-		"currency",
-		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent &&
-			thisData.DeveloperProceedsColumnPresent && prevData.DeveloperProceedsColumnPresent &&
-			availabilityReason == "",
-		thisData.RenewalDeveloperProceeds,
-		prevData.RenewalDeveloperProceeds,
-		resolveSalesReason("renewal developer proceeds", availabilityReason, thisData.DeveloperProceedsColumnPresent && thisData.SubscriptionColumnPresent, prevData.DeveloperProceedsColumnPresent && prevData.SubscriptionColumnPresent),
+		"renewal developer proceeds totals",
+		thisSubscriptionProceedsAvailable && prevSubscriptionProceedsAvailable && availabilityReason == "",
+		thisData.RenewalDeveloperProceedsByCurrency,
+		prevData.RenewalDeveloperProceedsByCurrency,
+		resolveSalesReason("renewal developer proceeds", availabilityReason, thisSubscriptionProceedsAvailable, prevSubscriptionProceedsAvailable),
 	))
-	metrics = append(metrics, dailyMetricFromOptionalTotals(
+	metrics = append(metrics, dailyCountMetricFromOptionalTotals(
 		"subscription_rows",
-		"count",
 		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent && availabilityReason == "",
 		float64(thisData.SubscriptionRows),
 		float64(prevData.SubscriptionRows),
 		resolveSalesReason("subscription column", availabilityReason, thisData.SubscriptionColumnPresent, prevData.SubscriptionColumnPresent),
 	))
-	metrics = append(metrics, dailyMetricFromOptionalTotals(
+	metrics = append(metrics, dailyCountMetricFromOptionalTotals(
 		"subscription_units",
-		"count",
 		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent &&
 			thisData.UnitsColumnPresent && prevData.UnitsColumnPresent &&
 			availabilityReason == "",
@@ -435,27 +544,23 @@ func collectDailyInsights(ctx context.Context, client *asc.Client, now func() ti
 		prevData.SubscriptionUnitsTotal,
 		resolveSalesReason("subscription units", availabilityReason, thisData.UnitsColumnPresent && thisData.SubscriptionColumnPresent, prevData.UnitsColumnPresent && prevData.SubscriptionColumnPresent),
 	))
-	metrics = append(metrics, dailyMetricFromOptionalTotals(
+	metrics = append(metrics, dailyCurrencyMetric(
 		"subscription_developer_proceeds",
-		"currency",
-		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent &&
-			thisData.DeveloperProceedsColumnPresent && prevData.DeveloperProceedsColumnPresent &&
-			availabilityReason == "",
-		thisData.SubscriptionDeveloperProceeds,
-		prevData.SubscriptionDeveloperProceeds,
-		resolveSalesReason("subscription developer proceeds", availabilityReason, thisData.DeveloperProceedsColumnPresent && thisData.SubscriptionColumnPresent, prevData.DeveloperProceedsColumnPresent && prevData.SubscriptionColumnPresent),
+		"subscription developer proceeds totals",
+		thisSubscriptionProceedsAvailable && prevSubscriptionProceedsAvailable && availabilityReason == "",
+		thisData.SubscriptionDeveloperProceedsByCurrency,
+		prevData.SubscriptionDeveloperProceedsByCurrency,
+		resolveSalesReason("subscription developer proceeds", availabilityReason, thisSubscriptionProceedsAvailable, prevSubscriptionProceedsAvailable),
 	))
-	metrics = append(metrics, dailyMetricFromOptionalTotals(
+	metrics = append(metrics, dailyCountMetricFromOptionalTotals(
 		"monetized_units",
-		"count",
 		thisData.UnitsColumnPresent && prevData.UnitsColumnPresent && availabilityReason == "",
 		thisData.MonetizedUnitsTotal,
 		prevData.MonetizedUnitsTotal,
 		resolveSalesReason("monetized units", availabilityReason, thisData.UnitsColumnPresent, prevData.UnitsColumnPresent),
 	))
-	metrics = append(metrics, dailyMetricFromOptionalTotals(
+	metrics = append(metrics, dailyCountMetricFromOptionalTotals(
 		"report_rows",
-		"count",
 		availabilityReason == "",
 		float64(thisData.RowCount),
 		float64(prevData.RowCount),
@@ -480,50 +585,46 @@ func collectSalesMetrics(thisData salesWeekMetrics, thisErr error, prevData sale
 	}
 
 	metrics := make([]weeklyMetric, 0, 7)
-	metrics = append(metrics, metricFromOptionalTotals(
+	metrics = append(metrics, countMetricFromOptionalTotals(
 		"download_units",
-		"count",
 		thisData.DownloadUnitsAvailable && prevData.DownloadUnitsAvailable && availabilityReason == "",
 		thisData.DownloadUnitsTotal,
 		prevData.DownloadUnitsTotal,
 		resolveSalesReason("download units", availabilityReason, thisData.DownloadUnitsAvailable, prevData.DownloadUnitsAvailable),
 	))
-	metrics = append(metrics, metricFromOptionalTotals(
+	metrics = append(metrics, countMetricFromOptionalTotals(
 		"monetized_units",
-		"count",
 		thisData.UnitsColumnPresent && prevData.UnitsColumnPresent && availabilityReason == "",
 		thisData.MonetizedUnitsTotal,
 		prevData.MonetizedUnitsTotal,
 		resolveSalesReason("monetized units", availabilityReason, thisData.UnitsColumnPresent, prevData.UnitsColumnPresent),
 	))
-	metrics = append(metrics, metricFromOptionalTotals(
+	metrics = append(metrics, countMetricFromOptionalTotals(
 		"units",
-		"count",
 		thisData.UnitsColumnPresent && prevData.UnitsColumnPresent && availabilityReason == "",
 		thisData.UnitsTotal,
 		prevData.UnitsTotal,
 		resolveSalesReason("units", availabilityReason, thisData.UnitsColumnPresent, prevData.UnitsColumnPresent),
 	))
-	metrics = append(metrics, metricFromOptionalTotals(
+	metrics = append(metrics, weeklyCurrencyMetric(
 		"developer_proceeds",
-		"currency",
-		thisData.DeveloperProceedsColumnPresent && prevData.DeveloperProceedsColumnPresent && availabilityReason == "",
-		thisData.DeveloperProceedsTotal,
-		prevData.DeveloperProceedsTotal,
-		resolveSalesReason("developer proceeds", availabilityReason, thisData.DeveloperProceedsColumnPresent, prevData.DeveloperProceedsColumnPresent),
+		"developer proceeds totals",
+		developerProceedsAvailable(thisData) && developerProceedsAvailable(prevData) && availabilityReason == "",
+		thisData.DeveloperProceedsByCurrency,
+		prevData.DeveloperProceedsByCurrency,
+		resolveSalesReason("developer proceeds", availabilityReason, developerProceedsAvailable(thisData), developerProceedsAvailable(prevData)),
 	))
-	metrics = append(metrics, metricFromOptionalTotals(
+	metrics = append(metrics, weeklyCurrencyMetric(
 		"customer_price",
-		"currency",
-		thisData.CustomerPriceColumnPresent && prevData.CustomerPriceColumnPresent && availabilityReason == "",
-		thisData.CustomerPriceTotal,
-		prevData.CustomerPriceTotal,
-		resolveSalesReason("customer price", availabilityReason, thisData.CustomerPriceColumnPresent, prevData.CustomerPriceColumnPresent),
+		"customer price totals",
+		customerPriceAvailable(thisData) && customerPriceAvailable(prevData) && availabilityReason == "",
+		thisData.CustomerPriceByCurrency,
+		prevData.CustomerPriceByCurrency,
+		resolveSalesReason("customer price", availabilityReason, customerPriceAvailable(thisData), customerPriceAvailable(prevData)),
 	))
 
-	metrics = append(metrics, metricFromOptionalTotals(
+	metrics = append(metrics, countMetricFromOptionalTotals(
 		"report_rows",
-		"count",
 		availabilityReason == "",
 		float64(thisData.RowCount),
 		float64(prevData.RowCount),
@@ -664,7 +765,9 @@ type salesReportAccumulator struct {
 	subscriptionIdx          int
 	unitsIdx                 int
 	developerProceedsIdx     int
+	proceedsCurrencyIdx      int
 	customerPriceIdx         int
+	customerCurrencyIdx      int
 }
 
 func newSalesReportAccumulator(headers []string, scope salesScope) (salesReportAccumulator, error) {
@@ -676,7 +779,9 @@ func newSalesReportAccumulator(headers []string, scope salesScope) (salesReportA
 	a.subscriptionIdx = findColumnIndex(headers, "subscription")
 	a.unitsIdx = findColumnIndex(headers, "units")
 	a.developerProceedsIdx = findColumnIndex(headers, "developerproceeds")
+	a.proceedsCurrencyIdx = findColumnIndex(headers, "currencyofproceeds")
 	a.customerPriceIdx = findColumnIndex(headers, "customerprice")
+	a.customerCurrencyIdx = findColumnIndex(headers, "customercurrency")
 	if a.appleIdentifierIdx < 0 && a.parentIdentifierIdx < 0 {
 		return a, fmt.Errorf("report is missing Apple Identifier and Parent Identifier columns")
 	}
@@ -715,8 +820,10 @@ func (a *salesReportAccumulator) add(row []string) {
 		metrics.RenewalRows++
 	}
 
+	units, unitsOK := 0.0, false
 	if a.unitsIdx >= 0 {
 		if value, ok := parseNumericValue(valueAtIndex(row, a.unitsIdx)); ok {
+			units, unitsOK = value, true
 			metrics.UnitsTotal += value
 			if isAppRow && isInitialAppDownloadProductType(valueAtIndex(row, a.productTypeIdentifierIdx)) {
 				metrics.DownloadUnitsTotal += value
@@ -732,28 +839,50 @@ func (a *salesReportAccumulator) add(row []string) {
 			}
 		}
 	}
+	if !unitsOK {
+		// Money columns are per unit, so a row without units has no amount.
+		return
+	}
 	if a.developerProceedsIdx >= 0 {
-		if value, ok := parseNumericValue(valueAtIndex(row, a.developerProceedsIdx)); ok {
-			metrics.DeveloperProceedsTotal += value
+		if perUnit, ok := parseNumericValue(valueAtIndex(row, a.developerProceedsIdx)); ok {
+			amount := salesRowAmount(units, perUnit)
+			currency := normalizeCurrencyCode(valueAtIndex(row, a.proceedsCurrencyIdx))
+			metrics.DeveloperProceedsByCurrency.add(currency, amount)
 			if isSubscriptionRow {
-				metrics.SubscriptionDeveloperProceeds += value
+				metrics.SubscriptionDeveloperProceedsByCurrency.add(currency, amount)
 			}
 			if isRenewalRow {
-				metrics.RenewalDeveloperProceeds += value
+				metrics.RenewalDeveloperProceedsByCurrency.add(currency, amount)
 			}
 		}
 	}
 	if a.customerPriceIdx >= 0 {
-		if value, ok := parseNumericValue(valueAtIndex(row, a.customerPriceIdx)); ok {
-			metrics.CustomerPriceTotal += value
-			if isSubscriptionRow {
-				metrics.SubscriptionCustomerPrice += value
-			}
-			if isRenewalRow {
-				metrics.RenewalCustomerPrice += value
-			}
+		if perUnit, ok := parseNumericValue(valueAtIndex(row, a.customerPriceIdx)); ok {
+			currency := normalizeCurrencyCode(valueAtIndex(row, a.customerCurrencyIdx))
+			metrics.CustomerPriceByCurrency.add(currency, salesRowAmount(units, perUnit))
 		}
 	}
+}
+
+// salesRowAmount turns a per-unit money column into the row's amount. Apple
+// reports Developer Proceeds and Customer Price per unit, and marks refunds
+// with negative Units: refund rows keep a positive Developer Proceeds but a
+// negative Customer Price. Units therefore carries the sign for both columns.
+// https://developer.apple.com/help/app-store-connect/reference/reporting/summary-sales-report/
+func salesRowAmount(units, perUnit float64) float64 {
+	return units * math.Abs(perUnit)
+}
+
+func normalizeCurrencyCode(value string) string {
+	return strings.ToUpper(strings.TrimSpace(value))
+}
+
+func developerProceedsAvailable(metrics salesWeekMetrics) bool {
+	return metrics.UnitsColumnPresent && metrics.DeveloperProceedsColumnPresent
+}
+
+func customerPriceAvailable(metrics salesWeekMetrics) bool {
+	return metrics.UnitsColumnPresent && metrics.CustomerPriceColumnPresent
 }
 
 func isInitialAppDownloadProductType(value string) bool {
@@ -1133,18 +1262,89 @@ func resolveSalesReason(metricName, availabilityReason string, thisAvailable, la
 	return ""
 }
 
-func metricFromOptionalTotals(name, unit string, available bool, thisValue, lastValue float64, reason string) weeklyMetric {
+func countMetricFromOptionalTotals(name string, available bool, thisValue, lastValue float64, reason string) weeklyMetric {
 	if !available {
-		return unavailableMetric(name, unit, reason)
+		return unavailableMetric(name, "count", reason)
 	}
-	return comparableMetric(name, unit, thisValue, lastValue)
+	return comparableMetric(name, "count", thisValue, lastValue)
 }
 
-func dailyMetricFromOptionalTotals(name, unit string, available bool, thisValue, previousValue float64, reason string) dailyMetric {
+func dailyCountMetricFromOptionalTotals(name string, available bool, thisValue, previousValue float64, reason string) dailyMetric {
 	if !available {
-		return unavailableDailyMetric(name, unit, reason)
+		return unavailableDailyMetric(name, "count", reason)
 	}
-	return comparableDailyMetric(name, unit, thisValue, previousValue)
+	return comparableDailyMetric(name, "count", thisValue, previousValue)
+}
+
+// weeklyCurrencyMetric reports a monetary total only when every amount in both
+// weeks is in one currency; otherwise the totals stay split in ByCurrency.
+func weeklyCurrencyMetric(name, label string, available bool, thisWeek, lastWeek CurrencyAmounts, reason string) weeklyMetric {
+	if !available {
+		return unavailableMetric(name, "currency", reason)
+	}
+	comparisons := CompareCurrencyAmounts(thisWeek, lastWeek)
+	breakdown := make([]weeklyCurrencyAmount, 0, len(comparisons))
+	for _, comparison := range comparisons {
+		compared := comparableMetric(name, "currency", comparison.Current, comparison.Previous)
+		breakdown = append(breakdown, weeklyCurrencyAmount{
+			Currency:     comparison.Currency,
+			ThisWeek:     comparison.Current,
+			LastWeek:     comparison.Previous,
+			Delta:        *compared.Delta,
+			DeltaPercent: compared.DeltaPercent,
+		})
+	}
+
+	switch len(comparisons) {
+	case 0:
+		return comparableMetric(name, "currency", 0, 0)
+	case 1:
+		metric := comparableMetric(name, "currency", comparisons[0].Current, comparisons[0].Previous)
+		if comparisons[0].Currency != "" {
+			metric.Currency = comparisons[0].Currency
+			metric.ByCurrency = breakdown
+		}
+		return metric
+	default:
+		metric := unavailableMetric(name, "currency", MixedCurrencyReason(label, comparisons))
+		metric.ByCurrency = breakdown
+		return metric
+	}
+}
+
+// dailyCurrencyMetric is weeklyCurrencyMetric for day-over-day metrics.
+func dailyCurrencyMetric(name, label string, available bool, thisDay, previousDay CurrencyAmounts, reason string) dailyMetric {
+	if !available {
+		return unavailableDailyMetric(name, "currency", reason)
+	}
+	comparisons := CompareCurrencyAmounts(thisDay, previousDay)
+	breakdown := make([]dailyCurrencyAmount, 0, len(comparisons))
+	for _, comparison := range comparisons {
+		compared := comparableDailyMetric(name, "currency", comparison.Current, comparison.Previous)
+		breakdown = append(breakdown, dailyCurrencyAmount{
+			Currency:     comparison.Currency,
+			ThisDay:      comparison.Current,
+			PreviousDay:  comparison.Previous,
+			Delta:        *compared.Delta,
+			DeltaPercent: compared.DeltaPercent,
+		})
+	}
+
+	switch len(comparisons) {
+	case 0:
+		return comparableDailyMetric(name, "currency", 0, 0)
+	case 1:
+		metric := comparableDailyMetric(name, "currency", comparisons[0].Current, comparisons[0].Previous)
+		if comparisons[0].Currency != "" {
+			metric.Currency = comparisons[0].Currency
+			metric.ByCurrency = breakdown
+		}
+		return metric
+	default:
+		metric := unavailableDailyMetric(name, "currency", MixedCurrencyReason(label, comparisons))
+		metric.ByCurrency = breakdown
+		return metric
+	}
 }
 
 func comparableMetric(name, unit string, thisValue, lastValue float64) weeklyMetric {
@@ -1341,7 +1541,7 @@ func renderWeeklyInsights(d *shared.Deps, resp *weeklyInsightsResponse, markdown
 	for _, metric := range resp.Metrics {
 		metricRows = append(metricRows, []string{
 			metric.Name,
-			shared.OrNA(metric.Unit),
+			shared.OrNA(metricUnitLabel(metric.Unit, metric.Currency)),
 			formatOptionalNumber(metric.ThisWeek),
 			formatOptionalNumber(metric.LastWeek),
 			formatOptionalNumber(metric.Delta),
@@ -1349,6 +1549,21 @@ func renderWeeklyInsights(d *shared.Deps, resp *weeklyInsightsResponse, markdown
 			metric.Status,
 			shared.OrNA(metric.Reason),
 		})
+		if metric.Status == "ok" {
+			continue // The metric row already shows its single currency.
+		}
+		for _, amount := range metric.ByCurrency {
+			metricRows = append(metricRows, []string{
+				metric.Name,
+				CurrencyLabel(amount.Currency),
+				formatOptionalNumber(&amount.ThisWeek),
+				formatOptionalNumber(&amount.LastWeek),
+				formatOptionalNumber(&amount.Delta),
+				formatOptionalNumber(amount.DeltaPercent),
+				"ok",
+				shared.OrNA(""),
+			})
+		}
 	}
 	d.RenderSection("Metrics", []string{"metric", "unit", "thisWeek", "lastWeek", "delta", "deltaPercent", "status", "reason"}, metricRows, markdown)
 }
@@ -1385,7 +1600,7 @@ func renderDailyInsights(d *shared.Deps, resp *dailyInsightsResponse, markdown b
 	for _, metric := range resp.Metrics {
 		metricRows = append(metricRows, []string{
 			metric.Name,
-			shared.OrNA(metric.Unit),
+			shared.OrNA(metricUnitLabel(metric.Unit, metric.Currency)),
 			formatOptionalNumber(metric.ThisDay),
 			formatOptionalNumber(metric.PreviousDay),
 			formatOptionalNumber(metric.Delta),
@@ -1393,8 +1608,32 @@ func renderDailyInsights(d *shared.Deps, resp *dailyInsightsResponse, markdown b
 			metric.Status,
 			shared.OrNA(metric.Reason),
 		})
+		if metric.Status == "ok" {
+			continue // The metric row already shows its single currency.
+		}
+		for _, amount := range metric.ByCurrency {
+			metricRows = append(metricRows, []string{
+				metric.Name,
+				CurrencyLabel(amount.Currency),
+				formatOptionalNumber(&amount.ThisDay),
+				formatOptionalNumber(&amount.PreviousDay),
+				formatOptionalNumber(&amount.Delta),
+				formatOptionalNumber(amount.DeltaPercent),
+				"ok",
+				shared.OrNA(""),
+			})
+		}
 	}
 	d.RenderSection("Metrics", []string{"metric", "unit", "thisDay", "previousDay", "delta", "deltaPercent", "status", "reason"}, metricRows, markdown)
+}
+
+// metricUnitLabel shows the currency code as a monetary metric's unit when
+// tables and markdown render a single-currency total.
+func metricUnitLabel(unit, currency string) string {
+	if currency != "" {
+		return currency
+	}
+	return unit
 }
 
 func formatOptionalNumber(value *float64) string {

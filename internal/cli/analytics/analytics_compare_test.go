@@ -14,6 +14,7 @@ import (
 	"flag"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -238,46 +239,40 @@ func TestGenerateReportDates_Weekly(t *testing.T) {
 
 func TestAggregateSalesMetrics(t *testing.T) {
 	a := insights.SalesMetrics{
-		RowCount:                       2,
-		UnitsColumnPresent:             true,
-		DownloadUnitsAvailable:         true,
-		DeveloperProceedsColumnPresent: true,
-		CustomerPriceColumnPresent:     true,
-		SubscriptionColumnPresent:      true,
-		UnitsTotal:                     10,
-		DownloadUnitsTotal:             5,
-		MonetizedUnitsTotal:            3,
-		DeveloperProceedsTotal:         8.50,
-		CustomerPriceTotal:             12.00,
-		SubscriptionRows:               1,
-		SubscriptionUnitsTotal:         2,
-		SubscriptionDeveloperProceeds:  1.50,
-		SubscriptionCustomerPrice:      2.00,
-		RenewalRows:                    1,
-		RenewalUnitsTotal:              1,
-		RenewalDeveloperProceeds:       0.75,
-		RenewalCustomerPrice:           1.00,
+		RowCount:                           2,
+		UnitsColumnPresent:                 true,
+		DownloadUnitsAvailable:             true,
+		DeveloperProceedsColumnPresent:     true,
+		CustomerPriceColumnPresent:         true,
+		SubscriptionColumnPresent:          true,
+		UnitsTotal:                         10,
+		DownloadUnitsTotal:                 5,
+		MonetizedUnitsTotal:                3,
+		DeveloperProceedsByCurrency:        insights.CurrencyAmounts{"USD": 8.50},
+		CustomerPriceByCurrency:            insights.CurrencyAmounts{"USD": 12.00},
+		SubscriptionRows:                   1,
+		SubscriptionUnitsTotal:             2,
+		RenewalRows:                        1,
+		RenewalUnitsTotal:                  1,
+		RenewalDeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 0.75},
 	}
 	b := insights.SalesMetrics{
-		RowCount:                       3,
-		UnitsColumnPresent:             true,
-		DownloadUnitsAvailable:         true,
-		DeveloperProceedsColumnPresent: true,
-		CustomerPriceColumnPresent:     true,
-		SubscriptionColumnPresent:      true,
-		UnitsTotal:                     20,
-		DownloadUnitsTotal:             10,
-		MonetizedUnitsTotal:            7,
-		DeveloperProceedsTotal:         15.00,
-		CustomerPriceTotal:             25.00,
-		SubscriptionRows:               2,
-		SubscriptionUnitsTotal:         4,
-		SubscriptionDeveloperProceeds:  3.00,
-		SubscriptionCustomerPrice:      5.00,
-		RenewalRows:                    1,
-		RenewalUnitsTotal:              2,
-		RenewalDeveloperProceeds:       1.50,
-		RenewalCustomerPrice:           2.00,
+		RowCount:                           3,
+		UnitsColumnPresent:                 true,
+		DownloadUnitsAvailable:             true,
+		DeveloperProceedsColumnPresent:     true,
+		CustomerPriceColumnPresent:         true,
+		SubscriptionColumnPresent:          true,
+		UnitsTotal:                         20,
+		DownloadUnitsTotal:                 10,
+		MonetizedUnitsTotal:                7,
+		DeveloperProceedsByCurrency:        insights.CurrencyAmounts{"USD": 15.00, "JPY": 900},
+		CustomerPriceByCurrency:            insights.CurrencyAmounts{"USD": 25.00},
+		SubscriptionRows:                   2,
+		SubscriptionUnitsTotal:             4,
+		RenewalRows:                        1,
+		RenewalUnitsTotal:                  2,
+		RenewalDeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 1.50},
 	}
 
 	result := aggregateSalesMetrics(a, b)
@@ -290,14 +285,17 @@ func TestAggregateSalesMetrics(t *testing.T) {
 	if result.DownloadUnitsTotal != 15 {
 		t.Fatalf("expected DownloadUnitsTotal=15, got %.2f", result.DownloadUnitsTotal)
 	}
-	if result.DeveloperProceedsTotal != 23.50 {
-		t.Fatalf("expected DeveloperProceedsTotal=23.50, got %.2f", result.DeveloperProceedsTotal)
+	if want := (insights.CurrencyAmounts{"USD": 23.50, "JPY": 900}); !reflect.DeepEqual(result.DeveloperProceedsByCurrency, want) {
+		t.Fatalf("expected DeveloperProceedsByCurrency=%v, got %v", want, result.DeveloperProceedsByCurrency)
+	}
+	if a.DeveloperProceedsByCurrency["USD"] != 8.50 {
+		t.Fatalf("aggregation modified its input: %v", a.DeveloperProceedsByCurrency)
 	}
 	if result.RenewalRows != 2 {
 		t.Fatalf("expected RenewalRows=2, got %d", result.RenewalRows)
 	}
-	if result.RenewalDeveloperProceeds != 2.25 {
-		t.Fatalf("expected RenewalDeveloperProceeds=2.25, got %.2f", result.RenewalDeveloperProceeds)
+	if got := result.RenewalDeveloperProceedsByCurrency["USD"]; got != 2.25 {
+		t.Fatalf("expected USD renewal developer proceeds=2.25, got %.2f", got)
 	}
 }
 
@@ -309,8 +307,8 @@ func TestAggregateSalesMetrics_RequiresFullColumnCoverage(t *testing.T) {
 		CustomerPriceColumnPresent:     true,
 		SubscriptionColumnPresent:      true,
 		UnitsTotal:                     10,
-		DeveloperProceedsTotal:         8.50,
-		CustomerPriceTotal:             12.00,
+		DeveloperProceedsByCurrency:    insights.CurrencyAmounts{"USD": 8.50},
+		CustomerPriceByCurrency:        insights.CurrencyAmounts{"USD": 12.00},
 	}
 	b := insights.SalesMetrics{
 		RowCount:                       3,
@@ -347,8 +345,8 @@ func TestBuildCompareMetrics(t *testing.T) {
 		UnitsTotal:                     100,
 		DownloadUnitsTotal:             50,
 		MonetizedUnitsTotal:            30,
-		DeveloperProceedsTotal:         200.00,
-		CustomerPriceTotal:             300.00,
+		DeveloperProceedsByCurrency:    insights.CurrencyAmounts{"USD": 200.00},
+		CustomerPriceByCurrency:        insights.CurrencyAmounts{"USD": 300.00, "EUR": 90.00},
 	}
 	comparison := insights.SalesMetrics{
 		RowCount:                       8,
@@ -360,11 +358,20 @@ func TestBuildCompareMetrics(t *testing.T) {
 		UnitsTotal:                     150,
 		DownloadUnitsTotal:             80,
 		MonetizedUnitsTotal:            50,
-		DeveloperProceedsTotal:         300.00,
-		CustomerPriceTotal:             400.00,
+		DeveloperProceedsByCurrency:    insights.CurrencyAmounts{"USD": 300.00},
+		CustomerPriceByCurrency:        insights.CurrencyAmounts{"USD": 450.00},
 	}
 
 	metrics := buildCompareMetrics(baseline, comparison)
+	// One currency keeps a single total; several currencies are never summed.
+	assertCompareMetricJSON(t, metrics, "developer_proceeds", `{"name":"developer_proceeds","unit":"currency","currency":"USD",
+		"baseline":200,"comparison":300,"delta":100,"deltaPercent":50,"status":"ok",
+		"byCurrency":[{"currency":"USD","baseline":200,"comparison":300,"delta":100,"deltaPercent":50}]}`)
+	assertCompareMetricJSON(t, metrics, "customer_price", `{"name":"customer_price","unit":"currency","status":"unavailable",
+		"reason":"customer price totals are in multiple currencies (EUR, USD) and cannot be summed; totals are reported per currency",
+		"byCurrency":[{"currency":"EUR","baseline":90,"comparison":0,"delta":-90,"deltaPercent":-100},
+			{"currency":"USD","baseline":300,"comparison":450,"delta":150,"deltaPercent":50}]}`)
+
 	found := false
 	for _, m := range metrics {
 		if m.Name == "download_units" {
@@ -475,6 +482,13 @@ func TestFetchAndAggregate_SingleReportKeepsAvailableColumns(t *testing.T) {
 	}
 	if !metrics.CustomerPriceColumnPresent {
 		t.Fatal("expected customer price column to be available")
+	}
+	// The fixture row is 2 units at 3.00 proceeds and 4.00 customer price each.
+	if got := metrics.DeveloperProceedsByCurrency["USD"]; got != 6 {
+		t.Fatalf("expected USD developer proceeds=6, got %v", metrics.DeveloperProceedsByCurrency)
+	}
+	if got := metrics.CustomerPriceByCurrency["USD"]; got != 8 {
+		t.Fatalf("expected USD customer price=8, got %v", metrics.CustomerPriceByCurrency)
 	}
 }
 
@@ -603,6 +617,31 @@ func TestCompareResponseJSONStructure(t *testing.T) {
 	if !ok || len(metrics) != 1 {
 		t.Fatalf("expected 1 metric, got %v", parsed["metrics"])
 	}
+}
+
+func assertCompareMetricJSON(t *testing.T, metrics []compareMetric, name, wantJSON string) {
+	t.Helper()
+	for _, m := range metrics {
+		if m.Name != name {
+			continue
+		}
+		data, err := json.Marshal(m)
+		if err != nil {
+			t.Fatalf("json.Marshal error: %v", err)
+		}
+		var got, want any
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatalf("json.Unmarshal error: %v", err)
+		}
+		if err := json.Unmarshal([]byte(wantJSON), &want); err != nil {
+			t.Fatalf("unmarshal want: %v", err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s mismatch\n got: %s\nwant: %s", name, data, wantJSON)
+		}
+		return
+	}
+	t.Fatalf("expected %s metric in output", name)
 }
 
 func gzipCompareText(t *testing.T, value string) []byte {
