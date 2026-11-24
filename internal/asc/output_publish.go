@@ -15,6 +15,15 @@ type TestNotesRecovery struct {
 	Arguments      []string `json:"arguments"`
 }
 
+// TestFlightNotificationRecovery describes a scoped action when notification delivery is not established.
+type TestFlightNotificationRecovery struct {
+	BuildID   string   `json:"buildId"`
+	State     string   `json:"state"`
+	Message   string   `json:"message"`
+	Command   string   `json:"command"`
+	Arguments []string `json:"arguments"`
+}
+
 func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][]string) {
 	headers := []string{"Build ID", "Version", "Build Number", "Processing", "Groups", "Uploaded", "Notified", "Notification Action", "Beta Review Submitted", "Beta Review Submission ID"}
 	notified := ""
@@ -38,6 +47,11 @@ func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][
 		result.BetaReviewSubmissionID,
 	}
 	rows := [][]string{row}
+	if result.NotificationRecovery != nil {
+		recovery := result.NotificationRecovery
+		headers = append(headers, "Notification State", "Notification Recovery")
+		rows[0] = append(rows[0], recovery.State, recovery.Message+" "+recovery.Command+" "+strings.Join(recovery.Arguments, " "))
+	}
 	if result.UploadOnly {
 		headers = append(headers, "Upload Only")
 		rows[0] = append(rows[0], "true")

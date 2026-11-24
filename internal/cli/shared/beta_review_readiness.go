@@ -216,3 +216,64 @@ func appendMissingBetaReviewDetailInfo(missing, fixes []string, detail asc.Resou
 	}
 	return missing, fixes
 }
+
+// CheckBuildAppOwnership verifies the selected app before acting on an existing build.
+func CheckBuildAppOwnership(ctx context.Context, client betaReviewReadinessClient, appID, buildID string) error {
+	app, err := client.GetBuildApp(ctx, buildID)
+	if err != nil {
+		return fmt.Errorf("read build app: %w", err)
+	}
+	if app == nil || app.Data.Type != "apps" || app.Data.ID != appID {
+		return fmt.Errorf("build %s does not belong to app %s", buildID, appID)
+	}
+	return nil
+}
+
+// CheckBuildBetaReviewReadiness checks external testing requirements before mutations.
+func CheckBuildBetaReviewReadiness(ctx context.Context, client buildBetaReviewSubmissionClient, appID, buildID string) error {
+	submission, err := client.GetBuildBetaAppReviewSubmission(ctx, buildID)
+	if err == nil {
+		if submission == nil || strings.TrimSpace(submission.Data.ID) == "" {
+			return fmt.Errorf("beta review submission response is missing its ID")
+		}
+		return nil
+	}
+	if !asc.IsNotFound(err) {
+		return fmt.Errorf("read beta review submission: %w", err)
+	}
+	first, err := client.GetBetaAppLocalizations(ctx, asc.WithBetaAppLocalizationAppIDs([]string{appID}))
+	if err != nil {
+		return fmt.Errorf("read beta app localizations: %w", err)
+	}
+	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
+		return client.GetBetaAppLocalizations(ctx, asc.NextURL[asc.BetaAppLocalizationsOption](next))
+	})
+	if err != nil {
+		return err
+	}
+	localizations, ok := all.(*asc.BetaAppLocalizationsResponse)
+	if !ok || localizations == nil {
+		return fmt.Errorf("invalid beta app localizations response")
+	}
+	details, err := client.GetBetaAppReviewDetails(ctx, asc.WithBetaAppReviewDetailsAppID(appID))
+	if err != nil {
+		return fmt.Errorf("read beta review details: %w", err)
+	}
+	beta, err := client.GetBuildBuildBetaDetail(ctx, buildID)
+	if err != nil {
+		return fmt.Errorf("read beta build details: %w", err)
+	}
+	missing, _ := appendMissingBetaLocalizationInfo(nil, nil, appID, localizations.Data)
+	if details == nil || len(details.Data) == 0 {
+		missing = append(missing, "beta app review details")
+	} else {
+		missing, _ = appendMissingBetaReviewDetailInfo(missing, nil, details.Data[0])
+	}
+	if beta != nil && strings.EqualFold(strings.TrimSpace(beta.Data.Attributes.ExternalBuildState), externalBetaStateMissingExportCompliance) {
+		missing = append(missing, "export compliance")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("external testing requires %s before groups can be assigned or testers notified", strings.Join(missing, ", "))
+	}
+	return nil
+}

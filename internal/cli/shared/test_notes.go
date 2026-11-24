@@ -235,6 +235,10 @@ func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildI
 			if !strings.EqualFold(strings.TrimSpace(localization.Attributes.Locale), localeValue) {
 				continue
 			}
+			if strings.TrimSpace(localization.ID) != "" && strings.TrimSpace(localization.Attributes.WhatsNew) == notesValue {
+				return &asc.BetaBuildLocalizationResponse{Data: localization}, nil
+			}
+
 			foundLocale = true
 			localizationID = strings.TrimSpace(localization.ID)
 			break
