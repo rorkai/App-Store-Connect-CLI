@@ -88,7 +88,6 @@ func resolveWebSessionForCommandWith(ctx context.Context, d *shared.Deps, flags 
 	if err != nil {
 		return nil, requestCtx, cancel, err
 	}
-	selection.RefuseSwitchUnder = providerSwitchRefusalSetting(flags.flagSet)
 	if err := selectResolvedWebSessionProviderWith(requestCtx, d, session, selection); err != nil {
 		return nil, requestCtx, cancel, err
 	}
@@ -120,8 +119,9 @@ func providerSelectionFromFlags(flags webSessionFlags) webcore.ProviderSelection
 		publicProviderID = *flags.publicProviderID
 	}
 	return webcore.ProviderSelection{
-		ProviderID:       providerID,
-		PublicProviderID: publicProviderID,
+		ProviderID:        providerID,
+		PublicProviderID:  publicProviderID,
+		RefuseSwitchUnder: providerSwitchRefusalSetting(flags.flagSet),
 	}
 }
 

@@ -6,9 +6,8 @@ session with `POST /olympus/v1/session` and caches it on the new provider. Every
 later `asc web` command that uses the cache then runs on that provider.
 
 That switch is now refused under read-only mode (`--read-only` or
-`ASC_READ_ONLY`) and under a web command's `--dry-run`. The command reads the
-session, sends no switch request, keeps the session cached on its current
-provider, and stops:
+`ASC_READ_ONLY`) and under a web command's `--dry-run`. The command refuses
+the requested switch and keeps the session on its existing provider:
 
 ```text
 $ ASC_READ_ONLY=1 asc web apps declarations list --app APP_ID --provider-id 222222
@@ -26,9 +25,10 @@ Unchanged:
 
 - Signing in (password, two-factor code, trusting the browser, resuming a
   cached session) still works under read-only mode and `--dry-run`.
-- After an automatic re-sign-in, the session is still returned to the provider
-  its expired cached session was on. That restores the session's provider rather
-  than choosing a new one.
+- When a cached session needs a new sign-in, protected commands with a provider
+  flag restore the saved provider for the same Apple Account before checking
+  the requested provider. This includes sessions whose cookies have all expired
+  locally. Apple starts the sign-in on the account's default provider.
 - Brokered web sessions keep their own refusal.
 
 ## Migration

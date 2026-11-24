@@ -1047,7 +1047,7 @@ type webSessionResolveOptions struct {
 	persistFresh         func(*webcore.AuthSession) error
 	persistAutoReauth    func(*webcore.AuthSession)
 	twoFactorCodeCommand string
-	providerSelected     bool
+	providerSelection    webcore.ProviderSelection
 }
 
 func tryResumeKnownWebSession(ctx context.Context, d *shared.Deps, appleID string) (*webcore.AuthSession, bool, bool, error) {
@@ -1178,6 +1178,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 		return nil, "", err
 	}
 	ctx = contextWithTwoFactorPreference(ctx, twoFactorPreference)
+	providerSelected := hasProviderSelection(opts.providerSelection)
+	protectedProviderSelection := providerSelected && opts.providerSelection.RefuseSwitchUnder != ""
+	restoreCachedProvider := !providerSelected || protectedProviderSelection
 
 	resolvedAppleID := strings.TrimSpace(appleID)
 	// ASC_WEB_APPLE_ID sits between the flag and the cached-session default: it
@@ -1312,6 +1315,9 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 			return resumed, "cache", true, nil
 		}
 		if !cacheExpired {
+			if protectedProviderSelection && resumed != nil && resumed.Client == nil && targetAppleID != "" && strings.EqualFold(resumed.UserEmail, targetAppleID) {
+				cachedProviderSession = resumed
+			}
 			return nil, "", false, nil
 		}
 
@@ -1364,7 +1370,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 		session, twoFactorStarted, loginErr := loginWithOptionalTwoFactorClientTracked(ctx, d, expiredCachedSession.Client, reauthAppleID, silentPassword.value, twoFactorCode, readCommandTwoFactorCode, command)
 		policy.observe(reauthAppleID, loginErr, twoFactorStarted)
 		if loginErr == nil {
-			if !opts.providerSelected {
+			if restoreCachedProvider {
 				if err := restoreCachedWebProvider(ctx, d, session, expiredCachedSession); err != nil {
 					return nil, "", false, err
 				}
@@ -1611,7 +1617,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 		return nil, "", err
 	}
 	persistPromptedWebPassword(d, resolvedAppleID, resolvedPassword)
-	if !opts.providerSelected {
+	if restoreCachedProvider {
 		if err := restoreCachedWebProvider(ctx, d, session, cachedProviderSession); err != nil {
 			return nil, "", err
 		}
@@ -1683,7 +1689,7 @@ func restoreCachedWebProvider(ctx context.Context, d *shared.Deps, session, cach
 		providerCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 		defer cancel()
 		if err := selectWebProviderFn(providerCtx, session, webcore.ProviderSelection{ProviderID: cached.ProviderID}); err != nil {
-			return fmt.Errorf("web auth signed in, but could not switch back to provider %d used by the cached web session: %w; pass --provider-id to choose the provider for this command", cached.ProviderID, err)
+			return fmt.Errorf("web auth signed in, but could not switch back to provider %d used by the cached web session: %w; run 'asc web auth login --provider-id ID' outside read-only mode to choose another provider", cached.ProviderID, err)
 		}
 	}
 	session.DeveloperTeamID = cached.DeveloperTeamID
@@ -1751,18 +1757,6 @@ func resolveSession(ctx context.Context, d *shared.Deps, appleID, password, twoF
 	})
 }
 
-func resolveSessionWithoutPersist(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
-	command := ""
-	if len(twoFactorCodeCommand) > 0 {
-		command = twoFactorCodeCommand[0]
-	}
-	return resolveWebSessionWith(ctx, d, appleID, password, twoFactorCode, webSessionResolveOptions{
-		resolvePassword:      resolveSessionPassword,
-		twoFactorCodeCommand: command,
-		providerSelected:     true,
-	})
-}
-
 func hasProviderSelection(selection webcore.ProviderSelection) bool {
 	return selection.ProviderID != 0 || strings.TrimSpace(selection.PublicProviderID) != ""
 }
@@ -1775,7 +1769,11 @@ func callResolveSessionForProviderSelectionWith(ctx context.Context, d *shared.D
 		return callResolveSessionFn(ctx, d, appleID, password, twoFactorCode, twoFactorCodeCommand)
 	}
 	if resolveSessionWithoutPersistFn == nil {
-		return resolveSessionWithoutPersist(ctx, d, appleID, password, twoFactorCode, twoFactorCodeCommand)
+		return resolveWebSessionWith(ctx, d, appleID, password, twoFactorCode, webSessionResolveOptions{
+			resolvePassword:      resolveSessionPassword,
+			twoFactorCodeCommand: twoFactorCodeCommand,
+			providerSelection:    selection,
+		})
 	}
 	return callSessionResolverHook(ctx, resolveSessionWithoutPersistFn, "resolveSessionWithoutPersistFn", appleID, password, twoFactorCode, twoFactorCodeCommand)
 }
@@ -1817,8 +1815,8 @@ func newWebAuthLoginCommand(d *shared.Deps) *ffcli.Command {
 	appleID := fs.String("apple-id", "", "Apple Account email (defaults to "+webAppleIDEnv+", then the last or only cached session)")
 	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
 	twoFactorDelivery := bindTwoFactorDeliveryFlags(fs)
-	providerID := fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session (refused under --read-only or --dry-run when it names another provider)")
-	publicProviderID := fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session (refused under --read-only or --dry-run when it names another provider)")
+	providerID := fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session (refused in read-only mode when it names another provider)")
+	publicProviderID := fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session (refused in read-only mode when it names another provider)")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -1925,8 +1923,9 @@ Examples:
 				return err
 			}
 			selection := webcore.ProviderSelection{
-				ProviderID:       *providerID,
-				PublicProviderID: *publicProviderID,
+				ProviderID:        *providerID,
+				PublicProviderID:  *publicProviderID,
+				RefuseSwitchUnder: providerSwitchRefusalSetting(nil),
 			}
 			signInCtx := contextWithTwoFactorPreference(contextForWebSignIn(ctx), preference)
 			session, source, err := callResolveSessionForProviderSelectionWith(signInCtx, d, *appleID, "", "", *twoFactorCodeCommand, selection)
@@ -1939,7 +1938,6 @@ Examples:
 			requestCtx, cancel := newWebRequestContextWith(ctx, d)
 			defer cancel()
 
-			selection.RefuseSwitchUnder = providerSwitchRefusalSetting(nil)
 			if err := selectResolvedWebSessionProviderWith(requestCtx, d, session, selection); err != nil {
 				return err
 			}

@@ -2503,7 +2503,7 @@ func resumeFromPersistedSession(ctx context.Context, sess persistedSession) (*Au
 	}
 	loaded := hydrateCookieJar(jar, sess)
 	if loaded == 0 {
-		return nil, false, nil
+		return cachedProviderMetadata(sess), false, nil
 	}
 	client := newWebHTTPClient(newSessionCookieTrackingJarWithCached(jar, &sess), http.DefaultTransport)
 	info, err := sessionInfoFetcher(ctx, client)
@@ -2513,7 +2513,7 @@ func resumeFromPersistedSession(ctx context.Context, sess persistedSession) (*Au
 			// directly instead of burying it inside transport-specific context.
 			return nil, false, ErrCachedSessionExpired
 		}
-		return nil, false, nil
+		return cachedProviderMetadata(sess), false, nil
 	}
 	if err := validateCachedSessionAccount(sess.UserEmail, info); err != nil {
 		return nil, false, err
@@ -2528,6 +2528,18 @@ func resumeFromPersistedSession(ctx context.Context, sess persistedSession) (*Au
 	applySessionInfo(session, info)
 	session.DeveloperTeamID = strings.TrimSpace(sess.DeveloperTeamID)
 	return session, true, nil
+}
+
+func cachedProviderMetadata(sess persistedSession) *AuthSession {
+	appleID := strings.TrimSpace(sess.UserEmail)
+	if appleID == "" || sess.ProviderID <= 0 {
+		return nil
+	}
+	return &AuthSession{
+		UserEmail:       appleID,
+		ProviderID:      sess.ProviderID,
+		DeveloperTeamID: strings.TrimSpace(sess.DeveloperTeamID),
+	}
 }
 
 func validatePersistedSessionReadOnly(ctx context.Context, sess persistedSession, transport http.RoundTripper) (*http.Client, *sessionInfo, bool, error) {
@@ -2802,6 +2814,7 @@ func ResumeCachedSessionWithoutPersist(ctx context.Context, username string, tra
 }
 
 // TryResumeSession attempts to resume a session for a specific Apple ID.
+// An unusable session may return provider metadata with ok=false and no client.
 func TryResumeSession(ctx context.Context, username string) (*AuthSession, bool, error) {
 	return TryResumeSessionFromSource(ctx, username, CachedSessionSourceUnknown)
 }
@@ -2940,7 +2953,7 @@ func TryResumeLastSession(ctx context.Context) (*AuthSession, bool, error) {
 		resumed.cachedSource = cachedSessionSourceForOrigin(origin)
 	}
 	if err != nil || !ok || resumed == nil {
-		return resumed, ok, err
+		return nil, ok, err
 	}
 	// Best effort: persist refreshed cookies after successful session validation.
 	_ = PersistSession(resumed)
