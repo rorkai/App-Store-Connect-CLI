@@ -12,7 +12,6 @@ The CLI provides access to:
 * **Sales Reports**: Daily, weekly, and monthly sales data
 * **Analytics Reports**: App usage, crashes, and performance metrics
 * **Financial Reports**: Revenue and payment information
-* **Custom Analytics**: Request specific metrics and segments
 
 ## Sales Reports
 
@@ -130,32 +129,32 @@ Request custom analytics reports for detailed app metrics.
 
 ### Download Analytics Data
 
-Download the actual report data:
+Download every segment to get the complete report instance. App Store Connect can split one instance across several files. See [Apple's Analytics Reports documentation](https://developer.apple.com/documentation/analytics-reports).
 
 ```bash
 asc analytics download \
   --request-id "REQUEST_ID" \
   --instance-id "INSTANCE_ID" \
-  --output "./analytics-report.csv"
+  --all-segments \
+  --output-dir "./analytics-report" \
+  --decompress
 ```
+
+Choose a new output directory under an existing parent. The command publishes it once every segment is ready and lists each file in the receipt. Use `--decompress` to keep both the original gzip files and their decompressed copies.
 
 ### Analytics Report Segments
 
-Segment analytics by various dimensions:
+List segment IDs for an instance or inspect a specific segment's metadata.
 
 ```bash
+asc analytics instances links --instance-id "INSTANCE_ID" --paginate
+
 asc analytics segments view \
   --segment-id "SEGMENT_ID" \
   --output json
 ```
 
-Common segments include:
-
-* App version
-* Device type
-* Platform version
-* Territory
-* Source type
+Use `asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --segment-id "SEGMENT_ID"` to download one segment.
 
 ## Financial Reports
 
@@ -243,7 +242,8 @@ if [ -n "$REQUEST_ID" ] && [ "$REQUEST_ID" != "null" ]; then
     asc analytics download \
       --request-id "$REQUEST_ID" \
       --instance-id "$INSTANCE_ID" \
-      --output "$REPORT_DIR/analytics-$INSTANCE_ID.csv"
+      --all-segments \
+      --output-dir "$REPORT_DIR/analytics-$INSTANCE_ID"
   done
 fi
 

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -140,7 +142,7 @@ func newWebAppsComplianceSetCommand(d *shared.Deps) *ffcli.Command {
 	var thirdParty shared.OptionalBool
 	fs.Var(&thirdParty, "third-party-technology", "Whether third-party technology powers the app's AI features: true or false (AI_GENERATED_CONTENT with --declared true)")
 	authorization := fs.String("third-party-authorization", "", "Authorization or usage agreement from the third-party technology (file; with --third-party-technology true)")
-	dryRun := fs.Bool("dry-run", false, "Check the answer against Apple's form without saving")
+	dryRun := fs.Bool("dry-run", false, "Check the answer and file types locally; only the requirements list is read from Apple, and Apple's own form checks run only with --confirm")
 	confirm := fs.Bool("confirm", false, "Confirm saving the declaration (required unless --dry-run)")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
@@ -171,9 +173,14 @@ outcome is unknown; check ` + "`asc web apps compliance list`" + ` before retryi
 The command fills Apple's form step by step and saves only when it can answer
 every field the form asks for; otherwise it stops without saving. A requirement
 at ` + "`COLLECTED_VERIFY_PENDING`" + ` is read-only until Apple finishes verifying it.
-Use ` + "`--dry-run`" + ` to check an answer and its files against the form without
-saving. Apple verifies an affirmative answer, so its status stays
-` + "`COLLECTED_VERIFY_PENDING`" + ` after a save.
+` + "`--dry-run`" + ` checks the answer and file types locally; Apple's own form checks
+run only with ` + "`--confirm`" + `. A dry run reads the requirement's state but sends
+no answer and no file to Apple, because Apple's form takes them with every
+step. So a first ` + "`--confirm`" + ` can still be refused by Apple's form, for a field
+or file type only the form asks about; nothing is saved then. Read-only mode
+(` + "`ASC_READ_ONLY`" + ` or ` + "`--read-only`" + `) allows ` + "`--dry-run`" + ` and refuses a
+save before reading the files. Apple verifies an affirmative answer, so
+its status stays ` + "`COLLECTED_VERIFY_PENDING`" + ` after a save.
 
 Examples:
   asc web apps compliance set --app "6748252780" --requirement SECURITY_ASSESSMENT --declared false --confirm
@@ -236,6 +243,13 @@ Examples:
 			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
+			// Every form step sends the answer, so read-only mode refuses a save
+			// before the evidence files are read or a session is resolved.
+			if !*dryRun {
+				if err := readonly.Check(ctx, http.MethodPost, "App Compliance form for app "+resolvedAppID); err != nil {
+					return err
+				}
+			}
 
 			for _, evidence := range []struct {
 				flag string
@@ -261,9 +275,11 @@ Examples:
 			if err != nil {
 				return err
 			}
+			hasEvidence := declaration.Proof != nil || declaration.Report != nil || declaration.ThirdPartyAuthorization != nil
 			// Evidence files are uploaded twice (the last form step and the
 			// save), so they get the upload budget instead of the request one.
-			if declaration.Proof != nil || declaration.Report != nil || declaration.ThirdPartyAuthorization != nil {
+			// A dry run uploads nothing.
+			if hasEvidence && !*dryRun {
 				uploadCtx, uploadCancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
 				defer uploadCancel()
 				requestCtx = uploadCtx
@@ -286,6 +302,15 @@ Examples:
 				return fmt.Errorf("web apps compliance set failed: missing declaration result")
 			}
 
+			if *dryRun {
+				// Apple's form takes the answer and its evidence with every step,
+				// so a dry run checks them locally and sends neither.
+				note := "Dry run: the answer was not sent to Apple; only the requirements list was read."
+				if hasEvidence {
+					note = "Dry run: the answer and its evidence files were not sent to Apple; only the requirements list was read."
+				}
+				fmt.Fprintln(d.IO.ErrOut, note)
+			}
 			receipt := asc.WebAppComplianceDeclarationResult(*result)
 			return d.PrintOutput(&receipt, *output.Output, *output.Pretty)
 		},

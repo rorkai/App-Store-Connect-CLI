@@ -562,6 +562,11 @@ Workflow:
 5. Attach the build to the version
 6. Optionally submit for review with --submit --confirm
 
+If the version is already in a draft review submission that also holds
+subscription items, --submit sends them to App Review with the version: it
+names each one on stderr before submitting, and the JSON receipt lists every
+submitted item in reviewItems.
+
 Use ` + "`asc release stage`" + ` when you want metadata-driven preparation without
 submission. Use ` + "`asc validate`" + ` to run readiness checks before you add
 ` + "`--submit`" + `. Use ` + "`--dry-run`" + ` to preview the planned mutation
@@ -923,6 +928,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
+				result.ReviewItems = submitResult.ReviewItems
 				if submitResult.BuildAttachment != nil {
 					result.Attached = submitResult.BuildAttachment.Attached || submitResult.BuildAttachment.AlreadyAttached
 				}

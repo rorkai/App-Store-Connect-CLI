@@ -1,22 +1,18 @@
-# `asc builds upload --reserve-only`; `--dry-run` stops reserving in 7.4.0
+# Build upload reservation and dry-run transition
 
-Changed in 7.3.2. `asc builds upload --dry-run` has always created a build
-upload in App Store Connect (`POST /v1/buildUploads` and
-`POST /v1/buildUploadFiles`) and printed its upload operations without sending
-the file. That is a write to your account, not a dry run.
-
-7.3.2 adds `--reserve-only`, which does exactly what `--dry-run` did, with the
-same output and exit codes:
+7.4.0 adds `--reserve-only` to create a build upload in App Store Connect
+(`POST /v1/buildUploads` and `POST /v1/buildUploadFiles`) and print its upload
+operations without sending the file. This is the behavior of `--dry-run`
+through 7.4.0.
 
 ```bash
 asc builds upload --app "123456789" --ipa "app.ipa" --reserve-only
 ```
 
-`--dry-run` still reserves the upload in 7.3.2, and prints this warning on
-stderr before the first request:
+`--dry-run` emits the following warning on stderr before the first request.
 
 ```text
-Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). From 7.4.0, --dry-run sends nothing to App Store Connect and only checks the artifact locally; use --reserve-only to keep reserving the upload.
+Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). In a future release, --dry-run will check the artifact locally without contacting App Store Connect. Use --reserve-only to keep reserving uploads.
 ```
 
 stdout and exit codes are unchanged. `--dry-run` and `--reserve-only` together
@@ -24,7 +20,7 @@ exit with usage code `2`, and `--reserve-only` rejects `--concurrency`,
 `--checksum`, `--wait`, `--test-notes` and `--verify-timeout` the way
 `--dry-run` does.
 
-## Changed in 7.4.0: `--dry-run` sends nothing
+## After 7.4.0: `--dry-run` sends nothing
 
 `asc builds upload --dry-run` sends nothing to App Store Connect, not even the
 app read. It checks the artifact, the IPA's bundle ID, version, build number and
@@ -45,13 +41,14 @@ Dry run: checked app.ipa locally; nothing was sent to App Store Connect. The app
 ```
 
 Exit codes: `0` when the local checks pass, `2` for the same flag conflicts as
-before, `3` when no credentials are configured. The 7.3.2 warning is gone.
+before, `3` when no credentials are configured. The warning above is gone.
 `--reserve-only` is unchanged.
 
 ## Migration
 
 - If a script uses `--dry-run` to get an upload ID or upload operations, switch
   to `--reserve-only` now. Its output is the same.
-- If a script uses `--dry-run` as a preflight check, keep it. From 7.4.0 it no
-  longer creates a build upload in your account. Add `--reserve-only` to a
-  preflight that must also confirm the IPA belongs to the app.
+- If a script uses `--dry-run` as a preflight check, keep it. It still creates
+  an upload reservation in 7.4.0; once `--dry-run` sends nothing it no longer
+  creates a build upload in your account. Add `--reserve-only` to a preflight
+  that must also confirm the IPA belongs to the app.

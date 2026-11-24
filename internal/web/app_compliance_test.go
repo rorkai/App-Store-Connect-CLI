@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 func TestListAppComplianceRequirements(t *testing.T) {
@@ -264,7 +267,7 @@ func TestSetAppComplianceDeclaration(t *testing.T) {
 			},
 		},
 		{
-			name:        "dry run walks the form without saving",
+			name:        "dry run reads the requirement without saving",
 			declaration: AppComplianceDeclaration{Requirement: "AI_GENERATED_CONTENT", DryRun: true},
 			wantResult: AppComplianceDeclarationResult{
 				AppID: "app-123", RequirementID: "req-ai", RequirementName: "AI_GENERATED_CONTENT",
@@ -412,5 +415,89 @@ func TestSetAppComplianceDeclarationWithEvidence(t *testing.T) {
 				t.Fatalf("declaration was not saved; requests: %v", transport.deadlines)
 			}
 		})
+	}
+}
+
+// getOnlyTransport fails the test on any request that is not a GET or that
+// carries a body, so nothing the user answered can leave the machine.
+type getOnlyTransport struct {
+	t    *testing.T
+	base http.RoundTripper
+	sent []string
+}
+
+func (g *getOnlyTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	g.sent = append(g.sent, r.Method+" "+r.URL.Path)
+	if r.Method != http.MethodGet || (r.Body != nil && r.Body != http.NoBody) {
+		g.t.Errorf("request sent under dry run or read-only mode: %s %s", r.Method, r.URL.Path)
+	}
+	return g.base.RoundTrip(r)
+}
+
+func TestSetAppComplianceDeclarationSendsNothingUnderDryRunOrReadOnly(t *testing.T) {
+	pdf := &AppComplianceFile{Name: "doc.pdf", Data: []byte("evidence")}
+	declarations := map[string]AppComplianceDeclaration{
+		"security assessment with evidence": {Requirement: "SECURITY_ASSESSMENT", Declared: true, Proof: pdf, Report: pdf},
+		"AI content with authorization": {
+			Requirement: "AI_GENERATED_CONTENT", Declared: true, FilingType: "LLM", FilingName: "Example Model",
+			FilingNumber: "Example-0000", ThirdPartyTechnology: true, ThirdPartyAuthorization: pdf,
+		},
+		"negative answer": {Requirement: "SECURITY_ASSESSMENT"},
+	}
+	for _, mode := range []struct {
+		name     string
+		dryRun   bool
+		readOnly bool
+	}{
+		{name: "dry run", dryRun: true},
+		{name: "read-only", readOnly: true},
+		{name: "dry run in read-only mode", dryRun: true, readOnly: true},
+	} {
+		for name, declaration := range declarations {
+			t.Run(mode.name+"/"+name, func(t *testing.T) {
+				if mode.readOnly {
+					t.Setenv(readonly.EnvVar, "1")
+				} else {
+					t.Setenv(readonly.EnvVar, "")
+				}
+				handler := appComplianceFormServer{t: t, requirements: appComplianceTestRequirements}
+				server := httptest.NewServer(&handler)
+				defer server.Close()
+				transport := &getOnlyTransport{t: t, base: server.Client().Transport}
+				client := testWebClient(server)
+				client.httpClient = &http.Client{Transport: transport}
+
+				declaration.DryRun = mode.dryRun
+				got, err := client.SetAppComplianceDeclaration(context.Background(), "account-123", "app-123", declaration)
+				if mode.dryRun {
+					if err != nil {
+						t.Fatalf("SetAppComplianceDeclaration() error = %v", err)
+					}
+					if !got.DryRun || got.RequirementName != declaration.Requirement {
+						t.Fatalf("unexpected dry-run result: %#v", got)
+					}
+				} else if !errors.Is(err, readonly.ErrRefused) {
+					t.Fatalf("SetAppComplianceDeclaration() error = %v, want readonly.ErrRefused", err)
+				}
+				if len(transport.sent) != 1 || !strings.HasSuffix(transport.sent[0], "/requirements") {
+					t.Fatalf("requests sent = %v, want only the requirements list", transport.sent)
+				}
+			})
+		}
+	}
+}
+
+func TestSetAppComplianceDeclarationDryRunChecksEvidenceLocally(t *testing.T) {
+	handler := appComplianceFormServer{t: t, requirements: appComplianceTestRequirements}
+	server := httptest.NewServer(&handler)
+	defer server.Close()
+
+	_, err := testWebClient(server).SetAppComplianceDeclaration(context.Background(), "account-123", "app-123", AppComplianceDeclaration{
+		Requirement: "SECURITY_ASSESSMENT", Declared: true, DryRun: true,
+		Proof:  &AppComplianceFile{Name: "proof.pdf", Data: []byte("pdf")},
+		Report: &AppComplianceFile{Name: "report.txt", Data: []byte("txt")},
+	})
+	if err == nil || !strings.Contains(err.Error(), `"report.txt" is not an accepted file type`) {
+		t.Fatalf("expected a file type error, got %v", err)
 	}
 }

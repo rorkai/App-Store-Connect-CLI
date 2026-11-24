@@ -3,12 +3,17 @@ package cmdtest
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestAnalyticsInstancesLinksAcceptsPrefixedInstanceID(t *testing.T) {
@@ -68,6 +73,74 @@ func TestAnalyticsDownloadAcceptsPrefixedInstanceID(t *testing.T) {
 
 func TestAnalyticsDownloadAcceptsPrefixedSegmentID(t *testing.T) {
 	runAnalyticsDownloadIDCase(t, "22222222-2222-2222-2222-222222222222", "s39-example-segment")
+}
+
+func TestAnalyticsDownloadDefaultPathsSeparateExplicitSegments(t *testing.T) {
+	setupAnalyticsResourceIDAuth(t)
+	t.Chdir(t.TempDir())
+
+	const (
+		instanceID    = "r39-example-instance"
+		firstSegment  = "s39:Segment|A"
+		secondSegment = "s39:segment|a"
+		firstReport   = "first-segment-data"
+		secondReport  = "second-segment-data"
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/v1/analyticsReportInstances/" + instanceID + "/segments":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprintf(w, `{"data":[{"type":"analyticsReportSegments","id":%q,"attributes":{"url":"https://mzstatic.com/first.gz"}},{"type":"analyticsReportSegments","id":%q,"attributes":{"url":"https://mzstatic.com/second.gz"}}]}`, firstSegment, secondSegment)
+		case "/first.gz":
+			_, _ = io.WriteString(w, firstReport)
+		case "/second.gz":
+			_, _ = io.WriteString(w, secondReport)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL)
+			http.NotFound(w, req)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client := stubServerClient(t, server)
+	download := func(segmentID string) (string, string, int) {
+		return runWithDeps(t, client, "analytics", "download", "--request-id", analyticsViewRequestID,
+			"--instance-id", instanceID, "--segment-id", segmentID, "--output-format", "json")
+	}
+	readReport := func(segmentID, want string) string {
+		t.Helper()
+		stdout, stderr, code := download(segmentID)
+		if code != rootcmd.ExitSuccess || stderr != "" {
+			t.Fatalf("download %q exited %d: %s", segmentID, code, stderr)
+		}
+		var result asc.AnalyticsReportDownloadResult
+		if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+			t.Fatalf("decode download result: %v", err)
+		}
+		if result.SegmentID != segmentID || !strings.HasSuffix(result.FilePath, ".csv.gz") || strings.ContainsAny(result.FilePath, `/\:*?"<>|`) {
+			t.Fatalf("unexpected download result: %+v", result)
+		}
+		data, err := os.ReadFile(result.FilePath)
+		if err != nil || string(data) != want {
+			t.Fatalf("read %q: got %q, %v; want %q", result.FilePath, data, err, want)
+		}
+		return result.FilePath
+	}
+	firstPath := readReport(firstSegment, firstReport)
+	secondPath := readReport(secondSegment, secondReport)
+	if strings.EqualFold(firstPath, secondPath) {
+		t.Fatalf("segment output paths collide: %q and %q", firstPath, secondPath)
+	}
+	const savedReport = "saved first report"
+	if err := os.WriteFile(firstPath, []byte(savedReport), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, code := download(firstSegment)
+	if code != rootcmd.ExitError || stdout != "" || !strings.Contains(stderr, "output file already exists") {
+		t.Fatalf("retry exited %d, stdout %q, stderr %q", code, stdout, stderr)
+	}
+	if data, err := os.ReadFile(firstPath); err != nil || string(data) != savedReport {
+		t.Fatalf("retry changed %q: got %q, %v; want %q", firstPath, data, err, savedReport)
+	}
 }
 
 func runAnalyticsDownloadIDCase(t *testing.T, instanceID, segmentID string) {

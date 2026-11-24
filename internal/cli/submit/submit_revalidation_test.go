@@ -266,7 +266,7 @@ func TestVerifyReviewSubmissionForSubmitRejectsWrongBinding(t *testing.T) {
 				}
 			}))
 
-			err := verifyReviewSubmissionForSubmit(
+			_, err := verifyReviewSubmissionForSubmit(
 				context.Background(),
 				client,
 				"submission-1",
