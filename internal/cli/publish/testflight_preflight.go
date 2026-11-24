@@ -2,7 +2,10 @@ package publish
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -15,12 +18,26 @@ func missingPublishBuildGroups(ctx context.Context, client *asc.Client, buildID 
 			missing = append(missing, group)
 			continue
 		}
+		if err := shared.ValidateBetaGroupRequestID(group.ID); err != nil {
+			return nil, err
+		}
 		first, err := client.GetBetaGroupBuildsRelationships(ctx, group.ID, asc.Limit[asc.LinkagesOption](200))
 		if err != nil {
 			return nil, fmt.Errorf("read group %s builds: %w", group.ID, err)
 		}
+		if err := validatePublishBuildMemberships(first); err != nil {
+			return nil, err
+		}
 		all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-			return client.GetBetaGroupBuildsRelationships(ctx, group.ID, asc.NextURL[asc.LinkagesOption](next))
+			boundNext, err := shared.BindCollectionNextURL(next, "/v1/betaGroups/"+group.ID+"/relationships/builds", nil)
+			if err != nil {
+				return nil, err
+			}
+			page, err := client.GetBetaGroupBuildsRelationships(ctx, group.ID, asc.NextURL[asc.LinkagesOption](boundNext))
+			if err == nil {
+				err = validatePublishBuildMemberships(page)
+			}
+			return page, err
 		})
 		if err != nil {
 			return nil, err
@@ -43,18 +60,37 @@ func missingPublishBuildGroups(ctx context.Context, client *asc.Client, buildID 
 	return missing, nil
 }
 
-func publishNotificationRecovery(buildID, state string) *asc.TestFlightNotificationRecovery {
-	message := "Existing memberships do not establish whether testers were notified. Check notification delivery before sending; do not replay an ambiguous send."
-	if state == "not_attempted" {
-		message = "Group assignment succeeded, but checking notification settings failed before a notification was sent. Check those settings before sending."
-	}
+func publishNotificationRecovery(buildID string) *asc.TestFlightNotificationRecovery {
 	return &asc.TestFlightNotificationRecovery{
-		BuildID:   buildID,
-		State:     state,
-		Message:   message,
-		Command:   "asc",
-		Arguments: []string{"testflight", "notifications", "send", "--build-id", buildID},
+		BuildID: buildID,
+		State:   "unknown",
+		Message: "Notification delivery is unknown, including automatic notifications. Check App Store Connect before any fresh build-wide notification request; do not replay an ambiguous send.",
 	}
+}
+
+func validatePublishBuildMemberships(page *asc.LinkagesResponse) error {
+	if page == nil || page.Data == nil {
+		return fmt.Errorf("missing beta group builds response data")
+	}
+	for _, link := range page.Data {
+		if link.Type != "builds" || link.ID == "" || link.ID != strings.TrimSpace(link.ID) {
+			return fmt.Errorf("invalid beta group build relationship identity")
+		}
+	}
+	return nil
+}
+
+func boundedPublishFailure(failure error) string {
+	const limit = 2048
+	message := shared.SanitizeTerminal(failure.Error())
+	if len(message) <= limit {
+		return message
+	}
+	end := limit - len("...")
+	for end > 0 && !utf8.RuneStart(message[end]) {
+		end--
+	}
+	return message[:end] + "..."
 }
 
 func validatePublishBuildIdentity(build *asc.BuildResponse, expectedID string) error {
@@ -62,4 +98,25 @@ func validatePublishBuildIdentity(build *asc.BuildResponse, expectedID string) e
 		return fmt.Errorf("build response does not match requested build %s", expectedID)
 	}
 	return nil
+}
+
+func writePublishFailure(d *shared.Deps, output string, pretty bool, result *asc.TestFlightPublishResult, failure error) error {
+	result.Failure = boundedPublishFailure(failure)
+	if err := d.PrintOutput(result, output, pretty); err != nil {
+		return errors.Join(failure, fmt.Errorf("print publish failure result: %w", err))
+	}
+	reported := errors.New(result.Failure)
+	if result.NotificationRecovery != nil {
+		reported = &shared.HintedError{Err: reported, Hint: result.NotificationRecovery.Message}
+	}
+	return shared.NewReportedError(shared.NewErrorWithCause(reported, failure))
+}
+
+func writePublishPreflightFailure(d *shared.Deps, output string, pretty bool, buildID, stage, code string, failure error) error {
+	return writePublishFailure(d, output, pretty, &asc.TestFlightPublishResult{
+		Status:       "failed",
+		BuildID:      buildID,
+		FailureStage: stage,
+		FailureCode:  code,
+	}, failure)
 }

@@ -567,3 +567,16 @@ func TestBuildsAddGroupsPreflightFailsClosedWhenExternalStateUnavailable(t *test
 		t.Fatalf("stderr = %q, want fail-closed external-state diagnostic", stderr)
 	}
 }
+
+func TestBuildsAddGroupsRejectsUnsafeSelectedProviderIDBeforeMutation(t *testing.T) {
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(`{"data":[{"type":"betaGroups","id":"../foreign","attributes":{"name":"QA","isInternalGroup":false}}]}`).
+		build(http.StatusOK, addGroupsReadyBuildBody).
+		detail(http.StatusOK, addGroupsReadyDetailBody)
+	fixture.groupInput = "QA"
+
+	stdout, stderr, err := runAddGroupsDiagnostics(t, fixture)
+	if err == nil || !strings.Contains(err.Error(), "invalid beta group ID for request") || fixture.postCount() != 0 {
+		t.Fatalf("unsafe group ID reached mutation: stdout=%q stderr=%q err=%v requests=%v", stdout, stderr, err, fixture.requests())
+	}
+}

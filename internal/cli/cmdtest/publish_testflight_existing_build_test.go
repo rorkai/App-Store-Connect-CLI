@@ -83,8 +83,8 @@ func TestPublishTestflightExistingBuildDoesNotRetryPostUploadPropagationError(t 
 	if requestCount := len(reg.Requests()); requestCount != 5 {
 		t.Fatalf("request count = %d, want 5 including ownership and membership reads, with no confirming GET or retry", requestCount)
 	}
-	if stdout != "" || stderr != "" {
-		t.Fatalf("existing-build failure must not emit uploaded-build recovery output: stdout=%q stderr=%q", stdout, stderr)
+	if !strings.Contains(stdout, `"status":"failed"`) || !strings.Contains(stdout, `"failureCode":"beta_group_distribution_failed"`) || strings.Contains(stdout, `"status":"partial"`) || stderr != "" {
+		t.Fatalf("existing-build failure must have a failed receipt without invented progress: stdout=%q stderr=%q", stdout, stderr)
 	}
 }
 
@@ -141,7 +141,7 @@ func TestPublishTestflightExistingBuildIDNotifyUsesBuildBetaNotificationsEndpoin
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify",
+		"--notify", "--confirm-notify-all-testers",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
@@ -232,7 +232,7 @@ func TestPublishTestflightExistingBuildIDWithInternalAllBuildsGroupStillNotifies
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify",
+		"--notify", "--confirm-notify-all-testers",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
@@ -275,7 +275,7 @@ func TestPublishTestflightExistingBuildIDNotifySkipsManualNotificationWhenAutoNo
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify",
+		"--notify", "--confirm-notify-all-testers",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
@@ -366,7 +366,7 @@ func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlready
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify",
+		"--notify", "--confirm-notify-all-testers",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
@@ -411,7 +411,7 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify",
+		"--notify", "--confirm-notify-all-testers",
 	}...)
 
 	if runErr == nil {
@@ -519,7 +519,7 @@ func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEnd
 		"--app", "123",
 		"--build-number", "42",
 		"--group", "group-1",
-		"--notify",
+		"--notify", "--confirm-notify-all-testers",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)

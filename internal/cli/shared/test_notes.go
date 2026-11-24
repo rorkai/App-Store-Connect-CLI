@@ -25,6 +25,8 @@ type UpsertBetaBuildLocalizationOptions struct {
 	// Diagnostics receives a one-line notice when a missing TestFlight app
 	// localization is created as a side effect. Nil discards the notice.
 	Diagnostics io.Writer
+	// AppLocalizationCreated records a completed app-locale creation before notes are written.
+	AppLocalizationCreated func()
 }
 
 // TestNotesNormalization reports the What to Test text that will be stored and
@@ -216,8 +218,12 @@ func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildI
 	}
 	notesValue = normalization.Notes
 
-	if err := ensureBetaAppLocalization(ctx, client, buildID, opts.AppID, localeValue, opts.Diagnostics); err != nil {
+	created, err := ensureBetaAppLocalization(ctx, client, buildID, opts.AppID, localeValue, opts.Diagnostics)
+	if err != nil {
 		return nil, err
+	}
+	if created && opts.AppLocalizationCreated != nil {
+		opts.AppLocalizationCreated()
 	}
 
 	resp, err := client.GetBetaBuildLocalizations(
@@ -266,18 +272,18 @@ func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildI
 // creating the app's beta app localization when it is missing. Existing
 // records are left untouched, and a concurrent creator that wins the race
 // satisfies the same requirement.
-func ensureBetaAppLocalization(ctx context.Context, client *asc.Client, buildID, appID, locale string, diagnostics io.Writer) error {
+func ensureBetaAppLocalization(ctx context.Context, client *asc.Client, buildID, appID, locale string, diagnostics io.Writer) (bool, error) {
 	resolvedAppID, err := resolveBetaAppLocalizationAppID(ctx, client, buildID, appID)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	exists, err := hasBetaAppLocalization(ctx, client, resolvedAppID, locale)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if exists {
-		return nil
+		return false, nil
 	}
 
 	// Apple requires only the locale and the app relationship here; every
@@ -286,21 +292,21 @@ func ensureBetaAppLocalization(ctx context.Context, client *asc.Client, buildID,
 	if _, err := client.CreateBetaAppLocalization(ctx, resolvedAppID, attrs); err != nil {
 		createErr := fmt.Errorf("failed to create TestFlight app localization for locale %q: %w", locale, err)
 		if !errors.Is(err, asc.ErrConflict) {
-			return createErr
+			return false, createErr
 		}
 		// App Store Connect answers 409 both for a duplicate locale and for an
 		// invalid one, so only a locale that now exists proves that a
 		// concurrent creator won the race.
 		exists, lookupErr := hasBetaAppLocalization(ctx, client, resolvedAppID, locale)
 		if lookupErr != nil || !exists {
-			return createErr
+			return false, createErr
 		}
-		return nil
+		return false, nil
 	}
 	if diagnostics != nil {
 		fmt.Fprintf(diagnostics, "Notice: created TestFlight app localization for locale %q on app %q so What to Test notes can be saved.\n", locale, resolvedAppID)
 	}
-	return nil
+	return true, nil
 }
 
 func resolveBetaAppLocalizationAppID(ctx context.Context, client *asc.Client, buildID, appID string) (string, error) {

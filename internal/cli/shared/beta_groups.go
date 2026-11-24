@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -61,6 +62,9 @@ type AddBuildBetaGroupsResult struct {
 func ResolveBetaGroups(ctx context.Context, client betaGroupsClient, appID, rawGroups string, opts ResolveBetaGroupsOptions) ([]ResolvedBetaGroup, error) {
 	groups := SplitCSV(rawGroups)
 	page, err := client.GetBetaGroups(ctx, appID, asc.Limit[asc.BetaGroupsOption](200))
+	if err == nil {
+		err = validateBetaGroupPage(page)
+	}
 	if err == nil && !betaGroupPageContainsAllIDs(page, groups) {
 		page, err = paginateBetaGroups(ctx, client, appID, page)
 	}
@@ -252,6 +256,12 @@ func AddBuildBetaGroups(ctx context.Context, client buildBetaGroupsMutationClien
 		}, nil
 	}
 
+	for _, groupID := range groupIDsToAdd {
+		if err := ValidateBetaGroupRequestID(groupID); err != nil {
+			return nil, err
+		}
+	}
+
 	notificationAction, err := client.AddBetaGroupsToBuildWithNotify(ctx, buildID, groupIDsToAdd, opts.Notify)
 	if err != nil {
 		return nil, err
@@ -275,12 +285,23 @@ func ListAllBetaGroups(ctx context.Context, client betaGroupsClient, appID strin
 }
 
 func paginateBetaGroups(ctx context.Context, client betaGroupsClient, appID string, firstPage *asc.BetaGroupsResponse) (*asc.BetaGroupsResponse, error) {
+	if err := validateBetaGroupPage(firstPage); err != nil {
+		return nil, err
+	}
 	if firstPage == nil || firstPage.Links.Next == "" {
 		return firstPage, nil
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](nextURL))
+		boundNext, err := BindCollectionNextURL(nextURL, "/v1/apps/"+appID+"/betaGroups", nil)
+		if err != nil {
+			return nil, err
+		}
+		page, err := client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](boundNext))
+		if err == nil {
+			err = validateBetaGroupPage(page)
+		}
+		return page, err
 	})
 	if err != nil {
 		return nil, err
@@ -324,4 +345,24 @@ func ambiguousBetaGroupError(name string, matchIDs []string, groupsByID map[stri
 		Candidates:  candidates,
 		Hint:        hint,
 	}
+}
+
+func validateBetaGroupPage(page *asc.BetaGroupsResponse) error {
+	if page == nil || page.Data == nil {
+		return fmt.Errorf("missing beta groups response data")
+	}
+	for _, group := range page.Data {
+		if group.Type != "betaGroups" || strings.TrimSpace(group.ID) == "" {
+			return fmt.Errorf("invalid beta group resource identity")
+		}
+	}
+	return nil
+}
+
+// ValidateBetaGroupRequestID checks a selected beta group ID before a scoped request.
+func ValidateBetaGroupRequestID(id string) error {
+	if id == "" || id != strings.TrimSpace(id) || id == "." || id == ".." || url.PathEscape(id) != id {
+		return fmt.Errorf("invalid beta group ID for request")
+	}
+	return nil
 }

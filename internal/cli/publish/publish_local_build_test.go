@@ -352,7 +352,7 @@ func TestPublishTestFlightLocalBuildReportsStructuredRecoveryResultAfterNotifica
 		publishRequest{http.MethodGet, "/v1/builds/build-123/buildBetaDetail", http.StatusNotFound, publishBuildNotFoundBody},
 	)
 
-	stdout, stderr, runErr := runPublishCommand(t, newPublishTestFlightCommand, append(slices.Clone(publishTestFlightLocalBuildArgs), "--notify"))
+	stdout, stderr, runErr := runPublishCommand(t, newPublishTestFlightCommand, append(slices.Clone(publishTestFlightLocalBuildArgs), "--notify", "--confirm-notify-all-testers"))
 	if runErr == nil || !strings.Contains(runErr.Error(), `beta groups were added to build "build-123", but checking notification state failed`) {
 		t.Fatalf("expected notification partial error, got %v", runErr)
 	}
@@ -415,7 +415,7 @@ func TestPublishTestFlightUploadReportsStructuredRecoveryResultAfterBetaReviewFa
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--group", "External",
-		"--notify",
+		"--notify", "--confirm-notify-all-testers",
 		"--submit",
 		"--confirm",
 		"--output", "json",

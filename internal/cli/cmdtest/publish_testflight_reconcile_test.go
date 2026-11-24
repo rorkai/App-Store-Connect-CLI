@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -20,6 +21,10 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 		wrongApp       bool
 		wrongOwnerType bool
 		invalidBuild   string
+		incremental    string
+		noNotify       bool
+		autoNotify     bool
+		missingConsent bool
 	}{
 		{name: "submit", submit: true},
 		{name: "without submit"},
@@ -31,20 +36,45 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 		{name: "wrong build id", invalidBuild: "id"},
 		{name: "wrong build type", invalidBuild: "type"},
 		{name: "notification send unknown", failure: "send"},
-		{name: "notification not attempted", failure: "read"},
+		{name: "notification settings unknown", failure: "read"},
+		{name: "notification settings unknown after automatic delivery", failure: "read automatic", autoNotify: true},
+		{name: "notification committed response unknown", failure: "committed"},
+		{name: "notification acknowledgement wrong type", failure: "ack"},
+		{name: "provider cannot claim local notification action", failure: "action"},
+		{name: "notification settings missing state", failure: "state missing"},
+		{name: "notification settings wrong type", failure: "state type"},
+		{name: "automatic notification already enabled", autoNotify: true},
+		{name: "missing build-wide consent", missingConsent: true},
+		{name: "incremental named with notification", incremental: "named"},
+		{name: "incremental unnamed with notification", incremental: "unnamed"},
+		{name: "incremental named without notification", incremental: "named", noNotify: true},
+		{name: "incremental unnamed without notification", incremental: "unnamed", noNotify: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ready, assigned, submitted := false, false, false
 			writes, buildReads, ownerReads := 0, 0, 0
+			requests, manualNotifications, automaticNotifications := 0, 0, 0
+			notificationCommitted := false
+			groups := []asc.Resource[asc.BetaGroupAttributes]{
+				{Type: "betaGroups", ID: "g1", Attributes: asc.BetaGroupAttributes{Name: "External"}},
+			}
+			if tc.mixed {
+				groups = append(groups, asc.Resource[asc.BetaGroupAttributes]{Type: "betaGroups", ID: "g2", Attributes: asc.BetaGroupAttributes{Name: "Internal", IsInternalGroup: true, HasAccessToAllBuilds: true}})
+			}
+			if tc.incremental != "" {
+				groups = append(groups, asc.Resource[asc.BetaGroupAttributes]{Type: "betaGroups", ID: "g0", Attributes: asc.BetaGroupAttributes{Name: "Existing"}})
+			}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests++
 				w.Header().Set("Content-Type", "application/json")
 				var payload string
 				switch r.Method + " " + r.URL.Path {
 				case "GET /v1/apps/123/betaGroups":
-					payload = `{"data":[{"type":"betaGroups","id":"g1","attributes":{"name":"External","isInternalGroup":false}}]}`
-					if tc.mixed {
-						payload = `{"data":[{"type":"betaGroups","id":"g1","attributes":{"name":"External","isInternalGroup":false}},{"type":"betaGroups","id":"g2","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
+					body, err := json.Marshal(asc.BetaGroupsResponse{Data: groups})
+					if err != nil {
+						t.Error(err)
 					}
+					payload = string(body)
 				case "GET /v1/builds/b1":
 					buildReads++
 					if tc.wrongApp || tc.wrongOwnerType {
@@ -85,17 +115,23 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 				case "GET /v1/betaAppReviewDetails":
 					payload = `{"data":[{"type":"betaAppReviewDetails","id":"d1","attributes":{"contactFirstName":"Dev","contactLastName":"Tester","contactPhone":"+1 408 555 0100","contactEmail":"test@example.com"}}]}`
 				case "GET /v1/builds/b1/buildBetaDetail":
-					if tc.failure == "read" {
+					if strings.HasPrefix(tc.failure, "read") {
 						w.WriteHeader(http.StatusForbidden)
 						payload = `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Notification settings unavailable"}]}`
 					} else {
-						payload = `{"data":{"type":"buildBetaDetails","id":"bd1","attributes":{"externalBuildState":"READY_FOR_BETA_SUBMISSION"}}}`
+						payload = fmt.Sprintf(`{"data":{"type":"buildBetaDetails","id":"bd1","attributes":{"externalBuildState":"READY_FOR_BETA_SUBMISSION","autoNotifyEnabled":%t}}}`, tc.autoNotify || notificationCommitted)
 					}
-				case "GET /v1/betaGroups/g1/relationships/builds", "GET /v1/betaGroups/g2/relationships/builds":
+					switch tc.failure {
+					case "state missing":
+						payload = `{"data":{"type":"buildBetaDetails","id":"bd1","attributes":{}}}`
+					case "state type":
+						payload = `{"data":{"type":"apps","id":"bd1","attributes":{"autoNotifyEnabled":false}}}`
+					}
+				case "GET /v1/betaGroups/g1/relationships/builds", "GET /v1/betaGroups/g2/relationships/builds", "GET /v1/betaGroups/g0/relationships/builds":
 					if tc.wrongApp {
 						t.Error("group membership read before build ownership was verified")
 					}
-					if assigned {
+					if assigned || strings.Contains(r.URL.Path, "/g0/") {
 						payload = `{"data":[{"type":"builds","id":"b1"}]}`
 					} else {
 						payload = `{"data":[]}`
@@ -122,6 +158,9 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 						t.Errorf("assigned groups=%v, want %v", ids, wantIDs)
 					}
 					assigned = true
+					if tc.autoNotify {
+						automaticNotifications++
+					}
 					writes++
 					w.WriteHeader(204)
 					return
@@ -132,11 +171,41 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 					payload = `{"data":[{"type":"betaBuildLocalizations","id":"bl1","attributes":{"locale":"en-US","whatsNew":"Existing instructions"}}]}`
 				case "POST /v1/buildBetaNotifications":
 					writes++
+					manualNotifications++
+					var request struct {
+						Data struct {
+							Relationships struct {
+								Build struct {
+									Data struct {
+										Type string
+										ID   string
+									}
+								}
+							}
+						}
+					}
+					if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+						t.Error(err)
+					}
+					if request.Data.Relationships.Build.Data.Type != "builds" || request.Data.Relationships.Build.Data.ID != "b1" {
+						t.Errorf("notification is not scoped to the selected build: %+v", request)
+					}
+
 					if tc.failure == "send" {
 						w.WriteHeader(http.StatusForbidden)
 						payload = `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Notification failed"}]}`
 					} else {
-						payload = `{"data":{"type":"buildBetaNotifications","id":"n1"}}`
+						notificationCommitted = true
+						switch tc.failure {
+						case "committed":
+							payload = "{"
+						case "ack":
+							payload = `{"data":{"type":"apps","id":"n1"}}`
+						case "action":
+							payload = `{"notificationAction":"auto_notify_enabled"}`
+						default:
+							payload = `{"data":{"type":"buildBetaNotifications","id":"n1"}}`
+						}
 					}
 				case "POST /v1/betaAppReviewSubmissions":
 					if !tc.submit {
@@ -162,7 +231,16 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 				if tc.mixed {
 					groupNames = "External,Internal"
 				}
-				args := []string{"publish", "testflight", "--app", "123", "--build-id", "b1", "--group", groupNames, "--notify", "--test-notes", "Existing instructions", "--locale", "en-US"}
+				if tc.incremental == "named" {
+					groupNames = "Existing,External"
+				}
+				args := []string{"publish", "testflight", "--app", "123", "--build-id", "b1", "--group", groupNames, "--test-notes", "Existing instructions", "--locale", "en-US"}
+				if !tc.noNotify {
+					args = append(args, "--notify")
+					if !tc.missingConsent {
+						args = append(args, "--confirm-notify-all-testers")
+					}
+				}
 				if tc.wrongApp || tc.wrongOwnerType {
 					args = append(args, "--wait")
 				}
@@ -179,6 +257,12 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 			}
 			ready = true
 			stdout, stderr, err := run()
+			if tc.missingConsent {
+				if err == nil || requests != 0 || !strings.Contains(err.Error()+stderr, "--confirm-notify-all-testers") {
+					t.Fatalf("consent: requests=%d stdout=%s stderr=%s err=%v", requests, stdout, stderr, err)
+				}
+				return
+			}
 			if tc.wrongApp || tc.wrongOwnerType {
 				if err == nil || writes != 0 || buildReads != 0 || ownerReads != 1 || !strings.Contains(err.Error()+stderr, "does not belong to app 123") {
 					t.Fatalf("wrong-app writes=%d stdout=%s stderr=%s err=%v", writes, stdout, stderr, err)
@@ -195,7 +279,7 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 			if tc.submit {
 				wantWrites = 3
 			}
-			if tc.failure == "read" {
+			if strings.HasPrefix(tc.failure, "read") || strings.HasPrefix(tc.failure, "state ") || tc.noNotify || tc.autoNotify {
 				wantWrites = 1
 			}
 			if (err != nil) != (tc.failure != "") || writes != wantWrites {
@@ -209,23 +293,40 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 				t.Fatalf("output=%s", stdout)
 			}
 			if tc.failure != "" {
-				state := "unknown"
-				if tc.failure == "read" {
-					state = "not_attempted"
-				}
 				recovery := output.NotificationRecovery
-				if output.Status != "partial" || output.FailureStage != "notification" || recovery == nil || recovery.State != state ||
-					recovery.BuildID != "b1" || recovery.Command != "asc" || !slices.Equal(recovery.Arguments, []string{"testflight", "notifications", "send", "--build-id", "b1"}) {
+				if output.Status != "partial" || output.FailureStage != "notification" || output.FailureCode != "notification_delivery_unknown" || recovery == nil || recovery.State != "unknown" || recovery.BuildID != "b1" {
 					t.Fatalf("notification recovery=%s", stdout)
 				}
+				if strings.Contains(stdout, `"command"`) || strings.Contains(stdout, `"arguments"`) {
+					t.Fatalf("unknown delivery offers a replay: %s", stdout)
+				}
 			}
+			if (tc.noNotify || tc.autoNotify || strings.HasPrefix(tc.failure, "read") || strings.HasPrefix(tc.failure, "state ")) && manualNotifications != 0 {
+				t.Fatalf("unexpected manual notifications: %d", manualNotifications)
+			}
+			if tc.autoNotify && automaticNotifications != 1 {
+				t.Fatalf("automatic notification fixture did not deliver on assignment: %d", automaticNotifications)
+			}
+			if (tc.failure == "committed" || tc.failure == "ack") && (!notificationCommitted || manualNotifications != 1) {
+				t.Fatal("ambiguous response did not follow one committed notification")
+			}
+
 			stdout, stderr, err = run()
-			if err != nil || writes != wantWrites {
+			if (err != nil) != !tc.noNotify || writes != wantWrites {
 				t.Fatalf("repeat writes=%d stdout=%s stderr=%s err=%v", writes, stdout, stderr, err)
 			}
 			output = asc.TestFlightPublishResult{}
 			if err := json.Unmarshal([]byte(stdout), &output); err != nil {
 				t.Fatal(err)
+			}
+			if tc.noNotify {
+				if output.NotificationRecovery != nil || manualNotifications != 0 {
+					t.Fatalf("non-notifying reconciliation scheduled notification: %s", stdout)
+				}
+				return
+			}
+			if output.Status != "failed" || output.FailureCode != "notification_delivery_unknown" || strings.Contains(stdout, `"command"`) || strings.Contains(stdout, `"arguments"`) {
+				t.Fatalf("repeat must fail closed without replay: %s", stdout)
 			}
 			if output.NotificationRecovery == nil || output.NotificationRecovery.State != "unknown" || !strings.Contains(output.NotificationRecovery.Message, "do not replay") {
 				t.Fatalf("repeat must not imply notification delivery is known: %s", stdout)

@@ -87,7 +87,8 @@ func newPublishTestFlightCommand(d *shared.Deps) *ffcli.Command {
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	groupIDs := fs.String("group", "", "Beta group ID(s) or name(s), comma-separated")
 	uploadOnly := fs.Bool("upload-only", false, "Upload the build without adding it to beta groups or submitting beta review")
-	notify := fs.Bool("notify", false, "Notify testers after adding to groups")
+	notify := fs.Bool("notify", false, "Request a build-wide tester notification after adding groups")
+	confirmNotifyAll := fs.Bool("confirm-notify-all-testers", false, "Confirm --notify may notify every eligible tester for the build, including groups not selected here")
 	submit := fs.Bool("submit", false, "Submit build for beta app review after adding external groups")
 	confirm := fs.Bool("confirm", false, "Confirm beta app review submission (required with --submit)")
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
@@ -108,16 +109,18 @@ Steps:
 1. Build locally with Xcode or upload an IPA or macOS PKG (unless --build-id/--build-number is provided)
 2. Wait for processing when needed (--wait, --test-notes, or --submit)
 3. Stop and return the build metadata with --upload-only, or add the build to specified beta groups
-4. Optionally notify testers
+4. Optionally request build-wide notification with --notify --confirm-notify-all-testers
 5. Optionally submit for beta app review with --submit --confirm
 
 With --submit and external groups, readiness is checked before changing notes,
 assigning groups or notifying testers. Existing external group assignments are
 retained with or without --submit. A repeat with only already-assigned external
-groups does not notify again.
+groups does not notify again. Delivery remains unknown and no replay command is offered.
+Notification applies to every eligible tester for the build, including groups
+not selected here. Adding a group may also trigger Apple automatic notifications.
 An existing beta review submission is reused. Apple can still reject a submission
 after preflight; the failure receipt records completed steps. Notification
-failures report whether delivery is unknown or no send was attempted. A repeat
+failures report unknown delivery without a notification replay command. A repeat
 does not resend an ambiguous notification; the receipt names a build-scoped
 notification command to use only after checking whether a send is still needed.
 
@@ -130,7 +133,7 @@ Examples:
   asc publish testflight --app "123" --workspace MacApp.xcworkspace --scheme MacApp --version 1.2.3 --platform MAC_OS --pkg-path .asc/artifacts/MacApp.pkg --group "GROUP_ID"
   asc publish testflight --app "123" --workspace App.xcworkspace --scheme App --version 1.2.3 --group "GROUP_ID" --signing-style manual --team-id TEAM_ID
   asc publish testflight --app "123" --ipa app.ipa --group "External Testers"
-  asc publish testflight --app "123" --ipa app.ipa --group "G1,G2" --wait --notify
+  asc publish testflight --app "123" --ipa app.ipa --group "G1,G2" --wait --notify --confirm-notify-all-testers
   asc publish testflight --app "123" --ipa app.ipa --group "External Testers" --submit --confirm
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID" --test-notes "Test instructions" --locale "en-US" --wait
   asc publish testflight --app "123" --build-id "BUILD_ID" --group "GROUP_ID" --wait
@@ -154,7 +157,7 @@ Examples:
 			localeValue := strings.TrimSpace(*locale)
 			localBuildMode := localBuild.localBuildMode()
 			if *uploadOnly {
-				for _, flagName := range []string{"group", "notify", "submit", "confirm", "test-notes", "locale"} {
+				for _, flagName := range []string{"group", "notify", "confirm-notify-all-testers", "submit", "confirm", "test-notes", "locale"} {
 					if setFlags[flagName] {
 						return d.UsageErrorf("--%s cannot be used with --upload-only", flagName)
 					}
@@ -228,6 +231,12 @@ Examples:
 				if len(parsedGroupIDs) == 0 {
 					fmt.Fprintf(d.IO.ErrOut, "Error: --group is required\n\n")
 					return shared.MissingRequiredUsageError("--group")
+				}
+				if *notify && !*confirmNotifyAll {
+					return d.UsageError("--confirm-notify-all-testers is required with --notify because notification is build-wide")
+				}
+				if *confirmNotifyAll && !*notify {
+					return d.UsageError("--confirm-notify-all-testers requires --notify")
 				}
 				if *submit && !*confirm {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required with --submit")
@@ -328,7 +337,7 @@ Examples:
 				groupLookupCtx := preflightCtx
 				resolvedGroups, err = resolvePublishBetaGroups(groupLookupCtx, client, resolvedPublishAppID, *groupIDs)
 				if err != nil {
-					return fmt.Errorf("publish testflight: %w", err)
+					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "group_discovery", "group_discovery_failed", fmt.Errorf("publish testflight: %w", err))
 				}
 			}
 
@@ -397,28 +406,35 @@ Examples:
 			} else if buildIDValue != "" {
 				if hasExternalGroups {
 					if err := shared.CheckBuildAppOwnership(requestCtx, client, resolvedPublishAppID, buildIDValue); err != nil {
-						return fmt.Errorf("publish testflight: %w", err)
+						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_ownership", "build_ownership_failed", fmt.Errorf("publish testflight: %w", err))
 					}
 					buildAppVerified = true
 				}
 				buildResp, err = client.GetBuild(requestCtx, buildIDValue)
 				if err != nil {
-					return fmt.Errorf("publish testflight: failed to fetch build: %w", err)
+					failure := fmt.Errorf("publish testflight: failed to fetch build: %w", err)
+					if hasExternalGroups {
+						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_lookup", "build_lookup_failed", failure)
+					}
+					return failure
 				}
 				if hasExternalGroups {
 					if err := validatePublishBuildIdentity(buildResp, buildIDValue); err != nil {
-						return fmt.Errorf("publish testflight: %w", err)
+						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_identity", "build_identity_mismatch", fmt.Errorf("publish testflight: %w", err))
 					}
 				}
 				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
 			} else {
 				buildResp, err = findPublishBuildByNumber(requestCtx, client, resolvedPublishAppID, buildNumberValue, normalizedPlatform)
 				if err != nil {
+					if hasExternalGroups {
+						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, "", "build_lookup", "build_lookup_failed", fmt.Errorf("publish testflight: %w", err))
+					}
 					return fmt.Errorf("publish testflight: %w", err)
 				}
 				if hasExternalGroups {
 					if err := validatePublishBuildIdentity(buildResp, buildResp.Data.ID); err != nil {
-						return fmt.Errorf("publish testflight: %w", err)
+						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, "", "build_identity", "build_identity_mismatch", fmt.Errorf("publish testflight: %w", err))
 					}
 				}
 				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
@@ -443,24 +459,27 @@ Examples:
 				completedStages = append(completedStages, publishCompletedStageUpload)
 			}
 			reportPartialFailure := func(stage string, failure error) error {
-				if !hasProgress {
+				if !hasProgress && !hasExternalGroups {
 					return failure
 				}
-				result.Status = publishPartialStatus
+				result.Status = "failed"
+				if hasProgress {
+					result.Status = publishPartialStatus
+				}
 				result.FailureStage = stage
-				result.Failure = shared.SanitizeTerminal(failure.Error())
+				result.FailureCode = stage + "_failed"
+				if stage == publishFailureStageNotification && result.NotificationRecovery != nil {
+					result.FailureCode = "notification_delivery_unknown"
+				}
 				result.CompletedStages = append([]string(nil), completedStages...)
 				result.ProcessingState = buildResp.Data.Attributes.ProcessingState
 				attachTestFlightLocalPublishResult(result, localBuildResult)
-				if printErr := d.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
-					return errors.Join(failure, fmt.Errorf("print partial publish result: %w", printErr))
-				}
-				return failure
+				return writePublishFailure(d, *output.Output, *output.Pretty, result, failure)
 			}
 
 			if !uploaded && hasExternalGroups && !buildAppVerified {
 				if err := shared.CheckBuildAppOwnership(requestCtx, client, resolvedPublishAppID, buildResp.Data.ID); err != nil {
-					return fmt.Errorf("publish testflight: %w", err)
+					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildResp.Data.ID, "build_ownership", "build_ownership_failed", fmt.Errorf("publish testflight: %w", err))
 				}
 				buildAppVerified = true
 			}
@@ -507,8 +526,20 @@ Examples:
 				}
 			}
 
+			if *notify && !uploaded && hasExternalGroups && len(groupsToAssign) == 0 {
+				result.NotificationRecovery = publishNotificationRecovery(buildResp.Data.ID)
+				return reportPartialFailure(publishFailureStageNotification, errors.New(result.NotificationRecovery.Message))
+			}
+
 			if testNotesValue != "" {
-				upsertOpts := shared.UpsertBetaBuildLocalizationOptions{AppID: resolvedPublishAppID, Diagnostics: d.IO.ErrOut}
+				upsertOpts := shared.UpsertBetaBuildLocalizationOptions{
+					AppID:       resolvedPublishAppID,
+					Diagnostics: d.IO.ErrOut,
+					AppLocalizationCreated: func() {
+						hasProgress = true
+						completedStages = append(completedStages, "beta_app_localization")
+					},
+				}
 				if _, err := shared.UpsertBetaBuildLocalization(requestCtx, client, buildResp.Data.ID, localeValue, testNotesValue, upsertOpts); err != nil {
 					recoveryErr := shared.NewTestNotesRecoveryError(buildResp.Data.ID, localeValue, testNotesValue, err)
 					result.Recovery = recoveryErr.Recovery()
@@ -543,11 +574,7 @@ Examples:
 					hasProgress = true
 					completedStages = append(completedStages, publishCompletedStageBetaDistribution)
 					failureStage = publishFailureStageNotification
-					state := "unknown"
-					if partialErr.Step == "checking notification state" {
-						state = "not_attempted"
-					}
-					result.NotificationRecovery = publishNotificationRecovery(buildResp.Data.ID, state)
+					result.NotificationRecovery = publishNotificationRecovery(buildResp.Data.ID)
 				}
 				return reportPartialFailure(failureStage, wrapPublishTestFlightAddGroupsError(err))
 			}
@@ -561,9 +588,6 @@ Examples:
 			}
 			result.Notified = notified
 			result.NotificationAction = addResult.NotificationAction
-			if *notify && !uploaded && hasExternalGroups && len(addResult.AddedGroupIDs) == 0 {
-				result.NotificationRecovery = publishNotificationRecovery(buildResp.Data.ID, "unknown")
-			}
 
 			submissionResult, err := shared.SubmitBuildBetaReviewIfNeeded(requestCtx, client, buildResp.Data.ID, resolvedGroups, submissionGroupIDs, *submit, "publish testflight")
 			if err != nil {
