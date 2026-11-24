@@ -156,16 +156,7 @@ At least one field flag must be provided.`,
 					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
 					output:                output,
 				}
-				versionParams := updateVersionParams{
-					description:          *description,
-					keywords:             *keywords,
-					whatsNew:             *whatsNew,
-					promotionalText:      *promotionalText,
-					supportURL:           *supportURL,
-					marketingURL:         *marketingURL,
-					clearPromotionalText: *clearPromotionalText,
-				}
-				if hasAnyVersionField(versionParams) {
+				if hasAnyActiveProvidedFlag(fs, versionFieldNames...) {
 					return shared.WithDiagnostic(
 						d.UsageError("--type version is required for version update flags"),
 						shared.DiagnosticRequiredInputMissing,
@@ -192,16 +183,7 @@ At least one field flag must be provided.`,
 					clearPromotionalText: *clearPromotionalText,
 					output:               output,
 				}
-				appInfoParams := updateAppInfoParams{
-					name:                  *name,
-					subtitle:              *subtitle,
-					privacyPolicyURL:      *privacyPolicyURL,
-					privacyChoicesURL:     *privacyChoicesURL,
-					privacyPolicyText:     *privacyPolicyText,
-					clearSubtitle:         *clearSubtitle,
-					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
-				}
-				if hasAnyAppInfoField(appInfoParams) {
+				if hasAnyActiveProvidedFlag(fs, appInfoFieldNames...) {
 					return shared.WithDiagnostic(
 						d.UsageError("--type app-info is required for app-info update flags"),
 						shared.DiagnosticRequiredInputMissing,
@@ -266,6 +248,39 @@ func flagProvided(fs *flag.FlagSet, name string) bool {
 		}
 	})
 	return provided
+}
+
+var appInfoFieldNames = []string{
+	"name",
+	"subtitle",
+	"privacy-policy-url",
+	"privacy-choices-url",
+	"privacy-policy-text",
+	"clear-subtitle",
+	"clear-privacy-policy-url",
+}
+
+var versionFieldNames = []string{
+	"description",
+	"keywords",
+	"whats-new",
+	"promotional-text",
+	"clear-promotional-text",
+	"support-url",
+	"marketing-url",
+}
+
+func hasAnyActiveProvidedFlag(fs *flag.FlagSet, names ...string) bool {
+	for _, name := range names {
+		if !flagProvided(fs, name) {
+			continue
+		}
+		if strings.HasPrefix(name, "clear-") && fs.Lookup(name).Value.String() != "true" {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 type updateAppInfoParams struct {

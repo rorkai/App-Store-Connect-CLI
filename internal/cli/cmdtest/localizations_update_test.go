@@ -72,6 +72,16 @@ func TestLocalizationsUpdateValidationErrors(t *testing.T) {
 			wantErr: "--type version is required for version update flags",
 		},
 		{
+			name:    "empty version field mixed with app-info field is refused",
+			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--name", "New name", "--description", ""},
+			wantErr: "--type version is required for version update flags",
+		},
+		{
+			name:    "empty app-info field mixed with version field is refused",
+			args:    []string{"localizations", "update", "--id", "loc-1", "--description", "Other field", "--name", ""},
+			wantErr: "--type app-info is required for app-info update flags",
+		},
+		{
 			name:    "version clear field mixed with app-info field is refused",
 			args:    []string{"localizations", "update", "--id", "loc-1", "--name", "Updated", "--clear-promotional-text", "--confirm"},
 			wantErr: "--type app-info is required for app-info update flags",
