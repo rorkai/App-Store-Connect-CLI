@@ -60,17 +60,23 @@ func TestVersionLocalizationWritesCheckExplicitApp(t *testing.T) {
 	const list = "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations?limit=200"
 	const created = "POST /v1/appStoreVersionLocalizations"
 	const updated = "PATCH /v1/appStoreVersionLocalizations/loc-1"
+	const versionData = `"type":"appStoreVersions","id":"ver-1"`
+	const matchingApp = `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}`
 	for _, operation := range []string{"create", "update"} {
 		for _, tt := range []struct {
-			name         string
-			app          string
-			relationship string
-			wantError    string
+			name      string
+			app       string
+			data      string
+			wantError string
 		}{
-			{"matching", "app-1", `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}`, ""},
-			{"matching app self-link", "https://api.appstoreconnect.apple.com/v1/apps/app-1", `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}`, ""},
-			{"mismatched", "app-1", `,"relationships":{"app":{"data":{"type":"apps","id":"app-2"}}}`, `belongs to app "app-2", not "app-1"`},
-			{"missing", "app-1", "", `app relationship missing for app store version "ver-1"`},
+			{"matching", "app-1", versionData + matchingApp, ""},
+			{"matching app self-link", "https://api.appstoreconnect.apple.com/v1/apps/app-1", versionData + matchingApp, ""},
+			{"mismatched", "app-1", versionData + `,"relationships":{"app":{"data":{"type":"apps","id":"app-2"}}}`, `belongs to app "app-2", not "app-1"`},
+			{"missing", "app-1", versionData, `app relationship missing for app store version "ver-1"`},
+			{"missing version ID", "app-1", `"type":"appStoreVersions"` + matchingApp, `expected app store version "ver-1", got ""`},
+			{"different version ID", "app-1", `"type":"appStoreVersions","id":"ver-2"` + matchingApp, `expected app store version "ver-1", got "ver-2"`},
+			{"wrong version type", "app-1", `"type":"appInfos","id":"ver-1"` + matchingApp, `expected resource type "appStoreVersions", got "appInfos"`},
+			{"wrong app relationship type", "app-1", versionData + `,"relationships":{"app":{"data":{"type":"builds","id":"app-1"}}}`, `expected app relationship type "apps", got "builds"`},
 		} {
 			t.Run(operation+"/"+tt.name, func(t *testing.T) {
 				setupLocUpdateAuth(t)
@@ -81,7 +87,7 @@ func TestVersionLocalizationWritesCheckExplicitApp(t *testing.T) {
 					requests = append(requests, request)
 					switch request {
 					case lookup:
-						return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1"` + tt.relationship + `}}`)
+						return locUpdateJSONResponse(`{"data":{` + tt.data + `}}`)
 					case list:
 						return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`)
 					case created, updated:
