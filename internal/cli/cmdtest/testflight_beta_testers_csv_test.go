@@ -206,7 +206,7 @@ func TestTestFlightBetaTestersImport_DryRun_NoMutations(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
-	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=existing@example.com,new@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=existing@example.com,new@example.com", "filter[apps]=app-1", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"existing@example.com"}}]}`))
 
 	reg.Register(asctest.GET("/v1/betaTesters/tester-1/relationships/betaGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
@@ -253,7 +253,7 @@ func TestTestFlightBetaTestersImport_CreateAssignAndInvite(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
-	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=new@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=new@example.com", "filter[apps]=app-1", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"New","lastName":"Tester","email":"new@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"}]}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"new@example.com"}}}`))
@@ -408,7 +408,7 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 					if strings.Contains(test.csv, "existing@example.com") {
 						email = "existing@example.com"
 					}
-					matcher = asctest.GET(step.path, "filter[email]="+email, "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200")
+					matcher = asctest.GET(step.path, "filter[email]="+email, "filter[apps]=app-1", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200")
 				case step.method == http.MethodGet:
 					matcher = asctest.GET(step.path, "limit=200")
 				}
@@ -474,7 +474,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 			reg := asctest.NewRegistry(t)
 			reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Core, Team"}}]}`))
-			reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=grace@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=grace@example.com", "filter[apps]=app-1", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[]}`))
 			reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"},{"type":"betaGroups","id":"group-2"}]}}}}`),
 				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"grace@example.com"}}}`))
@@ -501,7 +501,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 
 func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=linus@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=linus@example.com", "filter[apps]=app-1", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Linus","lastName":"Torvalds","email":"linus@example.com"}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-linus","attributes":{"email":"linus@example.com"}}}`))

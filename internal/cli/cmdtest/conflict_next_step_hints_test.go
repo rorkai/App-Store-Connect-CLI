@@ -75,8 +75,9 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}],"links":{"self":"/v1/betaTesters"}}`))
 			}
 			if test.lookupMissingTester {
+				reg.Register(asctest.GET("/v1/builds/build-1/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 				for range 2 {
-					reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=tester@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+					reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=tester@example.com", "filter[apps]=app-1", "fields[betaTesters]=email", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 				}
 			}
 			reg.Register(test.request, asctest.JSON(http.StatusConflict, conflictBody))

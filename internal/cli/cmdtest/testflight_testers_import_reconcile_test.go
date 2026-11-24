@@ -45,8 +45,8 @@ func TestTestersImportCreatesMissingGroupAndReconcilesMembership(t *testing.T) {
 		case r.Method == "GET" && r.URL.Path == "/v1/apps/a1/betaGroups":
 			data = groups
 		case r.Method == "GET" && r.URL.Path == "/v1/betaTesters":
-			if r.URL.Query().Get("filter[apps]") != "" || r.URL.Query().Get("filter[email]") != lookupEmails || r.URL.Query().Get("fields[betaTesters]") != "email,firstName,lastName,inviteType,state" {
-				t.Errorf("lookup must use only input emails across the account: %s", r.URL.RawQuery)
+			if r.URL.Query().Get("filter[apps]") != "a1" || r.URL.Query().Get("filter[email]") != lookupEmails || r.URL.Query().Get("fields[betaTesters]") != "email,firstName,lastName,inviteType,state" {
+				t.Errorf("lookup must use input emails within the selected app: %s", r.URL.RawQuery)
 			}
 			data = testers
 		case r.Method == "GET" && strings.HasSuffix(r.URL.Path, "/relationships/betaGroups"):
@@ -157,7 +157,7 @@ func TestTestersCreateMissingGroupsPreservesNameMatching(t *testing.T) {
 				reg := asctest.NewRegistry(t)
 				reg.Register(asctest.GET("/v1/apps/a1/betaGroups", "limit=200"), asctest.JSON(http.StatusOK, tc.groups))
 				if !tc.ambiguous {
-					reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=existing@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
+					reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=existing@example.com", "filter[apps]=a1", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 						asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"t1","attributes":{"email":"existing@example.com"}}]}`))
 					reg.Register(asctest.GET("/v1/betaTesters/t1/relationships/betaGroups", "limit=200"),
 						asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"g1"}]}`))
@@ -186,6 +186,122 @@ func TestTestersCreateMissingGroupsPreservesNameMatching(t *testing.T) {
 					}
 				}
 			})
+		}
+	}
+}
+
+func TestTestersReconciliationPreservesSelectedAppScope(t *testing.T) {
+	for _, command := range []string{"add", "import"} {
+		for _, selector := range []string{"explicit", "environment", "configured"} {
+			for _, scenario := range []string{"existing", "concurrent", "foreign", "duplicate"} {
+				t.Run(command+"/"+selector+"/"+scenario, func(t *testing.T) {
+					folder := t.TempDir()
+					configPath := filepath.Join(folder, "config.json")
+					t.Setenv("ASC_APP_ID", "")
+					t.Setenv("ASC_CONFIG_PATH", configPath)
+					args := []string{"testflight", "testers", command}
+					switch selector {
+					case "explicit":
+						args = append(args, "--app", "app-1")
+					case "environment":
+						t.Setenv("ASC_APP_ID", "app-1")
+					case "configured":
+						if err := os.Unsetenv("ASC_APP_ID"); err != nil {
+							t.Fatal(err)
+						}
+						if err := os.WriteFile(configPath, []byte(`{"app_id":"app-1"}`), 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if command == "add" {
+						args = append(args, "--email", "tester@example.com", "--group", "Beta")
+					} else {
+						input := filepath.Join(folder, "testers.csv")
+						if err := os.WriteFile(input, []byte(`email,groups
+tester@example.com,Beta
+`), 0o600); err != nil {
+							t.Fatal(err)
+						}
+						args = append(args, "--input", input, "--confirm")
+					}
+					visible := scenario == "existing" || scenario == "duplicate"
+					member := scenario == "existing"
+					creates, writes, membershipReads := 0, 0, 0
+					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						w.Header().Set("Content-Type", "application/json")
+						var data any
+						switch r.Method + " " + r.URL.Path {
+						case "GET /v1/apps/app-1/betaGroups":
+							data = []any{map[string]any{"type": "betaGroups", "id": "g1", "attributes": map[string]any{"name": "Beta", "isInternalGroup": false}}}
+						case "GET /v1/betaGroups/g1":
+							data = map[string]any{"type": "betaGroups", "id": "g1", "attributes": map[string]any{"name": "Beta", "isInternalGroup": false}}
+						case "GET /v1/betaTesters":
+							if r.URL.Query().Get("filter[apps]") != "app-1" || r.URL.Query().Get("filter[email]") != "tester@example.com" {
+								t.Errorf("lookup escaped selected app: %s", r.URL.RawQuery)
+							}
+							data = []any{}
+							if visible {
+								data = []any{map[string]any{"type": "betaTesters", "id": "selected-tester", "attributes": map[string]string{"email": "tester@example.com"}}}
+							}
+							if scenario == "duplicate" {
+								data = append(data.([]any), map[string]any{"type": "betaTesters", "id": "another-selected-tester", "attributes": map[string]string{"email": "tester@example.com"}})
+							}
+						case "POST /v1/betaTesters":
+							creates++
+							if scenario == "concurrent" {
+								visible = true
+							}
+							w.WriteHeader(http.StatusConflict)
+							if _, err := w.Write([]byte(testersAddCannotAssignBody)); err != nil {
+								t.Error(err)
+							}
+							return
+						case "GET /v1/betaTesters/selected-tester/relationships/betaGroups":
+							membershipReads++
+							if !visible || scenario == "duplicate" {
+								t.Error("read membership before unique scoped identity")
+							}
+							data = []map[string]string{}
+							if member {
+								data = []map[string]string{{"type": "betaGroups", "id": "g1"}}
+							}
+						case "POST /v1/betaTesters/selected-tester/relationships/betaGroups":
+							writes++
+							member = true
+							w.WriteHeader(http.StatusNoContent)
+							return
+						default:
+							t.Errorf("unrelated resource request: %s %s", r.Method, r.URL.String())
+							http.Error(w, "unrelated resource", http.StatusBadRequest)
+							return
+						}
+						if err := json.NewEncoder(w).Encode(map[string]any{"data": data}); err != nil {
+							t.Error(err)
+						}
+					}))
+					defer server.Close()
+					for attempt := 0; attempt < 2; attempt++ {
+						stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), args...)
+						if scenario == "foreign" || scenario == "duplicate" {
+							wantCreates := 1
+							if scenario == "duplicate" {
+								wantCreates = 0
+							}
+							if err == nil || creates != wantCreates || writes != 0 || membershipReads != 0 || strings.Contains(stdout+stderr, "foreign-tester") {
+								t.Fatalf("unsafe refusal: creates=%d writes=%d reads=%d stdout=%s stderr=%s err=%v", creates, writes, membershipReads, stdout, stderr, err)
+							}
+							break
+						}
+						wantCreates, wantWrites := 0, 0
+						if scenario == "concurrent" {
+							wantCreates, wantWrites = 1, 1
+						}
+						if err != nil || creates != wantCreates || writes != wantWrites {
+							t.Fatalf("repeat %d: creates=%d writes=%d stdout=%s stderr=%s err=%v", attempt, creates, writes, stdout, stderr, err)
+						}
+					}
+				})
+			}
 		}
 	}
 }

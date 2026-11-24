@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/mail"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -289,9 +290,10 @@ controls provider failures after validation, not invalid CSV input.
 external groups with public links disabled. --dry-run includes those groups in
 the plan without creating them. Names and emails identify existing groups and
 testers; repeating the import sends no writes when membership already matches.
-Testers are matched by the input emails across your account, then assigned only
-to groups of --app. First and last names apply only to newly created testers. Use a one-row CSV for
-one tester and a missing group with the same behavior. Invitations remain opt-in.
+Testers are matched by input email within the selected app, including defaults.
+A create conflict is recovered only when the tester is found in that same app.
+First and last names apply only to newly created testers. A one-row CSV uses
+the same behavior. Invitations remain opt-in.
 
 Examples:
   asc testflight beta-testers import --app "APP_ID" --input "./testers.csv" --create-missing-groups --dry-run
@@ -361,7 +363,7 @@ Examples:
 				}
 			}
 
-			existingByEmail, err := fetchExistingTestersByEmail(ctx, d, client, parsedRows)
+			existingByEmail, err := fetchExistingTestersByEmail(ctx, d, client, []string{resolvedAppID}, parsedRows)
 			if err != nil {
 				return fmt.Errorf("beta-testers import: %w", err)
 			}
@@ -493,6 +495,19 @@ Examples:
 				requestCtx, cancel := d.Timeout(ctx)
 				created, err := client.CreateBetaTester(requestCtx, emailValue, row.firstName, row.lastName, groupIDs, nil)
 				cancel()
+				if isHTTPConflict(err) {
+					outcome, recoveryErr := resolveBetaTesterAddConflict(ctx, d, client, []string{resolvedAppID}, emailValue, groupIDs, nil)
+					if recoveryErr != nil {
+						err = fmt.Errorf("%w (failed to verify tester in selected app: %w)", err, recoveryErr)
+					} else if outcome != nil && outcome.tester != nil {
+						existingByEmail[emailLower] = outcome.tester
+						summary.Existed++
+						if len(outcome.addedGroupIDs) > 0 {
+							summary.Updated++
+						}
+						continue
+					}
+				}
 				if err != nil {
 					summary.Failed++
 					summary.Failures = append(summary.Failures, asc.BetaTestersImportFailure{
@@ -686,46 +701,65 @@ func (r *betaGroupResolver) exportValueForID(groupID string) string {
 	return name
 }
 
-func fetchExistingTestersByEmail(ctx context.Context, d *shared.Deps, client *asc.Client, rows []betaTestersCSVRow) (map[string]*asc.BetaTesterResponse, error) {
+func fetchExistingTestersByEmail(ctx context.Context, d *shared.Deps, client *asc.Client, appIDs []string, rows []betaTestersCSVRow, fields ...string) (map[string]*asc.BetaTesterResponse, error) {
+	if len(appIDs) == 0 {
+		return nil, fmt.Errorf("tester lookup requires a resolved app")
+	}
+	for _, appID := range appIDs {
+		if strings.TrimSpace(appID) == "" {
+			return nil, fmt.Errorf("tester lookup requires a resolved app")
+		}
+	}
+	appIDs = uniqueSortedStrings(appIDs)
+	if len(fields) == 0 {
+		fields = []string{"email", "firstName", "lastName", "inviteType", "state"}
+	}
 	emails := make([]string, 0, len(rows))
 	for _, row := range rows {
 		emails = append(emails, strings.ToLower(strings.TrimSpace(row.email)))
 	}
 	sort.Strings(emails)
 	byEmail := make(map[string]*asc.BetaTesterResponse, len(rows))
-	for start := 0; start < len(emails); start += 20 {
-		batch := emails[start:min(start+20, len(emails))]
-		requestCtx, cancel := d.Timeout(ctx)
-		first, err := client.GetBetaTesters(requestCtx, "", asc.WithBetaTestersEmail(strings.Join(batch, ",")), asc.WithBetaTestersFields([]string{"email", "firstName", "lastName", "inviteType", "state"}), asc.Limit[asc.BetaTestersOption](200))
-		cancel()
-		if err != nil {
-			return nil, err
-		}
-		all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
+	for _, appID := range appIDs {
+		for start := 0; start < len(emails); start += 20 {
+			batch := emails[start:min(start+20, len(emails))]
+			emailFilter := strings.Join(batch, ",")
 			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-			return client.GetBetaTesters(requestCtx, "", asc.NextURL[asc.BetaTestersOption](next))
-		})
-		if err != nil {
-			return nil, err
-		}
-		resp, ok := all.(*asc.BetaTestersResponse)
-		if !ok || resp == nil {
-			return nil, fmt.Errorf("unexpected beta testers response type")
-		}
-		for _, tester := range resp.Data {
-			email := strings.ToLower(strings.TrimSpace(tester.Attributes.Email))
-			if !slices.Contains(batch, email) {
-				continue
+			first, err := client.GetBetaTesters(requestCtx, appID, asc.WithBetaTestersEmail(emailFilter), asc.WithBetaTestersFields(fields), asc.Limit[asc.BetaTestersOption](200))
+			cancel()
+			if err != nil {
+				return nil, err
 			}
-			id := strings.TrimSpace(tester.ID)
-			if id == "" {
-				return nil, fmt.Errorf("tester %q returned an empty ID", email)
+			all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
+				parsed, err := url.Parse(next)
+				if err != nil || parsed.Path != "/v1/betaTesters" || parsed.Query().Get("filter[apps]") != appID || parsed.Query().Get("filter[email]") != emailFilter || !slices.Equal(uniqueSortedStrings(strings.Split(parsed.Query().Get("fields[betaTesters]"), ",")), uniqueSortedStrings(fields)) {
+					return nil, fmt.Errorf("tester pagination changed the requested app, email or fields")
+				}
+				requestCtx, cancel := d.Timeout(ctx)
+				defer cancel()
+				return client.GetBetaTesters(requestCtx, appID, asc.NextURL[asc.BetaTestersOption](next))
+			})
+			if err != nil {
+				return nil, err
 			}
-			if previous, ok := byEmail[email]; ok && previous.Data.ID != id {
-				return nil, fmt.Errorf("multiple testers have email %q; resolve the ambiguity before importing", email)
+			resp, ok := all.(*asc.BetaTestersResponse)
+			if !ok || resp == nil {
+				return nil, fmt.Errorf("unexpected beta testers response type")
 			}
-			byEmail[email] = &asc.BetaTesterResponse{Data: tester}
+			for _, tester := range resp.Data {
+				email := strings.ToLower(strings.TrimSpace(tester.Attributes.Email))
+				if !slices.Contains(batch, email) {
+					continue
+				}
+				id := strings.TrimSpace(tester.ID)
+				if id == "" {
+					return nil, fmt.Errorf("tester %q returned an empty ID", email)
+				}
+				if previous, ok := byEmail[email]; ok && previous.Data.ID != id {
+					return nil, fmt.Errorf("multiple testers have email %q in the selected apps; resolve the ambiguity before continuing", email)
+				}
+				byEmail[email] = &asc.BetaTesterResponse{Data: tester}
+			}
 		}
 	}
 	return byEmail, nil

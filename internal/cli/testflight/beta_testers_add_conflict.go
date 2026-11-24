@@ -3,6 +3,7 @@ package testflight
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -22,7 +23,7 @@ type betaTesterAddConflictOutcome struct {
 	internalGroups []string
 }
 
-// resolveBetaTesterAddConflict reads the account's exact-email tester after a
+// resolveBetaTesterAddConflict reads the selected apps' exact-email tester after a
 // 409 on create. When one exists, it adds whatever requested groups and builds
 // the tester is still missing, so the end state is the one the caller asked
 // for. It returns a nil tester when no tester with this email exists, so the
@@ -31,10 +32,15 @@ func resolveBetaTesterAddConflict(
 	ctx context.Context,
 	d *shared.Deps,
 	client *asc.Client,
+	appIDs []string,
 	email string,
 	groupIDs, buildIDs []string,
 ) (*betaTesterAddConflictOutcome, error) {
-	testers, err := fetchExistingTestersByEmail(ctx, d, client, []betaTestersCSVRow{{email: email}})
+	var fields []string
+	if len(groupIDs) == 0 {
+		fields = []string{"email"}
+	}
+	testers, err := fetchExistingTestersByEmail(ctx, d, client, appIDs, []betaTestersCSVRow{{email: email}}, fields...)
 	if err != nil {
 		return nil, fmt.Errorf("look up tester %q: %w", email, err)
 	}
@@ -58,11 +64,27 @@ func reconcileBetaTesterRelationships(ctx context.Context, d *shared.Deps, clien
 	if err != nil {
 		return nil, fmt.Errorf("read groups of tester %s: %w", testerID, err)
 	}
-	missingBuilds, err := missingBetaTesterLinkages(ctx, d, buildIDs, func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
-		return client.GetBetaTesterBuildsRelationships(ctx, testerID, opts...)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("read builds of tester %s: %w", testerID, err)
+	var missingBuilds []string
+	for _, buildID := range uniqueSortedStrings(buildIDs) {
+		missing, err := missingBetaTesterLinkages(ctx, d, []string{testerID}, func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
+			response, err := client.GetBuildIndividualTestersRelationships(ctx, buildID, opts...)
+			if err != nil {
+				return nil, err
+			}
+			if next := response.Links.Next; next != "" {
+				parsed, err := url.Parse(next)
+				if err != nil || parsed.Path != "/v1/builds/"+buildID+"/relationships/individualTesters" {
+					return nil, fmt.Errorf("tester membership pagination changed the requested build")
+				}
+			}
+			return response, nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("read testers of build %s: %w", buildID, err)
+		}
+		if len(missing) > 0 {
+			missingBuilds = append(missingBuilds, buildID)
+		}
 	}
 
 	if len(missingGroups) > 0 {
