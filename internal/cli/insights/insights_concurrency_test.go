@@ -49,7 +49,7 @@ func TestFetchAppSalesReportsOverlapsAppLookup(t *testing.T) {
 	})
 
 	params := salesSummaryReportParams("V", asc.SalesReportFrequencyDaily, "2026-02-01")
-	scope, metrics, errs, err := fetchAppSalesReports(context.Background(), client, "123", [2]asc.SalesReportParams{params, params})
+	scope, metrics, errs, err := fetchAppSalesReports(context.Background(), client, "123", [2]asc.SalesReportParams{params, params}, false)
 	if err != nil || errs[0] != nil || errs[1] != nil {
 		t.Fatalf("err=%v report errs=%v", err, errs)
 	}
@@ -67,7 +67,7 @@ func TestFetchAppSalesReportsAppErrorTakesPrecedence(t *testing.T) {
 	})
 
 	params := salesSummaryReportParams("V", asc.SalesReportFrequencyWeekly, "2026-02-01")
-	_, _, _, err := fetchAppSalesReports(context.Background(), client, "123", [2]asc.SalesReportParams{params, params})
+	_, _, _, err := fetchAppSalesReports(context.Background(), client, "123", [2]asc.SalesReportParams{params, params}, false)
 	if !asc.IsNotFound(err) {
 		t.Fatalf("expected app lookup not-found error, got %v", err)
 	}

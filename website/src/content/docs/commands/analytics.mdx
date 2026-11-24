@@ -95,6 +95,10 @@ asc analytics sales \
   --output "reports/monthly.tsv.gz"
 ```
 
+## Compare Sales Periods
+
+For `SALES` `SUMMARY` reports, add `--by-currency` to `asc analytics compare` to multiply monetary amounts by units and compare each currency separately. JSON returns the comparisons in `byCurrency` with `baseline` and `comparison` period values. See [currency comparisons](/commands/insights#currency-comparisons) for incomplete report rows and mixed currencies.
+
 ## Analytics Report Requests
 
 ### Create Request

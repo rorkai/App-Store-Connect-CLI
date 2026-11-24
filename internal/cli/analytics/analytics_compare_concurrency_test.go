@@ -77,7 +77,7 @@ func compareDates(count int) []string {
 }
 
 func fetchAndAggregateOne(ctx context.Context, client *asc.Client, dates []string, salesType asc.SalesReportType) (insights.SalesMetrics, int, error) {
-	result := fetchAndAggregate(ctx, client, "V", insights.SalesScope{AppID: "123", AppSKU: "APP"}, [][]string{dates}, salesType, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily)[0]
+	result := fetchAndAggregate(ctx, client, "V", insights.SalesScope{AppID: "123", AppSKU: "APP"}, [][]string{dates}, salesType, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily, false)[0]
 	return result.metrics, result.found, result.err
 }
 
@@ -152,7 +152,7 @@ func TestFetchAndAggregateSharesPoolAcrossPeriods(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Request: req, Body: body}, nil
 	})
 	dates := compareDates(4)
-	periods := fetchAndAggregate(context.Background(), client, "V", insights.SalesScope{AppID: "123", AppSKU: "APP"}, [][]string{dates[:1], dates[1:]}, asc.SalesReportTypeSales, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily)
+	periods := fetchAndAggregate(context.Background(), client, "V", insights.SalesScope{AppID: "123", AppSKU: "APP"}, [][]string{dates[:1], dates[1:]}, asc.SalesReportTypeSales, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily, false)
 	if periods[0].err == nil || !strings.Contains(periods[0].err.Error(), "parse report 2026-01-01:") {
 		t.Fatalf("baseline err=%v", periods[0].err)
 	}
