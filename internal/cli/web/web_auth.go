@@ -1178,9 +1178,11 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 		return nil, "", err
 	}
 	ctx = contextWithTwoFactorPreference(ctx, twoFactorPreference)
-	providerSelected := hasProviderSelection(opts.providerSelection)
-	protectedProviderSelection := providerSelected && opts.providerSelection.RefuseSwitchUnder != ""
-	restoreCachedProvider := !providerSelected || protectedProviderSelection
+	refuseProviderSwitchUnder := opts.providerSelection.RefuseSwitchUnder
+	if refuseProviderSwitchUnder == "" {
+		refuseProviderSwitchUnder = providerSwitchRefusalSetting(nil)
+	}
+	restoreCachedProvider := !hasProviderSelection(opts.providerSelection) || refuseProviderSwitchUnder != ""
 
 	resolvedAppleID := strings.TrimSpace(appleID)
 	// ASC_WEB_APPLE_ID sits between the flag and the cached-session default: it
@@ -1315,7 +1317,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 			return resumed, "cache", true, nil
 		}
 		if !cacheExpired {
-			if protectedProviderSelection && resumed != nil && resumed.Client == nil && targetAppleID != "" && strings.EqualFold(resumed.UserEmail, targetAppleID) {
+			if refuseProviderSwitchUnder != "" && resumed != nil && resumed.Client == nil && targetAppleID != "" && strings.EqualFold(resumed.UserEmail, targetAppleID) {
 				cachedProviderSession = resumed
 			}
 			return nil, "", false, nil
@@ -1371,7 +1373,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 		policy.observe(reauthAppleID, loginErr, twoFactorStarted)
 		if loginErr == nil {
 			if restoreCachedProvider {
-				if err := restoreCachedWebProvider(ctx, d, session, expiredCachedSession); err != nil {
+				if err := restoreCachedWebProvider(ctx, d, session, expiredCachedSession, refuseProviderSwitchUnder); err != nil {
 					return nil, "", false, err
 				}
 			}
@@ -1618,7 +1620,7 @@ func resolveWebSessionWithPolicy(ctx context.Context, d *shared.Deps, appleID, p
 	}
 	persistPromptedWebPassword(d, resolvedAppleID, resolvedPassword)
 	if restoreCachedProvider {
-		if err := restoreCachedWebProvider(ctx, d, session, cachedProviderSession); err != nil {
+		if err := restoreCachedWebProvider(ctx, d, session, cachedProviderSession, refuseProviderSwitchUnder); err != nil {
 			return nil, "", err
 		}
 	}
@@ -1678,14 +1680,23 @@ func printSessionCacheWriteWarningWith(d *shared.Deps, err error) {
 	_, _ = fmt.Fprintf(d.IO.ErrOut, "Warning: signed in, but caching the web session failed: %v; the next asc web command may need to sign in again.\n", err)
 }
 
-// restoreCachedWebProvider returns a re-signed-in session to the provider the
-// expired cached session was on, since Apple starts every sign-in on the
-// account's default provider.
-func restoreCachedWebProvider(ctx context.Context, d *shared.Deps, session, cached *webcore.AuthSession) error {
+// restoreCachedWebProvider keeps a re-signed-in session on its cached provider.
+// Restoration requires a provider switch when Apple chooses a different default.
+func restoreCachedWebProvider(ctx context.Context, d *shared.Deps, session, cached *webcore.AuthSession, refuseSwitchUnder string) error {
 	if cached == nil || cached.ProviderID == 0 {
 		return nil
 	}
 	if session.ProviderID != cached.ProviderID {
+		if refuseSwitchUnder != "" {
+			refused := &webcore.ProviderSwitchRefusedError{
+				Setting:             refuseSwitchUnder,
+				CurrentProvider:     fmt.Sprint(session.ProviderID),
+				RequestedProvider:   fmt.Sprint(cached.ProviderID),
+				RequestedProviderID: cached.ProviderID,
+			}
+			hint := fmt.Sprintf("Sign-in landed on provider %d. To refresh the session for cached provider %d, run 'asc web auth login --provider-id %d' outside read-only mode before retrying.", session.ProviderID, cached.ProviderID, cached.ProviderID)
+			return reportProviderSwitchRefusal(d, refused, hint)
+		}
 		providerCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 		defer cancel()
 		if err := selectWebProviderFn(providerCtx, session, webcore.ProviderSelection{ProviderID: cached.ProviderID}); err != nil {
@@ -1704,10 +1715,17 @@ func providerSwitchRefusal(d *shared.Deps, refused *webcore.ProviderSwitchRefuse
 	var hint string
 	if refused.Setting == "--dry-run" {
 		hint = fmt.Sprintf("The session stays on provider %s. To switch, run 'asc web auth login --provider-id %d' first (or run this command without --dry-run); a dry run on that provider then needs no switch.", refused.CurrentProvider, refused.RequestedProviderID)
+	} else {
+		hint = fmt.Sprintf("The session stays on provider %s. To switch, run 'asc web auth login --provider-id %d' with neither --read-only nor ASC_READ_ONLY set; later commands then run on provider %d.", refused.CurrentProvider, refused.RequestedProviderID, refused.RequestedProviderID)
+	}
+	return reportProviderSwitchRefusal(d, refused, hint)
+}
+
+func reportProviderSwitchRefusal(d *shared.Deps, refused *webcore.ProviderSwitchRefusedError, hint string) error {
+	if refused.Setting == "--dry-run" {
 		fmt.Fprintf(d.IO.ErrOut, "Error: %s\nHint: %s\n", refused.Error(), hint)
 		return shared.NewErrorWithCause(shared.NewReportedUsageError(shared.UsageErrorOther, refused.Error()), refused)
 	}
-	hint = fmt.Sprintf("The session stays on provider %s. To switch, run 'asc web auth login --provider-id %d' with neither --read-only nor ASC_READ_ONLY set; later commands then run on provider %d.", refused.CurrentProvider, refused.RequestedProviderID, refused.RequestedProviderID)
 	return &shared.HintedError{Err: refused, Hint: hint}
 }
 
@@ -1747,14 +1765,22 @@ func resolveSession(ctx context.Context, d *shared.Deps, appleID, password, twoF
 	if len(twoFactorCodeCommand) > 0 {
 		command = twoFactorCodeCommand[0]
 	}
-	return resolveWebSessionWith(ctx, d, appleID, password, twoFactorCode, webSessionResolveOptions{
-		resolvePassword: resolveSessionPassword,
-		persistFresh:    persistFreshResolvedSession,
-		persistAutoReauth: func(session *webcore.AuthSession) {
+	return resolveSessionWithSelection(ctx, d, appleID, password, twoFactorCode, command, webcore.ProviderSelection{})
+}
+
+func resolveSessionWithSelection(ctx context.Context, d *shared.Deps, appleID, password, twoFactorCode, twoFactorCodeCommand string, selection webcore.ProviderSelection) (*webcore.AuthSession, string, error) {
+	opts := webSessionResolveOptions{
+		resolvePassword:      resolveSessionPassword,
+		twoFactorCodeCommand: twoFactorCodeCommand,
+		providerSelection:    selection,
+	}
+	if !hasProviderSelection(selection) {
+		opts.persistFresh = persistFreshResolvedSession
+		opts.persistAutoReauth = func(session *webcore.AuthSession) {
 			persistAutoReauthResolvedSession(d, session)
-		},
-		twoFactorCodeCommand: command,
-	})
+		}
+	}
+	return resolveWebSessionWith(ctx, d, appleID, password, twoFactorCode, opts)
 }
 
 func hasProviderSelection(selection webcore.ProviderSelection) bool {
@@ -1765,17 +1791,14 @@ func callResolveSessionForProviderSelectionWith(ctx context.Context, d *shared.D
 	if selection.ProviderID < 0 {
 		return nil, "", shared.WithDiagnostic(d.UsageError("--provider-id must be non-negative"), shared.DiagnosticInvalidInput, "--provider-id")
 	}
-	if !hasProviderSelection(selection) {
+	if hasProviderSelection(selection) {
+		if resolveSessionWithoutPersistFn != nil {
+			return callSessionResolverHook(ctx, resolveSessionWithoutPersistFn, "resolveSessionWithoutPersistFn", appleID, password, twoFactorCode, twoFactorCodeCommand)
+		}
+	} else if resolveSessionFn != nil {
 		return callResolveSessionFn(ctx, d, appleID, password, twoFactorCode, twoFactorCodeCommand)
 	}
-	if resolveSessionWithoutPersistFn == nil {
-		return resolveWebSessionWith(ctx, d, appleID, password, twoFactorCode, webSessionResolveOptions{
-			resolvePassword:      resolveSessionPassword,
-			twoFactorCodeCommand: twoFactorCodeCommand,
-			providerSelection:    selection,
-		})
-	}
-	return callSessionResolverHook(ctx, resolveSessionWithoutPersistFn, "resolveSessionWithoutPersistFn", appleID, password, twoFactorCode, twoFactorCodeCommand)
+	return resolveSessionWithSelection(ctx, d, appleID, password, twoFactorCode, twoFactorCodeCommand, selection)
 }
 
 // newWebAuthCommand returns the detached web auth command group.

@@ -42,7 +42,7 @@ Error: ASC_READ_ONLY is set; refusing to switch the web session from provider 11
 Hint: The session stays on provider 111111 / AAAA111111 / Team A. To switch, run 'asc web auth login --provider-id 222222' with neither --read-only nor ASC_READ_ONLY set; later commands then run on provider 222222.
 ```
 
-Naming the provider the session is already on still works. When a cached session needs a new sign-in, the CLI restores the saved provider for the same Apple Account before checking the requested provider. A web command run with `--dry-run` refuses the requested switch the same way, with usage exit code 2.
+Naming the provider the session is already on still works. If signing in again lands on a different provider from the account's saved provider, the command stops without switching providers, running on the new team, or caching the new provider. This applies with or without a provider flag. A web command run with `--dry-run` refuses provider switches the same way, with usage exit code 2.
 
 A `--confirm` command is refused when it issues its write, so `asc bundle-ids delete --id "ABC123" --confirm` exits 6 without sending anything. Commands whose `--confirm` only guards a local change, such as `asc auth export-to-config` or `asc notarization staple`, still run: the mode refuses remote writes, not local ones.
 

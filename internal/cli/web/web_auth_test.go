@@ -19,6 +19,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -2230,17 +2231,28 @@ func TestResolveSessionAutoReauthRestoresCachedProvider(t *testing.T) {
 	for _, test := range []struct {
 		name, providerFlag, provider string
 		readOnly, dryRun, fresh      bool
+		appleDefault                 int64
 		wantProvider                 int64
 		wantPosts                    []int64
-		wantRefusal                  string
+		wantRefusedProvider          int64
 		metadataAppleID              string
 	}{
-		{name: "read-only refuses Apple default", providerFlag: "--provider-id", provider: "7", readOnly: true, wantProvider: 42, wantPosts: []int64{42}, wantRefusal: "--read-only"},
-		{name: "dry-run refuses Apple default after fresh fallback", providerFlag: "--public-provider-id", provider: "TEAM7", dryRun: true, fresh: true, wantProvider: 42, wantPosts: []int64{42}, wantRefusal: "--dry-run"},
-		{name: "read-only accepts cached provider", providerFlag: "--provider-id", provider: "42", readOnly: true, wantProvider: 42, wantPosts: []int64{42}},
-		{name: "read-only restores provider after all cached cookies expire", providerFlag: "--provider-id", provider: "7", readOnly: true, wantProvider: 42, wantPosts: []int64{42}, wantRefusal: "--read-only", metadataAppleID: "user@example.com"},
+		{name: "read-only cannot restore cached provider when selecting Apple default", providerFlag: "--provider-id", provider: "7", readOnly: true, wantRefusedProvider: 42},
+		{name: "dry-run cannot restore cached provider after fresh fallback", providerFlag: "--public-provider-id", provider: "TEAM7", dryRun: true, fresh: true, wantRefusedProvider: 42},
+		{name: "read-only cannot select cached provider after sign-in lands elsewhere", providerFlag: "--provider-id", provider: "42", readOnly: true, wantRefusedProvider: 42},
+		{name: "dry-run cannot select cached provider after sign-in lands elsewhere", providerFlag: "--provider-id", provider: "42", dryRun: true, wantRefusedProvider: 42},
+		{name: "dry-run stops when requested, cached, and sign-in providers differ", providerFlag: "--public-provider-id", provider: "TEAM9", dryRun: true, wantRefusedProvider: 42},
+		{name: "read-only cannot implicitly restore a different provider", readOnly: true, wantRefusedProvider: 42},
+		{name: "dry-run cannot implicitly restore a different provider", dryRun: true, wantRefusedProvider: 42},
+		{name: "read-only accepts cached provider when sign-in lands there", providerFlag: "--provider-id", provider: "42", readOnly: true, appleDefault: 42, wantProvider: 42},
+		{name: "dry-run accepts cached provider when sign-in lands there", providerFlag: "--public-provider-id", provider: "TEAM42", dryRun: true, appleDefault: 42, wantProvider: 42},
+		{name: "read-only refuses another provider when sign-in lands on cached provider", providerFlag: "--provider-id", provider: "7", readOnly: true, appleDefault: 42, wantProvider: 42, wantRefusedProvider: 7},
+		{name: "read-only refuses restoration even after all cached cookies expire", providerFlag: "--provider-id", provider: "7", readOnly: true, wantRefusedProvider: 42, metadataAppleID: "user@example.com"},
 		{name: "read-only ignores another account's provider metadata", providerFlag: "--provider-id", provider: "7", readOnly: true, wantProvider: 7, metadataAppleID: "other@example.com"},
 		{name: "writes allowed select Apple default directly", providerFlag: "--provider-id", provider: "7", wantProvider: 7},
+		{name: "unprotected login can select cached provider explicitly", providerFlag: "--provider-id", provider: "42", wantProvider: 42, wantPosts: []int64{42}},
+		{name: "unprotected login can select a third provider directly", providerFlag: "--provider-id", provider: "9", wantProvider: 9, wantPosts: []int64{9}},
+		{name: "unprotected login restores cached provider with no selector", wantProvider: 42, wantPosts: []int64{42}},
 		{name: "login without explicit provider uses Apple default after all cached cookies expire", wantProvider: 7, metadataAppleID: "user@example.com"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -2249,9 +2261,21 @@ func TestResolveSessionAutoReauthRestoresCachedProvider(t *testing.T) {
 			t.Cleanup(func() { readonly.SetFlagEnabled(false) })
 			persisted = nil
 			selectWebProviderFn = origSelectProvider
-			provider := int64(7)
+			appleDefault := test.appleDefault
+			if appleDefault == 0 {
+				appleDefault = 7
+			}
+			provider := appleDefault
 			var posts []int64
+			var appReads int
 			cachedClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Host != "appstoreconnect.apple.com" {
+					return nil, fmt.Errorf("unexpected request host %s", req.URL.Host)
+				}
+				if req.URL.Path == "/iris/v1/apps/1234567890" && req.Method == http.MethodGet {
+					appReads++
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"data":{"id":"1234567890","type":"apps","attributes":{"removed":true}}}`))}, nil
+				}
 				if req.URL.Path != "/olympus/v1/session" {
 					return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL.Path)
 				}
@@ -2269,20 +2293,23 @@ func TestResolveSessionAutoReauthRestoresCachedProvider(t *testing.T) {
 				} else if req.Method != http.MethodGet {
 					t.Fatalf("unexpected session method %s", req.Method)
 				}
-				body := fmt.Sprintf(`{"provider":{"providerId":%[1]d,"publicProviderId":"TEAM%[1]d"},"availableProviders":[{"providerId":7,"publicProviderId":"TEAM7"},{"providerId":42,"publicProviderId":"TEAM42"}],"user":{"emailAddress":"user@example.com"}}`, provider)
+				body := fmt.Sprintf(`{"provider":{"providerId":%[1]d,"publicProviderId":"TEAM%[1]d"},"availableProviders":[{"providerId":7,"publicProviderId":"TEAM7"},{"providerId":9,"publicProviderId":"TEAM9"},{"providerId":42,"publicProviderId":"TEAM42"}],"user":{"emailAddress":"user@example.com"}}`, provider)
 				return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}, nil
 			})
-			if test.fresh || test.metadataAppleID != "" {
-				cachedLogin, freshLogin := webLoginWithClientFn, webLoginFn
-				t.Cleanup(func() { webLoginWithClientFn, webLoginFn = cachedLogin, freshLogin })
-				webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
-					if test.metadataAppleID != "" {
-						t.Fatal("attempted to reuse a session with no usable cookies")
-					}
+			cachedLogin, freshLogin := webLoginWithClientFn, webLoginFn
+			t.Cleanup(func() { webLoginWithClientFn, webLoginFn = cachedLogin, freshLogin })
+			webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+				if test.metadataAppleID != "" {
+					t.Fatal("attempted to reuse a session with no usable cookies")
+				}
+				if test.fresh {
 					return nil, errors.New("cached client rejected")
 				}
+				return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com", ProviderID: appleDefault}, nil
+			}
+			if test.fresh || test.metadataAppleID != "" {
 				webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
-					return &webcore.AuthSession{Client: &http.Client{Transport: cachedClient.Transport}, UserEmail: "user@example.com", ProviderID: 7}, nil
+					return &webcore.AuthSession{Client: &http.Client{Transport: cachedClient.Transport}, UserEmail: "user@example.com", ProviderID: appleDefault}, nil
 				}
 			}
 			if test.metadataAppleID != "" {
@@ -2306,16 +2333,45 @@ func TestResolveSessionAutoReauthRestoresCachedProvider(t *testing.T) {
 				t.Fatalf("parse flags: %v", err)
 			}
 			err := cmd.Exec(context.Background(), nil)
-			if !reflect.DeepEqual(posts, test.wantPosts) || len(persisted) != 1 || persisted[0].ProviderID != test.wantProvider {
-				t.Errorf("provider POSTs = %v, cached sessions = %+v; want POSTs %v and one cache write on provider %d", posts, persisted, test.wantPosts, test.wantProvider)
+			if !reflect.DeepEqual(posts, test.wantPosts) {
+				t.Errorf("provider POSTs = %v, want %v", posts, test.wantPosts)
 			}
-			if test.wantRefusal != "" {
-				refused, ok := errors.AsType[*webcore.ProviderSwitchRefusedError](err)
-				if !ok || refused.Setting != test.wantRefusal || refused.CurrentProvider != "42 / TEAM42" || refused.RequestedProviderID != 7 {
-					t.Fatalf("expected %s refusal to switch from cached provider 42 to provider 7, got %v (stderr %q)", test.wantRefusal, err, stderr.String())
+			var cachedProviders []int64
+			for index := range persisted {
+				cachedProviders = append(cachedProviders, persisted[index].ProviderID)
+			}
+			var wantCachedProviders []int64
+			if test.wantProvider != 0 {
+				wantCachedProviders = []int64{test.wantProvider}
+			}
+			if !reflect.DeepEqual(cachedProviders, wantCachedProviders) {
+				t.Errorf("providers written to cache = %v, want %v", cachedProviders, wantCachedProviders)
+			}
+			if test.wantRefusedProvider != 0 {
+				wantSetting := "--read-only"
+				if test.dryRun {
+					wantSetting = "--dry-run"
 				}
-				if errors.Is(err, readonly.ErrRefused) != test.readOnly || shared.IsReportedUsageError(err) != test.dryRun || stdout.Len() != 0 {
-					t.Fatalf("unexpected refusal classification or stdout: err = %v, stdout = %q", err, stdout.String())
+				refused, ok := errors.AsType[*webcore.ProviderSwitchRefusedError](err)
+				if !ok || refused.Setting != wantSetting || refused.RequestedProviderID != test.wantRefusedProvider {
+					t.Fatalf("expected %s refusal to switch from provider %d to provider %d, got %v (stderr %q)", wantSetting, appleDefault, test.wantRefusedProvider, err, stderr.String())
+				}
+				if appReads != 0 || errors.Is(err, readonly.ErrRefused) != test.readOnly || shared.IsReportedUsageError(err) != test.dryRun || stdout.Len() != 0 {
+					t.Fatalf("unexpected refusal classification, stdout or app reads: err = %v, stdout = %q, app reads = %d", err, stdout.String(), appReads)
+				}
+				hint := stderr.String()
+				if hinted, ok := errors.AsType[*shared.HintedError](err); ok {
+					hint = hinted.Hint
+				}
+				if want := fmt.Sprintf("asc web auth login --provider-id %d", test.wantRefusedProvider); !strings.Contains(hint, want) {
+					t.Fatalf("refusal hint %q does not name the recovery command %q", hint, want)
+				}
+				return
+			}
+			if test.dryRun {
+				var result asc.WebAppDeleteResult
+				if err != nil || json.Unmarshal(stdout.Bytes(), &result) != nil || result.AppID != "1234567890" || !result.DryRun || appReads != 1 {
+					t.Fatalf("expected dry-run receipt after one app read, got %v (stdout %q, app reads %d)", err, stdout.String(), appReads)
 				}
 				return
 			}
