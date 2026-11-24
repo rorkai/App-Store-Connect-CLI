@@ -462,7 +462,7 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 			return fmt.Errorf("localizations update: %w", err)
 		}
 		// Find existing localization ID for the locale
-		existing, err := client.GetAppStoreVersionLocalizations(requestCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
+		existing, err := client.GetAppStoreVersionLocalizations(asc.WithNoRedirectReads(requestCtx), vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 		if err != nil {
 			return fmt.Errorf("localizations update: failed to fetch localizations: %w", err)
 		}
