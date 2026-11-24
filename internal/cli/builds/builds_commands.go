@@ -21,9 +21,7 @@ const (
 	buildWaitDefaultTimeout = 30 * time.Minute
 )
 
-// buildsUploadDryRunReservesWarning announces that --dry-run stops reserving
-// the upload in 7.4.0 and names the flag that keeps doing it.
-const buildsUploadDryRunReservesWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). From 7.4.0, --dry-run sends nothing to App Store Connect and only checks the artifact locally; use --reserve-only to keep reserving the upload."
+const buildsUploadDryRunReservesWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). In a future release, --dry-run will check the artifact locally without contacting App Store Connect. Use --reserve-only to keep reserving uploads."
 
 // newBuildsUploadCommand returns a command to upload a build
 func newBuildsUploadCommand(d *shared.Deps) *ffcli.Command {
@@ -35,7 +33,7 @@ func newBuildsUploadCommand(d *shared.Deps) *ffcli.Command {
 	version := fs.String("version", "", "CFBundleShortVersionString (e.g., 1.0.0, auto-extracted from IPA if not provided)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (e.g., 123, auto-extracted from IPA if not provided)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (auto-detected for --ipa and --pkg)")
-	dryRun := fs.Bool("dry-run", false, "Reserve upload operations without uploading the file (deprecated: use --reserve-only; sends nothing from 7.4.0)")
+	dryRun := fs.Bool("dry-run", false, "Reserve upload operations without uploading the file (deprecated for reservations, use --reserve-only)")
 	reserveOnly := fs.Bool("reserve-only", false, "Reserve the upload in App Store Connect and print its upload operations without sending the file (creates a build upload)")
 	concurrency := fs.Int("concurrency", asc.DefaultUploadConcurrency, "Upload concurrency")
 	verifyChecksum := fs.Bool("checksum", false, "Verify upload checksums if provided by API")
@@ -64,8 +62,9 @@ When --test-notes is set, the command waits only until the build appears, then
 creates or updates the requested localization. Add --wait when the invocation
 must also wait for processing to complete.
 Use --reserve-only to create the build upload in App Store Connect and print its
-upload operations without sending the file. --dry-run does the same in this
-release but prints a warning: from 7.4.0 it sends nothing to App Store Connect.
+upload operations without sending the file. --dry-run still reserves the upload
+and prints a warning. In a future release, --dry-run will check the artifact
+locally without contacting App Store Connect.
 Presigned URLs and request-header values are redacted from output by default.
 Pass --include-sensitive only when another tool must consume those capabilities.
 
@@ -105,8 +104,6 @@ Examples:
 			if *dryRun && *reserveOnly {
 				return d.UsageError("builds upload: --dry-run and --reserve-only are mutually exclusive")
 			}
-			// Until 7.4.0, --dry-run reserves the upload exactly like
-			// --reserve-only; reserveFlag names whichever flag the caller passed.
 			reserve := *dryRun || *reserveOnly
 			reserveFlag := "--reserve-only"
 			if *dryRun {

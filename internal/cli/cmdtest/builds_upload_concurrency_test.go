@@ -46,11 +46,8 @@ func TestBuildsUploadDryRunRejectsExplicitConcurrency(t *testing.T) {
 	}
 }
 
-// TestBuildsUploadReservationFlagsReserveWithoutUploading covers the two flags
-// that stop after reserving the upload: --reserve-only, and --dry-run until it
-// stops reserving in 7.4.0, which warns that it does.
 func TestBuildsUploadReservationFlagsReserveWithoutUploading(t *testing.T) {
-	const dryRunWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). From 7.4.0, --dry-run sends nothing to App Store Connect and only checks the artifact locally; use --reserve-only to keep reserving the upload.\n"
+	const dryRunWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). In a future release, --dry-run will check the artifact locally without contacting App Store Connect. Use --reserve-only to keep reserving uploads.\n"
 
 	tests := []struct {
 		flag        string
