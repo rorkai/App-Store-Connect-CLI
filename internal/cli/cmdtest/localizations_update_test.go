@@ -64,31 +64,41 @@ func TestLocalizationsUpdateValidationErrors(t *testing.T) {
 		{
 			name:    "app-info field mixed with version field is refused",
 			args:    []string{"localizations", "update", "--id", "loc-1", "--name", "Updated", "--description", "Desc"},
-			wantErr: "--type app-info is required for app-info update flags",
+			wantErr: "localizations update: version fields (--description) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
 		},
 		{
 			name:    "version field mixed with app-info field is refused",
 			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--name", "New name", "--description", "Other field"},
-			wantErr: "--type version is required for version update flags",
+			wantErr: "localizations update: version fields (--description) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
 		},
 		{
 			name:    "empty version field mixed with app-info field is refused",
 			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--name", "New name", "--description", ""},
-			wantErr: "--type version is required for version update flags",
+			wantErr: "localizations update: version fields (--description) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
 		},
 		{
 			name:    "empty app-info field mixed with version field is refused",
 			args:    []string{"localizations", "update", "--id", "loc-1", "--description", "Other field", "--name", ""},
-			wantErr: "--type app-info is required for app-info update flags",
+			wantErr: "localizations update: version fields (--description) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
 		},
 		{
 			name:    "version clear field mixed with app-info field is refused",
 			args:    []string{"localizations", "update", "--id", "loc-1", "--name", "Updated", "--clear-promotional-text", "--confirm"},
-			wantErr: "--type app-info is required for app-info update flags",
+			wantErr: "localizations update: version fields (--clear-promotional-text) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
 		},
 		{
-			name:    "app-info clear field rejects version type",
+			name:    "version clear field mixed with app-info field and type is refused",
 			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--name", "New name", "--clear-promotional-text", "--confirm"},
+			wantErr: "localizations update: version fields (--clear-promotional-text) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "mixed fields with a version selector and app-info type are refused as mixed",
+			args:    []string{"localizations", "update", "--type", "app-info", "--version", "ver-1", "--locale", "en-US", "--description", "Desc", "--whats-new", "New", "--name", "Updated", "--subtitle", "Sub"},
+			wantErr: "localizations update: version fields (--description, --whats-new) and app-info fields (--name, --subtitle) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "version clear field alone rejects app-info type",
+			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--clear-promotional-text", "--confirm"},
 			wantErr: "--clear-promotional-text requires --type version",
 		},
 		{
