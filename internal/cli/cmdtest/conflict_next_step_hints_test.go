@@ -16,8 +16,9 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 	const reviewItemBody = `{"data":{"type":"reviewSubmissionItems","relationships":{"reviewSubmission":{"data":{"type":"reviewSubmissions","id":"sub-1"}},"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`
 
 	tests := []struct {
-		args         []string
-		lookupTester bool
+		args                []string
+		lookupTester        bool
+		lookupMissingTester bool
 		// readsBack registers the read-back the command makes after the 409;
 		// it answers 404 so only the generic hint is under test.
 		readsBack asctest.Matcher
@@ -46,9 +47,10 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 			wantHint:  "Hint: Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
 		},
 		{
-			args:     []string{"testflight", "testers", "add", "--email", "tester@example.com", "--build-id", "build-1"},
-			request:  asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"email":"tester@example.com"},"relationships":{"builds":{"data":[{"type":"builds","id":"build-1"}]}}}}`),
-			wantHint: "Hint: Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
+			args:                []string{"testflight", "testers", "add", "--email", "tester@example.com", "--build-id", "build-1"},
+			lookupMissingTester: true,
+			request:             asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"email":"tester@example.com"},"relationships":{"builds":{"data":[{"type":"builds","id":"build-1"}]}}}}`),
+			wantHint:            "Hint: Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
 		},
 		{
 			args:         []string{"testflight", "testers", "invite", "--app", "app-1", "--email", "tester@example.com"},
@@ -71,6 +73,11 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 			if test.lookupTester {
 				reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=tester@example.com"),
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}],"links":{"self":"/v1/betaTesters"}}`))
+			}
+			if test.lookupMissingTester {
+				for range 2 {
+					reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=tester@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+				}
 			}
 			reg.Register(test.request, asctest.JSON(http.StatusConflict, conflictBody))
 			if test.readsBack.String() != "" {

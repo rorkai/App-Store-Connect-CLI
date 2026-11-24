@@ -2,10 +2,12 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -53,6 +55,7 @@ func TestTestFlightBetaTestersAddOutput(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=tester@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
 	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"email":"tester@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"}]}}}}`),
@@ -86,25 +89,25 @@ func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
 		{
 			name:         "omitted --build-id sends only groups",
 			args:         []string{"--app", "app-1", "--group", "Beta"},
-			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "POST /v1/betaTesters"},
+			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "GET /v1/betaTesters", "POST /v1/betaTesters"},
 			want:         `{` + groups + `}`,
 		},
 		{
 			name:         "group name and ID resolve to one relationship",
 			args:         []string{"--app", "app-1", "--group", "Beta,group-1"},
-			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "POST /v1/betaTesters"},
+			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "GET /v1/betaTesters", "POST /v1/betaTesters"},
 			want:         `{` + groups + `}`,
 		},
 		{
 			name:         "groups and builds",
 			args:         []string{"--app", "app-1", "--group", "Beta", "--build-id", "build-1, build-2,build-1"},
-			wantRequests: []string{"GET /v1/apps/app-1/betaGroups", "POST /v1/betaTesters"},
+			wantRequests: []string{"GET /v1/builds/build-1/relationships/app", "GET /v1/builds/build-2/relationships/app", "GET /v1/apps/app-1/betaGroups", "GET /v1/betaTesters", "POST /v1/betaTesters"},
 			want:         `{` + groups + `,` + builds + `}`,
 		},
 		{
 			name:         "builds alone need neither a group nor an app",
 			args:         []string{"--build-id", "build-1,build-2"},
-			wantRequests: []string{"POST /v1/betaTesters"},
+			wantRequests: []string{"GET /v1/betaTesters", "POST /v1/betaTesters"},
 			want:         `{` + builds + `}`,
 		},
 	}
@@ -112,7 +115,13 @@ func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			if len(test.wantRequests) > 1 {
+			if slices.Contains(test.args, "--app") && slices.Contains(test.args, "--build-id") {
+				for _, id := range []string{"build-1", "build-2"} {
+					reg.Register(asctest.GET("/v1/builds/"+id+"/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
+				}
+			}
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=tester@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+			if slices.Contains(test.args, "--group") {
 				reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
 			}
@@ -230,6 +239,12 @@ func TestTestFlightBetaTestersListWithGroupUsesOnlyGroupFilter(t *testing.T) {
 
 func TestTestFlightBetaTestersSelectorUsageErrors(t *testing.T) {
 	runUsageExitCases(t, []usageExitCase{
+		{
+			name:    "AddRejectsEmailListBeforeAccountLookup",
+			args:    []string{"testflight", "testers", "add", "--email", "one@example.com,two@example.com", "--build-id", "build-1"},
+			deps:    true,
+			wantErr: "Error: invalid email format",
+		},
 		{
 			name:    "ListRejectsGroupAndBuildID",
 			args:    []string{"testflight", "testers", "list", "--app", "app-1", "--group", "group-1", "--build-id", "build-1"},
@@ -360,8 +375,9 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
 			reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"), asctest.JSON(http.StatusOK, groups))
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=tester@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"), asctest.JSON(http.StatusOK, noTesters))
 			reg.Register(asctest.POST("/v1/betaTesters"), asctest.JSON(http.StatusConflict, testersAddCannotAssignBody))
-			reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=tester@example.com"), asctest.JSON(http.StatusOK, test.testers))
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=tester@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"), asctest.JSON(http.StatusOK, test.testers))
 			if test.memberOf != "" {
 				reg.Register(asctest.GET("/v1/betaTesters/tester-1/relationships/betaGroups", "limit=200"), asctest.JSON(http.StatusOK, test.memberOf))
 			}
@@ -369,6 +385,7 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 				reg.Register(asctest.POST("/v1/betaTesters/tester-1/relationships/betaGroups").JSONBody(test.addGroups), asctest.JSON(http.StatusNoContent, ""))
 			}
 			if test.buildsOf != "" {
+				reg.Register(asctest.GET("/v1/builds/"+test.buildID+"/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 				reg.Register(asctest.GET("/v1/betaTesters/tester-1/relationships/builds", "limit=200"), asctest.JSON(http.StatusOK, test.buildsOf))
 				reg.Register(asctest.POST("/v1/betaTesters/tester-1/relationships/builds"), asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","title":"Build cannot be assigned","detail":"Build cannot be assigned"}]}`))
 			}
@@ -409,6 +426,108 @@ func TestTestFlightTestersAddConflictReadsTheTesterBack(t *testing.T) {
 			}
 			if strings.Count(stderr, "Hint:") > 1 {
 				t.Fatalf("stderr has more than one hint:\n%s", stderr)
+			}
+		})
+	}
+}
+
+func TestTestFlightBetaTestersAddRejectsBuildFromAnotherApp(t *testing.T) {
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/other-build/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"other-app"}}`))
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", "New Group", "--create-missing-groups", "--build-id", "other-build")
+	if code != 2 || stdout != "" || !strings.Contains(stderr, "does not belong to") {
+		t.Fatalf("stdout=%q stderr=%q code=%d", stdout, stderr, code)
+	}
+	if len(reg.Requests()) != 1 {
+		t.Fatalf("expected only build ownership lookup, got %v", reg.Requests())
+	}
+}
+
+func TestTestFlightTestersAddBuildOnlyReconcilesExistingAndConcurrentTester(t *testing.T) {
+	for _, concurrent := range []bool{false, true} {
+		t.Run(fmt.Sprintf("concurrent=%t", concurrent), func(t *testing.T) {
+			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+			created := !concurrent
+			creates, relationshipWrites := 0, 0
+			builds := map[string]bool{"build-1": true, "unrequested-build": true}
+			const tester = `{"type":"betaTesters","id":"tester-1","attributes":{"email":"Tester@Example.com","appDevices":[],"futureAttribute":{"enabled":true}}}`
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch req.Method + " " + req.URL.Path {
+				case "GET /v1/betaTesters":
+					if req.URL.Query().Get("filter[email]") != "tester@example.com" || req.URL.Query().Get("filter[apps]") != "" {
+						t.Errorf("unexpected tester scope: %s", req.URL.RawQuery)
+					}
+					if created {
+						fmt.Fprintf(w, `{"data":[%s]}`, tester)
+					} else {
+						if _, err := io.WriteString(w, `{"data":[]}`); err != nil {
+							t.Error(err)
+						}
+					}
+				case "POST /v1/betaTesters":
+					creates++
+					if !concurrent || created {
+						t.Error("created an existing tester")
+					}
+					created = true
+					w.WriteHeader(http.StatusConflict)
+					if _, err := io.WriteString(w, testersAddCannotAssignBody); err != nil {
+						t.Error(err)
+					}
+				case "GET /v1/betaTesters/tester-1/relationships/builds":
+					data := []map[string]string{}
+					for id := range builds {
+						data = append(data, map[string]string{"type": "builds", "id": id})
+					}
+					if err := json.NewEncoder(w).Encode(map[string]any{"data": data}); err != nil {
+						t.Error(err)
+					}
+				case "POST /v1/betaTesters/tester-1/relationships/builds":
+					relationshipWrites++
+					var body struct{ Data []struct{ ID, Type string } }
+					if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+						t.Error(err)
+					}
+					if len(body.Data) != 1 || body.Data[0].ID != "build-2" || body.Data[0].Type != "builds" {
+						t.Errorf("must add only the missing named build: %+v", body.Data)
+					}
+					builds["build-2"] = true
+					w.WriteHeader(http.StatusNoContent)
+				default:
+					t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+				}
+			}))
+			defer server.Close()
+			for attempt := 0; attempt < 2; attempt++ {
+				stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "testflight", "testers", "add",
+					"--email", "tester@example.com", "--build-id", "build-1,build-2", "--first-name", "Do not overwrite", "--output", "json")
+				if err != nil {
+					t.Fatalf("stdout=%q stderr=%q err=%v", stdout, stderr, err)
+				}
+				var response struct{ Data json.RawMessage }
+				if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+					t.Fatal(err)
+				}
+				var actual, expected any
+				if err := json.Unmarshal(response.Data, &actual); err != nil {
+					t.Fatal(err)
+				}
+				if err := json.Unmarshal([]byte(tester), &expected); err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(actual, expected) {
+					t.Fatalf("tester response lost sparse or new fields: %s", response.Data)
+				}
+				wantCreates := 0
+				if concurrent {
+					wantCreates = 1
+				}
+				if creates != wantCreates || relationshipWrites != 1 {
+					t.Fatalf("attempt %d: creates=%d relationship writes=%d", attempt, creates, relationshipWrites)
+				}
 			}
 		})
 	}

@@ -206,9 +206,10 @@ func TestTestFlightBetaTestersImport_DryRun_NoMutations(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
-	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=existing@example.com,new@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"existing@example.com"}}]}`))
 
+	reg.Register(asctest.GET("/v1/betaTesters/tester-1/relationships/betaGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	csvPath := filepath.Join(t.TempDir(), "input.csv")
 	csvBody := "" +
 		"email,groups\n" +
@@ -252,7 +253,7 @@ func TestTestFlightBetaTestersImport_CreateAssignAndInvite(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
-	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=new@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"New","lastName":"Tester","email":"new@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"}]}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"new@example.com"}}}`))
@@ -389,19 +390,10 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 			steps: []step{
 				{http.MethodGet, "/v1/apps/app-1/betaGroups", http.StatusOK, betaGroup},
 				{http.MethodGet, "/v1/betaTesters", http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"existing@example.com"}}]}`},
+				{http.MethodGet, "/v1/betaTesters/tester-1/relationships/betaGroups", http.StatusOK, `{"data":[]}`},
 				{http.MethodPost, "/v1/betaTesters/tester-1/relationships/betaGroups", http.StatusInternalServerError, boom},
 			},
 			wantSummary: map[string]float64{"total": 1, "existed": 1, "updated": 0, "failed": 1},
-		},
-		{
-			name: "invalid row fails while later rows are created",
-			csv:  "email,groups\n,Beta\nok@example.com,Beta\n",
-			steps: []step{
-				{http.MethodGet, "/v1/apps/app-1/betaGroups", http.StatusOK, betaGroup},
-				{http.MethodGet, "/v1/betaTesters", http.StatusOK, `{"data":[]}`},
-				{http.MethodPost, "/v1/betaTesters", http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-1","attributes":{"email":"ok@example.com"}}}`},
-			},
-			wantSummary: map[string]float64{"created": 1, "failed": 1},
 		},
 	}
 
@@ -412,7 +404,11 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 				matcher := asctest.POST(step.path)
 				switch {
 				case step.method == http.MethodGet && step.path == "/v1/betaTesters":
-					matcher = asctest.GET(step.path, "filter[apps]=app-1", "limit=200")
+					email := "new@example.com"
+					if strings.Contains(test.csv, "existing@example.com") {
+						email = "existing@example.com"
+					}
+					matcher = asctest.GET(step.path, "filter[email]="+email, "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200")
 				case step.method == http.MethodGet:
 					matcher = asctest.GET(step.path, "limit=200")
 				}
@@ -478,7 +474,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 			reg := asctest.NewRegistry(t)
 			reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Core, Team"}}]}`))
-			reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=grace@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[]}`))
 			reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"},{"type":"betaGroups","id":"group-2"}]}}}}`),
 				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"grace@example.com"}}}`))
@@ -505,7 +501,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 
 func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=linus@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Linus","lastName":"Torvalds","email":"linus@example.com"}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-linus","attributes":{"email":"linus@example.com"}}}`))
@@ -529,10 +525,8 @@ func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 	}
 }
 
-func TestTestFlightBetaTestersImport_InvalidEmailFailsRow(t *testing.T) {
+func TestTestFlightBetaTestersImport_InvalidEmailRejectsFile(t *testing.T) {
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	csvPath := filepath.Join(t.TempDir(), "invalid-email.csv")
 	csvBody := "" +
@@ -544,17 +538,8 @@ func TestTestFlightBetaTestersImport_InvalidEmailFailsRow(t *testing.T) {
 
 	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm")
 
-	if runErr == nil {
-		t.Fatal("expected error for invalid email")
-	}
-	if _, ok := errors.AsType[ReportedError](runErr); !ok {
-		t.Fatalf("expected ReportedError, got %v", runErr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"failed":1`) || !strings.Contains(strings.ToLower(stdout), "invalid email") {
-		t.Fatalf("expected failed row with invalid email error, got %q", stdout)
+	if !errors.Is(runErr, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, "invalid email") {
+		t.Fatalf("stdout=%q stderr=%q err=%v", stdout, stderr, runErr)
 	}
 }
 

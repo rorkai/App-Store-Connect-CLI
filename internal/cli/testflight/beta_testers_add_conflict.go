@@ -22,7 +22,7 @@ type betaTesterAddConflictOutcome struct {
 	internalGroups []string
 }
 
-// resolveBetaTesterAddConflict reads the app's tester with this email after a
+// resolveBetaTesterAddConflict reads the account's exact-email tester after a
 // 409 on create. When one exists, it adds whatever requested groups and builds
 // the tester is still missing, so the end state is the one the caller asked
 // for. It returns a nil tester when no tester with this email exists, so the
@@ -31,28 +31,26 @@ func resolveBetaTesterAddConflict(
 	ctx context.Context,
 	d *shared.Deps,
 	client *asc.Client,
-	appID, email string,
+	email string,
 	groupIDs, buildIDs []string,
 ) (*betaTesterAddConflictOutcome, error) {
-	requestCtx, cancel := d.Timeout(ctx)
-	testers, err := client.GetBetaTesters(requestCtx, appID, asc.WithBetaTestersEmail(email))
-	cancel()
+	testers, err := fetchExistingTestersByEmail(ctx, d, client, []betaTestersCSVRow{{email: email}})
 	if err != nil {
 		return nil, fmt.Errorf("look up tester %q: %w", email, err)
 	}
-	if len(testers.Data) > 1 || strings.TrimSpace(testers.Links.Next) != "" {
-		// Several testers share the email: no single record to read back.
-		return nil, nil
-	}
-	if len(testers.Data) == 0 {
+	tester := testers[strings.ToLower(strings.TrimSpace(email))]
+	if tester == nil {
 		internal, err := internalBetaGroupNames(ctx, d, client, groupIDs)
 		if err != nil {
 			return nil, err
 		}
 		return &betaTesterAddConflictOutcome{internalGroups: internal}, nil
 	}
-	tester := testers.Data[0]
-	testerID := strings.TrimSpace(tester.ID)
+	return reconcileBetaTesterRelationships(ctx, d, client, tester, groupIDs, buildIDs)
+}
+
+func reconcileBetaTesterRelationships(ctx context.Context, d *shared.Deps, client *asc.Client, tester *asc.BetaTesterResponse, groupIDs, buildIDs []string) (*betaTesterAddConflictOutcome, error) {
+	testerID := strings.TrimSpace(tester.Data.ID)
 
 	missingGroups, err := missingBetaTesterLinkages(ctx, d, groupIDs, func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
 		return client.GetBetaTesterBetaGroupsRelationships(ctx, testerID, opts...)
@@ -89,7 +87,7 @@ func resolveBetaTesterAddConflict(
 	}
 
 	return &betaTesterAddConflictOutcome{
-		tester:        &asc.BetaTesterResponse{Data: tester},
+		tester:        tester,
 		addedGroupIDs: missingGroups,
 		addedBuildIDs: missingBuilds,
 	}, nil
