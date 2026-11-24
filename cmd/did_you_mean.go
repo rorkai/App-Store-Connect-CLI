@@ -60,9 +60,12 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"get":    {"asc web agreements status", "asc agreements territories list --id EULA_ID"},
 	},
 	"asc apps": {
-		"show":   {"asc apps view --id APP_ID", "asc apps info view --app APP_ID"},
-		"find":   {"asc apps list --name NAME", "asc apps list --bundle-id BUNDLE_ID"},
-		"search": {"asc apps list --name NAME", "asc apps list --bundle-id BUNDLE_ID"},
+		"show":          {"asc apps view --id APP_ID", "asc apps info view --app APP_ID"},
+		"find":          {"asc apps list --name NAME", "asc apps list --bundle-id BUNDLE_ID"},
+		"search":        {"asc apps list --name NAME", "asc apps list --bundle-id BUNDLE_ID"},
+		"localizations": {"asc localizations list --app APP_ID --type app-info"},
+		"privacy":       {"asc web privacy pull --app APP_ID"},
+		"review-detail": {"asc review details-get --app APP_ID"},
 	},
 	"asc auth": {
 		"whoami":    {"asc auth status", "asc auth doctor"},
@@ -100,10 +103,19 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"remove":              {"asc builds expire --build-id BUILD_ID --confirm", "asc builds remove-groups --build-id BUILD_ID --group GROUP_ID --confirm"},
 		"rm":                  {"asc builds expire --build-id BUILD_ID --confirm", "asc builds remove-groups --build-id BUILD_ID --group GROUP_ID --confirm"},
 		"testers":             {"asc builds individual-testers list --build-id BUILD_ID", "asc builds individual-testers add --build-id BUILD_ID --tester TESTER_ID"},
+
+		"beta-build-localizations": {"asc builds links view --build-id BUILD_ID --type betaBuildLocalizations"},
 	},
 	"asc iap": {
 		"show": {"asc iap view --id IAP_ID", "asc iap list --app APP_ID"},
 		"add":  {"asc iap create --app APP_ID --product-id PRODUCT_ID --ref-name NAME --type TYPE"},
+		"localizations": {
+			"asc iap view --id IAP_ID --include inAppPurchaseLocalizations",
+			"asc iap versions list --iap-id IAP_ID",
+			"asc iap versions localizations list --version-id VERSION_ID",
+		},
+		"prices":       {"asc iap pricing summary --app APP_ID"},
+		"price-points": {"asc iap pricing price-points list --iap-id IAP_ID"},
 		"submit": {
 			"asc review submissions-create --app APP_ID --platform IOS",
 			"asc iap versions submit --version-id IAP_VERSION_ID --submission SUBMISSION_ID --confirm",
@@ -143,6 +155,10 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		"state":             {"asc review status --app APP_ID", "asc review doctor --app APP_ID"},
 		"check":             {"asc review status --app APP_ID", "asc review doctor --app APP_ID"},
 		"list":              {"asc review history --app APP_ID", "asc review submissions list --app APP_ID"},
+		"details-show":      {"asc review details-get --app APP_ID"},
+	},
+	"asc review submissions": {
+		"items": {"asc review items list --submission SUBMISSION_ID"},
 	},
 	"asc screenshots": {
 		"add":  {"asc screenshots upload --app APP_ID --version VERSION --path DIR --device-type IPHONE_65", "asc screenshots plan --app APP_ID --version VERSION"},
@@ -210,12 +226,13 @@ var unknownChildSynonyms = map[string]map[string][]string{
 		},
 	},
 	"asc versions": {
-		"latest":    {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
-		"current":   {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
-		"status":    {"asc versions list --app APP_ID", "asc review status --app APP_ID"},
-		"show":      {"asc versions view --version-id VERSION_ID", "asc versions list --app APP_ID"},
-		"get-build": {"asc versions view --version-id VERSION_ID --include-build", "asc builds info --build-id BUILD_ID"},
-		"build":     {"asc versions view --version-id VERSION_ID --include-build", "asc builds info --build-id BUILD_ID"},
+		"latest":        {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
+		"current":       {"asc versions list --app APP_ID --latest", "asc versions view --version-id VERSION_ID"},
+		"status":        {"asc versions list --app APP_ID", "asc review status --app APP_ID"},
+		"show":          {"asc versions view --version-id VERSION_ID", "asc versions list --app APP_ID"},
+		"get-build":     {"asc versions view --version-id VERSION_ID --include-build", "asc builds info --build-id BUILD_ID"},
+		"build":         {"asc versions view --version-id VERSION_ID --include-build", "asc builds info --build-id BUILD_ID"},
+		"relationships": {"asc versions links --version-id VERSION_ID --type RELATIONSHIP"},
 	},
 }
 
