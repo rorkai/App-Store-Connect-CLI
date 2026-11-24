@@ -44,6 +44,21 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: "api: unexpected argument \"extra\"",
 		},
 		{
+			name:    "quoted method and path",
+			args:    []string{"api", "GET /v1/ageRatingDeclarations"},
+			wantErr: "api: METHOD and PATH must be separate arguments; pass e.g. `asc api GET /v1/apps`",
+		},
+		{
+			name:    "fields flag points to query",
+			args:    []string{"api", "GET", "/v1/apps", "--fields", "name"},
+			wantErr: "api: --fields is not an `asc api` flag; pass sparse fields as a query parameter: --query \"fields[TYPE]=FIELD1,FIELD2\"",
+		},
+		{
+			name:    "fields flag before method points to query",
+			args:    []string{"api", "--fields=caller-fixture", "GET", "/v1/apps"},
+			wantErr: "api: --fields is not an `asc api` flag; pass sparse fields as a query parameter: --query \"fields[TYPE]=FIELD1,FIELD2\"",
+		},
+		{
 			// --json is --output json, so the body after it is a stray positional.
 			name:    "json body after --json",
 			args:    []string{"api", "post", "/v1/inAppPurchaseLocalizations", "--json", `{"data":{"type":"inAppPurchaseLocalizations"}}`, "--output", "json"},
@@ -424,6 +439,7 @@ func TestAPIUnknownPathNamesTheNativeCommand(t *testing.T) {
 		{path: "/v1/apps/123/appStoreLocalizations", want: "asc localizations list --app 123"},
 		{path: "/v1/appStoreVersions/V1/localizations", want: "asc localizations list --version V1"},
 		{path: "/v1/appStoreVersions/V1/appScreenshotSets", want: "asc screenshots list --version V1"},
+		{path: "/v1/ageRatingDeclarations", want: "asc age-rating view --app APP_ID"},
 		{path: "/v1/ageRatingDeclarations/D1", want: "asc age-rating view --app APP_ID"},
 		{path: "/v1/apps/123/ageRatingDeclaration", want: "asc age-rating view --app 123"},
 		{path: "/v1/subscriptionAppStoreReviewScreenshots", want: "asc subscriptions review app-store-screenshot view --subscription-id SUBSCRIPTION_ID"},

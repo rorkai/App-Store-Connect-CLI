@@ -29,6 +29,8 @@ const (
 	nearestOperationMax = 5
 )
 
+const SparseFieldsFlagHint = "api: --fields is not an `asc api` flag; pass sparse fields as a query parameter: --query \"fields[TYPE]=FIELD1,FIELD2\""
+
 var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete}
 
 // NewCommand returns the `asc api` command built on d.
@@ -89,6 +91,9 @@ Examples:
 			if err != nil {
 				if value, ok := includeFlagValue(args); ok && err.Error() == "flag provided but not defined: --include" {
 					return d.UsageErrorf("api: --include is not an `asc api` flag; pass it as a query parameter: --query include=%s", value)
+				}
+				if err.Error() == "flag provided but not defined: --fields" {
+					return d.UsageError(SparseFieldsFlagHint)
 				}
 				return d.UsageErrorf("api: %v", err)
 			}
@@ -183,6 +188,10 @@ func parseRequest(ctx context.Context, d *shared.Deps, positional []string, quer
 	// A lone PATH is a GET: anything but a method name is a PATH, such as
 	// /v1/apps, apps/123 or apps.
 	if len(positional) == 1 && !isMethodName(positional[0]) {
+		parts := strings.Fields(positional[0])
+		if len(parts) > 1 && isMethodName(parts[0]) {
+			return rawRequest{}, d.UsageError("api: METHOD and PATH must be separate arguments; pass e.g. `asc api GET /v1/apps`")
+		}
 		positional = []string{http.MethodGet, positional[0]}
 	}
 	if len(positional) < 2 {
@@ -630,6 +639,7 @@ var nativeCommands = map[string]string{
 	"GET /v1/apps/{id}/appStoreLocalizations":         "asc localizations list --app {id}",
 	"GET /v1/appStoreVersions/{id}/localizations":     "asc localizations list --version {id}",
 	"GET /v1/appStoreVersions/{id}/appScreenshotSets": "asc screenshots list --version {id}",
+	"GET /v1/ageRatingDeclarations":                   "asc age-rating view --app APP_ID",
 	"GET /v1/ageRatingDeclarations/{id}":              "asc age-rating view --app APP_ID",
 	"GET /v1/apps/{id}/ageRatingDeclaration":          "asc age-rating view --app {id}",
 	"GET /v1/subscriptionAppStoreReviewScreenshots":   "asc subscriptions review app-store-screenshot view --subscription-id SUBSCRIPTION_ID",
