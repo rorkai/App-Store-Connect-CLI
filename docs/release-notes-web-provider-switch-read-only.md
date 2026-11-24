@@ -27,9 +27,8 @@ stops before making a switch, running on the new team, or caching the session
 on it. This applies with or without a provider flag. Brokered web sessions keep
 their own refusal.
 
-Because that sign-in is not cached, the cached session stays expired. Every
-later `asc web` command under read-only mode or `--dry-run` signs in to Apple
-again, with a two-factor code when Apple asks for one, and is refused again:
+The refused sign-in is not cached, so a later `asc web` command signs in to
+Apple again, with a two-factor code when Apple asks for one:
 
 ```text
 $ ASC_READ_ONLY=1 asc web apps declarations list --app APP_ID
@@ -37,9 +36,8 @@ Error: ASC_READ_ONLY is set; refusing to switch the web session from provider 11
 Hint: Sign-in landed on provider 111111. To refresh the session for cached provider 222222, run 'asc web auth login --provider-id 222222' with neither --read-only nor ASC_READ_ONLY set, then retry.
 ```
 
-This repeats until `asc web auth login --provider-id 222222` is run with
-neither read-only mode nor `--dry-run`, which signs in, switches to the saved
-provider and caches the session there.
+Run `asc web auth login --provider-id 222222` with neither read-only mode nor
+`--dry-run` to save the session on the intended provider.
 
 ## Migration
 
@@ -54,5 +52,5 @@ A read-only job that reads several teams needs a step that switches providers
 without read-only mode before each team's reads.
 
 A scheduled read-only or dry-run job on a team that is not the Apple Account's
-default needs the same command again whenever its cached session expires.
-Until then each run of the job signs in and is refused.
+default may be refused this way after its cached session expires. Run the same
+command again, outside those modes, to save the session on that team.
