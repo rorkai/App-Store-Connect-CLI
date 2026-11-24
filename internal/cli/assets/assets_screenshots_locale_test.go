@@ -55,6 +55,10 @@ func TestExecuteScreenshotUploadCommandLocaleReplaceTouchesOnlySelectedLocaleSet
 			return
 		}
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appStoreVersions":
 			if got := req.URL.Query().Get("filter[versionString]"); got != "1.2.3" {
 				t.Errorf("filter[versionString] = %q, want 1.2.3", got)

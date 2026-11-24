@@ -81,6 +81,7 @@ type ScreenshotSetUploadOptions[T any] struct {
 type screenshotUploadConfig[T any] struct {
 	Deps           *shared.Deps
 	Client         *asc.Client
+	AppID          string
 	LocalizationID string
 	DisplayType    string
 	RootPath       string
@@ -809,8 +810,14 @@ screenshots with matching source checksums, deletes only unwanted screenshots,
 uploads missing files, and verifies their order. A repeated successful run makes
 no changes. It refuses remote assets whose state or checksum cannot be verified.
 Deletions require --confirm; --replace --dry-run previews the changes without it.
+Replacement requires an independently selected canonical numeric app ID (--app,
+ASC_APP_ID, or the configured default); names and bundle IDs are not accepted.
+With --replace, --app may also scope --version-localization.
 After a partial failure, --resume verifies the saved set and source checksums and
-continues only its planned work. COMPLETE matching upload survivors are retained.
+continues only non-destructive work. It never authorizes screenshot deletion.
+Pending deletions or cleanup require a fresh explicitly targeted --replace --dry-run,
+then a separately authorized --replace --confirm for that exact app, localization,
+and device. COMPLETE matching upload survivors are retained.
 Legacy replacement receipts must identify the localization, device, and set; an
 unfinished upload also needs its complete source file list. Restore missing source
 files or inspect the set before starting a new replacement when this cannot be
@@ -1019,7 +1026,7 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 			fmt.Fprintln(d.IO.ErrOut, "Error: choose an upload mode: --version-localization VERSION_LOCALIZATION_ID; (--app APP_ID or ASC_APP_ID) with --version VERSION or --version-id VERSION_ID; or --resume ARTIFACT_PATH")
 			return nil, shared.MissingRequiredUsageError("")
 		}
-	} else if appModeRequested {
+	} else if appModeRequested && (!opts.Replace || appFlagValue == "" || versionValue != "" || versionIDValue != "" || platformValue != "") {
 		fmt.Fprintln(d.IO.ErrOut, "Error: --version-localization cannot be combined with --app, --version, --version-id, or --platform")
 		return nil, flag.ErrHelp
 	}
@@ -1061,6 +1068,12 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 	if opts.Replace && !opts.DryRun && !opts.Confirm {
 		fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required to delete existing screenshots with --replace")
 		return nil, shared.MissingRequiredUsageError("--confirm")
+	}
+	if opts.Replace {
+		appFlagValue, err = screenshotReplacementAppID(d, appFlagValue)
+		if err != nil {
+			return nil, d.UsageError(err.Error())
+		}
 	}
 	if opts.Confirm && !opts.Replace {
 		return nil, d.UsageError("--confirm only applies to --replace")
@@ -1121,6 +1134,7 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 		result, err := deps.ExecuteUpload(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
 			Deps:           d,
 			Client:         client,
+			AppID:          appFlagValue,
 			LocalizationID: locID,
 			DisplayType:    apiDisplayType,
 			RootPath:       d.OSPath(pathValue),
@@ -1180,9 +1194,12 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
-	resolvedAppID, err := shared.ResolveAppIDWithLookup(requestCtx, client, appFlagValue)
-	if err != nil {
-		return nil, err
+	resolvedAppID := appFlagValue
+	if !opts.Replace {
+		resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, appFlagValue)
+		if err != nil {
+			return nil, err
+		}
 	}
 	resolvedVersionID, resolvedVersion, resolvedPlatform, err := resolveScreenshotPlanVersion(requestCtx, client, resolvedAppID, versionValue, versionIDValue, normalizedPlatform)
 	if err != nil {

@@ -3,8 +3,11 @@ package assets
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -18,7 +21,62 @@ type screenshotReplacement struct {
 	Remove    []screenshotPendingAsset `json:"remove,omitempty"`
 }
 
+type screenshotResumeKey struct{}
+
+func screenshotDestructiveRecoveryError() error {
+	return fmt.Errorf("resume receipts do not authorize screenshot deletion; inspect the intended app, localization, and device, then run a fresh explicitly targeted screenshots upload --replace --dry-run and a separately confirmed --replace --confirm for that exact target")
+}
+
+func screenshotReplacementAppID(d *shared.Deps, value string) (string, error) {
+	value = d.ResolveAppID(value)
+	if value == "" {
+		return "", fmt.Errorf("--replace requires --app, ASC_APP_ID, or a configured default app")
+	}
+	if !shared.IsNumericAppID(value) || strings.HasPrefix(value, "0") {
+		return "", fmt.Errorf("--replace requires a canonical numeric app ID; app names and bundle IDs are not accepted")
+	}
+	return value, nil
+}
+
+func verifyScreenshotLocalizationApp(ctx context.Context, client *asc.Client, appID, localizationID string) error {
+	query := url.Values{}
+	query.Set("include", "appStoreVersion")
+	query.Set("fields[appStoreVersionLocalizations]", "appStoreVersion")
+	query.Set("fields[appStoreVersions]", "app")
+	payload, err := client.RawRequestWithQuery(ctx, http.MethodGet, "/v1/appStoreVersionLocalizations/"+url.PathEscape(localizationID), query, nil)
+	if err != nil {
+		return err
+	}
+	var localization asc.AppStoreVersionLocalizationResponse
+	if err := json.Unmarshal(payload, &localization); err != nil {
+		return fmt.Errorf("cannot verify screenshot localization: %w", err)
+	}
+	if localization.Data.ID != localizationID || localization.Data.Type != asc.ResourceTypeAppStoreVersionLocalizations {
+		return fmt.Errorf("cannot verify screenshot localization %q", localizationID)
+	}
+	var relationships struct {
+		AppStoreVersion asc.Relationship `json:"appStoreVersion"`
+	}
+	if err := json.Unmarshal(localization.Data.Relationships, &relationships); err != nil {
+		return fmt.Errorf("cannot verify screenshot localization version: %w", err)
+	}
+	version := relationships.AppStoreVersion.Data
+	if version.Type != asc.ResourceTypeAppStoreVersions || strings.TrimSpace(version.ID) == "" {
+		return fmt.Errorf("cannot verify the version owning screenshot localization %q", localizationID)
+	}
+	_, err = shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, version.ID, "")
+	return err
+}
+
 func replacementInventory(ctx context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], setID string) ([]asc.Resource[asc.AppScreenshotAttributes], []string, error) {
+	if cfg.AppID != "" {
+		requestCtx, cancel := cfg.RequestContext(ctx)
+		err := verifyScreenshotLocalizationApp(requestCtx, cfg.Client, cfg.AppID, cfg.LocalizationID)
+		cancel()
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	set, err := findScreenshotSetWithAccess(ctx, cfg.Client, cfg.LocalizationID, cfg.DisplayType, cfg.Access, cfg.RequestContext)
 	if err != nil {
 		return nil, nil, err
@@ -60,6 +118,9 @@ func replacementChecksum(value string) (string, bool) {
 }
 
 func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], artifactPath string, previous *screenshotUploadFailureArtifact) (asc.AppScreenshotUploadResult, error) {
+	if previous != nil && len(previous.Replacement.Remove) > 0 {
+		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
+	}
 	if cfg.Client == nil {
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("client is required")
 	}
@@ -101,6 +162,18 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 			return asc.AppScreenshotUploadResult{}, fmt.Errorf("replacement source changed after failure: %q", path)
 		}
 	}
+	if previous == nil {
+		cfg.AppID, err = screenshotReplacementAppID(cfg.Deps, cfg.AppID)
+		if err != nil {
+			return asc.AppScreenshotUploadResult{}, err
+		}
+		requestCtx, cancel := cfg.RequestContext(ctx)
+		err = verifyScreenshotLocalizationApp(requestCtx, cfg.Client, cfg.AppID, cfg.LocalizationID)
+		cancel()
+		if err != nil {
+			return asc.AppScreenshotUploadResult{}, err
+		}
+	}
 	set, err := findScreenshotSetWithAccess(ctx, cfg.Client, cfg.LocalizationID, cfg.DisplayType, cfg.Access, cfg.RequestContext)
 	if err != nil {
 		return asc.AppScreenshotUploadResult{}, err
@@ -124,9 +197,6 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 			if item.State != "deleted" {
 				known[item.AssetID] = true
 			}
-		}
-		for _, item := range previous.Replacement.Remove {
-			known[item.AssetID] = true
 		}
 		for _, item := range previous.CleanupFailures {
 			cleanup[item.AssetID] = true
@@ -176,13 +246,6 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 			return asc.AppScreenshotUploadResult{}, fmt.Errorf("cannot verify screenshot %s: replacement requires COMPLETE assets with source checksums; finish or inspect the existing upload first", item.ID)
 		}
 		item.Attributes.SourceFileChecksum = checksum
-		if previous != nil {
-			for _, removal := range previous.Replacement.Remove {
-				if removal.AssetID == item.ID && !strings.EqualFold(removal.Checksum, checksum) {
-					return asc.AppScreenshotUploadResult{}, fmt.Errorf("screenshot %s changed after replacement failed", item.ID)
-				}
-			}
-		}
 		verified = append(verified, item)
 	}
 	files, kept, err := filterScreenshotFilesByChecksum(cfg.Files, verified, screenshotInspectionCommand(cfg.LocalizationID), func(path string) (string, error) {
@@ -199,13 +262,7 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 	for _, item := range verified {
 		if !retained[item.ID] {
 			if previous != nil {
-				allowed := false
-				for _, removal := range previous.Replacement.Remove {
-					allowed = allowed || removal.AssetID == item.ID
-				}
-				if !allowed {
-					return asc.AppScreenshotUploadResult{}, fmt.Errorf("previously uploaded screenshot %s no longer matches replacement source", item.ID)
-				}
+				return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
 			}
 			plan.Remove = append(plan.Remove, screenshotPendingAsset{AssetID: item.ID, FileName: item.Attributes.FileName, Checksum: item.Attributes.SourceFileChecksum, State: "COMPLETE"})
 		}
@@ -244,6 +301,9 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 	if previous != nil {
 		progress.PendingAssets = presentReplacementAssets(previous.PendingAssets, present, retained)
 		progress.CleanupFailures = presentReplacementAssets(previous.CleanupFailures, present, retained)
+	}
+	if previous != nil && (len(plan.Remove) > 0 || len(progress.CleanupFailures) > 0) {
+		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
 	}
 	var deleted []asc.AssetUploadResultItem
 	finish := func(cause error) (asc.AppScreenshotUploadResult, error) {
@@ -294,12 +354,6 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 		}
 	}
 	if previous != nil {
-		if len(progress.CleanupFailures) > 0 {
-			progress.CleanupFailures, err = cleanupScreenshotAssets(uploadCtx, cfg.RequestContext, cfg.Client, progress.CleanupFailures)
-			if err != nil {
-				return finish(err)
-			}
-		}
 		progress, err = resumeScreenshotsWithOrderStateWithOpenedFiles(uploadCtx, cfg.Deps.IO.ErrOut, cfg.RequestContext, cfg.Client, set.ID, retainedOrder, files, progress.PendingAssets, root, false, false, opened)
 	} else {
 		progress, err = uploadScreenshotsWithOrderStateWithOpenedFiles(uploadCtx, cfg.Deps.IO.ErrOut, cfg.RequestContext, cfg.Client, set.ID, retainedOrder, files, root, false, false, opened)

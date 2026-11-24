@@ -576,14 +576,14 @@ func TestRunScreenshotsResumeKeepsLiteralFailureArtifactPath(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
 			path := filepath.Join(t.TempDir(), name)
-			artifact := `{"versionLocalizationId":"LOC_123","setId":"SET_123","cleanupFailures":[{"assetId":"SHOT_BAD"}]}`
+			artifact := `{"versionLocalizationId":"LOC_123","setId":"SET_123","orderedIds":["SHOT_BAD"]}`
 			if err := os.WriteFile(path, []byte(artifact), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			reg := asctest.NewRegistry(t)
 			reg.Install()
-			reg.Register(asctest.DELETE("/v1/appScreenshots/SHOT_BAD"),
-				asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"BAD_REQUEST","detail":"cleanup failed"}]}`))
+			reg.Register(asctest.PATCH("/v1/appScreenshotSets/SET_123/relationships/appScreenshots"),
+				asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"BAD_REQUEST","detail":"ordering failed"}]}`))
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run([]string{"screenshots", "upload", "--resume", path, "--output", "json"}, "1.2.3"); code != cmd.ExitHTTPBadRequest {
 					t.Fatalf("expected HTTP 400 exit %d, got %d", cmd.ExitHTTPBadRequest, code)
@@ -599,7 +599,7 @@ func TestRunScreenshotsResumeKeepsLiteralFailureArtifactPath(t *testing.T) {
 			if calls := len(reg.Requests()); result.FailureArtifactPath != path || !result.Resumed || calls != 1 {
 				t.Fatalf("resume outcome changed: %+v, calls=%d", result, calls)
 			}
-			if !strings.Contains(stderr, "cleanup failed") || strings.Count(stderr, "Error:") != 1 {
+			if !strings.Contains(stderr, "ordering failed") || strings.Count(stderr, "Error:") != 1 {
 				t.Fatalf("failure cause not preserved: %q", stderr)
 			}
 			if quoted, ok := shared.ShellQuote(path); ok {

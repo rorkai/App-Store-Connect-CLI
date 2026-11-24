@@ -610,11 +610,16 @@ func TestUploadScreenshotsDryRunDoesNotCreateSet(t *testing.T) {
 }
 
 func TestUploadScreenshotsDryRunWithReplaceReportsWouldDelete(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "100")
 	filePath := writeAssetsTestPNG(t, t.TempDir(), "01-home.png")
 
 	origTransport := http.DefaultTransport
 	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123":
+			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"LOC_123","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VERSION_123"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
+			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_123","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"100"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":

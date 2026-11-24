@@ -70,8 +70,9 @@ func TestScreenshotsUploadReplaceDryRunDoesNotRequireConfirm(t *testing.T) {
 	reg.Register(asctest.GET("/v1/appScreenshotSets/set-1/relationships/appScreenshots", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"old-1"}],"links":{}}`))
 
+	installScreenshotReplacementOwnershipFixture(t)
 	stdout, stderr, runErr := runRootCommand(t, []string{
-		"screenshots", "upload",
+		"screenshots", "upload", "--app", "100",
 		"--version-localization", "LOC_123",
 		"--path", pathDir,
 		"--device-type", "IPHONE_65",
@@ -192,8 +193,9 @@ func TestScreenshotsUploadReplaceWithConfirmDeletesExistingScreenshots(t *testin
 		}
 	})
 
+	installScreenshotReplacementOwnershipFixture(t)
 	stdout, stderr, runErr := runRootCommand(t, []string{
-		"screenshots", "upload",
+		"screenshots", "upload", "--app", "100",
 		"--version-localization", "LOC_123",
 		"--path", pathDir,
 		"--device-type", "IPHONE_65",

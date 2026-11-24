@@ -367,6 +367,7 @@ func screenshotUploadArtifactWriteError(uploadErr, artifactErr error) error {
 // files, then takes the upload lock with acquireUploadLock (nil skips it)
 // before resuming.
 func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.Client, artifactPath string, acquireUploadLock func(context.Context) (func(), error)) (asc.AppScreenshotUploadResult, error) {
+	ctx = context.WithValue(ctx, screenshotResumeKey{}, true)
 	artifact, err := loadScreenshotUploadFailureArtifact(d, artifactPath)
 	if err != nil {
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("load resume artifact: %w", err)
@@ -413,36 +414,7 @@ func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.
 	defer cancel()
 
 	if len(artifact.CleanupFailures) > 0 {
-		remainingCleanup, cleanupErr := cleanupScreenshotAssets(uploadCtx, d.Timeout, client, artifact.CleanupFailures)
-		if cleanupErr != nil {
-			progress := screenshotUploadProgress{
-				OrderedIDs:      append([]string(nil), artifact.OrderedIDs...),
-				CleanupFailures: remainingCleanup,
-			}
-			result := asc.AppScreenshotUploadResult{
-				VersionLocalizationID: artifact.VersionLocalizationID,
-				SetID:                 artifact.SetID,
-				DisplayType:           artifact.DisplayType,
-				Resumed:               true,
-				Results:               append([]asc.AssetUploadResultItem(nil), artifact.Results...),
-			}
-			appendScreenshotUploadFailure(&result, progress, cleanupErr)
-			result.Pending = len(artifact.PendingFiles)
-			result.Total = len(result.Results) + result.Pending
-			finalizeAppScreenshotUploadResult(&result)
-			nextArtifact := artifact
-			nextArtifact.CleanupFailures = append([]screenshotPendingAsset(nil), remainingCleanup...)
-			nextArtifact.Failures = append([]asc.AssetUploadFailureItem(nil), result.Failures...)
-			nextArtifact.Error = cleanupErr.Error()
-			nextArtifact.GeneratedAt = d.Now().UTC().Format(time.RFC3339)
-			writtenPath, artifactErr := persistScreenshotUploadFailureArtifact(d, artifactPath, nextArtifact)
-			if artifactErr != nil {
-				return result, screenshotUploadArtifactWriteError(cleanupErr, artifactErr)
-			}
-			result.FailureArtifactPath = writtenPath
-			return result, screenshotUploadRetryError(d, result, progress, cleanupErr)
-		}
-		artifact.CleanupFailures = nil
+		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
 	}
 
 	progress, uploadErr := resumeScreenshotsWithOrderState(uploadCtx, d.IO.ErrOut, d.Timeout, client, artifact.SetID, artifact.OrderedIDs, artifact.PendingFiles, artifact.PendingAssets, sourceRootPath, true, syncAfterUpload)

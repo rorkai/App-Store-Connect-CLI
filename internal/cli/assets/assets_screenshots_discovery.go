@@ -268,6 +268,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 		uploadResult, err := cfg.ExecuteUpload(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
 			Deps:           cfg.Deps,
 			Client:         cfg.Client,
+			AppID:          cfg.AppID,
 			LocalizationID: localizationID,
 			DisplayType:    cfg.DisplayType,
 			RootPath:       cfg.RootPath,
