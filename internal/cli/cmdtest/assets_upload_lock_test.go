@@ -50,18 +50,18 @@ func TestAssetUploadsWaitForAnotherAscUploadAfterValidatingInput(t *testing.T) {
 		},
 		{
 			name:     "screenshots upload --resume",
-			args:     []string{"screenshots", "upload", "--resume", artifactPath},
+			args:     []string{"screenshots", "upload", "--resume", artifactPath, "--app", "100", "--version-localization", "LOC_123", "--device-type", "IPHONE_65"},
 			wantErr:  heldLockError,
 			wantWait: true,
 		},
 		{
 			name:    "screenshots upload --resume reports a missing artifact without waiting",
-			args:    []string{"screenshots", "upload", "--resume", filepath.Join(artifactDir, "missing.json")},
+			args:    []string{"screenshots", "upload", "--resume", filepath.Join(artifactDir, "missing.json"), "--app", "100", "--version-localization", "LOC_123", "--device-type", "IPHONE_65"},
 			wantErr: "load resume artifact",
 		},
 		{
 			name:    "screenshots upload --resume reports a missing pending file without waiting",
-			args:    []string{"screenshots", "upload", "--resume", missingSourcePath},
+			args:    []string{"screenshots", "upload", "--resume", missingSourcePath, "--app", "100", "--version-localization", "LOC_123", "--device-type", "IPHONE_65"},
 			wantErr: "gone.png: no such file or directory",
 		},
 		{

@@ -752,7 +752,7 @@ func NewAssetsScreenshotsUploadCommand(d *shared.Deps) *ffcli.Command {
 	locale := fs.String("locale", "", "Upload one locale in app-scoped mode (requires --app with --version or --version-id); --path then points at that locale's screenshots")
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65, IPAD_PRO_3GEN_129, or IPHONE_DUO)")
-	resume := fs.String("resume", "", "Resume a previous upload from a failure artifact")
+	resume := fs.String("resume", "", "Resume a failure artifact with independently selected --app, --version-localization, and --device-type")
 	skipExisting := fs.Bool("skip-existing", false, "Skip files whose MD5 checksum already exists in the target screenshot set")
 	replace := fs.Bool("replace", false, "Make each target set match the sorted local files, keeping verified matches (requires --confirm)")
 	confirm := fs.Bool("confirm", false, "Confirm the deletions performed by --replace (required with --replace)")
@@ -813,8 +813,10 @@ Deletions require --confirm; --replace --dry-run previews the changes without it
 Replacement requires an independently selected canonical numeric app ID (--app,
 ASC_APP_ID, or the configured default); names and bundle IDs are not accepted.
 With --replace, --app may also scope --version-localization.
-After a partial failure, --resume verifies the saved set and source checksums and
-continues only non-destructive work. It never authorizes screenshot deletion.
+After a partial failure, --resume requires an independently selected canonical
+numeric app ID (--app, ASC_APP_ID, or the configured default), plus explicit
+--version-localization and --device-type. It verifies ownership, live set membership,
+and source checksums before non-destructive recovery. It never authorizes screenshot deletion.
 Pending deletions or cleanup require a fresh explicitly targeted --replace --dry-run,
 then a separately authorized --replace --confirm for that exact app, localization,
 and device. COMPLETE matching upload survivors are retained.
@@ -873,7 +875,7 @@ Examples:
   asc screenshots upload --app "123456789" --version "1.2.3" --path "./screenshots" --device-type "IPHONE_65"
   asc screenshots upload --app "123456789" --version "VERSION_ID" --path "./screenshots/ipad" --device-type "IPAD_PRO_3GEN_129" --dry-run
   asc screenshots upload --app "123456789" --version "1.2.3" --path "./screenshots" --device-type "IPHONE_65" --replace --confirm --no-wait
-  asc screenshots upload --resume ".asc/reports/screenshots-upload/failures-123.json"`,
+  asc screenshots upload --resume ".asc/reports/screenshots-upload/failures-123.json" --app "123456789" --version-localization "LOCALIZATION_ID" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -900,17 +902,30 @@ Examples:
 				if strings.TrimSpace(*locale) != "" {
 					return d.UsageError("--resume cannot be combined with --locale; the failure artifact already records the localization")
 				}
-				if strings.TrimSpace(*localizationID) != "" ||
-					strings.TrimSpace(*appID) != "" ||
-					strings.TrimSpace(*version) != "" ||
+				if strings.TrimSpace(*version) != "" ||
 					strings.TrimSpace(*versionID) != "" ||
 					strings.TrimSpace(*platform) != "" ||
-					strings.TrimSpace(*path) != "" ||
-					strings.TrimSpace(*deviceType) != "" {
-					return d.UsageError("--resume cannot be combined with --version-localization, --app, --version, --version-id, --platform, --path, or --device-type")
+					strings.TrimSpace(*path) != "" {
+					return d.UsageError("--resume cannot be combined with --version, --version-id, --platform, or --path")
 				}
 				if *skipExisting || *replace || *confirm || *dryRun || *maxScreenshots != 0 {
 					return d.UsageError("--resume cannot be combined with --skip-existing, --replace, --confirm, --dry-run, or --max-screenshots")
+				}
+
+				resumeAppID, err := screenshotMutationAppID(d, *appID, "--resume")
+				if err != nil {
+					return d.UsageError(err.Error())
+				}
+				if strings.TrimSpace(*localizationID) == "" || strings.TrimSpace(*deviceType) == "" {
+					return d.UsageError("--resume requires independently selected --version-localization and --device-type")
+				}
+				resumeDisplayType, err := normalizeScreenshotDisplayType(strings.TrimSpace(*deviceType))
+				if err != nil {
+					return d.UsageError(err.Error())
+				}
+				target := screenshotResumeTarget{
+					AppID: resumeAppID, LocalizationID: strings.TrimSpace(*localizationID),
+					DisplayType: asc.CanonicalScreenshotDisplayTypeForAPI(resumeDisplayType),
 				}
 
 				client, err := d.Client()
@@ -920,7 +935,7 @@ Examples:
 
 				defer client.CloseUploadConnections()
 
-				result, err := resumeAppScreenshotUpload(ctx, d, client, resumePath, acquireAssetUploadLock(d))
+				result, err := resumeAppScreenshotUpload(ctx, d, client, resumePath, target, acquireAssetUploadLock(d))
 				if hasAppScreenshotUploadResultOutput(result) {
 					if printErr := d.PrintOutput(&result, *output.Output, *output.Pretty); printErr != nil {
 						return printErr
@@ -1070,7 +1085,7 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 		return nil, shared.MissingRequiredUsageError("--confirm")
 	}
 	if opts.Replace {
-		appFlagValue, err = screenshotReplacementAppID(d, appFlagValue)
+		appFlagValue, err = screenshotMutationAppID(d, appFlagValue, "--replace")
 		if err != nil {
 			return nil, d.UsageError(err.Error())
 		}

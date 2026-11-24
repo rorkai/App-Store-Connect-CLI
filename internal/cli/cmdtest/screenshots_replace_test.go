@@ -229,6 +229,9 @@ func TestRunScreenshotsReplaceRequiresFreshConfirmationAfterFailure(t *testing.T
 	installScreenshotReplacementOwnershipFixture(t)
 	run := func(args ...string) (int, asc.AppScreenshotUploadResult, string) {
 		t.Helper()
+		if len(args) > 0 && args[0] == "--resume" {
+			args = append(args, "--app", "100", "--version-localization", "LOC_123", "--device-type", "IPHONE_65")
+		}
 		code := -1
 		stdout, stderr := captureOutput(t, func() { code = cmd.Run(append([]string{"screenshots", "upload"}, args...), "test") })
 		var result asc.AppScreenshotUploadResult
@@ -325,7 +328,7 @@ func TestRunScreenshotsReplaceResumeReconcilesSurvivorsAndLegacyScope(t *testing
 		{name: "legacy failed cleanup", kind: "cleanupFailures", legacy: true, state: "FAILED", wantError: "receipts do not authorize screenshot deletion"},
 		{name: "failed pending reservation", kind: "pendingAssets", state: "FAILED", wantError: "receipts do not authorize screenshot deletion"},
 		{name: "legacy wrong set", kind: "cleanupFailures", legacy: true, wrongSet: true, wantError: "selected localization and device"},
-		{name: "legacy new member", kind: "cleanupFailures", legacy: true, foreign: true, wantError: "not recorded"},
+		{name: "legacy new member", kind: "cleanupFailures", legacy: true, foreign: true, wantError: "live screenshot membership differs"},
 		{name: "legacy missing scope", kind: "cleanupFailures", legacy: true, missingScope: true, wantError: "cannot verify"},
 		{name: "legacy order only without source", legacy: true, orderOnly: true},
 	} {
@@ -425,9 +428,10 @@ func TestRunScreenshotsReplaceResumeReconcilesSurvivorsAndLegacyScope(t *testing
 					return nil, fmt.Errorf("unexpected resume request: %s %s", req.Method, req.URL.Path)
 				}
 			})
+			installScreenshotReplacementOwnershipFixture(t)
 			code := -1
 			stdout, stderr := captureOutput(t, func() {
-				code = cmd.Run([]string{"screenshots", "upload", "--resume", artifactPath, "--output", "json"}, "test")
+				code = cmd.Run([]string{"screenshots", "upload", "--resume", artifactPath, "--app", "100", "--version-localization", "LOC_123", "--device-type", "IPHONE_65", "--output", "json"}, "test")
 			})
 			if tc.wantError != "" {
 				if code == 0 || len(writes) != 0 || !strings.Contains(stderr, tc.wantError) {

@@ -140,7 +140,7 @@ func resumeScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, stderr 
 }
 
 func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, client *asc.Client, pending screenshotPendingAsset, sourceRootPath string) (asc.AssetUploadResultItem, screenshotPendingAsset, bool, error) {
-	remote, err := client.GetAppScreenshot(ctx, pending.AssetID)
+	remote, err := getScopedAppScreenshot(ctx, client, pending.AssetID)
 	if err != nil {
 		if asc.IsNotFound(err) {
 			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, true, nil
@@ -260,5 +260,10 @@ func SetOrderedAppScreenshots(ctx context.Context, client *asc.Client, setID str
 	if client == nil {
 		return fmt.Errorf("client is required")
 	}
+	_, unlock, err := lockScreenshotResumeScope(ctx, client, setID, "", append([]string{}, orderedIDs...))
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	return client.UpdateAppScreenshotSetAppScreenshotsRelationship(ctx, setID, normalizeAssetIDs(orderedIDs))
 }

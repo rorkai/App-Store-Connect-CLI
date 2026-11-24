@@ -150,9 +150,9 @@ func screenshotUploadRetryError(d *shared.Deps, result asc.AppScreenshotUploadRe
 	err := fmt.Errorf("%s: %w", summary, cause)
 	fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
 	if quotedPath, ok := shared.ShellQuote(result.FailureArtifactPath); ok {
-		fmt.Fprintf(d.IO.ErrOut, "Hint: resume with `asc screenshots upload --resume %s`\n", quotedPath)
+		fmt.Fprintf(d.IO.ErrOut, "Hint: verify the target, then resume with `asc screenshots upload --resume %s --app APP_ID --version-localization VERSION_LOCALIZATION_ID --device-type DEVICE_TYPE`\n", quotedPath)
 	} else {
-		fmt.Fprintln(d.IO.ErrOut, "Hint: use --resume with the failure artifact path from the JSON result.")
+		fmt.Fprintln(d.IO.ErrOut, "Hint: verify the target, then use --resume with the failure artifact path from the JSON result and independently selected --app, --version-localization, and --device-type.")
 	}
 	return shared.NewStderrReportedError(err)
 }
@@ -366,7 +366,7 @@ func screenshotUploadArtifactWriteError(uploadErr, artifactErr error) error {
 // resumeAppScreenshotUpload validates the failure artifact and its pending
 // files, then takes the upload lock with acquireUploadLock (nil skips it)
 // before resuming.
-func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.Client, artifactPath string, acquireUploadLock func(context.Context) (func(), error)) (asc.AppScreenshotUploadResult, error) {
+func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.Client, artifactPath string, target screenshotResumeTarget, acquireUploadLock func(context.Context) (func(), error)) (asc.AppScreenshotUploadResult, error) {
 	ctx = context.WithValue(ctx, screenshotResumeKey{}, true)
 	artifact, err := loadScreenshotUploadFailureArtifact(d, artifactPath)
 	if err != nil {
@@ -397,6 +397,16 @@ func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.
 		}
 		defer release()
 	}
+	if artifact.Replacement != nil && len(artifact.Replacement.Remove) > 0 {
+		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
+	}
+	if !artifact.Replace && artifact.Replacement == nil && len(artifact.CleanupFailures) > 0 {
+		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
+	}
+	ctx, err = prepareScreenshotResumeScope(ctx, d, client, artifact, target)
+	if err != nil {
+		return asc.AppScreenshotUploadResult{}, err
+	}
 	if artifact.Replace && artifact.Replacement == nil {
 		if err := prepareLegacyScreenshotReplacement(ctx, d, client, &artifact, sourceRootPath); err != nil {
 			return asc.AppScreenshotUploadResult{}, err
@@ -404,8 +414,8 @@ func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.
 	}
 	if artifact.Replacement != nil {
 		return executeScreenshotReplacement(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
-			Deps: d, Client: client, LocalizationID: artifact.VersionLocalizationID,
-			DisplayType: artifact.DisplayType, Files: artifact.Files, RootPath: sourceRootPath,
+			Deps: d, Client: client, AppID: target.AppID, LocalizationID: target.LocalizationID,
+			DisplayType: target.DisplayType, Files: artifact.Files, RootPath: sourceRootPath,
 			Replace: true, Access: appStoreVersionScreenshotSetAccess,
 		}, artifactPath, &artifact)
 	}

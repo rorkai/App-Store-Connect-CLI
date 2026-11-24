@@ -27,13 +27,13 @@ func screenshotDestructiveRecoveryError() error {
 	return fmt.Errorf("resume receipts do not authorize screenshot deletion; inspect the intended app, localization, and device, then run a fresh explicitly targeted screenshots upload --replace --dry-run and a separately confirmed --replace --confirm for that exact target")
 }
 
-func screenshotReplacementAppID(d *shared.Deps, value string) (string, error) {
+func screenshotMutationAppID(d *shared.Deps, value, operation string) (string, error) {
 	value = d.ResolveAppID(value)
 	if value == "" {
-		return "", fmt.Errorf("--replace requires --app, ASC_APP_ID, or a configured default app")
+		return "", fmt.Errorf("%s requires --app, ASC_APP_ID, or a configured default app", operation)
 	}
 	if !shared.IsNumericAppID(value) || strings.HasPrefix(value, "0") {
-		return "", fmt.Errorf("--replace requires a canonical numeric app ID; app names and bundle IDs are not accepted")
+		return "", fmt.Errorf("%s requires a canonical numeric app ID; app names and bundle IDs are not accepted", operation)
 	}
 	return value, nil
 }
@@ -121,6 +121,11 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 	if previous != nil && len(previous.Replacement.Remove) > 0 {
 		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
 	}
+	if previous != nil {
+		if scope, _ := ctx.Value(screenshotResumeScopeKey{}).(*screenshotResumeScope); scope == nil {
+			return asc.AppScreenshotUploadResult{}, fmt.Errorf("screenshot resume requires an independently verified target")
+		}
+	}
 	if cfg.Client == nil {
 		return asc.AppScreenshotUploadResult{}, fmt.Errorf("client is required")
 	}
@@ -163,7 +168,7 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 		}
 	}
 	if previous == nil {
-		cfg.AppID, err = screenshotReplacementAppID(cfg.Deps, cfg.AppID)
+		cfg.AppID, err = screenshotMutationAppID(cfg.Deps, cfg.AppID, "--replace")
 		if err != nil {
 			return asc.AppScreenshotUploadResult{}, err
 		}
