@@ -2,6 +2,7 @@ package reviews
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -57,19 +58,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			versionValue := strings.TrimSpace(*versionID)
-			appValue := strings.TrimSpace(*appID)
+			explicitAppValue := strings.TrimSpace(*appID)
+			appValue := strings.TrimSpace(d.ResolveAppID(explicitAppValue))
 			platformValue := strings.TrimSpace(*platform)
-			if detailValue == "" && versionValue == "" && appValue == "" {
+			if detailValue == "" && versionValue == "" && explicitAppValue == "" {
 				return d.RequiredFlag("--id")
 			}
 			if detailValue != "" && versionValue != "" {
 				return shared.WithDiagnostic(d.UsageError("--id and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "--version-id")
 			}
-			if detailValue != "" && appValue != "" {
+			if detailValue != "" && explicitAppValue != "" {
 				return shared.WithDiagnostic(d.UsageError("--app selects the review detail through the app's version; pass --app with or without --version-id, not with --id"), shared.DiagnosticConflictingInput, "--app")
 			}
 			if platformValue != "" {
-				if appValue == "" || versionValue != "" {
+				if explicitAppValue == "" || versionValue != "" {
 					return shared.WithDiagnostic(d.UsageError("--platform picks the version for --app; pass it with --app and without --version-id"), shared.DiagnosticConflictingInput, "--platform")
 				}
 				normalized, err := shared.NormalizeAppStoreVersionPlatform(platformValue)
@@ -88,6 +90,9 @@ Examples:
 			defer cancel()
 
 			if detailValue != "" {
+				if err := verifyReviewDetailsDetailOwner(requestCtx, d, client, appValue, detailValue, "review details-get"); err != nil {
+					return err
+				}
 				resp, err := client.GetAppStoreReviewDetail(requestCtx, detailValue)
 				if err != nil {
 					return fmt.Errorf("review details-get: failed to fetch: %w", err)
@@ -152,6 +157,10 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			if err := verifyReviewDetailsVersionOwner(requestCtx, d, client, versionValue, "review details-for-version"); err != nil {
+				return err
+			}
+
 			return printReviewDetailForVersion(requestCtx, d, client, "review details-for-version", versionValue, *includeSensitive, output)
 		},
 	}
@@ -192,6 +201,74 @@ func printReviewDetailForVersion(ctx context.Context, d *shared.Deps, client *as
 
 	shared.WarnIncludeSensitive(d.IO.ErrOut, includeSensitive)
 	return d.PrintOutput(presentableReviewDetail(resp, includeSensitive), *output.Output, *output.Pretty)
+}
+
+func verifyReviewDetailsVersionOwner(ctx context.Context, d *shared.Deps, client *asc.Client, versionValue, command string) error {
+	selectedAppID := strings.TrimSpace(d.ResolveAppID(""))
+	if selectedAppID == "" {
+		return nil
+	}
+	resolvedAppID, err := shared.ResolveAppIDWithLookup(ctx, client, selectedAppID)
+	if err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, resolvedAppID, versionValue, ""); err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	return nil
+}
+
+func verifyReviewDetailsDetailOwner(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, detailID, command string) error {
+	selectedAppID := strings.TrimSpace(d.ResolveAppID(appValue))
+	if selectedAppID == "" {
+		return nil
+	}
+	resolvedAppID, err := shared.ResolveAppIDWithLookup(ctx, client, selectedAppID)
+	if err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	resp, err := client.GetAppStoreReviewDetailForOwnership(ctx, detailID)
+	if err != nil {
+		return fmt.Errorf("%s: failed to verify review detail ownership: %w", command, err)
+	}
+	if resp == nil {
+		return fmt.Errorf("%s: review detail ownership response was empty", command)
+	}
+	if resp.Data.Type != asc.ResourceTypeAppStoreReviewDetails {
+		return fmt.Errorf("%s: expected review detail resource type %q, got %q", command, asc.ResourceTypeAppStoreReviewDetails, resp.Data.Type)
+	}
+	if resp.Data.ID != strings.TrimSpace(detailID) {
+		return fmt.Errorf("%s: expected review detail %q, got %q", command, strings.TrimSpace(detailID), resp.Data.ID)
+	}
+	versionID, err := reviewDetailVersionID(resp.Data.Relationships)
+	if err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, resolvedAppID, versionID, ""); err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	return nil
+}
+
+func reviewDetailVersionID(raw json.RawMessage) (string, error) {
+	if len(raw) == 0 {
+		return "", fmt.Errorf("review detail appStoreVersion relationship is missing")
+	}
+	var relationships struct {
+		AppStoreVersion struct {
+			Data asc.ResourceData `json:"data"`
+		} `json:"appStoreVersion"`
+	}
+	if err := json.Unmarshal(raw, &relationships); err != nil {
+		return "", fmt.Errorf("review detail appStoreVersion relationship is invalid: %w", err)
+	}
+	if relationships.AppStoreVersion.Data.Type != asc.ResourceTypeAppStoreVersions {
+		return "", fmt.Errorf("expected review detail appStoreVersion relationship type %q, got %q", asc.ResourceTypeAppStoreVersions, relationships.AppStoreVersion.Data.Type)
+	}
+	if strings.TrimSpace(relationships.AppStoreVersion.Data.ID) == "" {
+		return "", fmt.Errorf("review detail appStoreVersion relationship ID is missing")
+	}
+	return strings.TrimSpace(relationships.AppStoreVersion.Data.ID), nil
 }
 
 func newReviewDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
@@ -325,6 +402,10 @@ Any other 409 keeps failing.`,
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			if err := verifyReviewDetailsVersionOwner(requestCtx, d, client, versionValue, "review details-create"); err != nil {
+				return err
+			}
+
 			var resp *asc.AppStoreReviewDetailResponse
 			var existing *asc.AppStoreReviewDetailResponse
 			handled := false
@@ -426,7 +507,6 @@ Examples:
 			if detailValue == "" {
 				return d.RequiredFlag("--id")
 			}
-
 			visited := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) {
 				visited[f.Name] = true
@@ -451,6 +531,10 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+
+			if err := verifyReviewDetailsDetailOwner(requestCtx, d, client, "", detailValue, "review details-update"); err != nil {
+				return err
+			}
 
 			if err := validateReviewDetailUpdateDemoCredentials(d,
 				requestCtx,

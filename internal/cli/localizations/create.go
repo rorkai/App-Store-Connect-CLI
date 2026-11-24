@@ -118,7 +118,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			vid, err = resolveLocalizationMutationVersionID(requestCtx, d, client, vid, *appID, normalizedPlatform)
+			vid, err = ResolveVersionIDForMutation(requestCtx, d, client, vid, *appID, normalizedPlatform)
 			if err != nil {
 				return fmt.Errorf("localizations create: %w", err)
 			}

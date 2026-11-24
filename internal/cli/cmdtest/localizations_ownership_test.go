@@ -157,3 +157,72 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 		}
 	}
 }
+
+func TestVersionLocalizationUploadsCheckAppOwnership(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "en-US.strings")
+	if err := os.WriteFile(inputPath, []byte("\"description\" = \"Updated\";\n\"whatsNew\" = \"Notes\";\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range []struct {
+		name     string
+		args     []string
+		matching bool
+	}{
+		{
+			name: "localizations mismatch",
+			args: []string{"localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath},
+		},
+		{
+			name: "app setup mismatch",
+			args: []string{"app-setup", "localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath},
+		},
+		{
+			name:     "localizations matching upload",
+			args:     []string{"localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath},
+			matching: true,
+		},
+		{
+			name:     "app setup matching upload",
+			args:     []string{"app-setup", "localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath},
+			matching: true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+			var requests []string
+			stubTransport(t, func(req *http.Request) (*http.Response, error) {
+				request := req.Method + " " + req.URL.RequestURI()
+				requests = append(requests, request)
+				switch req.Method + " " + req.URL.Path {
+				case "GET /v1/appStoreVersions/ver-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1","relationships":{"app":{"data":{"type":"apps","id":"` + map[bool]string{false: "9876543210", true: "1234567890"}[test.matching] + `"}}}}}`)
+				case "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+					return locUpdateJSONResponse(`{"data":[],"links":{"next":""}}`)
+				case "POST /v1/appStoreVersionLocalizations":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Updated","whatsNew":"Notes"}}}`)
+				}
+				return nil, fmt.Errorf("unexpected request %s", request)
+			})
+
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(test.args, "test") })
+			if !test.matching {
+				if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, `belongs to app "9876543210", not "1234567890"`) {
+					t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+				}
+				if len(requests) != 1 {
+					t.Fatalf("mismatch made %d requests, want one ownership lookup: %v", len(requests), requests)
+				}
+				return
+			}
+			if code != cmd.ExitSuccess || stdout == "" {
+				t.Fatalf("matching upload exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			if len(requests) != 3 || requests[1] != "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations?limit=200" || requests[2] != "POST /v1/appStoreVersionLocalizations" {
+				t.Fatalf("matching upload requests=%v", requests)
+			}
+		})
+	}
+}

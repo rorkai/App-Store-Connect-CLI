@@ -457,7 +457,7 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 	defer cancel()
 
 	if localizationID == "" {
-		vid, err = resolveLocalizationMutationVersionID(requestCtx, d, client, vid, p.appID, normalizedPlatform)
+		vid, err = ResolveVersionIDForMutation(requestCtx, d, client, vid, p.appID, normalizedPlatform)
 		if err != nil {
 			return fmt.Errorf("localizations update: %w", err)
 		}
