@@ -195,6 +195,7 @@ func resolveAppClipID(ctx context.Context, client *asc.Client, appID string, app
 		return "", fmt.Errorf("--app is required with --bundle-id")
 	}
 
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := client.GetAppClips(ctx, appID, asc.WithAppClipsBundleIDs([]string{bundle}), asc.Limit[asc.AppClipsOption](200))
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve app clip ID: %w", err)
@@ -241,6 +242,7 @@ func resolveAppClipID(ctx context.Context, client *asc.Client, appID string, app
 }
 
 func verifyAppClipBelongsToApp(ctx context.Context, client *asc.Client, appID string, appClipID string) error {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := client.GetAppClips(ctx, appID, asc.Limit[asc.AppClipsOption](200))
 	if err != nil {
 		return fmt.Errorf("failed to verify App Clip %q belongs to app %q: %w", appClipID, appID, err)

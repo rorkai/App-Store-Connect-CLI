@@ -11,19 +11,21 @@ import (
 
 func TestAppClipsAdvancedExperiencesCreateValidatesAppScope(t *testing.T) {
 	tests := []struct {
-		name          string
-		args          []string
-		appEnv        string
-		appClipsJSON  string
-		nextPageJSON  string
-		nextPageURL   string
-		appSelector   string
-		appLookupKind string
-		wantQuery     string
-		wantError     string
-		wantAppGets   int
-		wantGets      int
-		wantCreates   int
+		name                 string
+		args                 []string
+		appEnv               string
+		appClipsJSON         string
+		nextPageJSON         string
+		nextPageURL          string
+		appSelector          string
+		appLookupKind        string
+		wantQuery            string
+		wantError            string
+		redirectFirst        bool
+		redirectContinuation bool
+		wantAppGets          int
+		wantGets             int
+		wantCreates          int
 	}{
 		{
 			name:        "direct id without app preserves direct lookup",
@@ -47,6 +49,26 @@ func TestAppClipsAdvancedExperiencesCreateValidatesAppScope(t *testing.T) {
 			appClipsJSON: `[{"type":"appClips","id":"clip-1","attributes":{"bundleId":"com.example.clip"}}]`,
 			wantGets:     1,
 			wantCreates:  1,
+		},
+		{
+			name:          "first-page redirect refuses before create",
+			args:          []string{"--app", "123456789", "--app-clip-id", "clip-1"},
+			appSelector:   "123456789",
+			nextPageJSON:  "[{\"id\":\"clip-1\"}]",
+			redirectFirst: true,
+			wantError:     "API request failed",
+			wantGets:      1,
+		},
+		{
+			name:                 "continuation redirect refuses before create",
+			args:                 []string{"--app", "123456789", "--app-clip-id", "clip-1"},
+			appSelector:          "123456789",
+			appClipsJSON:         "[]",
+			nextPageJSON:         "[{\"id\":\"clip-1\"}]",
+			nextPageURL:          "/v1/apps/123456789/appClips?cursor=next",
+			redirectContinuation: true,
+			wantError:            "API request failed",
+			wantGets:             2,
 		},
 		{
 			name:         "direct id with matching app on later page",
@@ -173,7 +195,7 @@ func TestAppClipsAdvancedExperiencesCreateValidatesAppScope(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", test.appEnv)
-			var gets, creates int
+			var gets, followups, creates int
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
 				case r.Method == http.MethodGet && r.URL.Path == "/v1/apps":
@@ -211,8 +233,22 @@ func TestAppClipsAdvancedExperiencesCreateValidatesAppScope(t *testing.T) {
 					} else {
 						_, _ = fmt.Fprint(w, `{"data":[{"type":"apps","id":"123456789","attributes":{"bundleId":"com.example.app"}}],"links":{}}`)
 					}
+				case r.Method == http.MethodGet && r.URL.Path == "/fixture/app-clip-redirect-target":
+					followups++
+					w.WriteHeader(http.StatusNotFound)
 				case r.Method == http.MethodGet && r.URL.Path == "/v1/apps/123456789/appClips":
 					gets++
+					cursor := r.URL.Query().Get("cursor")
+					if test.redirectFirst && cursor == "" {
+						w.Header().Set("Location", "/fixture/app-clip-redirect-target")
+						w.WriteHeader(http.StatusFound)
+						return
+					}
+					if test.redirectContinuation && cursor == "next" {
+						w.Header().Set("Location", "/fixture/app-clip-redirect-target")
+						w.WriteHeader(http.StatusFound)
+						return
+					}
 					if r.URL.Query().Get("cursor") == "" {
 						if got := r.URL.Query().Get("filter[bundleId]"); got != test.wantQuery {
 							t.Fatalf("filter[bundleId] = %q, want %q", got, test.wantQuery)
@@ -294,6 +330,9 @@ func TestAppClipsAdvancedExperiencesCreateValidatesAppScope(t *testing.T) {
 			}
 			if creates != test.wantCreates {
 				t.Fatalf("advanced experience creates = %d, want %d", creates, test.wantCreates)
+			}
+			if followups != 0 {
+				t.Fatalf("redirect follow-up requests = %d, want 0", followups)
 			}
 		})
 	}

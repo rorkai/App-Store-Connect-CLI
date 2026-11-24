@@ -675,6 +675,7 @@ func findMatchingAppInfoLocalization(ctx context.Context, client appInfoLocaliza
 }
 
 func fetchAllVersionLocalizations(ctx context.Context, client versionLocalizationClient, versionID string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
 		return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	})
