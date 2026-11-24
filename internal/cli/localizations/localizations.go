@@ -667,6 +667,9 @@ Examples:
 					fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations")
 					return shared.MissingRequiredUsageError("--version")
 				}
+				if err := ValidateVersionIDForUpload(d, *versionID); err != nil {
+					return err
+				}
 
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
 				if err != nil {
@@ -684,13 +687,20 @@ Examples:
 					return fmt.Errorf("localizations upload: %w", err)
 				}
 
+				resolveCtx, resolveCancel := d.Timeout(ctx)
+				resolvedVersionID, err := ResolveVersionIDForUpload(resolveCtx, d, client, strings.TrimSpace(*versionID), *appID)
+				resolveCancel()
+				if err != nil {
+					return fmt.Errorf("localizations upload: %w", err)
+				}
+
 				submitOpts := shared.SubmitReadinessOptions{}
 				if sharedVersionLocalizationValuesNeedUpdateContext(valuesByLocale) {
 					readinessCtx, readinessCancel := d.Timeout(ctx)
-					submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(readinessCtx, client, strings.TrimSpace(*versionID), "", "")
+					submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(readinessCtx, client, resolvedVersionID, "", "")
 					readinessCancel()
 				}
-				results, warnings, err := d.UploadPrevalidatedVersionLocalizationsWithWarnings(ctx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun, submitOpts)
+				results, warnings, err := d.UploadPrevalidatedVersionLocalizationsWithWarnings(ctx, client, resolvedVersionID, valuesByLocale, *dryRun, submitOpts)
 				if err != nil && len(results) == 0 {
 					if shared.IsLocalizationInputError(err) {
 						return d.UsageError(err.Error())
@@ -701,7 +711,7 @@ Examples:
 
 				result := asc.LocalizationUploadResult{
 					Type:      normalizedType,
-					VersionID: strings.TrimSpace(*versionID),
+					VersionID: resolvedVersionID,
 					DryRun:    *dryRun,
 					InputPath: strings.TrimSpace(*path),
 					Results:   results,
@@ -826,15 +836,20 @@ func normalizeLocalizationVersionSelector(d *shared.Deps, version, appID, platfo
 	return normalized, nil
 }
 
-func resolveLocalizationMutationVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, version, appID, platform string) (string, error) {
-	appID = strings.TrimSpace(d.ResolveAppID(appID))
+// ResolveVersionIDForMutation resolves a version selector and verifies that a
+// selected app owns an explicit version ID before a localization write.
+// Without a selected app, a version ID remains a supported standalone
+// selector.
+func ResolveVersionIDForMutation(ctx context.Context, d *shared.Deps, client *asc.Client, version, appID, platform string) (string, error) {
+	appSelector := d.ResolveAppSelector(appID)
+	appID = appSelector.Value
 	if shared.IsAppStoreVersionString(version) {
 		return resolveLocalizationsVersionString(ctx, d, client, appID, version, platform)
 	}
 	if appID == "" {
 		return version, nil
 	}
-	ownerAppID, err := shared.ResolveAppIDWithLookup(ctx, client, appID)
+	ownerAppID, err := shared.ResolveScopedAppID(ctx, client, appSelector)
 	if err != nil {
 		return "", fmt.Errorf("verify version ownership: %w", err)
 	}
@@ -845,4 +860,23 @@ func resolveLocalizationMutationVersionID(ctx context.Context, d *shared.Deps, c
 		return "", fmt.Errorf("verify version ownership: %w", err)
 	}
 	return version, nil
+}
+
+// ResolveVersionIDForUpload keeps localization uploads on their documented
+// resource-ID contract while applying the selected-app ownership check.
+func ResolveVersionIDForUpload(ctx context.Context, d *shared.Deps, client *asc.Client, version, appID string) (string, error) {
+	if err := ValidateVersionIDForUpload(d, version); err != nil {
+		return "", err
+	}
+	version = strings.TrimSpace(version)
+	return ResolveVersionIDForMutation(ctx, d, client, version, appID, "")
+}
+
+// ValidateVersionIDForUpload preserves the upload command's resource-ID
+// contract without creating a client or making a request for a version string.
+func ValidateVersionIDForUpload(d *shared.Deps, version string) error {
+	if shared.IsAppStoreVersionString(strings.TrimSpace(version)) {
+		return d.UsageError("--version expects an App Store version ID; pass an ID from asc versions list")
+	}
+	return nil
 }
