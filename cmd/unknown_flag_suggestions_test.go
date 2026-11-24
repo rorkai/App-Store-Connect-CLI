@@ -398,8 +398,9 @@ func TestConditionalSynonymTargetsExistSomewhere(t *testing.T) {
 // those keys map to on it, and with values only when every key and value was
 // read exactly; otherwise it names the flags with placeholders. A filter whose
 // keys map to no flag on the command is left to the usual unknown-flag answer.
-// On builds list, `version` is Apple's build number but asc's marketing
-// version, so it never carries a value and the error names both flags.
+// On commands that filter builds, `version` is Apple's build number but asc's
+// marketing version, so it never carries a value and the error names both
+// flags.
 func TestRun_FilterExpressionNamesTheMappedFlags(t *testing.T) {
 	const buildVersionNote = "Apple's filter[version] on builds is the build number; for that, use --build-number BUILD_NUMBER."
 	tests := []struct {
@@ -417,6 +418,7 @@ func TestRun_FilterExpressionNamesTheMappedFlags(t *testing.T) {
 		{args: []string{"versions", "list", "--filter[app]=1234567890"}, command: "asc versions list", flag: "--filter[app]", wantTry: "asc versions list --app 1234567890"},
 		{args: []string{"builds", "list", "--filter", "app=1234567890,version=7"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app 1234567890 --version VERSION", wantNote: buildVersionNote},
 		{args: []string{"builds", "list", "--filter", "filter[app]=1234567890&filter[version]=7"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app 1234567890 --version VERSION", wantNote: buildVersionNote},
+		{args: []string{"builds", "count", "--filter", "app=1234567890,version=7"}, command: "asc builds count", flag: "--filter", wantTry: "asc builds count --app 1234567890 --version VERSION", wantNote: buildVersionNote},
 		{args: []string{"builds", "list", "--filter[app]=1234567890", "--filter[processingState]=VALID"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app 1234567890 --processing-state VALID"},
 		{args: []string{"builds", "list", "--filter", "processingState:VALID"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --processing-state VALID"},
 		{args: []string{"versions", "list", "--filter", "app=1234567890,version=1.0"}, command: "asc versions list", flag: "--filter", wantTry: "asc versions list --app 1234567890 --version 1.0"},
