@@ -138,7 +138,6 @@ func downloadAnalyticsInstance(ctx context.Context, d *shared.Deps, requestID, i
 		RequestID: requestID, InstanceID: instanceID, OutputDir: outputDir,
 		Segments: make([]asc.AnalyticsReportSegmentDownload, 0, len(segments)),
 	}
-	var stagedFiles []string
 	for i, segment := range segments {
 		name := fmt.Sprintf("segment-%03d.txt", i+1)
 		file, err := stageAnalyticsSegment(ctx, d, client, staging, outputDir, name, segment, decompress)
@@ -146,10 +145,6 @@ func downloadAnalyticsInstance(ctx context.Context, d *shared.Deps, requestID, i
 			return nil, fmt.Errorf("segment %q: %w", segment.ID, err)
 		}
 		result.Segments = append(result.Segments, file)
-		stagedFiles = append(stagedFiles, filepath.Base(file.FilePath))
-		if file.DecompressedPath != "" {
-			stagedFiles = append(stagedFiles, filepath.Base(file.DecompressedPath))
-		}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -167,50 +162,14 @@ func downloadAnalyticsInstance(ctx context.Context, d *shared.Deps, requestID, i
 	if err := checkAnalyticsStagingDirectory(parent, stagingName, stagingInfo); err != nil {
 		return nil, err
 	}
-	published, err = publishAnalyticsDirectory(parent, stagingName, destination, stagedFiles)
-	if err != nil {
+	if err := secureopen.RenameNoReplaceInRoot(parent, stagingName, destination); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return nil, analyticsOutputDirExists(outputDir)
 		}
 		return nil, fmt.Errorf("publish output directory %q: %w", outputDir, err)
 	}
+	published = true
 	return result, nil
-}
-
-var renameNoReplaceInRoot = secureopen.RenameNoReplaceInRoot
-
-// publishAnalyticsDirectory makes the staged directory visible as destination,
-// which must not exist, and reports whether the staging name is gone. Where
-// the filesystem has no atomic no-replace rename, it creates destination
-// itself, which fails when the name is taken, and moves the staged files in.
-func publishAnalyticsDirectory(parent *os.Root, stagingName, destination string, files []string) (bool, error) {
-	err := renameNoReplaceInRoot(parent, stagingName, destination)
-	if err == nil {
-		return true, nil
-	}
-	if !errors.Is(err, secureopen.ErrRenameNoReplaceUnsupported) {
-		return false, err
-	}
-	if err := parent.Mkdir(destination, 0o700); err != nil {
-		return false, err
-	}
-	created, err := parent.Lstat(destination)
-	if err != nil {
-		return false, err
-	}
-	if !created.IsDir() {
-		return false, errors.New("output directory changed during creation")
-	}
-	for _, name := range files {
-		if err := parent.Rename(filepath.Join(stagingName, name), filepath.Join(destination, name)); err != nil {
-			current, statErr := parent.Lstat(destination)
-			if statErr == nil && os.SameFile(created, current) {
-				statErr = parent.RemoveAll(destination)
-			}
-			return false, errors.Join(err, statErr)
-		}
-	}
-	return false, nil
 }
 
 func checkAnalyticsStagingDirectory(parent *os.Root, name string, expected os.FileInfo) error {
