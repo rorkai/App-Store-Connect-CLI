@@ -249,12 +249,14 @@ func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
 		}
 	}
 	tests := []struct {
-		name       string
-		args       []string
-		stubs      []stub
-		wantStdout string
-		wantStderr string
-		wantErr    string
+		name         string
+		args         []string
+		envApp       string
+		stubs        []stub
+		wantStdout   string
+		wantStderr   string
+		wantErr      string
+		wantRequests int
 	}{
 		{
 			name:       "version ID",
@@ -302,11 +304,21 @@ func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
 			args:    []string{"--id", "detail-1", "--version-id", "version-1"},
 			wantErr: "--id and --version-id are mutually exclusive",
 		},
+		{
+			name:   "configured bundle miss does not use app name",
+			envApp: "com.example.missing",
+			args:   []string{"--version-id", "version-1"},
+			stubs: []stub{
+				{matcher: asctest.GET("/v1/apps", "filter[bundleId]=com.example.missing", "limit=200"), body: `{"data":[{"type":"apps","id":"name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.missing"}}]}`},
+			},
+			wantErr:      `no app found for bundle ID "com.example.missing" (exact match required)`,
+			wantRequests: 1,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_APP_ID", test.envApp)
 			reg := asctest.NewRegistry(t)
 			for _, stub := range test.stubs {
 				reg.Register(stub.matcher, asctest.JSON(http.StatusOK, stub.body))
@@ -321,6 +333,9 @@ func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
 				}
 				if stdout != "" {
 					t.Fatalf("expected no output, got %q", stdout)
+				}
+				if test.wantRequests > 0 && len(reg.Requests()) != test.wantRequests {
+					t.Fatalf("requests = %d, want %d; got %+v", len(reg.Requests()), test.wantRequests, reg.Requests())
 				}
 				return
 			}

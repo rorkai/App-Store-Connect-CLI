@@ -105,6 +105,12 @@ func TestVersionLocalizationWritesCheckAppOwnership(t *testing.T) {
 							return locUpdateJSONResponse(prefixSiblings)
 						}
 						bundleID := req.URL.Query().Get("filter[bundleId]")
+						if bundleID == "com.example.missing" {
+							if req.URL.Query().Get("filter[name]") == "com.example.missing" {
+								return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.missing"}}]}`)
+							}
+							return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.missing"}}]}`)
+						}
 						if appID := bundleApps[bundleID]; appID != "" {
 							return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"` + appID + `","attributes":{"bundleId":"` + bundleID + `"}}]}`)
 						}
@@ -166,9 +172,12 @@ func TestVersionLocalizationUploadsCheckAppOwnership(t *testing.T) {
 	}
 
 	for _, test := range []struct {
-		name     string
-		args     []string
-		matching bool
+		name         string
+		args         []string
+		matching     bool
+		envApp       string
+		wantError    string
+		wantRequests int
 	}{
 		{
 			name: "localizations mismatch",
@@ -188,14 +197,32 @@ func TestVersionLocalizationUploadsCheckAppOwnership(t *testing.T) {
 			args:     []string{"app-setup", "localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath},
 			matching: true,
 		},
+		{
+			name:         "configured bundle miss localizations upload",
+			args:         []string{"localizations", "upload", "--version", "ver-1", "--path", inputPath},
+			envApp:       "com.example.missing",
+			wantError:    `no app found for bundle ID "com.example.missing" (exact match required)`,
+			wantRequests: 1,
+		},
+		{
+			name:         "configured bundle miss app setup upload",
+			args:         []string{"app-setup", "localizations", "upload", "--version", "ver-1", "--path", inputPath},
+			envApp:       "com.example.missing",
+			wantError:    `no app found for bundle ID "com.example.missing" (exact match required)`,
+			wantRequests: 1,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			setupLocUpdateAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+			t.Setenv("ASC_APP_ID", test.envApp)
 			var requests []string
 			stubTransport(t, func(req *http.Request) (*http.Response, error) {
 				request := req.Method + " " + req.URL.RequestURI()
 				requests = append(requests, request)
+				if req.Method == http.MethodGet && req.URL.Path == "/v1/apps" && req.URL.Query().Get("filter[bundleId]") == "com.example.missing" {
+					return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.missing"}}]}`)
+				}
 				switch req.Method + " " + req.URL.Path {
 				case "GET /v1/appStoreVersions/ver-1":
 					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1","relationships":{"app":{"data":{"type":"apps","id":"` + map[bool]string{false: "9876543210", true: "1234567890"}[test.matching] + `"}}}}}`)
@@ -210,11 +237,19 @@ func TestVersionLocalizationUploadsCheckAppOwnership(t *testing.T) {
 			var code int
 			stdout, stderr := captureOutput(t, func() { code = cmd.Run(test.args, "test") })
 			if !test.matching {
-				if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, `belongs to app "9876543210", not "1234567890"`) {
-					t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+				wantError := test.wantError
+				if wantError == "" {
+					wantError = `belongs to app "9876543210", not "1234567890"`
 				}
-				if len(requests) != 1 {
-					t.Fatalf("mismatch made %d requests, want one ownership lookup: %v", len(requests), requests)
+				if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, wantError) {
+					t.Fatalf("exit=%d stdout=%q stderr=%q, want %q", code, stdout, stderr, wantError)
+				}
+				wantRequests := test.wantRequests
+				if wantRequests == 0 {
+					wantRequests = 1
+				}
+				if len(requests) != wantRequests || strings.Contains(strings.Join(requests, "\n"), "POST ") || strings.Contains(strings.Join(requests, "\n"), "PATCH ") {
+					t.Fatalf("mismatch made requests=%v, want one ownership lookup and no write", requests)
 				}
 				return
 			}
