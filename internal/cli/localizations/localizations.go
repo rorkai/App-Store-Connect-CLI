@@ -747,23 +747,35 @@ func sharedVersionLocalizationValuesNeedUpdateContext(valuesByLocale map[string]
 	return false
 }
 
-func normalizeLocalizationVersionSelector(d *shared.Deps, version, appID, platform string) (bool, string, error) {
+func normalizeLocalizationVersionSelector(d *shared.Deps, version, appID, platform string) (string, error) {
 	isVersionString := shared.IsAppStoreVersionString(version)
-	if !isVersionString && strings.TrimSpace(appID) != "" {
-		return false, "", d.UsageError("--app only applies when --version is a version string")
-	}
 	if isVersionString && strings.TrimSpace(d.ResolveAppID(appID)) == "" {
-		return false, "", d.UsageError("--app is required (or set ASC_APP_ID) when --version is a version string; otherwise pass an App Store version ID from asc versions list --app APP_ID")
+		return "", d.UsageError("--app is required (or set ASC_APP_ID) when --version is a version string; otherwise pass an App Store version ID from asc versions list --app APP_ID")
 	}
-	if strings.TrimSpace(platform) != "" {
-		if !isVersionString {
-			return false, "", d.UsageError("--platform requires a version string with --app")
-		}
-		normalized, err := shared.NormalizeAppStoreVersionPlatform(platform)
-		if err != nil {
-			return false, "", d.UsageError(err.Error())
-		}
-		return isVersionString, normalized, nil
+	if strings.TrimSpace(platform) == "" {
+		return "", nil
 	}
-	return isVersionString, "", nil
+	if !isVersionString {
+		return "", d.UsageError("--platform requires a version string with --app")
+	}
+	normalized, err := shared.NormalizeAppStoreVersionPlatform(platform)
+	if err != nil {
+		return "", d.UsageError(err.Error())
+	}
+	return normalized, nil
+}
+
+func resolveLocalizationMutationVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, version, appID, platform string) (string, error) {
+	if shared.IsAppStoreVersionString(version) {
+		return resolveLocalizationsVersionString(ctx, d, client, d.ResolveAppID(appID), version, platform)
+	}
+	if appID = strings.TrimSpace(appID); appID != "" {
+		if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, version, ""); err != nil {
+			if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
+				err = shared.WithDiagnostic(err, diagnostic.Code, "--version")
+			}
+			return "", fmt.Errorf("verify version ownership: %w", err)
+		}
+	}
+	return version, nil
 }
