@@ -26,8 +26,8 @@ asc builds upload --app APP_ID --pkg /path/to/MyMacApp.pkg --version 1.0.0 --bui
 
 Starting in 7.4.0, use `--reserve-only` to create a build upload in App Store
 Connect and print its upload operations without sending the file. `--dry-run`
-still reserves the upload in 7.4.0 and warns that a future release will check
-the artifact locally without contacting App Store Connect.
+does the same and prints a warning on stderr, because it creates the build
+upload in App Store Connect.
 
 ### List builds
 
