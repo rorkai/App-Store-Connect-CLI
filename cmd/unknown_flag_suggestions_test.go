@@ -422,6 +422,7 @@ func TestRun_FilterExpressionNamesTheMappedFlags(t *testing.T) {
 		{args: []string{"builds", "list", "--filter", "app=1234567890,version=7"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app 1234567890 --version VERSION", wantNote: buildVersionNote},
 		{args: []string{"builds", "list", "--filter", "filter[app]=1234567890&filter[version]=7"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --app 1234567890 --version VERSION", wantNote: buildVersionNote},
 		{args: []string{"builds", "count", "--filter", "app=1234567890,version=7"}, command: "asc builds count", flag: "--filter", wantTry: "asc builds count --app 1234567890 --version VERSION", wantNote: buildVersionNote},
+		{args: []string{"builds", "list", "--filter", "build-number=7,version=1.0"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --build-number 7 --version VERSION"},
 		{args: []string{"builds", "list", "--filter[app]=1234567890", "--filter[processingState]=VALID"}, command: "asc builds list", flag: "--filter[app]", wantTry: "asc builds list --app 1234567890 --processing-state VALID"},
 		{args: []string{"builds", "list", "--filter", "processingState:VALID"}, command: "asc builds list", flag: "--filter", wantTry: "asc builds list --processing-state VALID"},
 		{args: []string{"versions", "list", "--filter", "app=1234567890,version=1.0"}, command: "asc versions list", flag: "--filter", wantTry: "asc versions list --app 1234567890 --version 1.0"},

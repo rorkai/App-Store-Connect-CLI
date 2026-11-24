@@ -324,7 +324,8 @@ func guidanceFlagNames(rule removedFlagRule) []string {
 // caller did not give that exact key. When no key maps, the usual unknown-flag
 // answer applies. A key that means a different thing to Apple than to the flag
 // of the same name (ambiguousFilterKeyNote) never carries a value, and its note
-// is returned for the caller to print.
+// is returned for the caller to print unless the filter already names the
+// flag the note points to.
 func filterSuggestion(analysis invocationAnalysis, commandName string, args []string) (string, []string, bool) {
 	command := analysis.command
 	if command == nil || command.FlagSet == nil {
@@ -370,8 +371,8 @@ func filterSuggestion(analysis invocationAnalysis, commandName string, args []st
 	suggestion.WriteString(commandName)
 	for i, name := range flags {
 		value := values[i]
-		note, ambiguous := ambiguousFilterKeyNote(command.FlagSet, name)
-		if ambiguous {
+		note, meant, ambiguous := ambiguousFilterKeyNote(command.FlagSet, name)
+		if ambiguous && !slices.Contains(flags, meant) {
 			notes = append(notes, note)
 		}
 		if !exact || ambiguous {
@@ -383,19 +384,20 @@ func filterSuggestion(analysis invocationAnalysis, commandName string, args []st
 }
 
 // ambiguousFilterKeyNote reports a mapped flag whose filter key means
-// something else to Apple on this command, with the note that says so. On
-// /v1/builds, filter[version] is the build number (CFBundleVersion), while a
-// command that filters builds by both --version and --build-number takes the
-// marketing version in --version, so a value given for `version` could belong
-// to either flag.
-func ambiguousFilterKeyNote(flags *flag.FlagSet, name string) (string, bool) {
+// something else to Apple on this command, with the note that says so and the
+// flag the note points to. On /v1/builds, filter[version] is the build number
+// (CFBundleVersion), while a command that filters builds by both --version and
+// --build-number takes the marketing version in --version, so a value given
+// for `version` could belong to either flag.
+func ambiguousFilterKeyNote(flags *flag.FlagSet, name string) (note, meant string, ambiguous bool) {
 	if name != "version" {
-		return "", false
+		return "", "", false
 	}
-	if _, filtersBuilds := filterKeyFlag(flags, "buildNumber"); !filtersBuilds {
-		return "", false
+	buildNumber, filtersBuilds := filterKeyFlag(flags, "buildNumber")
+	if !filtersBuilds {
+		return "", "", false
 	}
-	return "Apple's filter[version] on builds is the build number; for that, use --build-number BUILD_NUMBER.", true
+	return "Apple's filter[version] on builds is the build number; for that, use --" + buildNumber + " BUILD_NUMBER.", buildNumber, true
 }
 
 // filterPair is one key and value read from a filter expression.
