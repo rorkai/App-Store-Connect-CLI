@@ -322,8 +322,8 @@ Create a new version localization.
 </ParamField>
 
 <ParamField path="--app" type="string">
-  App Store Connect app ID (or `ASC_APP_ID`) when resolving a version string.
-  With a version ID, pass `--app` to verify that the version belongs to that app before creation.
+  App Store Connect app ID (or `ASC_APP_ID`). With a version ID, the app selected by
+  `--app`, `ASC_APP_ID`, or the CLI config must own that version before creation.
 </ParamField>
 
 <ParamField path="--platform" type="string">
@@ -379,8 +379,8 @@ Update localization metadata.
 </ParamField>
 
 <ParamField path="--app" type="string">
-  App Store Connect app ID (or `ASC_APP_ID`) for app-info localizations or version-string resolution.
-  With a version ID, pass `--app` to verify that the version belongs to that app before updating.
+  App Store Connect app ID (or `ASC_APP_ID`). With a version ID, the app selected by
+  `--app`, `ASC_APP_ID`, or the CLI config must own that version before updating.
 </ParamField>
 
 <ParamField path="--platform" type="string">

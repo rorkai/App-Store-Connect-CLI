@@ -17,7 +17,7 @@ func newLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version", "appStoreVersions", "App Store version ID, or a version string with --app (required)")
-	appID := fs.String("app", "", "App Store Connect app ID (version owner, or ASC_APP_ID for version strings)")
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	platform := fs.String("platform", "", "Platform for version strings: IOS, MAC_OS, TV_OS, VISION_OS")
 	locale := fs.String("locale", "", "Locale code to create (required; use canonical ASC values like en-US, ja, ar-SA, zh-Hans)")
 	description := fs.String("description", "", "App description")
@@ -37,8 +37,8 @@ func newLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 
 --version accepts a version ID, or a version string such as 1.2.3 with --app
 (or ASC_APP_ID). Use --platform when the string exists on multiple platforms.
-With a version ID, an explicit --app verifies the version belongs to that app
-before creating the locale.
+With a version ID, the app selected by --app, ASC_APP_ID, or the CLI config
+must own that version before the locale can be created.
 
 Use canonical App Store Connect locale identifiers when possible. Common accepted
 forms include en-US, es-MX, de-DE, ja, ar-SA, zh-Hans, and zh-Hant.
