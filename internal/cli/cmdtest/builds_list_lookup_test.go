@@ -85,8 +85,8 @@ func TestAppScopedCommandsResolveAppByBundleID(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			requests := append([]lookupRequest{{
-				matcher: asctest.GET("/v1/apps", "filter[bundleId]="+test.bundleID, "limit=2"),
-				body:    `{"data":[{"type":"apps","id":"` + test.appID + `"}]}`,
+				matcher: asctest.GET("/v1/apps", "filter[bundleId]="+test.bundleID, "limit=200"),
+				body:    `{"data":[{"type":"apps","id":"` + test.appID + `","attributes":{"bundleId":"` + test.bundleID + `"}}]}`,
 			}}, test.requests...)
 			reg := asctest.NewRegistry(t)
 			for _, request := range requests {
