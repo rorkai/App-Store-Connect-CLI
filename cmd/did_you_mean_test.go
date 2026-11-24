@@ -292,6 +292,60 @@ func TestRun_UnknownChildMapsLegacyAndAsymmetricPaths(t *testing.T) {
 				"asc pricing territories list",
 			},
 		},
+		{
+			args:  []string{"apps", "localizations"},
+			group: "asc apps",
+			want:  []string{"asc localizations list --app APP_ID --type app-info"},
+		},
+		{
+			args:  []string{"apps", "privacy"},
+			group: "asc apps",
+			want:  []string{"asc web privacy pull --app APP_ID"},
+		},
+		{
+			args:  []string{"apps", "review-detail"},
+			group: "asc apps",
+			want:  []string{"asc review details-get --app APP_ID"},
+		},
+		{
+			args:  []string{"review", "details-show"},
+			group: "asc review",
+			want:  []string{"asc review details-get --app APP_ID"},
+		},
+		{
+			args:  []string{"review", "submissions", "items"},
+			group: "asc review submissions",
+			want:  []string{"asc review items list --submission SUBMISSION_ID"},
+		},
+		{
+			args:  []string{"versions", "relationships"},
+			group: "asc versions",
+			want:  []string{"asc versions links --version-id VERSION_ID --type RELATIONSHIP"},
+		},
+		{
+			args:  []string{"builds", "beta-build-localizations"},
+			group: "asc builds",
+			want:  []string{"asc builds links view --build-id BUILD_ID --type betaBuildLocalizations"},
+		},
+		{
+			args:  []string{"iap", "localizations", "list", "--iap-id", "IAP_ID"},
+			group: "asc iap",
+			want: []string{
+				"asc iap view --id IAP_ID --include inAppPurchaseLocalizations",
+				"asc iap versions list --iap-id IAP_ID",
+				"asc iap versions localizations list --version-id VERSION_ID",
+			},
+		},
+		{
+			args:  []string{"iap", "prices"},
+			group: "asc iap",
+			want:  []string{"asc iap pricing summary --app APP_ID"},
+		},
+		{
+			args:  []string{"iap", "price-points", "list"},
+			group: "asc iap",
+			want:  []string{"asc iap pricing price-points list --iap-id IAP_ID"},
+		},
 	}
 
 	for _, test := range tests {
@@ -332,6 +386,7 @@ func TestUnknownChildSynonymsCoverTheTelemetryGroups(t *testing.T) {
 		"asc pricing",
 		"asc pricing availability",
 		"asc review",
+		"asc review submissions",
 		"asc screenshots",
 		"asc subscriptions",
 		"asc subscriptions groups",
