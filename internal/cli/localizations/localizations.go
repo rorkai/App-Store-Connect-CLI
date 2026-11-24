@@ -780,14 +780,15 @@ func normalizeLocalizationVersionSelector(d *shared.Deps, version, appID, platfo
 // Without a selected app, a version ID remains a supported standalone
 // selector.
 func ResolveVersionIDForMutation(ctx context.Context, d *shared.Deps, client *asc.Client, version, appID, platform string) (string, error) {
-	appID = strings.TrimSpace(d.ResolveAppID(appID))
+	appSelector := d.ResolveAppSelector(appID)
+	appID = appSelector.Value
 	if shared.IsAppStoreVersionString(version) {
 		return resolveLocalizationsVersionString(ctx, d, client, appID, version, platform)
 	}
 	if appID == "" {
 		return version, nil
 	}
-	ownerAppID, err := shared.ResolveAppIDWithLookup(ctx, client, appID)
+	ownerAppID, err := shared.ResolveScopedAppID(ctx, client, appSelector)
 	if err != nil {
 		return "", fmt.Errorf("verify version ownership: %w", err)
 	}

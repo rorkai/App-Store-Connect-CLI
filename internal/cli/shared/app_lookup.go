@@ -66,6 +66,16 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 	return "", fmt.Errorf("app %q not found (expected app ID, exact bundle ID, or exact app name); use asc apps list to discover apps", resolved)
 }
 
+// ResolveScopedAppID resolves an app selector with strict configured-bundle provenance.
+// Configured bundle identifiers never fall back to an app name; explicit selectors
+// retain the normal exact bundle-or-name behavior.
+func ResolveScopedAppID(ctx context.Context, client *asc.Client, appSelector AppSelector) (string, error) {
+	if appSelector.Source == AppSelectorFromConfiguration && isAppBundleIdentifier(appSelector.Value) {
+		return ResolveAppIDByExactBundleID(ctx, client, appSelector.Value)
+	}
+	return ResolveAppIDWithExactLookup(ctx, client, appSelector.Value)
+}
+
 // ResolveAppIDByExactBundleID resolves a bundle identifier without falling
 // back to the app's display name.
 func ResolveAppIDByExactBundleID(ctx context.Context, client appLookupClient, bundleID string) (string, error) {

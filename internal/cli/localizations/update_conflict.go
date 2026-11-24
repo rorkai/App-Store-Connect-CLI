@@ -139,11 +139,11 @@ func localizationVersionID(ctx context.Context, client *asc.Client, localization
 }
 
 func verifyVersionLocalizationOwner(ctx context.Context, d *shared.Deps, client *asc.Client, localizationID string) error {
-	selectedAppID := strings.TrimSpace(d.ResolveAppID(""))
-	if selectedAppID == "" {
+	appSelector := d.ResolveAppSelector("")
+	if appSelector.Value == "" {
 		return nil
 	}
-	ownerAppID, err := shared.ResolveAppIDWithLookup(ctx, client, selectedAppID)
+	ownerAppID, err := shared.ResolveScopedAppID(ctx, client, appSelector)
 	if err != nil {
 		return fmt.Errorf("resolve selected app: %w", err)
 	}

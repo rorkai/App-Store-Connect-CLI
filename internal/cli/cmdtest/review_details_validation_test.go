@@ -533,3 +533,22 @@ func TestReviewDetailsDirectIDUpdateWithoutSelectedAppWritesOnce(t *testing.T) {
 		t.Fatalf("expected one unrestricted direct-ID PATCH, got %+v", requests)
 	}
 }
+
+func TestReviewDetailsGetConfiguredAppVersionMismatchStopsBeforeDetailRead(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "100000001")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK,
+		`{"data":{"type":"appStoreVersions","id":"version-1","relationships":{"app":{"data":{"type":"apps","id":"200000002"}}}}}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-get", "--version-id", "version-1", "--output", "json")
+	if err == nil || !strings.Contains(err.Error()+stderr, `version "version-1" belongs to app "200000002", not "100000001"`) {
+		t.Fatalf("err=%v stderr=%q, want selected-app ownership failure", err, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no output, got %q", stdout)
+	}
+	if requests := reg.Requests(); len(requests) != 1 {
+		t.Fatalf("expected one version ownership lookup and no detail read, got %d requests", len(requests))
+	}
+}

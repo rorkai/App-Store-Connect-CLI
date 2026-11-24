@@ -757,14 +757,19 @@ func TestLocalizationsUpdateConflictNamesVersionStateAndEditableVersion(t *testi
 
 func TestLocalizationsUpdateByResourceIDChecksSelectedAppOwnership(t *testing.T) {
 	for _, test := range []struct {
-		name       string
-		useConfig  bool
-		versionApp string
-		wantError  string
+		name                 string
+		useConfig            bool
+		versionApp           string
+		localizationResponse string
+		wantError            string
+		wantRequests         int
 	}{
 		{name: "ASC_APP_ID mismatch", versionApp: "9876543210", wantError: `belongs to app "9876543210", not "1234567890"`},
 		{name: "ASC_APP_ID match", versionApp: "1234567890"},
 		{name: "stored config match", useConfig: true, versionApp: "1234567890"},
+		{name: "wrong localization type", localizationResponse: `{"data":{"type":"appInfoLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`, wantError: `expected resource type "appStoreVersionLocalizations"`, wantRequests: 1},
+		{name: "wrong localization ID", localizationResponse: `{"data":{"type":"appStoreVersionLocalizations","id":"loc-other","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`, wantError: `expected localization "loc-1", got "loc-other"`, wantRequests: 1},
+		{name: "wrong appStoreVersion relationship type", localizationResponse: `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appInfos","id":"ver-1"}}}}}`, wantError: `expected appStoreVersion relationship type "appStoreVersions"`, wantRequests: 1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			setupLocUpdateAuth(t)
@@ -794,7 +799,11 @@ func TestLocalizationsUpdateByResourceIDChecksSelectedAppOwnership(t *testing.T)
 				requests = append(requests, request)
 				switch req.Method + " " + req.URL.Path {
 				case "GET /v1/appStoreVersionLocalizations/loc-1":
-					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`)
+					response := test.localizationResponse
+					if response == "" {
+						response = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`
+					}
+					return locUpdateJSONResponse(response)
 				case "GET /v1/appStoreVersions/ver-1":
 					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1","relationships":{"app":{"data":{"type":"apps","id":"` + test.versionApp + `"}}}}}`)
 				case "PATCH /v1/appStoreVersionLocalizations/loc-1":
@@ -810,7 +819,11 @@ func TestLocalizationsUpdateByResourceIDChecksSelectedAppOwnership(t *testing.T)
 				if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, test.wantError) {
 					t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
 				}
-				if len(requests) != 2 || strings.Contains(strings.Join(requests, "\n"), "PATCH ") {
+				expectedRequests := test.wantRequests
+				if expectedRequests == 0 {
+					expectedRequests = 2
+				}
+				if len(requests) != expectedRequests || strings.Contains(strings.Join(requests, "\n"), "PATCH ") {
 					t.Fatalf("requests=%v, want sparse ownership reads only", requests)
 				}
 				return

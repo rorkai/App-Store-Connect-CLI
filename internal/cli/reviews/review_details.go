@@ -59,7 +59,8 @@ Examples:
 			detailValue := strings.TrimSpace(*detailID)
 			versionValue := strings.TrimSpace(*versionID)
 			explicitAppValue := strings.TrimSpace(*appID)
-			appValue := strings.TrimSpace(d.ResolveAppID(explicitAppValue))
+			appSelector := d.ResolveAppSelector(explicitAppValue)
+			appValue := appSelector.Value
 			platformValue := strings.TrimSpace(*platform)
 			if detailValue == "" && versionValue == "" && explicitAppValue == "" {
 				return d.RequiredFlag("--id")
@@ -90,7 +91,7 @@ Examples:
 			defer cancel()
 
 			if detailValue != "" {
-				if err := verifyReviewDetailsDetailOwner(requestCtx, d, client, appValue, detailValue, "review details-get"); err != nil {
+				if err := verifyReviewDetailsDetailOwner(requestCtx, client, appSelector, detailValue, "review details-get"); err != nil {
 					return err
 				}
 				resp, err := client.GetAppStoreReviewDetail(requestCtx, detailValue)
@@ -103,7 +104,7 @@ Examples:
 			}
 
 			if appValue != "" {
-				resolvedAppID, err := shared.ResolveAppIDWithLookup(requestCtx, client, appValue)
+				resolvedAppID, err := shared.ResolveScopedAppID(requestCtx, client, appSelector)
 				if err != nil {
 					return fmt.Errorf("review details-get: %w", err)
 				}
@@ -204,11 +205,11 @@ func printReviewDetailForVersion(ctx context.Context, d *shared.Deps, client *as
 }
 
 func verifyReviewDetailsVersionOwner(ctx context.Context, d *shared.Deps, client *asc.Client, versionValue, command string) error {
-	selectedAppID := strings.TrimSpace(d.ResolveAppID(""))
-	if selectedAppID == "" {
+	appSelector := d.ResolveAppSelector("")
+	if appSelector.Value == "" {
 		return nil
 	}
-	resolvedAppID, err := shared.ResolveAppIDWithLookup(ctx, client, selectedAppID)
+	resolvedAppID, err := shared.ResolveScopedAppID(ctx, client, appSelector)
 	if err != nil {
 		return fmt.Errorf("%s: %w", command, err)
 	}
@@ -218,12 +219,11 @@ func verifyReviewDetailsVersionOwner(ctx context.Context, d *shared.Deps, client
 	return nil
 }
 
-func verifyReviewDetailsDetailOwner(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, detailID, command string) error {
-	selectedAppID := strings.TrimSpace(d.ResolveAppID(appValue))
-	if selectedAppID == "" {
+func verifyReviewDetailsDetailOwner(ctx context.Context, client *asc.Client, appSelector shared.AppSelector, detailID, command string) error {
+	if appSelector.Value == "" {
 		return nil
 	}
-	resolvedAppID, err := shared.ResolveAppIDWithLookup(ctx, client, selectedAppID)
+	resolvedAppID, err := shared.ResolveScopedAppID(ctx, client, appSelector)
 	if err != nil {
 		return fmt.Errorf("%s: %w", command, err)
 	}
@@ -532,7 +532,7 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			if err := verifyReviewDetailsDetailOwner(requestCtx, d, client, "", detailValue, "review details-update"); err != nil {
+			if err := verifyReviewDetailsDetailOwner(requestCtx, client, d.ResolveAppSelector(""), detailValue, "review details-update"); err != nil {
 				return err
 			}
 
