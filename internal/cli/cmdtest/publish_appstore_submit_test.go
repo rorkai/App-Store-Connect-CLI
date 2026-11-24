@@ -27,8 +27,8 @@ func respondToPublishAppLookup(t *testing.T, req *http.Request) (*http.Response,
 	if req.URL.Query().Get("filter[bundleId]") != app {
 		t.Fatalf("expected filter[bundleId]=%s, got %q", app, req.URL.Query().Get("filter[bundleId]"))
 	}
-	if limit := req.URL.Query().Get("limit"); limit != "2" {
-		t.Fatalf("expected lookup limit=2, got %q", limit)
+	if limit := req.URL.Query().Get("limit"); limit != "200" {
+		t.Fatalf("expected lookup limit=200, got %q", limit)
 	}
 	resp, err := jsonResponse(http.StatusOK, `{"data":[{"type":"apps","id":"`+app+`","attributes":{"bundleId":"`+app+`","name":"`+app+`"}}]}`)
 	return resp, err, true
@@ -487,7 +487,7 @@ func TestPublishAppStoreSubmitDryRunPrintsPlanWithoutMutations(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"app-1"}}]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"app-1"}}]}`))
 
 	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), []string{
 		"publish", "appstore",
