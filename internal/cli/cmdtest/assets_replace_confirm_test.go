@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -59,10 +60,15 @@ func TestScreenshotsUploadReplaceDryRunDoesNotRequireConfirm(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`))
+	for range 2 {
+		reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets"),
+			asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`))
+	}
 	reg.Register(asctest.GET("/v1/appScreenshotSets/set-1/appScreenshots"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"old-1","attributes":{"fileName":"old.png"}}],"links":{}}`))
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"old-1","attributes":{"fileName":"old.png","sourceFileChecksum":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","assetDeliveryState":{"state":"COMPLETE"}}}],"links":{}}`))
+
+	reg.Register(asctest.GET("/v1/appScreenshotSets/set-1/relationships/appScreenshots", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"old-1"}],"links":{}}`))
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
 		"screenshots", "upload",
@@ -122,21 +128,51 @@ func TestScreenshotsUploadReplaceWithConfirmDeletesExistingScreenshots(t *testin
 		http.DefaultTransport = originalTransport
 	})
 
+	data, err := os.ReadFile(imagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checksum := fmt.Sprintf("%x", md5.Sum(data))
+	order := []string{"old-1"}
 	deleted := make([]string, 0, 1)
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 			return statusJSONResponse(`{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
-			return statusJSONResponse(`{"data":[{"type":"appScreenshots","id":"old-1","attributes":{"fileName":"old.png"}}],"links":{}}`), nil
+			items := make([]map[string]any, 0, len(order))
+			for _, id := range order {
+				sourceChecksum := checksum
+				if id == "old-1" {
+					sourceChecksum = strings.Repeat("a", 32)
+				}
+				items = append(items, map[string]any{"type": "appScreenshots", "id": id, "attributes": map[string]any{"fileName": id + ".png", "sourceFileChecksum": sourceChecksum, "assetDeliveryState": map[string]string{"state": "COMPLETE"}}})
+			}
+			payload, err := json.Marshal(map[string]any{"data": items})
+			if err != nil {
+				return nil, err
+			}
+			return statusJSONResponse(string(payload)), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			items := make([]map[string]string, 0, len(order))
+			for _, id := range order {
+				items = append(items, map[string]string{"type": "appScreenshots", "id": id})
+			}
+			payload, err := json.Marshal(map[string]any{"data": items})
+			if err != nil {
+				return nil, err
+			}
+			return statusJSONResponse(string(payload)), nil
 		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appScreenshots/old-1":
 			deleted = append(deleted, "old-1")
+			order = nil
 			return &http.Response{
 				StatusCode: http.StatusNoContent,
 				Body:       io.NopCloser(strings.NewReader("")),
 				Header:     http.Header{},
 			}, nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			order = append(order, "new-1")
 			return statusJSONResponse(fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-1","length":%d,"offset":0}]}}}`, fileInfo.Size())), nil
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 			return &http.Response{
@@ -147,7 +183,7 @@ func TestScreenshotsUploadReplaceWithConfirmDeletesExistingScreenshots(t *testin
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshots/new-1":
 			return statusJSONResponse(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploaded":true}}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-1":
-			return statusJSONResponse(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`), nil
+			return statusJSONResponse(fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":"COMPLETE"}}}}`, checksum)), nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
 			return statusJSONResponse(`{}`), nil
 		default:

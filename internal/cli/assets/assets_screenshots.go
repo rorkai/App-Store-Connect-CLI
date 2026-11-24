@@ -753,7 +753,7 @@ func NewAssetsScreenshotsUploadCommand(d *shared.Deps) *ffcli.Command {
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65, IPAD_PRO_3GEN_129, or IPHONE_DUO)")
 	resume := fs.String("resume", "", "Resume a previous upload from a failure artifact")
 	skipExisting := fs.Bool("skip-existing", false, "Skip files whose MD5 checksum already exists in the target screenshot set")
-	replace := fs.Bool("replace", false, "Delete all existing screenshots from the target set before uploading (requires --confirm)")
+	replace := fs.Bool("replace", false, "Make each target set match the sorted local files, keeping verified matches (requires --confirm)")
 	confirm := fs.Bool("confirm", false, "Confirm the deletions performed by --replace (required with --replace)")
 	dryRun := fs.Bool("dry-run", false, "Show what would be uploaded, skipped, or deleted without making changes")
 	maxScreenshots := fs.Int("max-screenshots", 0, "Upload only the first N sorted screenshots per set; must be 10 or less")
@@ -804,9 +804,19 @@ are uploaded only when every file passes. Without --no-wait the command exits
 zero only when every file is COMPLETE in App Store Connect or skipped; otherwise
 it exits non-zero, prints the receipt, and writes a failure artifact for --resume.
 
---replace deletes every existing screenshot in each target set before uploading
-and therefore requires --confirm. Use --replace --dry-run to preview the
-deletions without --confirm. Like asc screenshots delete, --replace keeps each
+--replace makes each target set match the sorted local files. It retains COMPLETE
+screenshots with matching source checksums, deletes only unwanted screenshots,
+uploads missing files, and verifies their order. A repeated successful run makes
+no changes. It refuses remote assets whose state or checksum cannot be verified.
+Deletions require --confirm; --replace --dry-run previews the changes without it.
+After a partial failure, --resume verifies the saved set and source checksums and
+continues only its planned work. COMPLETE matching upload survivors are retained.
+Legacy replacement receipts must identify the localization, device, and set; an
+unfinished upload also needs its complete source file list. Restore missing source
+files or inspect the set before starting a new replacement when this cannot be
+verified. Legacy order-only retries do not need the source files.
+New remote screenshots require a new replacement.
+Like asc screenshots delete, --replace keeps each
 deleted screenshot's Asset Library image, under the same ID as the
 "would-delete" assetId. Delete a leftover image that nothing else places with
 asc asset-library images delete --id ASSET_ID --confirm, or remove the old

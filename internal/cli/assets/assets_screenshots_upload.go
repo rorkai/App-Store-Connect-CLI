@@ -69,10 +69,17 @@ func findScreenshotSetWithAccess(ctx context.Context, client *asc.Client, locali
 	if err != nil {
 		return asc.Resource[asc.AppScreenshotSetAttributes]{}, err
 	}
+	var found asc.Resource[asc.AppScreenshotSetAttributes]
 	for _, set := range resp.Data {
 		if strings.EqualFold(set.Attributes.ScreenshotDisplayType, displayType) {
-			return set, nil
+			if found.ID != "" || set.ID == "" {
+				return asc.Resource[asc.AppScreenshotSetAttributes]{}, fmt.Errorf("cannot identify one screenshot set for localization %s and device %s", localizationID, displayType)
+			}
+			found = set
 		}
+	}
+	if found.ID != "" {
+		return found, nil
 	}
 	return asc.Resource[asc.AppScreenshotSetAttributes]{
 		Attributes: asc.AppScreenshotSetAttributes{ScreenshotDisplayType: displayType},
@@ -252,6 +259,10 @@ func deleteExistingScreenshots(ctx context.Context, client *asc.Client, screensh
 }
 
 func filterExistingScreenshotFiles(files []string, screenshots []asc.Resource[asc.AppScreenshotAttributes], inspectCommand string) ([]string, []asc.AssetUploadResultItem, error) {
+	return filterScreenshotFilesByChecksum(files, screenshots, inspectCommand, screenshotFileChecksumFunc)
+}
+
+func filterScreenshotFilesByChecksum(files []string, screenshots []asc.Resource[asc.AppScreenshotAttributes], inspectCommand string, fileChecksum func(string) (string, error)) ([]string, []asc.AssetUploadResultItem, error) {
 	existingByChecksum := make(map[string][]asc.Resource[asc.AppScreenshotAttributes], len(screenshots))
 	for _, screenshot := range screenshots {
 		checksum := strings.TrimSpace(screenshot.Attributes.SourceFileChecksum)
@@ -274,7 +285,7 @@ func filterExistingScreenshotFiles(files []string, screenshots []asc.Resource[as
 	filtered := make([]string, 0, len(files))
 	skipped := make([]asc.AssetUploadResultItem, 0)
 	for _, filePath := range files {
-		checksum, err := screenshotFileChecksumFunc(filePath)
+		checksum, err := fileChecksum(filePath)
 		if err != nil {
 			return nil, nil, err
 		}

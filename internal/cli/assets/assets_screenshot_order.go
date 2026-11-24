@@ -11,12 +11,13 @@ import (
 )
 
 type screenshotUploadProgress struct {
-	Results         []asc.AssetUploadResultItem
-	OrderedIDs      []string
-	PendingFiles    []string
-	PendingAssets   []screenshotPendingAsset
-	CleanupFailures []screenshotPendingAsset
-	FailedFile      string
+	Results          []asc.AssetUploadResultItem
+	OrderedIDs       []string
+	PendingFiles     []string
+	PendingAssets    []screenshotPendingAsset
+	CleanupFailures  []screenshotPendingAsset
+	FailedFile       string
+	PendingDeletions int
 }
 
 func uploadScreenshotsToSetFromRootWithOpenedFiles(ctx context.Context, stderr io.Writer, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, files []string, sourceRootPath string, preserveExistingOrder bool, openedFiles openedScreenshotFiles) ([]asc.AssetUploadResultItem, error) {
@@ -85,6 +86,10 @@ func uploadScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, stderr 
 }
 
 func resumeScreenshotsWithOrderState(ctx context.Context, stderr io.Writer, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, orderedIDs, files []string, pendingAssets []screenshotPendingAsset, sourceRootPath string, syncIfNoNew, syncAfterUpload bool) (screenshotUploadProgress, error) {
+	return resumeScreenshotsWithOrderStateWithOpenedFiles(ctx, stderr, requestContext, client, setID, orderedIDs, files, pendingAssets, sourceRootPath, syncIfNoNew, syncAfterUpload, nil)
+}
+
+func resumeScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, stderr io.Writer, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, orderedIDs, files []string, pendingAssets []screenshotPendingAsset, sourceRootPath string, syncIfNoNew, syncAfterUpload bool, openedFiles openedScreenshotFiles) (screenshotUploadProgress, error) {
 	progress := screenshotUploadProgress{
 		Results:    make([]asc.AssetUploadResultItem, 0, len(files)),
 		OrderedIDs: append([]string(nil), orderedIDs...),
@@ -124,7 +129,7 @@ func resumeScreenshotsWithOrderState(ctx context.Context, stderr io.Writer, requ
 		}
 	}
 
-	remaining, err := uploadScreenshotsWithOrderState(ctx, stderr, requestContext, client, setID, progress.OrderedIDs, remainingFiles, sourceRootPath, syncIfNoNew, syncAfterUpload)
+	remaining, err := uploadScreenshotsWithOrderStateWithOpenedFiles(ctx, stderr, requestContext, client, setID, progress.OrderedIDs, remainingFiles, sourceRootPath, syncIfNoNew, syncAfterUpload, openedFiles)
 	progress.Results = append(progress.Results, remaining.Results...)
 	progress.OrderedIDs = remaining.OrderedIDs
 	progress.PendingFiles = remaining.PendingFiles

@@ -179,7 +179,7 @@ asc screenshots apply --app "123456789" --version "1.2.3" --confirm
 * `--version-id` - Explicit App Store version ID (alternative to `--version`)
 * `--review-output-dir` - Directory containing `manifest.json` and `approved.json`
 * `--skip-existing` - Skip files whose checksum already exists remotely
-* `--replace` - Delete existing screenshots in each target set before uploading
+* `--replace` - Make each target set match the sorted local files, keeping COMPLETE screenshots with matching source checksums and deleting only unwanted screenshots. Requires `--confirm`; use `--dry-run` to preview without changes. Repeating a successful replacement makes no changes. Unverifiable remote states or checksums stop replacement. Resume a partial failure with its receipt's `--resume` artifact; matching COMPLETE upload survivors are retained. Changed source files or newly added remote screenshots require inspection and a new replacement. Legacy replacement receipts must identify the localization, device and set; unfinished uploads also need their full source file list. Restore missing original files or inspect the set before starting a new replacement. Legacy order-only retries do not need the source files.
 * `--confirm` - Required for `apply`
 
 ### Run from Plan
