@@ -42,6 +42,7 @@ func newIAPAvailabilityGetCommand(d *shared.Deps) *ffcli.Command {
 
 	appID := addIAPLookupAppFlag(fs)
 	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
+	include := fs.String("include", "", "Include related resources in JSON: availableTerritories")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -50,14 +51,23 @@ func newIAPAvailabilityGetCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "View in-app purchase availability.",
 		LongHelp: `View in-app purchase availability.
 
+Use --include availableTerritories --output json to see the territories Apple
+includes with the availability. For the complete list, pass the availability
+ID from data.id to asc iap pricing availabilities available-territories with
+--paginate.
+
 Examples:
-  asc iap pricing availability view --iap-id "IAP_ID"`,
+  asc iap pricing availability view --iap-id "IAP_ID"
+  asc iap pricing availability view --iap-id "IAP_ID" --include availableTerritories --output json`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
 				return d.RequiredFlag("--iap-id")
+			}
+			if err := shared.ValidateInclude(*include, "availableTerritories"); err != nil {
+				return d.UsageError(err.Error())
 			}
 
 			client, err := d.Client()
@@ -73,7 +83,9 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetInAppPurchaseAvailability(requestCtx, iapValue)
+			resp, err := client.GetInAppPurchaseAvailability(requestCtx, iapValue,
+				asc.WithIAPAvailabilityInclude(shared.SplitUniqueCSV(*include)),
+			)
 			if err != nil {
 				if asc.IsMissingResourceOfType(err, "inAppPurchaseAvailabilities") {
 					safeIAPID := asc.SanitizeTerminalText(iapValue)

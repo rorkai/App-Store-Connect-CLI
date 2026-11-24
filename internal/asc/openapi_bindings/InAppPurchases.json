@@ -20,7 +20,7 @@
     {"operation":"inAppPurchasesV2_deleteInstance","name":"DeleteInAppPurchaseV2","params":["iapID"]},
     {"operation":"inAppPurchasesV2_getInstance","name":"GetInAppPurchaseV2","params":["iapID"],"check":"require","checkFirst":true,"options":"IAPGetOption","query":"buildInAppPurchaseGetQuery","single":true},
     {"operation":"inAppPurchasesV2_iapPriceSchedule_getToOneRelated","name":"GetInAppPurchasePriceSchedule","params":["iapID"],"check":"require","options":"IAPPriceScheduleOption","query":"buildIAPPriceScheduleQuery","single":true},
-    {"operation":"inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated","name":"GetInAppPurchaseAvailability","params":["iapID"],"check":"require"},
+    {"operation":"inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated","name":"GetInAppPurchaseAvailability","params":["iapID"],"check":"require","checkFirst":true,"options":"IAPAvailabilityOption","query":"buildIAPAvailabilityQuery","single":true},
     {"operation":"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated","name":"GetInAppPurchaseLocalizations","params":["iapID"],"options":"IAPLocalizationsOption","query":"buildIAPLocalizationsQuery","nextContext":"in-app-purchase-localizations"},
     {"operation":"inAppPurchasesV2_offerCodes_getToManyRelated","name":"GetInAppPurchaseOfferCodes","params":["iapID"],"check":"require","options":"IAPOfferCodesOption","query":"buildIAPOfferCodesQuery","nextContext":"in-app-purchase-offer-codes"},
     {"operation":"inAppPurchasesV2_pricePoints_getToManyRelated","name":"GetInAppPurchasePricePoints","params":["iapID"],"check":"require","options":"IAPPricePointsOption","query":"buildIAPPricePointsQuery","nextContext":"in-app-purchase-price-points"},
@@ -30,6 +30,7 @@
     {"operation":"inAppPurchases_getInstance","name":"GetInAppPurchase","params":["iapID"]}
   ],
   "queries": [
+    {"operation":"inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated","name":"IAPAvailability","params":[{"name":"include"}],"deviations":[{"problem":"query parameters [fields[inAppPurchaseAvailabilities] fields[territories] limit[availableTerritories]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
     {"operation":"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated","name":"IAPLocalizations","deviations":[{"problem":"query parameters [fields[inAppPurchaseLocalizations] fields[inAppPurchases] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
     {"operation":"inAppPurchasesV2_offerCodes_getToManyRelated","name":"IAPOfferCodes","deviations":[{"problem":"query parameters [fields[inAppPurchaseOfferCodeCustomCodes] fields[inAppPurchaseOfferCodeOneTimeUseCodes] fields[inAppPurchaseOfferCodes] fields[inAppPurchaseOfferPrices] filter[territory] include limit[customCodes] limit[oneTimeUseCodes] limit[prices]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
