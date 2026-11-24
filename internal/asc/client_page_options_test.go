@@ -44,3 +44,25 @@ func TestNextURL(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateVersionLocalizationNextURL(t *testing.T) {
+	const expectedPath = "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations"
+	tests := []struct {
+		name    string
+		nextURL string
+		wantErr bool
+	}{
+		{name: "root relative cursor", nextURL: expectedPath + "?cursor=page-2"},
+		{name: "https cursor", nextURL: "https://api.appstoreconnect.apple.com" + expectedPath + "?cursor=page-2"},
+		{name: "different resource", nextURL: "/v1/appStoreVersions/ver-2/appStoreVersionLocalizations?cursor=drift", wantErr: true},
+		{name: "different endpoint", nextURL: expectedPath + "/loc-1?cursor=drift", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateVersionLocalizationNextURL(tt.nextURL, expectedPath)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, wantErr %t", err, tt.wantErr)
+			}
+		})
+	}
+}

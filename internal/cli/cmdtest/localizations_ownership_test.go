@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -224,5 +225,115 @@ func TestVersionLocalizationUploadsCheckAppOwnership(t *testing.T) {
 				t.Fatalf("matching upload requests=%v", requests)
 			}
 		})
+	}
+}
+
+func TestVersionLocalizationUploadsBindPaginationToVerifiedVersion(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "en-US.strings")
+	if err := os.WriteFile(inputPath, []byte("\"description\" = \"Updated\";\n\"whatsNew\" = \"Notes\";\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name string
+		args []string
+	}{
+		{name: "localizations", args: []string{"localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath}},
+		{name: "app setup", args: []string{"app-setup", "localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+			var requests []string
+			stubTransport(t, func(req *http.Request) (*http.Response, error) {
+				request := req.Method + " " + req.URL.RequestURI()
+				requests = append(requests, request)
+				switch req.Method + " " + req.URL.Path {
+				case "GET /v1/appStoreVersions/ver-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1","relationships":{"app":{"data":{"type":"apps","id":"1234567890"}}}}}`)
+				case "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+					if req.URL.Query().Get("cursor") == "" {
+						return locUpdateJSONResponse(`{"data":[],"links":{"next":"/v1/appStoreVersions/ver-1/appStoreVersionLocalizations?cursor=page-2"}}`)
+					}
+					return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Updated","whatsNew":"Notes"}}],"links":{"next":""}}`)
+				}
+				return nil, fmt.Errorf("unexpected request %s", request)
+			})
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(test.args, "test") })
+			if code != cmd.ExitSuccess || stderr != "" {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			if len(requests) != 3 || requests[1] != "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations?limit=200" || requests[2] != "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations?cursor=page-2" {
+				t.Fatalf("requests=%v, want verified version and two same-resource pages", requests)
+			}
+		})
+	}
+}
+
+func TestVersionLocalizationUploadsRejectPaginationDriftBeforeWrite(t *testing.T) {
+	inputPath := filepath.Join(t.TempDir(), "en-US.strings")
+	if err := os.WriteFile(inputPath, []byte("\"description\" = \"Updated\";\n\"whatsNew\" = \"Notes\";\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name string
+		args []string
+	}{
+		{name: "localizations", args: []string{"localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath}},
+		{name: "app setup", args: []string{"app-setup", "localizations", "upload", "--app", "1234567890", "--version", "ver-1", "--path", inputPath}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+			var requests []string
+			stubTransport(t, func(req *http.Request) (*http.Response, error) {
+				request := req.Method + " " + req.URL.RequestURI()
+				requests = append(requests, request)
+				switch req.Method + " " + req.URL.Path {
+				case "GET /v1/appStoreVersions/ver-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1","relationships":{"app":{"data":{"type":"apps","id":"1234567890"}}}}}`)
+				case "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+					return locUpdateJSONResponse(`{"data":[],"links":{"next":"/v1/appStoreVersions/ver-2/appStoreVersionLocalizations?cursor=drift"}}`)
+				}
+				return nil, fmt.Errorf("unexpected request %s", request)
+			})
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(test.args, "test") })
+			if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, "does not match expected resource path") {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			if len(requests) != 2 || strings.Contains(strings.Join(requests, "\n"), "POST ") || strings.Contains(strings.Join(requests, "\n"), "PATCH ") {
+				t.Fatalf("requests=%v, want no downstream write or drift fetch", requests)
+			}
+		})
+	}
+}
+
+func TestVersionLocalizationCreateConflictRejectsPaginationDrift(t *testing.T) {
+	setupLocUpdateAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	var requests []string
+	stubTransport(t, func(req *http.Request) (*http.Response, error) {
+		request := req.Method + " " + req.URL.RequestURI()
+		requests = append(requests, request)
+		switch req.Method + " " + req.URL.Path {
+		case "GET /v1/appStoreVersions/ver-1":
+			return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1","relationships":{"app":{"data":{"type":"apps","id":"1234567890"}}}}}`)
+		case "POST /v1/appStoreVersionLocalizations":
+			return &http.Response{Status: "409 Conflict", StatusCode: http.StatusConflict, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(localizationDuplicate409))}, nil
+		case "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+			return locUpdateJSONResponse(`{"data":[],"links":{"next":"/v1/appStoreVersions/ver-2/appStoreVersionLocalizations?cursor=drift"}}`)
+		}
+		return nil, fmt.Errorf("unexpected request %s", request)
+	})
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{"localizations", "create", "--app", "1234567890", "--version", "ver-1", "--locale", "en-US", "--description", "Updated", "--if-exists", "skip", "--output", "json"}, "test")
+	})
+	if code != cmd.ExitConflict || stdout != "" || !strings.Contains(stderr, "does not match expected resource path") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if len(requests) != 3 || strings.Contains(strings.Join(requests, "\n"), "PATCH ") || strings.Contains(strings.Join(requests, "\n"), "ver-2") {
+		t.Fatalf("requests=%v, want expected POST conflict then one scoped page only", requests)
 	}
 }

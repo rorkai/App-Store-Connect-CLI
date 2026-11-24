@@ -220,7 +220,11 @@ func findExistingVersionLocalization(ctx context.Context, client *asc.Client, ve
 	if err != nil {
 		return nil, false, err
 	}
+	resourcePath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID)
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		if err := asc.ValidateVersionLocalizationNextURL(nextURL, resourcePath); err != nil {
+			return nil, err
+		}
 		return client.GetAppStoreVersionLocalizations(ctx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 	})
 	if err != nil {

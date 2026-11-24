@@ -754,3 +754,73 @@ func TestLocalizationsUpdateConflictNamesVersionStateAndEditableVersion(t *testi
 		})
 	}
 }
+
+func TestLocalizationsUpdateByResourceIDChecksSelectedAppOwnership(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		useConfig  bool
+		versionApp string
+		wantError  string
+	}{
+		{name: "ASC_APP_ID mismatch", versionApp: "9876543210", wantError: `belongs to app "9876543210", not "1234567890"`},
+		{name: "ASC_APP_ID match", versionApp: "1234567890"},
+		{name: "stored config match", useConfig: true, versionApp: "1234567890"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			configPath := filepath.Join(t.TempDir(), "config.json")
+			t.Setenv("ASC_CONFIG_PATH", configPath)
+			if test.useConfig {
+				if err := os.WriteFile(configPath, []byte(`{"app_id":"1234567890"}`), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				old, had := os.LookupEnv("ASC_APP_ID")
+				if err := os.Unsetenv("ASC_APP_ID"); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					if had {
+						_ = os.Setenv("ASC_APP_ID", old)
+					} else {
+						_ = os.Unsetenv("ASC_APP_ID")
+					}
+				})
+			} else {
+				t.Setenv("ASC_APP_ID", "1234567890")
+			}
+			var requests []string
+			stubTransport(t, func(req *http.Request) (*http.Response, error) {
+				request := req.Method + " " + req.URL.RequestURI()
+				requests = append(requests, request)
+				switch req.Method + " " + req.URL.Path {
+				case "GET /v1/appStoreVersionLocalizations/loc-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`)
+				case "GET /v1/appStoreVersions/ver-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1","relationships":{"app":{"data":{"type":"apps","id":"` + test.versionApp + `"}}}}}`)
+				case "PATCH /v1/appStoreVersionLocalizations/loc-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Updated"}}}`)
+				}
+				return nil, fmt.Errorf("unexpected request %s", request)
+			})
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = cmd.Run([]string{"localizations", "update", "--id", "loc-1", "--description", "Updated", "--output", "json"}, "test")
+			})
+			if test.wantError != "" {
+				if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, test.wantError) {
+					t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+				}
+				if len(requests) != 2 || strings.Contains(strings.Join(requests, "\n"), "PATCH ") {
+					t.Fatalf("requests=%v, want sparse ownership reads only", requests)
+				}
+				return
+			}
+			if code != cmd.ExitSuccess || stdout == "" {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			if len(requests) != 3 || !strings.Contains(strings.Join(requests, "\n"), "PATCH /v1/appStoreVersionLocalizations/loc-1") {
+				t.Fatalf("requests=%v, want sparse ownership reads plus one PATCH", requests)
+			}
+		})
+	}
+}

@@ -476,6 +476,8 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 		if localizationID == "" {
 			return fmt.Errorf("localizations update: no existing localization found for locale %q", p.locale)
 		}
+	} else if err := verifyVersionLocalizationOwner(requestCtx, d, client, localizationID); err != nil {
+		return fmt.Errorf("localizations update: %w", err)
 	}
 
 	resp, err := patchVersionLocalization(requestCtx, client, localizationID, p, attrs)

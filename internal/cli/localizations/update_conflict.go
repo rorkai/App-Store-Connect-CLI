@@ -138,6 +138,82 @@ func localizationVersionID(ctx context.Context, client *asc.Client, localization
 	return relationshipID(response.Data.Relationships, "appStoreVersion"), nil
 }
 
+func verifyVersionLocalizationOwner(ctx context.Context, d *shared.Deps, client *asc.Client, localizationID string) error {
+	selectedAppID := strings.TrimSpace(d.ResolveAppID(""))
+	if selectedAppID == "" {
+		return nil
+	}
+	ownerAppID, err := shared.ResolveAppIDWithLookup(ctx, client, selectedAppID)
+	if err != nil {
+		return fmt.Errorf("resolve selected app: %w", err)
+	}
+	versionID, err := localizationVersionOwnershipID(ctx, client, localizationID)
+	if err != nil {
+		return fmt.Errorf("verify localization ownership: %w", err)
+	}
+	if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, ownerAppID, versionID, ""); err != nil {
+		return fmt.Errorf("verify localization ownership: %w", err)
+	}
+	return nil
+}
+
+func localizationVersionOwnershipID(ctx context.Context, client *asc.Client, localizationID string) (string, error) {
+	query := url.Values{}
+	query.Set("include", "appStoreVersion")
+	query.Set("fields[appStoreVersionLocalizations]", "appStoreVersion")
+	body, err := client.RawRequestWithQuery(ctx, http.MethodGet, "/v1/appStoreVersionLocalizations/"+url.PathEscape(localizationID), query, nil)
+	if err != nil {
+		return "", err
+	}
+	var response struct {
+		Data struct {
+			Type          asc.ResourceType `json:"type"`
+			ID            string           `json:"id"`
+			Relationships json.RawMessage  `json:"relationships"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", err
+	}
+	return typedLocalizationVersionID(response.Data.Type, response.Data.ID, response.Data.Relationships, localizationID)
+}
+
+func typedLocalizationVersionID(resourceType asc.ResourceType, resourceID string, relationships json.RawMessage, expectedID string) (string, error) {
+	if resourceType != asc.ResourceTypeAppStoreVersionLocalizations {
+		return "", fmt.Errorf("expected resource type %q, got %q for localization %q", asc.ResourceTypeAppStoreVersionLocalizations, resourceType, expectedID)
+	}
+	if resourceID != strings.TrimSpace(expectedID) {
+		return "", fmt.Errorf("expected localization %q, got %q", expectedID, resourceID)
+	}
+	return typedRelationshipID(relationships, "appStoreVersion", asc.ResourceTypeAppStoreVersions)
+}
+
+func typedRelationshipID(relationships json.RawMessage, name string, expectedType asc.ResourceType) (string, error) {
+	var parsed map[string]struct {
+		Data *struct {
+			Type asc.ResourceType `json:"type"`
+			ID   string           `json:"id"`
+		} `json:"data"`
+	}
+	if len(relationships) == 0 {
+		return "", fmt.Errorf("relationship %q is missing", name)
+	}
+	if err := json.Unmarshal(relationships, &parsed); err != nil {
+		return "", err
+	}
+	rel, ok := parsed[name]
+	if !ok || rel.Data == nil {
+		return "", fmt.Errorf("relationship %q is missing", name)
+	}
+	if rel.Data.Type != expectedType {
+		return "", fmt.Errorf("expected %s relationship type %q, got %q", name, expectedType, rel.Data.Type)
+	}
+	if strings.TrimSpace(rel.Data.ID) == "" {
+		return "", fmt.Errorf("relationship %q has no ID", name)
+	}
+	return strings.TrimSpace(rel.Data.ID), nil
+}
+
 func relationshipID(relationships json.RawMessage, name string) string {
 	var parsed map[string]struct {
 		Data *struct {
