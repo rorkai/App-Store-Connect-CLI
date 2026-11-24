@@ -18,11 +18,11 @@ func TestSalesParserPreservesScopeAndOrder(t *testing.T) {
 		"APP\t123\t\t1\t\t1\t1\t2\n"
 	for _, sku := range []string{"APP", "", "  "} {
 		t.Run(fmt.Sprintf("sku=%q", sku), func(t *testing.T) {
-			metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), SalesScope{AppID: "123", AppSKU: sku})
+			metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), SalesScope{AppID: "123", AppSKU: sku}, false)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if metrics.RowCount != 3 || metrics.UnitsTotal != 1 || metrics.MonetizedUnitsTotal != 0 || metrics.DownloadUnitsTotal != 1 || metrics.DeveloperProceedsByCurrency[""] != 1 || metrics.SubscriptionRows != 2 || metrics.RenewalRows != 1 {
+			if metrics.RowCount != 3 || metrics.UnitsTotal != 1 || metrics.MonetizedUnitsTotal != 0 || metrics.DownloadUnitsTotal != 1 || metrics.DeveloperProceeds.LegacyTotal != 3 || metrics.SubscriptionRows != 2 || metrics.RenewalRows != 1 {
 				t.Fatalf("unexpected ordered app/IAP metrics: %+v", metrics)
 			}
 		})
@@ -39,7 +39,7 @@ func TestSalesParserFullStreamErrorsPrecedeHeaderValidation(t *testing.T) {
 				}
 				compressed := gzipText(t, report)
 				compressed[len(compressed)-8] ^= 1 // Corrupt CRC after otherwise valid rows.
-				metrics, err := ParseSalesReportMetrics(bytes.NewReader(compressed), SalesScope{AppID: "123", AppSKU: sku})
+				metrics, err := ParseSalesReportMetrics(bytes.NewReader(compressed), SalesScope{AppID: "123", AppSKU: sku}, false)
 				if err == nil || !strings.Contains(err.Error(), "parse report rows:") {
 					t.Fatalf("expected row-read error before header validation, got %v", err)
 				}
@@ -59,7 +59,7 @@ func TestSalesParserEmptyAndHeaderOnly(t *testing.T) {
 			{salesParserHeader, ""},
 		} {
 			t.Run(fmt.Sprintf("sku=%q/error=%q", sku, tc.wantErr), func(t *testing.T) {
-				metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, tc.report)), SalesScope{AppID: "123", AppSKU: sku})
+				metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, tc.report)), SalesScope{AppID: "123", AppSKU: sku}, false)
 				if tc.wantErr != "" {
 					if err == nil || err.Error() != tc.wantErr {
 						t.Fatalf("error=%v, want %q", err, tc.wantErr)
@@ -104,7 +104,7 @@ func BenchmarkParseSalesReportMetrics(b *testing.B) {
 				b.ReportAllocs()
 				b.SetBytes(int64(report.Len()))
 				for range b.N {
-					metrics, err := ParseSalesReportMetrics(bytes.NewReader(compressed.Bytes()), SalesScope{AppID: "123", AppSKU: sku})
+					metrics, err := ParseSalesReportMetrics(bytes.NewReader(compressed.Bytes()), SalesScope{AppID: "123", AppSKU: sku}, false)
 					if err != nil || metrics.RowCount != rows/100+1 || metrics.UnitsTotal != float64(rows/100*3+2) {
 						b.Fatalf("metrics=%+v err=%v", metrics, err)
 					}

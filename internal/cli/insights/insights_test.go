@@ -66,7 +66,7 @@ func TestParseSalesReportMetrics(t *testing.T) {
 	metrics, err := ParseSalesReportMetrics(bytes.NewReader(compressed), salesScope{
 		AppID:  "1500196580",
 		AppSKU: "Chromism12345",
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("ParseSalesReportMetrics error: %v", err)
 	}
@@ -86,18 +86,16 @@ func TestParseSalesReportMetrics(t *testing.T) {
 	if metrics.MonetizedUnitsTotal != 5 {
 		t.Fatalf("unexpected monetized units totals: %+v", metrics)
 	}
-	// Money columns are per unit: 3 x 0.75 + 2 x 1.25 and 3 x 1.00 + 2 x 2.00.
-	// This report has no currency columns, so totals land under the empty code.
-	if !metrics.DeveloperProceedsColumnPresent || metrics.DeveloperProceedsByCurrency[""] != 4.75 {
+	if !metrics.DeveloperProceedsColumnPresent || metrics.DeveloperProceeds.LegacyTotal != 2 {
 		t.Fatalf("unexpected developer proceeds totals: %+v", metrics)
 	}
-	if !metrics.CustomerPriceColumnPresent || metrics.CustomerPriceByCurrency[""] != 7 {
+	if !metrics.CustomerPriceColumnPresent || metrics.CustomerPrice.LegacyTotal != 3 {
 		t.Fatalf("unexpected customer price totals: %+v", metrics)
 	}
 	if !metrics.SubscriptionColumnPresent || metrics.SubscriptionRows != 2 || metrics.SubscriptionUnitsTotal != 5 {
 		t.Fatalf("unexpected subscription totals: %+v", metrics)
 	}
-	if metrics.RenewalRows != 1 || metrics.RenewalUnitsTotal != 3 || metrics.RenewalDeveloperProceedsByCurrency[""] != 2.25 {
+	if metrics.RenewalRows != 1 || metrics.RenewalUnitsTotal != 3 || metrics.RenewalDeveloperProceeds.LegacyTotal != 0.75 {
 		t.Fatalf("unexpected renewal totals: %+v", metrics)
 	}
 }
@@ -145,7 +143,7 @@ func TestParseSalesReportMetricsMarksDownloadUnitsUnavailableWithoutProductType(
 	metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), salesScope{
 		AppID:  "1500196580",
 		AppSKU: "Chromism12345",
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("ParseSalesReportMetrics error: %v", err)
 	}
@@ -519,6 +517,18 @@ func TestSalesMoneyMetricsRoundToCentsAndRefuseBlankCurrency(t *testing.T) {
 			},
 		},
 		{
+			name: "fractional unit rows are summed before cent rounding",
+			thisWeek: []string{
+				salesSummaryRow("1F", "0.25", "0.02", "USD", "USD", "0.02", "", ""),
+				salesSummaryRow("1F", "0.25", "0.02", "USD", "USD", "0.02", "", ""),
+			},
+			want: map[string]string{
+				"developer_proceeds": `{"name":"developer_proceeds","unit":"currency","currency":"USD","thisWeek":0.01,"lastWeek":1.1,
+					"delta":-1.09,"deltaPercent":-99.09090909090908,"status":"ok",
+					"byCurrency":[{"currency":"USD","thisWeek":0.01,"lastWeek":1.1,"delta":-1.09,"deltaPercent":-99.09090909090908}]}`,
+			},
+		},
+		{
 			name: "a blank currency of proceeds on a paid row makes proceeds unavailable",
 			thisWeek: []string{
 				salesSummaryRow("1F", "3", "0.70", "USD", "USD", "0.99", "", ""),
@@ -528,7 +538,8 @@ func TestSalesMoneyMetricsRoundToCentsAndRefuseBlankCurrency(t *testing.T) {
 			},
 			want: map[string]string{
 				"developer_proceeds": `{"name":"developer_proceeds","unit":"currency","status":"unavailable",
-					"reason":"developer proceeds cannot be totaled: 1 row this week has an amount but a blank Currency of Proceeds"}`,
+					"reason":"a sales report row is missing a currency code","byCurrency":[{"currency":"USD","lastWeek":1.1,
+					"status":"unavailable","reason":"a sales report row is missing a currency code"}]}`,
 				"customer_price": `{"name":"customer_price","unit":"currency","currency":"USD","thisWeek":4.95,"lastWeek":1.5,
 					"delta":3.45,"deltaPercent":230.00000000000003,"status":"ok",
 					"byCurrency":[{"currency":"USD","thisWeek":4.95,"lastWeek":1.5,"delta":3.45,"deltaPercent":230.00000000000003}]}`,
@@ -545,7 +556,8 @@ func TestSalesMoneyMetricsRoundToCentsAndRefuseBlankCurrency(t *testing.T) {
 					"delta":1.7,"deltaPercent":154.54545454545453,"status":"ok",
 					"byCurrency":[{"currency":"USD","thisWeek":2.8,"lastWeek":1.1,"delta":1.7,"deltaPercent":154.54545454545453}]}`,
 				"customer_price": `{"name":"customer_price","unit":"currency","status":"unavailable",
-					"reason":"customer price cannot be totaled: 2 rows this week have an amount but a blank Customer Currency"}`,
+					"reason":"a sales report row is missing a currency code","byCurrency":[{"currency":"USD","lastWeek":1.5,
+					"status":"unavailable","reason":"a sales report row is missing a currency code"}]}`,
 			},
 		},
 	}
@@ -554,7 +566,7 @@ func TestSalesMoneyMetricsRoundToCentsAndRefuseBlankCurrency(t *testing.T) {
 	parse := func(rows []string) salesWeekMetrics {
 		t.Helper()
 		report := salesSummaryHeader + "\n" + strings.Join(rows, "\n") + "\n"
-		metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), scope)
+		metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), scope, true)
 		if err != nil {
 			t.Fatalf("ParseSalesReportMetrics error: %v", err)
 		}
@@ -562,7 +574,7 @@ func TestSalesMoneyMetricsRoundToCentsAndRefuseBlankCurrency(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			metrics := collectSalesMetrics(parse(tt.thisWeek), nil, parse(lastWeek), nil)
+			metrics := collectSalesMetrics(parse(tt.thisWeek), nil, parse(lastWeek), nil, true)
 			for name, want := range tt.want {
 				assertJSONEqual(t, findWeeklyMetric(t, metrics, name), want)
 			}
@@ -579,15 +591,15 @@ func TestDailySubscriptionProceedsRefuseBlankCurrency(t *testing.T) {
 		salesSummaryRow("IAY", "1", "0.70", "USD", "", "0.99", "Chromism12345", "Renewal"),
 		"",
 	}, "\n")
-	thisDay, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), salesScope{AppID: "1500196580", AppSKU: "Chromism12345"})
+	thisDay, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), salesScope{AppID: "1500196580", AppSKU: "Chromism12345"}, true)
 	if err != nil {
 		t.Fatalf("ParseSalesReportMetrics error: %v", err)
 	}
-	metrics := dailySalesMetrics(thisDay, salesWeekMetrics{UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, SubscriptionColumnPresent: true}, "")
+	metrics := dailySalesMetrics(thisDay, salesWeekMetrics{UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, SubscriptionColumnPresent: true}, "", true)
 	for _, name := range []string{"renewal_developer_proceeds", "subscription_developer_proceeds"} {
-		label := strings.ReplaceAll(strings.TrimSuffix(name, "_developer_proceeds"), "_", " ")
 		want := `{"name":"` + name + `","unit":"currency","status":"unavailable",
-			"reason":"` + label + ` developer proceeds cannot be totaled: 1 row on the selected day has an amount but a blank Currency of Proceeds"}`
+			"reason":"a sales report row is missing a currency code","byCurrency":[{"currency":"USD","previousDay":0,
+			"status":"unavailable","reason":"a sales report row is missing a currency code"}]}`
 		for _, metric := range metrics {
 			if metric.Name == name {
 				assertJSONEqual(t, metric, want)

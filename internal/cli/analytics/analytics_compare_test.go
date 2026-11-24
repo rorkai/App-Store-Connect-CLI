@@ -13,6 +13,7 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"math/big"
 	"net/http"
 	"reflect"
 	"strings"
@@ -81,6 +82,11 @@ func TestAnalyticsCompareValidationErrors(t *testing.T) {
 			name:    "sales-only report subtype",
 			args:    []string{"analytics", "compare", "--source", "sales", "--app", "123", "--vendor", "V", "--from", "2026-01-01", "--to", "2026-02-01", "--frequency", "DAILY", "--subtype", "SUMMARY_CHANNEL"},
 			wantErr: "--subtype for analytics compare must be",
+		},
+		{
+			name:    "currency breakdown requires summary sales reports",
+			args:    []string{"analytics", "compare", "--source", "sales", "--app", "123", "--vendor", "V", "--from", "2026-01-01", "--to", "2026-02-01", "--frequency", "DAILY", "--type", "SUBSCRIPTION", "--by-currency"},
+			wantErr: "--by-currency requires --type SALES and --subtype SUMMARY",
 		},
 		{
 			name:    "invalid weekly comparison boundary",
@@ -239,40 +245,40 @@ func TestGenerateReportDates_Weekly(t *testing.T) {
 
 func TestAggregateSalesMetrics(t *testing.T) {
 	a := insights.SalesMetrics{
-		RowCount:                           2,
-		UnitsColumnPresent:                 true,
-		DownloadUnitsAvailable:             true,
-		DeveloperProceedsColumnPresent:     true,
-		CustomerPriceColumnPresent:         true,
-		SubscriptionColumnPresent:          true,
-		UnitsTotal:                         10,
-		DownloadUnitsTotal:                 5,
-		MonetizedUnitsTotal:                3,
-		DeveloperProceedsByCurrency:        insights.CurrencyAmounts{"USD": 8.50},
-		CustomerPriceByCurrency:            insights.CurrencyAmounts{"USD": 12.00},
-		SubscriptionRows:                   1,
-		SubscriptionUnitsTotal:             2,
-		RenewalRows:                        1,
-		RenewalUnitsTotal:                  1,
-		RenewalDeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 0.75},
+		RowCount:                       2,
+		UnitsColumnPresent:             true,
+		DownloadUnitsAvailable:         true,
+		DeveloperProceedsColumnPresent: true,
+		CustomerPriceColumnPresent:     true,
+		SubscriptionColumnPresent:      true,
+		UnitsTotal:                     10,
+		DownloadUnitsTotal:             5,
+		MonetizedUnitsTotal:            3,
+		DeveloperProceeds:              insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(17, 2)}}},
+		CustomerPrice:                  insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(12, 1)}}},
+		SubscriptionRows:               1,
+		SubscriptionUnitsTotal:         2,
+		RenewalRows:                    1,
+		RenewalUnitsTotal:              1,
+		RenewalDeveloperProceeds:       insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(3, 4)}}},
 	}
 	b := insights.SalesMetrics{
-		RowCount:                           3,
-		UnitsColumnPresent:                 true,
-		DownloadUnitsAvailable:             true,
-		DeveloperProceedsColumnPresent:     true,
-		CustomerPriceColumnPresent:         true,
-		SubscriptionColumnPresent:          true,
-		UnitsTotal:                         20,
-		DownloadUnitsTotal:                 10,
-		MonetizedUnitsTotal:                7,
-		DeveloperProceedsByCurrency:        insights.CurrencyAmounts{"USD": 15.00, "JPY": 900},
-		CustomerPriceByCurrency:            insights.CurrencyAmounts{"USD": 25.00},
-		SubscriptionRows:                   2,
-		SubscriptionUnitsTotal:             4,
-		RenewalRows:                        1,
-		RenewalUnitsTotal:                  2,
-		RenewalDeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 1.50},
+		RowCount:                       3,
+		UnitsColumnPresent:             true,
+		DownloadUnitsAvailable:         true,
+		DeveloperProceedsColumnPresent: true,
+		CustomerPriceColumnPresent:     true,
+		SubscriptionColumnPresent:      true,
+		UnitsTotal:                     20,
+		DownloadUnitsTotal:             10,
+		MonetizedUnitsTotal:            7,
+		DeveloperProceeds:              insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(15, 1)}, "JPY": {Total: big.NewRat(900, 1)}}},
+		CustomerPrice:                  insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(25, 1)}}},
+		SubscriptionRows:               2,
+		SubscriptionUnitsTotal:         4,
+		RenewalRows:                    1,
+		RenewalUnitsTotal:              2,
+		RenewalDeveloperProceeds:       insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(3, 2)}}},
 	}
 
 	result := aggregateSalesMetrics(a, b)
@@ -285,16 +291,16 @@ func TestAggregateSalesMetrics(t *testing.T) {
 	if result.DownloadUnitsTotal != 15 {
 		t.Fatalf("expected DownloadUnitsTotal=15, got %.2f", result.DownloadUnitsTotal)
 	}
-	if want := (insights.CurrencyAmounts{"USD": 23.50, "JPY": 900}); !reflect.DeepEqual(result.DeveloperProceedsByCurrency, want) {
-		t.Fatalf("expected DeveloperProceedsByCurrency=%v, got %v", want, result.DeveloperProceedsByCurrency)
+	if want := (insights.CurrencyAmounts{"USD": {Total: big.NewRat(47, 2)}, "JPY": {Total: big.NewRat(900, 1)}}); !reflect.DeepEqual(result.DeveloperProceeds.ByCurrency, want) {
+		t.Fatalf("expected DeveloperProceedsByCurrency=%v, got %v", want, result.DeveloperProceeds.ByCurrency)
 	}
-	if a.DeveloperProceedsByCurrency["USD"] != 8.50 {
-		t.Fatalf("aggregation modified its input: %v", a.DeveloperProceedsByCurrency)
+	if a.DeveloperProceeds.ByCurrency["USD"].Total.Cmp(big.NewRat(17, 2)) != 0 {
+		t.Fatalf("aggregation modified its input: %v", a.DeveloperProceeds.ByCurrency)
 	}
 	if result.RenewalRows != 2 {
 		t.Fatalf("expected RenewalRows=2, got %d", result.RenewalRows)
 	}
-	if got := result.RenewalDeveloperProceedsByCurrency["USD"]; got != 2.25 {
+	if got, _ := result.RenewalDeveloperProceeds.ByCurrency["USD"].Total.Float64(); got != 2.25 {
 		t.Fatalf("expected USD renewal developer proceeds=2.25, got %.2f", got)
 	}
 }
@@ -307,8 +313,8 @@ func TestAggregateSalesMetrics_RequiresFullColumnCoverage(t *testing.T) {
 		CustomerPriceColumnPresent:     true,
 		SubscriptionColumnPresent:      true,
 		UnitsTotal:                     10,
-		DeveloperProceedsByCurrency:    insights.CurrencyAmounts{"USD": 8.50},
-		CustomerPriceByCurrency:        insights.CurrencyAmounts{"USD": 12.00},
+		DeveloperProceeds:              insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(17, 2)}}},
+		CustomerPrice:                  insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(12, 1)}}},
 	}
 	b := insights.SalesMetrics{
 		RowCount:                       3,
@@ -345,8 +351,8 @@ func TestBuildCompareMetrics(t *testing.T) {
 		UnitsTotal:                     100,
 		DownloadUnitsTotal:             50,
 		MonetizedUnitsTotal:            30,
-		DeveloperProceedsByCurrency:    insights.CurrencyAmounts{"USD": 200.00},
-		CustomerPriceByCurrency:        insights.CurrencyAmounts{"USD": 300.00, "EUR": 90.00},
+		DeveloperProceeds:              insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(200, 1)}}},
+		CustomerPrice:                  insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(300, 1)}, "EUR": {Total: big.NewRat(90, 1)}}},
 	}
 	comparison := insights.SalesMetrics{
 		RowCount:                       8,
@@ -358,11 +364,11 @@ func TestBuildCompareMetrics(t *testing.T) {
 		UnitsTotal:                     150,
 		DownloadUnitsTotal:             80,
 		MonetizedUnitsTotal:            50,
-		DeveloperProceedsByCurrency:    insights.CurrencyAmounts{"USD": 300.00},
-		CustomerPriceByCurrency:        insights.CurrencyAmounts{"USD": 450.00},
+		DeveloperProceeds:              insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(300, 1)}}},
+		CustomerPrice:                  insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(450, 1)}}},
 	}
 
-	metrics := buildCompareMetrics(baseline, comparison)
+	metrics := buildCompareMetrics(baseline, comparison, true)
 	// One currency keeps a single total; several currencies are never summed.
 	assertCompareMetricJSON(t, metrics, "developer_proceeds", `{"name":"developer_proceeds","unit":"currency","currency":"USD",
 		"baseline":200,"comparison":300,"delta":100,"deltaPercent":50,"status":"ok",
@@ -403,36 +409,35 @@ func TestBuildCompareMetrics_MoneyIsWholeCentsAndBlankCurrencyIsUnavailable(t *t
 	baseline := aggregateSalesMetrics(
 		insights.SalesMetrics{
 			UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, CustomerPriceColumnPresent: true,
-			DeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 0.10},
-			CustomerPriceByCurrency:     insights.CurrencyAmounts{"USD": 0.10},
+			DeveloperProceeds: insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(1, 10)}}},
+			CustomerPrice:     insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(1, 10)}}},
 		},
 		insights.SalesMetrics{
 			UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, CustomerPriceColumnPresent: true,
-			DeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 0.20},
-			CustomerPriceByCurrency:     insights.CurrencyAmounts{"USD": 0.20},
-			// One report had a paid row whose Customer Currency was blank.
-			CustomerPriceMissingCurrencyRows: 1,
+			DeveloperProceeds: insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(1, 5)}}},
+			CustomerPrice:     insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"": {Reason: "a sales report row is missing a currency code"}}},
 		},
 	)
 	comparison := insights.SalesMetrics{
 		UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, CustomerPriceColumnPresent: true,
-		DeveloperProceedsByCurrency: insights.CurrencyAmounts{"USD": 0.40},
-		CustomerPriceByCurrency:     insights.CurrencyAmounts{"USD": 0.40},
+		DeveloperProceeds: insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(2, 5)}}},
+		CustomerPrice:     insights.SalesMoney{ByCurrency: insights.CurrencyAmounts{"USD": {Total: big.NewRat(2, 5)}}},
 	}
 
-	metrics := buildCompareMetrics(baseline, comparison)
+	metrics := buildCompareMetrics(baseline, comparison, true)
 	assertCompareMetricJSON(t, metrics, "developer_proceeds", `{"name":"developer_proceeds","unit":"currency","currency":"USD",
 		"baseline":0.3,"comparison":0.4,"delta":0.1,"deltaPercent":33.333333333333336,"status":"ok",
 		"byCurrency":[{"currency":"USD","baseline":0.3,"comparison":0.4,"delta":0.1,"deltaPercent":33.333333333333336}]}`)
 	assertCompareMetricJSON(t, metrics, "customer_price", `{"name":"customer_price","unit":"currency","status":"unavailable",
-		"reason":"customer price cannot be totaled: 1 row in the baseline period has an amount but a blank Customer Currency"}`)
+		"reason":"a sales report row is missing a currency code","byCurrency":[{"currency":"USD","comparison":0.4,
+		"status":"unavailable","reason":"a sales report row is missing a currency code"}]}`)
 }
 
 func TestBuildCompareMetrics_ExplainsMissingColumns(t *testing.T) {
 	baseline := insights.SalesMetrics{}
 	comparison := insights.SalesMetrics{UnitsColumnPresent: true, DownloadUnitsAvailable: true}
 
-	metrics := buildCompareMetrics(baseline, comparison)
+	metrics := buildCompareMetrics(baseline, comparison, false)
 	for _, m := range metrics {
 		if m.Name != "download_units" {
 			continue
@@ -460,7 +465,7 @@ func TestBuildCompareMetrics_ExplainsZeroBaselineDeltaPercent(t *testing.T) {
 		DownloadUnitsTotal:     12,
 	}
 
-	metrics := buildCompareMetrics(baseline, comparison)
+	metrics := buildCompareMetrics(baseline, comparison, false)
 	for _, m := range metrics {
 		if m.Name != "download_units" {
 			continue
@@ -489,12 +494,9 @@ func TestFetchAndAggregate_SingleReportKeepsAvailableColumns(t *testing.T) {
 		}, nil
 	})
 
-	metrics, found, err := fetchAndAggregateOne(
-		context.Background(),
-		client,
-		[]string{"2026-01-01"},
-		asc.SalesReportTypeSales,
-	)
+	period := fetchAndAggregate(context.Background(), client, "V", insights.SalesScope{AppID: "123", AppSKU: "APP"},
+		[][]string{{"2026-01-01"}}, asc.SalesReportTypeSales, asc.SalesReportSubTypeSummary, asc.SalesReportFrequencyDaily, true)[0]
+	metrics, found, err := period.metrics, period.found, period.err
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -514,11 +516,11 @@ func TestFetchAndAggregate_SingleReportKeepsAvailableColumns(t *testing.T) {
 		t.Fatal("expected customer price column to be available")
 	}
 	// The fixture row is 2 units at 3.00 proceeds and 4.00 customer price each.
-	if got := metrics.DeveloperProceedsByCurrency["USD"]; got != 6 {
-		t.Fatalf("expected USD developer proceeds=6, got %v", metrics.DeveloperProceedsByCurrency)
+	if got, _ := metrics.DeveloperProceeds.ByCurrency["USD"].Total.Float64(); got != 6 {
+		t.Fatalf("expected USD developer proceeds=6, got %v", metrics.DeveloperProceeds.ByCurrency)
 	}
-	if got := metrics.CustomerPriceByCurrency["USD"]; got != 8 {
-		t.Fatalf("expected USD customer price=8, got %v", metrics.CustomerPriceByCurrency)
+	if got, _ := metrics.CustomerPrice.ByCurrency["USD"].Total.Float64(); got != 8 {
+		t.Fatalf("expected USD customer price=8, got %v", metrics.CustomerPrice.ByCurrency)
 	}
 }
 
