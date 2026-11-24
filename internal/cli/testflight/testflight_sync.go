@@ -138,7 +138,8 @@ Examples:
 			if err := d.RejectOutputFormatAsPath(*output, ""); err != nil {
 				return err
 			}
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if resolvedAppID == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
@@ -174,7 +175,7 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+			resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
 			if err != nil {
 				return fmt.Errorf("testflight sync pull: %w", err)
 			}
