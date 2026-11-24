@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -189,8 +190,8 @@ func ResolveIAPID(ctx context.Context, client iapSelectorClient, appID, selector
 	return candidate.ID, nil
 }
 
-func ResolveIAPIDWithAppLookup(ctx context.Context, client *asc.Client, appSelector, selector string) (string, error) {
-	appID, err := ResolveAppIDWithExactLookup(ctx, client, appSelector)
+func ResolveIAPIDWithAppSelector(ctx context.Context, client *asc.Client, appSelector AppSelector, selector string) (string, error) {
+	appID, err := resolveProductAppID(ctx, client, appSelector)
 	if err != nil {
 		return "", err
 	}
@@ -222,12 +223,19 @@ func ResolveSubscriptionID(ctx context.Context, client subscriptionSelectorClien
 	return candidate.ID, nil
 }
 
-func ResolveSubscriptionIDWithAppLookup(ctx context.Context, client *asc.Client, appSelector, selector string) (string, error) {
-	appID, err := ResolveAppIDWithExactLookup(ctx, client, appSelector)
+func ResolveSubscriptionIDWithAppSelector(ctx context.Context, client *asc.Client, appSelector AppSelector, selector string) (string, error) {
+	appID, err := resolveProductAppID(ctx, client, appSelector)
 	if err != nil {
 		return "", err
 	}
 	return ResolveSubscriptionID(ctx, client, appID, selector)
+}
+
+func resolveProductAppID(ctx context.Context, client *asc.Client, appSelector AppSelector) (string, error) {
+	if appSelector.Source == AppSelectorFromConfiguration && isAppBundleIdentifier(appSelector.Value) {
+		return ResolveAppIDByExactBundleID(ctx, client, appSelector.Value)
+	}
+	return ResolveAppIDWithExactLookup(ctx, client, appSelector.Value)
 }
 
 func resolveIAPCandidate(ctx context.Context, client iapSelectorClient, appID, selector string) (ExactSelectorCandidate, error) {
@@ -349,6 +357,11 @@ func listIAPCandidates(ctx context.Context, client iapSelectorClient, appID stri
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			path := fmt.Sprintf("/v1/apps/%s/inAppPurchasesV2", strings.TrimSpace(appID))
+			nextURL, err := scopedPaginationURL(nextURL, path)
+			if err != nil {
+				return nil, err
+			}
 			return client.GetInAppPurchasesV2(ctx, appID, asc.NextURL[asc.IAPOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
@@ -398,6 +411,11 @@ func listSubscriptionGroupIDs(ctx context.Context, client subscriptionSelectorCl
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			path := fmt.Sprintf("/v1/apps/%s/subscriptionGroups", strings.TrimSpace(appID))
+			nextURL, err := scopedPaginationURL(nextURL, path)
+			if err != nil {
+				return nil, err
+			}
 			return client.GetSubscriptionGroups(ctx, appID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
@@ -436,6 +454,11 @@ func listSubscriptionsForGroup(ctx context.Context, client subscriptionSelectorC
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			path := fmt.Sprintf("/v1/subscriptionGroups/%s/subscriptions", strings.TrimSpace(groupID))
+			nextURL, err := scopedPaginationURL(nextURL, path)
+			if err != nil {
+				return nil, err
+			}
 			return client.GetSubscriptions(ctx, groupID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
@@ -451,6 +474,29 @@ func listSubscriptionsForGroup(ctx context.Context, client subscriptionSelectorC
 	}
 
 	return candidates, nil
+}
+
+func scopedPaginationURL(nextURL, expectedPath string) (string, error) {
+	trimmed := strings.TrimSpace(nextURL)
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("invalid pagination URL: %w", err)
+	}
+	if parsed.Scheme == "" {
+		if parsed.Host != "" || strings.HasPrefix(trimmed, "//") || !strings.HasPrefix(parsed.Path, "/") {
+			return "", fmt.Errorf("pagination URL must be a root-relative path or HTTPS App Store Connect URL")
+		}
+	} else {
+		if !strings.EqualFold(parsed.Scheme, "https") || parsed.Host == "" || parsed.User != nil || !asc.IsAPIHost(parsed.Host) {
+			return "", fmt.Errorf("pagination URL must be an HTTPS App Store Connect URL")
+		}
+		parsed.Scheme = "https"
+		trimmed = parsed.String()
+	}
+	if parsed.Path != expectedPath {
+		return "", fmt.Errorf("pagination URL escaped scoped collection: expected path %q, got %q", expectedPath, parsed.Path)
+	}
+	return trimmed, nil
 }
 
 func mapIAPCandidates(resources []asc.Resource[asc.InAppPurchaseV2Attributes]) []ExactSelectorCandidate {

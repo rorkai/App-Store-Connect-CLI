@@ -79,6 +79,45 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesResolvesSubscriptionSelect
 	}
 }
 
+func TestSubscriptionsAvailabilityAvailableTerritoriesRejectsConfiguredBundleNameCollision(t *testing.T) {
+	setupStableSelectorAuth(t)
+	t.Setenv("ASC_APP_ID", "com.example.collision")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.URL.Path != "/v1/apps" {
+			t.Fatalf("unexpected resource request after configured bundle/name collision: %s %s", req.Method, req.URL.String())
+		}
+		switch {
+		case req.URL.Query().Get("filter[bundleId]") == "com.example.collision":
+			return selectorJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+		case req.URL.Query().Get("filter[name]") == "com.example.collision":
+			return selectorJSONResponse(`{"data":[{"type":"apps","id":"app-name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.collision"}}],"links":{"next":""}}`), nil
+		default:
+			t.Fatalf("unexpected app lookup after configured bundle miss: %s", req.URL.String())
+			return nil, nil
+		}
+	})
+
+	stdout, _, runErr := runRootCommand(t, []string{
+		"subscriptions", "pricing", "availability", "available-territories",
+		"--subscription-id", "2024",
+	})
+	if runErr == nil {
+		t.Fatal("expected configured bundle miss to reject before subscription lookup")
+	}
+	if stdout != "" {
+		t.Fatalf("expected no territory output after configured bundle miss, got %q", stdout)
+	}
+	if requests != 1 {
+		t.Fatalf("expected one exact bundle lookup and no subscription/resource access, got %d requests", requests)
+	}
+}
+
 func TestSubscriptionsAvailabilityAvailableTerritoriesReportsAvailabilityLookupFailure(t *testing.T) {
 	setupStableSelectorAuth(t)
 

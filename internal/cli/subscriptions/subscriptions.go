@@ -1585,7 +1585,7 @@ Examples:
 				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 			}
 			if subscriptionValue != "" && strings.TrimSpace(*next) == "" {
-				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, resolvedAppID, subscriptionValue)
+				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, subscriptionValue)
 				if err != nil {
 					return err
 				}

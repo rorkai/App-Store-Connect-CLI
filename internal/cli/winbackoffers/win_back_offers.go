@@ -176,12 +176,12 @@ Examples:
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				resolvedAppID := d.ResolveAppID(strings.TrimSpace(*appID))
-				if err := d.RequireAppForStableSelector(resolvedAppID, id, "--subscription-id"); err != nil {
+				appSelector := d.ResolveAppSelector(strings.TrimSpace(*appID))
+				if err := d.RequireAppForStableSelector(appSelector.Value, id, "--subscription-id"); err != nil {
 					return err
 				}
 				resolveCtx, resolveCancel := d.Timeout(ctx)
-				id, err = shared.ResolveSubscriptionIDWithAppLookup(resolveCtx, client, resolvedAppID, id)
+				id, err = shared.ResolveSubscriptionIDWithAppSelector(resolveCtx, client, appSelector, id)
 				resolveCancel()
 				if err != nil {
 					return err
@@ -500,12 +500,12 @@ Examples:
 				return fmt.Errorf("win-back-offers create: %w", err)
 			}
 
-			resolvedAppID := d.ResolveAppID(strings.TrimSpace(*appID))
-			if err := d.RequireAppForStableSelector(resolvedAppID, subscription, "--subscription-id"); err != nil {
+			appSelector := d.ResolveAppSelector(strings.TrimSpace(*appID))
+			if err := d.RequireAppForStableSelector(appSelector.Value, subscription, "--subscription-id"); err != nil {
 				return err
 			}
 			resolveCtx, resolveCancel := d.Timeout(ctx)
-			subscription, err = shared.ResolveSubscriptionIDWithAppLookup(resolveCtx, client, resolvedAppID, subscription)
+			subscription, err = shared.ResolveSubscriptionIDWithAppSelector(resolveCtx, client, appSelector, subscription)
 			resolveCancel()
 			if err != nil {
 				return err
@@ -888,12 +888,12 @@ Examples:
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				resolvedAppID := d.ResolveAppID(strings.TrimSpace(*appID))
-				if err := d.RequireAppForStableSelector(resolvedAppID, id, "--subscription-id"); err != nil {
+				appSelector := d.ResolveAppSelector(strings.TrimSpace(*appID))
+				if err := d.RequireAppForStableSelector(appSelector.Value, id, "--subscription-id"); err != nil {
 					return err
 				}
 				resolveCtx, resolveCancel := d.Timeout(ctx)
-				id, err = shared.ResolveSubscriptionIDWithAppLookup(resolveCtx, client, resolvedAppID, id)
+				id, err = shared.ResolveSubscriptionIDWithAppSelector(resolveCtx, client, appSelector, id)
 				resolveCancel()
 				if err != nil {
 					return err

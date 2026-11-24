@@ -191,6 +191,93 @@ func TestIAPContentGetResolvesConfiguredBundleBeforeMembership(t *testing.T) {
 	}
 }
 
+func TestIAPContentRejectsConfiguredBundleNameCollision(t *testing.T) {
+	setupStableSelectorAuth(t)
+	t.Setenv("ASC_APP_ID", "com.example.app")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		if req.URL.Path != "/v1/apps" {
+			t.Fatalf("unexpected product or resource request after bundle/name collision: %s %s", req.Method, req.URL.String())
+		}
+		switch {
+		case req.URL.Query().Get("filter[bundleId]") == "com.example.app":
+			return selectorJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+		case req.URL.Query().Get("filter[name]") == "com.example.app":
+			return selectorJSONResponse(`{"data":[{"type":"apps","id":"app-name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.app"}}],"links":{"next":""}}`), nil
+		default:
+			t.Fatalf("unexpected app lookup after configured bundle miss: %s", req.URL.String())
+			return nil, nil
+		}
+	})
+
+	stdout, _, runErr := runRootCommand(t, []string{
+		"iap", "content", "view",
+		"--iap-id", "2024",
+	})
+	if runErr == nil {
+		t.Fatal("expected configured bundle miss to reject before product lookup")
+	}
+	if stdout != "" {
+		t.Fatalf("expected no product output after configured bundle miss, got %q", stdout)
+	}
+	if requests != 1 {
+		t.Fatalf("expected one exact bundle lookup and no product access, got %d requests", requests)
+	}
+}
+
+func TestIAPContentPreservesExplicitAppNameLookup(t *testing.T) {
+	setupStableSelectorAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps":
+			switch {
+			case req.URL.Query().Get("filter[bundleId]") == "Example App":
+				return selectorJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+			case req.URL.Query().Get("filter[name]") == "Example App":
+				return selectorJSONResponse(`{"data":[{"type":"apps","id":"app-123","attributes":{"bundleId":"com.example.app","name":"Example App"}}],"links":{"next":""}}`), nil
+			default:
+				t.Fatalf("unexpected app lookup: %s", req.URL.String())
+				return nil, nil
+			}
+		case "/v1/apps/app-123/inAppPurchasesV2":
+			if got := req.URL.Query().Get("filter[productId]"); got != "2024" {
+				t.Fatalf("expected product lookup after explicit app-name resolution, got %q", got)
+			}
+			return selectorJSONResponse(`{"data":[{"type":"inAppPurchases","id":"iap-2024","attributes":{"name":"Spring Sale","productId":"2024","inAppPurchaseType":"CONSUMABLE"}}],"links":{"next":""}}`), nil
+		case "/v2/inAppPurchases/iap-2024/content":
+			return selectorJSONResponse(`{"data":{"type":"inAppPurchaseContents","id":"content-2024"}}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	stdout, stderr, runErr := runRootCommand(t, []string{
+		"iap", "content", "view",
+		"--app", "Example App",
+		"--iap-id", "2024",
+	})
+	if runErr != nil {
+		t.Fatalf("expected explicit app name to resolve, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"content-2024"`) {
+		t.Fatalf("expected content output, got %q", stdout)
+	}
+}
+
 func TestIAPContentGetRejectsNumericIDWhenLookupErrors(t *testing.T) {
 	setupStableSelectorAuth(t)
 	t.Setenv("ASC_APP_ID", "")
@@ -312,6 +399,74 @@ func TestIAPContentViewDoesNotSuppressNumericAmbiguity(t *testing.T) {
 	}
 	if requests := len(reg.Requests()); requests != 3 {
 		t.Fatalf("expected product-id and two paginated scan requests before error, got %d", requests)
+	}
+}
+
+func TestIAPContentRejectsDriftedMembershipPage(t *testing.T) {
+	setupStableSelectorAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "filter[productId]=2024", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Spring Sale","productId":"com.example.spring"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/999/inAppPurchasesV2?cursor=drift&limit=200"}}`))
+
+	_, _, runErr := runRootCommand(t, []string{
+		"iap", "content", "view",
+		"--app", "123",
+		"--iap-id", "2024",
+	})
+	if runErr == nil || !strings.Contains(runErr.Error(), "pagination URL escaped scoped collection") {
+		t.Fatalf("expected scoped pagination rejection before content read, got %v", runErr)
+	}
+	if requests := len(reg.Requests()); requests != 2 {
+		t.Fatalf("expected product lookup and one scoped page before rejection, got %d", requests)
+	}
+}
+
+func TestSubscriptionSelectorRejectsDriftedAppGroupPage(t *testing.T) {
+	setupStableSelectorAuth(t)
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/1/subscriptionGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/999/subscriptionGroups?cursor=drift&limit=200"}}`))
+
+	_, _, runErr := runRootCommand(t, []string{
+		"subscriptions", "review", "app-store-screenshot", "view",
+		"--app", "1",
+		"--subscription-id", "com.example.monthly",
+	})
+	if runErr == nil || !strings.Contains(runErr.Error(), "pagination URL escaped scoped collection") {
+		t.Fatalf("expected app-scoped group pagination rejection before screenshot read, got %v", runErr)
+	}
+	if requests := len(reg.Requests()); requests != 1 {
+		t.Fatalf("expected one app group page before rejection, got %d", requests)
+	}
+}
+
+func TestSubscriptionSelectorRejectsDriftedGroupSubscriptionPage(t *testing.T) {
+	setupStableSelectorAuth(t)
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/1/subscriptionGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1"}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "filter[productId]=com.example.monthly", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-999/subscriptions?cursor=drift&limit=200"}}`))
+
+	_, _, runErr := runRootCommand(t, []string{
+		"subscriptions", "review", "app-store-screenshot", "view",
+		"--app", "1",
+		"--subscription-id", "com.example.monthly",
+	})
+	if runErr == nil || !strings.Contains(runErr.Error(), "pagination URL escaped scoped collection") {
+		t.Fatalf("expected group-scoped subscription pagination rejection before screenshot read, got %v", runErr)
+	}
+	if requests := len(reg.Requests()); requests != 2 {
+		t.Fatalf("expected group page and one scoped subscription page before rejection, got %d", requests)
 	}
 }
 

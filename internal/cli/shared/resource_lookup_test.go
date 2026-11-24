@@ -24,6 +24,48 @@ type subscriptionLookupFixture struct {
 	name      string
 }
 
+func TestScopedPaginationURLBindsCollectionPath(t *testing.T) {
+	expectedPath := "/v1/apps/123/inAppPurchasesV2"
+	tests := []struct {
+		name    string
+		nextURL string
+		wantURL string
+		wantErr bool
+	}{
+		{name: "absolute same collection", nextURL: "https://api.appstoreconnect.apple.com" + expectedPath + "?cursor=next"},
+		{name: "uppercase scheme canonicalized", nextURL: "HTTPS://api.appstoreconnect.apple.com" + expectedPath + "?cursor=next", wantURL: "https://api.appstoreconnect.apple.com" + expectedPath + "?cursor=next"},
+		{name: "relative same collection", nextURL: expectedPath + "?cursor=next"},
+		{name: "different app", nextURL: "https://api.appstoreconnect.apple.com/v1/apps/999/inAppPurchasesV2?cursor=next", wantErr: true},
+		{name: "different collection", nextURL: "https://api.appstoreconnect.apple.com/v1/apps/123/subscriptionGroups?cursor=next", wantErr: true},
+		{name: "malformed", nextURL: "https://api.appstoreconnect.apple.com/%zz", wantErr: true},
+		{name: "protocol relative", nextURL: "//api.appstoreconnect.apple.com" + expectedPath + "?cursor=next", wantErr: true},
+		{name: "userinfo", nextURL: "https://user:pass@api.appstoreconnect.apple.com" + expectedPath + "?cursor=next", wantErr: true},
+		{name: "opaque", nextURL: "https:" + expectedPath + "?cursor=next", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := scopedPaginationURL(tt.nextURL, expectedPath)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected pagination URL rejection, got %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("scopedPaginationURL() error: %v", err)
+			}
+			wantURL := tt.wantURL
+			if wantURL == "" {
+				wantURL = tt.nextURL
+			}
+			if got != wantURL {
+				t.Fatalf("scopedPaginationURL() = %q, want %q", got, wantURL)
+			}
+		})
+	}
+}
+
 type sequenceIAPLookupStub struct {
 	responses []*asc.InAppPurchasesV2Response
 	errs      []error
@@ -257,7 +299,7 @@ func TestResolveIAPID_WithAppContextRejectsNumericResourceWhenLookupErrors(t *te
 
 func TestResolveIAPID_WithAppContextResolvesNumericResourceIDAfterPaginatedScan(t *testing.T) {
 	firstPage := iapResponse()
-	firstPage.Links.Next = "next-page"
+	firstPage.Links.Next = "/v1/apps/app-1/inAppPurchasesV2?cursor=next"
 	stub := &sequenceIAPLookupStub{
 		responses: []*asc.InAppPurchasesV2Response{
 			iapResponse(),
@@ -532,18 +574,20 @@ func TestResolveSubscriptionID_WithAppContextRejectsNumericResourceWhenLookupErr
 }
 
 func TestResolveSubscriptionID_WithAppContextResolvesNumericResourceIDAfterPaginatedScan(t *testing.T) {
+	firstGroupPage := subscriptionGroupsResponse("group-1")
+	firstGroupPage.Links.Next = "/v1/apps/app-1/subscriptionGroups?cursor=next"
 	firstPage := subscriptionsResponse()
-	firstPage.Links.Next = "next-page"
+	firstPage.Links.Next = "/v1/subscriptionGroups/group-1/subscriptions?cursor=next"
+	secondGroupPage := subscriptionGroupsResponse("group-2")
 	stub := &sequenceSubscriptionLookupStub{
-		groupResponses: []*asc.SubscriptionGroupsResponse{
-			subscriptionGroupsResponse("group-1"),
-		},
+		groupResponses: []*asc.SubscriptionGroupsResponse{firstGroupPage, secondGroupPage, firstGroupPage, secondGroupPage},
 		subscriptionResponses: map[string][]*asc.SubscriptionsResponse{
 			"group-1": {
 				subscriptionsResponse(),
 				firstPage,
 				subscriptionsResponse(subscriptionLookupFixture{id: "2024", productID: "com.example.pro", name: "Pro"}),
 			},
+			"group-2": {subscriptionsResponse()},
 		},
 	}
 
@@ -553,6 +597,9 @@ func TestResolveSubscriptionID_WithAppContextResolvesNumericResourceIDAfterPagin
 	}
 	if got != "2024" {
 		t.Fatalf("expected selected app resource ID, got %q", got)
+	}
+	if stub.groupCalls != 4 {
+		t.Fatalf("expected two same-app subscription group pages per membership scan, got %d calls", stub.groupCalls)
 	}
 	for _, appID := range stub.appIDs {
 		if appID != "app-1" {
