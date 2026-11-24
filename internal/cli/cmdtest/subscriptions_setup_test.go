@@ -12,6 +12,7 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type subscriptionsSetupOutput struct {
@@ -220,6 +221,24 @@ func TestSubscriptionsSetupValidationErrors(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			assertUsageExit(t, test.args, test.wantErr)
 		})
+	}
+}
+
+func TestSubscriptionsSetupRejectsOverlongDescriptionBeforeRequests(t *testing.T) {
+	registry := asctest.NewRegistry(t)
+	args := []string{
+		"subscriptions", "setup",
+		"--group-id", "group-1",
+		"--reference-name", "Pro Monthly",
+		"--product-id", "com.example.pro.monthly",
+		"--subscription-period", "ONE_MONTH",
+		"--locale", "en-US",
+		"--display-name", "Pro Monthly",
+		"--description", strings.Repeat("x", 56),
+	}
+	assertUsageExitWithDeps(t, stubClient(t, registry), args, "--description must be at most 55 characters")
+	if got := registry.Requests(); len(got) != 0 {
+		t.Fatalf("received %d API requests before validation", len(got))
 	}
 }
 

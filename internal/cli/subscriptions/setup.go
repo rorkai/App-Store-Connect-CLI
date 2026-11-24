@@ -9,6 +9,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -31,6 +32,8 @@ const (
 	subscriptionsSetupStepSetPrice                = "set_price"
 	subscriptionsSetupStepSetAvailability         = "set_availability"
 	subscriptionsSetupStepVerifyState             = "verify_state"
+
+	subscriptionsSetupDescriptionMaxLength = 55
 )
 
 type subscriptionsSetupOptions struct {
@@ -327,6 +330,9 @@ Examples:
 				}
 				if opts.DisplayName == "" {
 					return d.UsageError("--display-name is required when localization flags are provided")
+				}
+				if utf8.RuneCountInString(opts.Description) > subscriptionsSetupDescriptionMaxLength {
+					return d.UsageErrorf("--description must be at most %d characters", subscriptionsSetupDescriptionMaxLength)
 				}
 			}
 			if opts.hasGroupLocalization() {
