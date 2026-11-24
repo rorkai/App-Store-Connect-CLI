@@ -156,6 +156,32 @@ type AuthSession struct {
 type ProviderSelection struct {
 	ProviderID       int64
 	PublicProviderID string
+	// RefuseSwitchUnder names the setting that forbids moving the session to
+	// another provider ("--read-only", "ASC_READ_ONLY" or "--dry-run"). When
+	// set, a selection naming the session's current provider still succeeds,
+	// but one naming another provider fails before the switch request.
+	RefuseSwitchUnder string
+}
+
+// ProviderSwitchRefusedError reports a provider switch that was not sent
+// because the command runs under read-only mode or --dry-run. Under read-only
+// mode it matches readonly.ErrRefused, so it exits like every other read-only
+// refusal.
+type ProviderSwitchRefusedError struct {
+	Setting             string
+	CurrentProvider     string
+	RequestedProvider   string
+	RequestedProviderID int64
+}
+
+func (e *ProviderSwitchRefusedError) Error() string {
+	return fmt.Sprintf("%s is set; refusing to switch the web session from provider %s to provider %s", e.Setting, e.CurrentProvider, e.RequestedProvider)
+}
+
+// Is reports readonly.ErrRefused for a read-only refusal; a --dry-run
+// refusal is not read-only mode.
+func (e *ProviderSwitchRefusedError) Is(target error) bool {
+	return target == readonly.ErrRefused && e.Setting != "--dry-run"
 }
 
 func (s ProviderSelection) empty() bool {
@@ -1524,6 +1550,14 @@ func SelectProvider(ctx context.Context, session *AuthSession, selection Provide
 	}
 	if session.Brokered {
 		return newInvalidProviderSelectionError("the brokered web session is on provider %s, which only the broker's owner can change", providerSummary(info.Provider))
+	}
+	if setting := strings.TrimSpace(selection.RefuseSwitchUnder); setting != "" {
+		return &ProviderSwitchRefusedError{
+			Setting:             setting,
+			CurrentProvider:     providerSummary(info.Provider),
+			RequestedProvider:   providerSummary(selected),
+			RequestedProviderID: selected.ProviderID,
+		}
 	}
 
 	payload, err := json.Marshal(map[string]any{

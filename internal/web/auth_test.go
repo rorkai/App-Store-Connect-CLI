@@ -30,6 +30,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -1760,5 +1761,93 @@ func TestSubmitTwoFactorCodeKeepsNonAuthorizationTrustFailuresUnretryable(t *tes
 	}
 	if got := err.Error(); !strings.Contains(got, "500") {
 		t.Fatalf("expected the error to report the HTTP status, got %q", got)
+	}
+}
+
+// TestSelectProviderRefusesSwitchWhenWritesAreOff covers --read-only,
+// ASC_READ_ONLY and a command's --dry-run: the session read still runs, the
+// provider-switch POST is never sent, and only the read-only refusal carries
+// the read-only exit classification.
+func TestSelectProviderRefusesSwitchWhenWritesAreOff(t *testing.T) {
+	const sessionBody = `{
+		"provider": {"providerId": 111, "publicProviderId": "TEAM111", "name": "Old Team"},
+		"availableProviders": [
+			{"providerId": 111, "publicProviderId": "TEAM111", "name": "Old Team"},
+			{"providerId": 222, "publicProviderId": "TEAM222", "name": "New Team"}
+		],
+		"user": {"emailAddress": "user@example.com"}
+	}`
+	tests := []struct {
+		name         string
+		setting      string
+		selection    ProviderSelection
+		wantErr      string
+		wantReadOnly bool
+	}{
+		{
+			name:         "read-only flag, other provider",
+			setting:      "--read-only",
+			selection:    ProviderSelection{ProviderID: 222},
+			wantErr:      "--read-only is set; refusing to switch the web session from provider 111 / TEAM111 / Old Team to provider 222 / TEAM222 / New Team",
+			wantReadOnly: true,
+		},
+		{
+			name:         "ASC_READ_ONLY, other provider by public ID",
+			setting:      "ASC_READ_ONLY",
+			selection:    ProviderSelection{PublicProviderID: "TEAM222"},
+			wantErr:      "ASC_READ_ONLY is set; refusing to switch the web session from provider 111 / TEAM111 / Old Team to provider 222 / TEAM222 / New Team",
+			wantReadOnly: true,
+		},
+		{
+			name:      "dry-run, other provider",
+			setting:   "--dry-run",
+			selection: ProviderSelection{ProviderID: 222},
+			wantErr:   "--dry-run is set; refusing to switch the web session from provider 111 / TEAM111 / Old Team to provider 222 / TEAM222 / New Team",
+		},
+		{
+			name:      "read-only, provider the session is already on",
+			setting:   "--read-only",
+			selection: ProviderSelection{ProviderID: 111},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			session := &AuthSession{
+				Client: &http.Client{
+					Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+						if req.Method != http.MethodGet || req.URL.String() != olympusSessionURL {
+							t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+						}
+						return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(sessionBody))}, nil
+					}),
+				},
+			}
+			selection := test.selection
+			selection.RefuseSwitchUnder = test.setting
+
+			err := SelectProvider(context.Background(), session, selection)
+			if test.wantErr == "" {
+				if err != nil {
+					t.Fatalf("SelectProvider() error = %v", err)
+				}
+				if session.ProviderID != 111 {
+					t.Fatalf("ProviderID = %d, want 111", session.ProviderID)
+				}
+				return
+			}
+			if err == nil || err.Error() != test.wantErr {
+				t.Fatalf("SelectProvider() error = %v, want %q", err, test.wantErr)
+			}
+			if got := errors.Is(err, readonly.ErrRefused); got != test.wantReadOnly {
+				t.Fatalf("errors.Is(err, readonly.ErrRefused) = %t, want %t", got, test.wantReadOnly)
+			}
+			refused, ok := errors.AsType[*ProviderSwitchRefusedError](err)
+			if !ok || refused.RequestedProviderID != 222 {
+				t.Fatalf("expected *ProviderSwitchRefusedError for provider 222, got %#v", err)
+			}
+			if session.ProviderID != 0 {
+				t.Fatalf("refused switch changed the session to provider %d", session.ProviderID)
+			}
+		})
 	}
 }

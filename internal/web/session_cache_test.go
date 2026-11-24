@@ -2795,6 +2795,49 @@ func TestTryResumeSessionReturnsExpiredErrorForUnauthorizedCache(t *testing.T) {
 	}
 }
 
+func TestTryResumeSessionRetainsProviderWhenCacheCannotResume(t *testing.T) {
+	previousFetcher := sessionInfoFetcher
+	t.Cleanup(func() { sessionInfoFetcher = previousFetcher })
+	for _, test := range []struct {
+		name           string
+		cookieDeadline time.Time
+		wantValidation bool
+	}{
+		{name: "all cookies are expired", cookieDeadline: time.Unix(1, 0)},
+		{name: "Olympus validation is inconclusive", wantValidation: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv(webSessionBackendEnv, "file")
+			t.Setenv(webSessionCacheEnabledEnv, "1")
+			t.Setenv(webSessionCacheDirEnv, t.TempDir())
+			const appleID = "user@example.com"
+			if err := writeSessionToFile(webSessionCacheKey(appleID), persistedSession{
+				Version:         webSessionCacheVersion,
+				UserEmail:       appleID,
+				ProviderID:      42,
+				DeveloperTeamID: "TEAM42",
+				Cookies: map[string][]pCookie{
+					"https://appstoreconnect.apple.com/": {{Name: "myacinfo", Value: "cached-token", Path: "/", Expires: test.cookieDeadline}},
+				},
+			}); err != nil {
+				t.Fatalf("store cached session: %v", err)
+			}
+			validated := false
+			sessionInfoFetcher = func(context.Context, *http.Client) (*sessionInfo, error) {
+				validated = true
+				return nil, &sessionInfoStatusError{Status: http.StatusServiceUnavailable}
+			}
+			session, ok, err := TryResumeSession(context.Background(), appleID)
+			if validated != test.wantValidation {
+				t.Errorf("validated cached cookies = %t, want %t", validated, test.wantValidation)
+			}
+			if err != nil || ok || session == nil || session.Client != nil || session.UserEmail != appleID || session.ProviderID != 42 || session.DeveloperTeamID != "TEAM42" {
+				t.Fatalf("resume = (%+v, %t, %v), want only same-account provider metadata", session, ok, err)
+			}
+		})
+	}
+}
+
 func TestTryResumeSessionFromSourceFallsBackToKeychainWhenFileSessionIsRejectedByServer(t *testing.T) {
 	withArraySessionKeyring(t)
 	t.Setenv(webSessionCacheEnabledEnv, "1")

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -30,8 +31,8 @@ func bindWebSessionFlags(fs *flag.FlagSet) webSessionFlags {
 		appleID:              fs.String("apple-id", "", "Apple Account email used to scope a user-owned session cache (defaults to "+webAppleIDEnv+", then the last or only cached session)"),
 		twoFactorCodeCommand: fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required"),
 		twoFactorDelivery:    bindTwoFactorDeliveryFlags(fs),
-		providerID:           fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session"),
-		publicProviderID:     fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session"),
+		providerID:           fs.Int64("provider-id", 0, "Numeric App Store Connect provider ID to select for this web session (refused under --read-only or --dry-run when it names another provider)"),
+		publicProviderID:     fs.String("public-provider-id", "", "Public App Store Connect provider/team ID to select for this web session (refused under --read-only or --dry-run when it names another provider)"),
 	}
 }
 
@@ -93,6 +94,21 @@ func resolveWebSessionForCommandWith(ctx context.Context, d *shared.Deps, flags 
 	return session, requestCtx, cancel, nil
 }
 
+// providerSwitchRefusalSetting names the setting under which this command must
+// not move the web session to another provider: read-only mode, or the
+// command's own --dry-run. Signing in stays allowed under both.
+func providerSwitchRefusalSetting(fs *flag.FlagSet) string {
+	if readonly.Enabled() {
+		return readonly.Source()
+	}
+	if fs != nil {
+		if dryRun := fs.Lookup("dry-run"); dryRun != nil && dryRun.Value.String() == "true" {
+			return "--dry-run"
+		}
+	}
+	return ""
+}
+
 func providerSelectionFromFlags(flags webSessionFlags) webcore.ProviderSelection {
 	var providerID int64
 	if flags.providerID != nil {
@@ -103,8 +119,9 @@ func providerSelectionFromFlags(flags webSessionFlags) webcore.ProviderSelection
 		publicProviderID = *flags.publicProviderID
 	}
 	return webcore.ProviderSelection{
-		ProviderID:       providerID,
-		PublicProviderID: publicProviderID,
+		ProviderID:        providerID,
+		PublicProviderID:  publicProviderID,
+		RefuseSwitchUnder: providerSwitchRefusalSetting(flags.flagSet),
 	}
 }
 
@@ -113,6 +130,11 @@ func withWebAuthHint(err error, operation string) error {
 		return nil
 	}
 	if strings.HasPrefix(err.Error(), operation+" failed:") {
+		return err
+	}
+	// A refused provider switch already names the setting, both providers and
+	// the command that switches; it is not a failure of the web session.
+	if _, ok := errors.AsType[*webcore.ProviderSwitchRefusedError](err); ok {
 		return err
 	}
 	if webcore.IsDeveloperPortalSessionError(err) {
