@@ -57,6 +57,11 @@ func TestLocalizationsUpdateValidationErrors(t *testing.T) {
 			wantErr: "at least one update flag is required (--description, --keywords, --whats-new, --promotional-text, --clear-promotional-text, --support-url, --marketing-url)",
 		},
 		{
+			name:    "app-info field requires app-info type",
+			args:    []string{"localizations", "update", "--id", "loc-1", "--name", "Updated"},
+			wantErr: "--type app-info is required for app-info update flags",
+		},
+		{
 			name:    "app-info missing app",
 			args:    []string{"localizations", "update", "--type", "app-info", "--locale", "en-US", "--subtitle", "test"},
 			wantErr: "--app is required",

@@ -165,6 +165,15 @@ func printConciseUnknownFlag(stderr io.Writer, root *ffcli.Command, analysis inv
 		return
 	}
 	fmt.Fprintf(stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
+	if name, ok := flagLookupName(flagName); ok && commandName == "asc analytics download" && name == "date" {
+		fmt.Fprintln(stderr, "Find the report instance for a date first:")
+		fmt.Fprintln(stderr, "  asc analytics view --request-id REQUEST_ID --processing-date YYYY-MM-DD --paginate")
+		fmt.Fprintln(stderr, "Then download it with:")
+		fmt.Fprintln(stderr, "  asc analytics download --request-id REQUEST_ID --instance-id INSTANCE_ID")
+		fmt.Fprintln(stderr, "For help:")
+		fmt.Fprintf(stderr, "  %s --help\n", commandName)
+		return
+	}
 	if name, _ := flagLookupName(flagName); commandName == "asc iap versions localizations list" && name == "iap-id" {
 		fmt.Fprintln(stderr, "Find the version ID first:")
 		fmt.Fprintln(stderr, "  asc iap versions list --iap-id IAP_ID --include localizations --paginate")
