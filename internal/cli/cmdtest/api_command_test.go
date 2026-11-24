@@ -54,6 +54,11 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 			wantErr: "api: --fields is not an `asc api` flag; pass sparse fields as a query parameter: --query \"fields[TYPE]=FIELD1,FIELD2\"",
 		},
 		{
+			name:    "fields flag before method points to query",
+			args:    []string{"api", "--fields=caller-fixture", "GET", "/v1/apps"},
+			wantErr: "api: --fields is not an `asc api` flag; pass sparse fields as a query parameter: --query \"fields[TYPE]=FIELD1,FIELD2\"",
+		},
+		{
 			// --json is --output json, so the body after it is a stray positional.
 			name:    "json body after --json",
 			args:    []string{"api", "post", "/v1/inAppPurchaseLocalizations", "--json", `{"data":{"type":"inAppPurchaseLocalizations"}}`, "--output", "json"},

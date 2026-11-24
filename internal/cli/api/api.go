@@ -29,6 +29,8 @@ const (
 	nearestOperationMax = 5
 )
 
+const SparseFieldsFlagHint = "api: --fields is not an `asc api` flag; pass sparse fields as a query parameter: --query \"fields[TYPE]=FIELD1,FIELD2\""
+
 var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete}
 
 // NewCommand returns the `asc api` command built on d.
@@ -91,7 +93,7 @@ Examples:
 					return d.UsageErrorf("api: --include is not an `asc api` flag; pass it as a query parameter: --query include=%s", value)
 				}
 				if err.Error() == "flag provided but not defined: --fields" {
-					return d.UsageError("api: --fields is not an `asc api` flag; pass sparse fields as a query parameter: --query \"fields[TYPE]=FIELD1,FIELD2\"")
+					return d.UsageError(SparseFieldsFlagHint)
 				}
 				return d.UsageErrorf("api: %v", err)
 			}

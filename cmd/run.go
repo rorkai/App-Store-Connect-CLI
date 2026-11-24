@@ -17,6 +17,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/api"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
@@ -156,7 +157,13 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 			badFlagSyntax = firstLine
 		}
 		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
-			printConciseUnknownFlag(d.IO.ErrOut, root, analysis, getCommandName(root, args), args)
+			commandName := getCommandName(root, args)
+			flagName, _ := flagLookupName(unknownFlagName(analysis))
+			if commandName == "asc api" && flagName == "fields" {
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+api.SparseFieldsFlagHint)
+			} else {
+				printConciseUnknownFlag(d.IO.ErrOut, root, analysis, commandName, args)
+			}
 		} else if strings.HasPrefix(badFlagSyntax, "bad flag syntax:") {
 			fmt.Fprintf(d.IO.ErrOut, "Error: %s\nFor help:\n  asc --help\n", shared.SanitizeTerminal(badFlagSyntax))
 		} else {
