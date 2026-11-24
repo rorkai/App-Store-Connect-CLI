@@ -62,6 +62,11 @@ func TestLocalizationsUpdateValidationErrors(t *testing.T) {
 			wantErr: "--type app-info is required for app-info update flags",
 		},
 		{
+			name:    "app-info field mixed with version field is refused",
+			args:    []string{"localizations", "update", "--id", "loc-1", "--name", "Updated", "--description", "Desc"},
+			wantErr: "--type app-info is required for app-info update flags",
+		},
+		{
 			name:    "app-info missing app",
 			args:    []string{"localizations", "update", "--type", "app-info", "--locale", "en-US", "--subtitle", "test"},
 			wantErr: "--app is required",

@@ -176,18 +176,23 @@ At least one field flag must be provided.`,
 					clearPromotionalText: *clearPromotionalText,
 					output:               output,
 				}
+				appInfoParams := updateAppInfoParams{
+					name:                  *name,
+					subtitle:              *subtitle,
+					privacyPolicyURL:      *privacyPolicyURL,
+					privacyChoicesURL:     *privacyChoicesURL,
+					privacyPolicyText:     *privacyPolicyText,
+					clearSubtitle:         *clearSubtitle,
+					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
+				}
+				if hasAnyAppInfoField(appInfoParams) {
+					return shared.WithDiagnostic(
+						d.UsageError("--type app-info is required for app-info update flags"),
+						shared.DiagnosticRequiredInputMissing,
+						"--type",
+					)
+				}
 				if !hasAnyVersionField(params) {
-					if hasAnyAppInfoField(updateAppInfoParams{
-						name:                  *name,
-						subtitle:              *subtitle,
-						privacyPolicyURL:      *privacyPolicyURL,
-						privacyChoicesURL:     *privacyChoicesURL,
-						privacyPolicyText:     *privacyPolicyText,
-						clearSubtitle:         *clearSubtitle,
-						clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
-					}) {
-						return d.UsageError("--type app-info is required for app-info update flags")
-					}
 					return d.UpdateFlagRequired(fs, description, keywords, whatsNew, promotionalText, clearPromotionalText, supportURL, marketingURL)
 				}
 				return updateVersionLocalization(ctx, d, params)

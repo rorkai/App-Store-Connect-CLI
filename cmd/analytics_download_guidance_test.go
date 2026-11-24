@@ -17,15 +17,16 @@ func TestRunAnalyticsDownloadDateGuidanceUsesInstanceID(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	want := "Error: unknown flag `--date` for `asc analytics download`\n" +
-		"Find the report instance for a date first:\n" +
-		"  asc analytics view --request-id REQUEST_ID --processing-date YYYY-MM-DD --paginate\n" +
-		"Then download it with:\n" +
-		"  asc analytics download --request-id REQUEST_ID --instance-id INSTANCE_ID\n" +
-		"For help:\n" +
-		"  asc analytics download --help\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
+	for _, want := range []string{
+		"Error: unknown flag `--date` for `asc analytics download`",
+		"asc analytics view --request-id REQUEST_ID --processing-date YYYY-MM-DD --paginate --output json",
+		"asc analytics download --request-id REQUEST_ID --instance-id INSTANCE_ID",
+		"asc analytics download --request-id REQUEST_ID --instance-id INSTANCE_ID --all-segments --output-dir OUTPUT_DIR",
+		"asc analytics download --help",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("stderr = %q, want it to contain %q", stderr, want)
+		}
 	}
 	if strings.Contains(stderr, "--date is accepted") || strings.Contains(stderr, "--date=") {
 		t.Fatalf("stderr teaches a --date alias: %q", stderr)
