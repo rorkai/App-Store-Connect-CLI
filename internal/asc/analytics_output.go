@@ -53,6 +53,23 @@ type AnalyticsReportDownloadResult struct {
 	DecompressedSize int64  `json:"decompressedSize,omitempty"`
 }
 
+// AnalyticsReportInstanceDownloadResult lists the artifacts for a complete instance.
+type AnalyticsReportInstanceDownloadResult struct {
+	RequestID  string                           `json:"requestId"`
+	InstanceID string                           `json:"instanceId"`
+	OutputDir  string                           `json:"outputDir"`
+	Segments   []AnalyticsReportSegmentDownload `json:"segments"`
+}
+
+// AnalyticsReportSegmentDownload identifies the files saved for one segment.
+type AnalyticsReportSegmentDownload struct {
+	SegmentID        string `json:"segmentId"`
+	FilePath         string `json:"filePath"`
+	FileSize         int64  `json:"fileSize"`
+	DecompressedPath string `json:"decompressedPath,omitempty"`
+	DecompressedSize int64  `json:"decompressedSize,omitempty"`
+}
+
 // AnalyticsReportGetResult represents CLI output for report metadata with instances.
 type AnalyticsReportGetResult struct {
 	RequestID string                     `json:"requestId"`
@@ -189,6 +206,22 @@ func analyticsReportDownloadResultRows(result *AnalyticsReportDownloadResult) ([
 		result.DecompressedPath,
 		fmt.Sprintf("%d", result.DecompressedSize),
 	}}
+	return headers, rows
+}
+
+func analyticsReportInstanceDownloadResultRows(result *AnalyticsReportInstanceDownloadResult) ([]string, [][]string) {
+	headers := []string{"Request ID", "Instance ID", "Segment ID", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
+	rows := make([][]string, 0, len(result.Segments))
+	for _, segment := range result.Segments {
+		decompressedSize := ""
+		if segment.DecompressedPath != "" {
+			decompressedSize = fmt.Sprintf("%d", segment.DecompressedSize)
+		}
+		rows = append(rows, []string{
+			result.RequestID, result.InstanceID, segment.SegmentID, segment.FilePath,
+			fmt.Sprintf("%d", segment.FileSize), segment.DecompressedPath, decompressedSize,
+		})
+	}
 	return headers, rows
 }
 

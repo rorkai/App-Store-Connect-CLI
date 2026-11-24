@@ -1,10 +1,12 @@
 package cmdtest
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -50,5 +52,75 @@ func TestAppInfoLocalizationWritesRejectOtherApp(t *testing.T) {
 				t.Errorf("cross-app %s requests=%q, want only App Info ownership lookup", operation, requests)
 			}
 		})
+	}
+}
+
+func TestVersionLocalizationWritesCheckExplicitApp(t *testing.T) {
+	const lookup = "GET /v1/appStoreVersions/ver-1?include=app"
+	const list = "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations?limit=200"
+	const created = "POST /v1/appStoreVersionLocalizations"
+	const updated = "PATCH /v1/appStoreVersionLocalizations/loc-1"
+	const versionData = `"type":"appStoreVersions","id":"ver-1"`
+	const matchingApp = `,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}`
+	for _, operation := range []string{"create", "update"} {
+		for _, tt := range []struct {
+			name      string
+			app       string
+			data      string
+			wantError string
+		}{
+			{"matching", "app-1", versionData + matchingApp, ""},
+			{"matching app self-link", "https://api.appstoreconnect.apple.com/v1/apps/app-1", versionData + matchingApp, ""},
+			{"mismatched", "app-1", versionData + `,"relationships":{"app":{"data":{"type":"apps","id":"app-2"}}}`, `belongs to app "app-2", not "app-1"`},
+			{"missing", "app-1", versionData, `app relationship missing for app store version "ver-1"`},
+			{"missing version ID", "app-1", `"type":"appStoreVersions"` + matchingApp, `expected app store version "ver-1", got ""`},
+			{"different version ID", "app-1", `"type":"appStoreVersions","id":"ver-2"` + matchingApp, `expected app store version "ver-1", got "ver-2"`},
+			{"wrong version type", "app-1", `"type":"appInfos","id":"ver-1"` + matchingApp, `expected resource type "appStoreVersions", got "appInfos"`},
+			{"wrong app relationship type", "app-1", versionData + `,"relationships":{"app":{"data":{"type":"builds","id":"app-1"}}}`, `expected app relationship type "apps", got "builds"`},
+		} {
+			t.Run(operation+"/"+tt.name, func(t *testing.T) {
+				setupLocUpdateAuth(t)
+				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+				var requests []string
+				stubTransport(t, func(req *http.Request) (*http.Response, error) {
+					request := req.Method + " " + req.URL.RequestURI()
+					requests = append(requests, request)
+					switch request {
+					case lookup:
+						return locUpdateJSONResponse(`{"data":{` + tt.data + `}}`)
+					case list:
+						return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`)
+					case created, updated:
+						return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","whatsNew":"New"}}}`)
+					default:
+						return nil, fmt.Errorf("unexpected request %s", request)
+					}
+				})
+				args := []string{"localizations", operation, "--app", tt.app, "--version", "ver-1", "--locale", "en-US", "--whats-new", "New", "--description", "Description", "--keywords", "focus", "--support-url", "https://example.com/support", "--output", "json"}
+				var code int
+				stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
+				wantRequests := []string{lookup}
+				if tt.wantError != "" {
+					if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, tt.wantError) {
+						t.Errorf("exit=%d stdout=%q stderr=%q, want ownership failure %q", code, stdout, stderr, tt.wantError)
+					}
+				} else {
+					if operation == "create" {
+						wantRequests = append(wantRequests, created)
+					} else {
+						wantRequests = append(wantRequests, list, updated)
+					}
+					var receipt struct {
+						Data struct{ ID string }
+					}
+					if err := json.Unmarshal([]byte(stdout), &receipt); err != nil || receipt.Data.ID != "loc-1" || code != cmd.ExitSuccess || stderr != "" {
+						t.Errorf("exit=%d stdout=%q stderr=%q, want localization receipt", code, stdout, stderr)
+					}
+				}
+				if !slices.Equal(requests, wantRequests) {
+					t.Errorf("requests=%v, want %v", requests, wantRequests)
+				}
+			})
+		}
 	}
 }

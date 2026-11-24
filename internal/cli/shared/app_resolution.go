@@ -63,6 +63,12 @@ func ResolveOwnedAppStoreVersionByID(ctx context.Context, client *asc.Client, ap
 	if err != nil {
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, err
 	}
+	if resp.Data.Type != asc.ResourceTypeAppStoreVersions {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, fmt.Errorf("expected resource type %q, got %q when reading app store version %q", asc.ResourceTypeAppStoreVersions, resp.Data.Type, trimmedVersionID)
+	}
+	if resp.Data.ID != trimmedVersionID {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, fmt.Errorf("expected app store version %q, got %q", trimmedVersionID, resp.Data.ID)
+	}
 	relatedAppID, err := asc.AppStoreVersionAppID(resp)
 	if err != nil {
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, err

@@ -142,7 +142,7 @@ func newWebAppsComplianceSetCommand(d *shared.Deps) *ffcli.Command {
 	var thirdParty shared.OptionalBool
 	fs.Var(&thirdParty, "third-party-technology", "Whether third-party technology powers the app's AI features: true or false (AI_GENERATED_CONTENT with --declared true)")
 	authorization := fs.String("third-party-authorization", "", "Authorization or usage agreement from the third-party technology (file; with --third-party-technology true)")
-	dryRun := fs.Bool("dry-run", false, "Check the answer and file types locally without sending anything to Apple; Apple's own form checks run only with --confirm")
+	dryRun := fs.Bool("dry-run", false, "Check the answer and file types locally; only the requirements list is read from Apple, and Apple's own form checks run only with --confirm")
 	confirm := fs.Bool("confirm", false, "Confirm saving the declaration (required unless --dry-run)")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
@@ -178,8 +178,9 @@ run only with ` + "`--confirm`" + `. A dry run reads the requirement's state but
 no answer and no file to Apple, because Apple's form takes them with every
 step. So a first ` + "`--confirm`" + ` can still be refused by Apple's form, for a field
 or file type only the form asks about; nothing is saved then. Read-only mode
-(` + "`ASC_READ_ONLY`" + `) allows ` + "`--dry-run`" + ` and refuses a save before reading the files. Apple verifies an affirmative answer, so its status stays
-` + "`COLLECTED_VERIFY_PENDING`" + ` after a save.
+(` + "`ASC_READ_ONLY`" + ` or ` + "`--read-only`" + `) allows ` + "`--dry-run`" + ` and refuses a
+save before reading the files. Apple verifies an affirmative answer, so
+its status stays ` + "`COLLECTED_VERIFY_PENDING`" + ` after a save.
 
 Examples:
   asc web apps compliance set --app "6748252780" --requirement SECURITY_ASSESSMENT --declared false --confirm

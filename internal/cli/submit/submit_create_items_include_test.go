@@ -71,7 +71,7 @@ func TestPrepareReviewSubmissionForCreateTreatsWhitespaceNextAsTerminal(t *testi
 	if err != nil {
 		t.Fatalf("prepareReviewSubmissionForCreate() error: %v", err)
 	}
-	if prepared != (submitCreateReviewSubmissionPreparation{}) {
+	if prepared.reuseSubmissionID != "" || prepared.stagedItems != nil {
 		t.Fatalf("preparation = %#v, want empty", prepared)
 	}
 	if requests != 1 {

@@ -40,14 +40,25 @@ type comparePeriod struct {
 }
 
 type compareMetric struct {
-	Name         string   `json:"name"`
-	Unit         string   `json:"unit,omitempty"`
-	Baseline     *float64 `json:"baseline,omitempty"`
-	Comparison   *float64 `json:"comparison,omitempty"`
-	Delta        *float64 `json:"delta,omitempty"`
+	Name         string                  `json:"name"`
+	Unit         string                  `json:"unit,omitempty"`
+	Currency     string                  `json:"currency,omitempty"`
+	Baseline     *float64                `json:"baseline,omitempty"`
+	Comparison   *float64                `json:"comparison,omitempty"`
+	Delta        *float64                `json:"delta,omitempty"`
+	DeltaPercent *float64                `json:"deltaPercent,omitempty"`
+	Status       string                  `json:"status"`
+	Reason       string                  `json:"reason,omitempty"`
+	ByCurrency   []compareCurrencyAmount `json:"byCurrency,omitempty"`
+}
+
+// compareCurrencyAmount is one currency's share of a monetary compare metric.
+type compareCurrencyAmount struct {
+	Currency     string   `json:"currency"`
+	Baseline     float64  `json:"baseline"`
+	Comparison   float64  `json:"comparison"`
+	Delta        float64  `json:"delta"`
 	DeltaPercent *float64 `json:"deltaPercent,omitempty"`
-	Status       string   `json:"status"`
-	Reason       string   `json:"reason,omitempty"`
 }
 
 // newAnalyticsCompareCommand returns the compare subcommand for analytics.
@@ -78,6 +89,11 @@ delta and percentage-change output scoped to the specified app.
 For WEEKLY frequency, each boundary must be a Monday (week start) or Sunday
 (week end). All requested report dates in both ranges must be available and
 parse successfully before comparison output is produced.
+
+Monetary metrics multiply the report's per-unit amounts by Units, so refunds reduce them.
+They are totaled per currency and never converted: a metric has one total only when every
+amount shares a currency, otherwise it is unavailable and byCurrency lists each currency.
+Totals are in whole cents. A paid row with a blank currency makes its metric unavailable.
 
 Examples:
   asc analytics compare --source sales --vendor "12345678" --app "123456789" --from "2026-01-01" --to "2026-02-01" --frequency DAILY
@@ -388,25 +404,28 @@ func summarizeMissingReportDates(dates []string) string {
 
 func aggregateSalesMetrics(a, b insights.SalesMetrics) insights.SalesMetrics {
 	return insights.SalesMetrics{
-		RowCount:                       a.RowCount + b.RowCount,
-		UnitsColumnPresent:             a.UnitsColumnPresent && b.UnitsColumnPresent,
-		DownloadUnitsAvailable:         a.DownloadUnitsAvailable && b.DownloadUnitsAvailable,
-		DeveloperProceedsColumnPresent: a.DeveloperProceedsColumnPresent && b.DeveloperProceedsColumnPresent,
-		CustomerPriceColumnPresent:     a.CustomerPriceColumnPresent && b.CustomerPriceColumnPresent,
-		SubscriptionColumnPresent:      a.SubscriptionColumnPresent && b.SubscriptionColumnPresent,
-		UnitsTotal:                     a.UnitsTotal + b.UnitsTotal,
-		DownloadUnitsTotal:             a.DownloadUnitsTotal + b.DownloadUnitsTotal,
-		MonetizedUnitsTotal:            a.MonetizedUnitsTotal + b.MonetizedUnitsTotal,
-		DeveloperProceedsTotal:         a.DeveloperProceedsTotal + b.DeveloperProceedsTotal,
-		CustomerPriceTotal:             a.CustomerPriceTotal + b.CustomerPriceTotal,
-		SubscriptionRows:               a.SubscriptionRows + b.SubscriptionRows,
-		SubscriptionUnitsTotal:         a.SubscriptionUnitsTotal + b.SubscriptionUnitsTotal,
-		SubscriptionDeveloperProceeds:  a.SubscriptionDeveloperProceeds + b.SubscriptionDeveloperProceeds,
-		SubscriptionCustomerPrice:      a.SubscriptionCustomerPrice + b.SubscriptionCustomerPrice,
-		RenewalRows:                    a.RenewalRows + b.RenewalRows,
-		RenewalUnitsTotal:              a.RenewalUnitsTotal + b.RenewalUnitsTotal,
-		RenewalDeveloperProceeds:       a.RenewalDeveloperProceeds + b.RenewalDeveloperProceeds,
-		RenewalCustomerPrice:           a.RenewalCustomerPrice + b.RenewalCustomerPrice,
+		RowCount:                                a.RowCount + b.RowCount,
+		UnitsColumnPresent:                      a.UnitsColumnPresent && b.UnitsColumnPresent,
+		DownloadUnitsAvailable:                  a.DownloadUnitsAvailable && b.DownloadUnitsAvailable,
+		DeveloperProceedsColumnPresent:          a.DeveloperProceedsColumnPresent && b.DeveloperProceedsColumnPresent,
+		CustomerPriceColumnPresent:              a.CustomerPriceColumnPresent && b.CustomerPriceColumnPresent,
+		SubscriptionColumnPresent:               a.SubscriptionColumnPresent && b.SubscriptionColumnPresent,
+		UnitsTotal:                              a.UnitsTotal + b.UnitsTotal,
+		DownloadUnitsTotal:                      a.DownloadUnitsTotal + b.DownloadUnitsTotal,
+		MonetizedUnitsTotal:                     a.MonetizedUnitsTotal + b.MonetizedUnitsTotal,
+		DeveloperProceedsByCurrency:             a.DeveloperProceedsByCurrency.Plus(b.DeveloperProceedsByCurrency),
+		CustomerPriceByCurrency:                 a.CustomerPriceByCurrency.Plus(b.CustomerPriceByCurrency),
+		SubscriptionRows:                        a.SubscriptionRows + b.SubscriptionRows,
+		SubscriptionUnitsTotal:                  a.SubscriptionUnitsTotal + b.SubscriptionUnitsTotal,
+		SubscriptionDeveloperProceedsByCurrency: a.SubscriptionDeveloperProceedsByCurrency.Plus(b.SubscriptionDeveloperProceedsByCurrency),
+		RenewalRows:                             a.RenewalRows + b.RenewalRows,
+		RenewalUnitsTotal:                       a.RenewalUnitsTotal + b.RenewalUnitsTotal,
+		RenewalDeveloperProceedsByCurrency:      a.RenewalDeveloperProceedsByCurrency.Plus(b.RenewalDeveloperProceedsByCurrency),
+
+		DeveloperProceedsMissingCurrencyRows:             a.DeveloperProceedsMissingCurrencyRows + b.DeveloperProceedsMissingCurrencyRows,
+		CustomerPriceMissingCurrencyRows:                 a.CustomerPriceMissingCurrencyRows + b.CustomerPriceMissingCurrencyRows,
+		SubscriptionDeveloperProceedsMissingCurrencyRows: a.SubscriptionDeveloperProceedsMissingCurrencyRows + b.SubscriptionDeveloperProceedsMissingCurrencyRows,
+		RenewalDeveloperProceedsMissingCurrencyRows:      a.RenewalDeveloperProceedsMissingCurrencyRows + b.RenewalDeveloperProceedsMissingCurrencyRows,
 	}
 }
 
@@ -421,12 +440,20 @@ func buildCompareMetrics(baseline, comparison insights.SalesMetrics) []compareMe
 		compareMetricFromValues("units", "count", "units",
 			baseline.UnitsTotal, comparison.UnitsTotal,
 			baseline.UnitsColumnPresent, comparison.UnitsColumnPresent),
-		compareMetricFromValues("developer_proceeds", "currency", "developer proceeds",
-			baseline.DeveloperProceedsTotal, comparison.DeveloperProceedsTotal,
-			baseline.DeveloperProceedsColumnPresent, comparison.DeveloperProceedsColumnPresent),
-		compareMetricFromValues("customer_price", "currency", "customer price",
-			baseline.CustomerPriceTotal, comparison.CustomerPriceTotal,
-			baseline.CustomerPriceColumnPresent, comparison.CustomerPriceColumnPresent),
+		compareCurrencyMetric("developer_proceeds", "developer proceeds",
+			baseline.DeveloperProceedsByCurrency, comparison.DeveloperProceedsByCurrency,
+			baseline.UnitsColumnPresent && baseline.DeveloperProceedsColumnPresent,
+			comparison.UnitsColumnPresent && comparison.DeveloperProceedsColumnPresent,
+			insights.MissingCurrencyReason("developer proceeds", insights.ProceedsCurrencyColumn,
+				insights.MissingCurrencyPeriod{Rows: baseline.DeveloperProceedsMissingCurrencyRows, Phrase: "in the baseline period"},
+				insights.MissingCurrencyPeriod{Rows: comparison.DeveloperProceedsMissingCurrencyRows, Phrase: "in the comparison period"})),
+		compareCurrencyMetric("customer_price", "customer price",
+			baseline.CustomerPriceByCurrency, comparison.CustomerPriceByCurrency,
+			baseline.UnitsColumnPresent && baseline.CustomerPriceColumnPresent,
+			comparison.UnitsColumnPresent && comparison.CustomerPriceColumnPresent,
+			insights.MissingCurrencyReason("customer price", insights.CustomerCurrencyColumn,
+				insights.MissingCurrencyPeriod{Rows: baseline.CustomerPriceMissingCurrencyRows, Phrase: "in the baseline period"},
+				insights.MissingCurrencyPeriod{Rows: comparison.CustomerPriceMissingCurrencyRows, Phrase: "in the comparison period"})),
 		compareMetricFromValues("subscription_units", "count", "subscription units",
 			baseline.SubscriptionUnitsTotal, comparison.SubscriptionUnitsTotal,
 			baseline.SubscriptionColumnPresent && baseline.UnitsColumnPresent,
@@ -462,12 +489,16 @@ func compareMetricFromValues(name, unit, metricLabel string, baselineValue, comp
 			Reason: compareMetricAvailabilityReason(metricLabel, baselineAvailable, comparisonAvailable),
 		}
 	}
+	delta := comparisonValue - baselineValue
+	if unit == "currency" {
+		delta = insights.RoundMoney(delta)
+	}
 	m := compareMetric{
 		Name:       name,
 		Unit:       unit,
 		Baseline:   ptrFloat(baselineValue),
 		Comparison: ptrFloat(comparisonValue),
-		Delta:      ptrFloat(comparisonValue - baselineValue),
+		Delta:      ptrFloat(delta),
 		Status:     "ok",
 	}
 	if baselineValue == 0 {
@@ -478,9 +509,52 @@ func compareMetricFromValues(name, unit, metricLabel string, baselineValue, comp
 		}
 		return m
 	}
-	deltaPercent := ((comparisonValue - baselineValue) / baselineValue) * 100
-	m.DeltaPercent = ptrFloat(deltaPercent)
+	m.DeltaPercent = ptrFloat(delta / baselineValue * 100)
 	return m
+}
+
+// compareCurrencyMetric reports a monetary total only when every amount in both
+// periods is in one currency; otherwise the totals stay split in ByCurrency.
+func compareCurrencyMetric(name, metricLabel string, baseline, comparison insights.CurrencyAmounts, baselineAvailable, comparisonAvailable bool, missingCurrencyReason string) compareMetric {
+	if !baselineAvailable || !comparisonAvailable {
+		return compareMetricFromValues(name, "currency", metricLabel, 0, 0, baselineAvailable, comparisonAvailable)
+	}
+	if missingCurrencyReason != "" {
+		return compareMetric{Name: name, Unit: "currency", Status: "unavailable", Reason: missingCurrencyReason}
+	}
+	// Baseline is the earlier period, so it is the "previous" side.
+	comparisons := insights.CompareCurrencyAmounts(comparison, baseline)
+	breakdown := make([]compareCurrencyAmount, 0, len(comparisons))
+	for _, c := range comparisons {
+		compared := compareMetricFromValues(name, "currency", metricLabel, c.Previous, c.Current, true, true)
+		breakdown = append(breakdown, compareCurrencyAmount{
+			Currency:     c.Currency,
+			Baseline:     c.Previous,
+			Comparison:   c.Current,
+			Delta:        *compared.Delta,
+			DeltaPercent: compared.DeltaPercent,
+		})
+	}
+
+	switch len(comparisons) {
+	case 0:
+		return compareMetricFromValues(name, "currency", metricLabel, 0, 0, true, true)
+	case 1:
+		m := compareMetricFromValues(name, "currency", metricLabel, comparisons[0].Previous, comparisons[0].Current, true, true)
+		if comparisons[0].Currency != "" {
+			m.Currency = comparisons[0].Currency
+			m.ByCurrency = breakdown
+		}
+		return m
+	default:
+		return compareMetric{
+			Name:       name,
+			Unit:       "currency",
+			Status:     "unavailable",
+			Reason:     insights.MixedCurrencyReason(metricLabel+" totals", comparisons),
+			ByCurrency: breakdown,
+		}
+	}
 }
 
 func ptrFloat(v float64) *float64 {
@@ -506,9 +580,13 @@ func renderCompareOutput(d *shared.Deps, resp *compareResponse, markdown bool) {
 
 	metricRows := make([][]string, 0, len(resp.Metrics))
 	for _, metric := range resp.Metrics {
+		unit := metric.Unit
+		if metric.Currency != "" {
+			unit = metric.Currency
+		}
 		metricRows = append(metricRows, []string{
 			metric.Name,
-			shared.OrNA(metric.Unit),
+			shared.OrNA(unit),
 			formatOptionalFloat(metric.Baseline),
 			formatOptionalFloat(metric.Comparison),
 			formatOptionalFloat(metric.Delta),
@@ -516,6 +594,21 @@ func renderCompareOutput(d *shared.Deps, resp *compareResponse, markdown bool) {
 			metric.Status,
 			shared.OrNA(metric.Reason),
 		})
+		if metric.Status == "ok" {
+			continue // The metric row already shows its single currency.
+		}
+		for _, amount := range metric.ByCurrency {
+			metricRows = append(metricRows, []string{
+				metric.Name,
+				insights.CurrencyLabel(amount.Currency),
+				formatOptionalFloat(&amount.Baseline),
+				formatOptionalFloat(&amount.Comparison),
+				formatOptionalFloat(&amount.Delta),
+				formatOptionalFloat(amount.DeltaPercent),
+				"ok",
+				shared.OrNA(""),
+			})
+		}
 	}
 	d.RenderSection("Metrics", []string{"metric", "unit", "baseline", "comparison", "delta", "deltaPercent", "status", "reason"}, metricRows, markdown)
 }

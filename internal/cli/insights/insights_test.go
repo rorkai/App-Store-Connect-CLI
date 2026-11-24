@@ -8,9 +8,11 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"io"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -84,16 +86,18 @@ func TestParseSalesReportMetrics(t *testing.T) {
 	if metrics.MonetizedUnitsTotal != 5 {
 		t.Fatalf("unexpected monetized units totals: %+v", metrics)
 	}
-	if !metrics.DeveloperProceedsColumnPresent || metrics.DeveloperProceedsTotal != 2 {
+	// Money columns are per unit: 3 x 0.75 + 2 x 1.25 and 3 x 1.00 + 2 x 2.00.
+	// This report has no currency columns, so totals land under the empty code.
+	if !metrics.DeveloperProceedsColumnPresent || metrics.DeveloperProceedsByCurrency[""] != 4.75 {
 		t.Fatalf("unexpected developer proceeds totals: %+v", metrics)
 	}
-	if !metrics.CustomerPriceColumnPresent || metrics.CustomerPriceTotal != 3 {
+	if !metrics.CustomerPriceColumnPresent || metrics.CustomerPriceByCurrency[""] != 7 {
 		t.Fatalf("unexpected customer price totals: %+v", metrics)
 	}
 	if !metrics.SubscriptionColumnPresent || metrics.SubscriptionRows != 2 || metrics.SubscriptionUnitsTotal != 5 {
 		t.Fatalf("unexpected subscription totals: %+v", metrics)
 	}
-	if metrics.RenewalRows != 1 || metrics.RenewalUnitsTotal != 3 || metrics.RenewalDeveloperProceeds != 0.75 {
+	if metrics.RenewalRows != 1 || metrics.RenewalUnitsTotal != 3 || metrics.RenewalDeveloperProceedsByCurrency[""] != 2.25 {
 		t.Fatalf("unexpected renewal totals: %+v", metrics)
 	}
 }
@@ -469,4 +473,143 @@ func gzipText(t *testing.T, value string) []byte {
 		t.Fatalf("gzip close error: %v", err)
 	}
 	return out.Bytes()
+}
+
+// salesSummaryHeader is the column order of Apple's Sales Summary report.
+const salesSummaryHeader = "Provider\tProvider Country\tSKU\tDeveloper\tTitle\tVersion\tProduct Type Identifier\tUnits\tDeveloper Proceeds\tBegin Date\tEnd Date\tCustomer Currency\tCountry Code\tCurrency of Proceeds\tApple Identifier\tCustomer Price\tPromo Code\tParent Identifier\tSubscription\tPeriod\tCategory\tCMB\tDevice\tSupported Platforms\tProceeds Reason\tPreserved Pricing\tClient\tOrder Type"
+
+// salesSummaryRow fills one Sales Summary row for app 1500196580 (SKU Chromism12345).
+func salesSummaryRow(productType, units, proceeds, customerCurrency, proceedsCurrency, customerPrice, parent, subscription string) string {
+	appleID := "1500196580"
+	sku := "Chromism12345"
+	if parent != "" {
+		appleID = "1619633372"
+		sku = "com.rudrankriyam.chroma_plus"
+	}
+	return strings.Join([]string{
+		"APPLE", "US", sku, "Developer", "Chroma", "1.0", productType, units, proceeds,
+		"02/16/2026", "02/22/2026", customerCurrency, "US", proceedsCurrency, appleID, customerPrice,
+		"", parent, subscription, "", "Productivity", "", "iPhone", "iOS", "", "", "", "",
+	}, "\t")
+}
+
+func TestSalesMoneyMetricsRoundToCentsAndRefuseBlankCurrency(t *testing.T) {
+	// 3 x 0.70 + 1 x 0.10 is 2.1999999999999997 in float64 and 2.20 in the report.
+	lastWeek := []string{
+		salesSummaryRow("1F", "1", "1.10", "USD", "USD", "1.50", "", ""),
+	}
+	tests := []struct {
+		name     string
+		thisWeek []string
+		want     map[string]string
+	}{
+		{
+			name: "amounts and deltas are whole cents",
+			thisWeek: []string{
+				salesSummaryRow("1F", "3", "0.70", "USD", "USD", "0.99", "", ""),
+				salesSummaryRow("1F", "1", "0.10", "USD", "USD", "0.20", "", ""),
+			},
+			want: map[string]string{
+				"developer_proceeds": `{"name":"developer_proceeds","unit":"currency","currency":"USD","thisWeek":2.2,"lastWeek":1.1,
+					"delta":1.1,"deltaPercent":100,"status":"ok",
+					"byCurrency":[{"currency":"USD","thisWeek":2.2,"lastWeek":1.1,"delta":1.1,"deltaPercent":100}]}`,
+				"customer_price": `{"name":"customer_price","unit":"currency","currency":"USD","thisWeek":3.17,"lastWeek":1.5,
+					"delta":1.67,"deltaPercent":111.33333333333333,"status":"ok",
+					"byCurrency":[{"currency":"USD","thisWeek":3.17,"lastWeek":1.5,"delta":1.67,"deltaPercent":111.33333333333333}]}`,
+			},
+		},
+		{
+			name: "a blank currency of proceeds on a paid row makes proceeds unavailable",
+			thisWeek: []string{
+				salesSummaryRow("1F", "3", "0.70", "USD", "USD", "0.99", "", ""),
+				salesSummaryRow("1F", "2", "0.70", "USD", "", "0.99", "", ""),
+				// A free row has no amount, so its blank currency does not matter.
+				salesSummaryRow("1F", "5", "0.00", "", "", "0.00", "", ""),
+			},
+			want: map[string]string{
+				"developer_proceeds": `{"name":"developer_proceeds","unit":"currency","status":"unavailable",
+					"reason":"developer proceeds cannot be totaled: 1 row this week has an amount but a blank Currency of Proceeds"}`,
+				"customer_price": `{"name":"customer_price","unit":"currency","currency":"USD","thisWeek":4.95,"lastWeek":1.5,
+					"delta":3.45,"deltaPercent":230.00000000000003,"status":"ok",
+					"byCurrency":[{"currency":"USD","thisWeek":4.95,"lastWeek":1.5,"delta":3.45,"deltaPercent":230.00000000000003}]}`,
+			},
+		},
+		{
+			name: "a blank customer currency makes customer price unavailable",
+			thisWeek: []string{
+				salesSummaryRow("1F", "3", "0.70", "", "USD", "0.99", "", ""),
+				salesSummaryRow("1F", "1", "0.70", "", "USD", "0.99", "", ""),
+			},
+			want: map[string]string{
+				"developer_proceeds": `{"name":"developer_proceeds","unit":"currency","currency":"USD","thisWeek":2.8,"lastWeek":1.1,
+					"delta":1.7,"deltaPercent":154.54545454545453,"status":"ok",
+					"byCurrency":[{"currency":"USD","thisWeek":2.8,"lastWeek":1.1,"delta":1.7,"deltaPercent":154.54545454545453}]}`,
+				"customer_price": `{"name":"customer_price","unit":"currency","status":"unavailable",
+					"reason":"customer price cannot be totaled: 2 rows this week have an amount but a blank Customer Currency"}`,
+			},
+		},
+	}
+
+	scope := salesScope{AppID: "1500196580", AppSKU: "Chromism12345"}
+	parse := func(rows []string) salesWeekMetrics {
+		t.Helper()
+		report := salesSummaryHeader + "\n" + strings.Join(rows, "\n") + "\n"
+		metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), scope)
+		if err != nil {
+			t.Fatalf("ParseSalesReportMetrics error: %v", err)
+		}
+		return metrics
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			metrics := collectSalesMetrics(parse(tt.thisWeek), nil, parse(lastWeek), nil)
+			for name, want := range tt.want {
+				assertJSONEqual(t, findWeeklyMetric(t, metrics, name), want)
+			}
+		})
+	}
+}
+
+func TestDailySubscriptionProceedsRefuseBlankCurrency(t *testing.T) {
+	// Subscription and renewal proceeds come from the same rows; a blank
+	// Currency of Proceeds on a renewal makes both unavailable for the day.
+	report := strings.Join([]string{
+		salesSummaryHeader,
+		salesSummaryRow("IAY", "3", "0.70", "USD", "USD", "0.99", "Chromism12345", "Renewal"),
+		salesSummaryRow("IAY", "1", "0.70", "USD", "", "0.99", "Chromism12345", "Renewal"),
+		"",
+	}, "\n")
+	thisDay, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), salesScope{AppID: "1500196580", AppSKU: "Chromism12345"})
+	if err != nil {
+		t.Fatalf("ParseSalesReportMetrics error: %v", err)
+	}
+	metrics := dailySalesMetrics(thisDay, salesWeekMetrics{UnitsColumnPresent: true, DeveloperProceedsColumnPresent: true, SubscriptionColumnPresent: true}, "")
+	for _, name := range []string{"renewal_developer_proceeds", "subscription_developer_proceeds"} {
+		label := strings.ReplaceAll(strings.TrimSuffix(name, "_developer_proceeds"), "_", " ")
+		want := `{"name":"` + name + `","unit":"currency","status":"unavailable",
+			"reason":"` + label + ` developer proceeds cannot be totaled: 1 row on the selected day has an amount but a blank Currency of Proceeds"}`
+		for _, metric := range metrics {
+			if metric.Name == name {
+				assertJSONEqual(t, metric, want)
+			}
+		}
+	}
+}
+
+func assertJSONEqual(t *testing.T, value any, wantJSON string) {
+	t.Helper()
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("json.Marshal error: %v", err)
+	}
+	var got, want any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("json.Unmarshal error: %v", err)
+	}
+	if err := json.Unmarshal([]byte(wantJSON), &want); err != nil {
+		t.Fatalf("unmarshal want: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("JSON mismatch\n got: %s\nwant: %s", data, wantJSON)
+	}
 }

@@ -221,7 +221,7 @@ asc analytics download \
 **Optional Flags:**
 
 * `--segment-id` - Specific segment ID (required if multiple segments)
-* `--output` - Custom output path (default: `analytics_report_{requestId}_{instanceId}.csv.gz`)
+* `--output` - Custom output path. The default is `analytics_report_{requestId}_{instanceId}.csv.gz`. With `--segment-id`, the default adds a segment-specific suffix before `.csv.gz`.
 * `--decompress` - Decompress to `.csv` format
 
 **Examples:**
@@ -239,6 +239,20 @@ asc analytics download \
   --instance-id "INSTANCE_ID" \
   --segment-id "SEGMENT_ID"
 ```
+
+#### Download a Complete Report Instance
+
+Use `--all-segments` with `--output-dir` to download each partition of one instance. Give a new directory under an existing parent. Each segment is a tab-delimited `.txt.gz` file. With `--decompress`, the command also saves a `.txt` copy. Use `--segment-id` and `--output` only in single-segment mode.
+
+```bash
+asc analytics download \
+  --request-id "REQUEST_ID" \
+  --instance-id "INSTANCE_ID" \
+  --all-segments \
+  --output-dir "./analytics-report"
+```
+
+The receipt lists the segment IDs, paths, and sizes. The output directory appears only after all segments are saved and any sizes and checksums Apple supplies have been verified.
 
 ### Delete Request
 
@@ -293,7 +307,7 @@ Large analytics reports are split into segments for download.
 asc analytics segments view --segment-id "SEGMENT_ID"
 ```
 
-Use segment IDs returned by `asc analytics reports links --report-id "REPORT_ID" --paginate`.
+Use segment IDs returned by `asc analytics instances links --instance-id "INSTANCE_ID" --paginate`.
 
 ## Vendor Number
 
@@ -363,10 +377,12 @@ asc analytics requests \
   --app "$ASC_APP_ID" \
   --access-type ONGOING
 
-# 3. Download latest data
+# 3. Download a complete instance
 asc analytics download \
   --request-id "REQUEST_ID" \
   --instance-id "INSTANCE_ID" \
+  --all-segments \
+  --output-dir "./analytics-report" \
   --decompress
 ```
 

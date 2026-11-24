@@ -12,6 +12,7 @@ ok validate --app X --version-id X --output X
 ok metadata validate --dir X --check-urls
 ok search X
 ok api X X --output X
+ok api X X --json X --output X
 ok api X X --confirm --body X
 ok versions attach-build --version-id X --build-id X --output X
 ok metadata pull --app X --version X --dir X
@@ -1370,3 +1371,7 @@ unknown-flag web privacy catalog --app X --output X
 unknown-flag analytics instances --report-id X --output X
 unknown-command versions info --version-id X --json
 ok review attachments ls --review-detail X
+unknown-flag builds list --filter app=X,version=X
+unknown-flag builds list --filter app:X
+unknown-flag builds list --filter[app]=X
+unknown-flag versions list --filter app=X,platform=X

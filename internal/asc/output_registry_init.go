@@ -557,6 +557,7 @@ func registerAllOutputRenderers() {
 	registerRows(analyticsReportRequestDeleteResultRows)
 	registerRowsWithSingleToListAdapter[AnalyticsReportRequestResponse, AnalyticsReportRequestsResponse](analyticsReportRequestsRows)
 	registerRows(analyticsReportDownloadResultRows)
+	registerRows(analyticsReportInstanceDownloadResultRows)
 	registerRows(analyticsReportGetResultRows)
 	registerRowsWithSingleToListAdapter[AnalyticsReportResponse, AnalyticsReportsResponse](analyticsReportsRows)
 	registerRowsWithSingleToListAdapter[AnalyticsReportInstanceResponse, AnalyticsReportInstancesResponse](analyticsReportInstancesRows)

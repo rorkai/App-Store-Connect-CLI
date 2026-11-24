@@ -42,6 +42,18 @@ func TestBuildsInvalidInputFailsBeforeNetwork(t *testing.T) {
 			wantErr:  `Error: builds upload: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
 		},
 		{
+			name:     "upload dry-run with reserve-only",
+			args:     []string{"builds", "upload", "--app", "123456789", "--ipa", ipaPath, "--version", "1.0.0", "--build-number", "42", "--dry-run", "--reserve-only"},
+			wantExit: rootcmd.ExitUsage,
+			wantErr:  "Error: builds upload: --dry-run and --reserve-only are mutually exclusive",
+		},
+		{
+			name:     "upload reserve-only with wait",
+			args:     []string{"builds", "upload", "--app", "123456789", "--ipa", ipaPath, "--version", "1.0.0", "--build-number", "42", "--reserve-only", "--wait"},
+			wantExit: rootcmd.ExitUsage,
+			wantErr:  "Error: builds upload: --wait is not supported with --reserve-only",
+		},
+		{
 			name:     "test-notes update invalid locale",
 			args:     []string{"builds", "test-notes", "update", "--build-id", "build-1", "--locale", "!!!bad!!!", "--whats-new", "test"},
 			wantExit: rootcmd.ExitUsage,

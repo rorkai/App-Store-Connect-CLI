@@ -60,7 +60,8 @@ Connect.
 
 For version localizations, --version accepts a version ID, or a version string
 such as 1.2.3 with --app (or ASC_APP_ID). Use --platform when the string exists
-on multiple platforms.
+on multiple platforms. With a version ID, an explicit --app verifies the
+version belongs to that app before updating.
 
 Pass the exact locale value already stored in App Store Connect. Common accepted
 forms include en-US, de-DE, ja, ar-SA, zh-Hans, and zh-Hant.
@@ -366,7 +367,7 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 		fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations")
 		return shared.MissingRequiredUsageError("--version")
 	}
-	versionIsString, normalizedPlatform, err := normalizeLocalizationVersionSelector(d, vid, p.appID, p.platform)
+	normalizedPlatform, err := normalizeLocalizationVersionSelector(d, vid, p.appID, p.platform)
 	if localizationID == "" && err != nil {
 		return err
 	}
@@ -392,11 +393,9 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 	defer cancel()
 
 	if localizationID == "" {
-		if versionIsString {
-			vid, err = resolveLocalizationsVersionString(requestCtx, d, client, d.ResolveAppID(p.appID), vid, normalizedPlatform)
-			if err != nil {
-				return fmt.Errorf("localizations update: %w", err)
-			}
+		vid, err = resolveLocalizationMutationVersionID(requestCtx, d, client, vid, p.appID, normalizedPlatform)
+		if err != nil {
+			return fmt.Errorf("localizations update: %w", err)
 		}
 		// Find existing localization ID for the locale
 		existing, err := client.GetAppStoreVersionLocalizations(requestCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
