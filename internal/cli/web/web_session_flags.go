@@ -132,6 +132,11 @@ func withWebAuthHint(err error, operation string) error {
 	if strings.HasPrefix(err.Error(), operation+" failed:") {
 		return err
 	}
+	// A refused provider switch already names the setting, both providers and
+	// the command that switches; it is not a failure of the web session.
+	if _, ok := errors.AsType[*webcore.ProviderSwitchRefusedError](err); ok {
+		return err
+	}
 	if webcore.IsDeveloperPortalSessionError(err) {
 		return fmt.Errorf("%s failed: %w", operation, err)
 	}
