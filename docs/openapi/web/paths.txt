@@ -61,6 +61,7 @@ GET /iris/v1/appStoreVersions/{id}/appStoreVersionStateChanges
 GET /iris/v1/appStoreVersions/{id}/resetRatingsRequest
 GET /iris/v1/appTaxCategories/{id}
 GET /iris/v1/apps
+GET /iris/v1/apps/{appId}/vietnamGameLicenseDetail
 GET /iris/v1/apps/{id}
 GET /iris/v1/apps/{id}/appAvailabilityV2
 GET /iris/v1/apps/{id}/appInfos
@@ -101,6 +102,7 @@ GET /ppm/complianceform/v1/accounts/{id}/requirements
 GET /ppm/compliancerequirements/v1/accounts/{accountId}/requirements
 GET /sandbox/v2/provider/account/list
 GET /services-account/QH65B2/account/auth/key/download
+GET /v1/accounts/{accountId}/sellerInfo
 HEAD /logout
 PATCH /iris/v1/ageRatingDeclarations/{id}
 PATCH /iris/v1/apiKeys/{id}

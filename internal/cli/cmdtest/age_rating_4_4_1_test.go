@@ -243,9 +243,20 @@ func TestAgeRatingEditDirectIDWithEmptyAppEnvOverridesStoredConfig(t *testing.T)
 }
 
 func TestAgeRatingEditInvalidSocialMediaReturnsUsageExit(t *testing.T) {
-	assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), []string{
-		"age-rating", "edit", "--id", "age-441", "--social-media", "sometimes",
-	}, "--social-media must be true or false")
+	for _, name := range []string{"social-media", "shared-location", "dating-and-relationships"} {
+		t.Run(name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), []string{
+				"age-rating", "edit", "--id", "age-441", "--" + name, "sometimes",
+			}, "--"+name+" must be true or false")
+		})
+	}
+	for _, name := range []string{"shared-location", "dating-and-relationships"} {
+		t.Run(name+" empty", func(t *testing.T) {
+			assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), []string{
+				"age-rating", "edit", "--id", "age-441", "--all-none", "--" + name, "",
+			}, "--"+name+" must be true or false")
+		})
+	}
 }
 
 func TestAgeRatingEditRejectsExplicitDependencyContradictions(t *testing.T) {

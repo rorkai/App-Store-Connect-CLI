@@ -122,14 +122,14 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "fields[retentionMessages]": "referenceName", "include": "appInfos,inAppPurchases,subscriptionGroups,retentionMessages"},
 		},
 		{
-			name: "app infos list", args: []string{"apps", "info", "list", "--app", "100000001", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
+			name: "app infos list", args: []string{"apps", "info", "list", "--app", "100000001", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia,socialMediaAgeRestricted,sharedLocation,datingAndRelationships", "--output", "json"},
 			wantPath: "/v1/apps/100000001/appInfos", response: `{"data":[]}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted", "include": "ageRatingDeclaration"},
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted,sharedLocation,datingAndRelationships", "include": "ageRatingDeclaration"},
 		},
 		{
-			name: "app info view", args: []string{"apps", "info", "view", "--info-id", "info-1", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia", "--output", "json"},
+			name: "app info view", args: []string{"apps", "info", "view", "--info-id", "info-1", "--fields", "kidsAgeBand", "--age-rating-fields", "sharedLocation,datingAndRelationships", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1", response: `{"data":{"type":"appInfos","id":"info-1"}}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia", "include": "ageRatingDeclaration"},
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "sharedLocation,datingAndRelationships", "include": "ageRatingDeclaration"},
 		},
 		{
 			name: "age rating kids age band remains valid", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--output", "json"},
@@ -137,9 +137,9 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			wantQuery: map[string]string{},
 		},
 		{
-			name: "age rating view", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
+			name: "age rating view", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "socialMedia,socialMediaAgeRestricted,sharedLocation,datingAndRelationships", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1/ageRatingDeclaration", response: `{"data":{"type":"ageRatingDeclarations","id":"age-1"}}`,
-			wantQuery: map[string]string{"fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted"},
+			wantQuery: map[string]string{"fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted,sharedLocation,datingAndRelationships"},
 		},
 		{
 			name: "app info localizations", args: []string{"localizations", "list", "--type", "app-info", "--app", "100000001", "--app-info", "info-1", "--app-info-fields", "kidsAgeBand", "--output", "json"},

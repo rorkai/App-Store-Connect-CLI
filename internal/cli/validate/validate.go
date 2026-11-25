@@ -510,6 +510,8 @@ func fetchAllScreenshotsForValidation(ctx context.Context, client *asc.Client, s
 
 func mapAgeRatingDeclaration(attrs asc.AgeRatingDeclarationAttributes) *validation.AgeRatingDeclaration {
 	return &validation.AgeRatingDeclaration{
+		DatingAndRelationships:              attrs.DatingAndRelationships,
+		SharedLocation:                      attrs.SharedLocation,
 		Advertising:                         attrs.Advertising,
 		Gambling:                            attrs.Gambling,
 		HealthOrWellnessTopics:              attrs.HealthOrWellnessTopics,

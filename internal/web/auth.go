@@ -382,6 +382,8 @@ func webAuthHTTPLogFields(stage string, req *http.Request, resp *http.Response, 
 		errorText := err.Error()
 		if req != nil && isTransactionTaxFinanceRequestURL(req.URL) {
 			errorText = sanitizeTransactionTaxTransportError(err)
+		} else if req != nil && isDSASellerInfoRequestURL(req.URL) {
+			errorText = "DSA status request failed"
 		}
 		fields = append(fields, "error", errorText)
 	}
@@ -465,6 +467,11 @@ func extractAppleRequestID(headers http.Header) string {
 
 func sanitizeWebAuthURLForLog(rawURL string) string {
 	sanitized := urlsanitize.SanitizeURLForLog(rawURL, webAuthSignedQueryKeys, webAuthSensitiveQueryKeys)
+	if parsed, err := url.Parse(sanitized); err == nil && isDSASellerInfoRequestURL(parsed) {
+		parsed.Path = "/v1/accounts/[REDACTED]/sellerInfo"
+		parsed.RawPath = ""
+		return parsed.String()
+	}
 	return sanitizeWebAuthFinanceJobPath(sanitized)
 }
 
@@ -2085,6 +2092,12 @@ func (c *Client) doRequestBaseWithHTTPClient(client *http.Client, ctx context.Co
 	resp, err := client.Do(req)
 	if err != nil {
 		logWebAuthHTTP("iris_request", req, nil, nil, err)
+		if isDSASellerInfoRequestURL(req.URL) {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			return nil, errors.New("DSA status request failed")
+		}
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -2092,6 +2105,9 @@ func (c *Client) doRequestBaseWithHTTPClient(client *http.Client, ctx context.Co
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logWebAuthHTTP("iris_request", req, resp, nil, err)
+		if isDSASellerInfoRequestURL(req.URL) {
+			return nil, errors.New("DSA status response could not be read")
+		}
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 	logWebAuthHTTP("iris_request", req, resp, respBody, nil)

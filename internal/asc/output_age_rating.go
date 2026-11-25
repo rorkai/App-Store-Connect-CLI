@@ -33,6 +33,8 @@ func ageRatingFields(resp *AgeRatingDeclarationResponse) []ageRatingField {
 		{Name: "ID", Value: fallbackValue(resp.Data.ID)},
 		{Name: "Type", Value: fallbackValue(string(resp.Data.Type))},
 		// Boolean content descriptors
+		{Name: "Dating and Relationships", Value: formatOptionalBool(attrs.DatingAndRelationships)},
+		{Name: "Shared Location", Value: formatOptionalBool(attrs.SharedLocation)},
 		{Name: "Advertising", Value: formatOptionalBool(attrs.Advertising)},
 		{Name: "Gambling", Value: formatOptionalBool(attrs.Gambling)},
 		{Name: "Health/Wellness Topics", Value: formatOptionalBool(attrs.HealthOrWellnessTopics)},

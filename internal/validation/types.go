@@ -332,6 +332,8 @@ type BuildBundle struct {
 
 // AgeRatingDeclaration represents age rating attributes for validation.
 type AgeRatingDeclaration struct {
+	DatingAndRelationships   *bool
+	SharedLocation           *bool
 	Advertising              *bool
 	Gambling                 *bool
 	HealthOrWellnessTopics   *bool
