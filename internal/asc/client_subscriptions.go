@@ -136,7 +136,10 @@ func (c *Client) SetSubscriptionPriceMatrix(ctx context.Context, subID string, e
 }
 
 func subscriptionPriceMatrixEntriesEqual(a, b SubscriptionInlinePrice) bool {
-	if !slices.Equal(a.AdditionalPriceTiers, b.AdditionalPriceTiers) || a.PricePointID != b.PricePointID || a.TerritoryID != b.TerritoryID || a.Attributes.StartDate != b.Attributes.StartDate || a.Attributes.PlanType != b.Attributes.PlanType {
+	if (a.AdditionalPriceTiers == nil) != (b.AdditionalPriceTiers == nil) || !slices.Equal(a.AdditionalPriceTiers, b.AdditionalPriceTiers) {
+		return false
+	}
+	if a.PricePointID != b.PricePointID || a.TerritoryID != b.TerritoryID || a.Attributes.StartDate != b.Attributes.StartDate || a.Attributes.PlanType != b.Attributes.PlanType {
 		return false
 	}
 	if a.Attributes.Preserved == nil || b.Attributes.Preserved == nil {

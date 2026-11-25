@@ -174,10 +174,10 @@ func subscriptionPricesRows(resp *SubscriptionPricesResponse) ([]string, [][]str
 				return nil, nil, err
 			}
 		}
-		if relationships.AdditionalPriceTiers != nil {
+		if tiers := relationships.AdditionalPriceTiers; tiers != nil && tiers.Data != nil {
 			showAdditionalTiers = true
 			var labels []string
-			for _, tier := range relationships.AdditionalPriceTiers.Data {
+			for _, tier := range tiers.Data {
 				label := tier.ID
 				resource := included[ResourceType("subscriptionPriceTiers")][tier.ID]
 				var quantity int

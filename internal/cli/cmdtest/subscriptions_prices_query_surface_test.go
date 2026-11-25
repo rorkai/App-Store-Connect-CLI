@@ -180,14 +180,14 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 				_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"price-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"PRICE_POINT_1"}},"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"TIER_1"}]}}}],"included":[{"type":"subscriptionPricePoints","id":"PRICE_POINT_1","attributes":{"customerPrice":"9.99"},"relationships":{"territory":{"data":{"type":"territories","id":"GBR"}},"equalizations":{"links":{"related":"/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations"}},"adjustedEqualizations":{"links":{"self":"/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations"}}}},{"type":"subscriptionPriceTiers","id":"TIER_1","attributes":{"minQuantity":10},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"TIER_POINT_1"}}}}],"links":{"next":""}}`)
 			}
 
-			stdout, stderr, err := runSubscriptionPricesListQuerySurface(
-				t,
+			args := []string{
 				"subscriptions", "pricing", "prices", "list",
 				"--subscription-id", "8000000001",
 				"--price-point-fields", "territory,equalizations,adjustedEqualizations",
 				"--price-tier-fields", "minQuantity,subscriptionPricePoint",
 				"--output", outputFormat,
-			)
+			}
+			stdout, stderr, err := runSubscriptionPricesListQuerySurface(t, args...)
 			if err != nil {
 				t.Fatalf("run error: %v (stderr=%q)", err, stderr)
 			}
@@ -217,6 +217,23 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 					if !strings.Contains(stdout, want) {
 						t.Fatalf("expected raw relationship %q in JSON output, got %q", want, stdout)
 					}
+				}
+			}
+			for _, linkage := range []string{`{"links":{"related":"/tiers"}}`, `{"data":[]}`} {
+				captured.response = func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"price-1","relationships":{"additionalPriceTiers":`+linkage+`}}]}`)
+				}
+				stdout, stderr, err := runSubscriptionPricesListQuerySurface(t, args...)
+				if err != nil {
+					t.Fatalf("linkage %s: %v (%s)", linkage, err, stderr)
+				}
+				if outputFormat == "json" {
+					if !strings.Contains(stdout, `"additionalPriceTiers":`+linkage) {
+						t.Errorf("missing raw linkage %s in %s", linkage, stdout)
+					}
+				} else if strings.Contains(stdout, "Additional Price Tiers") != (linkage == `{"data":[]}`) {
+					t.Errorf("tier column for %s: %s", linkage, stdout)
 				}
 			}
 		})

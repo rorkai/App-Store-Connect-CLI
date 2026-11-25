@@ -60,6 +60,9 @@ func TestSetSubscriptionPriceMatrix_MultiRowOrderingAndDedupe(t *testing.T) {
 		if got := usa.Relationships.SubscriptionPricePoint.Data.ID; got != "point-usa" {
 			t.Fatalf("USA price point = %q, want point-usa", got)
 		}
+		if usa.Relationships.AdditionalPriceTiers != nil {
+			t.Fatal("omitted tiers must not send a relationship")
+		}
 		if usa.Attributes != nil {
 			t.Fatalf("expected empty USA attributes to be omitted, got %+v", usa.Attributes)
 		}
@@ -81,15 +84,16 @@ func TestSetSubscriptionPriceMatrix_RejectsConflictingDuplicateTerritory(t *test
 		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
 	}, jsonResponse(http.StatusOK, `{}`))
 
-	_, err := client.SetSubscriptionPriceMatrix(context.Background(), "sub-1", []SubscriptionInlinePrice{
-		{PricePointID: "point-1", TerritoryID: "USA"},
+	for _, conflicting := range []SubscriptionInlinePrice{
 		{PricePointID: "point-2", TerritoryID: " usa "},
-	})
-	if err == nil {
-		t.Fatal("expected duplicate territory error")
-	}
-	if !strings.Contains(err.Error(), `duplicate territory "USA"`) {
-		t.Fatalf("unexpected error: %v", err)
+		{PricePointID: "point-1", TerritoryID: "USA", AdditionalPriceTiers: []ProposedSubscriptionPriceTier{}},
+	} {
+		_, err := client.SetSubscriptionPriceMatrix(context.Background(), "sub-1", []SubscriptionInlinePrice{
+			{PricePointID: "point-1", TerritoryID: "USA"}, conflicting,
+		})
+		if err == nil || !strings.Contains(err.Error(), `duplicate territory "USA"`) {
+			t.Fatalf("expected conflicting USA price rows, got %v", err)
+		}
 	}
 }
 

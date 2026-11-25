@@ -32,6 +32,7 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 		{name: "unchanged tiers", unchanged: true},
 		{name: "unchanged tiers implicit territory", unchanged: true, noTerritory: true},
 		{name: "clear tiers", empty: true},
+		{name: "initial empty tiers", initial: true, empty: true},
 		{name: "explicit preservation false", explicitFalse: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -93,17 +94,19 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 						t.Fatal(err)
 					}
-					if (test.empty || test.explicitFalse) && payload.Data.Attributes["preserveCurrentPrice"] != false {
-						t.Fatalf("preserveCurrentPrice must be explicit false, got %+v", payload.Data.Attributes)
-					}
+					attributes := payload.Data.Attributes
 					relationships := payload.Data.Relationships
 					tiers := payload.Included
 					if test.initial {
-						if len(tiers) != 2 || tiers[0].Type != "subscriptionPrices" {
+						if len(tiers) == 0 || tiers[0].Type != "subscriptionPrices" {
 							t.Fatalf("initial included = %+v", tiers)
 						}
+						attributes = tiers[0].Attributes
 						relationships = tiers[0].Relationships
 						tiers = tiers[1:]
+					}
+					if (test.empty || test.explicitFalse) && attributes["preserveCurrentPrice"] != false {
+						t.Fatalf("preserveCurrentPrice must be explicit false, got %+v", attributes)
 					}
 					var linkage struct {
 						Data []struct {
@@ -112,8 +115,8 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 						} `json:"data"`
 					}
 					if test.empty {
-						if _, supplied := relationships["additionalPriceTiers"]; supplied || len(tiers) != 0 {
-							t.Fatalf("single-tier price must omit additionalPriceTiers, got %+v and %+v", relationships, tiers)
+						if got := string(relationships["additionalPriceTiers"]); got != `{"data":[]}` || len(tiers) != 0 {
+							t.Errorf("single-tier price linkage = %q, included tiers = %+v", got, tiers)
 						}
 					} else {
 						if err := json.Unmarshal(relationships["additionalPriceTiers"], &linkage); err != nil {
