@@ -214,6 +214,7 @@ func pullTestFlightConfig(ctx context.Context, client testFlightSyncClient, appI
 	if client == nil {
 		return nil, fmt.Errorf("client is required")
 	}
+	ctx = asc.WithNoRedirectReads(ctx)
 
 	type appResult struct {
 		resp *asc.AppResponse
@@ -419,7 +420,11 @@ func paginateBetaGroups(ctx context.Context, client testFlightSyncClient, appID 
 		return &asc.BetaGroupsResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](nextURL))
+		scopedURL, err := asc.ScopedContinuationURL(nextURL, fmt.Sprintf("/v1/apps/%s/betaGroups", strings.TrimSpace(appID)))
+		if err != nil {
+			return nil, err
+		}
+		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](scopedURL))
 	})
 	if err != nil {
 		return nil, err
@@ -439,7 +444,11 @@ func paginateBetaGroupBuilds(ctx context.Context, client testFlightSyncClient, g
 		return &asc.BuildsResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroupBuilds(ctx, groupID, asc.NextURL[asc.BetaGroupBuildsOption](nextURL))
+		scopedURL, err := asc.ScopedContinuationURL(nextURL, fmt.Sprintf("/v1/betaGroups/%s/builds", strings.TrimSpace(groupID)))
+		if err != nil {
+			return nil, err
+		}
+		return client.GetBetaGroupBuilds(ctx, groupID, asc.NextURL[asc.BetaGroupBuildsOption](scopedURL))
 	})
 	if err != nil {
 		return nil, err
@@ -459,7 +468,11 @@ func paginateBetaGroupTesters(ctx context.Context, client testFlightSyncClient, 
 		return &asc.BetaTestersResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroupTesters(ctx, groupID, asc.NextURL[asc.BetaGroupTestersOption](nextURL))
+		scopedURL, err := asc.ScopedContinuationURL(nextURL, fmt.Sprintf("/v1/betaGroups/%s/betaTesters", strings.TrimSpace(groupID)))
+		if err != nil {
+			return nil, err
+		}
+		return client.GetBetaGroupTesters(ctx, groupID, asc.NextURL[asc.BetaGroupTestersOption](scopedURL))
 	})
 	if err != nil {
 		return nil, err
