@@ -84,3 +84,72 @@ func TestXcodeCloudNamedRunBindsSelectedWorkflowContinuationBeforeBuild(t *testi
 		})
 	}
 }
+
+func TestXcodeCloudSelectedWorkflowListBindsContinuation(t *testing.T) {
+	const collection = "/v1/ciProducts/product-1/workflows"
+	for _, test := range []struct {
+		name string
+		next string
+		ok   bool
+	}{
+		{name: "same product", next: asc.BaseURL + collection + "?cursor=next", ok: true},
+		{name: "different product", next: "/v1/ciProducts/other/workflows?cursor=next"},
+		{name: "different origin", next: "https://fixture.invalid" + collection + "?cursor=next"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/ciProducts", "filter[app]=123456789", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"ciProducts","id":"product-1"}]}`))
+			reg.Register(asctest.GET(collection, "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"ciWorkflows","id":"workflow-1"}],"links":{"next":"`+test.next+`"}}`))
+			if test.ok {
+				reg.Register(asctest.GET(collection, "cursor=next"),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"ciWorkflows","id":"workflow-2"}]}`))
+			}
+			stdout, _, err := runRootWithDeps(t, stubClient(t, reg), "xcode-cloud", "workflows", "list", "--app", "123456789", "--paginate")
+			count := len(reg.Requests())
+			if test.ok {
+				if err != nil || count != 3 || !strings.Contains(stdout, `"id":"workflow-2"`) {
+					t.Fatalf("stdout=%q err=%v requests=%d, want paginated workflows", stdout, err, count)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), "rejected scoped pagination URL") || stdout != "" || count != 2 {
+				t.Fatalf("stdout=%q err=%v requests=%d, want refusal before follow-up", stdout, err, count)
+			}
+		})
+	}
+}
+
+func TestXcodeCloudWorkflowIDBindsNamedGitReference(t *testing.T) {
+	const collection = "/v1/scmRepositories/repo-1/gitReferences"
+	for _, test := range []struct {
+		name string
+		next string
+		ok   bool
+	}{
+		{name: "same repository", next: asc.BaseURL + collection + "?cursor=next", ok: true},
+		{name: "different repository", next: "/v1/scmRepositories/other/gitReferences?cursor=next"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/ciWorkflows/workflow-1/repository"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"scmRepositories","id":"repo-1"}}`))
+			reg.Register(asctest.GET(collection, "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"`+test.next+`"}}`))
+			if test.ok {
+				reg.Register(asctest.GET(collection, "cursor=next"),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"scmGitReferences","id":"ref-1","attributes":{"name":"main","canonicalName":"refs/heads/main"}}]}`))
+				reg.Register(asctest.POST("/v1/ciBuildRuns"),
+					asctest.JSON(http.StatusCreated, `{"data":{"type":"ciBuildRuns","id":"run-1"}}`))
+			}
+			stdout, _, err := runRootWithDeps(t, stubClient(t, reg), "xcode-cloud", "run", "--workflow-id", "workflow-1", "--branch", "main")
+			count := len(reg.Requests())
+			if test.ok {
+				if err != nil || count != 4 || !strings.Contains(stdout, `"buildRunId":"run-1"`) {
+					t.Fatalf("stdout=%q err=%v requests=%d, want build after matching repository", stdout, err, count)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), "rejected scoped pagination URL") || stdout != "" || count != 2 {
+				t.Fatalf("stdout=%q err=%v requests=%d, want refusal before build", stdout, err, count)
+			}
+		})
+	}
+}
