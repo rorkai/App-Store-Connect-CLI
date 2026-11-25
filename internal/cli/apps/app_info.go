@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -237,6 +238,12 @@ Examples:
 				versionResource, err := shared.ResolveOwnedAppStoreVersionByID(readCtx, client, resolvedAppID, cursorVersionID, "")
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)
+				}
+				if len(platforms) > 0 && !slices.Contains(platforms, string(versionResource.Attributes.Platform)) {
+					return d.UsageErrorf("apps info view: cursor version platform %q does not match --platform", versionResource.Attributes.Platform)
+				}
+				if !asc.AppStoreVersionMatchesStateFilter(versionResource.Attributes, states) {
+					return d.UsageError("apps info view: cursor version does not match --state")
 				}
 				versionResourceID = versionResource.ID
 			} else if resolvedAppID != "" || strings.TrimSpace(*versionID) != "" {
