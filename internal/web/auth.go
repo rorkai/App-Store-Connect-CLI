@@ -2093,10 +2093,7 @@ func (c *Client) doRequestBaseWithHTTPClient(client *http.Client, ctx context.Co
 	if err != nil {
 		logWebAuthHTTP("iris_request", req, nil, nil, err)
 		if isDSASellerInfoRequestURL(req.URL) {
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
-			return nil, errors.New("DSA status request failed")
+			return nil, redactedDSAError(ctx, "DSA status request failed", err)
 		}
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -2106,7 +2103,7 @@ func (c *Client) doRequestBaseWithHTTPClient(client *http.Client, ctx context.Co
 	if err != nil {
 		logWebAuthHTTP("iris_request", req, resp, nil, err)
 		if isDSASellerInfoRequestURL(req.URL) {
-			return nil, errors.New("DSA status response could not be read")
+			return nil, redactedDSAError(ctx, "DSA status response could not be read", err)
 		}
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
