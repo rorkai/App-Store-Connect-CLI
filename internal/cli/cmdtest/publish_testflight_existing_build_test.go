@@ -147,7 +147,7 @@ func TestPublishTestflightExistingBuildIDNotifyUsesBuildBetaNotificationsEndpoin
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify", "--confirm-notify-all-testers",
+		"--notify",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
@@ -244,7 +244,7 @@ func TestPublishTestflightExistingBuildIDWithInternalAllBuildsGroupStillNotifies
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify", "--confirm-notify-all-testers",
+		"--notify",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
@@ -289,7 +289,7 @@ func TestPublishTestflightExistingBuildIDNotifySkipsManualNotificationWhenAutoNo
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify", "--confirm-notify-all-testers",
+		"--notify",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
@@ -382,7 +382,7 @@ func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlready
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify", "--confirm-notify-all-testers",
+		"--notify",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
@@ -429,7 +429,7 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 		"--app", "123",
 		"--build-id", "build-1",
 		"--group", "group-internal",
-		"--notify", "--confirm-notify-all-testers",
+		"--notify",
 	}...)
 
 	if runErr == nil {
@@ -562,7 +562,7 @@ func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEnd
 		"--app", "123",
 		"--build-number", "42",
 		"--group", "group-1",
-		"--notify", "--confirm-notify-all-testers",
+		"--notify",
 	}...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)

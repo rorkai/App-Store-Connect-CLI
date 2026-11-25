@@ -457,7 +457,7 @@ func TestPublishTestflightScopedReadsDoNotFollowRedirects(t *testing.T) {
 				args = append(args, "--submit", "--confirm")
 			}
 			if tc.notify {
-				args = append(args, "--notify", "--confirm-notify-all-testers")
+				args = append(args, "--notify")
 			}
 			stdout, stderr, err := runRootWithDeps(t, publishBoundOriginFixtureClient(t, server), args...)
 			var result asc.TestFlightPublishResult

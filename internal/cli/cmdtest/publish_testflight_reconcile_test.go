@@ -24,7 +24,6 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 		incremental    string
 		noNotify       bool
 		autoNotify     bool
-		missingConsent bool
 	}{
 		{name: "submit", submit: true},
 		{name: "without submit"},
@@ -44,7 +43,6 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 		{name: "notification settings missing state", failure: "state missing"},
 		{name: "notification settings wrong type", failure: "state type"},
 		{name: "automatic notification already enabled", autoNotify: true},
-		{name: "missing build-wide consent", missingConsent: true},
 		{name: "incremental named with notification", incremental: "named"},
 		{name: "incremental unnamed with notification", incremental: "unnamed"},
 		{name: "incremental named without notification", incremental: "named", noNotify: true},
@@ -53,7 +51,7 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ready, assigned, submitted := false, false, false
 			writes, buildReads, ownerReads := 0, 0, 0
-			requests, manualNotifications, automaticNotifications := 0, 0, 0
+			manualNotifications, automaticNotifications := 0, 0
 			notificationCommitted := false
 			groups := []asc.Resource[asc.BetaGroupAttributes]{
 				{Type: "betaGroups", ID: "g1", Attributes: asc.BetaGroupAttributes{Name: "External"}},
@@ -65,7 +63,6 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 				groups = append(groups, asc.Resource[asc.BetaGroupAttributes]{Type: "betaGroups", ID: "g0", Attributes: asc.BetaGroupAttributes{Name: "Existing"}})
 			}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requests++
 				w.Header().Set("Content-Type", "application/json")
 				var payload string
 				switch r.Method + " " + r.URL.Path {
@@ -237,9 +234,6 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 				args := []string{"publish", "testflight", "--app", "123", "--build-id", "b1", "--group", groupNames, "--test-notes", "Existing instructions", "--locale", "en-US"}
 				if !tc.noNotify {
 					args = append(args, "--notify")
-					if !tc.missingConsent {
-						args = append(args, "--confirm-notify-all-testers")
-					}
 				}
 				if tc.wrongApp || tc.wrongOwnerType {
 					args = append(args, "--wait")
@@ -258,12 +252,6 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 			}
 			ready = true
 			stdout, stderr, err := run()
-			if tc.missingConsent {
-				if err == nil || requests != 0 || !strings.Contains(err.Error()+stderr, "--confirm-notify-all-testers") {
-					t.Fatalf("consent: requests=%d stdout=%s stderr=%s err=%v", requests, stdout, stderr, err)
-				}
-				return
-			}
 			if tc.wrongApp || tc.wrongOwnerType {
 				if err == nil || writes != 0 || buildReads != 0 || ownerReads != 1 || !strings.Contains(err.Error()+stderr, "does not belong to app 123") {
 					t.Fatalf("wrong-app writes=%d stdout=%s stderr=%s err=%v", writes, stdout, stderr, err)

@@ -88,7 +88,6 @@ func newPublishTestFlightCommand(d *shared.Deps) *ffcli.Command {
 	groupIDs := fs.String("group", "", "Beta group ID(s) or name(s), comma-separated")
 	uploadOnly := fs.Bool("upload-only", false, "Upload the build without adding it to beta groups or submitting beta review")
 	notify := fs.Bool("notify", false, "Request a build-wide tester notification after adding groups")
-	confirmNotifyAll := fs.Bool("confirm-notify-all-testers", false, "Confirm --notify may notify every eligible tester for the build, including groups not selected here")
 	submit := fs.Bool("submit", false, "Submit build for beta app review after adding external groups")
 	confirm := fs.Bool("confirm", false, "Confirm beta app review submission (required with --submit)")
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
@@ -109,7 +108,7 @@ Steps:
 1. Build locally with Xcode or upload an IPA or macOS PKG (unless --build-id/--build-number is provided)
 2. Wait for processing when needed (--wait, --test-notes, or --submit)
 3. Stop and return the build metadata with --upload-only, or add the build to specified beta groups
-4. Optionally request build-wide notification with --notify --confirm-notify-all-testers
+4. Optionally request build-wide notification with --notify
 5. Optionally submit for beta app review with --submit --confirm
 
 With --submit and external groups, readiness is checked before changing notes,
@@ -132,7 +131,7 @@ Examples:
   asc publish testflight --app "123" --workspace MacApp.xcworkspace --scheme MacApp --version 1.2.3 --platform MAC_OS --pkg-path .asc/artifacts/MacApp.pkg --group "GROUP_ID"
   asc publish testflight --app "123" --workspace App.xcworkspace --scheme App --version 1.2.3 --group "GROUP_ID" --signing-style manual --team-id TEAM_ID
   asc publish testflight --app "123" --ipa app.ipa --group "External Testers"
-  asc publish testflight --app "123" --ipa app.ipa --group "G1,G2" --wait --notify --confirm-notify-all-testers
+  asc publish testflight --app "123" --ipa app.ipa --group "G1,G2" --wait --notify
   asc publish testflight --app "123" --ipa app.ipa --group "External Testers" --submit --confirm
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID" --test-notes "Test instructions" --locale "en-US" --wait
   asc publish testflight --app "123" --build-id "BUILD_ID" --group "GROUP_ID" --wait
@@ -157,7 +156,7 @@ Examples:
 			localeValue := strings.TrimSpace(*locale)
 			localBuildMode := localBuild.localBuildMode()
 			if *uploadOnly {
-				for _, flagName := range []string{"group", "notify", "confirm-notify-all-testers", "submit", "confirm", "test-notes", "locale"} {
+				for _, flagName := range []string{"group", "notify", "submit", "confirm", "test-notes", "locale"} {
 					if setFlags[flagName] {
 						return d.UsageErrorf("--%s cannot be used with --upload-only", flagName)
 					}
@@ -231,12 +230,6 @@ Examples:
 				if len(parsedGroupIDs) == 0 {
 					fmt.Fprintf(d.IO.ErrOut, "Error: --group is required\n\n")
 					return shared.MissingRequiredUsageError("--group")
-				}
-				if *notify && !*confirmNotifyAll {
-					return d.UsageError("--confirm-notify-all-testers is required with --notify because notification is build-wide")
-				}
-				if *confirmNotifyAll && !*notify {
-					return d.UsageError("--confirm-notify-all-testers requires --notify")
 				}
 				if *submit && !*confirm {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required with --submit")
