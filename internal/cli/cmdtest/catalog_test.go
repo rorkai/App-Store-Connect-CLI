@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
@@ -305,7 +306,7 @@ func TestCatalogSubscriptionPaginationPreservesQuery(t *testing.T) {
 
 func TestCatalogSubscriptionPricingPreservesAdditionalTiers(t *testing.T) {
 	for _, tc := range []struct {
-		name, tiers                        string
+		name, tiers, startDate             string
 		matching, allowed, paginated, late bool
 		wantWrites                         int
 	}{
@@ -318,6 +319,7 @@ func TestCatalogSubscriptionPricingPreservesAdditionalTiers(t *testing.T) {
 		{name: "tiers appear before write", late: true, tiers: `,"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}`},
 		{name: "matching tiered price", matching: true, allowed: true, tiers: `,"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}`},
 		{name: "matching without linkage", matching: true, allowed: true},
+		{name: "matching price already active on the Pacific day", matching: true, allowed: true, startDate: "2026-10-02"},
 		{name: "complete empty linkage", allowed: true, wantWrites: 1, tiers: `,"additionalPriceTiers":{"data":[]}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -352,7 +354,7 @@ func TestCatalogSubscriptionPricingPreservesAdditionalTiers(t *testing.T) {
 					if !strings.Contains(r.URL.Query().Get("include"), "additionalPriceTiers") {
 						tiers = `,"additionalPriceTiers":{"links":{"related":"https://api.appstoreconnect.apple.com/v1/subscriptionPrices/price-1/additionalPriceTiers"}}`
 					}
-					body = fmt.Sprintf(`{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}%s}}],"links":{}}`, point, tiers)
+					body = fmt.Sprintf(`{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"preserved":false,"startDate":%q},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}%s}}],"links":{}}`, tc.startDate, point, tiers)
 				case "PATCH /v1/subscriptions/sub-1":
 					writes++
 					point = "new-price"
@@ -365,7 +367,9 @@ func TestCatalogSubscriptionPricingPreservesAdditionalTiers(t *testing.T) {
 				_, _ = w.Write([]byte(body))
 			}))
 			defer server.Close()
-			out, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "catalog", "apply", "--app", "app-1", "--file", catalogFile(t, `{"groups":[{"referenceName":"Pro"}],"subscriptions":[{"group":"Pro","productId":"p","name":"Monthly","subscriptionPeriod":"ONE_MONTH","pricing":{"baseTerritory":"USA","customerPrice":"9.99"}}]}`), "--output", "json")
+			// Oct 2 in California is still Oct 1 on the client's clock.
+			now := time.Date(2026, 10, 1, 23, 0, 0, 0, time.FixedZone("UTC-12", -12*60*60))
+			out, stderr, err := runPricingCurrentAt(t, server, now, "catalog", "apply", "--app", "app-1", "--file", catalogFile(t, `{"groups":[{"referenceName":"Pro"}],"subscriptions":[{"group":"Pro","productId":"p","name":"Monthly","subscriptionPeriod":"ONE_MONTH","pricing":{"baseTerritory":"USA","customerPrice":"9.99"}}]}`), "--output", "json")
 			if !tc.allowed {
 				if err == nil || writes != 0 || !strings.Contains(err.Error(), "additional price tiers") {
 					t.Fatalf("unsafe replacement: writes=%d err=%v stdout=%s stderr=%s", writes, err, out, stderr)

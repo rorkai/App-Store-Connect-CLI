@@ -29,6 +29,7 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
     fail_localization = False
     mutate_after_patch = None
     default_iap_availability = False
+    incomplete_collection = None
     versions, localized, availability, territories, schedules = {}, {}, {}, {}, {}
     sub_prices, iap_prices, offers = [], [], []
     def link(kind, ident): return {"data":{"type":kind,"id":ident}}
@@ -128,6 +129,7 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
                         response=collection(copy.deepcopy(sub_prices))
                         for price in response['data']:
                             price['relationships'].setdefault('additionalPriceTiers', {'data': []})
+                            price['attributes'].setdefault('planType', 'UPFRONT')
                     elif method=='GET' and path.endswith('/iapPriceSchedule'):
                         if 'iap' not in schedules:status='404 Not Found';response=missing('inAppPurchasePriceSchedules')
                         else:response={'data':schedules['iap']}
@@ -159,6 +161,8 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
                         response=collection(territories[path.split('/')[-2]])
                     else:
                         raise AssertionError((method,path))
+                    if path == incomplete_collection:
+                        response['meta']={'paging':{'total':len(response['data'])+1}}
                     body = json.dumps(response).encode()
                     tls.sendall((f'HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {len(body)}\r\nConnection: close\r\n\r\n').encode()+body)
             except Exception as exc:
@@ -279,6 +283,52 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
             result=run('apply')
             assert result.returncode==0 and all(m=='GET' for m,p in requests),(result,requests)
             print('PASS full catalog: version localizations, equalized subscription prices, IAP schedule, free trial, availability; second apply zero writes')
+            original_offer=copy.deepcopy(offers[0])
+            offers[0]['attributes']['startDate']='1999-01-01'
+            active_offer=copy.deepcopy(offers[0])
+            for dates in [{'endDate':'2000-01-01'},{'startDate':'1999-01-01','endDate':'2000-01-01'}]:
+                payload=copy.deepcopy(manifest)
+                payload['subscriptions'][0]['introductoryOffers'][0].update(dates)
+                result=run('apply',payload,confirm=True)
+                assert result.returncode!=0 and not result.stdout and all(m=='GET' for m,p in requests) and offers==[active_offer],(result,requests)
+                if 'startDate' not in dates:
+                    assert result.returncode==2 and 'endDate' in result.stderr and not requests,(result,requests)
+                    continue
+                assert 'expired endDate' in result.stderr,result
+                offers[0]['attributes']['endDate']=dates['endDate']
+                result=run('apply',payload)
+                assert result.returncode==0 and all(m=='GET' for m,p in requests),(result,requests)
+                offers[:]=[copy.deepcopy(active_offer)]
+            offers[:]=[original_offer]
+            print('PASS expired offers: active offer retained and matching historical offer unchanged')
+
+            saved_prices=copy.deepcopy(sub_prices)
+            sub_prices[0]['relationships']['subscriptionPricePoint']['data']['id']='old-point'
+            for incomplete_collection in ('/v1/subscriptions/sub-local/prices','/v1/subscriptionPricePoints/sub-USA/equalizations'):
+                result=run('apply')
+                assert result.returncode!=0 and 'incomplete collection' in result.stderr and not result.stdout and all(m=='GET' for m,p in requests),(result,requests)
+            incomplete_collection=None
+            sub_prices[:]=saved_prices
+            print('PASS pricing discovery: truncated prices and equalizations block all writes')
+
+            for field,value in [('planType','MONTHLY'),('preserved',True)]:
+                sub_prices[0]['attributes'][field]=value
+                result=run('apply')
+                assert result.returncode!=0 and 'preserved or alternate-plan' in result.stderr and all(m=='GET' for m,p in requests),(result,requests)
+                del sub_prices[0]['attributes'][field]
+
+            version=versions['sub-local'][0]
+            version['attributes']['state']='IN_REVIEW'
+            result=run('apply')
+            assert result.returncode==0 and all(m=='GET' for m,p in requests),(result,requests)
+            payload=copy.deepcopy(manifest)
+            payload['inAppPurchases'][0]['name']='Withheld rename'
+            payload['subscriptions'][0]['localizations'][0]['name']='Changed'
+            result=run('apply',payload)
+            assert result.returncode!=0 and 'IN_REVIEW' in result.stderr and all(m=='GET' for m,p in requests),(result,requests)
+            version['attributes']['state']='PREPARE_FOR_SUBMISSION'
+            print('PASS in-review version: unchanged locale skips writes and a changed locale blocks apply')
+
             for field, kind, provider_rows in [('inAppPurchases','inAppPurchaseAvailabilities',products),('subscriptions','subscriptionAvailabilities',subscriptions)]:
                 for scenario in ('territories','identity','future setting'):
                     saved_availability=copy.deepcopy(availability)

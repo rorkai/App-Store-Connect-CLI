@@ -21,7 +21,7 @@ type introductoryOffer struct {
 	EndDate         string                        `json:"endDate,omitempty"`
 }
 
-func validateOffers(offers []introductoryOffer) error {
+func validateOffers(offers []introductoryOffer, today string) error {
 	for i := range offers {
 		o := &offers[i]
 		territory, err := ascterritory.Normalize(o.Territory)
@@ -52,7 +52,11 @@ func validateOffers(offers []introductoryOffer) error {
 				}
 			}
 		}
-		if o.StartDate != "" && o.EndDate != "" && o.EndDate < o.StartDate {
+		start := o.StartDate
+		if start == "" {
+			start = today
+		}
+		if o.EndDate != "" && o.EndDate < start {
 			return fmt.Errorf("introductory offer endDate precedes startDate")
 		}
 		for _, prior := range offers[:i] {
@@ -196,14 +200,18 @@ func planOffers(ctx context.Context, c *asc.Client, s subscription, id *string, 
 		if *id == "" && want.OfferMode != asc.SubscriptionOfferModeFreeTrial {
 			op.item.Deferred = true
 		}
+		if old != nil && offerMatches(*old, want, point) {
+			op.item.Action = "noop"
+			op.item.ID = old.id
+			op.item.Changes = nil
+			ops = append(ops, op)
+			continue
+		}
+		if want.EndDate != "" && want.EndDate < today {
+			return nil, fmt.Errorf("cannot create an introductory offer for %s in %s with expired endDate %s", s.ProductID, want.Territory, want.EndDate)
+		}
 		if old != nil {
-			if offerMatches(*old, want, point) {
-				op.item.Action = "noop"
-				op.item.ID = old.id
-				op.item.Changes = nil
-			} else {
-				ops = append(ops, remove(*old))
-			}
+			ops = append(ops, remove(*old))
 		}
 		op.write = func(ctx context.Context) (string, error) {
 			if want.OfferMode != asc.SubscriptionOfferModeFreeTrial && point == "" {

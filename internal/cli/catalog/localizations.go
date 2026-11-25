@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -124,6 +123,7 @@ func planLocalizations(ctx context.Context, c *asc.Client, kind, key string, id 
 	parent, versionKind, localizedKind := localizationPaths(kind)
 	versionID := ""
 	var existing []asc.Resource[localization]
+	var pendingState string
 	if *id != "" {
 		prefix := "/v1/"
 		if kind == "inAppPurchase" {
@@ -135,17 +135,23 @@ func planLocalizations(ctx context.Context, c *asc.Client, kind, key string, id 
 		}
 		var approved *asc.Resource[catalogVersion]
 		for _, v := range versions {
-			if slices.Contains([]string{"PREPARE_FOR_SUBMISSION", "REJECTED", "DEVELOPER_REJECTED"}, v.Attributes.State) {
+			switch v.Attributes.State {
+			case "READY_FOR_REVIEW", "WAITING_FOR_REVIEW", "IN_REVIEW", "ACCEPTED":
+				pendingState = v.Attributes.State
+				fallthrough
+			case "PREPARE_FOR_SUBMISSION", "REJECTED", "DEVELOPER_REJECTED":
 				if versionID != "" {
-					return nil, fmt.Errorf("%s %s has multiple editable versions", kind, key)
+					return nil, fmt.Errorf("%s %s has multiple active versions", kind, key)
 				}
 				versionID = v.ID
-			} else if v.Attributes.State == "APPROVED" {
+			case "APPROVED":
 				if approved == nil || approved.Attributes.Version < v.Attributes.Version {
 					copy := v
 					approved = &copy
 				}
-			} else if !slices.Contains([]string{"REPLACED_WITH_NEW_VERSION"}, v.Attributes.State) {
+			case "REPLACED_WITH_NEW_VERSION":
+				continue
+			default:
 				return nil, fmt.Errorf("%s %s version %s is %s; wait for an editable version", kind, key, v.ID, v.Attributes.State)
 			}
 		}
@@ -225,6 +231,9 @@ func planLocalizations(ctx context.Context, c *asc.Client, kind, key string, id 
 				op.item.Action = "noop"
 				op.item.Changes = nil
 			}
+		}
+		if pendingState != "" && op.item.Action != "noop" {
+			return nil, fmt.Errorf("%s %s version %s is %s; wait for an editable version", kind, key, versionID, pendingState)
 		}
 		op.write = func(ctx context.Context) (string, error) {
 			localID := old.ID

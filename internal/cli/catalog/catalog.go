@@ -124,7 +124,8 @@ No product or group is deleted.`,
 			if strings.TrimSpace(*file) == "" {
 				return d.UsageError("--file is required")
 			}
-			m, err := readManifest(*file)
+			today := shared.PricingDate(d.Now()).Format(time.DateOnly)
+			m, err := readManifest(*file, today)
 			if err != nil {
 				return d.UsageError("catalog: " + err.Error())
 			}
@@ -135,7 +136,7 @@ No product or group is deleted.`,
 			ctx, cancel := d.Timeout(ctx)
 			defer cancel()
 			ctx = asc.WithNoRedirectReads(ctx)
-			ops, err := plan(ctx, client, appID, m, d.Now().Format(time.DateOnly))
+			ops, err := plan(ctx, client, appID, m, today)
 			if err != nil {
 				return fmt.Errorf("catalog preflight: %w", err)
 			}
@@ -180,7 +181,7 @@ No product or group is deleted.`,
 	}
 }
 
-func readManifest(path string) (manifest, error) {
+func readManifest(path, today string) (manifest, error) {
 	var m manifest
 	f, err := rootfs.OpenFile(path)
 	if err != nil {
@@ -249,7 +250,7 @@ func readManifest(path string) (manifest, error) {
 			return m, fmt.Errorf("inAppPurchases[%d].reviewNote exceeds 4000 characters", i)
 		}
 	}
-	if err := validateSubscriptions(m, groups, products); err != nil {
+	if err := validateSubscriptions(m, groups, products, today); err != nil {
 		return m, err
 	}
 	return m, nil
