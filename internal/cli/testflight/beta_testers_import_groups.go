@@ -4,50 +4,91 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func validateBetaTesterImportRows(d *shared.Deps, rows []betaTestersCSVRow) error {
-	if len(rows) == 0 {
-		return d.UsageError("CSV must contain at least one tester")
-	}
-	seen := map[string]int{}
-	for i, row := range rows {
-		email := strings.TrimSpace(row.email)
-		if !isValidTesterEmail(email) {
-			return d.UsageErrorf("CSV row %d: invalid email format", i+1)
+func validateBetaTesterImportRows(rows []betaTestersCSVRow, continueOnError bool) []betaTestersCSVRow {
+	seen := make(map[string]int)
+	for i := range rows {
+		row := &rows[i]
+		key := strings.ToLower(row.email)
+		switch {
+		case row.email == "":
+			row.failure = "email is required"
+		case !isValidTesterEmail(row.email):
+			row.failure = "invalid email format"
+		case seen[key] != 0:
+			row.failure = fmt.Sprintf("duplicate email in input (already seen at row %d)", seen[key])
+		default:
+			seen[key] = i + 1
 		}
-		key := strings.ToLower(email)
-		if first, ok := seen[key]; ok {
-			return d.UsageErrorf("CSV row %d: duplicate email in input (already seen at row %d)", i+1, first)
+		if row.failure != "" && !continueOnError {
+			return rows[:i+1]
 		}
-		seen[key] = i + 1
 	}
-	return nil
+	return rows
 }
 
-func planBetaTesterImportGroups(resolver *betaGroupResolver, rows []betaTestersCSVRow, flagGroups []string, createMissing bool) ([]string, error) {
-	requested := append([]string(nil), flagGroups...)
-	for _, row := range rows {
-		requested = append(requested, row.groups...)
+func planBetaTesterImportGroups(resolver *betaGroupResolver, rows []betaTestersCSVRow, defaultGroup string, createMissing, continueOnError bool) ([]betaTestersCSVRow, []string, error) {
+	missing := make(map[string]string)
+	if err := collectMissingBetaGroups(resolver, []string{defaultGroup}, createMissing, missing); err != nil {
+		return nil, nil, err
 	}
-	missing := map[string]string{}
-	for index, name := range requested {
-		name = strings.TrimSpace(name)
+	hasEligibleRows := false
+	for i := range rows {
+		row := &rows[i]
+		if row.failure != "" {
+			continue
+		}
+		if row.wholeGroup != "" {
+			if _, err := resolver.Resolve(row.wholeGroup); !errors.Is(err, errBetaGroupNotFound) {
+				row.groups = []string{row.wholeGroup}
+			}
+		}
+		err := collectMissingBetaGroups(resolver, row.groups, createMissing, missing)
+		if err == nil {
+			hasEligibleRows = true
+			continue
+		}
+		if !errors.Is(err, errBetaGroupNotFound) {
+			if ambiguous, ok := errors.AsType[*shared.AmbiguousSelectionError](err); ok {
+				ambiguous.Flag = ""
+				ambiguous.Hint = "Use one of these group IDs in the CSV groups column instead of the name."
+			}
+			return nil, nil, err
+		}
+		row.failure = err.Error()
+		if !continueOnError {
+			rows = rows[:i+1]
+			break
+		}
+	}
+	if !hasEligibleRows {
+		return rows, nil, nil
+	}
+	return rows, slices.Sorted(maps.Values(missing)), nil
+}
+
+func collectMissingBetaGroups(resolver *betaGroupResolver, names []string, createMissing bool, missing map[string]string) error {
+	var firstMissing error
+	for _, name := range names {
 		if name == "" {
 			continue
 		}
 		if _, err := resolver.Resolve(name); err != nil {
-			if ambiguous, ok := errors.AsType[*shared.AmbiguousSelectionError](err); ok && index >= len(flagGroups) {
-				ambiguous.Flag = ""
-				ambiguous.Hint = "Use one of these group IDs in the CSV groups column instead of the name."
+			if !errors.Is(err, errBetaGroupNotFound) {
+				return err
 			}
-			if !createMissing || !errors.Is(err, errBetaGroupNotFound) {
-				return nil, err
+			if !createMissing {
+				if firstMissing == nil {
+					firstMissing = err
+				}
+				continue
 			}
 			key := strings.ToLower(shared.NormalizeBetaGroupName(name))
 			if _, ok := missing[key]; !ok {
@@ -55,12 +96,7 @@ func planBetaTesterImportGroups(resolver *betaGroupResolver, rows []betaTestersC
 			}
 		}
 	}
-	names := make([]string, 0, len(missing))
-	for _, name := range missing {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names, nil
+	return firstMissing
 }
 
 func ensureBetaTesterImportGroup(ctx context.Context, d *shared.Deps, client *asc.Client, appID, name string) (string, error) {
@@ -108,6 +144,7 @@ func planBetaTesterAddGroups(resolver *betaGroupResolver, raw string) ([]string,
 			return nil, nil, fmt.Errorf("empty group name in --group value %q", raw)
 		}
 	}
-	missing, err := planBetaTesterImportGroups(resolver, nil, requested, true)
-	return requested, missing, err
+	missing := make(map[string]string)
+	err := collectMissingBetaGroups(resolver, requested, true, missing)
+	return requested, slices.Sorted(maps.Values(missing)), err
 }

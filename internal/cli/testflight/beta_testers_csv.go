@@ -23,10 +23,12 @@ import (
 )
 
 type betaTestersCSVRow struct {
-	email     string
-	firstName string
-	lastName  string
-	groups    []string // raw group values (names or IDs), trimmed
+	email      string
+	firstName  string
+	lastName   string
+	groups     []string // raw group values (names or IDs), trimmed
+	wholeGroup string   // possible single name in a legacy comma-delimited cell
+	failure    string   // validation error reported when the import reaches this row
 }
 
 // newBetaTestersExportCommand writes beta testers to a CSV file.
@@ -277,14 +279,17 @@ CSV formats accepted:
 
 Installed Version and Install Date columns are accepted and ignored.
 Groups are semicolon-delimited in canonical import/export files.
-For compatibility, comma-delimited groups are also accepted when no semicolon is present.
+Without a semicolon, an existing group name containing commas matches as a whole.
+Otherwise, commas separate group selectors.
 Exports that neutralize spreadsheet formulas include an _asc_formula_escaping
 provenance column. Only rows carrying the supported marker have the export-added
 single quote removed; user-authored CSV apostrophes are preserved.
 
-All rows and group references are checked before any mutation. Existing testers
-are added only to groups they do not already belong to. --continue-on-error
-controls provider failures after validation, not invalid CSV input.
+Invalid emails, duplicate emails, and unresolved groups in a row are reported
+with their data row number. By default, other valid rows are processed. Use
+--continue-on-error=false to stop at the first failure. Invalid file structure,
+an invalid --group selector, or an ambiguous group aborts the import.
+Existing testers are added only to groups they do not already belong to.
 
 --create-missing-groups treats unresolved group selectors as names and creates
 external groups with public links disabled. --dry-run includes those groups in
@@ -328,9 +333,11 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("beta-testers import: %w", err)
 			}
-			if err := validateBetaTesterImportRows(d, parsedRows); err != nil {
-				return err
+			total := len(parsedRows)
+			if total == 0 {
+				return d.UsageError("CSV must contain at least one tester")
 			}
+			parsedRows = validateBetaTesterImportRows(parsedRows, *continueOnError)
 			ctx = asc.WithNoRedirectReads(ctx)
 			client, err := d.Client()
 			if err != nil {
@@ -341,7 +348,7 @@ Examples:
 			needsGroups := appliedGroupValue != ""
 			if !needsGroups {
 				for _, r := range parsedRows {
-					if len(r.groups) > 0 {
+					if r.failure == "" && (len(r.groups) > 0 || r.wholeGroup != "") {
 						needsGroups = true
 						break
 					}
@@ -357,7 +364,7 @@ Examples:
 			}
 			var missingGroups []string
 			if needsGroups {
-				missingGroups, err = planBetaTesterImportGroups(groupResolver, parsedRows, []string{appliedGroupValue}, *createMissingGroups)
+				parsedRows, missingGroups, err = planBetaTesterImportGroups(groupResolver, parsedRows, appliedGroupValue, *createMissingGroups, *continueOnError)
 				if err != nil {
 					return fmt.Errorf("beta-testers import: %w", err)
 				}
@@ -376,7 +383,7 @@ Examples:
 				SkipExisting:    *skipExisting,
 				ContinueOnError: *continueOnError,
 				AppliedGroup:    appliedGroupValue,
-				Total:           len(parsedRows),
+				Total:           total,
 			}
 
 			var refused error
@@ -410,6 +417,11 @@ Examples:
 
 			for idx, row := range parsedRows {
 				rowNumber := idx + 1 // 1-based data row index (excluding header)
+				if row.failure != "" {
+					summary.Failed++
+					summary.Failures = append(summary.Failures, asc.BetaTestersImportFailure{Row: rowNumber, Email: row.email, Error: row.failure})
+					continue
+				}
 
 				emailValue := strings.TrimSpace(row.email)
 				emailLower := strings.ToLower(emailValue)
@@ -730,7 +742,9 @@ func fetchExistingTestersByEmail(ctx context.Context, d *shared.Deps, client *as
 	}
 	emails := make([]string, 0, len(rows))
 	for _, row := range rows {
-		emails = append(emails, strings.ToLower(strings.TrimSpace(row.email)))
+		if row.failure == "" {
+			emails = append(emails, strings.ToLower(strings.TrimSpace(row.email)))
+		}
 	}
 	sort.Strings(emails)
 	byEmail := make(map[string]*asc.BetaTesterResponse, len(rows))
@@ -1079,16 +1093,9 @@ func parseHeaderMappedBetaTesterCSVRow(record []string, headerIdx map[string]int
 		}
 		return strings.TrimSpace(value)
 	}
-	groups := make([]string, 0)
-	if idx, ok := headerIdx["groups"]; ok && idx >= 0 && idx < len(record) {
-		groups = splitBetaTesterCSVGroups(record[idx], formulaEscaped)
-	}
-	return betaTestersCSVRow{
-		email:     get("email"),
-		firstName: get("first_name"),
-		lastName:  get("last_name"),
-		groups:    groups,
-	}
+	row := betaTestersCSVRow{email: get("email"), firstName: get("first_name"), lastName: get("last_name")}
+	row.setGroupCell(get("groups"))
+	return row
 }
 
 func parseLegacyBetaTesterCSVRow(d *shared.Deps, record []string) (betaTestersCSVRow, error) {
@@ -1105,23 +1112,22 @@ func parseLegacyBetaTesterCSVRow(d *shared.Deps, record []string) (betaTestersCS
 		email:     strings.TrimSpace(record[2]),
 	}
 	if len(record) >= 4 {
-		row.groups = splitBetaTesterCSVGroups(record[3], false)
+		row.setGroupCell(record[3])
 	}
 	return row, nil
 }
 
-func splitBetaTesterCSVGroups(value string, formulaEscaped bool) []string {
-	if formulaEscaped {
-		value = denormalizeSpreadsheetFormula(value)
-	}
+func (row *betaTestersCSVRow) setGroupCell(value string) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return nil
+		return
 	}
 	splitOn := ","
 	if strings.Contains(trimmed, ";") {
 		// Prefer semicolon when present to preserve commas inside group names.
 		splitOn = ";"
+	} else if strings.Contains(trimmed, ",") {
+		row.wholeGroup = trimmed
 	}
 	parts := strings.Split(trimmed, splitOn)
 	out := make([]string, 0, len(parts))
@@ -1132,7 +1138,7 @@ func splitBetaTesterCSVGroups(value string, formulaEscaped bool) []string {
 		}
 		out = append(out, item)
 	}
-	return out
+	row.groups = out
 }
 
 func isValidTesterEmail(value string) bool {

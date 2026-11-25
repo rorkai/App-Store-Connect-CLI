@@ -3,7 +3,6 @@ package cmdtest
 import (
 	"encoding/json"
 	"errors"
-	"flag"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,16 +15,72 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func TestTestersImportValidatesAllRowsBeforeRequests(t *testing.T) {
-	for _, tail := range []string{"not-an-email,Beta", "person@example.com,Beta"} {
-		path := filepath.Join(t.TempDir(), "testers.csv")
-		if err := os.WriteFile(path, []byte("email,groups\nperson@example.com,Beta\n"+tail+"\n"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		stdout, stderr, err := runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "testflight", "testers", "import", "--app", "a1", "--input", path, "--create-missing-groups", "--confirm")
-		if !errors.Is(err, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, "CSV row 2") {
-			t.Fatalf("stdout=%q stderr=%q err=%v", stdout, stderr, err)
-		}
+func TestTestersImportRetainsValidRowsAndOriginalFailureNumbers(t *testing.T) {
+	for _, tc := range []struct {
+		name, rows   string
+		stop         bool
+		total        int
+		wantEmails   []string
+		wantFailures []int
+	}{
+		{"continue", "not-an-email,Ignored\none@example.com,\nONE@example.com,Ignored\ntwo@example.com,\n", false, 4, []string{"one@example.com", "two@example.com"}, []int{1, 3}},
+		{"unresolved CSV group", "unknown@example.com,Missing\ntwo@example.com,\n", false, 2, []string{"two@example.com"}, []int{1}},
+		{"stop", "one@example.com,\nnot-an-email,Ignored\ntwo@example.com,SkippedGroup\n", true, 3, []string{"one@example.com"}, []int{2}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "testers.csv")
+			if err := os.WriteFile(path, []byte("email,groups\n"+tc.rows), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			var added []string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.Method + " " + r.URL.Path {
+				case "GET /v1/apps/a1/betaGroups":
+					if tc.name != "unresolved CSV group" {
+						t.Errorf("read groups for a rejected/skipped row")
+					}
+					_, _ = w.Write([]byte(`{"data":[]}`))
+				case "GET /v1/betaTesters":
+					if r.URL.Query().Get("filter[apps]") != "a1" || r.URL.Query().Get("filter[email]") != strings.Join(tc.wantEmails, ",") {
+						t.Error(r.URL)
+					}
+					_, _ = w.Write([]byte(`{"data":[]}`))
+				case "POST /v1/betaTesters":
+					var body asc.BetaTesterCreateRequest
+					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+						t.Error(err)
+					}
+					email := body.Data.Attributes.Email
+					added = append(added, email)
+					_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"id": email, "type": "betaTesters", "attributes": map[string]string{"email": email}}})
+				default:
+					t.Errorf("unexpected request for a rejected/skipped row: %s %s", r.Method, r.URL)
+					w.WriteHeader(400)
+				}
+			}))
+			defer srv.Close()
+			args := []string{"testflight", "testers", "import", "--app", "a1", "--input", path, "--confirm"}
+			if tc.name != "unresolved CSV group" {
+				args = append(args, "--create-missing-groups")
+			}
+			if tc.stop {
+				args = append(args, "--continue-on-error=false")
+			}
+			stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, srv), args...)
+			var result asc.BetaTestersImportSummary
+			if _, ok := errors.AsType[ReportedError](err); !ok || json.Unmarshal([]byte(stdout), &result) != nil || result.Total != tc.total || result.Created != len(tc.wantEmails) || result.Failed != len(tc.wantFailures) || len(result.Failures) != len(tc.wantFailures) || strings.Join(added, ",") != strings.Join(tc.wantEmails, ",") {
+				t.Fatalf("added=%v stdout=%s stderr=%s err=%v", added, stdout, stderr, err)
+			}
+			for i, row := range tc.wantFailures {
+				if result.Failures[i].Row != row {
+					t.Fatalf("failures=%+v", result.Failures)
+				}
+			}
+			if tc.name == "continue" && !strings.Contains(result.Failures[1].Error, "already seen at row 2") {
+				t.Fatalf("duplicate provenance lost: %+v", result.Failures)
+			}
+		})
 	}
 }
 
@@ -143,15 +198,21 @@ func TestTestersImportCreatesMissingGroupAndReconcilesMembership(t *testing.T) {
 }
 
 func TestTestersCreateMissingGroupsPreservesNameMatching(t *testing.T) {
+	const overlappingGroups = `{"data":[{"type":"betaGroups","id":"g1","attributes":{"name":"Core Team"}},{"type":"betaGroups","id":"g2","attributes":{"name":"Core  Team"}}]}`
 	for _, command := range []string{"add", "import"} {
 		for _, tc := range []struct {
-			name, selector, groups string
-			ambiguous              bool
+			name, selector, groups     string
+			ambiguous, withoutCreation bool
 		}{
 			{name: "normalized whitespace", selector: "Core  Team", groups: `{"data":[{"type":"betaGroups","id":"g1","attributes":{"name":"Core Team"}}]}`},
-			{name: "exact name wins", selector: "Core Team", groups: `{"data":[{"type":"betaGroups","id":"g1","attributes":{"name":"Core Team"}},{"type":"betaGroups","id":"g2","attributes":{"name":"Core  Team"}}]}`},
-			{name: "ambiguous normalization", selector: "Core   Team", groups: `{"data":[{"type":"betaGroups","id":"g1","attributes":{"name":"Core Team"}},{"type":"betaGroups","id":"g2","attributes":{"name":"Core  Team"}}]}`, ambiguous: true},
+			{name: "exact name wins", selector: "Core Team", groups: overlappingGroups},
+			{name: "ambiguous normalization", selector: "Core   Team", groups: overlappingGroups, ambiguous: true},
+			{name: "missing before ambiguous", selector: "Missing;Core   Team", groups: overlappingGroups, ambiguous: true, withoutCreation: true},
+			{name: "ambiguous before missing", selector: "Core   Team;Missing", groups: overlappingGroups, ambiguous: true, withoutCreation: true},
 		} {
+			if tc.withoutCreation && command != "import" {
+				continue
+			}
 			t.Run(command+"/"+tc.name, func(t *testing.T) {
 				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 				t.Setenv("ASC_APP_ID", "")
@@ -163,7 +224,10 @@ func TestTestersCreateMissingGroupsPreservesNameMatching(t *testing.T) {
 					reg.Register(asctest.GET("/v1/betaTesters/t1/relationships/betaGroups", "limit=200"),
 						asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"g1"}]}`))
 				}
-				args := []string{"testflight", "testers", command, "--app", "a1", "--create-missing-groups"}
+				args := []string{"testflight", "testers", command, "--app", "a1"}
+				if !tc.withoutCreation {
+					args = append(args, "--create-missing-groups")
+				}
 				if command == "add" {
 					selector := tc.selector
 					if tc.ambiguous {
@@ -172,7 +236,11 @@ func TestTestersCreateMissingGroupsPreservesNameMatching(t *testing.T) {
 					args = append(args, "--email", "existing@example.com", "--group", selector)
 				} else {
 					path := filepath.Join(t.TempDir(), "testers.csv")
-					if err := os.WriteFile(path, []byte("email,groups\nexisting@example.com,"+tc.selector+"\n"), 0o600); err != nil {
+					rows := "existing@example.com," + tc.selector + "\n"
+					if tc.withoutCreation {
+						rows += "other@example.com,\n"
+					}
+					if err := os.WriteFile(path, []byte("email,groups\n"+rows), 0o600); err != nil {
 						t.Fatal(err)
 					}
 					args = append(args, "--input", path, "--confirm")
@@ -380,6 +448,32 @@ func TestTestersImportContinuesAfterGroupCreationFailure(t *testing.T) {
 				if failure := summary.Failures[i]; failure.Row != row || failure.Email != emails[row-1] {
 					t.Fatalf("unexpected failed row: %+v", failure)
 				}
+			}
+		})
+	}
+}
+
+func TestTestersImportResolvesCommaGroupBeforePlanningCreates(t *testing.T) {
+	for _, tc := range []struct {
+		name, groupResources, memberResources string
+	}{
+		{name: "exported single group", groupResources: `{"type":"betaGroups","id":"both","attributes":{"name":"Staff, Family & Friends"}}`, memberResources: `{"type":"betaGroups","id":"both"}`},
+		{name: "legacy comma list", groupResources: `{"type":"betaGroups","id":"staff","attributes":{"name":"Staff"}},{"type":"betaGroups","id":"friends","attributes":{"name":"Family & Friends"}}`, memberResources: `{"type":"betaGroups","id":"staff"},{"type":"betaGroups","id":"friends"}`},
+		{name: "whole name and component names", groupResources: `{"type":"betaGroups","id":"both","attributes":{"name":"Staff, Family & Friends"}},{"type":"betaGroups","id":"staff","attributes":{"name":"Staff"}},{"type":"betaGroups","id":"friends","attributes":{"name":"Family & Friends"}}`, memberResources: `{"type":"betaGroups","id":"both"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "testers.csv")
+			if err := os.WriteFile(path, []byte("email,first_name,last_name,groups\nperson@example.com,,,\"Staff, Family & Friends\"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps/a1/betaGroups", "limit=200"), asctest.JSON(200, `{"data":[`+tc.groupResources+`]}`))
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=person@example.com", "filter[apps]=a1", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"), asctest.JSON(200, `{"data":[{"type":"betaTesters","id":"t1","attributes":{"email":"person@example.com"}}]}`))
+			reg.Register(asctest.GET("/v1/betaTesters/t1/relationships/betaGroups", "limit=200"), asctest.JSON(200, `{"data":[`+tc.memberResources+`]}`))
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "a1", "--input", path, "--create-missing-groups", "--dry-run")
+			var out asc.BetaTestersImportSummary
+			if err != nil || json.Unmarshal([]byte(stdout), &out) != nil || len(out.Groups) != 0 || out.Existed != 1 || out.Updated != 0 || out.Failed != 0 {
+				t.Fatalf("import of existing membership: %s, stderr=%s err=%v", stdout, stderr, err)
 			}
 		})
 	}
