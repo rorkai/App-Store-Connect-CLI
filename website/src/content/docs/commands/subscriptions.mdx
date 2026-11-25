@@ -648,6 +648,33 @@ The `--resolved` form keeps its fixed effective-price projection and accepts
 only its existing `--plan-type` and `--territory` filters. It cannot be
 combined with `--price-point-id`, sparse-field flags, or `--include`.
 
+### Inspect and Preview Volume Pricing
+
+List tier details for a subscription or one existing price. Use the links command
+when you only need the related tier IDs.
+
+```bash
+asc subscriptions pricing price-tiers list --subscription-id "SUB_ID" --paginate
+asc subscriptions pricing prices additional-price-tiers --price-id "PRICE_ID" --paginate
+asc subscriptions pricing prices additional-price-tiers-links --price-id "PRICE_ID" --paginate
+```
+
+Calculate equivalent tier prices across territories or preview the effect of a
+proposed change on subscribers. These requests leave subscription prices unchanged.
+
+```bash
+asc subscriptions pricing price-tiers equalize --subscription-id "SUB_ID" \
+  --base-price-point "BASE_POINT_ID" --additional-price-tiers tiers.json
+asc subscriptions pricing price-change-preview --subscription-id "SUB_ID" \
+  --proposed-changes changes.json
+```
+
+`tiers.json` contains tier objects such as
+`[{"minQuantity":10,"subscriptionPricePointId":"TIER_POINT_ID"}]`.
+Each object in `changes.json` can specify `territoryId`, `startDate`,
+`basePricePointId`, and an `additionalPriceTiers` array with those tier objects.
+Both commands accept `-` in place of the JSON file to read from stdin.
+
 ### Set Price
 
 Add or change pricing for a subscription.

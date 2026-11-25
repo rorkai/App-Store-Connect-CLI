@@ -937,7 +937,7 @@ Examples:
 				planTypeFilter = normalized
 			}
 
-			selectedTerritories, err := normalizeOptionalTerritoryFilter(fs, "territory", *territory)
+			selectedTerritories, err := normalizeOptionalTerritoryFilter(fs, *territory)
 			if err != nil {
 				return d.UsageError(err.Error())
 			}

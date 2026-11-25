@@ -448,7 +448,7 @@ Examples:
 			return d.UsageError("--price-point-id is required")
 		}
 
-		territories, err := normalizeOptionalTerritoryFilter(fs, "territory", *territory)
+		territories, err := normalizeOptionalTerritoryFilter(fs, *territory)
 		if err != nil {
 			return d.UsageError(err.Error())
 		}
@@ -580,8 +580,8 @@ func normalizeOptionalCSVFilter(fs *flag.FlagSet, name, raw string, upper bool) 
 	return shared.SplitCSV(raw), nil
 }
 
-func normalizeOptionalTerritoryFilter(fs *flag.FlagSet, name, raw string) ([]string, error) {
-	values, err := normalizeOptionalCSVFilter(fs, name, raw, false)
+func normalizeOptionalTerritoryFilter(fs *flag.FlagSet, raw string) ([]string, error) {
+	values, err := normalizeOptionalCSVFilter(fs, "territory", raw, false)
 	if err != nil || values == nil {
 		return values, err
 	}
