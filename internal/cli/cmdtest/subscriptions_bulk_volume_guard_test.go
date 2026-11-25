@@ -10,7 +10,7 @@ import (
 )
 
 func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
-	for _, surface := range []string{"equalize", "import", "setup", "equalize empty membership"} {
+	for _, surface := range []string{"equalize", "import", "setup", "equalize empty membership", "equalize positive total", "setup positive total"} {
 		t.Run(surface, func(t *testing.T) {
 			setupAuth(t)
 			t.Chdir(t.TempDir())
@@ -34,15 +34,21 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 				case "/v1/subscriptionPricePoints/point-new/equalizations":
 					return jsonHTTPResponse(200, `{"data":[],"links":{}}`), nil
 				case "/v1/subscriptions/" + subscriptionID + "/relationships/prices":
+					if surface == "equalize positive total" {
+						return jsonHTTPResponse(200, `{"data":[],"meta":{"paging":{"total":1}}}`), nil
+					}
 					if surface == "equalize empty membership" {
 						return jsonHTTPResponse(200, `{"data":[],"links":{"next":"/v1/subscriptions/8000000001/relationships/prices?cursor=two"}}`), nil
 					}
 					return jsonHTTPResponse(200, `{"data":[{"type":"subscriptionPrices","id":"price-old"}],"links":{}}`), nil
 				case "/v1/subscriptions/" + subscriptionID + "/prices":
+					if surface == "setup positive total" && req.URL.Query().Get("filter[planType]") == "" {
+						return jsonHTTPResponse(200, `{"data":[],"meta":{"paging":{"total":1}}}`), nil
+					}
 					return jsonHTTPResponse(200, prices), nil
 				case "/v1/subscriptionPriceTiers":
 					tiersRead++
-					if surface == "equalize empty membership" {
+					if surface == "equalize empty membership" || surface == "setup positive total" {
 						return jsonHTTPResponse(200, `{"data":[],"links":{}}`), nil
 					}
 					if req.URL.Query().Get("filter[subscription]") != subscriptionID {
@@ -65,13 +71,19 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 				}
 				args = []string{"subscriptions", "pricing", "prices", "import", "--subscription-id", subscriptionID, "--input", csv, "--confirm"}
 			}
-			if surface == "setup" {
-				args = []string{"subscriptions", "setup", "--group-id", "group-1", "--reference-name", "Monthly", "--product-id", "com.example.monthly", "--subscription-period", "ONE_MONTH", "--price-point-id", "point-new", "--price-territory", "USA", "--repair", "--no-verify"}
+			if strings.HasPrefix(surface, "setup") {
+				args = []string{"subscriptions", "setup", "--group-id", "group-1", "--reference-name", "Monthly", "--product-id", "com.example.monthly", "--subscription-period", "ONE_MONTH", "--price-point-id", "point-new", "--price-territory", "USA", "--no-verify"}
+				if surface == "setup" {
+					args = append(args, "--repair")
+				}
 			}
 			out, _, err := runCommand(t, append(args, "--output", "json"))
 			wantTierReads, diagnostic := 1, "asc subscriptions pricing prices set --additional-price-tiers"
-			if surface == "equalize empty membership" {
+			if strings.HasPrefix(surface, "equalize ") {
 				wantTierReads, diagnostic = 0, "unverified existing price membership"
+			}
+			if surface == "setup positive total" {
+				wantTierReads, diagnostic = 0, "incomplete price collection"
 			}
 			if err == nil || !strings.Contains(err.Error()+out, diagnostic) || tiersRead != wantTierReads || writes != 0 {
 				t.Fatalf("surface=%s err=%v tier reads=%d writes=%d output=%s", surface, err, tiersRead, writes, out)
@@ -81,7 +93,7 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 }
 
 func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
-	for _, mode := range []string{"dry-run", "matched", "new", "monthly", "other territory", "missing price collection"} {
+	for _, mode := range []string{"dry-run", "matched", "new", "monthly", "other territory", "missing price collection", "incomplete price collection", "tiers added between rows"} {
 		t.Run(mode, func(t *testing.T) {
 			setupAuth(t)
 			t.Chdir(t.TempDir())
@@ -107,6 +119,9 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 				}
 				switch req.URL.Path {
 				case "/v1/subscriptions/8000000001/prices":
+					if mode == "incomplete price collection" {
+						return jsonHTTPResponse(200, `{"data":[],"meta":{"paging":{"total":1}}}`), nil
+					}
 					if mode == "missing price collection" {
 						return jsonHTTPResponse(200, `{"data":null,"links":{}}`), nil
 					}
@@ -116,7 +131,15 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 					return jsonHTTPResponse(200, `{"data":[{"type":"subscriptionPrices","id":"price-old","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"point-old"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{}}`), nil
 				case "/v1/subscriptionPriceTiers":
 					reads++
-					if mode != "other territory" || req.URL.Query().Get("filter[territory]") != "CAN" || req.URL.Query().Get("filter[subscription]") != "8000000001" {
+					wantTerritory := ""
+					if mode == "other territory" {
+						wantTerritory = "CAN"
+					}
+					if mode == "tiers added between rows" {
+						if writes > 0 && req.URL.Query().Get("filter[territory]") == "CAN" {
+							return jsonHTTPResponse(200, `{"data":[{"type":"subscriptionPriceTiers","id":"added-between-rows"}],"links":{}}`), nil
+						}
+					} else if req.URL.Query().Get("filter[territory]") != wantTerritory || req.URL.Query().Get("filter[subscription]") != "8000000001" {
 						t.Fatalf("unnecessary tier query %s", req.URL.RawQuery)
 					}
 					return jsonHTTPResponse(200, `{"data":[],"links":{}}`), nil
@@ -127,6 +150,9 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 			}))
 			csv := filepath.Join(t.TempDir(), "prices.csv")
 			body := "territory,price,price_point_id,plan_type\n" + territory + ",9.99," + point + "," + plan + "\n"
+			if mode == "tiers added between rows" {
+				body += "CAN,9.99,point-can,UPFRONT\n"
+			}
 			if err := os.WriteFile(csv, []byte(body), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -136,15 +162,22 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 			}
 			out, _, err := runCommand(t, args)
 			wantWrites, wantReads := 1, 0
-			if mode == "dry-run" || mode == "matched" || mode == "missing price collection" {
+			if mode == "dry-run" || mode == "matched" || strings.HasSuffix(mode, "price collection") {
 				wantWrites = 0
+			}
+			if mode == "tiers added between rows" {
+				wantReads, wantWrites = 2, 1
 			}
 			if mode == "other territory" {
 				wantReads = 1
 			}
-			if mode == "missing price collection" {
-				if err == nil || !strings.Contains(err.Error(), "missing price collection") {
+			if strings.HasSuffix(mode, "price collection") {
+				if err == nil || !strings.Contains(err.Error(), "price collection") {
 					t.Fatalf("expected refusal of missing price proof, got %v", err)
+				}
+			} else if mode == "tiers added between rows" {
+				if err == nil || !strings.Contains(out, "has volume price tiers") {
+					t.Fatalf("expected refusal after a new tier appeared: %v, %s", err, out)
 				}
 			} else if err != nil {
 				t.Fatalf("import %s: %v output=%s", mode, err, out)

@@ -1179,6 +1179,7 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 		opts = append(opts, asc.WithSubscriptionPricesPlanType(attrs.PlanType))
 	}
 
+	var count priceCollectionCount
 	requiresTierIntent := false
 	for {
 		resp, err := client.GetSubscriptionPrices(ctx, subID, opts...)
@@ -1186,8 +1187,8 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 			return nil, err
 		}
 
-		if resp == nil || resp.Data == nil {
-			return nil, fmt.Errorf("subscription price comparison requires a data array")
+		if err := checkPriceCollectionPage(&count, resp, "price"); err != nil {
+			return nil, err
 		}
 		for _, price := range resp.Data {
 			requiresTierIntent = requiresTierIntent || subscriptionPriceRequiresTierIntent(price)
@@ -1246,7 +1247,7 @@ func subscriptionPriceMatchesTarget(price asc.Resource[asc.SubscriptionPriceAttr
 	if relationships.Territory != nil {
 		actualTerritory = strings.ToUpper(strings.TrimSpace(relationships.Territory.Data.ID))
 	}
-	if strings.ToUpper(strings.TrimSpace(territoryID)) != actualTerritory {
+	if territoryID != "" && territoryID != actualTerritory {
 		return false
 	}
 
@@ -1423,14 +1424,10 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			// New subscriptions without prices require PATCH /v1/subscriptions/{id}
 			// with inline price resources, while subscriptions that already have
 			// prices use POST /v1/subscriptionPrices for price changes.
-			existingPrices, pricesErr := client.GetSubscriptionPricesRelationships(requestCtx, id)
+			hasExistingPrices, pricesErr := subscriptionHasExistingPrices(requestCtx, client, id)
 			if pricesErr != nil {
 				return fmt.Errorf("subscriptions prices add: failed to check existing prices: %w", pricesErr)
 			}
-			if existingPrices == nil || existingPrices.Data == nil || (len(existingPrices.Data) == 0 && existingPrices.Links.Next != "") {
-				return fmt.Errorf("subscriptions prices add: existing price membership was not verified")
-			}
-			hasExistingPrices := len(existingPrices.Data) > 0
 
 			attrs := asc.SubscriptionPriceCreateAttributes{
 				StartDate: strings.TrimSpace(*startDate),

@@ -19,12 +19,14 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 		name          string
 		initial       bool
 		unchanged     bool
+		noTerritory   bool
 		empty         bool
 		explicitFalse bool
 	}{
 		{name: "initial price", initial: true},
 		{name: "changed tiers"},
 		{name: "unchanged tiers", unchanged: true},
+		{name: "unchanged tiers implicit territory", unchanged: true, noTerritory: true},
 		{name: "clear tiers", empty: true},
 		{name: "explicit preservation false", explicitFalse: true},
 	} {
@@ -127,7 +129,10 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 					t.Fatalf("unexpected request %s %s", req.Method, req.URL)
 				}
 			}
-			args := []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--price-point", "base-point", "--territory", "USA", "--additional-price-tiers", input, "--output", "json"}
+			args := []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--price-point", "base-point", "--additional-price-tiers", input, "--output", "json"}
+			if !test.noTerritory {
+				args = append(args, "--territory", "USA")
+			}
 			if test.explicitFalse {
 				args = append(args, "--preserved=false")
 			}

@@ -11,20 +11,27 @@ import (
 
 func TestSubscriptionPriceWriteProofReadsStayInScope(t *testing.T) {
 	for _, test := range []struct {
-		name, path, next                   string
-		tiers, force, missingData, allowed bool
+		name, path, next, body string
+		tiers, force, allowed  bool
 	}{
 		{name: "price existence redirect", path: "/v1/subscriptions/8000000003/relationships/prices"},
 		{name: "prices redirect", path: "/v1/subscriptions/8000000003/prices"},
 		{name: "prices continuation", path: "/v1/subscriptions/8000000003/prices", next: "/v1/subscriptions/other/prices?cursor=next"},
 		{name: "tier readback redirect", path: "/v1/subscriptionPrices/current/additionalPriceTiers", tiers: true},
 		{name: "tier readback continuation", path: "/v1/subscriptionPrices/current/additionalPriceTiers", next: "/v1/subscriptionPrices/other/additionalPriceTiers?cursor=next", tiers: true},
-		{name: "tier readback missing data", path: "/v1/subscriptionPrices/current/additionalPriceTiers", tiers: true, missingData: true},
+		{name: "tier readback missing data", path: "/v1/subscriptionPrices/current/additionalPriceTiers", tiers: true, body: `{}`},
 		{name: "global tier guard redirect", path: "/v1/subscriptionPriceTiers", force: true},
 		{name: "global tier guard continuation", path: "/v1/subscriptionPriceTiers", next: "/v1/subscriptionPriceTiers?filter%5Bsubscription%5D=other", force: true},
-		{name: "global tier guard missing data", path: "/v1/subscriptionPriceTiers", force: true, missingData: true},
+		{name: "global tier guard missing data", path: "/v1/subscriptionPriceTiers", force: true, body: `{}`},
 		{name: "repair equalizations redirect", path: "/v1/subscriptionPricePoints/new-base/equalizations", force: true},
 		{name: "repair equalizations continuation", path: "/v1/subscriptionPricePoints/new-base/equalizations", next: "/v1/subscriptionPricePoints/other/equalizations?cursor=next", force: true},
+		{name: "price membership contradicts total", path: "/v1/subscriptions/8000000003/relationships/prices", body: `{"data":[],"meta":{"paging":{"total":1}}}`},
+		{name: "price comparison contradicts total", path: "/v1/subscriptions/8000000003/prices", body: `{"data":[],"meta":{"paging":{"total":1}}}`},
+		{name: "tier readback contradicts total", path: "/v1/subscriptionPrices/current/additionalPriceTiers", body: `{"data":[],"meta":{"paging":{"total":1}}}`, tiers: true},
+		{name: "global tier guard contradicts total", path: "/v1/subscriptionPriceTiers", body: `{"data":[],"meta":{"paging":{"total":1}}}`, force: true},
+		{name: "repair equalizations contradicts total", path: "/v1/subscriptionPricePoints/new-base/equalizations", body: `{"data":[],"meta":{"paging":{"total":1}}}`, force: true},
+		{name: "tier quantity absent", path: "/v1/subscriptionPrices/current/additionalPriceTiers", tiers: true, body: `{"data":[{"type":"subscriptionPriceTiers","id":"tier-1","relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"point"}}}}]}`},
+		{name: "tier point missing", path: "/v1/subscriptionPrices/current/additionalPriceTiers", tiers: true, body: `{"data":[{"type":"subscriptionPriceTiers","id":"tier-1","attributes":{"minQuantity":10},"relationships":{"subscriptionPricePoint":{"data":null}}}]}`},
 		{name: "opaque price cursor", path: "/v1/subscriptions/8000000003/prices", next: "/v1/subscriptions/8000000003/prices?cursor=next", allowed: true},
 		{name: "opaque tier cursor", path: "/v1/subscriptionPrices/current/additionalPriceTiers", next: "/v1/subscriptionPrices/current/additionalPriceTiers?cursor=next", tiers: true, allowed: true},
 		{name: "opaque force tier cursor", path: "/v1/subscriptionPriceTiers", next: "/v1/subscriptionPriceTiers?cursor=next", force: true, allowed: true},
@@ -42,8 +49,8 @@ func TestSubscriptionPriceWriteProofReadsStayInScope(t *testing.T) {
 				}
 				if req.URL.Path == test.path && req.URL.Query().Get("cursor") == "" {
 					switch {
-					case test.missingData:
-						_, _ = io.WriteString(w, `{}`)
+					case test.body != "":
+						_, _ = io.WriteString(w, test.body)
 					case test.next != "":
 						_ = json.NewEncoder(w).Encode(map[string]any{"data": []any{}, "links": map[string]string{"next": test.next}})
 					default:

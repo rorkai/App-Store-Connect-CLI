@@ -1702,11 +1702,12 @@ func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client,
 		return false, false, err
 	}
 	if firstPage == nil {
-		return false, false, nil
+		return false, false, fmt.Errorf("missing price collection")
 	}
 
 	var foundPrice asc.Resource[asc.SubscriptionPriceAttributes]
 	hasExistingPrices := false
+	var count priceCollectionCount
 	if err := asc.PaginateEach(
 		ctx,
 		firstPage,
@@ -1717,6 +1718,9 @@ func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client,
 			resp, ok := page.(*asc.SubscriptionPricesResponse)
 			if !ok {
 				return fmt.Errorf("unexpected subscription prices pagination type %T", page)
+			}
+			if err := checkPriceCollectionPage(&count, resp, "price"); err != nil {
+				return err
 			}
 			for _, price := range resp.Data {
 				hasExistingPrices = true

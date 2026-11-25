@@ -163,12 +163,12 @@ Examples:
 			if *dryRun {
 				if priceAttrs.StartDate == "" && *autoStartDate {
 					existingCtx, existingCancel := d.Timeout(ctx)
-					existingPrices, err := client.GetSubscriptionPricesRelationships(existingCtx, subID)
+					hasExistingPrices, err := subscriptionHasExistingPrices(existingCtx, client, subID)
 					existingCancel()
 					if err != nil {
 						return fmt.Errorf("equalize: failed to check existing prices: %w", err)
 					}
-					if len(existingPrices.Data) > 0 {
+					if hasExistingPrices {
 						var scheduleErr error
 						priceAttrs.StartDate, subscriptionState, autoScheduled, _, scheduleErr = autoScheduleEqualizeStartDate(ctx, d, client, subID)
 						if scheduleErr != nil {
@@ -196,26 +196,20 @@ Examples:
 			succeeded := 0
 			failures := make([]equalizeAttemptFailure, 0)
 
-			existingCtx, existingCancel := d.Timeout(asc.WithNoRedirectReads(ctx))
-			existingPrices, err := client.GetSubscriptionPricesRelationships(existingCtx, subID)
+			existingCtx, existingCancel := d.Timeout(ctx)
+			hasExistingPrices, err := subscriptionHasExistingPrices(existingCtx, client, subID)
 			existingCancel()
 			if err != nil {
 				return fmt.Errorf("equalize: failed to check existing prices: %w", err)
 			}
 
-			if existingPrices == nil || existingPrices.Data == nil {
-				return fmt.Errorf("equalize: missing existing price collection")
-			}
-			if len(existingPrices.Data) == 0 && existingPrices.Links.Next != "" {
-				return fmt.Errorf("equalize: unverified existing price membership: empty collection page has a continuation")
-			}
-			if len(existingPrices.Data) > 0 {
+			if hasExistingPrices {
 				if err := requireSingleTierBulkPriceWrite(ctx, d, client, subID, nil); err != nil {
 					return fmt.Errorf("equalize: %w", err)
 				}
 			}
 
-			if priceAttrs.StartDate == "" && *autoStartDate && len(existingPrices.Data) > 0 {
+			if priceAttrs.StartDate == "" && *autoStartDate && hasExistingPrices {
 				var scheduleErr error
 				priceAttrs.StartDate, subscriptionState, autoScheduled, effectiveAt, scheduleErr = autoScheduleEqualizeStartDate(ctx, d, client, subID)
 				if scheduleErr != nil {
@@ -252,7 +246,7 @@ Examples:
 			}
 
 			remainingTerritories := allTerritories
-			if len(existingPrices.Data) == 0 && len(allTerritories) > 0 {
+			if !hasExistingPrices && len(allTerritories) > 0 {
 				fmt.Fprintf(d.IO.ErrOut, "Subscription has no prices; setting initial price in %s first...\n", territory)
 
 				baseTarget := allTerritories[0]
@@ -801,6 +795,10 @@ func fetchEqualizations(ctx context.Context, d *shared.Deps, client *asc.Client,
 		return nil, fmt.Errorf("failed to fetch equalizations: %w", err)
 	}
 
+	var count priceCollectionCount
+	if err := checkPriceCollectionPage(&count, resp, "equalization"); err != nil {
+		return nil, err
+	}
 	allPages, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := d.Timeout(ctx)
 		defer pageCancel()
@@ -810,10 +808,14 @@ func fetchEqualizations(ctx context.Context, d *shared.Deps, client *asc.Client,
 		if err != nil {
 			return nil, err
 		}
-		return client.GetSubscriptionPricePointEqualizations(
+		page, err := client.GetSubscriptionPricePointEqualizations(
 			pageCtx, pricePointID,
 			asc.WithSubscriptionPricePointsNextURL(canonical),
 		)
+		if err != nil {
+			return nil, err
+		}
+		return page, checkPriceCollectionPage(&count, page, "equalization")
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate equalizations: %w", err)

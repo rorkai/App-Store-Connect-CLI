@@ -528,10 +528,11 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.De
 	if err != nil {
 		return nil, err
 	}
-	if firstPage == nil || firstPage.Data == nil {
+	if firstPage == nil {
 		return nil, fmt.Errorf("missing price collection for subscription %s", subscriptionID)
 	}
 	index := &subscriptionPriceImportStateIndex{}
+	var count priceCollectionCount
 	err = asc.PaginateEach(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return fetchPage(nextURL)
 	}, func(page asc.PaginatedResponse) error {
@@ -539,8 +540,8 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.De
 		if !ok {
 			return fmt.Errorf("unexpected subscription prices response type %T", page)
 		}
-		if prices.Data == nil {
-			return fmt.Errorf("missing price collection for subscription %s", subscriptionID)
+		if err := checkPriceCollectionPage(&count, prices, "price"); err != nil {
+			return err
 		}
 		for _, price := range prices.Data {
 			index.states = append(index.states, subscriptionPriceImportState{
