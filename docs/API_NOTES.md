@@ -84,6 +84,8 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 ## App Compliance requirements
 
+- `asc web apps compliance china-publication-permit view`: `GET /iris/v1/apps/{appId}?fields[apps]=appPublicationPermit&include=appPublicationPermit` reads the app and its publication-permit relationship. JSON output preserves the complete envelope, including any included permit data. An unconfigured app returns `data.relationships.appPublicationPermit.data: null`.
+
 - The public OpenAPI snapshot has no App Compliance endpoints. The China mainland Security Assessment and AI Generated or Synthetic Content requirements use the web-session `ppm/compliancerequirements/v1` service, which is separate from `ppm/complianceform/v1` and returns none of its requirements.
 - `asc web apps compliance list`: `GET /ppm/compliancerequirements/v1/accounts/{accountId}/requirements?entity_id={appId}` (the app is the snake-case `entity_id` query parameter). `accountId` is the session's public provider ID.
   - Every requirement is returned, answered or not. An unanswered one has `status: PENDING_COLLECT` and no `formId`, `dateSigned`, `lastUpdatedDate`, or `requiredActions`; the service omits empty fields, including `data` itself.

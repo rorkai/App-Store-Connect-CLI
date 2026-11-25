@@ -67,6 +67,7 @@ func newWebAppsComplianceCommand(d *shared.Deps) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			newWebAppsChinaPublicationPermitCommand(d),
 			newWebAppsComplianceListCommand(d),
 			newWebAppsComplianceSetCommand(d),
 			newWebAppsVietnamLicenseCommand(d),

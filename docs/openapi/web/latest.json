@@ -4435,6 +4435,7 @@
               "items": {
                 "type": "string",
                 "enum": [
+                  "appPublicationPermit",
                   "appStoreLegacyStatus",
                   "bundleId",
                   "displayableVersions",
@@ -4458,6 +4459,7 @@
               "items": {
                 "type": "string",
                 "enum": [
+                  "appPublicationPermit",
                   "appTransferRequest",
                   "displayableVersions",
                   "iosAppToAppStoreOnVisionOsOptInSetting",
@@ -4504,12 +4506,13 @@
           }
         },
         "x-asc-observed": {
-          "code": "2026-11-14"
+          "code": "2026-11-25"
         },
         "x-asc-source": [
           "Client.GetApp",
           "Client.GetAppCompatibility",
           "Client.GetAppDistribution",
+          "Client.GetAppPublicationPermit",
           "Client.GetAppRemovalState",
           "Client.GetAppTransferStatus",
           "Client.SetAppDistribution",
