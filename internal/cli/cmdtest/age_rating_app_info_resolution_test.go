@@ -106,8 +106,8 @@ func TestAgeRatingViewRejectsPartialOrAmbiguousAppLookupBeforeAppInfo(t *testing
 		{
 			name:      "prefix-only bundle match",
 			body:      `{"data":[{"type":"apps","id":"100000001","attributes":{"bundleId":"com.example.owner.preview"}}],"links":{}}`,
-			wantErr:   `app "com.example.owner" not found`,
-			wantCalls: 3,
+			wantErr:   `no app found for bundle ID "com.example.owner"`,
+			wantCalls: 1,
 		},
 		{
 			name:      "ambiguous exact bundle matches across pages",
@@ -127,9 +127,6 @@ func TestAgeRatingViewRejectsPartialOrAmbiguousAppLookupBeforeAppInfo(t *testing
 			reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.owner", "limit=200"), asctest.JSON(http.StatusOK, test.body))
 			if test.nextBody != "" {
 				reg.Register(asctest.GET("/v1/apps", "cursor=next"), asctest.JSON(http.StatusOK, test.nextBody))
-			} else {
-				reg.Register(asctest.GET("/v1/apps", "filter[name]=com.example.owner", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
-				reg.Register(asctest.GET("/v1/apps", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 			}
 
 			stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "age-rating", "view", "--output", "json")

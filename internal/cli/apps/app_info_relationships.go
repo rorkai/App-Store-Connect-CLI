@@ -102,7 +102,8 @@ Examples:
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			infoIDValue := strings.TrimSpace(*infoID)
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if resolvedAppID == "" && infoIDValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
@@ -115,6 +116,13 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+
+			if resolvedAppID != "" {
+				resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				if err != nil {
+					return fmt.Errorf("apps info relationships: resolve app: %w", err)
+				}
+			}
 
 			resolvedInfoID, err := d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 			if err != nil {
@@ -166,7 +174,8 @@ Examples:
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			infoIDValue := strings.TrimSpace(*infoID)
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if resolvedAppID == "" && infoIDValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
@@ -179,6 +188,13 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+
+			if resolvedAppID != "" {
+				resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				if err != nil {
+					return fmt.Errorf("apps info relationships: resolve app: %w", err)
+				}
+			}
 
 			resolvedInfoID, err := d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 			if err != nil {

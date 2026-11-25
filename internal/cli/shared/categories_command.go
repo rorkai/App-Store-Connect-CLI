@@ -49,7 +49,8 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appIDValue, err := d.AppIDFlagValue(d.ResolveAppID(*appID))
+			appSelector := d.ResolveAppSelector(*appID)
+			appIDValue, err := d.AppIDFlagValue(appSelector.Value)
 			if err != nil {
 				return err
 			}
@@ -79,6 +80,11 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+
+			appIDValue, err = ResolveScopedAppID(requestCtx, client, appSelector)
+			if err != nil {
+				return fmt.Errorf("%s: resolve app: %w", config.ErrorPrefix, err)
+			}
 
 			resolvedAppInfoID, err := d.ResolveAppInfoID(requestCtx, client, appIDValue, appInfoIDValue)
 			if err != nil {

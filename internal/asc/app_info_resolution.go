@@ -81,6 +81,7 @@ func (c *Client) ListAppInfoCandidatesForApp(ctx context.Context, appID string) 
 	if appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
+	ctx = WithNoRedirectReads(ctx)
 
 	firstPage, err := c.GetAppInfos(
 		ctx,
@@ -95,7 +96,11 @@ func (c *Client) ListAppInfoCandidatesForApp(ctx context.Context, appID string) 
 		if err := validateAppInfoCandidatesNextURL(nextURL, appID); err != nil {
 			return nil, err
 		}
-		return c.GetAppInfos(ctx, appID, NextURL[AppInfoOption](nextURL))
+		canonicalURL, err := c.ValidateNoRedirectReadContinuation(ctx, nextURL, fmt.Sprintf("/v1/apps/%s/appInfos", appID))
+		if err != nil {
+			return nil, err
+		}
+		return c.GetAppInfos(ctx, appID, NextURL[AppInfoOption](canonicalURL))
 	})
 	if err != nil {
 		return nil, err

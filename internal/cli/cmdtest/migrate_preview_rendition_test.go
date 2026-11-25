@@ -84,15 +84,15 @@ func TestMetadataPreviewRenditionRoundTrip(t *testing.T) {
 					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body)), Header: http.Header{}}, nil
 				}
 				switch req.URL.Path {
-				case "/v1/apps/APP_ID/appInfos":
+				case "/v1/apps/1000000001/appInfos":
 					return migrateJSONResponse(200, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-				case "/v1/apps/APP_ID/appStoreVersions":
+				case "/v1/apps/1000000001/appStoreVersions":
 					if phase == "import" && (scenario == "other-version" || scenario == "playlist-missing") {
 						return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"OTHER_VERSION","attributes":{"versionString":"2.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
 					}
 					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
 				case "/v1/appStoreVersions/VERSION_ID":
-					return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
+					return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"1000000001"}}}}}`), nil
 				case "/v1/appStoreVersions/OTHER_VERSION/appStoreVersionLocalizations":
 					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"OTHER_LOC","attributes":{"locale":"en-US"}}]}`), nil
 				case "/v1/appStoreVersionLocalizations/OTHER_LOC/appPreviewSets":
@@ -125,7 +125,7 @@ func TestMetadataPreviewRenditionRoundTrip(t *testing.T) {
 			}))
 			var runErr error
 			captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "previews", "--output", "json"})
+				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "1000000001", "--version", "1.0", "--dir", root, "--include", "previews", "--output", "json"})
 			})
 			if runErr != nil {
 				t.Fatalf("export: %v", runErr)
@@ -183,7 +183,7 @@ func TestMetadataPreviewRenditionRoundTrip(t *testing.T) {
 					version = "2.0"
 				}
 				stdout, _ := captureOutput(t, func() {
-					runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "APP_ID", "--version", version, "--dir", root, "--include", "previews", mode, "--output", "json"})
+					runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "1000000001", "--version", version, "--dir", root, "--include", "previews", mode, "--output", "json"})
 				})
 				wantError := ""
 				switch scenario {

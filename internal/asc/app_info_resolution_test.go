@@ -14,7 +14,7 @@ func TestListAppInfoCandidatesForAppFollowsEveryPage(t *testing.T) {
 		t, func(req *http.Request) {
 			requests = append(requests, req.URL.String())
 		},
-		jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-old","attributes":{"state":"REPLACED_WITH_NEW_INFO"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=next"}}`),
+		jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-old","attributes":{"state":"REPLACED_WITH_NEW_INFO"}}],"links":{"next":"HTTPS://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=next"}}`),
 		jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-current","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`),
 	)
 

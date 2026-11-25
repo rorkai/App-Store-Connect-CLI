@@ -36,7 +36,7 @@ func TestMetadataHeaderReplacementRequiresAllowDeletes(t *testing.T) {
 			}
 			reg := asctest.NewRegistry(t)
 			reg.Install()
-			reg.Register(asctest.GET("/v1/apps/APP_ID/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+			reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
 				asctest.JSON(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`))
 			registerHeaderReads := func() {
 				reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
@@ -53,7 +53,7 @@ func TestMetadataHeaderReplacementRequiresAllowDeletes(t *testing.T) {
 				reg.Register(asctest.POST("/v1/appClipHeaderImages").JSONBody(fmt.Sprintf(`{"data":{"type":"appClipHeaderImages","attributes":{"fileSize":%d,"fileName":"header_image.png"},"relationships":{"appClipDefaultExperienceLocalization":{"data":{"type":"appClipDefaultExperienceLocalizations","id":"LOC"}}}}}`, info.Size())),
 					asctest.JSON(400, `{"errors":[{"status":"400","code":"INVALID","title":"reservation rejected"}]}`))
 			}
-			args := []string{"metadata", tc.command, "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "app-clip", "--output", "json"}
+			args := []string{"metadata", tc.command, "--app", "123456789", "--version", "1.0", "--dir", root, "--include", "app-clip", "--output", "json"}
 			if tc.dryRun {
 				args = append(args, "--dry-run")
 			} else {

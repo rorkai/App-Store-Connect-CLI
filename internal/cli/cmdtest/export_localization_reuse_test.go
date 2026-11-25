@@ -23,10 +23,10 @@ func TestExportReusesVersionLocalizationSnapshot(t *testing.T) {
 				installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 					switch req.URL.Path {
 					case "/v1/appStoreVersions/VERSION_ID":
-						return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-					case "/v1/apps/APP_ID/appStoreVersions":
+						return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`), nil
+					case "/v1/apps/123456789/appStoreVersions":
 						return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"}}]}`), nil
-					case "/v1/apps/APP_ID/appInfos":
+					case "/v1/apps/123456789/appInfos":
 						return migrateJSONResponse(200, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
 					case "/v1/appInfos/INFO_ID/appInfoLocalizations":
 						return migrateJSONResponse(200, `{"data":[]}`), nil
@@ -56,13 +56,13 @@ func TestExportReusesVersionLocalizationSnapshot(t *testing.T) {
 				for phase = 0; phase < 2; phase++ {
 					pageRequests, previewIDs = 0, nil
 					outputDir := t.TempDir()
-					args := []string{"migrate", "export", "--app", "APP_ID", "--version-id", "VERSION_ID", "--output-dir", outputDir, "--output", "json"}
+					args := []string{"migrate", "export", "--app", "123456789", "--version-id", "VERSION_ID", "--output-dir", outputDir, "--output", "json"}
 					if command != "migrate" {
 						include := "localizations,previews"
 						if command == "previews-only" {
 							include = "previews"
 						}
-						args = []string{"metadata", "pull", "--app", "APP_ID", "--version", "1.0", "--dir", outputDir, "--include", include, "--output", "json"}
+						args = []string{"metadata", "pull", "--app", "123456789", "--version", "1.0", "--dir", outputDir, "--include", include, "--output", "json"}
 					}
 					var runErr error
 					captureOutput(t, func() { runErr = RootCommand("test").ParseAndRun(context.Background(), args) })
@@ -96,9 +96,9 @@ func TestExportSnapshotPreservesAssetFailureChecks(t *testing.T) {
 			previewReads := 0
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch req.URL.Path {
-				case "/v1/apps/APP_ID/appStoreVersions":
+				case "/v1/apps/123456789/appStoreVersions":
 					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"}}]}`), nil
-				case "/v1/apps/APP_ID/appInfos":
+				case "/v1/apps/123456789/appInfos":
 					return migrateJSONResponse(200, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
 				case "/v1/appInfos/INFO_ID/appInfoLocalizations":
 					return migrateJSONResponse(200, `{"data":[]}`), nil
@@ -126,7 +126,7 @@ func TestExportSnapshotPreservesAssetFailureChecks(t *testing.T) {
 			outputDir := filepath.Join(t.TempDir(), "not-created")
 			var runErr error
 			stdout, _ := captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "APP_ID", "--version", "1.0", "--dir", outputDir, "--include", "localizations,app-clip,previews", "--output", "json"})
+				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "123456789", "--version", "1.0", "--dir", outputDir, "--include", "localizations,app-clip,previews", "--output", "json"})
 			})
 			wantError := "clip failed"
 			if scenario == "missing ordered asset" {
