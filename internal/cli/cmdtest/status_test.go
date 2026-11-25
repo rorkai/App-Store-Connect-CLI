@@ -42,7 +42,7 @@ func TestStatusDefaultJSONIncludesAllSections(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
@@ -189,7 +189,7 @@ func TestStatusNullPhasedReleaseIsUnconfigured(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"READY_FOR_SALE"}}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionPhasedRelease"), asctest.JSON(http.StatusOK, `{"data":null,"links":{}}`))
 
@@ -759,7 +759,7 @@ func TestStatusPlatformFiltersPlatformScopedSections(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "filter[platform]=MAC_OS", "limit=200"), asctest.JSON(http.StatusOK, `{
@@ -794,7 +794,7 @@ func TestStatusPlatformFiltersPlatformScopedSections(t *testing.T) {
 		],
 		"links":{"next":""}
 	}`))
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "filter[platform]=MAC_OS", "limit=200"), asctest.JSON(http.StatusOK, `{
@@ -888,7 +888,7 @@ func TestStatusAppStorePaginatesBeforeChoosingLatestVersion(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
@@ -957,7 +957,7 @@ func TestStatusSubmissionAndReviewPaginateBeforeDerivingState(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 			"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 		}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "limit=200"), asctest.JSON(http.StatusOK, `{
@@ -1028,7 +1028,7 @@ func TestStatusSubmissionIgnoresHistoricUnresolvedIssuesWhenLatestSubmissionMove
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 			"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 		}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "limit=200"), asctest.JSON(http.StatusOK, `{
@@ -1099,7 +1099,7 @@ func TestStatusSubmissionTracksLatestSubmissionPerPlatform(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 			"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 		}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "limit=200"), asctest.JSON(http.StatusOK, `{
@@ -1174,7 +1174,7 @@ func TestStatusIncludeBuildsOnlyFiltersSections(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=app-1", "include=preReleaseVersion", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{
@@ -1218,7 +1218,7 @@ func TestStatusTableOutput(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=app-1", "include=preReleaseVersion", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{
@@ -1254,7 +1254,7 @@ func TestStatusTableOutputShowsNeedsAttentionWhenBlocked(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "limit=200"), asctest.JSON(http.StatusOK, `{
@@ -1290,7 +1290,7 @@ func TestStatusIncludeAppOnly(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
@@ -1330,7 +1330,7 @@ func TestStatusTestFlightReadsStatesFromIncludedBuildBetaDetail(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=app-1", "include=preReleaseVersion,buildBetaDetail", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{

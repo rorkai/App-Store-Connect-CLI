@@ -250,7 +250,7 @@ func CheckBuildBetaReviewReadiness(ctx context.Context, client buildBetaReviewSu
 		return err
 	}
 	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-		boundNext, err := BindCollectionNextURL(next, "/v1/betaAppLocalizations", url.Values{"filter[app]": {appID}})
+		boundNext, err := BindCollectionNextURL(ctx, client, next, "/v1/betaAppLocalizations", url.Values{"filter[app]": {appID}})
 		if err != nil {
 			return nil, err
 		}

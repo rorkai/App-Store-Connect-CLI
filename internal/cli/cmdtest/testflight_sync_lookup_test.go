@@ -17,8 +17,8 @@ func TestTestFlightConfigExportResolvesAppByBundleID(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "sync.yaml")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.sync", "limit=2"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-sync"}]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.sync", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-sync","attributes":{"bundleId":"com.example.sync"}}]}`))
 	reg.Register(asctest.GET("/v1/apps/app-sync/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 	reg.Register(asctest.GET("/v1/apps/app-sync"),
@@ -51,13 +51,11 @@ func TestTestFlightConfigExportLookupNotFoundByName(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "sync.yaml")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Missing App", "limit=2"),
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Missing App", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps", "filter[name]=Missing App", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[]}`))
-	reg.Register(asctest.GET("/v1/apps", "filter[name]=Missing App", "limit=2"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "config", "export", "--app", "Missing App", "--output", outputPath)
@@ -83,7 +81,7 @@ func TestTestFlightConfigExportLookupAmbiguousName(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "sync.yaml")
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Ambiguous App", "limit=2"),
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Ambiguous App", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps", "filter[name]=Ambiguous App", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Ambiguous App"}},{"type":"apps","id":"app-2","attributes":{"name":"Ambiguous App"}}]}`))

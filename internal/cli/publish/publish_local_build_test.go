@@ -507,10 +507,8 @@ func TestPublishTestFlightUploadTestNotesFailurePreservesStructuredRecoveryConte
 	if !slices.Equal(result.CompletedStages, wantCompleted) {
 		t.Fatalf("completed stages = %v, want %v", result.CompletedStages, wantCompleted)
 	}
-	for _, want := range wantParts {
-		if !strings.Contains(result.Failure, want) {
-			t.Fatalf("expected structured failure to contain %q, got %q", want, result.Failure)
-		}
+	if result.Failure != "Test notes could not be saved." || result.FailureCode != "test_notes_failed" {
+		t.Fatalf("unexpected structured failure: %q (%s)", result.Failure, result.FailureCode)
 	}
 	if result.Recovery == nil {
 		t.Fatalf("expected typed test-notes recovery, got %#v", result)
@@ -1525,9 +1523,13 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 	originalUploadBuildAndWait := uploadBuildAndWaitForIDFn
 	originalUploadPKGBuildAndWait := uploadPKGBuildAndWaitForIDFn
 	originalResolveAppID := resolvePublishAppIDWithLookupFn
+	originalResolveScopedAppID := resolvePublishScopedAppIDFn
 	originalWaitForProcessing := waitForPublishBuildProcessingFn
 	originalMetadataApply := applyPublishVersionMetadataFn
 	originalAddUploadedBuildBetaGroups := addUploadedBuildBetaGroupsFn
+	resolvePublishScopedAppIDFn = func(ctx context.Context, client *asc.Client, selector shared.AppSelector) (string, error) {
+		return resolvePublishAppIDWithLookupFn(ctx, client, selector.Value)
+	}
 	preflightPublishXcodeFn = func(context.Context) error { return nil }
 
 	return func() {
@@ -1542,6 +1544,7 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 		uploadBuildAndWaitForIDFn = originalUploadBuildAndWait
 		uploadPKGBuildAndWaitForIDFn = originalUploadPKGBuildAndWait
 		resolvePublishAppIDWithLookupFn = originalResolveAppID
+		resolvePublishScopedAppIDFn = originalResolveScopedAppID
 		waitForPublishBuildProcessingFn = originalWaitForProcessing
 		applyPublishVersionMetadataFn = originalMetadataApply
 		addUploadedBuildBetaGroupsFn = originalAddUploadedBuildBetaGroups

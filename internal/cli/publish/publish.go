@@ -120,9 +120,8 @@ Notification applies to every eligible tester for the build, including groups
 not selected here. Adding a group may also trigger Apple automatic notifications.
 An existing beta review submission is reused. Apple can still reject a submission
 after preflight; the failure receipt records completed steps. Notification
-failures report unknown delivery without a notification replay command. A repeat
-does not resend an ambiguous notification; the receipt names a build-scoped
-notification command to use only after checking whether a send is still needed.
+failures report unknown delivery without a notification replay command.
+Group membership does not establish whether a notification was delivered.
 
 Examples:
   asc publish testflight --app "123" --ipa app.ipa --upload-only --output json
@@ -141,8 +140,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppInput := d.ResolveAppID(*appID)
-			if resolvedAppInput == "" {
+			ctx = asc.WithNoRedirectReads(ctx)
+			appSelector := d.ResolveAppSelector(*appID)
+			if appSelector.Value == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
@@ -319,7 +319,6 @@ Examples:
 				defer cancel()
 			}
 
-			resolvedPublishAppID := resolvedAppInput
 			preflightCtx := requestCtx
 			if localBuildMode {
 				cancel()
@@ -327,9 +326,13 @@ Examples:
 				preflightCtx, preflightCancel = newPublishRequestCtx()
 				defer preflightCancel()
 			}
-			resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
+			resolvedPublishAppID, err := resolvePublishScopedAppIDFn(preflightCtx, client, appSelector)
 			if err != nil {
-				return fmt.Errorf("publish testflight: resolve app: %w", err)
+				failure := fmt.Errorf("publish testflight: resolve app: %w", err)
+				if localBuildMode || uploadMode {
+					return failure
+				}
+				return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "app_resolution", "app_resolution_failed", failure)
 			}
 
 			var resolvedGroups []shared.ResolvedBetaGroup
@@ -404,38 +407,22 @@ Examples:
 				resolvedVersionValue = uploadResult.Version
 				resolvedBuildNumberValue = uploadResult.BuildNumber
 			} else if buildIDValue != "" {
-				if hasExternalGroups {
-					if err := shared.CheckBuildAppOwnership(requestCtx, client, resolvedPublishAppID, buildIDValue); err != nil {
-						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_ownership", "build_ownership_failed", fmt.Errorf("publish testflight: %w", err))
-					}
-					buildAppVerified = true
+				if err := shared.CheckBuildAppOwnership(requestCtx, client, resolvedPublishAppID, buildIDValue); err != nil {
+					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_ownership", "build_ownership_failed", fmt.Errorf("publish testflight: %w", err))
 				}
+				buildAppVerified = true
 				buildResp, err = client.GetBuild(requestCtx, buildIDValue)
 				if err != nil {
-					failure := fmt.Errorf("publish testflight: failed to fetch build: %w", err)
-					if hasExternalGroups {
-						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_lookup", "build_lookup_failed", failure)
-					}
-					return failure
+					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_lookup", "build_lookup_failed", fmt.Errorf("publish testflight: failed to fetch build: %w", err))
 				}
-				if hasExternalGroups {
-					if err := validatePublishBuildIdentity(buildResp, buildIDValue); err != nil {
-						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_identity", "build_identity_mismatch", fmt.Errorf("publish testflight: %w", err))
-					}
+				if err := validatePublishBuildIdentity(buildResp, buildIDValue); err != nil {
+					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildIDValue, "build_identity", "build_identity_mismatch", fmt.Errorf("publish testflight: %w", err))
 				}
 				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
 			} else {
 				buildResp, err = findPublishBuildByNumber(requestCtx, client, resolvedPublishAppID, buildNumberValue, normalizedPlatform)
 				if err != nil {
-					if hasExternalGroups {
-						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, "", "build_lookup", "build_lookup_failed", fmt.Errorf("publish testflight: %w", err))
-					}
-					return fmt.Errorf("publish testflight: %w", err)
-				}
-				if hasExternalGroups {
-					if err := validatePublishBuildIdentity(buildResp, buildResp.Data.ID); err != nil {
-						return writePublishPreflightFailure(d, *output.Output, *output.Pretty, "", "build_identity", "build_identity_mismatch", fmt.Errorf("publish testflight: %w", err))
-					}
+					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, "", "build_lookup", "build_lookup_failed", fmt.Errorf("publish testflight: %w", err))
 				}
 				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
 			}
@@ -459,9 +446,6 @@ Examples:
 				completedStages = append(completedStages, publishCompletedStageUpload)
 			}
 			reportPartialFailure := func(stage string, failure error) error {
-				if !hasProgress && !hasExternalGroups {
-					return failure
-				}
 				result.Status = "failed"
 				if hasProgress {
 					result.Status = publishPartialStatus
@@ -477,7 +461,7 @@ Examples:
 				return writePublishFailure(d, *output.Output, *output.Pretty, result, failure)
 			}
 
-			if !uploaded && hasExternalGroups && !buildAppVerified {
+			if !uploaded && !buildAppVerified {
 				if err := shared.CheckBuildAppOwnership(requestCtx, client, resolvedPublishAppID, buildResp.Data.ID); err != nil {
 					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildResp.Data.ID, "build_ownership", "build_ownership_failed", fmt.Errorf("publish testflight: %w", err))
 				}
@@ -486,7 +470,7 @@ Examples:
 
 			if *wait || testNotesValue != "" || (*submit && !isPublishBuildProcessed(buildResp)) {
 				processedBuildResp, waitErr := waitForPublishBuildProcessingFn(d, requestCtx, client, "", buildResp.Data.ID, *pollInterval)
-				if !uploaded && hasExternalGroups && processedBuildResp != nil {
+				if !uploaded && processedBuildResp != nil {
 					if err := validatePublishBuildIdentity(processedBuildResp, buildResp.Data.ID); err != nil {
 						return reportPartialFailure(publishFailureStageBuildProcessing, fmt.Errorf("publish testflight: %w", err))
 					}
@@ -519,7 +503,7 @@ Examples:
 					return reportPartialFailure(publishFailureStageBetaReview, fmt.Errorf("publish testflight: %w", err))
 				}
 			}
-			if externalSubmission || (!uploaded && hasExternalGroups) {
+			if externalSubmission || (!uploaded && (hasExternalGroups || !*notify)) {
 				groupsToAssign, err = missingPublishBuildGroups(requestCtx, client, buildResp.Data.ID, resolvedGroups, uploaded)
 				if err != nil {
 					return reportPartialFailure(publishFailureStageBetaDistribution, err)
@@ -685,8 +669,8 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 
-			resolvedAppInput := d.ResolveAppID(*appID)
-			if resolvedAppInput == "" {
+			appSelector := d.ResolveAppSelector(*appID)
+			if appSelector.Value == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
@@ -799,7 +783,7 @@ Examples:
 			var client *asc.Client
 			var requestCtx context.Context
 			var cancel context.CancelFunc
-			resolvedPublishAppID := resolvedAppInput
+			resolvedPublishAppID := appSelector.Value
 
 			if *dryRun && canPlanAppStorePublishWithoutASC(resolvedPublishAppID, localBuildMode, buildNumberValue) {
 				if localBuildMode {
@@ -826,7 +810,7 @@ Examples:
 					preflightCtx, preflightCancel = newPublishRequestCtx()
 					defer preflightCancel()
 				}
-				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
+				resolvedPublishAppID, err = resolvePublishScopedAppIDFn(preflightCtx, client, appSelector)
 				if err != nil {
 					return fmt.Errorf("publish appstore: resolve app: %w", err)
 				}
@@ -1229,11 +1213,18 @@ func findPublishBuildByNumber(ctx context.Context, client *asc.Client, appID, bu
 	if err != nil {
 		return nil, err
 	}
-	if len(buildsResp.Data) == 0 {
+	if buildsResp == nil || len(buildsResp.Data) == 0 {
 		return nil, fmt.Errorf("no build found for app %q with build number %q", appID, buildNumber)
 	}
 
-	return &asc.BuildResponse{Data: buildsResp.Data[0], Links: buildsResp.Links}, nil
+	build := &asc.BuildResponse{Data: buildsResp.Data[0], Links: buildsResp.Links}
+	if err := validatePublishBuildIdentity(build, build.Data.ID); err != nil {
+		return nil, err
+	}
+	if build.Data.Attributes.Version != buildNumber {
+		return nil, fmt.Errorf("build lookup did not return the requested build number")
+	}
+	return build, nil
 }
 
 func validatePublishPKGMetadata(d *shared.Deps, version, buildNumber string) error {

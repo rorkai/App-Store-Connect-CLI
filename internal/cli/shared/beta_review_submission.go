@@ -10,6 +10,7 @@ import (
 )
 
 type buildBetaReviewSubmissionClient interface {
+	scopedContinuationClient
 	betaReviewReadinessClient
 	GetBuildBetaAppReviewSubmission(ctx context.Context, buildID string) (*asc.BetaAppReviewSubmissionResponse, error)
 	CreateBetaAppReviewSubmission(ctx context.Context, buildID string) (*asc.BetaAppReviewSubmissionResponse, error)

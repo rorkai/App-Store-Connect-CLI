@@ -45,9 +45,13 @@ func TestBetaGroupFlagResolvesWholeNameBeforeSplittingOnCommas(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 
 			reg := asctest.NewRegistry(t)
-			if test.args[0] == "builds" {
-				reg.Register(asctest.GET("/v1/builds/build-1/app"),
-					asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
+			reg.Register(asctest.GET("/v1/builds/build-1/app"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
+			if test.args[0] == "publish" {
+				for _, id := range test.wantIDs {
+					reg.Register(asctest.GET("/v1/betaGroups/"+id+"/relationships/builds", "limit=200"),
+						asctest.JSON(http.StatusOK, `{"data":[]}`))
+				}
 			}
 			reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[`+

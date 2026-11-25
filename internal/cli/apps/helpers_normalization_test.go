@@ -153,3 +153,51 @@ func TestNormalizeTerritoryAgeRatingHelpers(t *testing.T) {
 		t.Fatal("expected territory include validation error")
 	}
 }
+
+func TestTerritoryAgeRatingsAppInfoIDBindsNextTarget(t *testing.T) {
+	tests := []struct {
+		name string
+		next string
+		want string
+	}{
+		{
+			name: "territory age ratings target",
+			next: "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/territoryAgeRatings?cursor=next",
+			want: "info-1",
+		},
+		{
+			name: "different app info remains a distinct target",
+			next: "https://api.appstoreconnect.apple.com/v1/appInfos/other/territoryAgeRatings?cursor=next",
+			want: "other",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			id, err := territoryAgeRatingsAppInfoID(test.next)
+			if err != nil {
+				t.Fatalf("territoryAgeRatingsAppInfoID() error = %v", err)
+			}
+			if id != test.want {
+				t.Fatalf("territoryAgeRatingsAppInfoID() = %q, want %q", id, test.want)
+			}
+		})
+	}
+
+	if _, err := territoryAgeRatingsAppInfoID("https://api.appstoreconnect.apple.com/v1/apps/app-1/territoryAgeRatings?cursor=next"); err == nil {
+		t.Fatal("territoryAgeRatingsAppInfoID() accepted a non-app-info target")
+	}
+	if _, err := territoryAgeRatingsAppInfoID("https://api.appstoreconnect.apple.com/v1/appInfos/info-1/localizations?cursor=next"); err == nil {
+		t.Fatal("territoryAgeRatingsAppInfoID() accepted a different app-info relationship")
+	}
+	for _, next := range []string{
+		"https://api.appstoreconnect.apple.com/v1/appInfos//territoryAgeRatings?cursor=next",
+		"https://api.appstoreconnect.apple.com/v1/appInfos/./territoryAgeRatings?cursor=next",
+		"https://api.appstoreconnect.apple.com/v1/appInfos/%2F/territoryAgeRatings?cursor=next",
+		"https://api.appstoreconnect.apple.com/v1/appInfos/info%252F1/territoryAgeRatings?cursor=next",
+		"not a url",
+	} {
+		if _, err := territoryAgeRatingsAppInfoID(next); err == nil {
+			t.Fatalf("territoryAgeRatingsAppInfoID(%q) accepted an unsafe target", next)
+		}
+	}
+}

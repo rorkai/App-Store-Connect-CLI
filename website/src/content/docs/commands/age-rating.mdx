@@ -42,6 +42,16 @@ asc age-rating edit --app-info-id "APP_INFO_ID" --loot-box false
 asc age-rating edit --version-id "APP_STORE_VERSION_ID" --advertising true
 ```
 
+`--id` is an unscoped direct target. If a saved profile or `ASC_APP_ID`
+would select an app, clear that fallback for the invocation:
+
+```bash
+ASC_APP_ID= asc age-rating edit --id "DECLARATION_ID" --gambling false
+```
+
+Use `--app`, `--app-info-id`, or `--version-id` instead when the edit should
+be scoped to an app.
+
 Every update flag is sparse: omitted values remain unchanged. Boolean fields
 take explicit `true` or `false`. Common content-frequency fields accept
 `NONE`, `INFREQUENT_OR_MILD`, or `FREQUENT_OR_INTENSE`.

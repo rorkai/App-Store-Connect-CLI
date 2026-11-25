@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"unicode/utf8"
 
@@ -29,7 +30,7 @@ func missingPublishBuildGroups(ctx context.Context, client *asc.Client, buildID 
 			return nil, err
 		}
 		all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-			boundNext, err := shared.BindCollectionNextURL(next, "/v1/betaGroups/"+group.ID+"/relationships/builds", nil)
+			boundNext, err := shared.BindCollectionNextURL(ctx, client, next, "/v1/betaGroups/"+group.ID+"/relationships/builds", nil)
 			if err != nil {
 				return nil, err
 			}
@@ -94,18 +95,18 @@ func boundedPublishFailure(failure error) string {
 }
 
 func validatePublishBuildIdentity(build *asc.BuildResponse, expectedID string) error {
-	if expectedID == "" || build == nil || build.Data.Type != "builds" || build.Data.ID != expectedID {
+	if expectedID == "" || expectedID == "." || expectedID == ".." || url.PathEscape(expectedID) != expectedID || build == nil || build.Data.Type != "builds" || build.Data.ID != expectedID {
 		return fmt.Errorf("build response does not match requested build %s", expectedID)
 	}
 	return nil
 }
 
 func writePublishFailure(d *shared.Deps, output string, pretty bool, result *asc.TestFlightPublishResult, failure error) error {
-	result.Failure = boundedPublishFailure(failure)
+	result.Failure = publishFailureMessage(result.FailureStage)
 	if err := d.PrintOutput(result, output, pretty); err != nil {
 		return errors.Join(failure, fmt.Errorf("print publish failure result: %w", err))
 	}
-	reported := errors.New(result.Failure)
+	reported := errors.New(boundedPublishFailure(failure))
 	if result.NotificationRecovery != nil {
 		reported = &shared.HintedError{Err: reported, Hint: result.NotificationRecovery.Message}
 	}
@@ -119,4 +120,29 @@ func writePublishPreflightFailure(d *shared.Deps, output string, pretty bool, bu
 		FailureStage: stage,
 		FailureCode:  code,
 	}, failure)
+}
+
+func publishFailureMessage(stage string) string {
+	switch stage {
+	case "app_resolution":
+		return "The selected app could not be verified."
+	case "group_discovery":
+		return "The requested beta groups could not be verified."
+	case "build_ownership":
+		return "The selected build could not be verified for the selected app."
+	case "build_lookup", "build_identity":
+		return "The selected build could not be verified."
+	case publishFailureStageBuildProcessing:
+		return "Build processing could not be verified."
+	case publishFailureStageTestNotes:
+		return "Test notes could not be saved."
+	case publishFailureStageBetaDistribution:
+		return "Beta group assignment could not be completed."
+	case publishFailureStageBetaReview:
+		return "Beta review submission could not be completed."
+	case publishFailureStageNotification:
+		return "Notification delivery is unknown."
+	default:
+		return "TestFlight publishing could not be completed."
+	}
 }

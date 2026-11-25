@@ -112,7 +112,8 @@ Examples:
 				return d.UsageError("--version and --version-id are mutually exclusive")
 			}
 
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" && infoIDValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
@@ -188,15 +189,26 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			readCtx := requestCtx
+			if resolvedAppID != "" {
+				readCtx = asc.WithNoRedirectReads(requestCtx)
+			}
+
+			if resolvedAppID != "" {
+				resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				if err != nil {
+					return fmt.Errorf("apps info view: resolve app: %w", err)
+				}
+			}
 
 			if appInfoMode {
-				appInfoIDValue, err := d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
+				appInfoIDValue, err := d.ResolveAppInfoIDWithFlag(readCtx, client, resolvedAppID, infoIDValue, "--info-id")
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)
 				}
 
 				resp, err := client.GetAppInfo(
-					requestCtx, appInfoIDValue,
+					readCtx, appInfoIDValue,
 					asc.WithAppInfoFields(fieldValues),
 					asc.WithAppInfoAgeRatingDeclarationFields(ageRatingFieldValues),
 					asc.WithAppInfoInclude(includeValues),
@@ -212,7 +224,7 @@ Examples:
 			versionResourceID := ""
 			if resolvedAppID != "" || strings.TrimSpace(*versionID) != "" {
 				versionResource, err := resolveAppStoreVersionForAppInfo(
-					requestCtx,
+					readCtx,
 					client,
 					resolvedAppID,
 					strings.TrimSpace(*versionID),
@@ -226,9 +238,19 @@ Examples:
 				versionResourceID = versionResource.ID
 			}
 
+			nextURLValue := strings.TrimSpace(*next)
+			if resolvedAppID != "" && nextURLValue != "" {
+				expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionResourceID)
+				canonicalURL, err := client.ValidateNoRedirectReadContinuation(readCtx, nextURLValue, expectedPath)
+				if err != nil {
+					return d.UsageErrorf("apps info view: %v", err)
+				}
+				nextURLValue = canonicalURL
+			}
+
 			opts := []asc.AppStoreVersionLocalizationsOption{
 				asc.Limit[asc.AppStoreVersionLocalizationsOption](*limit),
-				asc.NextURL[asc.AppStoreVersionLocalizationsOption](*next),
+				asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURLValue),
 			}
 			locales := shared.SplitCSV(*locale)
 			if len(locales) > 0 {
@@ -237,13 +259,18 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
-				firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResourceID, paginateOpts...)
+				firstPage, err := client.GetAppStoreVersionLocalizations(readCtx, versionResourceID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("apps info view: failed to fetch: %w", err)
 				}
 
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionLocalizations(ctx, versionResourceID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
+				resp, err := asc.PaginateAll(readCtx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionResourceID)
+					canonicalURL, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, expectedPath)
+					if err != nil {
+						return nil, err
+					}
+					return client.GetAppStoreVersionLocalizations(pageCtx, versionResourceID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](canonicalURL))
 				})
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)
@@ -251,7 +278,7 @@ Examples:
 				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResourceID, opts...)
+			resp, err := client.GetAppStoreVersionLocalizations(readCtx, versionResourceID, opts...)
 			if err != nil {
 				return fmt.Errorf("apps info view: failed to fetch: %w", err)
 			}
@@ -303,7 +330,8 @@ Examples:
 				return d.UsageError("--version and --version-id are mutually exclusive")
 			}
 
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
@@ -399,9 +427,20 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			readCtx := requestCtx
+			if resolvedAppID != "" {
+				readCtx = asc.WithNoRedirectReads(requestCtx)
+			}
+
+			if resolvedAppID != "" {
+				resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				if err != nil {
+					return fmt.Errorf("apps info edit: resolve app: %w", err)
+				}
+			}
 
 			versionResource, err := resolveAppStoreVersionForAppInfo(
-				requestCtx,
+				readCtx,
 				client,
 				resolvedAppID,
 				strings.TrimSpace(*versionID),
@@ -418,7 +457,7 @@ Examples:
 			if fromDirValue == "" && len(localesValue) == 0 && localeValue != "" && !*dryRun {
 				if appInfoSetValuesNeedUpdateContext(inlineAttrs) {
 					submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(
-						requestCtx,
+						readCtx,
 						client,
 						versionResource.ID,
 						resolvedAppID,
@@ -426,7 +465,7 @@ Examples:
 					)
 				}
 				return runAppInfoSetSingleLocale(d,
-					requestCtx,
+					readCtx,
 					client,
 					versionResource.ID,
 					localeValue,
@@ -450,7 +489,7 @@ Examples:
 			}
 			if appInfoSetBatchNeedsUpdateContext(valuesByLocale) {
 				submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(
-					requestCtx,
+					readCtx,
 					client,
 					versionResource.ID,
 					resolvedAppID,
@@ -459,7 +498,7 @@ Examples:
 			}
 
 			batchResult, warnings, batchErr := runAppInfoSetBatch(
-				requestCtx,
+				readCtx,
 				client,
 				resolvedAppID,
 				versionResource.ID,
@@ -1071,8 +1110,15 @@ func resolveAppStoreVersionForAppInfo(
 	platforms []string,
 	states []string,
 ) (asc.Resource[asc.AppStoreVersionAttributes], error) {
+	readCtx := ctx
+	if strings.TrimSpace(appID) != "" {
+		readCtx = asc.WithNoRedirectReads(ctx)
+	}
 	if strings.TrimSpace(versionID) != "" {
-		resp, err := client.GetAppStoreVersion(ctx, versionID)
+		if strings.TrimSpace(appID) != "" {
+			return shared.ResolveOwnedAppStoreVersionByID(readCtx, client, appID, versionID, "")
+		}
+		resp, err := client.GetAppStoreVersion(readCtx, versionID)
 		if err != nil {
 			return asc.Resource[asc.AppStoreVersionAttributes]{}, err
 		}
@@ -1087,11 +1133,11 @@ func resolveAppStoreVersionForAppInfo(
 		if len(platforms) != 1 {
 			return asc.Resource[asc.AppStoreVersionAttributes]{}, fmt.Errorf("--platform is required with --version")
 		}
-		resolvedVersionID, err := shared.ResolveAppStoreVersionID(ctx, client, appID, strings.TrimSpace(version), platforms[0])
+		resolvedVersionID, err := shared.ResolveAppStoreVersionID(readCtx, client, appID, strings.TrimSpace(version), platforms[0])
 		if err != nil {
 			return asc.Resource[asc.AppStoreVersionAttributes]{}, err
 		}
-		resp, err := client.GetAppStoreVersion(ctx, resolvedVersionID)
+		resp, err := client.GetAppStoreVersion(readCtx, resolvedVersionID)
 		if err != nil {
 			return asc.Resource[asc.AppStoreVersionAttributes]{}, err
 		}
@@ -1103,12 +1149,16 @@ func resolveAppStoreVersionForAppInfo(
 		asc.WithAppStoreVersionsPlatforms(platforms),
 		asc.WithAppStoreVersionsStates(states),
 	}
-	resp, err := client.GetAppStoreVersions(ctx, appID, opts...)
+	resp, err := client.GetAppStoreVersions(readCtx, appID, opts...)
 	if err != nil {
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, err
 	}
-	allPages, err := asc.PaginateAll(ctx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
+	allPages, err := asc.PaginateAll(readCtx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		canonicalURL, err := client.ValidateNoRedirectReadContinuation(readCtx, nextURL, fmt.Sprintf("/v1/apps/%s/appStoreVersions", appID))
+		if err != nil {
+			return nil, err
+		}
+		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](canonicalURL))
 	})
 	if err != nil {
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, err

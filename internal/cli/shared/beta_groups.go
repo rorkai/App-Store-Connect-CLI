@@ -11,6 +11,7 @@ import (
 )
 
 type betaGroupsClient interface {
+	scopedContinuationClient
 	GetBetaGroups(ctx context.Context, appID string, opts ...asc.BetaGroupsOption) (*asc.BetaGroupsResponse, error)
 }
 
@@ -293,7 +294,7 @@ func paginateBetaGroups(ctx context.Context, client betaGroupsClient, appID stri
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		boundNext, err := BindCollectionNextURL(nextURL, "/v1/apps/"+appID+"/betaGroups", nil)
+		boundNext, err := BindCollectionNextURL(ctx, client, nextURL, "/v1/apps/"+appID+"/betaGroups", nil)
 		if err != nil {
 			return nil, err
 		}

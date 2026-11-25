@@ -15,11 +15,11 @@ func addIAPLookupAppFlag(fs *flag.FlagSet) *string {
 }
 
 func resolveIAPLookupID(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
-	resolvedAppID := d.ResolveAppID(appValue)
-	if err := d.RequireAppForStableSelector(resolvedAppID, selector, "--iap-id"); err != nil {
+	appSelector := d.ResolveAppSelector(appValue)
+	if err := d.RequireAppForStableSelector(appSelector.Value, selector, "--iap-id"); err != nil {
 		return "", err
 	}
-	return shared.ResolveIAPID(ctx, client, resolvedAppID, selector)
+	return shared.ResolveIAPIDWithAppSelector(ctx, client, appSelector, selector)
 }
 
 func resolveIAPLookupIDWithTimeout(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {

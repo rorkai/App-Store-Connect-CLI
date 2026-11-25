@@ -21,17 +21,17 @@ func TestReadOnlyAppInfoEditBatchPreservesCreateAndUpdateRefusals(t *testing.T) 
 	t.Setenv("ASC_APP_ID", "")
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`))
 	var code int
 	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{"apps", "info", "edit", "--app", "app-1", "--version-id", "ver-1", "--locales", "en-US,de-DE", "--description", "Updated", "--output", "json"}, "1.0.0")
+		code = cmd.Run([]string{"apps", "info", "edit", "--app", "123456789", "--version-id", "ver-1", "--locales", "en-US,de-DE", "--description", "Updated", "--output", "json"}, "1.0.0")
 	})
 	if code != cmd.ExitReadOnly {
 		t.Fatalf("exit=%d want %d; stderr=%q stdout=%q", code, cmd.ExitReadOnly, stderr, stdout)

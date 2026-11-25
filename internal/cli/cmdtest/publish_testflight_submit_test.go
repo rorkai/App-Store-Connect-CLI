@@ -134,6 +134,10 @@ func TestPublishTestflightSubmitSkipsBetaReviewSubmissionForInternalGroups(t *te
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-internal/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Friends and Family","isInternalGroup":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -153,8 +157,8 @@ func TestPublishTestflightSubmitSkipsBetaReviewSubmissionForInternalGroups(t *te
 		t.Fatalf("run error: %v", err)
 	}
 
-	if requestCount := len(reg.Requests()); requestCount != 3 {
-		t.Fatalf("expected group lookup, build lookup, and group add; got %d requests", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 5 {
+		t.Fatalf("expected group, build, owner and membership reads followed by one group add; got %d requests", requestCount)
 	}
 	result := decodePublishTestFlightSubmitOutput(t, stdout)
 	if result.BetaReviewSubmitted == nil || *result.BetaReviewSubmitted {

@@ -154,31 +154,31 @@ func runMetadataKeywordsPlanLikeCommand(
 	)
 }
 
-func validateMetadataKeywordsRemoteInputs(d *shared.Deps, appID string, version string, dir string, platform string) (string, string, string, string, error) {
-	resolvedAppID := d.ResolveAppID(appID)
-	if resolvedAppID == "" {
-		return "", "", "", "", d.UsageError("--app is required (or set ASC_APP_ID)")
+func validateMetadataKeywordsRemoteInputs(d *shared.Deps, appID string, version string, dir string, platform string) (string, string, string, error) {
+	if strings.TrimSpace(d.ResolveAppSelector(appID).Value) == "" {
+		return "", "", "", d.UsageError("--app is required (or set ASC_APP_ID)")
 	}
 
 	dirValue, versionValue, err := validateMetadataKeywordDirVersion(d, dir, version)
 	if err != nil {
-		return "", "", "", "", err
+		return "", "", "", err
 	}
 
 	platformValue := strings.TrimSpace(platform)
 	if platformValue != "" {
 		normalizedPlatform, platformErr := shared.NormalizeAppStoreVersionPlatform(platformValue)
 		if platformErr != nil {
-			return "", "", "", "", d.UsageError(platformErr.Error())
+			return "", "", "", d.UsageError(platformErr.Error())
 		}
 		platformValue = normalizedPlatform
 	}
 
-	return resolvedAppID, versionValue, dirValue, platformValue, nil
+	return versionValue, dirValue, platformValue, nil
 }
 
 func executeMetadataKeywordsPlan(ctx context.Context, d *shared.Deps, opts metadataKeywordsPlanOptions) (MetadataKeywordsPlanResult, error) {
-	resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(d, opts.AppID, opts.Version, opts.Dir, opts.Platform)
+	versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(d, opts.AppID, opts.Version, opts.Dir, opts.Platform)
+	var resolvedAppID string
 	if err != nil {
 		return MetadataKeywordsPlanResult{}, err
 	}
@@ -203,6 +203,11 @@ func executeMetadataKeywordsPlan(ctx context.Context, d *shared.Deps, opts metad
 
 	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
+
+	resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, d.ResolveAppSelector(opts.AppID))
+	if err != nil {
+		return MetadataKeywordsPlanResult{}, fmt.Errorf("resolve app: %w", err)
+	}
 
 	versionIDValue, _, err := resolveVersionID(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
 	if err != nil {

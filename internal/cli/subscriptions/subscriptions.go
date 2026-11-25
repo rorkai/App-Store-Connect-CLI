@@ -1559,13 +1559,22 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions pricing availability available-territories", 200, "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions pricing availability available-territories", 200, "limit", "app", "subscription-id", "availability-id"); err != nil {
 				return err
 			}
 
 			availabilityValue := strings.TrimSpace(*availabilityID)
 			subscriptionValue := strings.TrimSpace(*subscriptionID)
-			if availabilityValue == "" && subscriptionValue == "" && strings.TrimSpace(*next) == "" {
+			nextURL := strings.TrimSpace(*next)
+			expectedPath := ""
+			if nextURL != "" {
+				var err error
+				nextURL, expectedPath, err = validateSubscriptionAvailabilityTerritoriesNextURL(nextURL)
+				if err != nil {
+					return d.UsageError(fmt.Sprintf("--next: %v", err))
+				}
+			}
+			if availabilityValue == "" && subscriptionValue == "" && nextURL == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --availability-id or --subscription-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
@@ -1584,8 +1593,8 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 			}
-			if subscriptionValue != "" && strings.TrimSpace(*next) == "" {
-				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, resolvedAppID, subscriptionValue)
+			if subscriptionValue != "" && nextURL == "" {
+				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, subscriptionValue)
 				if err != nil {
 					return err
 				}
@@ -1601,13 +1610,16 @@ Examples:
 				}
 				availabilityValue = strings.TrimSpace(availability.Data.ID)
 			}
+			if nextURL == "" {
+				expectedPath = fmt.Sprintf("/v1/subscriptionAvailabilities/%s/availableTerritories", availabilityValue)
+			}
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.SubscriptionAvailabilityTerritoriesOption{
 				asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](*limit),
-				asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](*next),
+				asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL),
 			}
 
 			if *paginate {
@@ -1618,7 +1630,11 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityValue, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
+					scopedNextURL, err := shared.ScopedPaginationURL(nextURL, expectedPath)
+					if err != nil {
+						return nil, err
+					}
+					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityValue, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](scopedNextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
@@ -1635,6 +1651,32 @@ Examples:
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func validateSubscriptionAvailabilityTerritoriesNextURL(nextURL string) (string, string, error) {
+	trimmed := strings.TrimSpace(nextURL)
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid pagination URL: %w", err)
+	}
+
+	const (
+		prefix = "/v1/subscriptionAvailabilities/"
+		suffix = "/availableTerritories"
+	)
+	if !strings.HasPrefix(parsed.Path, prefix) || !strings.HasSuffix(parsed.Path, suffix) {
+		return "", "", fmt.Errorf("pagination URL must target a subscription availability territories collection")
+	}
+	availabilityID := strings.TrimSuffix(strings.TrimPrefix(parsed.Path, prefix), suffix)
+	if availabilityID == "" || strings.Contains(availabilityID, "/") {
+		return "", "", fmt.Errorf("pagination URL must target one subscription availability")
+	}
+
+	canonical, err := shared.ScopedPaginationURL(trimmed, parsed.Path)
+	if err != nil {
+		return "", "", err
+	}
+	return canonical, parsed.Path, nil
 }
 
 // newSubscriptionsAvailabilityEditCommand returns the availability edit subcommand.

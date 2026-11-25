@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -8,8 +9,16 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+type scopedContinuationClient interface {
+	ValidateNoRedirectReadContinuation(ctx context.Context, nextURL, expectedPath string) (string, error)
+}
+
 // BindCollectionNextURL retains collection scope and returns a path on the selected client origin.
-func BindCollectionNextURL(next, collectionPath string, requiredQuery url.Values) (string, error) {
+func BindCollectionNextURL(ctx context.Context, client scopedContinuationClient, next, collectionPath string, requiredQuery url.Values) (string, error) {
+	next, err := client.ValidateNoRedirectReadContinuation(ctx, next, collectionPath)
+	if err != nil {
+		return "", err
+	}
 	parsed, err := url.Parse(next)
 	if err != nil || parsed == nil || parsed.User != nil || parsed.Fragment != "" || parsed.Opaque != "" {
 		return "", fmt.Errorf("invalid collection pagination URL")

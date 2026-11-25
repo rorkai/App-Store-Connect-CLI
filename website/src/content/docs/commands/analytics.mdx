@@ -256,7 +256,7 @@ asc analytics download \
   --output-dir "./analytics-report"
 ```
 
-The receipt lists the segment IDs, paths, and sizes. The output directory appears only after all segments are saved and any sizes and checksums Apple supplies have been verified.
+The receipt lists the segment IDs, paths, and sizes. The output directory appears only after all segments are saved and any sizes and checksums Apple supplies have been verified. `--all-segments` needs `--output-dir` on a filesystem that supports an atomic no-replace rename; where it is missing, the command fails after the downloads with nothing saved, so choose a local filesystem or download one segment at a time with `--segment-id`.
 
 ### Delete Request
 

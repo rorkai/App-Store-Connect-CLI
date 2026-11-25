@@ -374,6 +374,62 @@ func TestAPIUnknownPathAnswersWithWhatToSend(t *testing.T) {
 			wantAllow: true,
 		},
 		{
+			// Apple removes a to-many child through the parent's relationship
+			// path; deleting the child's own resource is a different request.
+			name:      "remove under the parent's path",
+			args:      []string{"api", "DELETE", "/v1/betaTesters/5/betaGroups", "--confirm"},
+			want:      `api: DELETE /v1/betaTesters/5/betaGroups is not in the embedded schema index. To remove betaGroups from /v1/betaTesters/5, use DELETE /v1/betaTesters/5/relationships/betaGroups with the resources to remove in the body: {"data":[{"type":"TYPE","id":"ID"}]}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			name:      "remove testers under an app's path",
+			args:      []string{"api", "DELETE", "/v1/apps/123/betaTesters", "--confirm"},
+			want:      `api: DELETE /v1/apps/123/betaTesters is not in the embedded schema index. To remove betaTesters from /v1/apps/123, use DELETE /v1/apps/123/relationships/betaTesters with the resources to remove in the body: {"data":[{"type":"TYPE","id":"ID"}]}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			name:      "remove testers under a group's path",
+			args:      []string{"api", "DELETE", "/v1/betaGroups/5/betaTesters", "--confirm"},
+			want:      `api: DELETE /v1/betaGroups/5/betaTesters is not in the embedded schema index. To remove betaTesters from /v1/betaGroups/5, use DELETE /v1/betaGroups/5/relationships/betaTesters with the resources to remove in the body: {"data":[{"type":"TYPE","id":"ID"}]}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			// A POST may add existing children or create a new one, so both
+			// are named.
+			name:      "add under the parent's path",
+			args:      []string{"api", "POST", "/v1/betaGroups/5/betaTesters", "--confirm", "--body", `{"data":[]}`},
+			want:      `api: POST /v1/betaGroups/5/betaTesters is not in the embedded schema index. To add existing betaTesters to /v1/betaGroups/5, use POST /v1/betaGroups/5/relationships/betaTesters with the resources to add in the body: {"data":[{"type":"TYPE","id":"ID"}]}. To create one, use POST /v1/betaTesters. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			// A PATCH may mean one child or the whole link, so both are named.
+			name:      "update under a parent with a relationship operation",
+			args:      []string{"api", "PATCH", "/v1/appScreenshotSets/5/appScreenshots", "--confirm", "--body", `{"data":[]}`},
+			want:      "To change one, use PATCH /v1/appScreenshots/{id} with its ID from GET /v1/appScreenshotSets/5/appScreenshots. To change what /v1/appScreenshotSets/5 links to as appScreenshots, use PATCH /v1/appScreenshotSets/5/relationships/appScreenshots. Other known operations: ",
+			wantAllow: true,
+		},
+		{
+			// Apple documents this relationship DELETE as deleting the prices,
+			// so the answer says nothing about what happens to them.
+			name:      "remove prices under a subscription's path",
+			args:      []string{"api", "DELETE", "/v1/subscriptions/5/prices", "--confirm"},
+			want:      `api: DELETE /v1/subscriptions/5/prices is not in the embedded schema index. To remove prices from /v1/subscriptions/5, use DELETE /v1/subscriptions/5/relationships/prices with the resources to remove in the body: {"data":[{"type":"TYPE","id":"ID"}]}. Other known operations: `,
+			wantAllow: true,
+		},
+		{
+			name:      "update a to-one relationship under the parent's path",
+			args:      []string{"api", "PATCH", "/v1/appStoreVersions/5/build", "--confirm", "--body", `{"data":{}}`},
+			want:      "api: PATCH /v1/appStoreVersions/5/build is not in the embedded schema index. To change what /v1/appStoreVersions/5 links to as build, use PATCH /v1/appStoreVersions/5/relationships/build. Other known operations: ",
+			wantAllow: true,
+		},
+		{
+			// The index has no DELETE on a profile's certificates relationship.
+			name:      "delete under a parent without a relationship operation",
+			args:      []string{"api", "DELETE", "/v1/profiles/5/certificates", "--confirm"},
+			want:      "api: DELETE /v1/profiles/5/certificates is not in the embedded schema index. To delete one, use DELETE /v1/certificates/{id} with its ID from GET /v1/profiles/5/certificates. Other known operations: ",
+			wantAllow: true,
+		},
+		{
 			name: "resource the index does not know",
 			args: []string{"api", "GET", "/v1/agreements"},
 			want: "No indexed operation shares its resource",
