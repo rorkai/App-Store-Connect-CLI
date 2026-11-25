@@ -108,6 +108,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: resolve app: %w", err)
 				}
+				requestCtx = asc.WithNoRedirectReads(requestCtx)
 			}
 
 			resolvedInfoID := infoIDValue

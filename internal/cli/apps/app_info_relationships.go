@@ -124,6 +124,9 @@ Examples:
 				}
 			}
 
+			if resolvedAppID != "" {
+				requestCtx = asc.WithNoRedirectReads(requestCtx)
+			}
 			resolvedInfoID, err := d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 			if err != nil {
 				return fmt.Errorf("apps info relationships %s: %w", name, err)
@@ -196,6 +199,9 @@ Examples:
 				}
 			}
 
+			if resolvedAppID != "" {
+				requestCtx = asc.WithNoRedirectReads(requestCtx)
+			}
 			resolvedInfoID, err := d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 			if err != nil {
 				return fmt.Errorf("apps info relationships view: %w", err)

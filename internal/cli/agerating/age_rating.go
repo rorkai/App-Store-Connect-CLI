@@ -409,6 +409,9 @@ func nullableBoolValue(value *asc.NullableBool) *bool {
 }
 
 func fetchAgeRatingDeclaration(ctx context.Context, d *shared.Deps, client *asc.Client, appID, appInfoID, versionID string, fields []string) (*asc.AgeRatingDeclarationResponse, error) {
+	if strings.TrimSpace(appID) != "" {
+		ctx = asc.WithNoRedirectReads(ctx)
+	}
 	opts := []asc.AgeRatingDeclarationOption{asc.WithAgeRatingDeclarationFields(fields)}
 	switch {
 	case appInfoID != "":

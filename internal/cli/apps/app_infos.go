@@ -74,6 +74,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("apps info list: resolve app: %w", err)
 			}
+			requestCtx = asc.WithNoRedirectReads(requestCtx)
 
 			if len(ageRatingFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "ageRatingDeclaration")

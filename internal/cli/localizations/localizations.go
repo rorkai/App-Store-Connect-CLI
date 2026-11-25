@@ -303,6 +303,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("localizations: resolve app: %w", err)
 				}
+				requestCtx = asc.WithNoRedirectReads(requestCtx)
 
 				appInfo := strings.TrimSpace(*appInfoID)
 				nextURLValue := nextValue
@@ -567,6 +568,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("localizations: resolve app: %w", err)
 				}
+				requestCtx = asc.WithNoRedirectReads(requestCtx)
 
 				appInfo := strings.TrimSpace(*appInfoID)
 				nextURLValue := nextValue

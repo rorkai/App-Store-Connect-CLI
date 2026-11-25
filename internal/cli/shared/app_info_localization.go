@@ -47,8 +47,12 @@ func planAppInfoLocalizationUpsertTo(
 		return nil, err
 	}
 
+	readCtx := ctx
+	if strings.TrimSpace(appID) != "" {
+		readCtx = asc.WithNoRedirectReads(ctx)
+	}
 	localizations, err := client.GetAppInfoLocalizations(
-		ctx,
+		readCtx,
 		resolvedAppInfoID,
 		asc.Limit[asc.AppInfoLocalizationsOption](200),
 		asc.WithAppInfoLocalizationLocales([]string{locale}),

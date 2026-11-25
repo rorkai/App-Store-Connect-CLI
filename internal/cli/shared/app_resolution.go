@@ -155,6 +155,9 @@ func resolveOwnedAppInfoIDTo(ctx context.Context, stderr io.Writer, client *asc.
 		}
 	}
 
+	if resolvedAppID != "" {
+		ctx = asc.WithNoRedirectReads(ctx)
+	}
 	resolvedAppInfoID, err := resolveAppInfoIDUncheckedTo(ctx, stderr, client, resolvedAppID, appInfoID, appInfoFlag)
 	if err != nil {
 		return "", err
