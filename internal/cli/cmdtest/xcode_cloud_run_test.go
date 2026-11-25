@@ -6,11 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestXcodeCloudRunWithPullRequestIDPostsExpectedPayload(t *testing.T) {
 	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "configured-app")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
@@ -56,6 +58,56 @@ func TestXcodeCloudRunWithSourceRunAndCleanPostsExpectedPayload(t *testing.T) {
 	}
 	if requestCount := len(reg.Requests()); requestCount != 2 {
 		t.Fatalf("expected exactly two requests, got %d", requestCount)
+	}
+}
+
+func TestXcodeCloudRunRejectsAppWithDirectIDSelectorsBeforeRequests(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "workflow ID",
+			args:    []string{"xcode-cloud", "run", "--app", "APP_ID", "--workflow-id", "wf-1", "--pull-request-id", "pr-1"},
+			wantErr: "--app cannot be combined with --workflow-id",
+		},
+		{
+			name:    "source run ID",
+			args:    []string{"xcode-cloud", "run", "--app", "APP_ID", "--source-run-id", "run-1", "--clean"},
+			wantErr: "--app cannot be combined with --source-run-id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			reg := asctest.NewRegistry(t)
+			clientFactory := stubClient(t, reg)
+			clientCalls := 0
+			stdout, stderr, code := runWithDeps(t, func() (*asc.Client, error) {
+				clientCalls++
+				return clientFactory()
+			}, tt.args...)
+
+			if code != 2 {
+				t.Fatalf("expected usage exit code 2, got %d (stderr %q)", code, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, tt.wantErr) {
+				t.Fatalf("expected stderr to contain %q, got %q", tt.wantErr, stderr)
+			}
+			if clientCalls != 0 {
+				t.Fatalf("expected client creation to be skipped, got %d calls", clientCalls)
+			}
+			if requestCount := len(reg.Requests()); requestCount != 0 {
+				t.Fatalf("expected zero requests, got %d", requestCount)
+			}
+		})
 	}
 }
 

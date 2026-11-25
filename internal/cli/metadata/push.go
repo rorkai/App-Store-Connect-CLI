@@ -526,6 +526,7 @@ func resolveMetadataAppInfoID(
 	versionState string,
 	buildExample exampleBuilderFunc,
 ) (string, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	if appInfoID != "" {
 		return d.ResolveOwnedAppInfoID(ctx, client, appID, appInfoID)
 	}

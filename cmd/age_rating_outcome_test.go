@@ -44,20 +44,20 @@ func TestRunAgeRatingResolutionFailuresAreNotInternalErrors(t *testing.T) {
 		},
 		{
 			name:          "ambiguous app info",
-			args:          []string{"age-rating", "view", "--app", "app-1"},
+			args:          []string{"age-rating", "view", "--app", "100000001"},
 			appInfos:      `[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_DISTRIBUTION"}},{"type":"appInfos","id":"info-2","attributes":{"state":"WAITING_FOR_REVIEW"}}]`,
 			wantExit:      ExitUsage,
-			wantStderr:    "2 app infos match app \"app-1\"; pass --app-info-id with one of:",
+			wantStderr:    "2 app infos match app \"100000001\"; pass --app-info-id with one of:",
 			wantOutcome:   telemetry.OutcomeUsageError,
 			wantDiagnosis: shared.DiagnosticConflictingInput,
 			wantParameter: "--app-info-id",
 		},
 		{
 			name:          "no current app info",
-			args:          []string{"age-rating", "view", "--app", "app-1"},
+			args:          []string{"age-rating", "view", "--app", "100000001"},
 			appInfos:      `[{"type":"appInfos","id":"info-1","attributes":{"state":"REPLACED_WITH_NEW_INFO"}}]`,
 			wantExit:      ExitError,
-			wantStderr:    `no current app info found for app "app-1"`,
+			wantStderr:    `no current app info found for app "100000001"`,
 			wantOutcome:   telemetry.OutcomeExpectedNegative,
 			wantDiagnosis: shared.DiagnosticStateNotReady,
 		},
@@ -69,7 +69,7 @@ func TestRunAgeRatingResolutionFailuresAreNotInternalErrors(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				if test.appInfos == "" || req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appInfos" {
+				if test.appInfos == "" || req.Method != http.MethodGet || req.URL.Path != "/v1/apps/100000001/appInfos" {
 					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
 				}
 				w.Header().Set("Content-Type", "application/json")

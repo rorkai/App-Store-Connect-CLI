@@ -43,7 +43,8 @@ func ExecutePushWith(ctx context.Context, d *shared.Deps, opts PushExecutionOpti
 // submission warnings for callers that need to emit them after output succeeds.
 func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecutionOptions) (PushPlanResult, []shared.SubmitReadinessCreateWarning, error) {
 	errorPrefix := metadataMutationErrorPrefix(opts.CommandName)
-	resolvedAppID := d.ResolveAppID(opts.AppID)
+	appSelector := d.ResolveAppSelector(opts.AppID)
+	resolvedAppID := appSelector.Value
 	if resolvedAppID == "" {
 		return PushPlanResult{}, nil, metadataRequiredInputError(d, "--app", "--app is required (or set ASC_APP_ID)")
 	}
@@ -122,6 +123,13 @@ func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecu
 		return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 	}
 	defer client.CloseUploadConnections()
+
+	resolveCtx, resolveCancel := d.Timeout(ctx)
+	resolvedAppID, err = shared.ResolveScopedAppID(resolveCtx, client, appSelector)
+	resolveCancel()
+	if err != nil {
+		return PushPlanResult{}, nil, fmt.Errorf("%s: resolve app: %w", errorPrefix, err)
+	}
 
 	type versionResolution struct {
 		id       string

@@ -14,7 +14,7 @@ func TestListAppInfoCandidatesForAppFollowsEveryPage(t *testing.T) {
 		t, func(req *http.Request) {
 			requests = append(requests, req.URL.String())
 		},
-		jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-old","attributes":{"state":"REPLACED_WITH_NEW_INFO"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=next"}}`),
+		jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-old","attributes":{"state":"REPLACED_WITH_NEW_INFO"}}],"links":{"next":"HTTPS://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=next"}}`),
 		jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-current","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`),
 	)
 
@@ -34,6 +34,25 @@ func TestListAppInfoCandidatesForAppFollowsEveryPage(t *testing.T) {
 	}
 	if !strings.Contains(requests[1], "cursor=next") {
 		t.Fatalf("second request = %q, want continuation URL", requests[1])
+	}
+}
+
+func TestListAppInfoCandidatesForAppRejectsCrossAppContinuation(t *testing.T) {
+	requests := make([]string, 0, 2)
+	client := newTestClient(
+		t, func(req *http.Request) {
+			requests = append(requests, req.URL.String())
+		},
+		jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-old","attributes":{"state":"REPLACED_WITH_NEW_INFO"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-2/appInfos?cursor=next"}}`),
+		jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-foreign","attributes":{"state":"READY_FOR_DISTRIBUTION"}}],"links":{}}`),
+	)
+
+	_, err := client.ListAppInfoCandidatesForApp(context.Background(), "app-1")
+	if err == nil || !strings.Contains(err.Error(), `target app "app-2" does not match selected app "app-1"`) {
+		t.Fatalf("ListAppInfoCandidatesForApp() error = %v, want cross-app continuation refusal", err)
+	}
+	if len(requests) != 1 {
+		t.Fatalf("requests = %v, want only the first app-scoped page", requests)
 	}
 }
 

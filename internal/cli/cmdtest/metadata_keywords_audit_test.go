@@ -39,12 +39,12 @@ func TestRunMetadataKeywordsAuditBlockedTermValidationReturnsUsageExitCode(t *te
 	}{
 		{
 			name:    "empty blocked term",
-			args:    []string{"metadata", "keywords", "audit", "--app", "app-1", "--version-id", "ver-1", "--blocked-term", "   "},
+			args:    []string{"metadata", "keywords", "audit", "--app", "100000001", "--version-id", "ver-1", "--blocked-term", "   "},
 			wantErr: "--blocked-term must not be empty",
 		},
 		{
 			name:    "blocked terms file without terms",
-			args:    []string{"metadata", "keywords", "audit", "--app", "app-1", "--version-id", "ver-1", "--blocked-terms-file", blockedTermsPath},
+			args:    []string{"metadata", "keywords", "audit", "--app", "100000001", "--version-id", "ver-1", "--blocked-terms-file", blockedTermsPath},
 			wantErr: "--blocked-terms-file must include at least one blocked term",
 		},
 	}
@@ -67,7 +67,7 @@ func TestMetadataKeywordsAuditReportsBlockedTermAndStrictBlocking(t *testing.T) 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "keywords", "audit",
-			"--app", "app-1",
+			"--app", "100000001",
 			"--version-id", "ver-1",
 			"--blocked-term", "free",
 			"--strict",
@@ -130,7 +130,7 @@ func TestMetadataKeywordsAuditLoadsBlockedTermsFile(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "keywords", "audit",
-			"--app", "app-1",
+			"--app", "100000001",
 			"--version-id", "ver-1",
 			"--blocked-terms-file", blockedTermsPath,
 		}); err != nil {
@@ -173,7 +173,7 @@ func TestRunMetadataKeywordsAuditSuggestsAppInfoOverrideWhenResolutionIsAmbiguou
 	_, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
 			"metadata", "keywords", "audit",
-			"--app", "app-1",
+			"--app", "100000001",
 			"--version-id", "ver-1",
 		}, "1.2.3")
 		if code != cmd.ExitUsage {
@@ -181,7 +181,7 @@ func TestRunMetadataKeywordsAuditSuggestsAppInfoOverrideWhenResolutionIsAmbiguou
 		}
 	})
 
-	if !strings.Contains(stderr, `2 app infos match app "app-1"; pass --app-info with one of:`) {
+	if !strings.Contains(stderr, `2 app infos match app "100000001"; pass --app-info with one of:`) {
 		t.Fatalf("expected ambiguous app-info stderr, got %q", stderr)
 	}
 	if !strings.Contains(stderr, "--app-info") {
@@ -203,7 +203,7 @@ func TestMetadataKeywordsAuditUsesAppInfoOverride(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "keywords", "audit",
-			"--app", "app-1",
+			"--app", "100000001",
 			"--version-id", "ver-1",
 			"--app-info", "info-override",
 		}); err != nil {
@@ -231,6 +231,36 @@ func TestMetadataKeywordsAuditUsesAppInfoOverride(t *testing.T) {
 	}
 }
 
+func TestMetadataKeywordsAuditRejectsForeignAppInfoOverride(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"},"relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}
+	}`))
+	reg.Register(asctest.GET("/v1/appInfos/info-foreign", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{"type":"appInfos","id":"info-foreign","relationships":{"app":{"data":{"type":"apps","id":"100000002"}}}}
+	}`))
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{
+			"metadata", "keywords", "audit", "--app", "100000001", "--version-id", "ver-1",
+			"--app-info", "info-foreign", "--output", "json",
+		}, "7.4.0")
+	})
+	if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, `belongs to app "100000002", not "100000001"`) {
+		t.Fatalf("foreign app-info override: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if requests := reg.Requests(); len(requests) != 2 || requests[0].URL.Path != "/v1/appStoreVersions/ver-1" || requests[1].URL.Path != "/v1/appInfos/info-foreign" {
+		t.Fatalf("requests=%v, want version and ownership reads only", requests)
+	}
+}
+
 func stubMetadataKeywordsAudit(t *testing.T, keywords string) {
 	t.Helper()
 
@@ -242,10 +272,10 @@ func stubMetadataKeywordsAudit(t *testing.T, keywords string) {
 				"type":"appStoreVersions",
 				"id":"ver-1",
 				"attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"},
-				"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+				"relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}
 			}
 		}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 		asctest.JSON(http.StatusOK, `{
 			"data":[
 				{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
@@ -289,11 +319,11 @@ func stubMetadataKeywordsAuditAmbiguousAppInfo(t *testing.T, override bool) {
 				"type":"appStoreVersions",
 				"id":"ver-1",
 				"attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"},
-				"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+				"relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}
 			}
 		}`))
 	if !override {
-		reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+		reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 			asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"appInfos","id":"info-a","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},
@@ -314,7 +344,7 @@ func stubMetadataKeywordsAuditAmbiguousAppInfo(t *testing.T, override bool) {
 			"links":{}
 		}`))
 	reg.Register(asctest.GET("/v1/appInfos/info-override", "include=app"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-override","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-override","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
 	reg.Register(asctest.GET("/v1/appInfos/info-override/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{
 			"data":[

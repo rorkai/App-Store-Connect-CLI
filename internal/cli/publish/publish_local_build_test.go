@@ -1519,9 +1519,13 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 	originalUploadBuildAndWait := uploadBuildAndWaitForIDFn
 	originalUploadPKGBuildAndWait := uploadPKGBuildAndWaitForIDFn
 	originalResolveAppID := resolvePublishAppIDWithLookupFn
+	originalResolveScopedAppID := resolvePublishScopedAppIDFn
 	originalWaitForProcessing := waitForPublishBuildProcessingFn
 	originalMetadataApply := applyPublishVersionMetadataFn
 	originalAddUploadedBuildBetaGroups := addUploadedBuildBetaGroupsFn
+	resolvePublishScopedAppIDFn = func(ctx context.Context, client *asc.Client, selector shared.AppSelector) (string, error) {
+		return resolvePublishAppIDWithLookupFn(ctx, client, selector.Value)
+	}
 	preflightPublishXcodeFn = func(context.Context) error { return nil }
 
 	return func() {
@@ -1536,6 +1540,7 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 		uploadBuildAndWaitForIDFn = originalUploadBuildAndWait
 		uploadPKGBuildAndWaitForIDFn = originalUploadPKGBuildAndWait
 		resolvePublishAppIDWithLookupFn = originalResolveAppID
+		resolvePublishScopedAppIDFn = originalResolveScopedAppID
 		waitForPublishBuildProcessingFn = originalWaitForProcessing
 		applyPublishVersionMetadataFn = originalMetadataApply
 		addUploadedBuildBetaGroupsFn = originalAddUploadedBuildBetaGroups

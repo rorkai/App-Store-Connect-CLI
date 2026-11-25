@@ -23,7 +23,7 @@ func TestBuildsUploadResolvesExactBundleIDAndChecksIPAIdentityBeforeReservation(
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.demo", "limit=2"),
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.demo", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}]}`))
 	reg.Register(asctest.GET("/v1/apps/123456789"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`))
 	reg.Register(asctest.POST("/v1/buildUploads").JSONBody(`{"data":{"type":"buildUploads","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
@@ -142,7 +142,7 @@ func TestBuildsUploadRejectsMissingOrAmbiguousExactAppBeforeReservation(t *testi
 
 			reg := asctest.NewRegistry(t)
 			reg.Install()
-			reg.Register(asctest.GET("/v1/apps", "filter[bundleId]="+test.appInput, "limit=2"),
+			reg.Register(asctest.GET("/v1/apps", "filter[bundleId]="+test.appInput, "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[]}`))
 			reg.Register(asctest.GET("/v1/apps", "filter[name]="+test.appInput, "limit=200"),
 				asctest.JSON(http.StatusOK, test.appList))

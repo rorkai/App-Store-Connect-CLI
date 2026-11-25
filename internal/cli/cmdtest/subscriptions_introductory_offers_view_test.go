@@ -95,7 +95,7 @@ func TestSubscriptionsIntroductoryOffersViewResolvesSubscriptionSelector(t *test
 	useIntroductoryOffersViewServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/1/subscriptionGroups":
 			writeIntroductoryOffersViewJSON(w, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}],"links":{"next":""}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionGroups/group-1/subscriptions":
 			if got := req.URL.Query().Get("filter[productId]"); got != "com.example.monthly" {
@@ -115,7 +115,7 @@ func TestSubscriptionsIntroductoryOffersViewResolvesSubscriptionSelector(t *test
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "offers", "introductory", "view",
-			"--app", "app-1",
+			"--app", "1",
 			"--subscription-id", "com.example.monthly",
 			"--id", "offer-1",
 			"--output", "json",
@@ -145,7 +145,7 @@ func TestSubscriptionsIntroductoryOffersViewResolvesExactSubscriptionName(t *tes
 	offerRequestCount := 0
 	useIntroductoryOffersViewServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/1/subscriptionGroups":
 			groupRequestCount++
 			writeIntroductoryOffersViewJSON(w, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}],"links":{"next":""}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionGroups/group-1/subscriptions":
@@ -178,7 +178,7 @@ func TestSubscriptionsIntroductoryOffersViewResolvesExactSubscriptionName(t *tes
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "offers", "introductory", "view",
-			"--app", "app-1",
+			"--app", "1",
 			"--subscription-id", "Monthly",
 			"--id", "offer-1",
 			"--output", "json",

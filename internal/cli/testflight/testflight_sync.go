@@ -138,7 +138,8 @@ Examples:
 			if err := d.RejectOutputFormatAsPath(*output, ""); err != nil {
 				return err
 			}
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if resolvedAppID == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
@@ -174,7 +175,7 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+			resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
 			if err != nil {
 				return fmt.Errorf("testflight sync pull: %w", err)
 			}
@@ -213,6 +214,7 @@ func pullTestFlightConfig(ctx context.Context, client testFlightSyncClient, appI
 	if client == nil {
 		return nil, fmt.Errorf("client is required")
 	}
+	ctx = asc.WithNoRedirectReads(ctx)
 
 	type appResult struct {
 		resp *asc.AppResponse
@@ -418,7 +420,11 @@ func paginateBetaGroups(ctx context.Context, client testFlightSyncClient, appID 
 		return &asc.BetaGroupsResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](nextURL))
+		scopedURL, err := asc.ScopedContinuationURL(nextURL, fmt.Sprintf("/v1/apps/%s/betaGroups", strings.TrimSpace(appID)))
+		if err != nil {
+			return nil, err
+		}
+		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](scopedURL))
 	})
 	if err != nil {
 		return nil, err
@@ -438,7 +444,11 @@ func paginateBetaGroupBuilds(ctx context.Context, client testFlightSyncClient, g
 		return &asc.BuildsResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroupBuilds(ctx, groupID, asc.NextURL[asc.BetaGroupBuildsOption](nextURL))
+		scopedURL, err := asc.ScopedContinuationURL(nextURL, fmt.Sprintf("/v1/betaGroups/%s/builds", strings.TrimSpace(groupID)))
+		if err != nil {
+			return nil, err
+		}
+		return client.GetBetaGroupBuilds(ctx, groupID, asc.NextURL[asc.BetaGroupBuildsOption](scopedURL))
 	})
 	if err != nil {
 		return nil, err
@@ -458,7 +468,11 @@ func paginateBetaGroupTesters(ctx context.Context, client testFlightSyncClient, 
 		return &asc.BetaTestersResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroupTesters(ctx, groupID, asc.NextURL[asc.BetaGroupTestersOption](nextURL))
+		scopedURL, err := asc.ScopedContinuationURL(nextURL, fmt.Sprintf("/v1/betaGroups/%s/betaTesters", strings.TrimSpace(groupID)))
+		if err != nil {
+			return nil, err
+		}
+		return client.GetBetaGroupTesters(ctx, groupID, asc.NextURL[asc.BetaGroupTestersOption](scopedURL))
 	})
 	if err != nil {
 		return nil, err

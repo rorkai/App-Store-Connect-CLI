@@ -19,6 +19,17 @@ func IsAppStoreVersionString(value string) bool {
 
 // ResolveAppStoreVersionIDAndState finds a version ID and state by version string and platform.
 func ResolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, appID, version, platform string) (string, string, error) {
+	return resolveAppStoreVersionIDAndState(ctx, client, appID, version, platform, nil)
+}
+
+// ResolveAppStoreVersionIDAndStateForRead finds a version for a read command
+// and uses exact, read-only retry guidance when the requested version is not
+// present.
+func ResolveAppStoreVersionIDAndStateForRead(ctx context.Context, client *asc.Client, appID, version, platform string, retryCommand AppStoreVersionRetryCommand) (string, string, error) {
+	return resolveAppStoreVersionIDAndState(ctx, client, appID, version, platform, retryCommand)
+}
+
+func resolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, appID, version, platform string, retryCommand AppStoreVersionRetryCommand) (string, string, error) {
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
 		asc.WithAppStoreVersionsPlatforms([]string{platform}),
@@ -39,10 +50,14 @@ func ResolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, a
 		return "", "", MarkAmbiguousSelectionSample(AmbiguousAppStoreVersionError(version, platform, resp.Data, "", "--version-id"))
 	}
 	if len(resp.Data) == 0 {
-		return "", "", WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, platform, NewErrorWithCause(
+		notFound := NewErrorWithCause(
 			fmt.Errorf("app store version not found for version %q and platform %q", version, platform),
 			asc.ErrNotFound,
-		))
+		)
+		if retryCommand != nil {
+			return "", "", WithAppStoreVersionNotFoundReadDiagnostics(ctx, client, appID, version, platform, retryCommand, notFound)
+		}
+		return "", "", WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, platform, notFound)
 	}
 	if len(resp.Data) > 1 {
 		return "", "", AmbiguousAppStoreVersionError(version, platform, resp.Data, "", "--version-id")
@@ -86,21 +101,23 @@ func ResolveOwnedAppStoreVersionByID(ctx context.Context, client *asc.Client, ap
 }
 
 // ResolveAppInfoID resolves the app info ID, optionally using a provided
-// override supplied through --app-info. The auto-selection notice goes to d's
-// stderr.
+// override supplied through --app-info. An explicit override is checked
+// against appID when an app is selected; app-less direct IDs remain supported.
+// The auto-selection notice goes to d's stderr.
 func (d *Deps) ResolveAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID string) (string, error) {
 	return d.ResolveAppInfoIDWithFlag(ctx, client, appID, appInfoID, "--app-info")
 }
 
 // ResolveAppInfoIDWithFlag resolves the app info ID, optionally using a
 // provided override. appInfoFlag names the command's override flag so an
-// ambiguity error can tell the caller which flag accepts one candidate ID. The
-// auto-selection notice goes to d's stderr.
+// ambiguity error can tell the caller which flag accepts one candidate ID. An
+// explicit override is checked against appID when an app is selected; app-less
+// direct IDs remain supported. The auto-selection notice goes to d's stderr.
 func (d *Deps) ResolveAppInfoIDWithFlag(ctx context.Context, client *asc.Client, appID, appInfoID, appInfoFlag string) (string, error) {
-	return resolveAppInfoIDTo(ctx, d.IO.ErrOut, client, appID, appInfoID, appInfoFlag)
+	return resolveOwnedAppInfoIDTo(ctx, d.IO.ErrOut, client, appID, appInfoID, appInfoFlag)
 }
 
-func resolveAppInfoIDTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, appInfoID, appInfoFlag string) (string, error) {
+func resolveAppInfoIDUncheckedTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, appInfoID, appInfoFlag string) (string, error) {
 	if strings.TrimSpace(appInfoID) != "" {
 		return strings.TrimSpace(appInfoID), nil
 	}
@@ -140,15 +157,27 @@ func resolveAppInfoIDTo(ctx context.Context, stderr io.Writer, client *asc.Clien
 // override belongs to the requested app. The auto-selection notice goes to d's
 // stderr.
 func (d *Deps) ResolveOwnedAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID string) (string, error) {
-	return resolveOwnedAppInfoIDTo(ctx, d.IO.ErrOut, client, appID, appInfoID)
+	return d.ResolveAppInfoIDWithFlag(ctx, client, appID, appInfoID, "--app-info")
 }
 
-func resolveOwnedAppInfoIDTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, appInfoID string) (string, error) {
-	resolvedAppInfoID, err := resolveAppInfoIDTo(ctx, stderr, client, appID, appInfoID, "--app-info")
+func resolveOwnedAppInfoIDTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, appInfoID, appInfoFlag string) (string, error) {
+	resolvedAppID := strings.TrimSpace(appID)
+	if resolvedAppID != "" {
+		var err error
+		resolvedAppID, err = ResolveAppIDWithExactLookup(ctx, client, resolvedAppID)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if resolvedAppID != "" {
+		ctx = asc.WithNoRedirectReads(ctx)
+	}
+	resolvedAppInfoID, err := resolveAppInfoIDUncheckedTo(ctx, stderr, client, resolvedAppID, appInfoID, appInfoFlag)
 	if err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(appInfoID) == "" {
+	if strings.TrimSpace(appInfoID) == "" || resolvedAppID == "" {
 		return resolvedAppInfoID, nil
 	}
 
@@ -156,12 +185,21 @@ func resolveOwnedAppInfoIDTo(ctx context.Context, stderr io.Writer, client *asc.
 	if err != nil {
 		return "", err
 	}
+	if resp == nil {
+		return "", fmt.Errorf("empty app info response for app info %q", resolvedAppInfoID)
+	}
+	if resp.Data.Type != asc.ResourceTypeAppInfos {
+		return "", fmt.Errorf("expected resource type %q, got %q when reading app info %q", asc.ResourceTypeAppInfos, resp.Data.Type, resolvedAppInfoID)
+	}
+	if resp.Data.ID != resolvedAppInfoID {
+		return "", fmt.Errorf("expected app info %q, got %q", resolvedAppInfoID, resp.Data.ID)
+	}
 	ownerAppID, err := asc.AppInfoAppID(resp)
 	if err != nil {
 		return "", err
 	}
-	if !strings.EqualFold(strings.TrimSpace(ownerAppID), strings.TrimSpace(appID)) {
-		return "", fmt.Errorf("app info %q belongs to app %q, not %q", resolvedAppInfoID, ownerAppID, strings.TrimSpace(appID))
+	if !strings.EqualFold(strings.TrimSpace(ownerAppID), resolvedAppID) {
+		return "", fmt.Errorf("app info %q belongs to app %q, not %q", resolvedAppInfoID, ownerAppID, resolvedAppID)
 	}
 	return resolvedAppInfoID, nil
 }

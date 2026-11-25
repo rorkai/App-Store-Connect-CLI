@@ -86,7 +86,7 @@ Examples:
 func newAgeRatingViewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("age-rating view", flag.ExitOnError)
 
-	appID := fs.String("app", d.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
+	appID := fs.String("app", "", "App ID (required unless --app-info-id or --version-id is provided)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	fields := fs.String("fields", "", "Sparse fields: "+strings.Join(shared.AgeRatingDeclarationSparseFields, ", "))
@@ -108,7 +108,8 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			appInfoValue := strings.TrimSpace(*appInfoID)
 			versionValue := strings.TrimSpace(*versionID)
-			appValue := strings.TrimSpace(d.ResolveAppID(strings.TrimSpace(*appID)))
+			appSelector := d.ResolveAppSelector(*appID)
+			appValue := strings.TrimSpace(appSelector.Value)
 
 			if appInfoValue != "" && versionValue != "" {
 				return shared.WithDiagnostic(d.UsageError("only one of --app-info-id or --version-id is allowed"), shared.DiagnosticConflictingInput, "--version-id")
@@ -135,6 +136,13 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			if appValue != "" {
+				appValue, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				if err != nil {
+					return fmt.Errorf("age-rating view: resolve app: %w", err)
+				}
+			}
+
 			resp, err := fetchAgeRatingDeclaration(requestCtx, d, client, appValue, appInfoValue, versionValue, fieldValues)
 			if err != nil {
 				return fmt.Errorf("age-rating view: %w", err)
@@ -149,8 +157,8 @@ Examples:
 func newAgeRatingEditCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("age-rating edit", flag.ExitOnError)
 
-	id := shared.BindResourceIDFlag(fs, "id", "ageRatingDeclarations", "Age rating declaration ID (optional)")
-	appID := fs.String("app", d.Getenv("ASC_APP_ID"), "App ID (required unless --id, --app-info-id, or --version-id is provided)")
+	id := shared.BindResourceIDFlag(fs, "id", "ageRatingDeclarations", "Age rating declaration ID (optional; cannot be combined with scope selectors)")
+	appID := fs.String("app", "", "App ID (required unless --id, --app-info-id, or --version-id is provided)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	allNone := fs.Bool("all-none", false, "Set all ratings to NONE/false (safe default for apps with no objectionable content)")
@@ -208,10 +216,17 @@ is true. It accepts --social-media-age-restricted true only when age assurance
 and social media are both true. Include the matching prerequisite flags when
 enabling these fields unless the declaration already stores them as true.
 
+--id is an unscoped direct target. Do not combine it with --app, --app-info-id,
+--version-id, ASC_APP_ID, or a stored app config; omit --id to edit a scoped target.
+For a scoped edit, omit --id. Use --app alone to select its current App Info,
+or add one of --app-info-id APP_INFO_ID or --version-id VERSION_ID to bind the
+target; those target flags may also be used without --app.
+
 Examples:
   asc age-rating edit --app APP_ID --all-none
   asc age-rating edit --app APP_ID --all-none --unrestricted-web-access true
   asc age-rating edit --id DECLARATION_ID --gambling false --kids-age-band FIVE_AND_UNDER
+  ASC_APP_ID= asc age-rating edit --id DECLARATION_ID --gambling false
   asc age-rating edit --app APP_ID --social-media true --user-generated-content true
   asc age-rating edit --app APP_ID --social-media-age-restricted true --age-assurance true --social-media true --user-generated-content true`,
 		FlagSet:   fs,
@@ -221,10 +236,37 @@ Examples:
 				return d.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
 			}
 
+			var idFlagProvided, appFlagProvided, appInfoFlagProvided, versionFlagProvided bool
+			fs.Visit(func(f *flag.Flag) {
+				switch f.Name {
+				case "id":
+					idFlagProvided = true
+				case "app":
+					appFlagProvided = true
+				case "app-info-id":
+					appInfoFlagProvided = true
+				case "version-id":
+					versionFlagProvided = true
+				}
+			})
+
 			idValue := strings.TrimSpace(*id)
 			appInfoValue := strings.TrimSpace(*appInfoID)
 			versionValue := strings.TrimSpace(*versionID)
-			appValue := strings.TrimSpace(d.ResolveAppID(strings.TrimSpace(*appID)))
+			appSelector := d.ResolveAppSelector(*appID)
+			appValue := strings.TrimSpace(appSelector.Value)
+
+			if idFlagProvided || idValue != "" {
+				if appFlagProvided || appValue != "" {
+					return d.UsageError("--id cannot be combined with --app, ASC_APP_ID, or a configured app; omit --id to edit the selected app scope. For direct mode, set ASC_APP_ID= and omit --app and other scope selectors.")
+				}
+				if appInfoFlagProvided || appInfoValue != "" {
+					return d.UsageError("--id cannot be combined with --app-info-id; omit --id to edit the selected app-info scope. For direct mode, set ASC_APP_ID= and omit --app-info-id and other scope selectors.")
+				}
+				if versionFlagProvided || versionValue != "" {
+					return d.UsageError("--id cannot be combined with --version-id; omit --id to edit the selected version scope. For direct mode, set ASC_APP_ID= and omit --version-id and other scope selectors.")
+				}
+			}
 
 			if idValue == "" {
 				if appInfoValue != "" && versionValue != "" {
@@ -311,6 +353,13 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			if appValue != "" {
+				appValue, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				if err != nil {
+					return fmt.Errorf("age-rating edit: resolve app: %w", err)
+				}
+			}
+
 			if idValue == "" {
 				idValue, err = resolveAgeRatingDeclarationID(requestCtx, d, client, appValue, appInfoValue, versionValue)
 				if err != nil {
@@ -360,11 +409,26 @@ func nullableBoolValue(value *asc.NullableBool) *bool {
 }
 
 func fetchAgeRatingDeclaration(ctx context.Context, d *shared.Deps, client *asc.Client, appID, appInfoID, versionID string, fields []string) (*asc.AgeRatingDeclarationResponse, error) {
+	if strings.TrimSpace(appID) != "" {
+		ctx = asc.WithNoRedirectReads(ctx)
+	}
 	opts := []asc.AgeRatingDeclarationOption{asc.WithAgeRatingDeclarationFields(fields)}
 	switch {
 	case appInfoID != "":
+		if strings.TrimSpace(appID) != "" {
+			ownedAppInfoID, err := d.ResolveAppInfoIDWithFlag(ctx, client, appID, appInfoID, "--app-info-id")
+			if err != nil {
+				return nil, err
+			}
+			appInfoID = ownedAppInfoID
+		}
 		return client.GetAgeRatingDeclarationForAppInfo(ctx, appInfoID, opts...)
 	case versionID != "":
+		if strings.TrimSpace(appID) != "" {
+			if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, versionID, ""); err != nil {
+				return nil, err
+			}
+		}
 		return client.GetAgeRatingDeclarationForAppStoreVersion(ctx, versionID, opts...)
 	default:
 		appInfoID, err := resolveAppInfoIDForApp(ctx, d, client, appID)
@@ -406,6 +470,9 @@ func resolveAgeRatingDeclarationID(ctx context.Context, d *shared.Deps, client *
 	resp, err := fetchAgeRatingDeclaration(ctx, d, client, appID, appInfoID, versionID, nil)
 	if err != nil {
 		return "", err
+	}
+	if resp.Data.Type != asc.ResourceTypeAgeRatingDeclarations {
+		return "", fmt.Errorf("expected age rating declaration, got resource type %q", resp.Data.Type)
 	}
 	id := strings.TrimSpace(resp.Data.ID)
 	if id == "" {

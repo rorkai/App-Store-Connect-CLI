@@ -21,9 +21,9 @@ func metadataCategoriesHTTP(t *testing.T, remote map[string]string, storeOnPatch
 	t.Helper()
 	withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
 		switch {
-		case req.URL.Path == "/v1/apps/app-1/appInfos":
+		case req.URL.Path == "/v1/apps/100000001/appInfos":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.URL.Path == "/v1/apps/100000001/appStoreVersions":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
 		case req.URL.Path == "/v1/appInfos/appinfo-1" && req.Method == http.MethodGet:
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appInfos","id":"appinfo-1"}}`), nil
@@ -75,7 +75,7 @@ func TestMetadataCategoriesPullPlanApproveApply(t *testing.T) {
 
 	dir := t.TempDir()
 	reviewDir := filepath.Join(t.TempDir(), "review")
-	common := []string{"--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "categories", "--output", "json"}
+	common := []string{"--app", "100000001", "--version", "1.2.3", "--dir", dir, "--include", "categories", "--output", "json"}
 
 	runMetadataReviewCommand(t, append([]string{"metadata", "pull"}, common...))
 	pulled, err := os.ReadFile(filepath.Join(dir, "categories.json"))
@@ -149,18 +149,18 @@ func TestMetadataCategoriesPullPreservesFileWhenAppInfoIsMissing(t *testing.T) {
 	}
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
 	notFound := asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist"}]}`)
+	reg.Register(asctest.GET("/v1/appInfos/missing-app-info", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"missing-app-info","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
 	for _, relationship := range []string{"primaryCategory", "primarySubcategoryOne", "primarySubcategoryTwo", "secondaryCategory", "secondarySubcategoryOne", "secondarySubcategoryTwo"} {
 		reg.Register(asctest.GET("/v1/appInfos/missing-app-info/relationships/"+relationship), notFound)
 	}
-	reg.Register(asctest.GET("/v1/appInfos/missing-app-info", "include=app"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"missing-app-info","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
 	reg.Register(asctest.GET("/v1/appInfos/missing-app-info"), notFound)
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
-		"metadata", "pull", "--app", "app-1", "--app-info", "missing-app-info", "--version", "1.2.3",
+		"metadata", "pull", "--app", "100000001", "--app-info", "missing-app-info", "--version", "1.2.3",
 		"--dir", dir, "--include", "categories", "--force", "--output", "json",
 	})
 	if !asc.IsNotFound(runErr) || stdout != "" || !strings.Contains(runErr.Error(), "metadata pull: read categories:") {
@@ -189,7 +189,7 @@ func TestMetadataCategoriesApplyFailsWhenReadBackDiffers(t *testing.T) {
 	}
 
 	stdout, stderr, runErr := runRootCommand(t, []string{
-		"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "categories", "--output", "json",
+		"metadata", "apply", "--app", "100000001", "--version", "1.2.3", "--dir", dir, "--include", "categories", "--output", "json",
 	})
 	if runErr == nil {
 		t.Fatalf("expected apply to fail when App Store Connect keeps a different category\nstdout=%s", stdout)
@@ -235,7 +235,7 @@ func TestMetadataCategoriesRejectsInvalidCanonicalFile(t *testing.T) {
 			}
 			asctest.NewRegistry(t).Install()
 			stdout, stderr, runErr := runRootCommand(t, []string{
-				"metadata", "plan", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "categories",
+				"metadata", "plan", "--app", "100000001", "--version", "1.2.3", "--dir", dir, "--include", "categories",
 				"--review-dir", filepath.Join(t.TempDir(), "review"),
 			})
 			if !errors.Is(runErr, flag.ErrHelp) {

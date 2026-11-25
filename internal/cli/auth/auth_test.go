@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	authsvc "github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
@@ -2344,4 +2345,42 @@ func captureAuthOutput(t *testing.T, d *shared.Deps, fn func()) (string, string)
 	d.IO = &shared.IO{Out: &stdout, ErrOut: &stderr}
 	fn()
 	return stdout.String(), stderr.String()
+}
+
+func TestDoctorMigrationSuggestionRequiresExactBundleID(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		bundleID  string
+		wantAppID string
+	}{
+		{"prefix alone leaves placeholders", "com.example.app.preview", ""},
+		{"exact bundle enriches selected app", "com.example.app", "123"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.app", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"123","attributes":{"bundleId":"`+test.bundleID+`"}}]}`))
+			if test.wantAppID != "" {
+				reg.Register(asctest.GET("/v1/apps/123/appStoreVersions", "filter[versionString]=1.2.3", "limit=1"),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1"}]}`))
+			}
+			client, err := asc.NewClientWithHTTPClient("KEY", "ISSUER", writeTempECDSAKeyFile(t), &http.Client{Transport: reg})
+			if err != nil {
+				t.Fatal(err)
+			}
+			d := newAuthTestDeps()
+			d.Client = func() (*asc.Client, error) { return client, nil }
+			d.Timeout = func(ctx context.Context) (context.Context, context.CancelFunc) { return context.WithCancel(ctx) }
+			got := doctorMigrationSuggestionResolver(d)(authsvc.MigrationSuggestionResolverInput{
+				AppIdentifier: "com.example.app", MarketingVersion: "1.2.3", NeedAppID: true, NeedVersionID: true,
+			})
+			wantVersionID := ""
+			if test.wantAppID != "" {
+				wantVersionID = "version-1"
+			}
+			if got != (authsvc.MigrationSuggestionResolverOutput{AppID: test.wantAppID, VersionID: wantVersionID}) {
+				t.Fatalf("migration suggestions enriched unexpected targets: %#v", got)
+			}
+		})
+	}
 }

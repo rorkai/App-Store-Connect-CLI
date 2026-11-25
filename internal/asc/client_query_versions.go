@@ -530,6 +530,14 @@ func WithAppStoreVersionsStates(states []string) AppStoreVersionsOption {
 	}
 }
 
+// AppStoreVersionMatchesStateFilter applies the same field selection as WithAppStoreVersionsStates.
+func AppStoreVersionMatchesStateFilter(attrs AppStoreVersionAttributes, states []string) bool {
+	var query appStoreVersionsQuery
+	WithAppStoreVersionsStates(states)(&query)
+	return (len(query.states) == 0 || slices.Contains(query.states, strings.TrimSpace(attrs.AppStoreState))) &&
+		(len(query.appVersionStates) == 0 || slices.Contains(query.appVersionStates, strings.TrimSpace(attrs.AppVersionState)))
+}
+
 // WithAppStoreVersionsVersionStates filters versions by app version state.
 func WithAppStoreVersionsVersionStates(states []string) AppStoreVersionsOption {
 	return func(q *appStoreVersionsQuery) {

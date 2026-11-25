@@ -20,9 +20,9 @@ func metadataAgeRatingHTTP(t *testing.T, remote map[string]any, storeOnPatch boo
 	t.Helper()
 	withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
 		switch {
-		case req.URL.Path == "/v1/apps/app-1/appInfos":
+		case req.URL.Path == "/v1/apps/123456789/appInfos":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.URL.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
 		case req.URL.Path == "/v1/appInfos/appinfo-1/ageRatingDeclaration" && req.Method == http.MethodGet:
 			body, err := json.Marshal(map[string]any{"data": map[string]any{"type": "ageRatingDeclarations", "id": "decl-1", "attributes": remote}})
@@ -63,7 +63,7 @@ func TestMetadataAgeRatingPullPlanApproveApply(t *testing.T) {
 
 	dir := t.TempDir()
 	reviewDir := filepath.Join(t.TempDir(), "review")
-	common := []string{"--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "age-rating", "--output", "json"}
+	common := []string{"--app", "123456789", "--version", "1.2.3", "--dir", dir, "--include", "age-rating", "--output", "json"}
 
 	runMetadataReviewCommand(t, append([]string{"metadata", "pull"}, common...))
 	pulled, err := os.ReadFile(filepath.Join(dir, "age-rating.json"))
@@ -126,7 +126,7 @@ func TestMetadataAgeRatingApplyFailsWhenReadBackDiffers(t *testing.T) {
 		t.Fatalf("write age rating: %v", err)
 	}
 	stdout, _, runErr := runRootCommand(t, []string{
-		"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "age-rating", "--output", "json",
+		"metadata", "apply", "--app", "123456789", "--version", "1.2.3", "--dir", dir, "--include", "age-rating", "--output", "json",
 	})
 	if runErr == nil || len(patches) == 0 {
 		t.Fatalf("expected a PATCH and a failed apply, err=%v patches=%v", runErr, patches)
@@ -169,7 +169,7 @@ func TestMetadataAgeRatingRejectsInvalidValuesBeforeRequests(t *testing.T) {
 					t.Fatalf("write age rating: %v", err)
 				}
 				args := []string{
-					"metadata", command, "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "localizations,age-rating",
+					"metadata", command, "--app", "123456789", "--version", "1.2.3", "--dir", dir, "--include", "localizations,age-rating",
 					"--review-dir", filepath.Join(t.TempDir(), "review"),
 				}
 				if command == "apply" {
@@ -232,7 +232,7 @@ func TestMetadataAgeRatingValidatesResultingStateBeforeMutation(t *testing.T) {
 				t.Fatal(err)
 			}
 			stdout, stderr, runErr := runRootCommand(t, []string{
-				"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "localizations,age-rating", "--output", "json",
+				"metadata", "apply", "--app", "123456789", "--version", "1.2.3", "--dir", dir, "--include", "localizations,age-rating", "--output", "json",
 			})
 			if test.wantErr != "" {
 				if !errors.Is(runErr, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, test.wantErr) || mutations != 0 {

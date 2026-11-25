@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -250,7 +251,7 @@ func resolveLatestBuildSelection(ctx context.Context, stderr io.Writer, resolveA
 			buildOpts = append(buildOpts, asc.WithBuildsExpired(false))
 		}
 
-		latestBuild, err = findMostRecentlyUploadedBuild(ctx, client, resolvedAppID, buildOpts...)
+		latestBuild, err = findMostRecentlyUploadedBuildWithExpectedQuery(ctx, client, resolvedAppID, latestBuildSelectionContinuationQuery(resolvedAppID), buildOpts...)
 		if err != nil {
 			return nil, err
 		}
@@ -607,6 +608,14 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 	if platform != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsPlatform(platform))
 	}
+	expectedQuery := url.Values{}
+	expectedQuery.Set("filter[app]", strings.TrimSpace(appID))
+	if versionFilter != "" {
+		expectedQuery.Set("filter[version]", versionFilter)
+	}
+	if platform != "" {
+		expectedQuery.Set("filter[platform]", strings.TrimSpace(platform))
+	}
 
 	firstPageCtx, firstPageCancel := contextWithTimeout(ctx)
 	firstPage, err := client.GetPreReleaseVersions(firstPageCtx, opts...)
@@ -653,7 +662,11 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 	fetchNext := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := contextWithTimeout(ctx)
 		defer cancel()
-		return client.GetPreReleaseVersions(requestCtx, asc.WithPreReleaseVersionsAppID(appID), asc.NextURL[asc.PreReleaseVersionsOption](nextURL))
+		scopedURL, err := client.ValidateNoRedirectReadContinuationQuery(requestCtx, nextURL, "/v1/preReleaseVersions", expectedQuery)
+		if err != nil {
+			return nil, err
+		}
+		return client.GetPreReleaseVersions(requestCtx, asc.WithPreReleaseVersionsAppID(appID), asc.NextURL[asc.PreReleaseVersionsOption](scopedURL))
 	}
 	consumePage := func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.PreReleaseVersionsResponse)
@@ -735,6 +748,21 @@ func versionQueryVariants(version string) []string {
 	return variants
 }
 
+// IsEquivalentAppStoreVersion reports whether two marketing version strings
+// are one of the numeric formats App Store Connect accepts as equivalent.
+func IsEquivalentAppStoreVersion(requested, actual string) bool {
+	actual = strings.TrimSpace(actual)
+	if actual == "" {
+		return false
+	}
+	for _, variant := range versionQueryVariants(requested) {
+		if strings.EqualFold(strings.TrimSpace(variant), actual) {
+			return true
+		}
+	}
+	return false
+}
+
 var (
 	equivalentVersionNoteMu sync.Mutex
 	equivalentVersionNotes  = map[string]struct{}{}
@@ -764,6 +792,10 @@ func noteEquivalentVersionMatch(stderr io.Writer, requested, matched string) {
 }
 
 func findMostRecentlyUploadedBuild(ctx context.Context, client *asc.Client, appID string, opts ...asc.BuildsOption) (*asc.BuildResponse, error) {
+	return findMostRecentlyUploadedBuildWithExpectedQuery(ctx, client, appID, nil, opts...)
+}
+
+func findMostRecentlyUploadedBuildWithExpectedQuery(ctx context.Context, client *asc.Client, appID string, expectedQuery url.Values, opts ...asc.BuildsOption) (*asc.BuildResponse, error) {
 	const buildsLatestScanPageLimit = 10
 
 	firstPageCtx, firstPageCancel := contextWithTimeout(ctx)
@@ -808,7 +840,12 @@ func findMostRecentlyUploadedBuild(ctx context.Context, client *asc.Client, appI
 		seenProbeURLs[nextURL] = struct{}{}
 
 		nextPageCtx, nextPageCancel := contextWithTimeout(ctx)
-		nextPage, err := client.GetBuilds(nextPageCtx, appID, asc.NextURL[asc.BuildsOption](nextURL))
+		scopedURL, err := client.ValidateNoRedirectReadContinuationQuery(nextPageCtx, nextURL, "/v1/builds", expectedQuery)
+		if err != nil {
+			nextPageCancel()
+			return nil, fmt.Errorf("failed to paginate builds: page %d: %w", pagesScanned+1, err)
+		}
+		nextPage, err := client.GetBuilds(nextPageCtx, appID, asc.NextURL[asc.BuildsOption](scopedURL))
 		nextPageCancel()
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -859,6 +896,12 @@ func findMostRecentlyUploadedBuild(ctx context.Context, client *asc.Client, appI
 		Data:  *latest,
 		Links: latestLinks,
 	}, nil
+}
+
+func latestBuildSelectionContinuationQuery(appID string) url.Values {
+	query := url.Values{}
+	query.Set("filter[app]", strings.TrimSpace(appID))
+	return query
 }
 
 func isStrictlyMoreRecentUploadedBuild(candidate, current asc.Resource[asc.BuildAttributes]) bool {

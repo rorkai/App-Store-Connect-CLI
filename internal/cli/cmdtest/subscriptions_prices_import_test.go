@@ -533,7 +533,7 @@ func TestSubscriptionsPricesImport_RetriesTimedOutSelectorResolution(t *testing.
 	groupReads := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/1/subscriptionGroups":
 			groupReads++
 			if groupReads == 1 {
 				<-req.Context().Done()
@@ -565,7 +565,7 @@ func TestSubscriptionsPricesImport_RetriesTimedOutSelectorResolution(t *testing.
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "pricing", "prices", "import",
-			"--subscription-id", "com.example.monthly", "--app", "app-1", "--input", csvPath, "--dry-run", "--output", "json",
+			"--subscription-id", "com.example.monthly", "--app", "1", "--input", csvPath, "--dry-run", "--output", "json",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}

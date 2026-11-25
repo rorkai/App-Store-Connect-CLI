@@ -21,7 +21,7 @@ func TestGRACAgeRatingSparseFields(t *testing.T) {
 		{"direct age rating", []string{"age-rating", "view", "--app-info-id", "info-45", "--fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45/ageRatingDeclaration", `{"data":` + rating + `}`, false, true},
 		{"direct age rating self link", []string{"age-rating", "view", "--app-info-id", "https://api.appstoreconnect.apple.com/v1/appInfos/info-45", "--fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45/ageRatingDeclaration", `{"data":` + rating + `}`, false, true},
 		{"app info view", []string{"apps", "info", "view", "--info-id", "info-45", "--age-rating-fields", "gracRatingClassificationNumber"}, "/v1/appInfos/info-45", `{"data":` + info + `,"included":[` + rating + `]}`, true, false},
-		{"app info list", []string{"apps", "info", "list", "--app", "app-45", "--age-rating-fields", "gracRatingClassificationNumber"}, "/v1/apps/app-45/appInfos", `{"data":[` + info + `],"included":[` + rating + `]}`, true, false},
+		{"app info list", []string{"apps", "info", "list", "--app", "1000000045", "--age-rating-fields", "gracRatingClassificationNumber"}, "/v1/apps/1000000045/appInfos", `{"data":[` + info + `],"included":[` + rating + `]}`, true, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)

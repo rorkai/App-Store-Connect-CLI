@@ -165,3 +165,26 @@ func TestLocalizationsCreateIfExistsUpdateWithoutUpdatableFieldsDoesNotPatch(t *
 		t.Fatalf("stderr = %q, want the left-unchanged outcome", stderr)
 	}
 }
+
+func TestLocalizationsCreateConflictReadbackRefusesRedirectBeforeDetailRead(t *testing.T) {
+	stdout, _, seen, runErr := runIfExistsCommandWithDeps(t, []string{
+		"localizations", "create", "--version", "version-1", "--locale", "ja", "--if-exists", "skip", "--output", "json",
+	}, func(req ifExistsRequest) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.Path == "/v1/appStoreVersionLocalizations":
+			return jsonResponse(http.StatusConflict, localizationDuplicate409)
+		case req.Method == http.MethodGet && req.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return &http.Response{Status: "307 Temporary Redirect", StatusCode: http.StatusTemporaryRedirect, Header: http.Header{"Location": []string{"https://api.appstoreconnect.apple.com/v1/appStoreVersions/other/appStoreVersionLocalizations"}}, Body: http.NoBody}, nil
+		case req.Method == http.MethodGet && req.Path == "/v1/appStoreVersions/other/appStoreVersionLocalizations":
+			return jsonResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","title":"unexpected redirected conflict readback"}]}`)
+		default:
+			return jsonResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","title":"unexpected conflict readback request"}]}`)
+		}
+	})
+	if runErr == nil || stdout != "" {
+		t.Fatalf("redirected conflict readback err=%v stdout=%q, want error and no output", runErr, stdout)
+	}
+	if len(seen) != 2 || seen[0].Method != http.MethodPost || seen[1].Method != http.MethodGet || seen[1].Path != "/v1/appStoreVersions/version-1/appStoreVersionLocalizations" {
+		t.Fatalf("requests=%v, want create conflict then one refused collection read", seen)
+	}
+}
