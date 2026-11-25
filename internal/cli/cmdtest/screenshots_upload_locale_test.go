@@ -135,6 +135,8 @@ func TestScreenshotsUploadMissingRemoteLocalizationIsResourceNotFound(t *testing
 			reg.Install()
 			reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"}}],"links":{}}`))
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`))
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":`+test.localizations+`,"links":{}}`))
 

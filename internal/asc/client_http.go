@@ -165,7 +165,11 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 	if err := validateMutatingRequestTarget(method, path); err != nil {
 		return nil, err
 	}
-	return c.doWithHTTPClient(ctx, method, path, body, c.httpClient)
+	httpClient := c.httpClient
+	if method == http.MethodGet && noRedirectReads(ctx) {
+		httpClient = clientWithoutRedirects(httpClient)
+	}
+	return c.doWithHTTPClient(ctx, method, path, body, httpClient)
 }
 
 // doWithHTTPClient shares retry and rate-limit behavior after callers

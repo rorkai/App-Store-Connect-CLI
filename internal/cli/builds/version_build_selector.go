@@ -30,9 +30,10 @@ type VersionBuildSelector struct {
 // VersionBuildScope is the train a selector searches: builds of one app with
 // the version's marketing version string and platform.
 type VersionBuildScope struct {
-	AppID    string
-	Version  string
-	Platform string
+	AppID       string
+	Version     string
+	Platform    string
+	BuildNumber string
 }
 
 // BindVersionBuildSelectorWith binds the build selector flags to fs. The
@@ -98,6 +99,11 @@ func (s *VersionBuildSelector) NeedsScope() bool {
 	return s.buildIDValue() == ""
 }
 
+// RequestedBuildNumber returns the explicit build number selector, if any.
+func (s *VersionBuildSelector) RequestedBuildNumber() string {
+	return s.buildNumberValue()
+}
+
 // Resolve returns the selected build ID. --build-id without --wait makes no
 // request.
 func (s *VersionBuildSelector) Resolve(ctx context.Context, client *asc.Client, scope VersionBuildScope) (string, error) {
@@ -123,7 +129,7 @@ func (s *VersionBuildSelector) Resolve(ctx context.Context, client *asc.Client, 
 			return "", err
 		}
 		reportSelectedVersionBuild(s.d.IO.ErrOut, buildResp, selector)
-		if err := requireValidBuild(buildResp); err != nil {
+		if err := RequireValidBuild(buildResp); err != nil {
 			return "", err
 		}
 		return strings.TrimSpace(buildResp.Data.ID), nil
@@ -185,7 +191,9 @@ func reportSelectedVersionBuild(stderr io.Writer, buildResp *asc.BuildResponse, 
 	)
 }
 
-func requireValidBuild(buildResp *asc.BuildResponse) error {
+// RequireValidBuild verifies that an attach candidate is App Store eligible
+// and has reached the documented VALID processing state.
+func RequireValidBuild(buildResp *asc.BuildResponse) error {
 	if err := shared.RequireAppStoreBuildAudience(buildResp); err != nil {
 		return err
 	}

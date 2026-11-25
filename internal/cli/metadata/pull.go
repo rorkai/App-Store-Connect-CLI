@@ -86,7 +86,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if resolvedAppID == "" {
 				return metadataRequiredInputError(d, "--app", "--app is required (or set ASC_APP_ID)")
 			}
@@ -124,9 +125,14 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+			if err != nil {
+				return fmt.Errorf("metadata pull: resolve app: %w", err)
+			}
+
 			var versionIDValue, versionStateValue string
 			if versionValue == "" {
-				resolved, err := d.ResolveAndAnnounceDefaultAppStoreVersion(requestCtx, client, resolvedAppID, platformValue, "--version")
+				resolved, err := d.ResolveAndAnnounceDefaultAppStoreVersion(asc.WithNoRedirectReads(requestCtx), client, resolvedAppID, platformValue, "--version")
 				if err != nil {
 					if errors.Is(err, flag.ErrHelp) {
 						return err
@@ -152,7 +158,7 @@ Examples:
 				versionStateValue = asc.ResolveAppStoreVersionState(version.Attributes)
 				platformValue = string(version.Attributes.Platform)
 			} else {
-				versionIDValue, versionStateValue, err = resolveVersionID(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
+				versionIDValue, versionStateValue, err = resolveVersionForReadID(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
 				if err != nil {
 					if errors.Is(err, flag.ErrHelp) {
 						return err
@@ -164,6 +170,7 @@ Examples:
 			var appInfoIDValue string
 			var appInfoItems []asc.Resource[asc.AppInfoLocalizationAttributes]
 			var versionItems []asc.Resource[asc.AppStoreVersionLocalizationAttributes]
+			var previewVersionItems []asc.Resource[asc.AppStoreVersionLocalizationAttributes]
 			settingScopes := selectedMetadataSettingScopes(includes)
 			if includesScope(includes, includeLocalizations) || metadataSettingsNeedAppInfo(settingScopes) {
 				appInfoIDValue, err = resolveMetadataPullAppInfoID(
@@ -183,6 +190,11 @@ Examples:
 			}
 			if includesScope(includes, includeLocalizations) {
 				appInfoItems, versionItems, err = fetchMetadataLocalizations(ctx, d, client, appInfoIDValue, versionIDValue, true, true)
+				if err != nil {
+					return fmt.Errorf("metadata pull: %w", err)
+				}
+			} else if includesScope(includes, "previews") {
+				previewVersionItems, err = fetchVersionLocalizations(ctx, d, client, versionIDValue)
 				if err != nil {
 					return fmt.Errorf("metadata pull: %w", err)
 				}
@@ -248,6 +260,8 @@ Examples:
 			var assetWarnings []string
 			if includesScope(includes, includeLocalizations) {
 				assetFiles, assetWarnings, err = storeassets.ExportPlanWithVersionLocalizations(ctx, d, client, versionIDValue, ".", includesScope(includes, "app-clip"), includesScope(includes, "previews"), versionItems)
+			} else if includesScope(includes, "previews") {
+				assetFiles, assetWarnings, err = storeassets.ExportPlanWithVersionLocalizations(ctx, d, client, versionIDValue, ".", includesScope(includes, "app-clip"), true, previewVersionItems)
 			} else {
 				assetFiles, assetWarnings, err = storeassets.ExportPlan(ctx, d, client, versionIDValue, ".", includesScope(includes, "app-clip"), includesScope(includes, "previews"))
 			}
@@ -444,10 +458,30 @@ func resolveVersionID(ctx context.Context, d *shared.Deps, client *asc.Client, a
 	return id, state, err
 }
 
+func resolveVersionForReadID(ctx context.Context, d *shared.Deps, client *asc.Client, appID, version, platform string) (string, string, error) {
+	id, state, _, err := resolveVersionForRead(ctx, d, client, appID, version, platform)
+	return id, state, err
+}
+
 // resolveVersion is resolveVersionID that also returns the version's platform.
 func resolveVersion(ctx context.Context, d *shared.Deps, client *asc.Client, appID, version, platform string) (string, string, string, error) {
+	return resolveVersionWithRetryCommand(ctx, d, client, appID, version, platform, nil)
+}
+
+func resolveVersionForRead(ctx context.Context, d *shared.Deps, client *asc.Client, appID, version, platform string) (string, string, string, error) {
+	return resolveVersionWithRetryCommand(ctx, d, client, appID, version, platform, metadataVersionRetryCommand)
+}
+
+func resolveVersionWithRetryCommand(ctx context.Context, d *shared.Deps, client *asc.Client, appID, version, platform string, retryCommand shared.AppStoreVersionRetryCommand) (string, string, string, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	if platform != "" {
-		id, state, err := shared.ResolveAppStoreVersionIDAndState(ctx, client, appID, version, platform)
+		var id, state string
+		var err error
+		if retryCommand == nil {
+			id, state, err = shared.ResolveAppStoreVersionIDAndState(ctx, client, appID, version, platform)
+		} else {
+			id, state, err = shared.ResolveAppStoreVersionIDAndStateForRead(ctx, client, appID, version, platform, retryCommand)
+		}
 		return id, state, platform, err
 	}
 
@@ -465,7 +499,11 @@ func resolveVersion(ctx context.Context, d *shared.Deps, client *asc.Client, app
 	}
 	pageHasNext := strings.TrimSpace(resp.Links.Next) != ""
 	if len(resp.Data) == 0 && !pageHasNext {
-		return "", "", "", shared.WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, "", shared.NewErrorWithCause(fmt.Errorf("app store version not found for version %q", version), asc.ErrNotFound))
+		notFound := shared.NewErrorWithCause(fmt.Errorf("app store version not found for version %q", version), asc.ErrNotFound)
+		if retryCommand == nil {
+			return "", "", "", shared.WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, "", notFound)
+		}
+		return "", "", "", shared.WithAppStoreVersionNotFoundReadDiagnostics(ctx, client, appID, version, "", retryCommand, notFound)
 	}
 	if len(resp.Data) > 1 || pageHasNext {
 		ambiguous := shared.AmbiguousAppStoreVersionError(version, "", resp.Data, "--platform", "")
@@ -480,6 +518,10 @@ func resolveVersion(ctx context.Context, d *shared.Deps, client *asc.Client, app
 		return "", "", "", d.AmbiguousUsageErrorWithKind(ambiguous, usageKind)
 	}
 	return resp.Data[0].ID, asc.ResolveAppStoreVersionState(resp.Data[0].Attributes), string(resp.Data[0].Attributes.Platform), nil
+}
+
+func metadataVersionRetryCommand(version, platform string) string {
+	return fmt.Sprintf("--version %s --platform %s (keep --dir and other flags unchanged)", version, platform)
 }
 
 func resolveMetadataPullAppInfoID(
@@ -499,6 +541,7 @@ func resolveMetadataPullAppInfoID(
 }
 
 func fetchAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, appInfoID string) ([]asc.Resource[asc.AppInfoLocalizationAttributes], error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
 		return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.Limit[asc.AppInfoLocalizationsOption](200))
 	})
@@ -512,9 +555,13 @@ func fetchAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.
 		return firstPage.Data, nil
 	}
 
-	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
+	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		scopedURL, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID))
+		if err != nil {
+			return nil, err
+		}
 		return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
-			return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
+			return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.NextURL[asc.AppInfoLocalizationsOption](scopedURL))
 		})
 	})
 	if err != nil {
@@ -528,6 +575,7 @@ func fetchAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.
 }
 
 func fetchVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
 		return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	})
@@ -541,9 +589,13 @@ func fetchVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc.
 		return firstPage.Data, nil
 	}
 
-	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
+	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		scopedURL, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID))
+		if err != nil {
+			return nil, err
+		}
 		return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
-			return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
+			return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](scopedURL))
 		})
 	})
 	if err != nil {

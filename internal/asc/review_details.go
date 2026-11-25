@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -19,6 +20,23 @@ type AppStoreReviewDetailAttributes struct {
 	Notes               string `json:"notes,omitempty"`
 
 	api apiAttributes
+}
+
+// GetAppStoreReviewDetailForOwnership reads only the review detail's version
+// relationship so a selected app can be checked before unrestricted detail
+// reads or writes.
+func (c *Client) GetAppStoreReviewDetailForOwnership(ctx context.Context, detailID string) (*AppStoreReviewDetailResponse, error) {
+	detailID = strings.TrimSpace(detailID)
+	if detailID == "" {
+		return nil, fmt.Errorf("detailID is required")
+	}
+	query := url.Values{}
+	query.Set("fields[appStoreReviewDetails]", "appStoreVersion")
+	query.Set("include", "appStoreVersion")
+	return getJSON[AppStoreReviewDetailResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appStoreReviewDetails/%s", detailID),
+		Query: query.Encode(),
+	})
 }
 
 // CreateAppStoreReviewDetail creates review details for a version.

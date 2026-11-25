@@ -192,7 +192,8 @@ Examples:
 }
 
 func executeScreenshotReviewPlan(ctx context.Context, d *shared.Deps, opts screenshotReviewPlanOptions) (*screenshotReviewPlanResult, error) {
-	resolvedAppID := d.ResolveAppID(opts.AppID)
+	appSelector := d.ResolveAppSelector(opts.AppID)
+	resolvedAppID := appSelector.Value
 	if strings.TrimSpace(resolvedAppID) == "" {
 		fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 		return nil, shared.MissingRequiredUsageError("--app")
@@ -233,8 +234,9 @@ func executeScreenshotReviewPlan(ctx context.Context, d *shared.Deps, opts scree
 
 	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
+	requestCtx = asc.WithNoRedirectReads(requestCtx)
 
-	resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+	resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
 	if err != nil {
 		return nil, fmt.Errorf("screenshots %s: %w", reviewPlanVerb(opts.Apply), err)
 	}
@@ -439,7 +441,7 @@ func executeScreenshotReviewPlan(ctx context.Context, d *shared.Deps, opts scree
 	// for the lookups above: each group reserves, uploads, commits and then
 	// polls asset delivery. Derive the upload budget from the un-deadlined
 	// parent so uploadScreenshots can apply the upload timeout per group.
-	uploadParentCtx := shared.ContextWithoutTimeout(ctx)
+	uploadParentCtx := asc.WithNoRedirectReads(shared.ContextWithoutTimeout(ctx))
 	for _, key := range groupKeys {
 		files := cloneSortedFiles(groupedFiles[key])
 		uploadResult, err := uploadScreenshots(uploadParentCtx, d, client, key.localizationID, key.displayType, files, opts.SkipExisting, opts.Replace, !opts.Apply)
@@ -477,20 +479,29 @@ func printScreenshotReviewPlanResult(d *shared.Deps, result *screenshotReviewPla
 }
 
 func resolveScreenshotPlanVersion(ctx context.Context, client *asc.Client, appID, version, versionID, platform string) (string, string, string, error) {
-	if strings.TrimSpace(versionID) != "" {
-		versionData, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, versionID, platform)
+	ctx = asc.WithNoRedirectReads(ctx)
+	version = strings.TrimSpace(version)
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		resolvedVersionID, err := shared.ResolveAppStoreVersionID(ctx, client, appID, version, strings.TrimSpace(platform))
 		if err != nil {
 			return "", "", "", err
 		}
-		resolvedPlatform := strings.TrimSpace(string(versionData.Attributes.Platform))
-		return strings.TrimSpace(versionData.ID), strings.TrimSpace(versionData.Attributes.VersionString), resolvedPlatform, nil
+		versionID = strings.TrimSpace(resolvedVersionID)
+		if versionID == "" {
+			return "", "", "", fmt.Errorf("version %q did not return a resource ID", version)
+		}
 	}
 
-	resolvedVersionID, err := shared.ResolveAppStoreVersionID(ctx, client, appID, strings.TrimSpace(version), strings.TrimSpace(platform))
+	versionData, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, versionID, platform)
 	if err != nil {
 		return "", "", "", err
 	}
-	return resolvedVersionID, strings.TrimSpace(version), strings.TrimSpace(platform), nil
+	resolvedVersion := strings.TrimSpace(versionData.Attributes.VersionString)
+	if version != "" && resolvedVersion != version {
+		return "", "", "", fmt.Errorf("version ID %q has version %q, expected %q", versionID, resolvedVersion, version)
+	}
+	return versionID, resolvedVersion, strings.TrimSpace(string(versionData.Attributes.Platform)), nil
 }
 
 func resolveReviewArtifactPaths(d *shared.Deps, outputDir, manifestPath, approvalPath string) (string, string, string, error) {

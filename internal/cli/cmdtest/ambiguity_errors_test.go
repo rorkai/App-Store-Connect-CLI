@@ -27,7 +27,7 @@ func TestAmbiguousAppNameListsCandidatesAndAppFlag(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Ambiguous App", "limit=2"),
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Ambiguous App", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps", "filter[name]=Ambiguous App", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[

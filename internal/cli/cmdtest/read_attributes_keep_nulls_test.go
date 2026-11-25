@@ -60,8 +60,9 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 		},
 		{
 			name: "localizations list app-info",
-			args: []string{"localizations", "list", "--app", "app-1", "--type", "app-info", "--app-info", "info-1"},
+			args: []string{"localizations", "list", "--app", "100000001", "--type", "app-info", "--app-info", "info-1"},
 			responses: map[string]string{
+				"/v1/appInfos/info-1?include=app":          `{"data":{"type":"appInfos","id":"info-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`,
 				"/v1/appInfos/info-1/appInfoLocalizations": `{"data":[{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"App","privacyChoicesUrl":null,"privacyPolicyText":null}}],"links":{}}`,
 			},
 			attrs: map[string]string{

@@ -35,12 +35,12 @@ var metadataScopeStubs = map[string]struct {
 	matcher  asctest.Matcher
 	response asctest.Responder
 }{
-	"GET /v1/apps/app-1/appInfos": {
-		asctest.GET("/v1/apps/app-1/appInfos"),
+	"GET /v1/apps/123456789/appInfos": {
+		asctest.GET("/v1/apps/123456789/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`),
 	},
-	"GET /v1/apps/app-1/appStoreVersions": {
-		asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+	"GET /v1/apps/123456789/appStoreVersions": {
+		asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`),
 	},
 	"GET /v1/appInfos/appinfo-1/appInfoLocalizations": {
@@ -117,7 +117,7 @@ func runMetadataScopePush(t *testing.T, args ...string) (string, string, error) 
 	root.FlagSet.SetOutput(io.Discard)
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(append([]string{"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--output", "json"}, args...)); err != nil {
+		if err := root.Parse(append([]string{"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--output", "json"}, args...)); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
@@ -148,7 +148,7 @@ func TestMetadataPushAbsentAppInfoDirLeavesAppInfoScopeUnmanaged(t *testing.T) {
 	writeMetadataScopeFile(t, filepath.Join(dir, "version", "1.2.3", "fr-FR.json"), `{"description":"Description FR"}`)
 
 	t.Run("dry-run plans no app-info entries", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/123456789/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", dir, "--dry-run")
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -168,7 +168,7 @@ func TestMetadataPushAbsentAppInfoDirLeavesAppInfoScopeUnmanaged(t *testing.T) {
 		}
 		// Resolving the app info could fail as ambiguous for apps with several
 		// app infos, so an unmanaged app-info scope must not resolve it.
-		if got := fixture.seen("GET /v1/apps/app-1/appInfos"); len(got) != 0 {
+		if got := fixture.seen("GET /v1/apps/123456789/appInfos"); len(got) != 0 {
 			t.Fatalf("expected unmanaged app-info scope not to resolve the app info, got %v", got)
 		}
 		var identity struct {
@@ -183,7 +183,7 @@ func TestMetadataPushAbsentAppInfoDirLeavesAppInfoScopeUnmanaged(t *testing.T) {
 	})
 
 	t.Run("apply succeeds without allow-deletes", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations", "PATCH /v1/appStoreVersionLocalizations/loc-ver-en")
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/123456789/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations", "PATCH /v1/appStoreVersionLocalizations/loc-ver-en")
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", dir)
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -200,7 +200,7 @@ func TestMetadataPushAbsentAppInfoDirLeavesAppInfoScopeUnmanaged(t *testing.T) {
 	})
 
 	t.Run("allow-deletes does not delete unmanaged app-info locales", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations", "PATCH /v1/appStoreVersionLocalizations/loc-ver-en", "DELETE /v1/appStoreVersionLocalizations/loc-ver-fr")
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/123456789/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations", "PATCH /v1/appStoreVersionLocalizations/loc-ver-en", "DELETE /v1/appStoreVersionLocalizations/loc-ver-fr")
 		versionOnlyDir := t.TempDir()
 		writeMetadataScopeFile(t, filepath.Join(versionOnlyDir, "version", "1.2.3", "en-US.json"), `{"description":"Local description"}`)
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", versionOnlyDir, "--allow-deletes", "--confirm")
@@ -224,7 +224,7 @@ func TestMetadataPushAbsentVersionDirLeavesVersionScopeUnmanaged(t *testing.T) {
 	writeMetadataScopeFile(t, filepath.Join(dir, "app-info", "fr-FR.json"), `{"name":"App FR"}`)
 
 	t.Run("dry-run plans no version entries", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/apps/app-1/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations")
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/123456789/appStoreVersions", "GET /v1/apps/123456789/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations")
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", dir, "--dry-run")
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -242,7 +242,7 @@ func TestMetadataPushAbsentVersionDirLeavesVersionScopeUnmanaged(t *testing.T) {
 	})
 
 	t.Run("apply succeeds without allow-deletes", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/apps/app-1/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "PATCH /v1/appInfoLocalizations/loc-app-en")
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/123456789/appStoreVersions", "GET /v1/apps/123456789/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "PATCH /v1/appInfoLocalizations/loc-app-en")
 		_, stderr, err := runMetadataScopePush(t, "--dir", dir)
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -266,7 +266,7 @@ func TestMetadataPushEmptyAppInfoDirStillManagesAppInfoScope(t *testing.T) {
 	writeMetadataScopeFile(t, filepath.Join(dir, "version", "1.2.3", "fr-FR.json"), `{"description":"Description FR"}`)
 
 	t.Run("dry-run plans app-info deletes", func(t *testing.T) {
-		installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/apps/app-1/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
+		installMetadataScopeTransport(t, "GET /v1/apps/123456789/appStoreVersions", "GET /v1/apps/123456789/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", dir, "--dry-run")
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -283,7 +283,7 @@ func TestMetadataPushEmptyAppInfoDirStillManagesAppInfoScope(t *testing.T) {
 	})
 
 	t.Run("apply requires allow-deletes", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/apps/app-1/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/123456789/appStoreVersions", "GET /v1/apps/123456789/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
 		_, stderr, err := runMetadataScopePush(t, "--dir", dir)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected ErrHelp, got %v", err)

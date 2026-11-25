@@ -99,6 +99,71 @@ func TestLiveAppStoreVersionStateFilterQueriesBothSpellings(t *testing.T) {
 	}
 }
 
+func TestListAppStoreVersionsWithStateBindsScopedContinuation(t *testing.T) {
+	const expectedPath = "/v1/apps/app-1/appStoreVersions"
+	for _, test := range []struct {
+		name          string
+		wantCalls     int
+		wantVersions  int
+		firstResponse string
+		location      string
+	}{
+		{
+			name:          "same app pagination succeeds",
+			wantCalls:     2,
+			wantVersions:  2,
+			firstResponse: `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=next"}}`,
+		},
+		{
+			name:          "foreign collection pagination refuses before fetch",
+			wantCalls:     1,
+			firstResponse: `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/other/appStoreVersions?cursor=next"}}`,
+		},
+		{
+			name:      "redirect refuses before follow-up",
+			wantCalls: 1,
+			location:  "https://api.appstoreconnect.apple.com/fixture/scoped-version-refusal",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			requests := 0
+			client := newSubmitReadinessTestClient(t, func(req *http.Request) (*http.Response, error) {
+				requests++
+				if req.Method != http.MethodGet || req.URL.Path != expectedPath {
+					return submitReadinessJSONResponse(http.StatusInternalServerError, `{"errors":[{"title":"unexpected version request"}]}`)
+				}
+				switch {
+				case test.location != "" && requests == 1:
+					response, err := submitReadinessJSONResponse(http.StatusTemporaryRedirect, `{"errors":[{"title":"synthetic redirect"}]}`)
+					if err != nil {
+						return nil, err
+					}
+					response.Header.Set("Location", test.location)
+					return response, nil
+				case test.firstResponse != "" && requests == 1:
+					return submitReadinessJSONResponse(http.StatusOK, test.firstResponse)
+				case test.name == "same app pagination succeeds" && req.URL.Query().Get("cursor") == "next":
+					return submitReadinessJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-2","attributes":{"platform":"IOS"}}],"links":{}}`)
+				default:
+					return submitReadinessJSONResponse(http.StatusInternalServerError, `{"errors":[{"title":"unexpected follow-up"}]}`)
+				}
+			})
+
+			versions, err := listAppStoreVersionsWithState(asc.WithNoRedirectReads(context.Background()), client, "app-1", "IOS", asc.WithAppStoreVersionsStates([]string{"READY_FOR_SALE"}), callerRequestContext)
+			if test.wantVersions == 0 {
+				if err == nil {
+					t.Fatal("expected scoped continuation refusal")
+				}
+			} else if err != nil || len(versions) != test.wantVersions {
+				t.Fatalf("versions=%d err=%v, want %d versions", len(versions), err, test.wantVersions)
+			}
+			if requests != test.wantCalls {
+				t.Fatalf("requests=%d, want %d and no foreign redirect follow-up", requests, test.wantCalls)
+			}
+		})
+	}
+}
+
 // liveVersionTestClient answers app store version list requests keyed by
 // "filter[appStoreState]|filter[appVersionState]|filter[platform]|limit".
 func liveVersionTestClient(t *testing.T, responses map[string]string, log *[]string) *asc.Client {

@@ -223,6 +223,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 		}
 	}
 
+	ctx = asc.WithNoRedirectReads(ctx)
 	requestCtx, cancel := cfg.RequestContext(ctx)
 	localizationsResp, err := cfg.Client.GetAppStoreVersionLocalizations(requestCtx, cfg.VersionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	cancel()

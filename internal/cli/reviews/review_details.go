@@ -2,6 +2,7 @@ package reviews
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -28,6 +29,13 @@ const (
 	reviewDetailDemoPasswordMaxLength    = 100
 )
 
+func reviewDetailsReadContext(ctx context.Context, appSelector shared.AppSelector) context.Context {
+	if strings.TrimSpace(appSelector.Value) == "" {
+		return ctx
+	}
+	return asc.WithNoRedirectReads(ctx)
+}
+
 func newReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("details-get", flag.ExitOnError)
 
@@ -45,7 +53,8 @@ func newReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Get an App Store review detail by ID, by its App Store version, or for an
 app's editable version (its live version when none is editable).
 
-With --version-id, --app also checks that the version belongs to the app.
+The app selected by --app, ASC_APP_ID, or saved config scopes review detail
+reads. For a standalone --id, set ASC_APP_ID= and omit --app.
 
 Examples:
   asc review details-get --id "DETAIL_ID"
@@ -57,19 +66,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			versionValue := strings.TrimSpace(*versionID)
-			appValue := strings.TrimSpace(*appID)
+			explicitAppValue := strings.TrimSpace(*appID)
+			appSelector := d.ResolveAppSelector(explicitAppValue)
+			appValue := appSelector.Value
 			platformValue := strings.TrimSpace(*platform)
-			if detailValue == "" && versionValue == "" && appValue == "" {
+			if detailValue == "" && versionValue == "" && explicitAppValue == "" {
 				return d.RequiredFlag("--id")
 			}
 			if detailValue != "" && versionValue != "" {
 				return shared.WithDiagnostic(d.UsageError("--id and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "--version-id")
 			}
-			if detailValue != "" && appValue != "" {
+			if detailValue != "" && explicitAppValue != "" {
 				return shared.WithDiagnostic(d.UsageError("--app selects the review detail through the app's version; pass --app with or without --version-id, not with --id"), shared.DiagnosticConflictingInput, "--app")
 			}
 			if platformValue != "" {
-				if appValue == "" || versionValue != "" {
+				if explicitAppValue == "" || versionValue != "" {
 					return shared.WithDiagnostic(d.UsageError("--platform picks the version for --app; pass it with --app and without --version-id"), shared.DiagnosticConflictingInput, "--platform")
 				}
 				normalized, err := shared.NormalizeAppStoreVersionPlatform(platformValue)
@@ -86,8 +97,12 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
 			if detailValue != "" {
+				if err := verifyReviewDetailsDetailOwner(requestCtx, client, appSelector, detailValue, "review details-get"); err != nil {
+					return err
+				}
 				resp, err := client.GetAppStoreReviewDetail(requestCtx, detailValue)
 				if err != nil {
 					return fmt.Errorf("review details-get: failed to fetch: %w", err)
@@ -98,7 +113,7 @@ Examples:
 			}
 
 			if appValue != "" {
-				resolvedAppID, err := shared.ResolveAppIDWithLookup(requestCtx, client, appValue)
+				resolvedAppID, err := shared.ResolveScopedAppID(requestCtx, client, appSelector)
 				if err != nil {
 					return fmt.Errorf("review details-get: %w", err)
 				}
@@ -134,6 +149,8 @@ func newReviewDetailsForVersionCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Get the review detail for a version.",
 		LongHelp: `Get the review detail for a specific App Store version.
 
+When ASC_APP_ID or saved config selects an app, the version must belong to it.
+
 Examples:
   asc review details-for-version --version-id "VERSION_ID"`,
 		FlagSet:   fs,
@@ -151,6 +168,12 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
+
+			if err := verifyReviewDetailsVersionOwner(requestCtx, client, appSelector, versionValue, "review details-for-version"); err != nil {
+				return err
+			}
 
 			return printReviewDetailForVersion(requestCtx, d, client, "review details-for-version", versionValue, *includeSensitive, output)
 		},
@@ -194,6 +217,76 @@ func printReviewDetailForVersion(ctx context.Context, d *shared.Deps, client *as
 	return d.PrintOutput(presentableReviewDetail(resp, includeSensitive), *output.Output, *output.Pretty)
 }
 
+func verifyReviewDetailsVersionOwner(ctx context.Context, client *asc.Client, appSelector shared.AppSelector, versionValue, command string) error {
+	if appSelector.Value == "" {
+		return nil
+	}
+	resolvedAppID, err := shared.ResolveScopedAppID(ctx, client, appSelector)
+	if err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, resolvedAppID, versionValue, ""); err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	return nil
+}
+
+func verifyReviewDetailsDetailOwner(ctx context.Context, client *asc.Client, appSelector shared.AppSelector, detailID, command string) error {
+	if appSelector.Value == "" {
+		return nil
+	}
+	resolvedAppID, err := shared.ResolveScopedAppID(ctx, client, appSelector)
+	if err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	resp, err := client.GetAppStoreReviewDetailForOwnership(ctx, detailID)
+	if err != nil {
+		return fmt.Errorf("%s: failed to verify review detail ownership: %w", command, err)
+	}
+	if resp == nil {
+		return fmt.Errorf("%s: review detail ownership response was empty", command)
+	}
+	if resp.Data.Type != asc.ResourceTypeAppStoreReviewDetails {
+		return fmt.Errorf("%s: expected review detail resource type %q, got %q", command, asc.ResourceTypeAppStoreReviewDetails, resp.Data.Type)
+	}
+	if resp.Data.ID != strings.TrimSpace(detailID) {
+		return fmt.Errorf("%s: expected review detail %q, got %q", command, strings.TrimSpace(detailID), resp.Data.ID)
+	}
+	versionID, err := reviewDetailVersionID(resp.Data.Relationships)
+	if err != nil {
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, resolvedAppID, versionID, ""); err != nil {
+		if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
+			err = fmt.Errorf("verify review detail %q: %w. For an intentional standalone ID, set ASC_APP_ID=", detailID, err)
+			err = shared.WithDiagnostic(err, diagnostic.Code, "--id")
+		}
+		return fmt.Errorf("%s: %w", command, err)
+	}
+	return nil
+}
+
+func reviewDetailVersionID(raw json.RawMessage) (string, error) {
+	if len(raw) == 0 {
+		return "", fmt.Errorf("review detail appStoreVersion relationship is missing")
+	}
+	var relationships struct {
+		AppStoreVersion struct {
+			Data asc.ResourceData `json:"data"`
+		} `json:"appStoreVersion"`
+	}
+	if err := json.Unmarshal(raw, &relationships); err != nil {
+		return "", fmt.Errorf("review detail appStoreVersion relationship is invalid: %w", err)
+	}
+	if relationships.AppStoreVersion.Data.Type != asc.ResourceTypeAppStoreVersions {
+		return "", fmt.Errorf("expected review detail appStoreVersion relationship type %q, got %q", asc.ResourceTypeAppStoreVersions, relationships.AppStoreVersion.Data.Type)
+	}
+	if strings.TrimSpace(relationships.AppStoreVersion.Data.ID) == "" {
+		return "", fmt.Errorf("review detail appStoreVersion relationship ID is missing")
+	}
+	return strings.TrimSpace(relationships.AppStoreVersion.Data.ID), nil
+}
+
 func newReviewDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("details-create", flag.ExitOnError)
 
@@ -215,6 +308,8 @@ func newReviewDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc review details-create --version-id \"VERSION_ID\" [flags]",
 		ShortHelp:  "Create App Store review details for a version.",
 		LongHelp: `Create App Store review details for a version.
+
+When ASC_APP_ID or saved config selects an app, the version must belong to it.
 
 New review details need ` + "`--contact-first-name`" + ` and ` + "`--contact-phone`" + `, which App
 Store Connect rejects a new detail without; with ` + "`--if-exists skip`" + ` or ` + "`update`" + ` they
@@ -324,6 +419,12 @@ Any other 409 keeps failing.`,
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
+
+			if err := verifyReviewDetailsVersionOwner(requestCtx, client, appSelector, versionValue, "review details-create"); err != nil {
+				return err
+			}
 
 			var resp *asc.AppStoreReviewDetailResponse
 			var existing *asc.AppStoreReviewDetailResponse
@@ -409,6 +510,9 @@ func newReviewDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Update App Store review details.",
 		LongHelp: `Update App Store review details.
 
+When ASC_APP_ID or saved config selects an app, the detail must belong to it.
+For a standalone --id, set ASC_APP_ID=.
+
 ` + "`--notes`" + ` allow at most 4,000 characters, and +1 phone numbers need 10 digits
 after the country code. These are checked before any request.
 
@@ -426,7 +530,6 @@ Examples:
 			if detailValue == "" {
 				return d.RequiredFlag("--id")
 			}
-
 			visited := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) {
 				visited[f.Name] = true
@@ -451,6 +554,12 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
+
+			if err := verifyReviewDetailsDetailOwner(requestCtx, client, appSelector, detailValue, "review details-update"); err != nil {
+				return err
+			}
 
 			if err := validateReviewDetailUpdateDemoCredentials(d,
 				requestCtx,

@@ -72,6 +72,10 @@ func downloadAnalyticsInstance(ctx context.Context, d *shared.Deps, requestID, i
 	defer root.Close()
 	parent, err := root.OpenRoot()
 	if err != nil {
+		if _, statErr := os.Lstat(parentPath); errors.Is(statErr, os.ErrNotExist) {
+			missing := fmt.Errorf("parent directory of --output-dir does not exist: %q", filepath.Dir(outputDir))
+			return nil, shared.ClassifyLocalFileError(shared.NewErrorWithCause(missing, statErr), "--output-dir", "")
+		}
 		return nil, shared.ClassifyLocalFileError(fmt.Errorf("open output directory parent: %w", err), "--output-dir", "")
 	}
 	defer parent.Close()
@@ -158,15 +162,24 @@ func downloadAnalyticsInstance(ctx context.Context, d *shared.Deps, requestID, i
 	if err := checkAnalyticsStagingDirectory(parent, stagingName, stagingInfo); err != nil {
 		return nil, err
 	}
-	if err := secureopen.RenameNoReplaceInRoot(parent, stagingName, destination); err != nil {
+	if err := renameNoReplaceInRoot(parent, stagingName, destination); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return nil, analyticsOutputDirExists(outputDir)
+		}
+		if errors.Is(err, secureopen.ErrRenameNoReplaceUnsupported) {
+			unsupported := fmt.Errorf("publish output directory %q: this filesystem has no atomic no-replace rename, which --all-segments needs; nothing was saved", outputDir)
+			return nil, &shared.HintedError{
+				Err:  shared.NewErrorWithCause(unsupported, err),
+				Hint: "Choose an --output-dir on a local filesystem, or download one segment at a time with --segment-id SEGMENT_ID.",
+			}
 		}
 		return nil, fmt.Errorf("publish output directory %q: %w", outputDir, err)
 	}
 	published = true
 	return result, nil
 }
+
+var renameNoReplaceInRoot = secureopen.RenameNoReplaceInRoot
 
 func checkAnalyticsStagingDirectory(parent *os.Root, name string, expected os.FileInfo) error {
 	current, err := parent.Lstat(name)

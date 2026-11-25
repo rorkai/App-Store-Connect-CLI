@@ -403,7 +403,7 @@ func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.
 	if !artifact.Replace && artifact.Replacement == nil && len(artifact.CleanupFailures) > 0 {
 		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
 	}
-	ctx, err = prepareScreenshotResumeScope(ctx, d, client, artifact, target)
+	ctx, err = prepareScreenshotResumeScope(asc.WithNoRedirectReads(ctx), d, client, artifact, target)
 	if err != nil {
 		return asc.AppScreenshotUploadResult{}, err
 	}

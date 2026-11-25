@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -65,6 +66,73 @@ func TestLocalizationsListsPaginateFromNext(t *testing.T) {
 			dataType: "betaAppLocalizations",
 		},
 	})
+}
+
+func TestAppInfoLocalizationsNextBindsToSelectedAppInfo(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appInfos/info-foreign", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-foreign","relationships":{"app":{"data":{"type":"apps","id":"100000002"}}}}}`))
+
+	nextURL := "https://api.appstoreconnect.apple.com/v1/appInfos/info-foreign/appInfoLocalizations?cursor=AQ"
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "localizations", "list", "--app", "100000001", "--type", "app-info", "--next", nextURL)
+	if runErr == nil || stdout != "" || !strings.Contains(runErr.Error(), `belongs to app "100000002", not "100000001"`) {
+		t.Fatalf("run error=%v stdout=%q, want app-info ownership refusal", runErr, stdout)
+	}
+	if requests := reg.Requests(); len(requests) != 1 || requests[0].URL.Path != "/v1/appInfos/info-foreign" {
+		t.Fatalf("requests=%v, want only app-info ownership read", requests)
+	}
+}
+
+func TestAppInfoLocalizationsNextAcceptsSelectedAppInfo(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appInfos/info-1", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
+	reg.Register(asctest.GET("/v1/appInfos/info-1/appInfoLocalizations", "cursor=AQ"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"links":{}}`))
+
+	nextURL := "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?cursor=AQ"
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "localizations", "list", "--app", "100000001", "--type", "app-info", "--next", nextURL, "--output", "json")
+	if runErr != nil || stderr != "" || !strings.Contains(stdout, `"id":"loc-1"`) {
+		t.Fatalf("run error=%v stdout=%q stderr=%q, want selected app-info page", runErr, stdout, stderr)
+	}
+	requests := reg.Requests()
+	if len(requests) != 2 || requests[0].URL.Path != "/v1/appInfos/info-1" || requests[1].URL.String() != nextURL {
+		t.Fatalf("requests=%v, want ownership then selected continuation", requests)
+	}
+}
+
+func TestAppInfoLocalizationsDownloadNextBindsToSelectedAppInfo(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appInfos/info-foreign", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-foreign","relationships":{"app":{"data":{"type":"apps","id":"100000002"}}}}}`))
+
+	nextURL := "https://api.appstoreconnect.apple.com/v1/appInfos/info-foreign/appInfoLocalizations?cursor=AQ"
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "localizations", "download", "--app", "100000001", "--type", "app-info", "--next", nextURL, "--path", filepath.Join(t.TempDir(), "localizations"))
+	if runErr == nil || stdout != "" || !strings.Contains(runErr.Error(), `belongs to app "100000002", not "100000001"`) {
+		t.Fatalf("run error=%v stdout=%q, want app-info ownership refusal", runErr, stdout)
+	}
+	if requests := reg.Requests(); len(requests) != 1 || requests[0].URL.Path != "/v1/appInfos/info-foreign" {
+		t.Fatalf("requests=%v, want only app-info ownership read", requests)
+	}
+}
+
+func TestAppInfoLocalizationsNextRequiresSelectedApp(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	nextURL := "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?cursor=AQ"
+
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "localizations", "list", "--type", "app-info", "--next", nextURL, "--output", "json")
+	if rootcmd.ExitCodeFromError(runErr) != rootcmd.ExitUsage || stdout != "" || !strings.Contains(stderr, "--app is required") {
+		t.Fatalf("run error=%v stdout=%q stderr=%q, want usage refusal before requests", runErr, stdout, stderr)
+	}
+	if requests := reg.Requests(); len(requests) != 0 {
+		t.Fatalf("requests=%v, want zero requests", requests)
+	}
 }
 
 func TestBuildLocalizationsListNextWithBuildID(t *testing.T) {

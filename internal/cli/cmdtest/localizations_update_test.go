@@ -57,6 +57,51 @@ func TestLocalizationsUpdateValidationErrors(t *testing.T) {
 			wantErr: "at least one update flag is required (--description, --keywords, --whats-new, --promotional-text, --clear-promotional-text, --support-url, --marketing-url)",
 		},
 		{
+			name:    "app-info field requires app-info type",
+			args:    []string{"localizations", "update", "--id", "loc-1", "--name", "Updated"},
+			wantErr: "--type app-info is required for app-info update flags",
+		},
+		{
+			name:    "app-info field mixed with version field is refused",
+			args:    []string{"localizations", "update", "--id", "loc-1", "--name", "Updated", "--description", "Desc"},
+			wantErr: "localizations update: version fields (--description) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "version field mixed with app-info field is refused",
+			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--name", "New name", "--description", "Other field"},
+			wantErr: "localizations update: version fields (--description) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "empty version field mixed with app-info field is refused",
+			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--name", "New name", "--description", ""},
+			wantErr: "localizations update: version fields (--description) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "empty app-info field mixed with version field is refused",
+			args:    []string{"localizations", "update", "--id", "loc-1", "--description", "Other field", "--name", ""},
+			wantErr: "localizations update: version fields (--description) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "version clear field mixed with app-info field is refused",
+			args:    []string{"localizations", "update", "--id", "loc-1", "--name", "Updated", "--clear-promotional-text", "--confirm"},
+			wantErr: "localizations update: version fields (--clear-promotional-text) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "version clear field mixed with app-info field and type is refused",
+			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--name", "New name", "--clear-promotional-text", "--confirm"},
+			wantErr: "localizations update: version fields (--clear-promotional-text) and app-info fields (--name) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "mixed fields with a version selector and app-info type are refused as mixed",
+			args:    []string{"localizations", "update", "--type", "app-info", "--version", "ver-1", "--locale", "en-US", "--description", "Desc", "--whats-new", "New", "--name", "Updated", "--subtitle", "Sub"},
+			wantErr: "localizations update: version fields (--description, --whats-new) and app-info fields (--name, --subtitle) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+		},
+		{
+			name:    "version clear field alone rejects app-info type",
+			args:    []string{"localizations", "update", "--type", "app-info", "--id", "app-info-loc", "--clear-promotional-text", "--confirm"},
+			wantErr: "--clear-promotional-text requires --type version",
+		},
+		{
 			name:    "app-info missing app",
 			args:    []string{"localizations", "update", "--type", "app-info", "--locale", "en-US", "--subtitle", "test"},
 			wantErr: "--app is required",
@@ -392,7 +437,7 @@ func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"Old"}}],"links":{}}`))
@@ -406,7 +451,7 @@ func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 		if err := root.Parse([]string{
 			"localizations", "update",
 			"--type", "app-info",
-			"--app", "app-1",
+			"--app", "100000001",
 			"--locale", "en-US",
 			"--subtitle", "New Subtitle",
 		}); err != nil {
@@ -440,7 +485,7 @@ func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"appInfos","id":"appinfo-live","attributes":{"state":"READY_FOR_SALE"}},
 				{"type":"appInfos","id":"appinfo-rejected","attributes":{"state":"REJECTED"}}
@@ -449,7 +494,7 @@ func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 	stdout, stderr, runErr := runCommand(t, []string{
 		"localizations", "update",
 		"--type", "app-info",
-		"--app", "app-1",
+		"--app", "100000001",
 		"--locale", "en-US",
 		"--subtitle", "New Subtitle",
 	})
@@ -464,8 +509,8 @@ func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	for _, want := range []string{
-		`2 app infos match app "app-1"; pass --app-info with one of:`,
-		`asc apps info list --app "app-1"`,
+		`2 app infos match app "100000001"; pass --app-info with one of:`,
+		`asc apps info list --app "100000001"`,
 		"READY_FOR_SALE",
 		"REJECTED",
 	} {
@@ -521,7 +566,7 @@ func TestLocalizationsUpdateMissingAppInfoLocaleSuggestsCreation(t *testing.T) {
 	stubTransport(t, func(req *http.Request) (*http.Response, error) {
 		switch req.Method + " " + req.URL.Path {
 		case "GET /v1/appInfos/selected-info":
-			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"selected-info","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"selected-info","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`)
 		case "GET /v1/appInfos/selected-info/appInfoLocalizations":
 			return locUpdateJSONResponse(`{"data":[],"links":{}}`)
 		default:
@@ -530,11 +575,11 @@ func TestLocalizationsUpdateMissingAppInfoLocaleSuggestsCreation(t *testing.T) {
 		}
 	})
 	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"localizations", "update", "--type", "app-info", "--app", "app-1", "--app-info", "selected-info", "--locale", "fr-FR", "--subtitle", "Subtitle"}, "1.2.3"); code != cmd.ExitError {
+		if code := cmd.Run([]string{"localizations", "update", "--type", "app-info", "--app", "100000001", "--app-info", "selected-info", "--locale", "fr-FR", "--subtitle", "Subtitle"}, "1.2.3"); code != cmd.ExitError {
 			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
 		}
 	})
-	if stdout != "" || !strings.Contains(stderr, `no existing localization found for locale "fr-FR"`) || !strings.Contains(stderr, `asc apps rename --app "app-1" --app-info "selected-info" --locale "fr-FR" --name "APP_NAME"`) {
+	if stdout != "" || !strings.Contains(stderr, `no existing localization found for locale "fr-FR"`) || !strings.Contains(stderr, `asc apps rename --app "100000001" --app-info "selected-info" --locale "fr-FR" --name "APP_NAME"`) {
 		t.Fatalf("stdout=%q stderr=%q, want missing locale and creation command", stdout, stderr)
 	}
 }
@@ -544,7 +589,7 @@ func TestLocalizationsUpdateAppInfoErrorIncludesResolvedEndpoint(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Old Name"}}],"links":{}}`))
@@ -554,7 +599,7 @@ func TestLocalizationsUpdateAppInfoErrorIncludesResolvedEndpoint(t *testing.T) {
 	stdout, stderr, runErr := runCommand(t, []string{
 		"localizations", "update",
 		"--type", "app-info",
-		"--app", "app-1",
+		"--app", "100000001",
 		"--locale", "en-US",
 		"--name", "New Name",
 	})
@@ -705,6 +750,101 @@ func TestLocalizationsUpdateConflictNamesVersionStateAndEditableVersion(t *testi
 			}
 			if got := strings.Count(stderr, "Hint:"); got != 1 {
 				t.Fatalf("stderr has %d hints, want 1:\n%s", got, stderr)
+			}
+		})
+	}
+}
+
+func TestLocalizationsUpdateByResourceIDChecksSelectedAppOwnership(t *testing.T) {
+	for _, test := range []struct {
+		name                 string
+		useConfig            bool
+		selectedApp          string
+		versionApp           string
+		localizationResponse string
+		wantError            string
+		wantRequests         int
+	}{
+		{name: "ASC_APP_ID mismatch", versionApp: "9876543210", wantError: `belongs to app "9876543210", not "1234567890"`},
+		{name: "ASC_APP_ID match", versionApp: "1234567890"},
+		{name: "ASC_APP_ID configured bundle miss does not use name", selectedApp: "com.example.missing", wantError: `no app found for bundle ID "com.example.missing" (exact match required)`, wantRequests: 1},
+		{name: "stored config match", useConfig: true, versionApp: "1234567890"},
+		{name: "wrong localization type", localizationResponse: `{"data":{"type":"appInfoLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`, wantError: `expected resource type "appStoreVersionLocalizations"`, wantRequests: 1},
+		{name: "wrong localization ID", localizationResponse: `{"data":{"type":"appStoreVersionLocalizations","id":"loc-other","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`, wantError: `expected localization "loc-1", got "loc-other"`, wantRequests: 1},
+		{name: "wrong appStoreVersion relationship type", localizationResponse: `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appInfos","id":"ver-1"}}}}}`, wantError: `expected appStoreVersion relationship type "appStoreVersions"`, wantRequests: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			configPath := filepath.Join(t.TempDir(), "config.json")
+			t.Setenv("ASC_CONFIG_PATH", configPath)
+			selectedApp := test.selectedApp
+			if selectedApp == "" {
+				selectedApp = "1234567890"
+			}
+			if test.useConfig {
+				if err := os.WriteFile(configPath, []byte(`{"app_id":"`+selectedApp+`"}`), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				old, had := os.LookupEnv("ASC_APP_ID")
+				if err := os.Unsetenv("ASC_APP_ID"); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					if had {
+						_ = os.Setenv("ASC_APP_ID", old)
+					} else {
+						_ = os.Unsetenv("ASC_APP_ID")
+					}
+				})
+			} else {
+				t.Setenv("ASC_APP_ID", selectedApp)
+			}
+			var requests []string
+			stubTransport(t, func(req *http.Request) (*http.Response, error) {
+				request := req.Method + " " + req.URL.RequestURI()
+				requests = append(requests, request)
+				if req.Method == http.MethodGet && req.URL.Path == "/v1/apps" && req.URL.Query().Get("filter[bundleId]") == "com.example.missing" {
+					if req.URL.Query().Get("filter[name]") == "com.example.missing" {
+						return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.missing"}}]}`)
+					}
+					return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.missing"}}]}`)
+				}
+				switch req.Method + " " + req.URL.Path {
+				case "GET /v1/appStoreVersionLocalizations/loc-1":
+					response := test.localizationResponse
+					if response == "" {
+						response = `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"ver-1"}}}}}`
+					}
+					return locUpdateJSONResponse(response)
+				case "GET /v1/appStoreVersions/ver-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"ver-1","relationships":{"app":{"data":{"type":"apps","id":"` + test.versionApp + `"}}}}}`)
+				case "PATCH /v1/appStoreVersionLocalizations/loc-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Updated"}}}`)
+				}
+				return nil, fmt.Errorf("unexpected request %s", request)
+			})
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = cmd.Run([]string{"localizations", "update", "--id", "loc-1", "--description", "Updated", "--output", "json"}, "test")
+			})
+			if test.wantError != "" {
+				if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, test.wantError) {
+					t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+				}
+				expectedRequests := test.wantRequests
+				if expectedRequests == 0 {
+					expectedRequests = 2
+				}
+				if len(requests) != expectedRequests || strings.Contains(strings.Join(requests, "\n"), "PATCH ") {
+					t.Fatalf("requests=%v, want sparse ownership reads only", requests)
+				}
+				return
+			}
+			if code != cmd.ExitSuccess || stdout == "" {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			if len(requests) != 3 || !strings.Contains(strings.Join(requests, "\n"), "PATCH /v1/appStoreVersionLocalizations/loc-1") {
+				t.Fatalf("requests=%v, want sparse ownership reads plus one PATCH", requests)
 			}
 		})
 	}

@@ -33,6 +33,9 @@ func installLocalizationsVersionStringTransport(t *testing.T, versionsByQuery ma
 				t.Fatalf("unexpected versions query %q", req.URL.RawQuery)
 			}
 			return jsonResponse(http.StatusOK, body)
+		case "/v1/appStoreVersions/" + localizationsListVersionUUID:
+			*log = append(*log, req.URL.Path)
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"`+localizationsListVersionUUID+`","attributes":{"platform":"IOS","versionString":"1.0"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
 		case "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations",
 			"/v1/appStoreVersions/" + localizationsListVersionUUID + "/appStoreVersionLocalizations":
 			*log = append(*log, req.URL.Path)
@@ -90,7 +93,7 @@ func TestLocalizationsListPrefersVersionIDWhenValueIsResourceID(t *testing.T) {
 	if runErr != nil {
 		t.Fatalf("Run() error = %v (stderr=%q)", runErr, stderr)
 	}
-	want := "/v1/appStoreVersions/" + localizationsListVersionUUID + "/appStoreVersionLocalizations"
+	want := "/v1/appStoreVersions/" + localizationsListVersionUUID + ",/v1/appStoreVersions/" + localizationsListVersionUUID + "/appStoreVersionLocalizations"
 	if got := strings.Join(log, ","); got != want {
 		t.Fatalf("request sequence = %q, want %q", got, want)
 	}
@@ -172,7 +175,7 @@ func TestLocalizationsMutationsResolveVersionStrings(t *testing.T) {
 				mutations := 0
 				stubTransport(t, func(req *http.Request) (*http.Response, error) {
 					switch req.Method + " " + req.URL.Path {
-					case "GET /v1/apps/app-1/appStoreVersions":
+					case "GET /v1/apps/1234567890/appStoreVersions":
 						if scenario.resourceID && req.URL.Query().Get("filter[versionString]") != "" {
 							t.Fatal("resource ID must skip version-string discovery")
 						}
@@ -185,9 +188,9 @@ func TestLocalizationsMutationsResolveVersionStrings(t *testing.T) {
 						if ambiguous {
 							return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"MAC_OS"}},{"type":"appStoreVersions","id":"ver-2","attributes":{"platform":"MAC_OS"}}]}`)
 						}
-						return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"MAC_OS"}}]}`)
+						return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"MAC_OS","versionString":"1.17.0"}}]}`)
 					case "GET /v1/appStoreVersions/ver-1":
-						return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"MAC_OS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+						return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"MAC_OS"},"relationships":{"app":{"data":{"type":"apps","id":"1234567890"}}}}}`)
 					case "GET /v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
 						return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`)
 					case "POST /v1/appStoreVersionLocalizations", "PATCH /v1/appStoreVersionLocalizations/loc-1":
@@ -210,11 +213,11 @@ func TestLocalizationsMutationsResolveVersionStrings(t *testing.T) {
 				})
 				args := []string{"localizations", command, "--locale", "en-US", "--description", "Description", "--output", "json"}
 				if scenario.fromEnv {
-					t.Setenv("ASC_APP_ID", "app-1")
+					t.Setenv("ASC_APP_ID", "1234567890")
 				} else {
-					appID := "app-1"
+					appID := "1234567890"
 					if scenario.paddedApp {
-						appID = " app-1 "
+						appID = " 1234567890 "
 					}
 					args = append(args, "--app", appID)
 				}

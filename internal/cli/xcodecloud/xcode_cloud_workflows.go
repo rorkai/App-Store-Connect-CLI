@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -68,25 +69,36 @@ func xcodeCloudWorkflowsListCommand(d *shared.Deps, name, shortUsage, shortHelp,
 		ResolveApp:           true,
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
+		NextConflicts:        []string{"app"},
 		ErrorPrefix:          "xcode-cloud workflows",
 		FetchErrorPrefix:     "xcode-cloud workflows",
 		Deps:                 d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
-		LookupParent: func(ctx context.Context, client *asc.Client, appID string) (string, error) {
-			resolvedAppID, err := resolveXcodeCloudAppID(ctx, d, client, appID)
+		LookupParentSelector: func(ctx context.Context, client *asc.Client, appSelector shared.AppSelector) (string, error) {
+			scopedCtx := asc.WithNoRedirectReads(ctx)
+			resolvedAppID, err := resolveXcodeCloudAppID(scopedCtx, client, appSelector)
 			if err != nil {
 				return "", fmt.Errorf("xcode-cloud workflows: %w", err)
 			}
-			product, err := client.ResolveCiProductForApp(ctx, resolvedAppID)
+			product, err := client.ResolveCiProductForApp(scopedCtx, resolvedAppID)
 			if err != nil {
 				return "", classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud workflows: %w", err))
 			}
 			return product.ID, nil
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiWorkflows(ctx, productID, asc.Limit[asc.CiWorkflowsOption](limit), asc.NextURL[asc.CiWorkflowsOption](next))
+			if strings.TrimSpace(productID) == "" {
+				return client.GetCiWorkflows(ctx, productID, asc.Limit[asc.CiWorkflowsOption](limit), asc.NextURL[asc.CiWorkflowsOption](next))
+			}
+			scopedCtx := asc.WithNoRedirectReads(ctx)
+			expectedPath := fmt.Sprintf("/v1/ciProducts/%s/workflows", url.PathEscape(productID))
+			canonicalNext, err := client.ValidateNoRedirectReadContinuation(scopedCtx, next, expectedPath)
+			if err != nil {
+				return nil, err
+			}
+			return client.GetCiWorkflows(scopedCtx, productID, asc.Limit[asc.CiWorkflowsOption](limit), asc.NextURL[asc.CiWorkflowsOption](canonicalNext))
 		},
 	})
 }

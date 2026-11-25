@@ -137,6 +137,10 @@ type PaginatedListCommandConfig struct {
 	// returned unwrapped. With --next it is skipped and FetchPage receives an
 	// empty parent ID.
 	LookupParent func(context.Context, *asc.Client, string) (string, error)
+	// LookupParentSelector is the selector-aware variant of LookupParent for
+	// app-scoped parents. It preserves whether the app came from a flag or
+	// configuration so scoped resolution can enforce the configured contract.
+	LookupParentSelector func(context.Context, *asc.Client, AppSelector) (string, error)
 	// RequiredDiagnostic reports a missing parent flag with the
 	// required-input diagnostic instead of a plain usage error.
 	RequiredDiagnostic bool
@@ -223,7 +227,20 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 			return err
 		}
 
-		resolvedParentID := readBuilderFlag(d, *parentID, config.ResolveApp)
+		resolvedParentID := ""
+		var parentSelector AppSelector
+		if config.LookupParentSelector != nil {
+			parentSelector = AppSelector{Source: AppSelectorFromFlag}
+			if config.ResolveApp {
+				parentSelector = d.ResolveAppSelector(*parentID)
+				resolvedParentID = parentSelector.Value
+			} else {
+				resolvedParentID = strings.TrimSpace(*parentID)
+				parentSelector.Value = resolvedParentID
+			}
+		} else {
+			resolvedParentID = readBuilderFlag(d, *parentID, config.ResolveApp)
+		}
 		if !config.TopLevel && resolvedParentID == "" && strings.TrimSpace(*next) == "" {
 			return missingBuilderInput(d, config.RequiredDiagnostic, config.ResolveApp, parentFlagName)
 		}
@@ -239,10 +256,15 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 		requestCtx, cancel := timeout(ctx)
 		defer cancel()
 
-		if config.LookupParent != nil {
+		if config.LookupParentSelector != nil || config.LookupParent != nil {
 			lookedUpID := ""
 			if strings.TrimSpace(*next) == "" {
-				if lookedUpID, err = config.LookupParent(requestCtx, client, resolvedParentID); err != nil {
+				if config.LookupParentSelector != nil {
+					lookedUpID, err = config.LookupParentSelector(requestCtx, client, parentSelector)
+				} else {
+					lookedUpID, err = config.LookupParent(requestCtx, client, resolvedParentID)
+				}
+				if err != nil {
 					return err
 				}
 			}

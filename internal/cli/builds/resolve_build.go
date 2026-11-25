@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -176,8 +177,8 @@ func resolveBuildByNumberSelection(
 	if len(opts.ProcessingStateValues) > 0 {
 		buildOpts = append(buildOpts, asc.WithBuildsProcessingStates(opts.ProcessingStateValues))
 	}
+	var preReleaseVersionIDs []string
 	if version != "" {
-		var preReleaseVersionIDs []string
 		if opts.Since != nil {
 			preReleaseVersionIDs, err = d.FindPreReleaseVersionIDsWithMaxPages(ctx, client, resolvedAppID, version, platform, resolveBuildSelectionMaxPages)
 		} else {
@@ -196,6 +197,7 @@ func resolveBuildByNumberSelection(
 	} else if platform != "" {
 		buildOpts = append(buildOpts, asc.WithBuildsPreReleaseVersionPlatforms([]string{platform}))
 	}
+	expectedQuery := buildSelectionContinuationQuery(resolvedAppID, buildNumber, platform, preReleaseVersionIDs)
 
 	if opts.Since != nil {
 		return resolveBuildByNumberSelectionSince(
@@ -232,7 +234,11 @@ func resolveBuildByNumberSelection(
 			return nil, fmt.Errorf("failed to paginate builds: %w: %s", asc.ErrRepeatedPaginationURL, nextURL)
 		}
 		seenNext[nextIdentity] = struct{}{}
-		buildOpts = []asc.BuildsOption{asc.NextURL[asc.BuildsOption](nextURL)}
+		scopedURL, err := client.ValidateNoRedirectReadContinuationQuery(ctx, nextURL, "/v1/builds", expectedQuery)
+		if err != nil {
+			return nil, err
+		}
+		buildOpts = []asc.BuildsOption{asc.NextURL[asc.BuildsOption](scopedURL)}
 	}
 	if len(buildsResp.Data) == 0 {
 		if allowEmpty {
@@ -282,6 +288,7 @@ func resolveBuildByNumberSelectionSince(
 				return nil, fmt.Errorf("failed to paginate builds: %w: %s", asc.ErrRepeatedPaginationURL, nextURL)
 			}
 			seenNext[nextIdentity] = struct{}{}
+			pageOpts = []asc.BuildsOption{asc.NextURL[asc.BuildsOption](nextURL)}
 		}
 
 		for _, build := range buildsResp.Data {
@@ -315,8 +322,27 @@ func resolveBuildByNumberSelectionSince(
 			}
 			return &asc.BuildResponse{Data: *selected}, nil
 		}
-		pageOpts = []asc.BuildsOption{asc.NextURL[asc.BuildsOption](nextURL)}
 	}
+}
+
+func buildSelectionContinuationQuery(appID, buildNumber, platform string, preReleaseVersionIDs []string) url.Values {
+	query := url.Values{}
+	query.Set("filter[app]", strings.TrimSpace(appID))
+	query.Set("filter[version]", strings.TrimSpace(buildNumber))
+	if len(preReleaseVersionIDs) > 0 {
+		ids := make([]string, 0, len(preReleaseVersionIDs))
+		for _, id := range preReleaseVersionIDs {
+			if trimmed := strings.TrimSpace(id); trimmed != "" {
+				ids = append(ids, trimmed)
+			}
+		}
+		if len(ids) > 0 {
+			query.Set("filter[preReleaseVersion]", strings.Join(ids, ","))
+		}
+	} else if platform != "" {
+		query.Set("filter[preReleaseVersion.platform]", strings.ToUpper(strings.TrimSpace(platform)))
+	}
+	return query
 }
 
 // noBuildFoundForBuildNumber reports an empty build-number lookup. The error

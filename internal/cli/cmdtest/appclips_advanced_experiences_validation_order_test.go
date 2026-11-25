@@ -26,6 +26,11 @@ func TestAppClipsAdvancedExperiencesCreateValidatesSelectorBeforeClient(t *testi
 			selector:   []string{"--bundle-id", "com.example.clip"},
 			wantStderr: "Error: --app is required with --bundle-id\n",
 		},
+		{
+			name:       "conflicting App Clip selectors",
+			selector:   []string{"--app-clip-id", "clip-1", "--bundle-id", "com.example.clip"},
+			wantStderr: "Error: --app-clip-id and --bundle-id are mutually exclusive\n",
+		},
 	}
 
 	for _, test := range tests {

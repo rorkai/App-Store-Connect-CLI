@@ -65,7 +65,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if resolvedAppID == "" {
 				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
@@ -100,6 +101,11 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+
+			resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+			if err != nil {
+				return fmt.Errorf("metadata keywords audit: resolve app: %w", err)
+			}
 
 			var versionStateValue string
 			if versionIDValue != "" {

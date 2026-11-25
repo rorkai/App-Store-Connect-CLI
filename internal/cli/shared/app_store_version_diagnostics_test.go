@@ -252,6 +252,117 @@ func TestAppStoreVersionNotFoundDiagnosticsListAllPlatformsWithoutPlatform(t *te
 	}
 }
 
+func TestAppStoreVersionNotFoundReadDiagnosticsSuggestsOneExactRetry(t *testing.T) {
+	client, seen := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
+		if isDiagnosticListing(req) {
+			if got := req.Query["filter[platform]"]; len(got) != 1 || got[0] != "IOS" {
+				t.Fatalf("diagnostic listing platform filter = %v, want IOS", got)
+			}
+			return diagnosticJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-100","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		}
+		return diagnosticJSONResponse(http.StatusOK, `{"data":[]}`)
+	})
+
+	_, _, err := ResolveAppStoreVersionIDAndStateForRead(
+		context.Background(),
+		client,
+		"app-1",
+		"1.0.0",
+		"IOS",
+		func(version, platform string) string {
+			return fmt.Sprintf("--version %s --platform %s (keep --dir and other flags unchanged)", version, platform)
+		},
+	)
+	want := strings.Join([]string{
+		`app store version not found for version "1.0.0" and platform "IOS"`,
+		`Existing App Store versions for app "app-1" on IOS (newest first):`,
+		`  1.0  IOS  PREPARE_FOR_SUBMISSION  ver-100`,
+		`No existing App Store version exactly matches "1.0.0" on IOS; retry with the exact existing version and platform: --version 1.0 --platform IOS (keep --dir and other flags unchanged)`,
+	}, "\n")
+	if err.Error() != want {
+		t.Fatalf("error =\n%s\nwant\n%s", err, want)
+	}
+	if len(*seen) != 2 {
+		t.Fatalf("requests = %+v, want lookup then one diagnostic listing", *seen)
+	}
+}
+
+func TestAppStoreVersionNotFoundReadDiagnosticsReportsNoExactVersion(t *testing.T) {
+	client, _ := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
+		return diagnosticJSONResponse(http.StatusOK, `{"data":[]}`)
+	})
+
+	err := WithAppStoreVersionNotFoundReadDiagnostics(
+		context.Background(),
+		client,
+		"app-1",
+		"1.0.0",
+		"",
+		func(version, platform string) string {
+			return fmt.Sprintf("--version %q --platform %s", version, platform)
+		},
+		errors.New(`app store version not found for version "1.0.0"`),
+	)
+	want := "app store version not found for version \"1.0.0\"\nNo existing App Store versions match version \"1.0.0\"; no exact version and platform are available to retry."
+	if err.Error() != want {
+		t.Fatalf("error =\n%s\nwant\n%s", err, want)
+	}
+}
+
+func TestAppStoreVersionNotFoundReadDiagnosticsUsesCandidatePlatformByDefault(t *testing.T) {
+	client, _ := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
+		if _, filtered := req.Query["filter[platform]"]; filtered {
+			t.Fatalf("diagnostic listing query = %v, want no platform filter", req.Query)
+		}
+		return diagnosticJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-100","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}]}`)
+	})
+
+	err := WithAppStoreVersionNotFoundReadDiagnostics(
+		context.Background(),
+		client,
+		"app-1",
+		"1.0.0",
+		"",
+		func(version, platform string) string {
+			return fmt.Sprintf("--version %s --platform %s (keep --dir and other flags unchanged)", version, platform)
+		},
+		errors.New(`app store version not found for version "1.0.0"`),
+	)
+	if !strings.Contains(err.Error(), `No existing App Store version exactly matches "1.0.0"; retry with the exact existing version and platform: --version 1.0 --platform IOS (keep --dir and other flags unchanged)`) {
+		t.Fatalf("error =\n%s\nwant exact default-platform retry", err)
+	}
+}
+
+func TestAppStoreVersionNotFoundReadDiagnosticsUsesOnlyExactProviderValue(t *testing.T) {
+	client, _ := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
+		return diagnosticJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-100","attributes":{"versionString":"1.0\u001b[0m","platform":"IOS"}}]}`)
+	})
+	err := WithAppStoreVersionNotFoundReadDiagnostics(
+		context.Background(), client, "app-1", "1.0.0", "IOS",
+		func(version, platform string) string { return "unexpected retry" }, errors.New("version not found"),
+	)
+	if strings.Contains(err.Error(), "unexpected retry") || !strings.Contains(err.Error(), "no exact version is available to retry") {
+		t.Fatalf("expected display-only guidance for a modified provider version, got %v", err)
+	}
+}
+
+func TestAppStoreVersionNotFoundReadDiagnosticsRefusesOffCollectionPage(t *testing.T) {
+	client, seen := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
+		if req.Path != "/v1/apps/app-1/appStoreVersions" {
+			t.Fatalf("unexpected request: %+v", req)
+		}
+		return diagnosticJSONResponse(http.StatusOK, `{"data":[],"links":{"next":"/v1/apps/app-2/appStoreVersions?cursor=next"}}`)
+	})
+	notFound := errors.New("version not found")
+	got := WithAppStoreVersionNotFoundReadDiagnostics(
+		asc.WithNoRedirectReads(context.Background()), client, "app-1", "1.0.0", "IOS",
+		func(version, platform string) string { return "unexpected retry" }, notFound,
+	)
+	if !errors.Is(got, notFound) || got.Error() != notFound.Error() || len(*seen) != 1 {
+		t.Fatalf("error = %v, requests = %v; want original error and only the initial listing", got, *seen)
+	}
+}
+
 func TestAppStoreVersionDiagnosticsSanitizeAppleText(t *testing.T) {
 	client, _ := newDiagnosticTestClient(t, func(req diagnosticRequest) (*http.Response, error) {
 		return diagnosticJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1\u001b[31m","attributes":{"versionString":"1.0\nInjected line","platform":"IOS","appStoreState":"READY_FOR_SALE"}}]}`)

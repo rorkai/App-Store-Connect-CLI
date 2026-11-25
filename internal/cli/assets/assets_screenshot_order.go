@@ -251,12 +251,16 @@ func GetOrderedAppScreenshotIDs(ctx context.Context, client *asc.Client, setID s
 		return nil, err
 	}
 
-	collectionPath := "/v1/appScreenshotSets/" + url.PathEscape(setID) + "/relationships/appScreenshots"
+	expectedPath := fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", url.PathEscape(setID))
 	return collectOrderedLinkageIDs(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		if err := validateScreenshotCollectionNextURL(client, nextURL, collectionPath); err != nil {
+		canonicalURL, err := client.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+		if err != nil {
+			return nil, fmt.Errorf("screenshot pagination: %w", err)
+		}
+		if err := validateScreenshotCollectionNextURL(client, canonicalURL, expectedPath); err != nil {
 			return nil, err
 		}
-		return client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, "", asc.NextURL[asc.LinkagesOption](nextURL))
+		return client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, "", asc.NextURL[asc.LinkagesOption](canonicalURL))
 	})
 }
 

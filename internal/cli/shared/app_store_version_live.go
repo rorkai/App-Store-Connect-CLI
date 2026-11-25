@@ -144,6 +144,7 @@ func (filter AppStoreVersionStateFilter) options() []asc.AppStoreVersionsOption 
 // state option, at 200 versions per page. requestContext derives the context
 // for each request.
 func listAppStoreVersionsWithState(ctx context.Context, client *asc.Client, appID, platform string, stateOpt asc.AppStoreVersionsOption, requestContext requestContextFunc) ([]asc.Resource[asc.AppStoreVersionAttributes], error) {
+	expectedPath := fmt.Sprintf("/v1/apps/%s/appStoreVersions", strings.TrimSpace(appID))
 	opts := []asc.AppStoreVersionsOption{stateOpt, asc.Limit[asc.AppStoreVersionsOption](200)}
 	if trimmed := strings.TrimSpace(platform); trimmed != "" {
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{trimmed}))
@@ -158,9 +159,13 @@ func listAppStoreVersionsWithState(ctx context.Context, client *asc.Client, appI
 		return nil, nil
 	}
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		scopedURL, err := client.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+		if err != nil {
+			return nil, err
+		}
 		pageCtx, pageCancel := requestContext(ctx)
 		defer pageCancel()
-		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
+		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](scopedURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list app store versions: %w", err)

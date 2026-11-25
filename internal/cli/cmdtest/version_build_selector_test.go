@@ -58,6 +58,8 @@ func (tr *versionTrainTransport) RoundTrip(req *http.Request) (*http.Response, e
 			tr.t.Fatalf("build lookup must be scoped to the version train, got %s", req.URL.RawQuery)
 		}
 		return jsonResponse(http.StatusOK, tr.builds(req))
+	case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/v1/builds/") && query.Get("include") != "":
+		return jsonResponse(http.StatusOK, buildScopeProof(strings.TrimPrefix(req.URL.Path, "/v1/builds/"), tr.platform))
 	case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/v1/builds/") && tr.build != nil:
 		return jsonResponse(http.StatusOK, tr.build(strings.TrimPrefix(req.URL.Path, "/v1/builds/")))
 	case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
@@ -101,6 +103,18 @@ func buildResource(id, number, state string) string {
 	return `{"data":{"type":"builds","id":"` + id + `","attributes":{"version":"` + number + `","processingState":"` + state + `"}}}`
 }
 
+func buildScopeProof(id, platform string) string {
+	buildNumber := "46"
+	if strings.HasSuffix(id, "45") {
+		buildNumber = "45"
+	}
+	return buildScopeProofWithScope(id, "123456789", "prv-1", "1.2.0", platform, buildNumber)
+}
+
+func buildScopeProofWithScope(id, appID, trainID, version, platform, buildNumber string) string {
+	return `{"data":{"type":"builds","id":"` + id + `","attributes":{"version":"` + buildNumber + `","processingState":"VALID"},"relationships":{"app":{"data":{"type":"apps","id":"` + appID + `"}},"preReleaseVersion":{"data":{"type":"preReleaseVersions","id":"` + trainID + `"}}}},"included":[{"type":"preReleaseVersions","id":"` + trainID + `","attributes":{"version":"` + version + `","platform":"` + platform + `"}}]}`
+}
+
 func TestVersionsAttachBuildByBuildNumberResolvesVersionAndBuild(t *testing.T) {
 	transport := &versionTrainTransport{t: t, platform: "IOS", builds: func(req *http.Request) string {
 		if got := req.URL.Query().Get("filter[version]"); got != "45" {
@@ -126,6 +140,112 @@ func TestVersionsAttachBuildByBuildNumberResolvesVersionAndBuild(t *testing.T) {
 	}
 }
 
+func TestVersionsAttachBuildDiscoveredVersionUsesOwnedTypedProof(t *testing.T) {
+	transport := &versionTrainTransport{t: t, platform: "IOS", builds: func(req *http.Request) string {
+		return buildsCollection("build-45", "45", "VALID")
+	}}
+	code, stdout, stderr := runVersionBuildSelector(t, transport,
+		"versions", "attach-build", "--app", "123456789", "--version", "1.2.0", "--build-number", "45", "--output", "json")
+	if code != rootcmd.ExitSuccess || stdout == "" || stderr == "" {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	requests := strings.Join(transport.requests, ",")
+	if !strings.Contains(requests, "GET /v1/apps/123456789/appStoreVersions") || !strings.Contains(requests, "GET /v1/appStoreVersions/version-1") {
+		t.Fatalf("discovered version was not revalidated by ID: %s", requests)
+	}
+}
+
+func TestVersionsAttachBuildDiscoveredVersionRejectsUntrustedCandidate(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "foreign app",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"987654321"}}}}}`,
+			want: `belongs to app "987654321", not "123456789"`,
+		},
+		{
+			name: "version string drift",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"9.9.9","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `returned version string "9.9.9", not requested "1.2.0"`,
+		},
+		{
+			name: "platform drift",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"MAC_OS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `is on platform "MAC_OS", not "IOS"`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			requests := 0
+			flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				switch requests {
+				case 1:
+					if req.URL.Path != "/v1/apps/123456789/appStoreVersions" {
+						t.Fatalf("unexpected discovery request: %s", req.URL.RequestURI())
+					}
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"}}]}`)
+				case 2:
+					if req.URL.Path != "/v1/appStoreVersions/version-1" {
+						t.Fatalf("unexpected ownership request: %s", req.URL.RequestURI())
+					}
+					return jsonResponse(http.StatusOK, test.body)
+				default:
+					t.Fatalf("candidate rejection sent downstream request %d: %s %s", requests, req.Method, req.URL.RequestURI())
+					return nil, nil
+				}
+			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--app", "123456789", "--version", "1.2.0", "--build-number", "45", "--output", "json")
+			if code == rootcmd.ExitSuccess || stdout != "" || !strings.Contains(stderr, test.want) || requests != 2 {
+				t.Fatalf("exit=%d stdout=%q stderr=%q requests=%d, want %q", code, stdout, stderr, requests, test.want)
+			}
+		})
+	}
+}
+
+func TestVersionsAttachBuildRejectsInvalidFinalBuildProof(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(string) string
+		want   string
+	}{
+		{
+			name: "internal audience",
+			mutate: func(body string) string {
+				return strings.Replace(body, `"processingState":"VALID"`, `"processingState":"VALID","buildAudienceType":"INTERNAL_ONLY"`, 1)
+			},
+			want: "INTERNAL_ONLY",
+		},
+		{
+			name: "not valid",
+			mutate: func(body string) string {
+				return strings.Replace(body, `"processingState":"VALID"`, `"processingState":"PROCESSING"`, 1)
+			},
+			want: "is still processing; add --wait",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			transport := &versionTrainTransport{t: t, platform: "IOS", builds: func(req *http.Request) string {
+				return buildsCollection("build-46", "46", "VALID")
+			}}
+			wrapped := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-46" {
+					return jsonResponse(http.StatusOK, test.mutate(buildScopeProof("build-46", "IOS")))
+				}
+				return transport.RoundTrip(req)
+			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, wrapped), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+			if code == rootcmd.ExitSuccess || stdout != "" || !strings.Contains(stderr, test.want) || len(transport.attached) != 0 {
+				t.Fatalf("exit=%d stdout=%q stderr=%q attached=%v, want %q", code, stdout, stderr, transport.attached, test.want)
+			}
+		})
+	}
+}
+
 func TestVersionsAttachBuildLatestUsesTrainOfVersionID(t *testing.T) {
 	transport := &versionTrainTransport{t: t, platform: "MAC_OS", builds: func(req *http.Request) string {
 		query := req.URL.Query()
@@ -146,6 +266,415 @@ func TestVersionsAttachBuildLatestUsesTrainOfVersionID(t *testing.T) {
 	}
 	if len(transport.attached) != 1 || transport.attached[0] != "build-46" {
 		t.Fatalf("attached = %v, want [build-46]", transport.attached)
+	}
+}
+
+func TestVersionsAttachBuildLatestDerivesScopeFromVersionIDWithoutApp(t *testing.T) {
+	transport := &versionTrainTransport{t: t, platform: "MAC_OS", builds: func(req *http.Request) string {
+		query := req.URL.Query()
+		if query.Get("sort") != "-uploadedDate" || query.Get("limit") != "1" {
+			t.Fatalf("expected newest-build query, got %s", req.URL.RawQuery)
+		}
+		return buildsCollection("build-46", "46", "VALID")
+	}}
+
+	code, stdout, stderr := runVersionBuildSelector(t, transport,
+		"versions", "attach-build", "--version-id", "version-1", "--platform", "MAC_OS", "--latest", "--output", "json")
+
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want success; stderr=%q", code, stderr)
+	}
+	if !strings.Contains(stdout, `"versionId":"version-1"`) || !strings.Contains(stdout, `"buildId":"build-46"`) {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if len(transport.attached) != 1 || transport.attached[0] != "build-46" {
+		t.Fatalf("attached = %v, want [build-46]", transport.attached)
+	}
+}
+
+func TestVersionsAttachBuildNumberDerivesScopeFromVersionIDWithoutApp(t *testing.T) {
+	transport := &versionTrainTransport{t: t, platform: "IOS", builds: func(req *http.Request) string {
+		if req.URL.Query().Get("filter[version]") != "45" {
+			t.Fatalf("expected filter[version]=45, got %q", req.URL.Query().Get("filter[version]"))
+		}
+		return buildsCollection("build-45", "45", "VALID")
+	}}
+
+	code, stdout, stderr := runVersionBuildSelector(t, transport,
+		"versions", "attach-build", "--version-id", "version-1", "--build-number", "45", "--output", "json")
+
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want success; stderr=%q", code, stderr)
+	}
+	if !strings.Contains(stdout, `"versionId":"version-1"`) || !strings.Contains(stdout, `"buildId":"build-45"`) {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if len(transport.attached) != 1 || transport.attached[0] != "build-45" {
+		t.Fatalf("attached = %v, want [build-45]", transport.attached)
+	}
+}
+
+func TestVersionsAttachBuildVersionIDRejectsRequestedPlatformMismatch(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	requests := 0
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1" {
+			t.Fatalf("platform refusal sent follow-up request: %s %s", req.Method, req.URL.RequestURI())
+		}
+		requests++
+		return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--platform", "MAC_OS", "--latest", "--output", "json")
+	if code != rootcmd.ExitError || stdout != "" || !strings.Contains(stderr, `is on platform "IOS", not "MAC_OS"`) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if requests != 1 {
+		t.Fatalf("platform mismatch requests=%d, want one version proof", requests)
+	}
+}
+
+func TestVersionsAttachBuildVersionIDRejectsInvalidRequestedPlatformBeforeClient(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("invalid platform sent provider request: %s %s", req.Method, req.URL.RequestURI())
+		return nil, nil
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--platform", "WATCH_OS", "--latest", "--output", "json")
+	if code != rootcmd.ExitUsage || stdout != "" || !strings.Contains(stderr, "platform must be one of") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
+
+func TestVersionsAttachBuildAllowsSameCollectionContinuation(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	preReleaseRequests := 0
+	requests := []string{}
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests = append(requests, req.Method+" "+req.URL.Path)
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
+			preReleaseRequests++
+			if preReleaseRequests == 1 {
+				return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":"/v1/preReleaseVersions?cursor=opaque"}}`)
+			}
+			if req.URL.Query().Get("cursor") != "opaque" {
+				t.Fatalf("continuation query = %q", req.URL.RawQuery)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.0","platform":"IOS"}}],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "123456789" || query.Get("filter[preReleaseVersion]") != "prv-1" || query.Get("filter[buildAudienceType]") != "APP_STORE_ELIGIBLE" {
+				t.Fatalf("build scope = %s", req.URL.RawQuery)
+			}
+			return jsonResponse(http.StatusOK, buildsCollection("build-46", "46", "VALID"))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-46":
+			return jsonResponse(http.StatusOK, buildScopeProof("build-46", "IOS"))
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return jsonResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			return nil, nil
+		}
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+	if code != rootcmd.ExitSuccess || stdout == "" || stderr == "" || len(requests) != 6 {
+		t.Fatalf("exit=%d stdout=%q stderr=%q requests=%v", code, stdout, stderr, requests)
+	}
+}
+
+func TestVersionsAttachBuildRejectsPreReleaseContinuationDriftBeforeWrite(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	requests := 0
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch requests {
+		case 1:
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+		case 2:
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":"/v1/preReleaseVersions?filter%5Bapp%5D=987654321&cursor=foreign"}}`)
+		default:
+			t.Fatalf("drift continuation sent request %d: %s %s", requests, req.Method, req.URL.RequestURI())
+			return nil, nil
+		}
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+	if code == rootcmd.ExitSuccess || stdout != "" || !strings.Contains(stderr, "rejected scoped pagination URL query") || requests != 2 {
+		t.Fatalf("exit=%d stdout=%q stderr=%q requests=%d", code, stdout, stderr, requests)
+	}
+}
+
+func TestVersionsAttachBuildRejectsOffCollectionContinuationBeforeWrite(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	requests := 0
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch requests {
+		case 1:
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+		case 2:
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":"/v1/builds?cursor=off-collection"}}`)
+		default:
+			t.Fatalf("off-collection continuation sent request %d: %s %s", requests, req.Method, req.URL.RequestURI())
+			return nil, nil
+		}
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+	if code == rootcmd.ExitSuccess || stdout != "" || !strings.Contains(stderr, "rejected scoped pagination URL path") || requests != 2 {
+		t.Fatalf("exit=%d stdout=%q stderr=%q requests=%d", code, stdout, stderr, requests)
+	}
+}
+
+func TestVersionsAttachBuildNumberAllowsSameCollectionBuildContinuation(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	buildRequests := 0
+	requests := 0
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.0","platform":"IOS"}}],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
+			buildRequests++
+			if buildRequests == 1 {
+				if req.URL.Query().Get("filter[version]") != "45" || req.URL.Query().Get("filter[preReleaseVersion]") != "prv-1" {
+					t.Fatalf("build scope = %s", req.URL.RawQuery)
+				}
+				return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":"/v1/builds?cursor=opaque"}}`)
+			}
+			if req.URL.Query().Get("cursor") != "opaque" {
+				t.Fatalf("build continuation query = %q", req.URL.RawQuery)
+			}
+			return jsonResponse(http.StatusOK, buildsCollection("build-45", "45", "VALID"))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-45":
+			return jsonResponse(http.StatusOK, buildScopeProof("build-45", "IOS"))
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return jsonResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			return nil, nil
+		}
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--build-number", "45", "--output", "json")
+	if code != rootcmd.ExitSuccess || stdout == "" || stderr == "" || requests != 6 {
+		t.Fatalf("exit=%d stdout=%q stderr=%q requests=%d", code, stdout, stderr, requests)
+	}
+}
+
+func TestVersionsAttachBuildRejectsBuildContinuationTrainDriftBeforeWrite(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	requests := 0
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch requests {
+		case 1:
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+		case 2:
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.0","platform":"IOS"}}],"links":{}}`)
+		case 3:
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":"/v1/builds?filter%5BpreReleaseVersion%5D=prv-foreign&cursor=foreign"}}`)
+		default:
+			t.Fatalf("build drift continuation sent request %d: %s %s", requests, req.Method, req.URL.RequestURI())
+			return nil, nil
+		}
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--build-number", "45", "--output", "json")
+	if code == rootcmd.ExitSuccess || stdout != "" || !strings.Contains(stderr, "rejected scoped pagination URL query") || requests != 3 {
+		t.Fatalf("exit=%d stdout=%q stderr=%q requests=%d", code, stdout, stderr, requests)
+	}
+}
+
+func TestVersionsAttachBuildRejectsForeignBuildScopeBeforeWrite(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "foreign app",
+			body: buildScopeProofWithScope("build-46", "987654321", "prv-1", "1.2.0", "IOS", "46"),
+			want: `belongs to app "987654321", not "123456789"`,
+		},
+		{
+			name: "foreign marketing train",
+			body: buildScopeProofWithScope("build-46", "123456789", "prv-foreign", "9.9.9", "IOS", "46"),
+			want: `belongs to marketing train "prv-foreign", not version "1.2.0"`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			requests := 0
+			flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.0","platform":"IOS"}}],"links":{}}`)
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
+					return jsonResponse(http.StatusOK, buildsCollection("build-46", "46", "VALID"))
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-46":
+					return jsonResponse(http.StatusOK, test.body)
+				default:
+					t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+					return nil, nil
+				}
+			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+			if code == rootcmd.ExitSuccess || stdout != "" || !strings.Contains(stderr, test.want) {
+				t.Fatalf("exit=%d stdout=%q stderr=%q, want %q", code, stdout, stderr, test.want)
+			}
+			if requests != 4 {
+				t.Fatalf("requests=%d, want version, train, build, and final proof only", requests)
+			}
+		})
+	}
+}
+
+func TestVersionsAttachBuildAcceptsEquivalentMarketingVersion(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	requests := 0
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.0","platform":"IOS"}}],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
+			return jsonResponse(http.StatusOK, buildsCollection("build-46", "46", "VALID"))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-46":
+			return jsonResponse(http.StatusOK, buildScopeProofWithScope("build-46", "123456789", "prv-1", "1.2", "IOS", "46"))
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return jsonResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			return nil, nil
+		}
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+	if code != rootcmd.ExitSuccess || stdout == "" || stderr == "" || requests != 5 {
+		t.Fatalf("exit=%d stdout=%q stderr=%q requests=%d", code, stdout, stderr, requests)
+	}
+}
+
+func TestVersionsAttachBuildConfiguredBundleUsesStrictEffectiveApp(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "com.example.owner")
+	train := &versionTrainTransport{t: t, platform: "IOS", builds: func(req *http.Request) string {
+		return buildsCollection("build-45", "45", "VALID")
+	}}
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/apps" {
+			if req.URL.Query().Get("filter[bundleId]") != "com.example.owner" {
+				t.Fatalf("bundle lookup query = %s", req.URL.RawQuery)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"apps","id":"123456789","attributes":{"bundleId":"com.example.owner"}}]}`)
+		}
+		return train.RoundTrip(req)
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+	if code != rootcmd.ExitSuccess || !strings.Contains(stdout, `"buildId":"build-45"`) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
+
+func TestVersionsAttachBuildConfiguredBundleDriftStopsBeforeVersionProof(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "com.example.owner")
+	requests := 0
+	flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
+			t.Fatalf("configured bundle drift sent follow-up request: %s %s", req.Method, req.URL.RequestURI())
+		}
+		requests++
+		return jsonResponse(http.StatusOK, `{"data":[{"type":"apps","id":"other-app","attributes":{"bundleId":"com.other.app","name":"com.example.owner"}}]}`)
+	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+	if code != rootcmd.ExitError || stdout != "" || !strings.Contains(stderr, `no app found for bundle ID "com.example.owner" (exact match required)`) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if requests != 1 {
+		t.Fatalf("configured bundle drift requests=%d, want one app lookup", requests)
+	}
+}
+
+func TestVersionsAttachBuildVersionIDScopeRejectsForeignAndMalformedResources(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "foreign app",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"987654321"}}}}}`,
+			want: `belongs to app "987654321", not "123456789"`,
+		},
+		{
+			name: "wrong resource type",
+			body: `{"data":{"type":"appInfos","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `expected resource type "appStoreVersions", got "appInfos"`,
+		},
+		{
+			name: "wrong resource ID",
+			body: `{"data":{"type":"appStoreVersions","id":"version-other","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `expected app store version "version-1", got "version-other"`,
+		},
+		{
+			name: "missing app relationship",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"}}}`,
+			want: `app relationship missing for app store version "version-1"`,
+		},
+		{
+			name: "invalid platform",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"WATCH_OS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `has invalid platform`,
+		},
+		{
+			name: "missing version string",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `has no version string`,
+		},
+		{
+			name: "invalid version string",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"release-candidate","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `has invalid version string`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			requests := 0
+			flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreVersions/version-1" {
+					t.Fatalf("scope refusal sent follow-up request: %s %s", req.Method, req.URL.RequestURI())
+				}
+				requests++
+				return jsonResponse(http.StatusOK, test.body)
+			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--app", "123456789", "--version-id", "version-1", "--latest", "--output", "json")
+			if code != rootcmd.ExitError || stdout != "" || !strings.Contains(stderr, test.want) {
+				t.Fatalf("exit=%d stdout=%q stderr=%q, want %q", code, stdout, stderr, test.want)
+			}
+			if requests != 1 {
+				t.Fatalf("version scope requests=%d, want exactly one", requests)
+			}
+		})
 	}
 }
 
@@ -287,15 +816,9 @@ func TestVersionBuildSelectorValidation(t *testing.T) {
 			deps:    true,
 		},
 		{
-			name:    "attach-build latest without app",
-			args:    []string{"versions", "attach-build", "--version-id", "version-1", "--latest"},
-			wantErr: "Error: --app is required with --version, --platform, --build-number, or --latest (or set ASC_APP_ID)",
-			deps:    true,
-		},
-		{
 			name:    "attach-build version without app",
 			args:    []string{"versions", "attach-build", "--version", "1.2.0", "--build-id", "build-1"},
-			wantErr: "Error: --app is required with --version, --platform, --build-number, or --latest (or set ASC_APP_ID)",
+			wantErr: "Error: --app is required with --version, --platform, --build-number, or --latest unless --version-id is provided (or set ASC_APP_ID)",
 			deps:    true,
 		},
 		{

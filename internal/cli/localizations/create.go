@@ -118,7 +118,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			vid, err = resolveLocalizationMutationVersionID(requestCtx, d, client, vid, *appID, normalizedPlatform)
+			vid, err = ResolveVersionIDForMutation(requestCtx, d, client, vid, *appID, normalizedPlatform)
 			if err != nil {
 				return fmt.Errorf("localizations create: %w", err)
 			}
@@ -216,11 +216,16 @@ var localizationsCreateExistsCodes = []string{"ENTITY_ERROR.ATTRIBUTE.INVALID.DU
 // referred to, keyed by locale. It reports found=false when the version has no
 // such locale so the caller can surface the original conflict.
 func findExistingVersionLocalization(ctx context.Context, client *asc.Client, versionID, locale string) (*asc.AppStoreVersionLocalizationResponse, bool, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := client.GetAppStoreVersionLocalizations(ctx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	if err != nil {
 		return nil, false, err
 	}
+	resourcePath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID)
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		if err := asc.ValidateVersionLocalizationNextURL(nextURL, resourcePath); err != nil {
+			return nil, err
+		}
 		return client.GetAppStoreVersionLocalizations(ctx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 	})
 	if err != nil {

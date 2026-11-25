@@ -112,10 +112,15 @@ func (c *Client) GetAllAppScreenshotSets(ctx context.Context, localizationID str
 		return nil, err
 	}
 
+	expectedPath := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/appScreenshotSets", url.PathEscape(localizationID))
 	result, err := paginateAssetResponse(ctx, firstPage, func(parentCtx context.Context, nextURL string) (PaginatedResponse, error) {
+		canonicalURL, err := c.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+		if err != nil {
+			return nil, err
+		}
 		nextCtx, nextCancel := requestContextFor(parentCtx, query.requestContext)
 		defer nextCancel()
-		return c.GetAppScreenshotSets(nextCtx, "", NextURL[AppScreenshotSetsOption](nextURL))
+		return c.GetAppScreenshotSets(nextCtx, "", NextURL[AppScreenshotSetsOption](canonicalURL))
 	})
 	if err != nil {
 		return nil, err
@@ -136,10 +141,15 @@ func (c *Client) GetAllAppScreenshots(ctx context.Context, setID string, opts ..
 		return nil, err
 	}
 
+	expectedPath := fmt.Sprintf("/v1/appScreenshotSets/%s/appScreenshots", url.PathEscape(setID))
 	result, err := paginateAssetResponse(ctx, firstPage, func(parentCtx context.Context, nextURL string) (PaginatedResponse, error) {
+		canonicalURL, err := c.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+		if err != nil {
+			return nil, err
+		}
 		nextCtx, nextCancel := requestContextFor(parentCtx, query.requestContext)
 		defer nextCancel()
-		return c.GetAppScreenshots(nextCtx, "", NextURL[AppScreenshotsOption](nextURL))
+		return c.GetAppScreenshots(nextCtx, "", NextURL[AppScreenshotsOption](canonicalURL))
 	})
 	if err != nil {
 		return nil, err

@@ -41,25 +41,11 @@ func resolveAppID(ctx context.Context, d *shared.Deps, client *asc.Client, appFl
 		if client == nil {
 			return "", fmt.Errorf("deliverfile app_identifier requires API access to resolve app ID")
 		}
-		resp, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{config.AppIdentifier}), asc.Limit[asc.AppsOption](10))
+		appID, err := shared.ResolveAppIDByExactBundleID(ctx, client, config.AppIdentifier)
 		if err != nil {
 			return "", fmt.Errorf("failed to resolve app identifier %q: %w", config.AppIdentifier, err)
 		}
-		if resp == nil {
-			return "", fmt.Errorf("empty app response for bundle ID %q", config.AppIdentifier)
-		}
-		pageHasNext := strings.TrimSpace(resp.Links.Next) != ""
-		if len(resp.Data) == 0 && !pageHasNext {
-			return "", fmt.Errorf("no app found for bundle ID %q", config.AppIdentifier)
-		}
-		if len(resp.Data) > 1 || pageHasNext {
-			ambiguous := shared.AmbiguousError("app", "--app", config.AppIdentifier, shared.AppCandidates(resp.Data))
-			if pageHasNext {
-				return "", shared.MarkAmbiguousSelectionSample(ambiguous)
-			}
-			return "", ambiguous
-		}
-		return resp.Data[0].ID, nil
+		return appID, nil
 	}
 	if appID := d.ResolveAppID(""); appID != "" {
 		return appID, nil

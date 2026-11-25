@@ -36,9 +36,9 @@ func TestMetadataPreviewsPreserveLocalizationPolicy(t *testing.T) {
 			var uploaded string
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch req.Method + " " + req.URL.Path {
-				case "GET /v1/apps/app-1/appStoreVersions":
+				case "GET /v1/apps/123456789/appStoreVersions":
 					return migrateJSONResponse(200, metadataPushVersionsList), nil
-				case "GET /v1/apps/app-1/appInfos":
+				case "GET /v1/apps/123456789/appInfos":
 					if policy != "unmanaged-version" {
 						t.Error("version-only metadata must not resolve app-info")
 					}
@@ -95,7 +95,7 @@ func TestMetadataPreviewsPreserveLocalizationPolicy(t *testing.T) {
 					return nil, fmt.Errorf("unexpected request")
 				}
 			}))
-			args := []string{"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--dir", root, "--include", "localizations,previews", "--confirm", "--output", "json"}
+			args := []string{"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--dir", root, "--include", "localizations,previews", "--confirm", "--output", "json"}
 			if policy == "unmanaged-version" {
 				args = append(args, "--allow-deletes")
 			} else {
@@ -149,13 +149,13 @@ func TestMetadataPreviewsRejectDeletedLocalizationParent(t *testing.T) {
 			installValidStoreAssetProbe(t)
 			reg := asctest.NewRegistry(t)
 			reg.Install()
-			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+			reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 				asctest.JSON(200, metadataPushVersionsList))
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 				asctest.JSON(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Keep"}},{"type":"appStoreVersionLocalizations","id":"loc-ja","attributes":{"locale":"ja","description":"Preview parent"}}]}`))
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--dir", root, "--include", "localizations,previews", "--allow-deletes", mode, "--output", "json"})
+				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--dir", root, "--include", "localizations,previews", "--allow-deletes", mode, "--output", "json"})
 			})
 			if runErr == nil || !strings.Contains(stderr, `version localization "ja" is required by local previews`) {
 				t.Fatalf("expected contradictory-input diagnostic: err=%v stderr=%s stdout=%s", runErr, stderr, stdout)
