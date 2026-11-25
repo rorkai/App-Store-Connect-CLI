@@ -53,7 +53,8 @@ func newReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Get an App Store review detail by ID, by its App Store version, or for an
 app's editable version (its live version when none is editable).
 
-With --version-id, --app also checks that the version belongs to the app.
+The app selected by --app, ASC_APP_ID, or saved config scopes review detail
+reads. For a standalone --id, set ASC_APP_ID= and omit --app.
 
 Examples:
   asc review details-get --id "DETAIL_ID"
@@ -147,6 +148,8 @@ func newReviewDetailsForVersionCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc review details-for-version --version-id \"VERSION_ID\"",
 		ShortHelp:  "Get the review detail for a version.",
 		LongHelp: `Get the review detail for a specific App Store version.
+
+When ASC_APP_ID or saved config selects an app, the version must belong to it.
 
 Examples:
   asc review details-for-version --version-id "VERSION_ID"`,
@@ -254,6 +257,10 @@ func verifyReviewDetailsDetailOwner(ctx context.Context, client *asc.Client, app
 		return fmt.Errorf("%s: %w", command, err)
 	}
 	if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, resolvedAppID, versionID, ""); err != nil {
+		if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
+			err = fmt.Errorf("verify review detail %q: %w. For an intentional standalone ID, set ASC_APP_ID=", detailID, err)
+			err = shared.WithDiagnostic(err, diagnostic.Code, "--id")
+		}
 		return fmt.Errorf("%s: %w", command, err)
 	}
 	return nil
@@ -301,6 +308,8 @@ func newReviewDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc review details-create --version-id \"VERSION_ID\" [flags]",
 		ShortHelp:  "Create App Store review details for a version.",
 		LongHelp: `Create App Store review details for a version.
+
+When ASC_APP_ID or saved config selects an app, the version must belong to it.
 
 New review details need ` + "`--contact-first-name`" + ` and ` + "`--contact-phone`" + `, which App
 Store Connect rejects a new detail without; with ` + "`--if-exists skip`" + ` or ` + "`update`" + ` they
@@ -500,6 +509,9 @@ func newReviewDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc review details-update --id \"DETAIL_ID\" [flags]",
 		ShortHelp:  "Update App Store review details.",
 		LongHelp: `Update App Store review details.
+
+When ASC_APP_ID or saved config selects an app, the detail must belong to it.
+For a standalone --id, set ASC_APP_ID=.
 
 ` + "`--notes`" + ` allow at most 4,000 characters, and +1 phone numbers need 10 digits
 after the country code. These are checked before any request.

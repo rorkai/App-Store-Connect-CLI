@@ -67,6 +67,19 @@ func TestReviewDetailsSelectedReadsRefuseRedirects(t *testing.T) {
 			wantRequests: []string{"GET /v1/appStoreReviewDetails/detail-1", "GET /v1/appStoreVersions/version-1"},
 		},
 		{
+			name:                "update existing demo credential read",
+			wantCode:            cmd.ExitError,
+			appEnv:              "100000001",
+			args:                []string{"review", "details-update", "--id", "detail-1", "--demo-account-required=true"},
+			redirectPath:        "/v1/appStoreReviewDetails/detail-1",
+			redirectAfterSparse: true,
+			wantRequests: []string{
+				"GET /v1/appStoreReviewDetails/detail-1",
+				"GET /v1/appStoreVersions/version-1",
+				"GET /v1/appStoreReviewDetails/detail-1",
+			},
+		},
+		{
 			name:         "configured read keeps initial app selection",
 			wantCode:     cmd.ExitError,
 			appEnv:       "100000001",
