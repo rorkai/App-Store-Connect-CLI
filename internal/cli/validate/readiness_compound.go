@@ -193,7 +193,7 @@ func fetchAppInfoData(ctx context.Context, client *asc.Client, appID string, age
 			)
 			ageRatingState = state
 			if state == compoundLinkageResolved {
-				result.ageRatingDeclaration = mapAgeRatingDeclaration(ageRatingResource.Attributes)
+				result.ageRatingDeclaration = mapAgeRatingDeclaration(appInfoID, ageRatingResource.Attributes)
 			}
 		}
 
@@ -267,7 +267,7 @@ func fetchAppInfoData(ctx context.Context, client *asc.Client, appID string, age
 				}
 				return fmt.Errorf("failed to fetch age rating declaration: %w", err)
 			}
-			result.ageRatingDeclaration = mapAgeRatingDeclaration(ageRatingResponse.Data.Attributes)
+			result.ageRatingDeclaration = mapAgeRatingDeclaration(appInfoID, ageRatingResponse.Data.Attributes)
 			return nil
 		})
 	}
@@ -338,7 +338,7 @@ func resolveMultipleAppInfoAgeRating(ctx context.Context, client *asc.Client, re
 			result.ageRatingDeclaration = nil
 			return nil
 		case compoundLinkageResolved:
-			result.ageRatingDeclaration = mapAgeRatingDeclaration(ageRatingResource.Attributes)
+			result.ageRatingDeclaration = mapAgeRatingDeclaration(ageRatingAppInfoID, ageRatingResource.Attributes)
 			return nil
 		}
 	}
@@ -353,7 +353,7 @@ func resolveMultipleAppInfoAgeRating(ctx context.Context, client *asc.Client, re
 		}
 		return fmt.Errorf("failed to fetch age rating declaration: %w", err)
 	}
-	result.ageRatingDeclaration = mapAgeRatingDeclaration(ageRatingResponse.Data.Attributes)
+	result.ageRatingDeclaration = mapAgeRatingDeclaration(ageRatingAppInfoID, ageRatingResponse.Data.Attributes)
 	return nil
 }
 

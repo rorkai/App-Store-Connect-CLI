@@ -107,7 +107,8 @@ type CheckResult struct {
 
 	// displayType is the screenshot display type a screenshot-set finding is
 	// about, so its fix command can name the set's device type.
-	displayType string
+	displayType        string
+	ageRatingAppInfoID string
 }
 
 // Summary aggregates check counts by severity.
@@ -332,6 +333,7 @@ type BuildBundle struct {
 
 // AgeRatingDeclaration represents age rating attributes for validation.
 type AgeRatingDeclaration struct {
+	AppInfoID                string
 	DatingAndRelationships   *bool
 	SharedLocation           *bool
 	Advertising              *bool

@@ -78,7 +78,7 @@ func AgeRatingChecks(declaration *AgeRatingDeclaration) []CheckResult {
 
 	for _, item := range requiredBools {
 		if item.value == nil {
-			checks = append(checks, missingAgeRatingField(item.field))
+			checks = append(checks, missingAgeRatingField(item.field, declaration.AppInfoID))
 		}
 	}
 
@@ -103,7 +103,7 @@ func AgeRatingChecks(declaration *AgeRatingDeclaration) []CheckResult {
 
 	for _, item := range requiredEnums {
 		if item.value == nil || strings.TrimSpace(*item.value) == "" {
-			checks = append(checks, missingAgeRatingField(item.field))
+			checks = append(checks, missingAgeRatingField(item.field, declaration.AppInfoID))
 			continue
 		}
 		if !validAgeRatingLevel(*item.value) {
@@ -119,13 +119,14 @@ func AgeRatingChecks(declaration *AgeRatingDeclaration) []CheckResult {
 	return checks
 }
 
-func missingAgeRatingField(field string) CheckResult {
+func missingAgeRatingField(field, appInfoID string) CheckResult {
 	return CheckResult{
-		ID:          "age_rating.missing_field",
-		Severity:    SeverityError,
-		Field:       field,
-		Message:     "age rating field is missing",
-		Remediation: "Complete the age rating declaration in App Store Connect",
+		ageRatingAppInfoID: appInfoID,
+		ID:                 "age_rating.missing_field",
+		Severity:           SeverityError,
+		Field:              field,
+		Message:            "age rating field is missing",
+		Remediation:        "Complete the age rating declaration in App Store Connect",
 	}
 }
 
