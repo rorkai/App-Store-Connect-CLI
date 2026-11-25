@@ -177,7 +177,7 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 			captured := subscriptionPricesListQuerySurfaceStub(t)
 			captured.response = func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"price-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"PRICE_POINT_1"}},"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"TIER_1"}]}}}],"included":[{"type":"subscriptionPricePoints","id":"PRICE_POINT_1","attributes":{"customerPrice":"9.99"},"relationships":{"territory":{"data":{"type":"territories","id":"GBR"}},"equalizations":{"links":{"related":"/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations"}},"adjustedEqualizations":{"links":{"self":"/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations"}}}},{"type":"subscriptionPriceTiers","id":"TIER_1","attributes":{"minQuantity":10}}],"links":{"next":""}}`)
+				_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"price-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"PRICE_POINT_1"}},"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"TIER_1"}]}}}],"included":[{"type":"subscriptionPricePoints","id":"PRICE_POINT_1","attributes":{"customerPrice":"9.99"},"relationships":{"territory":{"data":{"type":"territories","id":"GBR"}},"equalizations":{"links":{"related":"/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations"}},"adjustedEqualizations":{"links":{"self":"/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations"}}}},{"type":"subscriptionPriceTiers","id":"TIER_1","attributes":{"minQuantity":10},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"TIER_POINT_1"}}}}],"links":{"next":""}}`)
 			}
 
 			stdout, stderr, err := runSubscriptionPricesListQuerySurface(
@@ -185,7 +185,7 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 				"subscriptions", "pricing", "prices", "list",
 				"--subscription-id", "8000000001",
 				"--price-point-fields", "territory,equalizations,adjustedEqualizations",
-				"--price-tier-fields", "minQuantity",
+				"--price-tier-fields", "minQuantity,subscriptionPricePoint",
 				"--output", outputFormat,
 			)
 			if err != nil {
@@ -197,7 +197,7 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 
 			for _, want := range []string{
 				"Price Point Territory ID", "GBR",
-				"Additional Price Tiers", "TIER_1 (10+)",
+				"Additional Price Tiers", "TIER_1 (10+)", "TIER_POINT_1",
 				"Equalizations URL", "/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations",
 				"Adjusted Equalizations URL", "/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations",
 			} {
@@ -210,6 +210,7 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 					`"territory":{"data":{"type":"territories","id":"GBR"}}`,
 					`"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"TIER_1"}]}`,
 					`"minQuantity":10`,
+					`"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"TIER_POINT_1"}}`,
 					`"equalizations":{"links":{"related":"/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations"}}`,
 					`"adjustedEqualizations":{"links":{"self":"/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations"}}`,
 				} {
@@ -223,6 +224,16 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 }
 
 func TestSubscriptionsPricingPricesListPaginatePreservesQueryControls(t *testing.T) {
+	wantQuery := url.Values{
+		"cursor":                         {"saved"},
+		"fields[subscriptionPrices]":     {"startDate,preserved,territory,additionalPriceTiers"},
+		"fields[territories]":            {"currency"},
+		"fields[subscriptionPriceTiers]": {"minQuantity"},
+		"limit[additionalPriceTiers]":    {"4"},
+		"include":                        {"territory,additionalPriceTiers"},
+	}
+	savedURL := asc.BaseURL + "/v1/subscriptions/8000000001/prices?" + wantQuery.Encode()
+	wantQuery.Set("cursor", "next")
 	captured := subscriptionPricesListQuerySurfaceStub(t)
 	captured.response = func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -233,44 +244,34 @@ func TestSubscriptionsPricingPricesListPaginatePreservesQueryControls(t *testing
 		if captured.calls != 2 {
 			t.Fatalf("unexpected request count: %d", captured.calls)
 		}
-		if got := req.URL.Query().Get("cursor"); got != "next" {
-			t.Fatalf("cursor = %q, want next", got)
-		}
-		wantQuery := url.Values{
-			"cursor":                         {"next"},
-			"fields[subscriptionPrices]":     {"startDate,preserved,territory,additionalPriceTiers"},
-			"fields[territories]":            {"currency"},
-			"fields[subscriptionPriceTiers]": {"minQuantity"},
-			"limit[additionalPriceTiers]":    {"4"},
-			"include":                        {"territory,additionalPriceTiers"},
-		}
 		if got := req.URL.Query().Encode(); got != wantQuery.Encode() {
-			t.Fatalf("continuation query = %q, want %q", got, wantQuery.Encode())
+			t.Errorf("continuation query = %q, want %q", got, wantQuery.Encode())
 		}
 		_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"price-2"}],"links":{"next":""}}`)
 	}
 
-	stdout, stderr, err := runSubscriptionPricesListQuerySurface(
-		t,
-		"subscriptions", "pricing", "prices", "list",
-		"--subscription-id", "8000000001",
-		"--fields", "startDate,preserved",
-		"--territory-fields", "currency",
-		"--include", "territory", "--price-tier-fields", "minQuantity", "--additional-price-tiers-limit", "4",
-		"--paginate",
-		"--output", "json",
-	)
-	if err != nil {
-		t.Fatalf("run error: %v (stderr=%q)", err, stderr)
-	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if captured.calls != 2 {
-		t.Fatalf("expected two requests, got %d", captured.calls)
-	}
-	if !strings.Contains(stdout, `"id":"price-2"`) {
-		t.Fatalf("expected aggregated second-page response, got %q", stdout)
+	for _, args := range [][]string{
+		{
+			"--subscription-id", "8000000001", "--fields", "startDate,preserved", "--territory-fields", "currency",
+			"--include", "territory", "--price-tier-fields", "minQuantity", "--additional-price-tiers-limit", "4",
+		},
+		{"--next", savedURL},
+	} {
+		captured.calls = 0
+		flags := append([]string{"subscriptions", "pricing", "prices", "list", "--paginate", "--output", "json"}, args...)
+		stdout, stderr, err := runSubscriptionPricesListQuerySurface(t, flags...)
+		if err != nil {
+			t.Fatalf("run error: %v (stderr=%q)", err, stderr)
+		}
+		if stderr != "" {
+			t.Fatalf("expected empty stderr, got %q", stderr)
+		}
+		if captured.calls != 2 {
+			t.Fatalf("expected two requests, got %d", captured.calls)
+		}
+		if !strings.Contains(stdout, `"id":"price-2"`) {
+			t.Fatalf("expected aggregated second-page response, got %q", stdout)
+		}
 	}
 }
 
