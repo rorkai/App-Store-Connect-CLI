@@ -1,10 +1,12 @@
 package metadata
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -137,7 +139,12 @@ func metadataSettingsNeedAppInfo(scopes []metadataSettingScope) bool {
 
 func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingScope) (map[string]string, error) {
 	path := filepath.Join(dir, scope.fileName)
-	data, err := readFileNoFollow(path)
+	root, err := rootfs.New(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	data, err := root.ReadFileLimited(scope.fileName, shared.MaxIndirectFileValueSize)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, d.UsageErrorf("--include %s requires %s", scope.name, path)
@@ -145,7 +152,7 @@ func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingSc
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
 	var raw map[string]json.RawMessage
-	if err := decodeStrictJSON(data, &raw); err != nil {
+	if err := decodeMetadataSettingFields(data, &raw); err != nil {
 		return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, err)
 	}
 	values := make(map[string]string, len(raw))
@@ -373,4 +380,39 @@ func redactMetadataSetting(field metadataSettingField, value string) string {
 		return metadataRedactedValue
 	}
 	return value
+}
+
+func decodeMetadataSettingFields(data []byte, target *map[string]json.RawMessage) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	token, err := decoder.Token()
+	if err != nil || token != json.Delim('{') {
+		return fmt.Errorf("expected a JSON object")
+	}
+	fields := map[string]json.RawMessage{}
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := token.(string)
+		if !ok {
+			return fmt.Errorf("expected field name")
+		}
+		if _, exists := fields[key]; exists {
+			return fmt.Errorf("duplicate field %q", key)
+		}
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return err
+		}
+		fields[key] = value
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return fmt.Errorf("trailing data")
+	}
+	*target = fields
+	return nil
 }

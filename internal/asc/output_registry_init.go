@@ -6,6 +6,7 @@ package asc
 // commands that never render registry output (for example `asc --version`)
 // do not pay the ~450-type registration cost at process start.
 func registerAllOutputRenderers() {
+	registerRows(catalogResultRows)
 	registerRows(storeKitAccountTokenRows)
 	registerRows(storeKitConsumptionRows)
 	registerRows(storeKitFinishRows)
@@ -34,6 +35,7 @@ func registerAllOutputRenderers() {
 	registerDirect(webAgreementsStatusTables)
 	registerRows(webAgreementsAcceptRows)
 	registerRows(webBusinessAgreementAcceptRows)
+	registerRows(webDSAStatusRows)
 	registerRows(webAgreementDownloadRows)
 	registerRows(webTransactionTaxDownloadRows)
 	registerRows(webAppDeleteRows)
@@ -397,6 +399,7 @@ func registerAllOutputRenderers() {
 	registerRows(accessibilityDeclarationsRows)
 	registerRows(accessibilityDeclarationRows)
 	registerRows(appStoreReviewDetailRows)
+	registerRows(reviewDetailsResultRows)
 	registerRows(appStoreReviewAttachmentsRows)
 	registerRows(appStoreReviewAttachmentRows)
 	registerRows(appClipAppStoreReviewDetailRows)

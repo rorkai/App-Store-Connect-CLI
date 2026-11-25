@@ -50,7 +50,7 @@ func TestRunScreenshotsUploadRejectsFormatExtensionMismatchBeforeAnyRequest(t *t
 		if err := os.WriteFile(artifactPath, payload, 0o600); err != nil {
 			t.Fatalf("write artifact: %v", err)
 		}
-		return []string{"--resume", artifactPath}
+		return []string{"--resume", artifactPath, "--app", "100", "--version-localization", "LOC_123", "--device-type", "IPHONE_65"}
 	}
 
 	tests := []struct {

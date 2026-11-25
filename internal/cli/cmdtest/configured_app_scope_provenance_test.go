@@ -143,9 +143,23 @@ func TestConfiguredBundleCollisionStopsBeforeScreenshotsUploadReplace(t *testing
 	}
 	writePNG(t, filepath.Join(localeDir, "01-home.png"), 1284, 2778)
 
-	assertConfiguredBundleCollisionStopsBeforeContent(t,
-		"screenshots", "upload", "--version-id", "version-1", "--path", root,
-		"--device-type", "IPHONE_65", "--replace", "--confirm", "--output", "json")
+	args := []string{"screenshots", "upload", "--version-id", "version-1", "--path", root, "--device-type", "IPHONE_65", "--output", "json"}
+	t.Run("ordinary upload", func(t *testing.T) {
+		assertConfiguredBundleCollisionStopsBeforeContent(t, args...)
+	})
+	for _, source := range []string{"environment", "saved configuration"} {
+		t.Run("replace with "+source, func(t *testing.T) {
+			configureSavedAppCollision(t, source)
+			reg := asctest.NewRegistry(t)
+			stdout, _, err := runRootWithDeps(t, stubClient(t, reg), append(args, "--replace", "--confirm")...)
+			if err == nil || !strings.Contains(err.Error(), "--replace requires a canonical numeric app ID") || stdout != "" {
+				t.Fatalf("expected numeric app refusal, got stdout=%q err=%v", stdout, err)
+			}
+			if requests := reg.Requests(); len(requests) != 0 {
+				t.Fatalf("unexpected requests before numeric app selection: %v", requests)
+			}
+		})
+	}
 }
 
 func TestConfiguredBundleCollisionStopsBeforeScreenshotsApply(t *testing.T) {

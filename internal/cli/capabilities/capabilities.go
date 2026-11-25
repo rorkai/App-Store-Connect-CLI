@@ -430,11 +430,18 @@ func capabilityRows() []Capability {
 			Area:       "app-management",
 			Capability: "App Compliance requirements",
 			Status:     statusWebSession,
-			Commands:   []string{"asc web apps compliance list", "asc web apps compliance set"},
+			Commands:   []string{"asc web apps compliance list", "asc web apps compliance set", "asc web apps compliance vietnam-license view"},
 			Notes: []string{
-				"App Compliance requirements, such as the China mainland Security Assessment and AI Generated or Synthetic Content declarations, are not present in the embedded public OpenAPI snapshot. Listing reports every requirement Apple returns for the app, answered or not. Setting answers one of those two requirements, with its evidence files and filing details for an affirmative answer, and saves nothing when Apple's form asks for a field the command does not know.",
+				"App Compliance requirements, such as the China mainland Security Assessment and AI Generated or Synthetic Content declarations, are not present in the embedded public OpenAPI snapshot. Vietnam game license details can be read through the separate app-scoped Iris endpoint. Listing reports every requirement Apple returns for the app, answered or not. Setting answers one of those two requirements, with its evidence files and filing details for an affirmative answer, and saves nothing when Apple's form asks for a field the command does not know.",
 			},
 			NextAction: "Read with asc web apps compliance list --app APP_ID. Answer with asc web apps compliance set --app APP_ID --requirement SECURITY_ASSESSMENT|AI_GENERATED_CONTENT --declared true|false --confirm, or check an answer first with --dry-run.",
+		},
+		{
+			Area:       "app-management",
+			Capability: "China mainland publication permit",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web apps compliance china-publication-permit view"},
+			NextAction: "Check the app's permit with asc web apps compliance china-publication-permit view --app APP_ID.",
 		},
 		{
 			Area:       "monetization",
@@ -731,6 +738,13 @@ func capabilityRows() []Capability {
 			Commands:   []string{"asc web business agreements"},
 			Notes:      []string{"Lists Business contracts and accepts an explicitly selected updated configuration, including the Paid Applications Schedule. Active contracts can still have updated terms pending. Developer Program licenses use asc web agreements instead."},
 			NextAction: "Use asc web business agreements list, review updated terms in Business, then accept with --contract-config-id and --confirm.",
+		},
+		{
+			Area:       "access",
+			Capability: "Digital Services Act trader status",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web business dsa status"},
+			NextAction: "Use asc web business dsa status to check the selected account's trader declaration and verification status.",
 		},
 		{
 			Area:       "access",

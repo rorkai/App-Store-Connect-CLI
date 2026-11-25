@@ -164,6 +164,8 @@ func newAgeRatingEditCommand(d *shared.Deps) *ffcli.Command {
 	allNone := fs.Bool("all-none", false, "Set all ratings to NONE/false (safe default for apps with no objectionable content)")
 
 	// Boolean content descriptors
+	datingAndRelationships := fs.String("dating-and-relationships", "", "Dating and relationships (true/false)")
+	sharedLocation := fs.String("shared-location", "", "Shared location (true/false)")
 	advertising := fs.String("advertising", "", "Contains advertising (true/false)")
 	gambling := fs.String("gambling", "", "Real gambling content (true/false)")
 	healthOrWellnessTopics := fs.String("health-or-wellness-topics", "", "Health or wellness topics (true/false)")
@@ -237,6 +239,7 @@ Examples:
 			}
 
 			var idFlagProvided, appFlagProvided, appInfoFlagProvided, versionFlagProvided bool
+			var emptyBooleanFlag string
 			fs.Visit(func(f *flag.Flag) {
 				switch f.Name {
 				case "id":
@@ -247,6 +250,10 @@ Examples:
 					appInfoFlagProvided = true
 				case "version-id":
 					versionFlagProvided = true
+				case "dating-and-relationships", "shared-location":
+					if strings.TrimSpace(f.Value.String()) == "" {
+						emptyBooleanFlag = f.Name
+					}
 				}
 			})
 
@@ -278,8 +285,14 @@ Examples:
 				}
 			}
 
+			if emptyBooleanFlag != "" {
+				return d.UsageErrorf("--%s must be true or false", emptyBooleanFlag)
+			}
+
 			values := map[string]string{
 				// Boolean content descriptors
+				"dating-and-relationships":    *datingAndRelationships,
+				"shared-location":             *sharedLocation,
 				"advertising":                 *advertising,
 				"gambling":                    *gambling,
 				"health-or-wellness-topics":   *healthOrWellnessTopics,
@@ -342,7 +355,7 @@ Examples:
 			}
 
 			if !hasAgeRatingUpdates(attributes) {
-				return d.UpdateFlagRequired(fs, allNone, advertising, gambling, healthOrWellnessTopics, lootBox, messagingAndChat, parentalControls, ageAssurance, socialMedia, socialMediaAgeRestricted, unrestrictedWebAccess, userGeneratedContent, alcoholTobaccoDrug, contests, gamblingSimulated, gunsOrOtherWeapons, medicalTreatment, profanityHumor, sexualContentNudity, sexualContentGraphicNudity, horrorFear, matureSuggestive, violenceCartoon, violenceRealistic, violenceRealisticGraphic, kidsAgeBand, ageRatingOverride, ageRatingOverrideV2, koreaAgeRatingOverride, gracNumber, clearGracNumber, developerAgeRatingInfoURL)
+				return d.UpdateFlagRequired(fs, allNone, datingAndRelationships, sharedLocation, advertising, gambling, healthOrWellnessTopics, lootBox, messagingAndChat, parentalControls, ageAssurance, socialMedia, socialMediaAgeRestricted, unrestrictedWebAccess, userGeneratedContent, alcoholTobaccoDrug, contests, gamblingSimulated, gunsOrOtherWeapons, medicalTreatment, profanityHumor, sexualContentNudity, sexualContentGraphicNudity, horrorFear, matureSuggestive, violenceCartoon, violenceRealistic, violenceRealisticGraphic, kidsAgeBand, ageRatingOverride, ageRatingOverrideV2, koreaAgeRatingOverride, gracNumber, clearGracNumber, developerAgeRatingInfoURL)
 			}
 
 			client, err := d.Client()
@@ -489,6 +502,8 @@ func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclaratio
 		flag string
 		dest **bool
 	}{
+		{"dating-and-relationships", &attrs.DatingAndRelationships},
+		{"shared-location", &attrs.SharedLocation},
 		{"advertising", &attrs.Advertising},
 		{"gambling", &attrs.Gambling},
 		{"health-or-wellness-topics", &attrs.HealthOrWellnessTopics},
@@ -566,7 +581,9 @@ func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclaratio
 }
 
 func hasAgeRatingUpdates(attrs asc.AgeRatingDeclarationAttributes) bool {
-	return attrs.Advertising != nil ||
+	return attrs.DatingAndRelationships != nil ||
+		attrs.SharedLocation != nil ||
+		attrs.Advertising != nil ||
 		attrs.Gambling != nil ||
 		attrs.HealthOrWellnessTopics != nil ||
 		attrs.LootBox != nil ||
@@ -601,6 +618,8 @@ func hasAgeRatingUpdates(attrs asc.AgeRatingDeclarationAttributes) bool {
 // allNoneBoolFlags lists the boolean content descriptor flag names that
 // --all-none should default to "false".
 var allNoneBoolFlags = []string{
+	"dating-and-relationships",
+	"shared-location",
 	"advertising",
 	"gambling",
 	"health-or-wellness-topics",

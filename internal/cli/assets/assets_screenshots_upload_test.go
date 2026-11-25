@@ -63,19 +63,16 @@ func testReplacementScreenshotValidation(t *testing.T, resize bool, wantErrors [
 		t.Fatalf("initial screenshot preflight failed: %v", err)
 	}
 
+	if err := os.Rename(replacementPath, filePath); err != nil {
+		t.Fatalf("replace validated screenshot: %v", err)
+	}
 	deleted := false
 	reserved := false
-	var replacementErr error
 	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
-			replacementErr = os.Rename(replacementPath, filePath)
-			if replacementErr != nil {
-				http.Error(w, replacementErr.Error(), http.StatusInternalServerError)
-				return
-			}
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshots","id":"existing-1","attributes":{"fileName":"old.png"}}],"links":{}}`)
 		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appScreenshots/existing-1":
 			deleted = true
@@ -90,9 +87,6 @@ func testReplacementScreenshotValidation(t *testing.T, resize bool, wantErrors [
 	}))
 
 	_, err := uploadScreenshots(context.Background(), newAssetsUploadTestDeps(), client, "LOC_123", "APP_IPHONE_65", []string{filePath}, false, true, false)
-	if replacementErr != nil {
-		t.Fatalf("replace validated screenshot: %v", replacementErr)
-	}
 	if err == nil {
 		t.Fatal("uploadScreenshots() error = nil, want invalid replacement")
 	}
@@ -616,15 +610,22 @@ func TestUploadScreenshotsDryRunDoesNotCreateSet(t *testing.T) {
 }
 
 func TestUploadScreenshotsDryRunWithReplaceReportsWouldDelete(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "100")
 	filePath := writeAssetsTestPNG(t, t.TempDir(), "01-home.png")
 
 	origTransport := http.DefaultTransport
 	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123":
+			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"LOC_123","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VERSION_123"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
+			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_123","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"100"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
-			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"existing-1","attributes":{"fileName":"old.png","fileSize":100}}],"links":{}}`)
+			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"existing-1","attributes":{"fileName":"old.png","fileSize":100,"sourceFileChecksum":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","assetDeliveryState":{"state":"COMPLETE"}}}],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"existing-1"}],"links":{}}`)
 		default:
 			t.Fatalf("unexpected request in dry-run --replace: %s %s", req.Method, req.URL.String())
 			return nil, nil

@@ -255,6 +255,13 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 	origTransport := http.DefaultTransport
 	createCount := 0
 	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		members := []string{"new-1"}
+		if createCount > 0 {
+			members = append(members, "new-2")
+		}
+		if payload, ok := screenshotResumeScopeTestPayload(t, req, members); ok {
+			return assetsJSONResponse(http.StatusOK, payload)
+		}
 		switch {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
 			createCount++
@@ -281,7 +288,7 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
 	if err == nil {
 		t.Fatal("expected resumeAppScreenshotUpload() error")
 	}
@@ -318,71 +325,24 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 	}
 }
 
-func TestResumeAppScreenshotUploadRetriesCleanupBeforeNewUploads(t *testing.T) {
-	workDir := t.TempDir()
-	artifactPath := filepath.Join(workDir, "resume-artifact.json")
+func TestResumeAppScreenshotUploadRefusesReceiptCleanupWithoutWrites(t *testing.T) {
+	artifactPath := filepath.Join(t.TempDir(), "resume-artifact.json")
 	if _, err := persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
-		SetID:      "set-1",
-		OrderedIDs: []string{"existing-1"},
-		CleanupFailures: []screenshotPendingAsset{{
-			FileName: "04-settings.png",
-			FilePath: filepath.Join(workDir, "04-settings.png"),
-			AssetID:  "leaked-1",
-			State:    "COMPLETE",
-		}},
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		SetID: "set-1", OrderedIDs: []string{"existing-1"},
+		CleanupFailures: []screenshotPendingAsset{{AssetID: "untrusted-asset", State: "COMPLETE"}},
 	}); err != nil {
-		t.Fatalf("persistScreenshotUploadFailureArtifact() error: %v", err)
+		t.Fatal(err)
 	}
-
-	deleteAttempts := 0
-	postAttempts := 0
+	requests := 0
 	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		switch {
-		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appScreenshots/leaked-1":
-			deleteAttempts++
-			if deleteAttempts == 1 {
-				writeAssetsTestJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","detail":"cleanup unavailable"}]}`)
-				return
-			}
-			w.WriteHeader(http.StatusNotFound)
-		case req.Method == http.MethodPost:
-			postAttempts++
-			writeAssetsTestJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","detail":"unexpected new reservation"}]}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
-			w.WriteHeader(http.StatusNoContent)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
+		requests++
+		w.WriteHeader(http.StatusNoContent)
 	}))
-
-	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
-	if err == nil || !strings.Contains(err.Error(), "cleanup unavailable") {
-		t.Fatalf("first resume error = %v, want cleanup failure", err)
-	}
-	if postAttempts != 0 {
-		t.Fatalf("new reservations after failed cleanup = %d, want none", postAttempts)
-	}
-	if result.FailureArtifactPath == "" {
-		t.Fatal("expected updated failure artifact path")
-	}
-	artifact, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
-	if err != nil {
-		t.Fatalf("load rewritten artifact: %v", err)
-	}
-	if len(artifact.CleanupFailures) != 1 || artifact.CleanupFailures[0].AssetID != "leaked-1" {
-		t.Fatalf("rewritten cleanup failures = %#v, want leaked-1", artifact.CleanupFailures)
-	}
-
-	result, err = resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
-	if err != nil {
-		t.Fatalf("second resume error = %v, want 404 cleanup to be idempotent", err)
-	}
-	if deleteAttempts != 2 {
-		t.Fatalf("cleanup attempts = %d, want retry", deleteAttempts)
-	}
-	if postAttempts != 0 {
-		t.Fatalf("new reservations after successful cleanup = %d, want none", postAttempts)
+	for range 2 {
+		_, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
+		if err == nil || !strings.Contains(err.Error(), "receipts do not authorize screenshot deletion") || requests != 0 {
+			t.Fatalf("error=%v requests=%d; cleanup must require a fresh targeted command", err, requests)
+		}
 	}
 }
 
@@ -481,6 +441,14 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 	commitCount := 0
 	committed := false
 	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		members := []string{}
+		if createCount > 0 {
+			members = append(members, "pending-1")
+		}
+		if payload, ok := screenshotResumeScopeTestPayload(t, req, members); ok {
+			writeAssetsTestJSON(w, http.StatusOK, payload)
+			return
+		}
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
@@ -543,7 +511,7 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 		t.Fatalf("unexpected pending asset: %#v", pending)
 	}
 
-	result, err = resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
+	result, err = resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -643,9 +611,11 @@ func assertScreenshotResumeRejectsChecksumMismatch(t *testing.T, changeLocal, ch
 	}
 	artifactPath := filepath.Join(workDir, "resume-artifact.json")
 	_, err = persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
-		RootPath:     workDir,
-		SetID:        "set-1",
-		PendingFiles: []string{filePath},
+		VersionLocalizationID: "LOC_123",
+		DisplayType:           "APP_IPHONE_65",
+		RootPath:              workDir,
+		SetID:                 "set-1",
+		PendingFiles:          []string{filePath},
 		PendingAssets: []screenshotPendingAsset{{
 			FileName: filepath.Base(filePath),
 			FilePath: filePath,
@@ -665,6 +635,11 @@ func assertScreenshotResumeRejectsChecksumMismatch(t *testing.T, changeLocal, ch
 	detailReads := 0
 	orderPatched := false
 	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		members := []string{"pending-1"}
+		if payload, ok := screenshotResumeScopeTestPayload(t, req, members); ok {
+			writeAssetsTestJSON(w, http.StatusOK, payload)
+			return
+		}
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/pending-1":
 			detailReads++
@@ -681,7 +656,7 @@ func assertScreenshotResumeRejectsChecksumMismatch(t *testing.T, changeLocal, ch
 		}
 	}))
 
-	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
 	if err == nil {
 		t.Fatal("expected a checksum mismatch to fail resume")
 	}
@@ -744,7 +719,7 @@ func TestResumeAppScreenshotUploadRejectsSymlinkedParentBelowRecordedRoot(t *tes
 		writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`)
 	}))
 
-	_, err = resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
+	_, err = resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
 	if !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("resumeAppScreenshotUpload() error = %v, want rootfs.ErrSymlink", err)
 	}
@@ -768,64 +743,34 @@ func TestUploadScreenshotAssetRejectsSymlinkedParentBelowSourceRoot(t *testing.T
 	}
 }
 
-func TestResumeScreenshotsDeletesIncompleteReservationBeforeRecreating(t *testing.T) {
-	filePath := writeAssetsTestPNG(t, t.TempDir(), "01-home.png")
-	fileSizeBytes := fileSize(t, filePath)
-	checksum, err := computeFileChecksum(filePath)
-	if err != nil {
-		t.Fatalf("computeFileChecksum() error: %v", err)
-	}
-
-	deletedIncomplete := false
-	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/incomplete-1":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"incomplete-1","attributes":{"assetDeliveryState":{"state":"AWAITING_UPLOAD"}}}}`)
-		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appScreenshots/incomplete-1":
-			deletedIncomplete = true
-			writeAssetsTestJSON(w, http.StatusNoContent, "")
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
-			if !deletedIncomplete {
-				t.Fatal("replacement reservation was created before the incomplete one was deleted")
+func TestResumeScreenshotsRefusesDestructivePendingRecovery(t *testing.T) {
+	for _, state := range []string{"FAILED", "AWAITING_UPLOAD", ""} {
+		t.Run(state, func(t *testing.T) {
+			filePath := writeAssetsTestPNG(t, t.TempDir(), "01-home.png")
+			reads, writes := 0, 0
+			client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.Method != http.MethodGet {
+					writes++
+					w.WriteHeader(http.StatusNoContent)
+					return
+				}
+				reads++
+				if req.URL.Path != "/v1/appScreenshots/untrusted-asset" {
+					t.Fatalf("unexpected read: %s", req.URL.Path)
+				}
+				writeAssetsTestJSON(w, http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"untrusted-asset","attributes":{"assetDeliveryState":{"state":%q}}}}`, state))
+			}))
+			progress, err := resumeScreenshotsWithOrderState(context.Background(), nil, shared.ContextWithTimeout,
+				client, "set-1", nil, []string{filePath}, []screenshotPendingAsset{{
+					FileName: filepath.Base(filePath), FilePath: filePath, AssetID: "untrusted-asset", State: "AWAITING_UPLOAD",
+				}}, filepath.Dir(filePath), true, true)
+			if err == nil || !strings.Contains(err.Error(), "receipts do not authorize screenshot deletion") || reads != 1 || writes != 0 {
+				t.Fatalf("error=%v reads=%d writes=%d", err, reads, writes)
 			}
-			writeAssetsTestJSON(w, http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"replacement-1","attributes":{"uploadOperations":[{"method":"PUT","url":"http://%s/uploads/replacement-1","length":%d,"offset":0}]}}}`, req.Host, fileSizeBytes))
-		case req.Method == http.MethodPut && req.URL.Path == "/uploads/replacement-1":
-			writeAssetsTestJSON(w, http.StatusOK, `{}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshots/replacement-1":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"replacement-1","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/replacement-1":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"replacement-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
-			writeAssetsTestJSON(w, http.StatusNoContent, "")
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	}))
-
-	progress, err := resumeScreenshotsWithOrderState(
-		context.Background(),
-		nil,
-		shared.ContextWithTimeout,
-		client,
-		"set-1",
-		nil,
-		[]string{filePath},
-		[]screenshotPendingAsset{{
-			FileName: filepath.Base(filePath),
-			FilePath: filePath,
-			AssetID:  "incomplete-1",
-			Checksum: checksum,
-			State:    "AWAITING_UPLOAD",
-		}},
-		filepath.Dir(filePath),
-		true,
-		true,
-	)
-	if err != nil {
-		t.Fatalf("resumeScreenshotsWithOrderState() error: %v", err)
-	}
-	if len(progress.Results) != 1 || progress.Results[0].AssetID != "replacement-1" {
-		t.Fatalf("expected replacement upload result, got %#v", progress.Results)
+			if len(progress.Results) != 0 || len(progress.PendingAssets) != 1 || progress.PendingAssets[0].AssetID != "untrusted-asset" {
+				t.Fatalf("pending recovery state changed: %+v", progress)
+			}
+		})
 	}
 }
 
@@ -1017,10 +962,12 @@ func TestResumeAppScreenshotUploadOrderingOnlyDoesNotRequireSourceRoot(t *testin
 	missingRoot := filepath.Join(workDir, "removed-screenshots")
 	artifactPath := filepath.Join(workDir, "failure-artifact.json")
 	_, err := persistScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath, screenshotUploadFailureArtifact{
-		RootPath:   missingRoot,
-		SetID:      "set-1",
-		Files:      []string{filepath.Join(missingRoot, "01-home.png")},
-		OrderedIDs: []string{"new-1"},
+		VersionLocalizationID: "LOC_123",
+		DisplayType:           "APP_IPHONE_65",
+		RootPath:              missingRoot,
+		SetID:                 "set-1",
+		Files:                 []string{filepath.Join(missingRoot, "01-home.png")},
+		OrderedIDs:            []string{"new-1"},
 		Results: []asc.AssetUploadResultItem{{
 			FileName: "01-home.png",
 			FilePath: filepath.Join(missingRoot, "01-home.png"),
@@ -1036,6 +983,11 @@ func TestResumeAppScreenshotUploadOrderingOnlyDoesNotRequireSourceRoot(t *testin
 
 	patched := false
 	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		members := []string{"new-1"}
+		if payload, ok := screenshotResumeScopeTestPayload(t, req, members); ok {
+			writeAssetsTestJSON(w, http.StatusOK, payload)
+			return
+		}
 		if req.Method != http.MethodPatch || req.URL.Path != "/v1/appScreenshotSets/set-1/relationships/appScreenshots" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
@@ -1043,7 +995,7 @@ func TestResumeAppScreenshotUploadOrderingOnlyDoesNotRequireSourceRoot(t *testin
 		writeAssetsTestJSON(w, http.StatusNoContent, "")
 	}))
 
-	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1226,10 +1178,15 @@ func TestResumeAppScreenshotUploadSkipExistingPreservesPendingLocalOrder(t *test
 	}
 
 	relationshipPatches := make([][]string, 0, 2)
+	members := []string{"unrelated-1", "new-1", "existing-1"}
 	origTransport := http.DefaultTransport
 	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if payload, ok := screenshotResumeScopeTestPayload(t, req, members); ok {
+			return assetsJSONResponse(http.StatusOK, payload)
+		}
 		switch {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			members = append(members, "pending-1")
 			return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/pending-1","length":%d,"offset":0}]}}}`, pendingSizeBytes))
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 			return assetsJSONResponse(http.StatusOK, `{}`)
@@ -1264,7 +1221,7 @@ func TestResumeAppScreenshotUploadSkipExistingPreservesPendingLocalOrder(t *test
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1305,6 +1262,10 @@ func TestResumeAppScreenshotUploadSkipExistingRetriesOrderingWithoutIDs(t *testi
 	relationshipPatchCalled := false
 	origTransport := http.DefaultTransport
 	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		members := []string{"unrelated-1", "existing-1"}
+		if payload, ok := screenshotResumeScopeTestPayload(t, req, members); ok {
+			return assetsJSONResponse(http.StatusOK, payload)
+		}
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
 			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"unrelated-1"},{"type":"appScreenshots","id":"existing-1"}],"links":{}}`)
@@ -1337,7 +1298,7 @@ func TestResumeAppScreenshotUploadSkipExistingRetriesOrderingWithoutIDs(t *testi
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}
@@ -1401,10 +1362,15 @@ func TestPersistScreenshotUploadFailureArtifactNormalizesPendingPathsForResume(t
 	}
 
 	fileSizeBytes := fileSize(t, absoluteFile)
+	members := []string{"new-1"}
 	origTransport := http.DefaultTransport
 	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if payload, ok := screenshotResumeScopeTestPayload(t, req, members); ok {
+			return assetsJSONResponse(http.StatusOK, payload)
+		}
 		switch {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			members = append(members, "new-2")
 			return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-2","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-2","length":%d,"offset":0}]}}}`, fileSizeBytes))
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 			return assetsJSONResponse(http.StatusOK, `{}`)
@@ -1424,7 +1390,7 @@ func TestPersistScreenshotUploadFailureArtifactNormalizesPendingPathsForResume(t
 	})
 
 	client := newAssetsUploadTestClient(t)
-	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, nil)
+	result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
 	if err != nil {
 		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
 	}

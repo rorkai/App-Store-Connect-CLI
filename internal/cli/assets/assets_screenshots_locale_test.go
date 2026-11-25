@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -33,6 +34,11 @@ func TestExecuteScreenshotUploadCommandLocaleReplaceTouchesOnlySelectedLocaleSet
 	localeDir := t.TempDir()
 	filePath := writeAssetsTestPNGWithSize(t, localeDir, "01-home.png", 1242, 2688)
 	fileSizeBytes := fileSize(t, filePath)
+	checksum, err := computeFileChecksumInRoot(localeDir, filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	order := []string{"existing-en-1"}
 
 	var (
 		mu               sync.Mutex
@@ -49,6 +55,8 @@ func TestExecuteScreenshotUploadCommandLocaleReplaceTouchesOnlySelectedLocaleSet
 			return
 		}
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-en","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appStoreVersions":
 			if got := req.URL.Query().Get("filter[versionString]"); got != "1.2.3" {
 				t.Errorf("filter[versionString] = %q, want 1.2.3", got)
@@ -61,12 +69,24 @@ func TestExecuteScreenshotUploadCommandLocaleReplaceTouchesOnlySelectedLocaleSet
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets":
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-en","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-en/appScreenshots":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshots","id":"existing-en-1","attributes":{"fileName":"old.png"}}],"links":{}}`)
+			data := make([]map[string]any, 0, len(order))
+			for _, id := range order {
+				sourceChecksum := checksum
+				if id == "existing-en-1" {
+					sourceChecksum = strings.Repeat("a", 32)
+				}
+				data = append(data, map[string]any{"type": "appScreenshots", "id": id, "attributes": map[string]any{"fileName": id + ".png", "sourceFileChecksum": sourceChecksum, "assetDeliveryState": map[string]string{"state": "COMPLETE"}}})
+			}
+			if err := json.NewEncoder(w).Encode(map[string]any{"data": data}); err != nil {
+				t.Error(err)
+			}
 		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appScreenshots/existing-en-1":
 			deleted = append(deleted, "existing-en-1")
+			order = nil
 			w.WriteHeader(http.StatusNoContent)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
 			reservedSets = append(reservedSets, "set-en")
+			order = append(order, "new-en-1")
 			writeAssetsTestJSON(w, http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-en-1","attributes":{"uploadOperations":[{"method":"PUT","url":"http://%s/uploads/new-en-1","length":%d,"offset":0}]}}}`, req.Host, fileSizeBytes))
 		case req.Method == http.MethodPut && req.URL.Path == "/uploads/new-en-1":
 			writeAssetsTestJSON(w, http.StatusOK, `{}`)
@@ -75,7 +95,13 @@ func TestExecuteScreenshotUploadCommandLocaleReplaceTouchesOnlySelectedLocaleSet
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-en-1":
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-en-1","attributes":{"sourceFileChecksum":"settled","assetDeliveryState":{"state":"COMPLETE"}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-en/relationships/appScreenshots":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshots","id":"new-en-1"}],"links":{}}`)
+			data := make([]map[string]string, 0, len(order))
+			for _, id := range order {
+				data = append(data, map[string]string{"type": "appScreenshots", "id": id})
+			}
+			if err := json.NewEncoder(w).Encode(map[string]any{"data": data}); err != nil {
+				t.Error(err)
+			}
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-en/relationships/appScreenshots":
 			w.WriteHeader(http.StatusNoContent)
 		default:

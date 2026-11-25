@@ -55,7 +55,7 @@ var rootUsageGroups = []rootCommandGroup{
 	},
 	{
 		title:    "MONETIZATION COMMANDS",
-		commands: []string{"iap", "storekit", "app-events", "subscriptions"},
+		commands: []string{"catalog", "iap", "storekit", "app-events", "subscriptions"},
 	},
 	{
 		title:    "SIGNING COMMANDS",

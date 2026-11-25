@@ -69,7 +69,8 @@ READY_FOR_REVIEW, WAITING_FOR_REVIEW, or INVALID_BINARY), then a
 DEVELOPER_REMOVED_FROM_SALE version, and finally the live version. The selected version is reported on stderr. Pass --platform when
 the app has candidate versions on more than one platform. --version also takes an
 App Store version ID, such as the IDs a version-not-found error lists; the
-version's own string and platform are then used.
+version's own string and platform are then used. Before the first version exists,
+omit --version to pull app-info localizations, categories, or age-rating.
 
 Pulling again into the same --dir refreshes files that already hold the App Store
 Connect values, and App Clip or preview media left unchanged since the last pull.
@@ -132,17 +133,29 @@ Examples:
 
 			var versionIDValue, versionStateValue string
 			if versionValue == "" {
-				resolved, err := d.ResolveAndAnnounceDefaultAppStoreVersion(asc.WithNoRedirectReads(requestCtx), client, resolvedAppID, platformValue, "--version")
-				if err != nil {
+				versionCtx := asc.WithNoRedirectReads(requestCtx)
+				resolved, err := d.ResolveAndAnnounceDefaultAppStoreVersion(versionCtx, client, resolvedAppID, platformValue, "--version")
+				if err == nil {
+					versionValue = resolved.VersionString
+					versionIDValue = resolved.ID
+					versionStateValue = resolved.State
+					platformValue = resolved.Platform
+				} else {
 					if errors.Is(err, flag.ErrHelp) {
 						return err
 					}
-					return fmt.Errorf("metadata pull: %w", err)
+					if !errors.Is(err, shared.ErrNoDefaultAppStoreVersion) || includesScope(includes, "app-clip") || includesScope(includes, "previews") || includesScope(includes, "review-information") {
+						return fmt.Errorf("metadata pull: %w", err)
+					}
+					versions, readErr := client.GetAppStoreVersions(versionCtx, resolvedAppID, asc.Limit[asc.AppStoreVersionsOption](1))
+					if readErr != nil {
+						return fmt.Errorf("metadata pull: %w", readErr)
+					}
+					if len(versions.Data) > 0 || versions.Links.Next != "" {
+						return fmt.Errorf("metadata pull: %w", err)
+					}
+					fmt.Fprintln(d.IO.ErrOut, "No App Store version exists yet. Pulling app-info metadata only.")
 				}
-				versionValue = resolved.VersionString
-				versionIDValue = resolved.ID
-				versionStateValue = resolved.State
-				platformValue = resolved.Platform
 			} else if appStoreVersionIDPattern.MatchString(versionValue) {
 				// The version-not-found error lists each version's ID, so
 				// callers retry with one; read its version string and platform.
@@ -189,7 +202,7 @@ Examples:
 				}
 			}
 			if includesScope(includes, includeLocalizations) {
-				appInfoItems, versionItems, err = fetchMetadataLocalizations(ctx, d, client, appInfoIDValue, versionIDValue, true, true)
+				appInfoItems, versionItems, err = fetchMetadataLocalizations(ctx, d, client, appInfoIDValue, versionIDValue, true, versionIDValue != "")
 				if err != nil {
 					return fmt.Errorf("metadata pull: %w", err)
 				}

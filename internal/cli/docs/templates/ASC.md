@@ -189,6 +189,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `video-previews` - Manage App Store app preview videos.
 - `signing` - Manage signing certificates and profiles.
 - `notarization` - Manage macOS notarization submissions.
+- `catalog` - Plan and reconcile a product catalog from a JSON file.
 - `iap` - Manage in-app purchases.
 - `storekit` - Manage StoreKit server APIs with dedicated In-App Purchase API keys.
 - `app-events` - Manage App Store in-app events.
