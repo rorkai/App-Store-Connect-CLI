@@ -29,6 +29,13 @@ const (
 	reviewDetailDemoPasswordMaxLength    = 100
 )
 
+func reviewDetailsReadContext(ctx context.Context, appSelector shared.AppSelector) context.Context {
+	if strings.TrimSpace(appSelector.Value) == "" {
+		return ctx
+	}
+	return asc.WithNoRedirectReads(ctx)
+}
+
 func newReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("details-get", flag.ExitOnError)
 
@@ -89,6 +96,7 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
 			if detailValue != "" {
 				if err := verifyReviewDetailsDetailOwner(requestCtx, client, appSelector, detailValue, "review details-get"); err != nil {
@@ -157,6 +165,7 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			requestCtx = reviewDetailsReadContext(requestCtx, d.ResolveAppSelector(""))
 
 			if err := verifyReviewDetailsVersionOwner(requestCtx, d, client, versionValue, "review details-for-version"); err != nil {
 				return err
@@ -401,6 +410,7 @@ Any other 409 keeps failing.`,
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			requestCtx = reviewDetailsReadContext(requestCtx, d.ResolveAppSelector(""))
 
 			if err := verifyReviewDetailsVersionOwner(requestCtx, d, client, versionValue, "review details-create"); err != nil {
 				return err
@@ -531,8 +541,10 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
-			if err := verifyReviewDetailsDetailOwner(requestCtx, client, d.ResolveAppSelector(""), detailValue, "review details-update"); err != nil {
+			if err := verifyReviewDetailsDetailOwner(requestCtx, client, appSelector, detailValue, "review details-update"); err != nil {
 				return err
 			}
 
