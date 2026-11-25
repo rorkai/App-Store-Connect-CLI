@@ -349,7 +349,6 @@ Examples:
 			}
 
 			var groupResolver *betaGroupResolver
-			appliedGroupID := ""
 			if needsGroups {
 				groupResolver, err = newBetaGroupResolver(ctx, d, client, resolvedAppID)
 				if err != nil {
@@ -380,6 +379,7 @@ Examples:
 				Total:           len(parsedRows),
 			}
 
+			var refused error
 			for _, name := range missingGroups {
 				item := asc.BetaTestersImportGroup{Name: name, Status: "planned"}
 				id := "planned:" + name
@@ -388,6 +388,10 @@ Examples:
 					if err != nil {
 						item.Status, item.Error = "failed", err.Error()
 						summary.Groups = append(summary.Groups, item)
+						if *continueOnError {
+							refused = shared.KeepReadOnlyRefusal(refused, err)
+							continue
+						}
 						if printErr := d.PrintOutput(summary, *format.Output, *format.Pretty); printErr != nil {
 							return printErr
 						}
@@ -398,14 +402,12 @@ Examples:
 				summary.Groups = append(summary.Groups, item)
 				groupResolver.addImportGroup(name, id)
 			}
+			var appliedGroupID string
+			var appliedGroupErr error
 			if appliedGroupValue != "" {
-				appliedGroupID, err = groupResolver.Resolve(appliedGroupValue)
-				if err != nil {
-					return err
-				}
+				appliedGroupID, appliedGroupErr = groupResolver.Resolve(appliedGroupValue)
 			}
 
-			var refused error
 			for idx, row := range parsedRows {
 				rowNumber := idx + 1 // 1-based data row index (excluding header)
 
@@ -414,13 +416,16 @@ Examples:
 
 				var groupIDs []string
 				if needsGroups {
-					groupIDs, err = groupResolver.ResolveAll(row.groups)
-					if err != nil {
+					groupErr := appliedGroupErr
+					if groupErr == nil {
+						groupIDs, groupErr = groupResolver.ResolveAll(row.groups)
+					}
+					if groupErr != nil {
 						summary.Failed++
 						summary.Failures = append(summary.Failures, asc.BetaTestersImportFailure{
 							Row:   rowNumber,
 							Email: emailValue,
-							Error: err.Error(),
+							Error: groupErr.Error(),
 						})
 						if !*continueOnError {
 							break
