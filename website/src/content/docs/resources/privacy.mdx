@@ -1,0 +1,75 @@
+---
+title: Privacy
+description: What asc telemetry collects, who receives it, how long it is kept, and how to request deletion
+---
+
+`asc` talks to Apple's services on your behalf, and to Rork only for usage
+telemetry. Nothing else is sent to Rork. This page covers that telemetry; the
+[telemetry reference](/commands/telemetry) lists every field.
+
+## Controller
+
+Rork, Inc., 2261 Market Street, Suite 22999, San Francisco, CA 94114, United
+States, is the controller for `asc` telemetry. Contact `support@rork.com`.
+The [Rork privacy policy](https://rork.com/privacy) applies to everything this
+page does not cover.
+
+## What is collected
+
+One event per command: the CLI version, operating system and architecture,
+the registered command path, duration, outcome, and the runtime and invoking
+tool. Never arguments, flag values, credentials, Apple account, team, app, or
+bundle IDs, usernames, hostnames, or file paths.
+
+By default an event carries only a random event ID and a random session ID
+that lasts one process. A random install ID is added only after you run
+`asc telemetry enable --install-id`.
+
+## Purpose and legal basis
+
+Telemetry shows which commands are used and where they fail, so maintainers
+can prioritize fixes. Events without an install ID are processed on the basis
+of legitimate interest (GDPR Art. 6(1)(f)). The install ID is stored on your
+device and sent only with your consent (GDPR Art. 6(1)(a)), which you can
+withdraw at any time with `asc telemetry enable --install-id=false` or
+`asc telemetry disable`.
+
+## Recipients
+
+- Cloudflare: runs the collector at `rork.com/cf-api/asc/v1/events`, its rate
+  limiting, and its request logs.
+- Supabase: stores events in Postgres.
+- ClickHouse Cloud: holds an analytics copy of the events.
+- Axiom and Grafana: receive the collector's Cloudflare Workers logs and a
+  sample of its traces.
+
+These providers process data in the United States. Transfers from the EEA, UK,
+and Switzerland rely on Standard Contractual Clauses, as described in the
+[Rork privacy policy](https://rork.com/privacy).
+
+## IP address
+
+The collector sees your connection address, as any HTTPS service does. For
+events without an install ID it uses the address as a 60-second rate-limit
+key. It does not write the address to telemetry storage. Cloudflare's request
+logs for the collector may record it.
+
+## Retention
+
+TODO(retention): state the retention period once the server-side purge for
+`asc_cli_events` and its ClickHouse copy is live. Do not publish this page
+until then.
+
+## Your rights
+
+You can ask for access to, or deletion of, events linked to your install ID.
+Run `asc telemetry status` to see the ID, then email `support@rork.com` with
+it. Events without an install ID cannot be linked to you, so they cannot be
+found or deleted on request. You can also complain to your data protection
+authority.
+
+## Turning it off
+
+- `asc telemetry disable` (alias `off`)
+- `DO_NOT_TRACK=1` or `ASC_TELEMETRY_DISABLED=1`
+- `asc --no-telemetry <command>` for one run

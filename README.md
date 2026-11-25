@@ -247,7 +247,9 @@ asc telemetry reset-id
 `ASC_TELEMETRY_DISABLED=1` and `DO_NOT_TRACK=1` also disable telemetry, and
 `asc --no-telemetry <command>` disables it for one run. See the
 [telemetry reference](website/src/content/docs/commands/telemetry.mdx) for the exact event payload,
-runtime handling, collector endpoint, and all controls.
+runtime handling, collector endpoint, and all controls, and
+[Privacy](website/src/content/docs/resources/privacy.mdx) for who receives the data and how to
+request deletion.
 
 ## Support
 

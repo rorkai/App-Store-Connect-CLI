@@ -426,6 +426,10 @@
             {
               "label": "API notes",
               "slug": "resources/api-notes"
+            },
+            {
+              "label": "Privacy",
+              "slug": "resources/privacy"
             }
           ]
         }
