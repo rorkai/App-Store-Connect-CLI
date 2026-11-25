@@ -10,15 +10,26 @@ Telemetry records coarse command-level usage so maintainers can understand which
 commands are used, which versions are active, and where reliability work is
 needed.
 
-For local runs, a random installation ID groups events from the same
-installation over time. Because that identifier persists until it is reset,
-the telemetry is pseudonymous rather than strictly anonymous. The ID is not
-derived from an Apple account, person, or hardware identifier.
+Telemetry is enabled by default. Before it sends the first event, `asc`
+prints a one-time notice to stderr that says what is collected and how to turn
+it off. The notice is recorded in `~/.asc/telemetry.json`; if that record
+cannot be written, nothing is sent.
 
-Telemetry is enabled by default for every runtime. It remains enabled in CI,
-Rork sandboxes, Rork GitHub workflows, and explicitly ephemeral environments;
-events from those disposable runtimes omit the durable local install ID. Use
-`asc telemetry disable`, `ASC_TELEMETRY_DISABLED`, or `DO_NOT_TRACK` to opt out.
+Events carry no persistent identifier unless you opt in with
+`asc telemetry enable --install-id`. Opting in stores a random installation ID
+that groups events from the same installation over time, which makes those
+events pseudonymous rather than anonymous. The ID is not derived from an Apple
+account, person, or hardware identifier, and it is sent only from local runs,
+never from CI, Rork sandboxes, Rork GitHub workflows, or explicitly ephemeral
+environments. `asc telemetry enable --install-id=false` and
+`asc telemetry disable` delete it.
+
+Turn telemetry off with any of:
+
+- `asc telemetry disable` (alias `off`), stored per user
+- `DO_NOT_TRACK=1` or `ASC_TELEMETRY_DISABLED=1`, per environment
+- `asc --no-telemetry <command>`, for one invocation
+
 A source build without a release version, such as `go build` or `go run`, sends
 nothing unless `ASC_TELEMETRY_ENDPOINT` is set.
 
@@ -31,9 +42,12 @@ flag. Failed API requests may include the numeric HTTP status, but never the
 response body. For `asc api`, the payload also includes the HTTP method, the
 request path with every identifier replaced by `{id}` (or `other` when the path
 is not in the CLI's embedded API schema), and the names of the query
-parameters; never their values, identifiers, headers, or bodies. As with any HTTPS service, the collector's edge provider sees the
-connection address; the Rork collector may use it transiently for abuse
-throttling but does not persist it in telemetry events or analytics storage.
+parameters; never their values, identifiers, headers, or bodies.
+
+As with any HTTPS service, the collector sees the connection address. For
+events without an install ID, the collector uses it as a 60-second rate-limit
+key and does not write it to telemetry storage. Cloudflare's own request logs
+for the collector may record request metadata.
 
 ## Usage
 
@@ -49,15 +63,19 @@ asc telemetry <subcommand>
 </ParamField>
 
 <ParamField path="enable">
-  Enable telemetry in local CLI state.
+  Enable telemetry in local CLI state. `--install-id` also opts in to the
+  random install ID; `--install-id=false` opts out and deletes it. `on` is an
+  alias.
 </ParamField>
 
 <ParamField path="disable">
-  Disable telemetry in local CLI state.
+  Disable telemetry in local CLI state, delete queued events, and delete the
+  install ID. `off` is an alias.
 </ParamField>
 
 <ParamField path="reset-id">
-  Reset the random local install ID.
+  Replace the install ID when you opted in to one. Without opt-in, delete any
+  stored ID and report that none is stored.
 </ParamField>
 
 ## Examples
@@ -67,7 +85,9 @@ asc telemetry status
 asc telemetry status --output json
 asc telemetry disable
 asc telemetry enable
+asc telemetry enable --install-id
 asc telemetry reset-id
+asc --no-telemetry builds list
 ```
 
 ## Environment Controls
@@ -169,9 +189,11 @@ internal errors. `http_status` contains a number from 400 through 599 only when
 an API client exposes the exact response status.
 
 `runtime_context` describes where the command runs, independently from
-`invocation_source`, which describes what launched it. A command launched by
-Terminal, Claude Code, Cursor Agent, Codex Desktop, OpenCode, or Pi on the same
-local user account reuses the same install ID from `~/.asc/telemetry.json`.
+`invocation_source`, which describes what launched it, read from whether that
+tool's environment marker is set (never its value). With install ID opt-in, a
+command launched by Terminal, Claude Code, Cursor Agent, Codex Desktop,
+OpenCode, or Pi on the same local user account reuses the same install ID from
+`~/.asc/telemetry.json`. Without opt-in, `install_id` is `null`.
 
 Known runtime contexts are `local`, `ephemeral`, `ci`, `rork_sandbox`, and
 `rork_github_workflow`. Known invocation sources are `terminal`, `claude_code`,
@@ -181,9 +203,9 @@ invocations are recognized from the production `RORK_SANDBOX_ID` marker or the
 name.
 
 The install ID represents local CLI state, not an Apple account, person, or
-hardware identifier. It is omitted for CI, Rork sandboxes, Rork GitHub
-workflows, and runtimes marked with `ASC_TELEMETRY_EPHEMERAL`, so known
-disposable machines do not inflate local active-install metrics.
+hardware identifier. It is sent only after opt-in, and even then it is omitted
+for CI, Rork sandboxes, Rork GitHub workflows, and runtimes marked with
+`ASC_TELEMETRY_EPHEMERAL`.
 
 The sender accepts only an HTTPS collector endpoint without embedded
 credentials, refuses every redirect (including HTTPS redirects), and never

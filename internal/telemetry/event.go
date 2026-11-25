@@ -150,8 +150,7 @@ func BuildEventWithContext(
 	invocationSource := DetectInvocationSource()
 	var installID *string
 	if shouldAttachInstallID(runtimeContext) {
-		id, err := ensureInstallID(0)
-		if err == nil && id != "" {
+		if id, ok := optedInInstallID(); ok {
 			installID = &id
 		}
 	}
@@ -791,7 +790,7 @@ func sanitizeCommandName(commandName string) string {
 
 func shouldSkipCommand(commandPath string) bool {
 	switch commandPath {
-	case "", "asc", "asc completion", "asc version", "asc telemetry", "asc telemetry status", "asc telemetry enable", "asc telemetry disable", "asc telemetry reset-id":
+	case "", "asc", "asc completion", "asc version", "asc telemetry", "asc telemetry status", "asc telemetry enable", "asc telemetry disable", "asc telemetry reset-id", "asc telemetry on", "asc telemetry off":
 		return true
 	default:
 		return false

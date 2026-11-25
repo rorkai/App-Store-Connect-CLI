@@ -51,6 +51,10 @@ var commandPathAliases = map[string]map[string][]string{
 		"localizations": {"subscriptions", "versions", "localizations"},
 		"prices":        {"subscriptions", "pricing", "prices"},
 	},
+	"asc telemetry": {
+		"off": {"telemetry", "disable"},
+		"on":  {"telemetry", "enable"},
+	},
 	"asc testflight": {
 		"beta-groups":  {"testflight", "groups"},
 		"beta-testers": {"testflight", "testers"},

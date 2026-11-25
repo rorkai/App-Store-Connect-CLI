@@ -456,10 +456,11 @@ Configure default output formats.
 
 ## Telemetry variables
 
-Pseudonymous command-level CLI telemetry is enabled by default in local, agent,
-CI, and other ephemeral runtimes. Local events include a random installation ID;
-disposable runtimes omit that ID without disabling event delivery. Use these
-variables to opt out or adjust runtime handling.
+Command-level CLI telemetry is enabled by default in local, agent, CI, and other
+ephemeral runtimes, after a one-time notice. Events carry no persistent ID
+unless you opt in with `asc telemetry enable --install-id`; disposable runtimes
+omit that ID even after opt-in. Use these variables to opt out or adjust
+runtime handling, or `asc --no-telemetry <command>` for one run.
 
 <ParamField path="ASC_TELEMETRY_DISABLED" type="boolean">
   Disable telemetry for the current process
@@ -482,8 +483,8 @@ variables to opt out or adjust runtime handling.
 <ParamField path="ASC_TELEMETRY_EPHEMERAL" type="boolean">
   Mark the current runtime as ephemeral without disabling telemetry.
 
-  Set to `true`, `1`, `yes`, `y`, or `on` to omit the local install ID from
-  emitted events. Use this for disposable cloud agents or virtual machines that
+  Set to `true`, `1`, `yes`, `y`, or `on` to omit the install ID from emitted
+  events even after opt-in. Use this for disposable cloud agents or virtual machines that
   are not already identified as CI or a Rork sandbox.
 </ParamField>
 

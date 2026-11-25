@@ -56,6 +56,10 @@ func RunWithDeps(args []string, versionInfo string, d *shared.Deps) int {
 	// --read-only is per invocation: clear it on return so an embedded or
 	// test caller's next Run starts from the environment alone.
 	defer readonly.SetFlagEnabled(false)
+	// --no-telemetry is decided from argv before anything can emit, because
+	// usage failures report before the root flag set is parsed.
+	telemetry.SetProcessOptOut(noTelemetryRequested(args))
+	defer telemetry.SetProcessOptOut(false)
 	// A command may register a structured report for the root runner. Clear
 	// any report left by a direct command test or an interrupted prior run.
 	shared.ConsumeJUnitReport()
