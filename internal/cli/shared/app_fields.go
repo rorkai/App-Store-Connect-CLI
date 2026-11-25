@@ -25,6 +25,7 @@ func appFieldsEnum() []string {
 		"subscriptionStatusUrlForSandbox",
 		"subscriptionStatusUrlVersionForSandbox",
 		"contentRightsDeclaration",
+		"groupPurchaseInvitationMode",
 		"streamlinedPurchasingEnabled",
 		"accessibilityDeclarations",
 		"appStoreIcon",

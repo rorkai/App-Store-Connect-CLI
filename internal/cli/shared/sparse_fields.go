@@ -21,7 +21,7 @@ var AgeRatingDeclarationSparseFields = []string{
 	"socialMediaAgeRestricted", "horrorOrFearThemes", "matureOrSuggestiveThemes", "unrestrictedWebAccess",
 	"userGeneratedContent", "violenceCartoonOrFantasy", "violenceRealisticProlongedGraphicOrSadistic",
 	"violenceRealistic", "ageRatingOverride", "ageRatingOverrideV2", "koreaAgeRatingOverride",
-	"gracRatingClassificationNumber", "developerAgeRatingInfoUrl",
+	"gracRatingClassificationNumber", "developerAgeRatingInfoUrl", "sharedLocation", "datingAndRelationships",
 }
 
 // AppInAppPurchaseSparseFields is the fields[inAppPurchases] enum for operations

@@ -173,7 +173,7 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 		{
 			name:    "undocumented GET include value",
 			args:    []string{"api", "GET", "/v1/subscriptions/123/prices?include=pricePoint"},
-			wantErr: `api: include value "pricePoint" is not documented for GET /v1/subscriptions/{id}/prices (documented: territory, subscriptionPricePoint)`,
+			wantErr: `api: include value "pricePoint" is not documented for GET /v1/subscriptions/{id}/prices (documented: territory, subscriptionPricePoint, additionalPriceTiers)`,
 		},
 		{
 			name:    "undocumented GET filter value in a list",
@@ -843,8 +843,7 @@ func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
 		query []string
 	}{
 		{name: "unindexed path", path: "/v1/notYetIndexed"},
-		// Apple serves datingAndRelationships; the snapshot predates it.
-		{name: "query value newer than the snapshot", path: "/v1/appInfos/INFO1/ageRatingDeclaration", query: []string{"fields[ageRatingDeclarations]=datingAndRelationships"}},
+		{name: "query value newer than the snapshot", path: "/v1/appInfos/INFO1/ageRatingDeclaration", query: []string{"fields[ageRatingDeclarations]=futureField"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -869,17 +868,16 @@ func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
 	}
 }
 
-// TestAPIAllowUnknownPathSendsBodyNewerThanSnapshot covers an attribute Apple
-// serves that the snapshot predates: ageRatingDeclarations has
-// datingAndRelationships live, so the body check must yield to the flag.
+// TestAPIAllowUnknownPathSendsBodyNewerThanSnapshot uses a hypothetical future
+// attribute to verify that the body check yields to the flag.
 func TestAPIAllowUnknownPathSendsBodyNewerThanSnapshot(t *testing.T) {
-	const requestBody = `{"data":{"type":"ageRatingDeclarations","id":"D1","attributes":{"datingAndRelationships":"NONE"}}}`
+	const requestBody = `{"data":{"type":"ageRatingDeclarations","id":"D1","attributes":{"futureQuestion":true}}}`
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.PATCH("/v1/ageRatingDeclarations/D1").JSONBody(requestBody), asctest.JSON(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"D1"}}`))
 
 	args := []string{"api", "PATCH", "/v1/ageRatingDeclarations/D1", "--confirm", "--body", requestBody}
 	_, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
-	if code != rootcmd.ExitUsage || !strings.Contains(stderr, `attribute "datingAndRelationships" is not in AgeRatingDeclarationUpdateRequest`) || !strings.Contains(stderr, "pass --allow-unknown-path to send it anyway") {
+	if code != rootcmd.ExitUsage || !strings.Contains(stderr, `attribute "futureQuestion" is not in AgeRatingDeclarationUpdateRequest`) || !strings.Contains(stderr, "pass --allow-unknown-path to send it anyway") {
 		t.Fatalf("exit = %d, stderr = %q, want a usage error that offers --allow-unknown-path", code, stderr)
 	}
 

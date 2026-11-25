@@ -27,12 +27,12 @@ still work in the API (parity checks can surface these gaps).
 5. Run `make check-docs` to verify the generated indexes and client code are current.
 6. Update the "Last synced" date below and commit the snapshot and indexes together.
 
-Last synced: 2026-11-05
+Last synced: 2026-11-25
 
-Snapshot version: `4.6`, from the official Apple archive listed above.
+Snapshot version: `4.6.1`, from the official Apple archive listed above.
 
-- Archive SHA-256: `f41ed4489c78bf1488cd2291f23394565364fe37b402130f48c3e3c3f5ea1acd`
-- Extracted `openapi.oas.json` SHA-256: `74732362a91236dcb66eb1620f8be18c2b6060771269b483eab578473bb32763`
+- Archive SHA-256: `528ebf253c4fea45d619f8576bca14a418a1a878080e4bcdef833e932a7abcef`
+- Extracted `openapi.oas.json` SHA-256: `ba2ab338aa3ecb68948aefa5514d56d22df933422b9d8b5b25f17569e0d3e259`
 
 The snapshot preserves the extracted JSON bytes. Both indexes are generated
 from that snapshot using the update process above.
