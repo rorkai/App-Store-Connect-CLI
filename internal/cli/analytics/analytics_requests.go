@@ -558,7 +558,8 @@ func newAnalyticsDownloadCommand(d *shared.Deps) *ffcli.Command {
 
 Use --all-segments with --output-dir to get the complete report instance.
 This mode uses .txt.gz files, with a .txt copy per segment when --decompress is
-set. The directory is published after all segments are saved.
+set. The directory is published after all segments are saved, so --output-dir
+must be on a filesystem that supports an atomic no-replace rename.
 
 Examples:
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"

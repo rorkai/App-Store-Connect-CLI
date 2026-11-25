@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -505,6 +506,33 @@ func TestFetchLocalizationsForPlanRequestContexts(t *testing.T) {
 			}
 			if requests[1].Err() != context.Canceled {
 				t.Fatal("final request context was not canceled")
+			}
+		})
+	}
+}
+
+func TestResolveDeliverfileAppIDRequiresExactBundleID(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		bundleID string
+		want     string
+	}{
+		{"prefix alone is refused", "com.example.app.preview", ""},
+		{"exact bundle resolves", "com.example.app", "123"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.app", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"123","attributes":{"bundleId":"`+test.bundleID+`"}}]}`))
+			got, err := resolveAppID(context.Background(), shared.DefaultDeps(), newMigrateUploadTestClient(t), "",
+				DeliverfileConfig{AppIdentifier: "com.example.app"})
+			if test.want == "" {
+				if got != "" || err == nil || !strings.Contains(err.Error(), "exact match required") {
+					t.Fatalf("resolved a prefix candidate: id=%q error=%v", got, err)
+				}
+			} else if err != nil || got != test.want {
+				t.Fatalf("resolved %q, %v; want %q", got, err, test.want)
 			}
 		})
 	}

@@ -15,13 +15,12 @@ import (
 
 const xcodeCloudAppFlagUsage = "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)"
 
-func resolveXcodeCloudAppID(ctx context.Context, d *shared.Deps, client *asc.Client, appID string) (string, error) {
-	resolvedAppID := d.ResolveAppID(appID)
-	if resolvedAppID == "" {
+func resolveXcodeCloudAppID(ctx context.Context, client *asc.Client, appSelector shared.AppSelector) (string, error) {
+	if strings.TrimSpace(appSelector.Value) == "" {
 		return "", nil
 	}
 
-	return shared.ResolveAppIDWithExactLookup(ctx, client, resolvedAppID)
+	return shared.ResolveScopedAppID(ctx, client, appSelector)
 }
 
 // NewXcodeCloudCommand returns the xcode-cloud command with subcommands.
@@ -123,6 +122,7 @@ Examples:
 			hasGitRefID := strings.TrimSpace(*gitReferenceID) != ""
 			hasPullRequestID := strings.TrimSpace(*pullRequestID) != ""
 			hasSourceRunID := strings.TrimSpace(*sourceRunID) != ""
+			hasExplicitAppID := strings.TrimSpace(*appID) != ""
 
 			if hasWorkflowName && hasWorkflowID {
 				return d.UsageError("--workflow and --workflow-id are mutually exclusive")
@@ -134,6 +134,9 @@ Examples:
 				return d.UsageError("--branch, --git-reference-id, and --pull-request-id are mutually exclusive")
 			}
 			if hasSourceRunID {
+				if hasExplicitAppID {
+					return d.UsageError("--app cannot be combined with --source-run-id; source-run-id determines the workflow")
+				}
 				if hasWorkflowName || hasWorkflowID {
 					return d.UsageError("--source-run-id is mutually exclusive with --workflow and --workflow-id")
 				}
@@ -141,6 +144,9 @@ Examples:
 					return d.UsageError("--source-run-id is mutually exclusive with --branch, --git-reference-id, and --pull-request-id")
 				}
 			} else {
+				if hasWorkflowID && hasExplicitAppID {
+					return d.UsageError("--app cannot be combined with --workflow-id; use --workflow with --app to resolve a workflow by name")
+				}
 				if !hasWorkflowName && !hasWorkflowID {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --workflow or --workflow-id is required")
 					return shared.MissingRequiredUsageError("")
@@ -163,7 +169,8 @@ Examples:
 				return err
 			}
 
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if hasWorkflowName && !hasSourceRunID && resolvedAppID == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required when using --workflow (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
@@ -186,19 +193,20 @@ Examples:
 			triggerSource := ""
 
 			if !hasSourceRunID {
+				proofCtx := asc.WithNoRedirectReads(requestCtx)
 				// Resolve workflow ID if needed.
 				if resolvedWorkflowID == "" {
-					resolvedAppID, err = resolveXcodeCloudAppID(requestCtx, d, client, resolvedAppID)
+					resolvedAppID, err = resolveXcodeCloudAppID(proofCtx, client, appSelector)
 					if err != nil {
 						return fmt.Errorf("xcode-cloud run: %w", err)
 					}
 
-					product, err := client.ResolveCiProductForApp(requestCtx, resolvedAppID)
+					product, err := client.ResolveCiProductForApp(proofCtx, resolvedAppID)
 					if err != nil {
 						return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 					}
 
-					workflow, err := client.ResolveCiWorkflowByName(requestCtx, product.ID, strings.TrimSpace(*workflowName))
+					workflow, err := client.ResolveCiWorkflowByName(proofCtx, product.ID, strings.TrimSpace(*workflowName))
 					if err != nil {
 						return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 					}
@@ -212,12 +220,12 @@ Examples:
 				} else {
 					// Resolve git reference by name if needed.
 					if resolvedGitRefID == "" {
-						repo, err := client.GetCiWorkflowRepository(requestCtx, resolvedWorkflowID)
+						repo, err := client.GetCiWorkflowRepository(proofCtx, resolvedWorkflowID)
 						if err != nil {
 							return fmt.Errorf("xcode-cloud run: failed to get workflow repository: %w", err)
 						}
 
-						gitRef, err := client.ResolveGitReferenceByName(requestCtx, repo.ID, strings.TrimSpace(*branch))
+						gitRef, err := client.ResolveGitReferenceByName(proofCtx, repo.ID, strings.TrimSpace(*branch))
 						if err != nil {
 							return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 						}

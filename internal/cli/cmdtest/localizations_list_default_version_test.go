@@ -25,7 +25,7 @@ func installLocalizationsDefaultVersionTransport(t *testing.T, versionsByQuery m
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		*log = append(*log, req.URL.Path)
 		switch req.URL.Path {
-		case "/v1/apps/app-1/appStoreVersions":
+		case "/v1/apps/1234567890/appStoreVersions":
 			body, ok := versionsByQuery[appStoreVersionsQueryKey(req.URL.Query())]
 			if !ok {
 				t.Fatalf("unexpected versions query %q", req.URL.RawQuery)
@@ -46,7 +46,7 @@ func TestLocalizationsListDefaultsToEditableVersionWhenVersionOmitted(t *testing
 		editableVersionStateQuery: `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION","createdDate":"2026-02-01T00:00:00Z"}}],"links":{"next":""}}`,
 	}, &log)
 
-	stdout, stderr, runErr := runRootCommand(t, []string{"localizations", "list", "--app", "app-1"})
+	stdout, stderr, runErr := runRootCommand(t, []string{"localizations", "list", "--app", "1234567890"})
 	if runErr != nil {
 		t.Fatalf("Run() error = %v", runErr)
 	}
@@ -57,7 +57,7 @@ func TestLocalizationsListDefaultsToEditableVersionWhenVersionOmitted(t *testing
 	if !strings.Contains(stdout, `"id":"loc-1"`) {
 		t.Fatalf("expected localization envelope, got %q", stdout)
 	}
-	if strings.Join(log, ",") != "/v1/apps/app-1/appStoreVersions,/v1/appStoreVersions/ver-1/appStoreVersionLocalizations" {
+	if strings.Join(log, ",") != "/v1/apps/1234567890/appStoreVersions,/v1/appStoreVersions/ver-1/appStoreVersionLocalizations" {
 		t.Fatalf("unexpected request sequence: %v", log)
 	}
 }
@@ -71,7 +71,7 @@ func TestLocalizationsListDefaultsToLiveVersionWithPlatform(t *testing.T) {
 		liveVersionModernStateQuery + "&filter[platform]=MAC_OS": `{"data":[],"links":{"next":""}}`,
 	}, &log)
 
-	_, stderr, runErr := runRootCommand(t, []string{"localizations", "list", "--app", "app-1", "--platform", "MAC_OS"})
+	_, stderr, runErr := runRootCommand(t, []string{"localizations", "list", "--app", "1234567890", "--platform", "MAC_OS"})
 	if runErr != nil {
 		t.Fatalf("Run() error = %v", runErr)
 	}
@@ -110,19 +110,19 @@ func TestLocalizationsListDefaultVersionUsageErrors(t *testing.T) {
 		},
 		{
 			name:       "platform with app-info type",
-			args:       []string{"localizations", "list", "--app", "app-1", "--type", "app-info", "--platform", "IOS"},
+			args:       []string{"localizations", "list", "--app", "1234567890", "--type", "app-info", "--platform", "IOS"},
 			wantStderr: "--platform requires --type version",
 			wantExit:   rootcmd.ExitUsage,
 		},
 		{
 			name:       "platform with next continuation",
-			args:       []string{"localizations", "list", "--app", "app-1", "--platform", "IOS", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/appStoreVersionLocalizations?cursor=NEXT"},
+			args:       []string{"localizations", "list", "--app", "1234567890", "--platform", "IOS", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/appStoreVersionLocalizations?cursor=NEXT"},
 			wantStderr: "--platform cannot be combined with --next",
 			wantExit:   rootcmd.ExitUsage,
 		},
 		{
 			name:       "ambiguous platforms",
-			args:       []string{"localizations", "list", "--app", "app-1"},
+			args:       []string{"localizations", "list", "--app", "1234567890"},
 			wantStderr: "pass --platform with one of:",
 			wantExit:   rootcmd.ExitUsage,
 		},

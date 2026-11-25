@@ -14,6 +14,8 @@ import (
 var ageRatingContentLevels = []string{"NONE", "INFREQUENT_OR_MILD", "FREQUENT_OR_INTENSE", "INFREQUENT", "FREQUENT"}
 
 var ageRatingFields = []metadataSettingField{
+	{name: "datingAndRelationships", kind: metadataSettingBool},
+	{name: "sharedLocation", kind: metadataSettingBool},
 	{name: "advertising", kind: metadataSettingBool},
 	{name: "ageAssurance", kind: metadataSettingBool},
 	{name: "gambling", kind: metadataSettingBool},
@@ -80,6 +82,7 @@ func validateAgeRatingSetting(values map[string]string, complete bool) error {
 }
 
 func fetchAgeRatingDeclaration(ctx context.Context, d *shared.Deps, client *asc.Client, appInfoID string) (*asc.AgeRatingDeclarationResponse, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AgeRatingDeclarationResponse, error) {
 		return client.GetAgeRatingDeclarationForAppInfo(requestCtx, appInfoID)
 	})

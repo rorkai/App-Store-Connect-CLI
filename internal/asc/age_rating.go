@@ -8,6 +8,8 @@ import (
 // AgeRatingDeclarationAttributes describes the age rating declaration attributes.
 type AgeRatingDeclarationAttributes struct {
 	// Boolean content descriptors
+	DatingAndRelationships   *bool         `json:"datingAndRelationships,omitempty"`
+	SharedLocation           *bool         `json:"sharedLocation,omitempty"`
 	Advertising              *bool         `json:"advertising,omitempty"`
 	Gambling                 *bool         `json:"gambling,omitempty"`
 	HealthOrWellnessTopics   *bool         `json:"healthOrWellnessTopics,omitempty"`

@@ -47,7 +47,7 @@ func TestBuildsUploadDryRunRejectsExplicitConcurrency(t *testing.T) {
 }
 
 func TestBuildsUploadReservationFlagsReserveWithoutUploading(t *testing.T) {
-	const dryRunWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles). In a future release, --dry-run will check the artifact locally without contacting App Store Connect. Use --reserve-only to keep reserving uploads.\n"
+	const dryRunWarning = "Warning: builds upload --dry-run reserves an upload in App Store Connect (POST /v1/buildUploads and /v1/buildUploadFiles) without sending the file. Use --reserve-only to reserve an upload without this warning.\n"
 
 	tests := []struct {
 		flag        string

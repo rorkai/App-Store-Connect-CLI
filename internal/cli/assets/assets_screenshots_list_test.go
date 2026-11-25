@@ -141,8 +141,17 @@ func TestExecuteScreenshotListCommandResolvesAppVersionAndLocale(t *testing.T) {
 				t.Errorf("platform filter = %q, want MAC_OS", got)
 			}
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"MAC_OS"}}],"links":{}}`)
+		case "/v1/appStoreVersions/version-1":
+			if got := req.URL.Query().Get("include"); got != "app" {
+				t.Errorf("version include = %q, want app", got)
+			}
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"MAC_OS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`)
+			if req.URL.Query().Get("cursor") == "2" {
+				writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`)
+				return
+			}
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{"next":"/v1/appStoreVersions/version-1/appStoreVersionLocalizations?cursor=2"}}`)
 		case "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets":
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{}}`)
 		default:

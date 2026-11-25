@@ -137,6 +137,16 @@ func TestAnalyticsDownloadAllSegments(t *testing.T) {
 		t.Fatalf("conflict made API requests: got %d requests, want 8", count)
 	}
 
+	missingParent := filepath.Join(parent, "missing")
+	stdout, stderr, code = runWithDeps(t, client, append(slices.Clone(base), "--output-dir", filepath.Join(missingParent, "report"))...)
+	wantMissing := fmt.Sprintf("Error: analytics download: parent directory of --output-dir does not exist: %q\n", missingParent)
+	if code != rootcmd.ExitError || stdout != "" || stderr != wantMissing {
+		t.Fatalf("missing parent: code=%d stdout=%q stderr=%q, want %q", code, stdout, stderr, wantMissing)
+	}
+	if count := requests.Load(); count != 8 {
+		t.Fatalf("missing parent made API requests: got %d requests, want 8", count)
+	}
+
 	stdout, stderr, code = runWithDeps(t, client, append(base, "--output-dir", filepath.Join(parent, "table"), "--output-format", "table")...)
 	if code != 0 || stderr != "" || !strings.Contains(stdout, "Segment ID") || !strings.Contains(stdout, "seg-1") || !strings.Contains(stdout, "seg-2") {
 		t.Fatalf("table receipt: code=%d stdout=%q stderr=%q", code, stdout, stderr)

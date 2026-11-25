@@ -79,9 +79,12 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
   - `asc web apps medical-device view`: `GET /ppm/complianceform/v1/accounts/{accountId}/requirements/{requirementId}/forms?contentId={appId}`, reading `medicalDeviceData.declaration` (`no`, `yes`, or absent) alongside `$[*]`-rooted `constraints`.
   - `asc web apps medical-device set`: uses `POST .../contents/{appId}/requirements/{requirementId}/forms` when `medicalDeviceData.declaration` is absent and `PUT` when present. `--declared false` derives regions from form constraints, preserves existing regional rows, and skips writing when already `no` + `COLLECTED`. `--declared true [--countries-or-regions EEA,GBR,USA] --confirm` limits regions to `EEA`, `GBR`, `USA` (defaulting to all three), updates `registrationInfo` rows, and verifies readback.
   - `asc web apps medical-device region set --app APP_ID --region REGION --input PATH --confirm`: sends `PUT .../forms` with rootfs-anchored `declaration`, localized `supportInfo`, and `registrationNumber` (for `USA`/`EEA`). Requires app-level declaration `yes` and region availability in `$[*].countriesOrRegions`. Performs contact preflight (legal entity, region coverage, non-empty phone/email/address, no missing constraint legal-entity candidates), sends one PUT, and verifies readback. Negative regional and restore paths are live-verified; arbitrary affirmative legal/contact values remain provider-dependent.
-- Personal-service declarations (`personalServiceDeclaration`) are not implemented (no live fixture). EU DSA trader status (`GET /ppm/v1/accounts/{id}/sellerInfo`, `POST /ppm/v1/legalEntities/{id}/sellerInfo`) requires interactive `id.apple.com` identity verification and is out of scope for unattended CLI writes.
+- Personal-service declarations (`personalServiceDeclaration`) are not implemented (no live fixture).
+- `asc web business dsa status` reads `GET /v1/accounts/{accountId}/sellerInfo`, observed in App Compliance on 2026-11-25. `accountId` is the selected session's public provider ID. The summary contains `traderDeclaration` and each seller's `verificationStatus` and `isEuCovered`, excluding identity, contact, and address data. Missing EU coverage is reported as null. The Business enrollment dialog also requests `POST /ppm/v1/accounts/{accountId}/legalEntities/{legalEntityId}/sellerInfo/metadata`. Trader enrollment requires interactive contact and document verification in App Store Connect.
 
 ## App Compliance requirements
+
+- `asc web apps compliance china-publication-permit view`: `GET /iris/v1/apps/{appId}?fields[apps]=appPublicationPermit&include=appPublicationPermit` reads the app and its publication-permit relationship. JSON output preserves the complete envelope, including any included permit data. An unconfigured app returns `data.relationships.appPublicationPermit.data: null`.
 
 - The public OpenAPI snapshot has no App Compliance endpoints. The China mainland Security Assessment and AI Generated or Synthetic Content requirements use the web-session `ppm/compliancerequirements/v1` service, which is separate from `ppm/complianceform/v1` and returns none of its requirements.
 - `asc web apps compliance list`: `GET /ppm/compliancerequirements/v1/accounts/{accountId}/requirements?entity_id={appId}` (the app is the snake-case `entity_id` query parameter). `accountId` is the session's public provider ID.
@@ -99,6 +102,8 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
   - Files are sent twice: in the last metadata request of the walk and again in the save. An answer with files therefore runs under the upload timeout (`ASC_UPLOAD_TIMEOUT`), and those requests are bounded by it rather than by the per-request web client timeout. A save that fails without an HTTP response is reported as an unknown outcome to check with `compliance list`.
   - The form walk for every answer was live-verified on 2026-11-22 (2 metadata requests for No, 3 for an affirmative Security Assessment, 4 for an affirmative AI Generated or Synthetic Content answer), through a `--dry-run` that still walked the form then; a dry run no longer does.
   - Both save requests were live-verified on 2026-11-22 with a No on the Security Assessment: the first answer was a `POST` (200) that moved the requirement from `PENDING_COLLECT` to `COLLECTED_VERIFY_NOT_NECESSARY` and gave it a `formId`, `dateSigned`, and `lastUpdatedDate`; saving No again was a `PUT` (200) that kept the `formId` and `dateSigned` and advanced `lastUpdatedDate`. A No leaves no `requiredActions`. Saving an affirmative answer with evidence has not been sent live.
+
+- `asc web apps compliance vietnam-license view --app APP_ID` reads `GET /iris/v1/apps/{appId}/vietnamGameLicenseDetail` without query parameters and preserves the Apple JSON envelope. The November 25, 2026 browser capture returned a `vietnamGameLicenseDetails` resource with `license: null` and `licenseUrl: null`. Populated values and write requests have not been captured.
 
 ## Web-session API keys
 
@@ -159,6 +164,12 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 ## App transfer status (web session)
 
 - `asc web apps transfer status --app APP_ID` reads `GET /iris/v1/apps/{appId}?include=appTransferRequest` (live-verified for `data: null`). Do not call `/iris/v1/apps/{appId}/appTransferRequest` directly (returns HTTP 409 `ENTITY_ERROR.RELATIONSHIP.INVALID` when no transfer exists). Transfer initiation/acceptance actions have no captured API contract.
+
+## Age-rating location and relationship answers
+
+- OpenAPI 4.6.1 adds `sharedLocation` and `datingAndRelationships` to age-rating declarations. Public `PATCH /v1/ageRatingDeclarations/{id}` accepted boolean values, and an independent GET confirmed persistence on 2026-11-25. Explicit null returned `value cannot be null` even though the update schema marks both attributes nullable.
+- Submission readiness requires both answers. Apple requires them for app updates and questionnaire edits from November 19, 2026, with January 12, 2027 as the deadline for every app. [Apple release notes](https://developer.apple.com/help/app-store-connect/release-notes/)
+- `asc age-rating edit --shared-location true|false --dating-and-relationships true|false` and canonical `age-rating.json` use boolean values. Omitted fields leave existing answers unchanged. `--all-none` defaults both answers to false and permits explicit overrides.
 
 ## Last-compatible version settings (`downloadable`)
 

@@ -14,6 +14,8 @@ func TestAgeRatingChecks_Complete(t *testing.T) {
 	falseValue := false
 	level := "NONE"
 	decl := AgeRatingDeclaration{
+		DatingAndRelationships:              &falseValue,
+		SharedLocation:                      &falseValue,
 		Advertising:                         &falseValue,
 		Gambling:                            &falseValue,
 		HealthOrWellnessTopics:              &falseValue,

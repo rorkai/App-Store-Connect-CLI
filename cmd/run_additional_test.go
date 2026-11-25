@@ -976,11 +976,11 @@ func TestRun_MetadataApplyMixedFailuresUseFirstCauseConsistently(t *testing.T) {
 			status int
 			body   string
 		}{
-			"/v1/apps/app-1/appInfos": {
+			"/v1/apps/1000000001/appInfos": {
 				status: http.StatusOK,
 				body:   `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
 			},
-			"/v1/apps/app-1/appStoreVersions": {
+			"/v1/apps/1000000001/appStoreVersions": {
 				status: http.StatusOK,
 				body:   `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`,
 			},
@@ -1025,7 +1025,7 @@ func TestRun_MetadataApplyMixedFailuresUseFirstCauseConsistently(t *testing.T) {
 	stdout, stderr := captureCommandOutput(t, func() {
 		exitCode = Run([]string{
 			"metadata", "apply",
-			"--app", "app-1",
+			"--app", "1000000001",
 			"--version", "1.2.3",
 			"--dir", metadataDir,
 			"--output", "json",

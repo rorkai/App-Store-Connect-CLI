@@ -15,7 +15,14 @@ import (
 // are treated as resource self-links.
 const selfLinkHost = "api.appstoreconnect.apple.com"
 
-var selfLinkVersionSegment = regexp.MustCompile(`^v[0-9]+$`)
+var (
+	selfLinkVersionSegment     = regexp.MustCompile(`^v[0-9]+$`)
+	appBundleIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$`)
+)
+
+func isAppBundleIdentifier(value string) bool {
+	return appBundleIdentifierPattern.MatchString(strings.TrimSpace(value))
+}
 
 // ResourceIDFromValue accepts a bare App Store Connect resource ID or the
 // resource's API self-link (for example the links.self value from JSON output

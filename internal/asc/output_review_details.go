@@ -34,3 +34,27 @@ func appStoreReviewDetailRows(resp *AppStoreReviewDetailResponse) ([]string, [][
 	}}
 	return headers, rows
 }
+
+// ReviewDetailsResult reports a file-driven review detail plan or set.
+type ReviewDetailsResult struct {
+	VersionID string                `json:"versionId"`
+	Action    string                `json:"action"`
+	Status    string                `json:"status"`
+	Changes   []ReviewDetailsChange `json:"changes"`
+	Error     string                `json:"error,omitempty"`
+}
+
+// ReviewDetailsChange describes a managed field with secrets already redacted.
+type ReviewDetailsChange struct {
+	Field string `json:"field"`
+	From  string `json:"from,omitempty"`
+	To    string `json:"to"`
+}
+
+func reviewDetailsResultRows(result *ReviewDetailsResult) ([]string, [][]string) {
+	fields := make([]string, 0, len(result.Changes))
+	for _, change := range result.Changes {
+		fields = append(fields, change.Field)
+	}
+	return []string{"Version ID", "Action", "Status", "Changed fields", "Error"}, [][]string{{result.VersionID, result.Action, result.Status, strings.Join(fields, ", "), result.Error}}
+}

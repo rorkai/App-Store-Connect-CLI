@@ -39,10 +39,10 @@ func TestMetadataHeaderRenditionRoundTrip(t *testing.T) {
 				}
 				switch req.URL.Path {
 				case "/v1/appStoreVersions/VERSION_ID":
-					return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-				case "/v1/apps/APP_ID/appClips":
+					return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`), nil
+				case "/v1/apps/123456789/appClips":
 					return migrateJSONResponse(200, `{"data":[{"type":"appClips","id":"CLIP"}]}`), nil
-				case "/v1/apps/APP_ID/appStoreVersions":
+				case "/v1/apps/123456789/appStoreVersions":
 					return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
 				case "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
 					experienceReads++
@@ -86,7 +86,7 @@ func TestMetadataHeaderRenditionRoundTrip(t *testing.T) {
 			}))
 			var runErr error
 			captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "app-clip", "--output", "json"})
+				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "123456789", "--version", "1.0", "--dir", root, "--include", "app-clip", "--output", "json"})
 			})
 			if runErr != nil {
 				t.Fatal(runErr)
@@ -106,7 +106,7 @@ func TestMetadataHeaderRenditionRoundTrip(t *testing.T) {
 			for _, nextMode := range []string{"--dry-run", "--confirm"} {
 				mode, headerReads, localeReads, experienceReads = nextMode, 0, 0, 0
 				stdout, stderr := captureOutput(t, func() {
-					runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "app-clip", mode, "--output", "json"})
+					runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "123456789", "--version", "1.0", "--dir", root, "--include", "app-clip", mode, "--output", "json"})
 				})
 				wantError := ""
 				if (scenario == "edited" || strings.HasPrefix(scenario, "unavailable-")) && mode == "--confirm" {
@@ -152,7 +152,7 @@ func TestMetadataHeaderRenditionRoundTrip(t *testing.T) {
 			if scenario == "unchanged" {
 				headerReads = 0
 				stdout, stderr := captureOutput(t, func() {
-					runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", fastlaneRoot, "--skip-screenshots", "--confirm", "--output", "json"})
+					runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "123456789", "--version-id", "VERSION_ID", "--fastlane-dir", fastlaneRoot, "--skip-screenshots", "--confirm", "--output", "json"})
 				})
 				if runErr != nil || !strings.Contains(stdout, `"status":"skipped"`) || !strings.Contains(stdout, `"id":"HEADER"`) {
 					t.Fatalf("migration must reuse unchanged header: err=%v stdout=%s stderr=%s", runErr, stdout, stderr)

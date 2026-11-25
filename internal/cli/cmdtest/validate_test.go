@@ -412,6 +412,8 @@ func validValidateFixture() validateFixture {
 		territories:        `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}]}`,
 		pricingTerritories: `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`,
 		ageRating: `{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{
+			"datingAndRelationships":false,
+			"sharedLocation":false,
 			"advertising":false,
 			"gambling":false,
 			"healthOrWellnessTopics":false,

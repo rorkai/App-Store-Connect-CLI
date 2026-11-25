@@ -153,7 +153,7 @@ func TestAppInfoSetBatchDryRunInlineLocales(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
 				"data":[
 					{
 						"type":"appStoreVersions",
@@ -178,7 +178,7 @@ func TestAppInfoSetBatchDryRunInlineLocales(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"apps", "info", "edit",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--locales", "en-US,de-DE",
 			"--whats-new", "Bug fixes and improvements",
 			"--dry-run",
@@ -248,7 +248,7 @@ func TestAppsInfoEditTargetsLatestVersionAcrossPages(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=page-2"
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps/123456789/appStoreVersions?cursor=page-2"
 	requests := make([]string, 0, 4)
 	patchBody := ""
 	oldVersionRequested := false
@@ -261,9 +261,9 @@ func TestAppsInfoEditTargetsLatestVersionAcrossPages(t *testing.T) {
 		requests = append(requests, req.Method+" "+req.URL.RequestURI())
 		w.Header().Set("Content-Type", "application/json")
 		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" && req.URL.Query().Get("cursor") == "":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appStoreVersions" && req.URL.Query().Get("cursor") == "":
 			_, _ = io.WriteString(w, `{"data":[{"type":"appStoreVersions","id":"old","attributes":{"createdDate":"2026-01-01T00:00:00Z"}}],"links":{"next":"`+nextURL+`"}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" && req.URL.Query().Get("cursor") == "page-2":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appStoreVersions" && req.URL.Query().Get("cursor") == "page-2":
 			_, _ = io.WriteString(w, `{"data":[{"type":"appStoreVersions","id":"new","attributes":{"createdDate":"2026-02-01T00:00:00Z"}}]}`)
 		case req.Method == http.MethodGet && (req.URL.Path == "/v1/appStoreVersions/new/appStoreVersionLocalizations" || req.URL.Path == "/v1/appStoreVersions/old/appStoreVersionLocalizations"):
 			versionID := strings.TrimSuffix(strings.TrimPrefix(req.URL.Path, "/v1/appStoreVersions/"), "/appStoreVersionLocalizations")
@@ -320,7 +320,7 @@ func TestAppsInfoEditTargetsLatestVersionAcrossPages(t *testing.T) {
 	captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"apps", "info", "edit",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--locale", "en-US",
 			"--whats-new", "Fixes",
 			"--output", "json",
@@ -333,8 +333,8 @@ func TestAppsInfoEditTargetsLatestVersionAcrossPages(t *testing.T) {
 	})
 
 	wantRequests := []string{
-		"GET /v1/apps/app-1/appStoreVersions?limit=200",
-		"GET /v1/apps/app-1/appStoreVersions?cursor=page-2",
+		"GET /v1/apps/123456789/appStoreVersions?limit=200",
+		"GET /v1/apps/123456789/appStoreVersions?cursor=page-2",
 		"GET /v1/appStoreVersions/new/appStoreVersionLocalizations?filter%5Blocale%5D=en-US&limit=200",
 		"PATCH /v1/appStoreVersionLocalizations/loc-new",
 	}
@@ -356,7 +356,7 @@ func TestAppInfoSetBatchApplyCreateWarningsStaySorted(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"createdDate":"2026-02-01T00:00:00Z"}}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	for _, locale := range []string{"de-DE", "fr-FR"} {
@@ -370,7 +370,7 @@ func TestAppInfoSetBatchApplyCreateWarningsStaySorted(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"apps", "info", "edit",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--locales", "fr-FR,de-DE",
 			"--whats-new", "Bug fixes and improvements",
 		}); err != nil {
@@ -426,7 +426,7 @@ func TestAppInfoSetFromDirPartialFailureReturnsReportedError(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
 				"data":[
 					{
 						"type":"appStoreVersions",
@@ -471,7 +471,7 @@ func TestAppInfoSetFromDirPartialFailureReturnsReportedError(t *testing.T) {
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"apps", "info", "edit",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--from-dir", inputDir,
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -540,10 +540,10 @@ func TestRunAppInfoSetBatchPartialFailureReturnsExitError(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	versions := `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"createdDate":"2026-02-01T00:00:00Z","platform":"IOS"}}]}`
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, versions))
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, versions))
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
 		asctest.JSON(http.StatusOK, versions))
 	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`))
@@ -555,7 +555,7 @@ func TestRunAppInfoSetBatchPartialFailureReturnsExitError(t *testing.T) {
 	stdout, _ := captureOutput(t, func() {
 		code := cmd.Run([]string{
 			"apps", "info", "edit",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--from-dir", inputDir,
 		}, "1.2.3")
 		if code != cmd.ExitError {
