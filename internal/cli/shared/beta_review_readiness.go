@@ -285,17 +285,21 @@ func CheckBuildBetaReviewReadiness(ctx context.Context, client buildBetaReviewSu
 			}
 		}
 	}
-	missing, _ := appendMissingBetaLocalizationInfo(nil, nil, appID, localizations.Data)
+	missing, fixes := appendMissingBetaLocalizationInfo(nil, nil, appID, localizations.Data)
 	if details == nil || len(details.Data) == 0 {
 		missing = append(missing, "beta app review details")
 	} else {
-		missing, _ = appendMissingBetaReviewDetailInfo(missing, nil, details.Data[0])
+		missing, fixes = appendMissingBetaReviewDetailInfo(missing, fixes, details.Data[0])
 	}
 	if beta != nil && strings.EqualFold(strings.TrimSpace(beta.Data.Attributes.ExternalBuildState), externalBetaStateMissingExportCompliance) {
 		missing = append(missing, "export compliance")
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("external testing requires %s before groups can be assigned or testers notified", strings.Join(missing, ", "))
+		message := fmt.Sprintf("external testing requires %s before groups can be assigned or testers notified", strings.Join(missing, ", "))
+		if len(fixes) > 0 {
+			message += ". Set the missing values with " + strings.Join(fixes, ". Then run ")
+		}
+		return WithDiagnostic(NewValidationError(errors.New(message)), DiagnosticStateNotReady, "")
 	}
 	return nil
 }

@@ -251,7 +251,8 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 			}
 			if tc.submit && !tc.wrongApp {
 				stdout, stderr, err := run()
-				if err == nil || writes != 0 || !strings.Contains(err.Error()+stderr, "feedback email") {
+				const fix = `asc testflight app-localizations create --app "123" --locale "en-US" --description "DESCRIPTION" --feedback-email "EMAIL"`
+				if err == nil || writes != 0 || !strings.Contains(err.Error()+stderr, "feedback email") || !strings.Contains(err.Error()+stderr, fix) {
 					t.Fatalf("writes=%d stdout=%s stderr=%s err=%v", writes, stdout, stderr, err)
 				}
 			}
