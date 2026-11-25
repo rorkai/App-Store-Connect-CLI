@@ -2,6 +2,7 @@ package asc
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -71,14 +72,24 @@ func webAppCreateResultRows(result *WebAppCreateResult) ([]string, [][]string) {
 
 func appsRows(resp *AppsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Bundle ID", "SKU"}
+	showInvitationMode := slices.ContainsFunc(resp.Data, func(app Resource[AppAttributes]) bool {
+		return app.Attributes.GroupPurchaseInvitationMode != nil
+	})
+	if showInvitationMode {
+		headers = append(headers, "Group Purchase Invitation Mode")
+	}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		rows = append(rows, []string{
+		row := []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			item.Attributes.BundleID,
 			item.Attributes.SKU,
-		})
+		}
+		if showInvitationMode {
+			row = append(row, formatOptionalString((*string)(item.Attributes.GroupPurchaseInvitationMode)))
+		}
+		rows = append(rows, row)
 	}
 	return headers, rows
 }
