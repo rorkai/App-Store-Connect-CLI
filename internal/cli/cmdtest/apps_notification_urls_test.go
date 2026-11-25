@@ -151,6 +151,21 @@ func TestAppsViewNotificationURLFields(t *testing.T) {
 	}
 }
 
+func TestAppsViewGroupPurchaseInvitationModeOutput(t *testing.T) {
+	for _, format := range []string{"table", "markdown"} {
+		t.Run(format, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps/100000001", "fields[apps]=groupPurchaseInvitationMode"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"100000001","attributes":{"groupPurchaseInvitationMode":"DEVELOPER_HOSTED"}}}`))
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "apps", "view", "--id", "100000001",
+				"--fields", "groupPurchaseInvitationMode", "--output", format)
+			if code != 0 || stderr != "" || !strings.Contains(strings.ToLower(stdout), "group purchase invitation mode") || !strings.Contains(stdout, "DEVELOPER_HOSTED") {
+				t.Fatalf("exit=%d stderr=%q stdout=%q", code, stderr, stdout)
+			}
+		})
+	}
+}
+
 func TestAppsViewNotificationFieldsRejectsInvalid(t *testing.T) {
 	for _, value := range []string{"", "unknownField"} {
 		t.Run(value, func(t *testing.T) {
