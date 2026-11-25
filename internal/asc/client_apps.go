@@ -14,6 +14,14 @@ const (
 	ContentRightsDeclarationUsesThirdPartyContent       ContentRightsDeclaration = "USES_THIRD_PARTY_CONTENT"
 )
 
+// GroupPurchaseInvitationMode controls how group purchase invitations are hosted.
+type GroupPurchaseInvitationMode string
+
+const (
+	GroupPurchaseInvitationModeAppleHosted     GroupPurchaseInvitationMode = "APPLE_HOSTED"
+	GroupPurchaseInvitationModeDeveloperHosted GroupPurchaseInvitationMode = "DEVELOPER_HOSTED"
+)
+
 // SubscriptionStatusURLVersion is the App Store Server Notifications payload version.
 type SubscriptionStatusURLVersion string
 
@@ -29,6 +37,7 @@ type AppAttributes struct {
 	SKU                                    string                        `json:"sku"`
 	PrimaryLocale                          string                        `json:"primaryLocale,omitempty"`
 	ContentRightsDeclaration               *ContentRightsDeclaration     `json:"contentRightsDeclaration,omitempty"`
+	GroupPurchaseInvitationMode            *GroupPurchaseInvitationMode  `json:"groupPurchaseInvitationMode,omitempty"`
 	AccessibilityURL                       *string                       `json:"accessibilityUrl,omitempty"`
 	SubscriptionStatusURL                  *string                       `json:"subscriptionStatusUrl,omitempty"`
 	SubscriptionStatusURLVersion           *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersion,omitempty"`
@@ -43,6 +52,7 @@ type AppUpdateAttributes struct {
 	BundleID                               *string                       `json:"bundleId,omitempty"`
 	PrimaryLocale                          *string                       `json:"primaryLocale,omitempty"`
 	ContentRightsDeclaration               *ContentRightsDeclaration     `json:"contentRightsDeclaration,omitempty"`
+	GroupPurchaseInvitationMode            *GroupPurchaseInvitationMode  `json:"groupPurchaseInvitationMode,omitempty"`
 	AccessibilityURL                       *string                       `json:"accessibilityUrl,omitempty"`
 	SubscriptionStatusURL                  *string                       `json:"subscriptionStatusUrl,omitempty"`
 	SubscriptionStatusURLVersion           *SubscriptionStatusURLVersion `json:"subscriptionStatusUrlVersion,omitempty"`

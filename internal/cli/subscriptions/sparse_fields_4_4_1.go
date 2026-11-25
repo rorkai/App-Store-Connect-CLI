@@ -34,5 +34,5 @@ func subscriptionPricePointFieldsList() []string {
 }
 
 func subscriptionPriceFieldsList() []string {
-	return []string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint"}
+	return []string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint", "additionalPriceTiers"}
 }

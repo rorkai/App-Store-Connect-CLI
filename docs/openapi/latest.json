@@ -2,7 +2,7 @@
   "openapi": "3.0.1",
   "info": {
     "title": "App Store Connect API",
-    "version": "4.6",
+    "version": "4.6.1",
     "x-platforms": {
       "app_store_connect_api": "App Store Connect API"
     }
@@ -7728,6 +7728,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -8932,6 +8933,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -9679,6 +9681,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -10044,6 +10047,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -12479,6 +12483,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -12544,6 +12549,7 @@
                   "advertising",
                   "alcoholTobaccoOrDrugUseOrReferences",
                   "contests",
+                  "datingAndRelationships",
                   "gambling",
                   "gamblingSimulated",
                   "gunsOrOtherWeapons",
@@ -12557,6 +12563,7 @@
                   "ageAssurance",
                   "sexualContentGraphicAndNudity",
                   "sexualContentOrNudity",
+                  "sharedLocation",
                   "socialMedia",
                   "socialMediaAgeRestricted",
                   "horrorOrFearThemes",
@@ -13670,6 +13677,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -13974,6 +13982,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -16746,6 +16755,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -18818,6 +18828,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -19788,6 +19799,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -20833,6 +20845,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -23176,6 +23189,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -24197,6 +24211,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -24472,6 +24487,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -24846,6 +24862,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -25034,6 +25051,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -27140,6 +27158,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -27535,6 +27554,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -28012,6 +28032,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -28193,6 +28214,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -29079,6 +29101,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -29466,6 +29489,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -31422,6 +31446,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -31989,6 +32014,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -32910,6 +32936,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -33254,6 +33281,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -35354,6 +35382,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -35603,6 +35632,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -37932,6 +37962,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -46372,6 +46403,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -61855,6 +61887,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -64053,6 +64086,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -64451,6 +64485,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -65710,6 +65745,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -65947,6 +65983,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -69106,6 +69143,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -69492,6 +69530,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -77397,6 +77436,97 @@
         }
       ]
     },
+    "/v1/subscriptionPriceChangePreviews": {
+      "post": {
+        "tags": [
+          "SubscriptionPriceChangePreviews"
+        ],
+        "operationId": "subscriptionPriceChangePreviews_createInstance",
+        "requestBody": {
+          "description": "SubscriptionPriceChangePreview representation",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPriceChangePreviewCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable request entity error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Single SubscriptionPriceChangePreview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionPriceChangePreviewResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request entity error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/subscriptionPricePoints/{id}": {
       "get": {
         "tags": [
@@ -77536,6 +77666,320 @@
           "required": true
         }
       ]
+    },
+    "/v1/subscriptionPriceTierEqualizations": {
+      "post": {
+        "tags": [
+          "SubscriptionPriceTierEqualizations"
+        ],
+        "operationId": "subscriptionPriceTierEqualizations_createInstance",
+        "parameters": [
+          {
+            "name": "fields[subscriptionPricePoints]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type subscriptionPricePoints",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "customerPrice",
+                  "proceeds",
+                  "proceedsYear2",
+                  "territory",
+                  "equalizations",
+                  "adjustedEqualizations"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "comma-separated list of relationships to include",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "priceTierPricePoints"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "limit[priceTierPricePoints]",
+            "in": "query",
+            "description": "maximum number of related priceTierPricePoints returned (when they are included)",
+            "schema": {
+              "type": "integer",
+              "maximum": 50
+            },
+            "style": "form"
+          },
+          {
+            "name": "fields[subscriptionPriceTierEqualizations]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type subscriptionPriceTierEqualizations",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "equalizedPrices",
+                  "priceTierPricePoints"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          }
+        ],
+        "requestBody": {
+          "description": "SubscriptionPriceTierEqualization representation",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionPriceTierEqualizationCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable request entity error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Single SubscriptionPriceTierEqualization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionPriceTierEqualizationResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Request entity error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/subscriptionPriceTiers": {
+      "get": {
+        "tags": [
+          "SubscriptionPriceTiers"
+        ],
+        "operationId": "subscriptionPriceTiers_getCollection",
+        "parameters": [
+          {
+            "name": "filter[subscription]",
+            "in": "query",
+            "description": "filter by subscription",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": false,
+            "required": true
+          },
+          {
+            "name": "filter[territory]",
+            "in": "query",
+            "description": "filter by territory",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": false,
+            "required": false
+          },
+          {
+            "name": "fields[subscriptionPriceTiers]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type subscriptionPriceTiers",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "minQuantity",
+                  "subscriptionPricePoint"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false,
+            "required": false
+          },
+          {
+            "name": "fields[subscriptionPricePoints]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type subscriptionPricePoints",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "customerPrice",
+                  "proceeds",
+                  "proceedsYear2",
+                  "territory",
+                  "equalizations",
+                  "adjustedEqualizations"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false,
+            "required": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "maximum resources per page",
+            "schema": {
+              "type": "integer",
+              "maximum": 200
+            },
+            "style": "form"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "comma-separated list of relationships to include",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "subscriptionPricePoint"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false,
+            "required": false
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List of SubscriptionPriceTiers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionPriceTiersResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/v1/subscriptionPrices": {
       "post": {
@@ -78865,7 +79309,8 @@
                   "preserved",
                   "planType",
                   "territory",
-                  "subscriptionPricePoint"
+                  "subscriptionPricePoint",
+                  "additionalPriceTiers"
                 ]
               }
             },
@@ -79774,6 +80219,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -80061,6 +80507,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -80408,6 +80855,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -80605,6 +81053,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -81246,6 +81695,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -86858,6 +87308,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -90542,6 +90993,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -92501,6 +92953,7 @@
                   "advertising",
                   "alcoholTobaccoOrDrugUseOrReferences",
                   "contests",
+                  "datingAndRelationships",
                   "gambling",
                   "gamblingSimulated",
                   "gunsOrOtherWeapons",
@@ -92514,6 +92967,7 @@
                   "ageAssurance",
                   "sexualContentGraphicAndNudity",
                   "sexualContentOrNudity",
+                  "sharedLocation",
                   "socialMedia",
                   "socialMediaAgeRestricted",
                   "horrorOrFearThemes",
@@ -94890,6 +95344,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -101914,6 +102369,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -105846,6 +106302,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -106187,6 +106644,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -106560,6 +107018,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -107246,6 +107705,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -107310,6 +107770,7 @@
                   "advertising",
                   "alcoholTobaccoOrDrugUseOrReferences",
                   "contests",
+                  "datingAndRelationships",
                   "gambling",
                   "gamblingSimulated",
                   "gunsOrOtherWeapons",
@@ -107323,6 +107784,7 @@
                   "ageAssurance",
                   "sexualContentGraphicAndNudity",
                   "sexualContentOrNudity",
+                  "sharedLocation",
                   "socialMedia",
                   "socialMediaAgeRestricted",
                   "horrorOrFearThemes",
@@ -107659,6 +108121,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -107966,6 +108429,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -108342,6 +108806,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -108853,6 +109318,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -109966,6 +110432,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -112660,6 +113127,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -113943,6 +114411,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -114786,6 +115255,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -115151,6 +115621,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -117378,6 +117849,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -118586,6 +119058,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -119542,6 +120015,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -119782,6 +120256,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -120621,6 +121096,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -122037,6 +122513,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -122383,6 +122860,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -123634,6 +124112,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -125127,6 +125606,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -125697,6 +126177,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -128209,6 +128690,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -130787,6 +131269,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -131787,6 +132270,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -139825,6 +140309,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -148952,6 +149437,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -151156,6 +151642,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -168032,6 +168519,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -169992,7 +170480,8 @@
                   "preserved",
                   "planType",
                   "territory",
-                  "subscriptionPricePoint"
+                  "subscriptionPricePoint",
+                  "additionalPriceTiers"
                 ]
               }
             },
@@ -173438,7 +173927,8 @@
                   "preserved",
                   "planType",
                   "territory",
-                  "subscriptionPricePoint"
+                  "subscriptionPricePoint",
+                  "additionalPriceTiers"
                 ]
               }
             },
@@ -175778,6 +176268,274 @@
               "text/csv": {
                 "schema": {
                   "$ref": "#/components/schemas/csv"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
+    },
+    "/v1/subscriptionPrices/{id}/relationships/additionalPriceTiers": {
+      "get": {
+        "tags": [
+          "SubscriptionPrices"
+        ],
+        "operationId": "subscriptionPrices_additionalPriceTiers_getToManyRelationship",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "maximum resources per page",
+            "schema": {
+              "type": "integer",
+              "maximum": 200
+            },
+            "style": "form"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List of related linkages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionPriceAdditionalPriceTiersLinkagesResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "description": "the id of the requested resource",
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple",
+          "required": true
+        }
+      ]
+    },
+    "/v1/subscriptionPrices/{id}/additionalPriceTiers": {
+      "get": {
+        "tags": [
+          "SubscriptionPrices"
+        ],
+        "operationId": "subscriptionPrices_additionalPriceTiers_getToManyRelated",
+        "parameters": [
+          {
+            "name": "filter[subscription]",
+            "in": "query",
+            "description": "filter by subscription",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "filter[territory]",
+            "in": "query",
+            "description": "filter by territory",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "fields[subscriptionPriceTiers]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type subscriptionPriceTiers",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "minQuantity",
+                  "subscriptionPricePoint"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "fields[subscriptionPricePoints]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type subscriptionPricePoints",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "customerPrice",
+                  "proceeds",
+                  "proceedsYear2",
+                  "territory",
+                  "equalizations",
+                  "adjustedEqualizations"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "maximum resources per page",
+            "schema": {
+              "type": "integer",
+              "maximum": 200
+            },
+            "style": "form"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "comma-separated list of relationships to include",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "subscriptionPricePoint"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parameter error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized error(s)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "List of SubscriptionPriceTiers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionPriceTiersResponse"
                 }
               }
             }
@@ -178813,7 +179571,8 @@
                   "preserved",
                   "planType",
                   "territory",
-                  "subscriptionPricePoint"
+                  "subscriptionPricePoint",
+                  "additionalPriceTiers"
                 ]
               }
             },
@@ -178858,6 +179617,23 @@
             "explode": false
           },
           {
+            "name": "fields[subscriptionPriceTiers]",
+            "in": "query",
+            "description": "the fields to include for returned resources of type subscriptionPriceTiers",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "minQuantity",
+                  "subscriptionPricePoint"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "maximum resources per page",
@@ -178877,12 +179653,23 @@
                 "type": "string",
                 "enum": [
                   "territory",
-                  "subscriptionPricePoint"
+                  "subscriptionPricePoint",
+                  "additionalPriceTiers"
                 ]
               }
             },
             "style": "form",
             "explode": false
+          },
+          {
+            "name": "limit[additionalPriceTiers]",
+            "in": "query",
+            "description": "maximum number of related additionalPriceTiers returned (when they are included)",
+            "schema": {
+              "type": "integer",
+              "maximum": 50
+            },
+            "style": "form"
           }
         ],
         "responses": {
@@ -181929,6 +182716,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -182466,6 +183254,7 @@
                   "subscriptionStatusUrlVersionForSandbox",
                   "contentRightsDeclaration",
                   "streamlinedPurchasingEnabled",
+                  "groupPurchaseInvitationMode",
                   "accessibilityDeclarations",
                   "appEncryptionDeclarations",
                   "appStoreIcon",
@@ -185958,6 +186747,9 @@
                   "FREQUENT"
                 ]
               },
+              "datingAndRelationships": {
+                "type": "boolean"
+              },
               "gambling": {
                 "type": "boolean"
               },
@@ -186038,6 +186830,9 @@
                   "INFREQUENT",
                   "FREQUENT"
                 ]
+              },
+              "sharedLocation": {
+                "type": "boolean"
               },
               "socialMedia": {
                 "type": "boolean"
@@ -186213,6 +187008,10 @@
                       "FREQUENT"
                     ]
                   },
+                  "datingAndRelationships": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
                   "gambling": {
                     "type": "boolean",
                     "nullable": true
@@ -186306,6 +187105,10 @@
                       "INFREQUENT",
                       "FREQUENT"
                     ]
+                  },
+                  "sharedLocation": {
+                    "type": "boolean",
+                    "nullable": true
                   },
                   "socialMedia": {
                     "type": "boolean",
@@ -203244,6 +204047,13 @@
               },
               "streamlinedPurchasingEnabled": {
                 "type": "boolean"
+              },
+              "groupPurchaseInvitationMode": {
+                "type": "string",
+                "enum": [
+                  "APPLE_HOSTED",
+                  "DEVELOPER_HOSTED"
+                ]
               }
             }
           },
@@ -204532,6 +205342,14 @@
                   "streamlinedPurchasingEnabled": {
                     "type": "boolean",
                     "nullable": true
+                  },
+                  "groupPurchaseInvitationMode": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "APPLE_HOSTED",
+                      "DEVELOPER_HOSTED"
+                    ]
                   }
                 }
               }
@@ -245096,6 +245914,157 @@
           "data"
         ]
       },
+      "SubscriptionPriceChangePreview": {
+        "type": "object",
+        "title": "SubscriptionPriceChangePreview",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "subscriptionPriceChangePreviews"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "changeResults": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "territoryId": {
+                      "type": "string"
+                    },
+                    "changeType": {
+                      "type": "string",
+                      "enum": [
+                        "INCREASE_PRESERVABLE",
+                        "DECREASE_NOT_PRESERVABLE",
+                        "MIXED_NOT_PRESERVABLE",
+                        "NO_CHANGE"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResourceLinks"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ]
+      },
+      "SubscriptionPriceChangePreviewResponse": {
+        "type": "object",
+        "title": "SubscriptionPriceChangePreviewResponse",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SubscriptionPriceChangePreview"
+          },
+          "links": {
+            "$ref": "#/components/schemas/DocumentLinks"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
+      "SubscriptionPriceChangePreviewCreateRequest": {
+        "type": "object",
+        "title": "SubscriptionPriceChangePreviewCreateRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "subscriptionPriceChangePreviews"
+                ]
+              },
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "proposedChanges": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "territoryId": {
+                          "type": "string"
+                        },
+                        "startDate": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "basePricePointId": {
+                          "type": "string"
+                        },
+                        "additionalPriceTiers": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ProposedSubscriptionPriceTier"
+                          }
+                        }
+                      }
+                    },
+                    "nullable": true
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "subscription": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "subscriptions"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  }
+                },
+                "required": [
+                  "subscription"
+                ]
+              }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
       "SubscriptionPricePoint": {
         "type": "object",
         "title": "SubscriptionPricePoint",
@@ -245243,6 +246212,332 @@
           "links"
         ]
       },
+      "SubscriptionPriceTierEqualization": {
+        "type": "object",
+        "title": "SubscriptionPriceTierEqualization",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "subscriptionPriceTierEqualizations"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "equalizedPrices": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SubscriptionEqualizedPriceTiersForTerritory"
+                }
+              }
+            }
+          },
+          "relationships": {
+            "type": "object",
+            "properties": {
+              "priceTierPricePoints": {
+                "type": "object",
+                "properties": {
+                  "meta": {
+                    "$ref": "#/components/schemas/PagingInformation"
+                  },
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "subscriptionPricePoints"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResourceLinks"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ]
+      },
+      "SubscriptionPriceTierEqualizationResponse": {
+        "type": "object",
+        "title": "SubscriptionPriceTierEqualizationResponse",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SubscriptionPriceTierEqualization"
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPricePoint"
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/DocumentLinks"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
+      "SubscriptionPriceTierEqualizationCreateRequest": {
+        "type": "object",
+        "title": "SubscriptionPriceTierEqualizationCreateRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "subscriptionPriceTierEqualizations"
+                ]
+              },
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "additionalPriceTiers": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ProposedSubscriptionPriceTier"
+                    },
+                    "nullable": true
+                  }
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "subscription": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "subscriptions"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  },
+                  "basePricePoint": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "subscriptionPricePoints"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  }
+                },
+                "required": [
+                  "basePricePoint",
+                  "subscription"
+                ]
+              }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "SubscriptionPriceTier": {
+        "type": "object",
+        "title": "SubscriptionPriceTier",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "subscriptionPriceTiers"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "minQuantity": {
+                "type": "integer"
+              }
+            }
+          },
+          "relationships": {
+            "type": "object",
+            "properties": {
+              "subscriptionPricePoint": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "subscriptionPricePoints"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/ResourceLinks"
+          }
+        },
+        "required": [
+          "id",
+          "type"
+        ]
+      },
+      "SubscriptionPriceTierInlineCreate": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "subscriptionPriceTiers"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "minQuantity": {
+                "type": "integer",
+                "nullable": true
+              }
+            }
+          },
+          "relationships": {
+            "type": "object",
+            "properties": {
+              "subscriptionPricePoint": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "subscriptionPricePoints"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "SubscriptionPriceTiersResponse": {
+        "type": "object",
+        "title": "SubscriptionPriceTiersResponse",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPriceTier"
+            }
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPricePoint"
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/PagedDocumentLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PagingInformation"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
       "SubscriptionPrice": {
         "type": "object",
         "title": "SubscriptionPrice",
@@ -245317,6 +246612,38 @@
                       "id",
                       "type"
                     ]
+                  }
+                }
+              },
+              "additionalPriceTiers": {
+                "type": "object",
+                "properties": {
+                  "links": {
+                    "$ref": "#/components/schemas/RelationshipLinks"
+                  },
+                  "meta": {
+                    "$ref": "#/components/schemas/PagingInformation"
+                  },
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "subscriptionPriceTiers"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type"
+                      ]
+                    }
                   }
                 }
               }
@@ -245432,6 +246759,32 @@
                     ]
                   }
                 }
+              },
+              "additionalPriceTiers": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "subscriptionPriceTiers"
+                          ]
+                        },
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type"
+                      ]
+                    }
+                  }
+                }
               }
             }
           }
@@ -245458,6 +246811,9 @@
                   "$ref": "#/components/schemas/SubscriptionPricePoint"
                 },
                 {
+                  "$ref": "#/components/schemas/SubscriptionPriceTier"
+                },
+                {
                   "$ref": "#/components/schemas/Territory"
                 }
               ],
@@ -245465,6 +246821,7 @@
                 "propertyName": "type",
                 "mapping": {
                   "territories": "#/components/schemas/Territory",
+                  "subscriptionPriceTiers": "#/components/schemas/SubscriptionPriceTier",
                   "subscriptionPricePoints": "#/components/schemas/SubscriptionPricePoint"
                 }
               }
@@ -245497,6 +246854,9 @@
                   "$ref": "#/components/schemas/SubscriptionPricePoint"
                 },
                 {
+                  "$ref": "#/components/schemas/SubscriptionPriceTier"
+                },
+                {
                   "$ref": "#/components/schemas/Territory"
                 }
               ],
@@ -245504,6 +246864,7 @@
                 "propertyName": "type",
                 "mapping": {
                   "territories": "#/components/schemas/Territory",
+                  "subscriptionPriceTiers": "#/components/schemas/SubscriptionPriceTier",
                   "subscriptionPricePoints": "#/components/schemas/SubscriptionPricePoint"
                 }
               }
@@ -245626,6 +246987,32 @@
                     "required": [
                       "data"
                     ]
+                  },
+                  "additionalPriceTiers": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "subscriptionPriceTiers"
+                              ]
+                            },
+                            "id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "type"
+                          ]
+                        }
+                      }
+                    }
                   }
                 },
                 "required": [
@@ -245638,6 +247025,12 @@
               "relationships",
               "type"
             ]
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionPriceTierInlineCreate"
+            }
           }
         },
         "required": [
@@ -247366,6 +248759,9 @@
                   "$ref": "#/components/schemas/SubscriptionPlanAvailability"
                 },
                 {
+                  "$ref": "#/components/schemas/SubscriptionPriceTier"
+                },
+                {
                   "$ref": "#/components/schemas/SubscriptionPrice"
                 },
                 {
@@ -247393,6 +248789,7 @@
                   "subscriptionImages": "#/components/schemas/SubscriptionImage",
                   "subscriptionPrices": "#/components/schemas/SubscriptionPrice",
                   "subscriptionIntroductoryOffers": "#/components/schemas/SubscriptionIntroductoryOffer",
+                  "subscriptionPriceTiers": "#/components/schemas/SubscriptionPriceTier",
                   "subscriptionPromotionalOffers": "#/components/schemas/SubscriptionPromotionalOffer",
                   "subscriptionLocalizations": "#/components/schemas/SubscriptionLocalization",
                   "subscriptionAvailabilities": "#/components/schemas/SubscriptionAvailability"
@@ -247457,6 +248854,9 @@
                   "$ref": "#/components/schemas/SubscriptionPlanAvailability"
                 },
                 {
+                  "$ref": "#/components/schemas/SubscriptionPriceTier"
+                },
+                {
                   "$ref": "#/components/schemas/SubscriptionPrice"
                 },
                 {
@@ -247484,6 +248884,7 @@
                   "subscriptionImages": "#/components/schemas/SubscriptionImage",
                   "subscriptionPrices": "#/components/schemas/SubscriptionPrice",
                   "subscriptionIntroductoryOffers": "#/components/schemas/SubscriptionIntroductoryOffer",
+                  "subscriptionPriceTiers": "#/components/schemas/SubscriptionPriceTier",
                   "subscriptionPromotionalOffers": "#/components/schemas/SubscriptionPromotionalOffer",
                   "subscriptionLocalizations": "#/components/schemas/SubscriptionLocalization",
                   "subscriptionAvailabilities": "#/components/schemas/SubscriptionAvailability"
@@ -247809,6 +249210,9 @@
             "type": "array",
             "items": {
               "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SubscriptionPriceTierInlineCreate"
+                },
                 {
                   "$ref": "#/components/schemas/SubscriptionPromotionalOfferInlineCreate"
                 },
@@ -261505,6 +262909,42 @@
           "links"
         ]
       },
+      "SubscriptionPriceAdditionalPriceTiersLinkagesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "subscriptionPriceTiers"
+                  ]
+                },
+                "id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "type"
+              ]
+            }
+          },
+          "links": {
+            "$ref": "#/components/schemas/PagedDocumentLinks"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PagingInformation"
+          }
+        },
+        "required": [
+          "data",
+          "links"
+        ]
+      },
       "SubscriptionPromotionalOfferPricesLinkagesResponse": {
         "type": "object",
         "properties": {
@@ -265068,6 +266508,21 @@
           }
         }
       },
+      "ProposedSubscriptionPriceTier": {
+        "type": "object",
+        "properties": {
+          "minQuantity": {
+            "type": "integer"
+          },
+          "subscriptionPricePointId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "minQuantity",
+          "subscriptionPricePointId"
+        ]
+      },
       "ScmProviderType": {
         "type": "object",
         "properties": {
@@ -265152,6 +266607,23 @@
           "EXISTING",
           "EXPIRED"
         ]
+      },
+      "SubscriptionEqualizedPriceTiersForTerritory": {
+        "type": "object",
+        "properties": {
+          "territoryId": {
+            "type": "string"
+          },
+          "basePricePointId": {
+            "type": "string"
+          },
+          "additionalPriceTiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProposedSubscriptionPriceTier"
+            }
+          }
+        }
       },
       "SubscriptionGracePeriodDuration": {
         "type": "string",

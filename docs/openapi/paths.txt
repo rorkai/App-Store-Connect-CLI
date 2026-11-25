@@ -857,6 +857,9 @@ GET /v1/subscriptionPricePoints/{id}
 GET /v1/subscriptionPricePoints/{id}/adjustedEqualizations
 GET /v1/subscriptionPricePoints/{id}/equalizations
 GET /v1/subscriptionPricePoints/{id}/relationships/equalizations
+GET /v1/subscriptionPriceTiers
+GET /v1/subscriptionPrices/{id}/additionalPriceTiers
+GET /v1/subscriptionPrices/{id}/relationships/additionalPriceTiers
 GET /v1/subscriptionPromotionalOffers/{id}
 GET /v1/subscriptionPromotionalOffers/{id}/prices
 GET /v1/subscriptionPromotionalOffers/{id}/relationships/prices
@@ -1301,6 +1304,8 @@ POST /v1/subscriptionOfferCodeCustomCodes
 POST /v1/subscriptionOfferCodeOneTimeUseCodes
 POST /v1/subscriptionOfferCodes
 POST /v1/subscriptionPlanAvailabilities
+POST /v1/subscriptionPriceChangePreviews
+POST /v1/subscriptionPriceTierEqualizations
 POST /v1/subscriptionPrices
 POST /v1/subscriptionPromotionalOffers
 POST /v1/subscriptionSubmissions
