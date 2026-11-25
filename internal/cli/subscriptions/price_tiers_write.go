@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -57,6 +58,19 @@ func requireUnpricedSubscription(ctx context.Context, client *asc.Client, id str
 		return fmt.Errorf("subscription %s already has prices; cannot replay the initial price matrix", id)
 	}
 	return nil
+}
+
+func verifiedSubscriptionPriceTerritory(raw json.RawMessage) string {
+	var relationships subscriptionPriceRelationshipData
+	if err := json.Unmarshal(raw, &relationships); err != nil || relationships.Territory == nil {
+		return ""
+	}
+	data := relationships.Territory.Data
+	territory, err := ascterritory.Normalize(data.ID)
+	if data.Type != asc.ResourceTypeTerritories || err != nil || territory != data.ID {
+		return ""
+	}
+	return territory
 }
 
 func subscriptionPriceRequiresTierIntent(price asc.Resource[asc.SubscriptionPriceAttributes]) bool {

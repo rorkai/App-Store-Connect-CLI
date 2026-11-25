@@ -877,6 +877,7 @@ var generatedQueries = map[string]generatedQuery{
 		build: buildSubscriptionPricePointDetailQuery,
 		options: map[string]any{
 			"fields[subscriptionPricePoints]": WithSubscriptionPricePointFields,
+			"include":                         WithSubscriptionPricePointInclude,
 		},
 	},
 	"subscriptionPromotionalOffers_prices_getToManyRelated": {
