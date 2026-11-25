@@ -338,3 +338,49 @@ tester@example.com,Beta
 		}
 	}
 }
+
+func TestTestersImportContinuesAfterGroupCreationFailure(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "testers.csv")
+	if err := os.WriteFile(path, []byte("email,groups\none@example.com,Missing Group;Existing\ntwo@example.com,Existing\nthree@example.com,missing  group\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name       string
+		args       []string
+		created    int
+		failedRows []int
+	}{
+		{name: "default continues", created: 1, failedRows: []int{1, 3}},
+		{name: "global group blocks all rows", args: []string{"--group", "Missing Group"}, failedRows: []int{1, 2, 3}},
+		{name: "fail fast stops before tester writes", args: []string{"--continue-on-error=false"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps/a1/betaGroups", "limit=200"), asctest.JSON(200, `{"data":[{"type":"betaGroups","id":"g1","attributes":{"name":"Existing"}}]}`))
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=a1", "filter[email]=one@example.com,three@example.com,two@example.com", "fields[betaTesters]=email,firstName,lastName,inviteType,state", "limit=200"), asctest.JSON(200, `{"data":[]}`))
+			reg.Register(asctest.POST("/v1/betaGroups"), asctest.JSON(403, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Cannot create group"}]}`))
+			if tc.created > 0 {
+				reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"email":"two@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"g1"}]}}}}`),
+					asctest.JSON(201, `{"data":{"type":"betaTesters","id":"t2"}}`))
+			}
+			args := append([]string{"testflight", "testers", "import", "--app", "a1", "--input", path, "--create-missing-groups", "--confirm"}, tc.args...)
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
+			var summary asc.BetaTestersImportSummary
+			if parseErr := json.Unmarshal([]byte(stdout), &summary); parseErr != nil || err == nil {
+				t.Fatalf("stdout=%q stderr=%q err=%v parseErr=%v", stdout, stderr, err, parseErr)
+			}
+			if len(summary.Groups) != 1 || summary.Groups[0].Name != "Missing Group" || summary.Groups[0].Status != "failed" || !strings.Contains(summary.Groups[0].Error, "Cannot create group") {
+				t.Fatalf("unexpected group failure: %+v", summary.Groups)
+			}
+			if summary.Created != tc.created || summary.Failed != len(tc.failedRows) || len(summary.Failures) != len(tc.failedRows) {
+				t.Fatalf("unexpected row results: %+v", summary)
+			}
+			emails := []string{"one@example.com", "two@example.com", "three@example.com"}
+			for i, row := range tc.failedRows {
+				if failure := summary.Failures[i]; failure.Row != row || failure.Email != emails[row-1] {
+					t.Fatalf("unexpected failed row: %+v", failure)
+				}
+			}
+		})
+	}
+}
