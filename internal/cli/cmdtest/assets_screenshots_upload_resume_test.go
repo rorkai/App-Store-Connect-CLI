@@ -127,12 +127,17 @@ func TestRunScreenshotsUploadWritesFailureArtifactAndResumeCompletes(t *testing.
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
 		case req.Method == http.MethodGet && (req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots" || req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots"):
-			items := []map[string]string{}
+			items := []map[string]any{}
 			if firstRunCreates > 0 {
-				items = append(items, map[string]string{"type": "appScreenshots", "id": "new-1"})
+				items = append(items, map[string]any{"type": "appScreenshots", "id": "new-1"})
 			}
 			for index := 0; index < resumeCreates; index++ {
-				items = append(items, map[string]string{"type": "appScreenshots", "id": fmt.Sprintf("new-%d", index+2)})
+				items = append(items, map[string]any{"type": "appScreenshots", "id": fmt.Sprintf("new-%d", index+2)})
+			}
+			if req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots" {
+				for _, item := range items {
+					item["attributes"] = map[string]any{"sourceFileChecksum": "settled", "assetDeliveryState": map[string]string{"state": "COMPLETE"}}
+				}
 			}
 			payload, err := json.Marshal(map[string]any{"data": items})
 			if err != nil {

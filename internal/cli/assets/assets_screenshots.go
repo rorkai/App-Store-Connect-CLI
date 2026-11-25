@@ -815,7 +815,9 @@ Deletions require --confirm; --replace --dry-run previews the changes without it
 Replacement requires an independently selected canonical numeric app ID (--app,
 ASC_APP_ID, or the configured default); names and bundle IDs are not accepted.
 With --replace, --app may also scope --version-localization.
-After a partial failure, --resume requires an independently selected canonical
+Starting in 7.6.0, update a 7.5.0 bare --resume ARTIFACT invocation when upgrading
+the CLI. Version 7.5.0 rejects the new target flags. After a partial failure,
+--resume requires an independently selected canonical
 numeric app ID (--app, ASC_APP_ID, or the configured default), plus explicit
 --version-localization and --device-type. It verifies ownership, live set membership,
 and source checksums before non-destructive recovery. It never authorizes screenshot deletion.
@@ -870,8 +872,8 @@ Examples:
   asc screenshots upload --app "123456789" --version "VERSION_ID" --locale "de-DE" --path "./screenshots/de-DE" --device-type "IPHONE_65" --dry-run
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65"
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --skip-existing
-  asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --replace --confirm
-  asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --replace --dry-run
+  asc screenshots upload --app "123456789" --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --replace --confirm
+  asc screenshots upload --app "123456789" --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --replace --dry-run
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --max-screenshots 10
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --skip-existing --dry-run
   asc screenshots upload --version-localization "VERSION_LOCALIZATION_ID" --path "./screenshots" --device-type "IPAD_PRO_3GEN_129"

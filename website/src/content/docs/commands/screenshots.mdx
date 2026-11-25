@@ -179,7 +179,7 @@ asc screenshots apply --app "123456789" --version "1.2.3" --confirm
 * `--version-id` - Explicit App Store version ID (alternative to `--version`)
 * `--review-output-dir` - Directory containing `manifest.json` and `approved.json`
 * `--skip-existing` - Skip files whose checksum already exists remotely
-* `--replace` - Make each target set match the sorted local files, keeping COMPLETE screenshots with matching source checksums and deleting only unwanted screenshots. Requires `--confirm`; use `--dry-run` to preview without changes. Repeating a successful replacement makes no changes. Unverifiable remote states or checksums stop replacement. Select the app independently using a canonical numeric app ID with `--app`, `ASC_APP_ID`, or the configured default; names and bundle IDs are not accepted for replacement; `--app` can scope `--version-localization` during replacement. A receipt's `--resume` requires independent numeric `--app`, `--version-localization`, and `--device-type` selections and continues only non-destructive work and retains matching COMPLETE upload survivors. For an unfinished replacement, inspect the intended app, localization, and device, run a fresh explicitly targeted `--replace --dry-run`, then separately authorize `--replace --confirm` for that exact target. Changed source files or newly added remote screenshots require inspection and a new replacement. Legacy replacement receipts must identify the localization, device and set; unfinished uploads also need their full source file list. Restore missing original files or inspect the set before starting a new replacement. Legacy order-only retries do not need the source files.
+* `--replace` - Make each target set match the sorted local files, keeping COMPLETE screenshots with matching source checksums and deleting only unwanted screenshots. Requires `--confirm`; use `--dry-run` to preview without changes. Repeating a successful replacement makes no changes. Unverifiable remote states or checksums stop replacement. Select the app independently using a canonical numeric app ID with `--app`, `ASC_APP_ID`, or the configured default; names and bundle IDs are not accepted for replacement; `--app` can scope `--version-localization` during replacement. A receipt's `--resume` requires independent numeric `--app`, `--version-localization`, and `--device-type` selections and continues only non-destructive work and retains matching COMPLETE upload survivors. If a replacement still requires deletion or cleanup, inspect the intended app, localization, and device, run a fresh explicitly targeted `--replace --dry-run`, then separately authorize `--replace --confirm` for that exact target. Changed source files or newly added remote screenshots require inspection and a new replacement. Legacy replacement receipts must identify the localization, device and set; unfinished uploads also need their full source file list. Restore missing original files or inspect the set before starting a new replacement. Legacy order-only retries do not need the source files.
 * `--confirm` - Required for `apply`
 
 ### Run from Plan
@@ -422,7 +422,13 @@ uploaded from each locale subtree. A device-rooted layout such as
 * Partial failures write a retry artifact under `.asc/reports/screenshots-upload/`;
   if cleanup of a remote asset fails, the asset ID is retained in the artifact
 
-**Resume a Failed Upload:**
+**Migrate a failed upload from 7.5.0 to 7.6.0**
+
+Version 7.5.0 used `asc screenshots upload --resume "$RECEIPT"` and rejected
+target flags on resume. Update the CLI and the CI invocation together.
+In 7.6.0, use the numeric app ID, version localization ID, and device from
+your release configuration. Existing receipts work when their target and live
+membership can be verified.
 
 ```bash
 # Resume from the artifact printed by the failed run
@@ -440,6 +446,15 @@ and no longer in use. Preview missing files with `--skip-existing --dry-run`, th
 upload them with `--skip-existing`. For a replacement with pending deletions or cleanup,
 preview the same app, localization, and device with `--replace --dry-run`, then
 separately authorize `--replace --confirm`.
+
+For a fresh replacement by localization ID, provide the numeric app ID with
+`--app`, `ASC_APP_ID`, or the configured default. Scripts using an app name or
+bundle ID for replacement must switch to its numeric ID. Preview the selected set:
+
+```bash
+asc screenshots upload --app "123456789" --version-localization "LOCALIZATION_ID" \
+  --device-type IPHONE_65 --path ./screenshots/en-US --replace --dry-run
+```
 
 **Typical Submission:**
 

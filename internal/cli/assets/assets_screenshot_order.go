@@ -116,18 +116,16 @@ func resumeScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, stderr 
 			return progress, fmt.Errorf("pending screenshot asset does not match the first pending file")
 		}
 
-		result, updatedPending, retryUpload, err := reconcilePendingScreenshotAsset(ctx, stderr, client, pending, sourceRootPath)
+		result, updatedPending, err := reconcilePendingScreenshotAsset(ctx, stderr, client, pending, sourceRootPath)
 		if err != nil {
 			progress.PendingFiles = remainingFiles
 			progress.PendingAssets = []screenshotPendingAsset{updatedPending}
 			progress.FailedFile = remainingFiles[0]
 			return progress, err
 		}
-		if !retryUpload {
-			progress.Results = append(progress.Results, result)
-			progress.OrderedIDs = appendUniqueAssetID(progress.OrderedIDs, result.AssetID)
-			remainingFiles = remainingFiles[1:]
-		}
+		progress.Results = append(progress.Results, result)
+		progress.OrderedIDs = appendUniqueAssetID(progress.OrderedIDs, result.AssetID)
+		remainingFiles = remainingFiles[1:]
 	}
 
 	remaining, err := uploadScreenshotsWithOrderStateWithOpenedFiles(ctx, stderr, requestContext, client, setID, progress.OrderedIDs, remainingFiles, sourceRootPath, syncIfNoNew, syncAfterUpload, openedFiles)
@@ -145,13 +143,10 @@ func (pending screenshotPendingAsset) hasUploadedBytes() bool {
 	return state == "UPLOADED" || state == "UPLOAD_COMPLETE" || state == "COMPLETE"
 }
 
-func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, client *asc.Client, pending screenshotPendingAsset, sourceRootPath string) (asc.AssetUploadResultItem, screenshotPendingAsset, bool, error) {
+func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, client *asc.Client, pending screenshotPendingAsset, sourceRootPath string) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 	remote, err := getScopedAppScreenshot(ctx, client, pending.AssetID)
 	if err != nil {
-		if asc.IsNotFound(err) {
-			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, true, nil
-		}
-		return asc.AssetUploadResultItem{}, pending, false, err
+		return asc.AssetUploadResultItem{}, pending, err
 	}
 
 	remoteState := ""
@@ -161,38 +156,38 @@ func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, clie
 	switch remoteState {
 	case "COMPLETE":
 		if err := validatePendingScreenshotChecksum(sourceRootPath, pending); err != nil {
-			return asc.AssetUploadResultItem{}, pending, false, err
+			return asc.AssetUploadResultItem{}, pending, err
 		}
 		if checksum := strings.TrimSpace(remote.Data.Attributes.SourceFileChecksum); checksum != "" {
 			if err := validatePendingScreenshotRemoteChecksum(pending.AssetID, checksum, pending.Checksum); err != nil {
-				return asc.AssetUploadResultItem{}, pending, false, err
+				return asc.AssetUploadResultItem{}, pending, err
 			}
-			return completedPendingScreenshotResult(pending), screenshotPendingAsset{}, false, nil
+			return completedPendingScreenshotResult(pending), screenshotPendingAsset{}, nil
 		}
 		return waitForPendingScreenshotDelivery(ctx, stderr, client, pending)
 	case "FAILED":
-		return asc.AssetUploadResultItem{}, pending, false, errScreenshotReceiptCannotDelete
+		return asc.AssetUploadResultItem{}, pending, errScreenshotReceiptCannotDelete
 	case "UPLOAD_COMPLETE":
 		if err := validatePendingScreenshotChecksum(sourceRootPath, pending); err != nil {
-			return asc.AssetUploadResultItem{}, pending, false, err
+			return asc.AssetUploadResultItem{}, pending, err
 		}
 		if err := validatePendingScreenshotRemoteChecksum(pending.AssetID, remote.Data.Attributes.SourceFileChecksum, pending.Checksum); err != nil {
-			return asc.AssetUploadResultItem{}, pending, false, err
+			return asc.AssetUploadResultItem{}, pending, err
 		}
 		return waitForPendingScreenshotDelivery(ctx, stderr, client, pending)
 	case "AWAITING_UPLOAD", "":
 		if pending.hasUploadedBytes() {
 			if err := validatePendingScreenshotChecksum(sourceRootPath, pending); err != nil {
-				return asc.AssetUploadResultItem{}, pending, false, err
+				return asc.AssetUploadResultItem{}, pending, err
 			}
 			state, err := commitAndWaitForScreenshotDelivery(ctx, stderr, client, pending, true)
 			return finishPendingScreenshotDelivery(ctx, pending, state, err)
 		}
 
-		return asc.AssetUploadResultItem{}, pending, false, errScreenshotReceiptCannotDelete
+		return asc.AssetUploadResultItem{}, pending, errScreenshotReceiptCannotDelete
 	default:
 		pending.State = remoteState
-		return asc.AssetUploadResultItem{}, pending, false, fmt.Errorf("screenshot %s has unrecognized delivery state %q", pending.AssetID, remoteState)
+		return asc.AssetUploadResultItem{}, pending, fmt.Errorf("screenshot %s has unrecognized delivery state %q", pending.AssetID, remoteState)
 	}
 }
 
@@ -215,24 +210,24 @@ func validatePendingScreenshotRemoteChecksum(assetID, actual, expected string) e
 	return nil
 }
 
-func waitForPendingScreenshotDelivery(ctx context.Context, stderr io.Writer, client *asc.Client, pending screenshotPendingAsset) (asc.AssetUploadResultItem, screenshotPendingAsset, bool, error) {
+func waitForPendingScreenshotDelivery(ctx context.Context, stderr io.Writer, client *asc.Client, pending screenshotPendingAsset) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 	state, err := waitForScreenshotDelivery(ctx, stderr, client, pending.AssetID, pending.Checksum)
 	return finishPendingScreenshotDelivery(ctx, pending, state, err)
 }
 
-func finishPendingScreenshotDelivery(ctx context.Context, pending screenshotPendingAsset, state string, err error) (asc.AssetUploadResultItem, screenshotPendingAsset, bool, error) {
+func finishPendingScreenshotDelivery(ctx context.Context, pending screenshotPendingAsset, state string, err error) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
 	if strings.TrimSpace(state) != "" {
 		pending.State = strings.ToUpper(strings.TrimSpace(state))
 	}
 	if err != nil {
-		return asc.AssetUploadResultItem{}, pending, false, err
+		return asc.AssetUploadResultItem{}, pending, err
 	}
 	result := completedPendingScreenshotResult(pending)
 	if screenshotNoWaitFromContext(ctx) {
 		// --no-wait only checked the state once; report it instead of claiming COMPLETE.
 		result.State = pending.State
 	}
-	return result, screenshotPendingAsset{}, false, nil
+	return result, screenshotPendingAsset{}, nil
 }
 
 func completedPendingScreenshotResult(pending screenshotPendingAsset) asc.AssetUploadResultItem {

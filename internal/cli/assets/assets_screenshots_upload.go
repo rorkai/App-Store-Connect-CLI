@@ -655,7 +655,7 @@ func waitForScreenshotDelivery(ctx context.Context, stderr io.Writer, client *as
 // currentScreenshotDeliveryState checks once for a committed upload. An
 // inconclusive read leaves the last known upload stage intact for resume.
 func currentScreenshotDeliveryState(ctx context.Context, client *asc.Client, screenshotID, expectedChecksum string) (string, error) {
-	resp, err := getScopedAppScreenshot(ctx, client, strings.TrimSpace(screenshotID))
+	resp, err := getScreenshotDelivery(ctx, client, strings.TrimSpace(screenshotID))
 	if err != nil {
 		return "", fmt.Errorf("fetch screenshot %s: %w", screenshotID, err)
 	}
@@ -685,7 +685,7 @@ func waitForScreenshotSettlement(ctx context.Context, stderr io.Writer, client *
 	lastState := ""
 	lastRemote := asc.Resource[asc.AppScreenshotAttributes]{}
 	settled, err := asc.PollMediaUntil(ctx, func(ctx context.Context) (asc.Resource[asc.AppScreenshotAttributes], bool, error) {
-		resp, err := getScopedAppScreenshot(ctx, client, assetID)
+		resp, err := getScreenshotDelivery(ctx, client, assetID)
 		if err != nil {
 			return asc.Resource[asc.AppScreenshotAttributes]{}, false, fmt.Errorf("fetch screenshot %s during checksum settlement: %w", assetID, err)
 		}

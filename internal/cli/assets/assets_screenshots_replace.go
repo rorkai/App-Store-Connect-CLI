@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -80,6 +81,8 @@ func verifyScreenshotLocalizationApp(ctx context.Context, client *asc.Client, ap
 	return err
 }
 
+var errScreenshotInventoryChanged = errors.New("screenshot membership changed while reading the replacement set")
+
 func replacementInventory(ctx context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], setID string) ([]asc.Resource[asc.AppScreenshotAttributes], []string, error) {
 	if cfg.AppID != "" {
 		requestCtx, cancel := cfg.RequestContext(ctx)
@@ -113,12 +116,12 @@ func replacementInventory(ctx context.Context, cfg screenshotUploadConfig[asc.Ap
 	}
 	for _, id := range order {
 		if !members[id] {
-			return nil, nil, fmt.Errorf("screenshot membership changed while reading the replacement set")
+			return response.Data, order, errScreenshotInventoryChanged
 		}
 		delete(members, id)
 	}
 	if len(members) != 0 {
-		return nil, nil, fmt.Errorf("screenshot membership changed while reading the replacement set")
+		return response.Data, order, errScreenshotInventoryChanged
 	}
 	return response.Data, order, nil
 }
