@@ -171,7 +171,7 @@ func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, clie
 		}
 		return waitForPendingScreenshotDelivery(ctx, stderr, client, pending)
 	case "FAILED":
-		return asc.AssetUploadResultItem{}, pending, false, screenshotDestructiveRecoveryError()
+		return asc.AssetUploadResultItem{}, pending, false, errScreenshotReceiptCannotDelete
 	case "UPLOAD_COMPLETE":
 		if err := validatePendingScreenshotChecksum(sourceRootPath, pending); err != nil {
 			return asc.AssetUploadResultItem{}, pending, false, err
@@ -189,7 +189,7 @@ func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, clie
 			return finishPendingScreenshotDelivery(ctx, pending, state, err)
 		}
 
-		return asc.AssetUploadResultItem{}, pending, false, screenshotDestructiveRecoveryError()
+		return asc.AssetUploadResultItem{}, pending, false, errScreenshotReceiptCannotDelete
 	default:
 		pending.State = remoteState
 		return asc.AssetUploadResultItem{}, pending, false, fmt.Errorf("screenshot %s has unrecognized delivery state %q", pending.AssetID, remoteState)

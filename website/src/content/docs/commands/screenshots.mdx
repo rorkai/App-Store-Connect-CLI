@@ -179,7 +179,7 @@ asc screenshots apply --app "123456789" --version "1.2.3" --confirm
 * `--version-id` - Explicit App Store version ID (alternative to `--version`)
 * `--review-output-dir` - Directory containing `manifest.json` and `approved.json`
 * `--skip-existing` - Skip files whose checksum already exists remotely
-* `--replace` - Make each target set match the sorted local files, keeping COMPLETE screenshots with matching source checksums and deleting only unwanted screenshots. Requires `--confirm`; use `--dry-run` to preview without changes. Repeating a successful replacement makes no changes. Unverifiable remote states or checksums stop replacement. Select the app independently using a canonical numeric app ID with `--app`, `ASC_APP_ID`, or the configured default; names and bundle IDs are not accepted for replacement; `--app` can scope `--version-localization` during replacement. A receipt's `--resume` requires independent numeric `--app`, `--version-localization`, and `--device-type` selections and continues only non-destructive work and retains matching COMPLETE upload survivors. It cannot authorize deletions or cleanup: inspect the intended app, localization, and device, run a fresh explicitly targeted `--replace --dry-run`, then separately authorize `--replace --confirm` for that exact target. Changed source files or newly added remote screenshots require inspection and a new replacement. Legacy replacement receipts must identify the localization, device and set; unfinished uploads also need their full source file list. Restore missing original files or inspect the set before starting a new replacement. Legacy order-only retries do not need the source files.
+* `--replace` - Make each target set match the sorted local files, keeping COMPLETE screenshots with matching source checksums and deleting only unwanted screenshots. Requires `--confirm`; use `--dry-run` to preview without changes. Repeating a successful replacement makes no changes. Unverifiable remote states or checksums stop replacement. Select the app independently using a canonical numeric app ID with `--app`, `ASC_APP_ID`, or the configured default; names and bundle IDs are not accepted for replacement; `--app` can scope `--version-localization` during replacement. A receipt's `--resume` requires independent numeric `--app`, `--version-localization`, and `--device-type` selections and continues only non-destructive work and retains matching COMPLETE upload survivors. For an unfinished replacement, inspect the intended app, localization, and device, run a fresh explicitly targeted `--replace --dry-run`, then separately authorize `--replace --confirm` for that exact target. Changed source files or newly added remote screenshots require inspection and a new replacement. Legacy replacement receipts must identify the localization, device and set; unfinished uploads also need their full source file list. Restore missing original files or inspect the set before starting a new replacement. Legacy order-only retries do not need the source files.
 * `--confirm` - Required for `apply`
 
 ### Run from Plan
@@ -434,9 +434,12 @@ asc screenshots upload \
 Resume requires independently selected numeric app, localization, and device flags.
 It verifies ownership and live membership before pending reads, uploads, commits,
 or ordering changes, and retains matching COMPLETE assets. A
-saved receipt never authorizes screenshot deletion. Pending deletions or cleanup
-require a fresh replacement targeting the numeric app ID, localization, and device:
-preview with `--replace --dry-run`, then separately authorize `--replace --confirm`.
+saved receipt never authorizes screenshot deletion. For an append upload, inspect the
+set, keep completed screenshots, and remove only reservations you verify are stuck
+and no longer in use. Preview missing files with `--skip-existing --dry-run`, then
+upload them with `--skip-existing`. For a replacement with pending deletions or cleanup,
+preview the same app, localization, and device with `--replace --dry-run`, then
+separately authorize `--replace --confirm`.
 
 **Typical Submission:**
 

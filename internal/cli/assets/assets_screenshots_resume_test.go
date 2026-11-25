@@ -339,8 +339,11 @@ func TestResumeAppScreenshotUploadRefusesReceiptCleanupWithoutWrites(t *testing.
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	for range 2 {
-		_, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
-		if err == nil || !strings.Contains(err.Error(), "receipts do not authorize screenshot deletion") || requests != 0 {
+		result, err := resumeAppScreenshotUpload(context.Background(), newAssetsUploadTestDeps(), client, artifactPath, assetsScreenshotResumeTarget(), nil)
+		if !result.Resumed || result.FailureArtifactPath != artifactPath || len(result.Failures) != 1 {
+			t.Fatalf("blocked append resume lost its receipt: %+v", result)
+		}
+		if err == nil || !strings.Contains(err.Error(), "receipts do not authorize screenshot deletion") || requests != 0 || strings.Contains(err.Error(), "--replace") {
 			t.Fatalf("error=%v requests=%d; cleanup must require a fresh targeted command", err, requests)
 		}
 	}
@@ -373,9 +376,9 @@ func TestExecuteAppScreenshotUploadSurfacesCleanupFailures(t *testing.T) {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{}}`)
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshots","id":"existing-1"}],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
-			writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{}}`)
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshots","id":"existing-1"}],"links":{}}`)
 		case req.Method == http.MethodDelete:
 			writeAssetsTestJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","detail":"cleanup failed"}]}`)
 		default:
@@ -412,6 +415,9 @@ func TestExecuteAppScreenshotUploadSurfacesCleanupFailures(t *testing.T) {
 	if !strings.Contains(stderr, "upload failed") || !strings.Contains(stderr, "cleanup failed") {
 		t.Fatalf("stderr = %q, want upload and cleanup failures", stderr)
 	}
+	if strings.Contains(stderr, "--replace") || !strings.Contains(stderr, "--skip-existing") {
+		t.Fatalf("additive cleanup should explain how to retain existing screenshots and retry missing files: %s", stderr)
+	}
 	if len(result.Failures) != 2 {
 		t.Fatalf("result failures = %#v, want upload plus cleanup entries", result.Failures)
 	}
@@ -421,6 +427,9 @@ func TestExecuteAppScreenshotUploadSurfacesCleanupFailures(t *testing.T) {
 	artifact, err := loadScreenshotUploadFailureArtifact(newAssetsUploadTestDeps(), artifactPath)
 	if err != nil {
 		t.Fatalf("load failure artifact: %v", err)
+	}
+	if len(artifact.OrderedIDs) != 1 || artifact.OrderedIDs[0] != "existing-1" {
+		t.Fatalf("expected the pre-existing screenshot in the append receipt: %v", artifact.OrderedIDs)
 	}
 	if len(artifact.CleanupFailures) != 2 {
 		t.Fatalf("artifact cleanup failures = %#v, want unresolved siblings", artifact.CleanupFailures)

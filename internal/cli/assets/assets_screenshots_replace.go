@@ -23,10 +23,6 @@ type screenshotReplacement struct {
 
 type screenshotResumeKey struct{}
 
-func screenshotDestructiveRecoveryError() error {
-	return fmt.Errorf("resume receipts do not authorize screenshot deletion; inspect the intended app, localization, and device, then run a fresh explicitly targeted screenshots upload --replace --dry-run and a separately confirmed --replace --confirm for that exact target")
-}
-
 func screenshotRecoveryIDArgument(id string) (string, bool) {
 	if segment, err := asc.ValidateResourcePathSegment(id); err != nil || segment != id {
 		return "", false
@@ -135,7 +131,7 @@ func replacementChecksum(value string) (string, bool) {
 
 func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], artifactPath string, previous *screenshotUploadFailureArtifact) (asc.AppScreenshotUploadResult, error) {
 	if previous != nil && len(previous.Replacement.Remove) > 0 {
-		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
+		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError(true)
 	}
 	if previous != nil {
 		if scope, _ := ctx.Value(screenshotResumeScopeKey{}).(*screenshotResumeScope); scope == nil {
@@ -269,14 +265,7 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 			if previous == nil {
 				return asc.AppScreenshotUploadResult{}, err
 			}
-			result := buildAppScreenshotUploadResult(cfg.LocalizationID, set, false, previous.Results)
-			result.Resumed = true
-			result.Pending = len(previous.PendingFiles)
-			result.Total = len(result.Results) + result.Pending
-			result.FailureArtifactPath = artifactPath
-			result.Failures = []asc.AssetUploadFailureItem{{FileName: item.Attributes.FileName, Error: err.Error()}}
-			finalizeAppScreenshotUploadResult(&result)
-			return result, err
+			return previous.blockedResume(artifactPath, item.Attributes.FileName, err)
 		}
 		checksum, valid := replacementChecksum(item.Attributes.SourceFileChecksum)
 		if !valid || state != "COMPLETE" {
@@ -299,7 +288,7 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 	for _, item := range verified {
 		if !retained[item.ID] {
 			if previous != nil {
-				return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
+				return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError(true)
 			}
 			plan.Remove = append(plan.Remove, screenshotPendingAsset{AssetID: item.ID, FileName: item.Attributes.FileName, Checksum: item.Attributes.SourceFileChecksum, State: "COMPLETE"})
 		}
@@ -340,7 +329,7 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 		progress.CleanupFailures = presentReplacementAssets(previous.CleanupFailures, present, retained)
 	}
 	if previous != nil && (len(plan.Remove) > 0 || len(progress.CleanupFailures) > 0) {
-		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
+		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError(true)
 	}
 	var deleted []asc.AssetUploadResultItem
 	finish := func(cause error) (asc.AppScreenshotUploadResult, error) {
@@ -365,7 +354,7 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 		}
 		result.FailureArtifactPath = written
 		progress.PendingDeletions = len(plan.Remove)
-		return result, screenshotUploadRetryError(cfg.Deps, result, progress, cause)
+		return result, screenshotUploadRetryError(cfg.Deps, result, progress, true, cause)
 	}
 	if len(plan.Remove) > 0 {
 		current, currentOrder, err := replacementInventory(uploadCtx, cfg, set.ID)
