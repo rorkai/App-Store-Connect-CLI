@@ -69,10 +69,17 @@ func findScreenshotSetWithAccess(ctx context.Context, client *asc.Client, locali
 	if err != nil {
 		return asc.Resource[asc.AppScreenshotSetAttributes]{}, err
 	}
+	var found asc.Resource[asc.AppScreenshotSetAttributes]
 	for _, set := range resp.Data {
 		if strings.EqualFold(set.Attributes.ScreenshotDisplayType, displayType) {
-			return set, nil
+			if found.ID != "" || set.ID == "" {
+				return asc.Resource[asc.AppScreenshotSetAttributes]{}, fmt.Errorf("cannot identify one screenshot set for localization %s and device %s", localizationID, displayType)
+			}
+			found = set
 		}
+	}
+	if found.ID != "" {
+		return found, nil
 	}
 	return asc.Resource[asc.AppScreenshotSetAttributes]{
 		Attributes: asc.AppScreenshotSetAttributes{ScreenshotDisplayType: displayType},
@@ -252,6 +259,10 @@ func deleteExistingScreenshots(ctx context.Context, client *asc.Client, screensh
 }
 
 func filterExistingScreenshotFiles(files []string, screenshots []asc.Resource[asc.AppScreenshotAttributes], inspectCommand string) ([]string, []asc.AssetUploadResultItem, error) {
+	return filterScreenshotFilesByChecksum(files, screenshots, inspectCommand, screenshotFileChecksumFunc)
+}
+
+func filterScreenshotFilesByChecksum(files []string, screenshots []asc.Resource[asc.AppScreenshotAttributes], inspectCommand string, fileChecksum func(string) (string, error)) ([]string, []asc.AssetUploadResultItem, error) {
 	existingByChecksum := make(map[string][]asc.Resource[asc.AppScreenshotAttributes], len(screenshots))
 	for _, screenshot := range screenshots {
 		checksum := strings.TrimSpace(screenshot.Attributes.SourceFileChecksum)
@@ -274,7 +285,7 @@ func filterExistingScreenshotFiles(files []string, screenshots []asc.Resource[as
 	filtered := make([]string, 0, len(files))
 	skipped := make([]asc.AssetUploadResultItem, 0)
 	for _, filePath := range files {
-		checksum, err := screenshotFileChecksumFunc(filePath)
+		checksum, err := fileChecksum(filePath)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -532,7 +543,7 @@ func uploadScreenshotAssetFromFile(ctx context.Context, stderr io.Writer, client
 	if err := waitForScreenshotReservationTurn(ctx); err != nil {
 		return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, err
 	}
-	created, err := client.CreateAppScreenshot(ctx, setID, info.Name(), info.Size())
+	created, err := createScopedAppScreenshot(ctx, client, setID, info.Name(), info.Size())
 	releaseScreenshotReservationTurn(ctx)
 	if err != nil {
 		return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, err
@@ -587,14 +598,14 @@ func validateOpenedScreenshotFileFormat(filePath string, file *os.File) error {
 }
 
 func commitAndWaitForScreenshotDelivery(ctx context.Context, stderr io.Writer, client *asc.Client, pending screenshotPendingAsset, verifyChecksum bool) (string, error) {
-	updated, err := client.UpdateAppScreenshot(ctx, pending.AssetID, true, pending.Checksum)
+	updated, err := commitScopedAppScreenshot(ctx, client, pending.AssetID, pending.Checksum)
 	if err != nil {
 		if !asc.IsScreenshotCommitResponseError(err) || ctx.Err() != nil {
 			return "", err
 		}
 		// The commit returned success without a usable receipt. Verify
 		// the reserved asset with a read instead of replaying the mutation.
-		remote, readErr := client.GetAppScreenshot(ctx, pending.AssetID)
+		remote, readErr := getScopedAppScreenshot(ctx, client, pending.AssetID)
 		if readErr != nil || remote.Data.ID != pending.AssetID || remote.Data.Type != asc.ResourceTypeAppScreenshots {
 			return "", err
 		}
@@ -644,7 +655,7 @@ func waitForScreenshotDelivery(ctx context.Context, stderr io.Writer, client *as
 // currentScreenshotDeliveryState checks once for a committed upload. An
 // inconclusive read leaves the last known upload stage intact for resume.
 func currentScreenshotDeliveryState(ctx context.Context, client *asc.Client, screenshotID, expectedChecksum string) (string, error) {
-	resp, err := client.GetAppScreenshot(ctx, strings.TrimSpace(screenshotID))
+	resp, err := getScopedAppScreenshot(ctx, client, strings.TrimSpace(screenshotID))
 	if err != nil {
 		return "", fmt.Errorf("fetch screenshot %s: %w", screenshotID, err)
 	}
@@ -674,7 +685,7 @@ func waitForScreenshotSettlement(ctx context.Context, stderr io.Writer, client *
 	lastState := ""
 	lastRemote := asc.Resource[asc.AppScreenshotAttributes]{}
 	settled, err := asc.PollMediaUntil(ctx, func(ctx context.Context) (asc.Resource[asc.AppScreenshotAttributes], bool, error) {
-		resp, err := client.GetAppScreenshot(ctx, assetID)
+		resp, err := getScopedAppScreenshot(ctx, client, assetID)
 		if err != nil {
 			return asc.Resource[asc.AppScreenshotAttributes]{}, false, fmt.Errorf("fetch screenshot %s during checksum settlement: %w", assetID, err)
 		}

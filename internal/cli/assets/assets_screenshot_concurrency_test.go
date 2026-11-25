@@ -98,53 +98,67 @@ func TestConcurrentScreenshotUploadsSerializeStderrWrites(t *testing.T) {
 }
 
 func TestConcurrentScreenshotUploadAggregatesCleanupFailures(t *testing.T) {
-	uploadErr := errors.New("upload failed")
-	files := []string{"01.png", "02.png", "03.png", "04.png"}
-	previous := uploadOneScreenshot
-	t.Cleanup(func() { uploadOneScreenshot = previous })
-	uploadOneScreenshot = func(_ context.Context, _ io.Writer, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
-		if filePath == files[0] {
-			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, uploadErr
-		}
-		return asc.AssetUploadResultItem{AssetID: "asset-" + filePath, FileName: filePath, FilePath: filePath}, screenshotPendingAsset{}, nil
-	}
+	for _, resumed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("resumed=%t", resumed), func(t *testing.T) {
+			uploadErr := errors.New("upload failed")
+			files := []string{"01.png", "02.png", "03.png", "04.png"}
+			previous := uploadOneScreenshot
+			t.Cleanup(func() { uploadOneScreenshot = previous })
+			uploadOneScreenshot = func(_ context.Context, _ io.Writer, _ *asc.Client, _, filePath, _ string, _ openedScreenshotFiles) (asc.AssetUploadResultItem, screenshotPendingAsset, error) {
+				if filePath == files[0] {
+					return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, uploadErr
+				}
+				return asc.AssetUploadResultItem{AssetID: "asset-" + filePath, FileName: filePath, FilePath: filePath}, screenshotPendingAsset{}, nil
+			}
 
-	var deleted []string
-	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		id := strings.TrimPrefix(req.URL.Path, "/v1/appScreenshots/")
-		deleted = append(deleted, id)
-		if id == "asset-02.png" || id == "asset-04.png" {
-			writeAssetsTestJSON(w, http.StatusInternalServerError, fmt.Sprintf(`{"errors":[{"status":"500","detail":"delete %s failed"}]}`, id))
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
+			var deleted []string
+			client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.Method != http.MethodDelete {
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+				}
+				id := strings.TrimPrefix(req.URL.Path, "/v1/appScreenshots/")
+				deleted = append(deleted, id)
+				if id == "asset-02.png" || id == "asset-04.png" {
+					writeAssetsTestJSON(w, http.StatusInternalServerError, fmt.Sprintf(`{"errors":[{"status":"500","detail":"delete %s failed"}]}`, id))
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}))
 
-	progress, err := uploadScreenshotsWithOrderStateWithOpenedFiles(
-		withScreenshotUploadConcurrency(context.Background(), 4),
-		nil,
-		shared.ContextWithTimeout,
-		client, "set", nil, files, "", false, false, nil,
-	)
-	if !errors.Is(err, uploadErr) {
-		t.Fatalf("error = %v, want original upload error", err)
-	}
-	for _, detail := range []string{"delete asset-02.png failed", "delete asset-04.png failed"} {
-		if !strings.Contains(err.Error(), detail) {
-			t.Fatalf("error = %q, want cleanup detail %q", err, detail)
-		}
-	}
-	if len(deleted) != 3 {
-		t.Fatalf("deleted assets = %v, want all 3 completed siblings", deleted)
-	}
-	if len(progress.CleanupFailures) != 2 {
-		t.Fatalf("cleanup failures = %#v, want 2 unresolved assets", progress.CleanupFailures)
-	}
-	if progress.CleanupFailures[0].AssetID != "asset-04.png" || progress.CleanupFailures[1].AssetID != "asset-02.png" {
-		t.Fatalf("cleanup failures = %#v, want reverse cleanup order", progress.CleanupFailures)
+			ctx := withScreenshotUploadConcurrency(context.Background(), 4)
+			if resumed {
+				ctx = context.WithValue(ctx, screenshotResumeKey{}, true)
+			}
+			progress, err := uploadScreenshotsWithOrderStateWithOpenedFiles(
+				ctx,
+				nil,
+				shared.ContextWithTimeout,
+				client, "set", nil, files, "", false, false, nil,
+			)
+			if !errors.Is(err, uploadErr) {
+				t.Fatalf("error = %v, want original upload error", err)
+			}
+			if resumed {
+				if len(deleted) != 0 || len(progress.CleanupFailures) != 3 || !strings.Contains(err.Error(), "receipts do not authorize screenshot deletion") {
+					t.Fatalf("resume error=%v deleted=%v cleanup=%+v", err, deleted, progress.CleanupFailures)
+				}
+				return
+			}
+			for _, detail := range []string{"delete asset-02.png failed", "delete asset-04.png failed"} {
+				if !strings.Contains(err.Error(), detail) {
+					t.Fatalf("error = %q, want cleanup detail %q", err, detail)
+				}
+			}
+			if len(deleted) != 3 {
+				t.Fatalf("deleted assets = %v, want all 3 completed siblings", deleted)
+			}
+			if len(progress.CleanupFailures) != 2 {
+				t.Fatalf("cleanup failures = %#v, want 2 unresolved assets", progress.CleanupFailures)
+			}
+			if progress.CleanupFailures[0].AssetID != "asset-04.png" || progress.CleanupFailures[1].AssetID != "asset-02.png" {
+				t.Fatalf("cleanup failures = %#v, want reverse cleanup order", progress.CleanupFailures)
+			}
+		})
 	}
 }
 

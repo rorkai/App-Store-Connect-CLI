@@ -12,12 +12,13 @@ import (
 )
 
 type screenshotUploadProgress struct {
-	Results         []asc.AssetUploadResultItem
-	OrderedIDs      []string
-	PendingFiles    []string
-	PendingAssets   []screenshotPendingAsset
-	CleanupFailures []screenshotPendingAsset
-	FailedFile      string
+	Results          []asc.AssetUploadResultItem
+	OrderedIDs       []string
+	PendingFiles     []string
+	PendingAssets    []screenshotPendingAsset
+	CleanupFailures  []screenshotPendingAsset
+	FailedFile       string
+	PendingDeletions int
 }
 
 func uploadScreenshotsToSetFromRootWithOpenedFiles(ctx context.Context, stderr io.Writer, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, files []string, sourceRootPath string, preserveExistingOrder bool, openedFiles openedScreenshotFiles) ([]asc.AssetUploadResultItem, error) {
@@ -86,6 +87,10 @@ func uploadScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, stderr 
 }
 
 func resumeScreenshotsWithOrderState(ctx context.Context, stderr io.Writer, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, orderedIDs, files []string, pendingAssets []screenshotPendingAsset, sourceRootPath string, syncIfNoNew, syncAfterUpload bool) (screenshotUploadProgress, error) {
+	return resumeScreenshotsWithOrderStateWithOpenedFiles(ctx, stderr, requestContext, client, setID, orderedIDs, files, pendingAssets, sourceRootPath, syncIfNoNew, syncAfterUpload, nil)
+}
+
+func resumeScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, stderr io.Writer, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, orderedIDs, files []string, pendingAssets []screenshotPendingAsset, sourceRootPath string, syncIfNoNew, syncAfterUpload bool, openedFiles openedScreenshotFiles) (screenshotUploadProgress, error) {
 	progress := screenshotUploadProgress{
 		Results:    make([]asc.AssetUploadResultItem, 0, len(files)),
 		OrderedIDs: append([]string(nil), orderedIDs...),
@@ -125,7 +130,7 @@ func resumeScreenshotsWithOrderState(ctx context.Context, stderr io.Writer, requ
 		}
 	}
 
-	remaining, err := uploadScreenshotsWithOrderState(ctx, stderr, requestContext, client, setID, progress.OrderedIDs, remainingFiles, sourceRootPath, syncIfNoNew, syncAfterUpload)
+	remaining, err := uploadScreenshotsWithOrderStateWithOpenedFiles(ctx, stderr, requestContext, client, setID, progress.OrderedIDs, remainingFiles, sourceRootPath, syncIfNoNew, syncAfterUpload, openedFiles)
 	progress.Results = append(progress.Results, remaining.Results...)
 	progress.OrderedIDs = remaining.OrderedIDs
 	progress.PendingFiles = remaining.PendingFiles
@@ -136,7 +141,7 @@ func resumeScreenshotsWithOrderState(ctx context.Context, stderr io.Writer, requ
 }
 
 func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, client *asc.Client, pending screenshotPendingAsset, sourceRootPath string) (asc.AssetUploadResultItem, screenshotPendingAsset, bool, error) {
-	remote, err := client.GetAppScreenshot(ctx, pending.AssetID)
+	remote, err := getScopedAppScreenshot(ctx, client, pending.AssetID)
 	if err != nil {
 		if asc.IsNotFound(err) {
 			return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, true, nil
@@ -161,10 +166,7 @@ func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, clie
 		}
 		return waitForPendingScreenshotDelivery(ctx, stderr, client, pending)
 	case "FAILED":
-		if err := client.DeleteAppScreenshot(ctx, pending.AssetID); err != nil {
-			return asc.AssetUploadResultItem{}, pending, false, fmt.Errorf("delete failed screenshot reservation %s: %w", pending.AssetID, err)
-		}
-		return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, true, nil
+		return asc.AssetUploadResultItem{}, pending, false, screenshotDestructiveRecoveryError()
 	case "UPLOAD_COMPLETE":
 		if err := validatePendingScreenshotChecksum(sourceRootPath, pending); err != nil {
 			return asc.AssetUploadResultItem{}, pending, false, err
@@ -183,10 +185,7 @@ func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, clie
 			return finishPendingScreenshotDelivery(ctx, pending, state, err)
 		}
 
-		if err := client.DeleteAppScreenshot(ctx, pending.AssetID); err != nil {
-			return asc.AssetUploadResultItem{}, pending, false, fmt.Errorf("delete incomplete screenshot reservation %s: %w", pending.AssetID, err)
-		}
-		return asc.AssetUploadResultItem{}, screenshotPendingAsset{}, true, nil
+		return asc.AssetUploadResultItem{}, pending, false, screenshotDestructiveRecoveryError()
 	default:
 		pending.State = remoteState
 		return asc.AssetUploadResultItem{}, pending, false, fmt.Errorf("screenshot %s has unrecognized delivery state %q", pending.AssetID, remoteState)
@@ -256,6 +255,9 @@ func GetOrderedAppScreenshotIDs(ctx context.Context, client *asc.Client, setID s
 	return collectOrderedLinkageIDs(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		canonicalURL, err := client.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
 		if err != nil {
+			return nil, fmt.Errorf("screenshot pagination: %w", err)
+		}
+		if err := validateScreenshotCollectionNextURL(client, canonicalURL, expectedPath); err != nil {
 			return nil, err
 		}
 		return client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, "", asc.NextURL[asc.LinkagesOption](canonicalURL))
@@ -267,5 +269,10 @@ func SetOrderedAppScreenshots(ctx context.Context, client *asc.Client, setID str
 	if client == nil {
 		return fmt.Errorf("client is required")
 	}
+	_, unlock, err := lockScreenshotResumeScope(ctx, client, setID, "", append([]string{}, orderedIDs...))
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	return client.UpdateAppScreenshotSetAppScreenshotsRelationship(ctx, setID, normalizeAssetIDs(orderedIDs))
 }

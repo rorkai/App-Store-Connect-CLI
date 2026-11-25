@@ -34,7 +34,7 @@ func TestRunScreenshotsUploadResumeRejectsSelectorFlags(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(stderr, "--resume cannot be combined with --version-localization, --app, --version, --version-id, --platform, --path, or --device-type") {
+	if !strings.Contains(stderr, "--resume cannot be combined with --version, --version-id, --platform, or --path") {
 		t.Fatalf("expected resume conflict message, got %q", stderr)
 	}
 }
@@ -126,16 +126,19 @@ func TestRunScreenshotsUploadWritesFailureArtifactAndResumeCompletes(t *testing.
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
-			if phase == "resume" {
-				return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"new-1"}],"links":{}}`)
+		case req.Method == http.MethodGet && (req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots" || req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots"):
+			items := []map[string]string{}
+			if firstRunCreates > 0 {
+				items = append(items, map[string]string{"type": "appScreenshots", "id": "new-1"})
 			}
-			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
-			if phase == "resume" {
-				return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"new-1"}],"links":{}}`)
+			for index := 0; index < resumeCreates; index++ {
+				items = append(items, map[string]string{"type": "appScreenshots", "id": fmt.Sprintf("new-%d", index+2)})
 			}
-			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+			payload, err := json.Marshal(map[string]any{"data": items})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return screenshotsUploadJSONResponse(http.StatusOK, string(payload))
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
 			if phase == "first" {
 				firstRunCreates++
@@ -179,6 +182,7 @@ func TestRunScreenshotsUploadWritesFailureArtifactAndResumeCompletes(t *testing.
 		}
 	})
 
+	installScreenshotReplacementOwnershipFixture(t)
 	var firstResult struct {
 		FailureArtifactPath string `json:"failureArtifactPath"`
 		Pending             int    `json:"pending"`
@@ -212,7 +216,7 @@ func TestRunScreenshotsUploadWritesFailureArtifactAndResumeCompletes(t *testing.
 	if !ok {
 		t.Fatalf("generated artifact path cannot be quoted: %q", firstResult.FailureArtifactPath)
 	}
-	if !strings.Contains(stderr, fmt.Sprintf("Hint: resume with `asc screenshots upload --resume %s`", quotedPath)) {
+	if !strings.Contains(stderr, fmt.Sprintf("Hint: verify the target, then resume with `asc screenshots upload --resume %s --app APP_ID --version-localization VERSION_LOCALIZATION_ID --device-type DEVICE_TYPE`", quotedPath)) {
 		t.Fatalf("expected resume hint on stderr, got %q", stderr)
 	}
 	if firstResult.Pending != 2 {
@@ -266,6 +270,8 @@ func TestRunScreenshotsUploadWritesFailureArtifactAndResumeCompletes(t *testing.
 		code := cmd.Run([]string{
 			"screenshots", "upload",
 			"--resume", artifactPath,
+			"--app", "100", "--version-localization", "LOC_123", "--device-type", "IPHONE_65",
+			"--concurrency", "2",
 			"--output", "json",
 		}, "1.2.3")
 		if code != cmd.ExitSuccess {
@@ -483,7 +489,7 @@ func TestRunScreenshotsUploadFanoutPrintsPartialResultsOnLocaleFailure(t *testin
 		}
 	})
 
-	if !strings.Contains(stderr, "Error: screenshots upload: 1 of 2 file(s) not uploaded: ") || !strings.Contains(stderr, "Hint: resume with `asc screenshots upload --resume ") {
+	if !strings.Contains(stderr, "Error: screenshots upload: 1 of 2 file(s) not uploaded: ") || !strings.Contains(stderr, "Hint: verify the target, then resume with `asc screenshots upload --resume ") {
 		t.Fatalf("expected fan-out partial failure and resume hint on stderr, got %q", stderr)
 	}
 	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
@@ -576,16 +582,22 @@ func TestRunScreenshotsResumeKeepsLiteralFailureArtifactPath(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
 			path := filepath.Join(t.TempDir(), name)
-			artifact := `{"versionLocalizationId":"LOC_123","setId":"SET_123","cleanupFailures":[{"assetId":"SHOT_BAD"}]}`
+			artifact := `{"versionLocalizationId":"LOC_123","displayType":"APP_IPHONE_65","setId":"SET_123","orderedIds":["SHOT_BAD"]}`
 			if err := os.WriteFile(path, []byte(artifact), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			reg := asctest.NewRegistry(t)
 			reg.Install()
-			reg.Register(asctest.DELETE("/v1/appScreenshots/SHOT_BAD"),
-				asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"BAD_REQUEST","detail":"cleanup failed"}]}`))
+			installScreenshotReplacementOwnershipFixture(t)
+			for range 2 {
+				reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"SET_123","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`))
+				reg.Register(asctest.GET("/v1/appScreenshotSets/SET_123/appScreenshots"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"SHOT_BAD"}]}`))
+				reg.Register(asctest.GET("/v1/appScreenshotSets/SET_123/relationships/appScreenshots", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"SHOT_BAD"}]}`))
+			}
+			reg.Register(asctest.PATCH("/v1/appScreenshotSets/SET_123/relationships/appScreenshots"),
+				asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"BAD_REQUEST","detail":"ordering failed"}]}`))
 			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run([]string{"screenshots", "upload", "--resume", path, "--output", "json"}, "1.2.3"); code != cmd.ExitHTTPBadRequest {
+				if code := cmd.Run([]string{"screenshots", "upload", "--resume", path, "--app", "100", "--version-localization", "LOC_123", "--device-type", "IPHONE_65", "--output", "json"}, "1.2.3"); code != cmd.ExitHTTPBadRequest {
 					t.Fatalf("expected HTTP 400 exit %d, got %d", cmd.ExitHTTPBadRequest, code)
 				}
 			})
@@ -596,14 +608,20 @@ func TestRunScreenshotsResumeKeepsLiteralFailureArtifactPath(t *testing.T) {
 			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 				t.Fatalf("invalid receipt: %v, %q", err, stdout)
 			}
-			if calls := len(reg.Requests()); result.FailureArtifactPath != path || !result.Resumed || calls != 1 {
-				t.Fatalf("resume outcome changed: %+v, calls=%d", result, calls)
+			writes := 0
+			for _, request := range reg.Requests() {
+				if request.Method != http.MethodGet {
+					writes++
+				}
 			}
-			if !strings.Contains(stderr, "cleanup failed") || strings.Count(stderr, "Error:") != 1 {
+			if result.FailureArtifactPath != path || !result.Resumed || writes != 1 {
+				t.Fatalf("resume outcome changed: %+v, writes=%d", result, writes)
+			}
+			if !strings.Contains(stderr, "ordering failed") || strings.Count(stderr, "Error:") != 1 {
 				t.Fatalf("failure cause not preserved: %q", stderr)
 			}
 			if quoted, ok := shared.ShellQuote(path); ok {
-				if !strings.Contains(stderr, "Hint: resume with `asc screenshots upload --resume "+quoted+"`\n") {
+				if !strings.Contains(stderr, "Hint: verify the target, then resume with `asc screenshots upload --resume "+quoted+" --app APP_ID --version-localization VERSION_LOCALIZATION_ID --device-type DEVICE_TYPE`\n") {
 					t.Fatalf("literal artifact path lost: %q", stderr)
 				}
 			} else if strings.Contains(stderr, "`asc screenshots upload --resume ") || !strings.Contains(stderr, "failure artifact path from the JSON result") {
