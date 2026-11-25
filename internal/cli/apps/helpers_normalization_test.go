@@ -154,7 +154,7 @@ func TestNormalizeTerritoryAgeRatingHelpers(t *testing.T) {
 	}
 }
 
-func TestTerritoryAgeRatingsAppInfoIDBindsNextTarget(t *testing.T) {
+func TestTerritoryAgeRatingsScopedURLBindsNextTarget(t *testing.T) {
 	tests := []struct {
 		name string
 		next string
@@ -173,21 +173,21 @@ func TestTerritoryAgeRatingsAppInfoIDBindsNextTarget(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			id, err := territoryAgeRatingsAppInfoID(test.next)
+			_, id, err := territoryAgeRatingsScopedURL(test.next)
 			if err != nil {
-				t.Fatalf("territoryAgeRatingsAppInfoID() error = %v", err)
+				t.Fatalf("territoryAgeRatingsScopedURL() error = %v", err)
 			}
 			if id != test.want {
-				t.Fatalf("territoryAgeRatingsAppInfoID() = %q, want %q", id, test.want)
+				t.Fatalf("territoryAgeRatingsScopedURL() = %q, want %q", id, test.want)
 			}
 		})
 	}
 
-	if _, err := territoryAgeRatingsAppInfoID("https://api.appstoreconnect.apple.com/v1/apps/app-1/territoryAgeRatings?cursor=next"); err == nil {
-		t.Fatal("territoryAgeRatingsAppInfoID() accepted a non-app-info target")
+	if _, _, err := territoryAgeRatingsScopedURL("https://api.appstoreconnect.apple.com/v1/apps/app-1/territoryAgeRatings?cursor=next"); err == nil {
+		t.Fatal("territoryAgeRatingsScopedURL() accepted a non-app-info target")
 	}
-	if _, err := territoryAgeRatingsAppInfoID("https://api.appstoreconnect.apple.com/v1/appInfos/info-1/localizations?cursor=next"); err == nil {
-		t.Fatal("territoryAgeRatingsAppInfoID() accepted a different app-info relationship")
+	if _, _, err := territoryAgeRatingsScopedURL("https://api.appstoreconnect.apple.com/v1/appInfos/info-1/localizations?cursor=next"); err == nil {
+		t.Fatal("territoryAgeRatingsScopedURL() accepted a different app-info relationship")
 	}
 	for _, next := range []string{
 		"https://api.appstoreconnect.apple.com/v1/appInfos//territoryAgeRatings?cursor=next",
@@ -196,8 +196,8 @@ func TestTerritoryAgeRatingsAppInfoIDBindsNextTarget(t *testing.T) {
 		"https://api.appstoreconnect.apple.com/v1/appInfos/info%252F1/territoryAgeRatings?cursor=next",
 		"not a url",
 	} {
-		if _, err := territoryAgeRatingsAppInfoID(next); err == nil {
-			t.Fatalf("territoryAgeRatingsAppInfoID(%q) accepted an unsafe target", next)
+		if _, _, err := territoryAgeRatingsScopedURL(next); err == nil {
+			t.Fatalf("territoryAgeRatingsScopedURL(%q) accepted an unsafe target", next)
 		}
 	}
 }

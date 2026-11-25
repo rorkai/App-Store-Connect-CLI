@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -221,8 +223,30 @@ Examples:
 				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
+			nextURLValue := strings.TrimSpace(*next)
 			versionResourceID := ""
-			if resolvedAppID != "" || strings.TrimSpace(*versionID) != "" {
+			if resolvedAppID != "" && nextURLValue != "" && strings.TrimSpace(*versionID) == "" && strings.TrimSpace(*version) == "" {
+				cursorVersionID, err := appStoreVersionLocalizationCursorID(nextURLValue)
+				if err != nil {
+					return d.UsageErrorf("apps info view: %v", err)
+				}
+				expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", cursorVersionID)
+				nextURLValue, err = client.ValidateNoRedirectReadContinuation(readCtx, nextURLValue, expectedPath)
+				if err != nil {
+					return d.UsageErrorf("apps info view: %v", err)
+				}
+				versionResource, err := shared.ResolveOwnedAppStoreVersionByID(readCtx, client, resolvedAppID, cursorVersionID, "")
+				if err != nil {
+					return fmt.Errorf("apps info view: %w", err)
+				}
+				if len(platforms) > 0 && !slices.Contains(platforms, string(versionResource.Attributes.Platform)) {
+					return d.UsageErrorf("apps info view: cursor version platform %q does not match --platform", versionResource.Attributes.Platform)
+				}
+				if !asc.AppStoreVersionMatchesStateFilter(versionResource.Attributes, states) {
+					return d.UsageError("apps info view: cursor version does not match --state")
+				}
+				versionResourceID = versionResource.ID
+			} else if resolvedAppID != "" || strings.TrimSpace(*versionID) != "" {
 				versionResource, err := resolveAppStoreVersionForAppInfo(
 					readCtx,
 					client,
@@ -238,7 +262,6 @@ Examples:
 				versionResourceID = versionResource.ID
 			}
 
-			nextURLValue := strings.TrimSpace(*next)
 			if resolvedAppID != "" && nextURLValue != "" {
 				expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionResourceID)
 				canonicalURL, err := client.ValidateNoRedirectReadContinuation(readCtx, nextURLValue, expectedPath)
@@ -286,6 +309,22 @@ Examples:
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func appStoreVersionLocalizationCursorID(nextValue string) (string, error) {
+	parsed, err := url.Parse(nextValue)
+	if err != nil || (parsed.Scheme == "" && !strings.HasPrefix(parsed.Path, "/")) {
+		return "", fmt.Errorf("--next must be an App Store Connect URL")
+	}
+	parts := strings.Split(parsed.Path, "/")
+	if len(parts) != 5 || parts[0] != "" || parts[1] != "v1" || parts[2] != "appStoreVersions" || parts[4] != "appStoreVersionLocalizations" {
+		return "", fmt.Errorf("--next must target /v1/appStoreVersions/{id}/appStoreVersionLocalizations")
+	}
+	versionID := parts[3]
+	if versionID == "" || versionID == "." || versionID == ".." || strings.Contains(versionID, "%") {
+		return "", fmt.Errorf("--next must contain an app store version ID")
+	}
+	return versionID, nil
 }
 
 // newAppsInfoEditCommand returns the edit subcommand.
