@@ -205,6 +205,8 @@ func TestSubscriptionsPricesImport_PlanTypeColumnAndDefault(t *testing.T) {
 			posts := map[string]string{}
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch {
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+					return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
 					if got := req.URL.Query().Get("filter[planType]"); got != test.wantFilter {
 						t.Fatalf("filter[planType] = %q, want %q", got, test.wantFilter)

@@ -118,3 +118,51 @@ func TestSetSubscriptionPriceMatrix_ValidatesRequiredInput(t *testing.T) {
 		})
 	}
 }
+
+func TestSetSubscriptionPriceMatrixScopesInlineTiersToEachTerritory(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch || req.URL.Path != "/v1/subscriptions/sub-1" {
+			t.Fatalf("request = %s %s", req.Method, req.URL.Path)
+		}
+		var payload struct {
+			Included []struct {
+				Type          ResourceType                          `json:"type"`
+				ID            string                                `json:"id"`
+				Attributes    SubscriptionPriceTierInlineAttributes `json:"attributes"`
+				Relationships struct {
+					Territory              *Relationship     `json:"territory"`
+					AdditionalPriceTiers   *RelationshipList `json:"additionalPriceTiers"`
+					SubscriptionPricePoint *Relationship     `json:"subscriptionPricePoint"`
+				} `json:"relationships"`
+			} `json:"included"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if len(payload.Included) != 4 {
+			t.Fatalf("included=%+v", payload.Included)
+		}
+		seen := map[string]bool{}
+		for i, territory := range []string{"CAN", "USA"} {
+			price, tier := payload.Included[i*2], payload.Included[i*2+1]
+			if price.Type != ResourceTypeSubscriptionPrices || price.Relationships.Territory.Data.ID != territory || price.Relationships.AdditionalPriceTiers == nil {
+				t.Fatalf("price=%+v", price)
+			}
+			linkage := price.Relationships.AdditionalPriceTiers.Data
+			if len(linkage) != 1 || linkage[0].ID != tier.ID || linkage[0].Type != ResourceType("subscriptionPriceTiers") || seen[tier.ID] {
+				t.Fatalf("tier linkage=%+v, tier=%+v, seen=%v", linkage, tier, seen)
+			}
+			if tier.Type != ResourceType("subscriptionPriceTiers") || tier.Attributes.MinQuantity != 10 || tier.Relationships.SubscriptionPricePoint.Data.ID != "bulk-"+territory {
+				t.Fatalf("tier=%+v", tier)
+			}
+			seen[tier.ID] = true
+		}
+	}, jsonResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1"}}`))
+	_, err := client.SetSubscriptionPriceMatrix(context.Background(), "sub-1", []SubscriptionInlinePrice{
+		{PricePointID: "base-USA", TerritoryID: "USA", AdditionalPriceTiers: []ProposedSubscriptionPriceTier{{MinQuantity: 10, SubscriptionPricePointID: "bulk-USA"}}},
+		{PricePointID: "base-CAN", TerritoryID: "CAN", AdditionalPriceTiers: []ProposedSubscriptionPriceTier{{MinQuantity: 10, SubscriptionPricePointID: "bulk-CAN"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

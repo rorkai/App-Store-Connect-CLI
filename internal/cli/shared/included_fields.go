@@ -79,6 +79,7 @@ var includedResources = map[string]includedResource{
 	"retentionOfferPrices":                   {"price-fields", []string{"territory", "subscriptionPricePoint"}},
 	"routingAppCoverages":                    {"routing-app-coverage-fields", []string{"fileSize", "fileName", "sourceFileChecksum", "uploadOperations", "assetDeliveryState", "appStoreVersion"}},
 	"subscriptionPricePoints":                {"price-point-fields", []string{"customerPrice", "proceeds", "proceedsYear2", "territory", "equalizations", "adjustedEqualizations"}},
+	"subscriptionPrices":                     {"price-fields", []string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint", "additionalPriceTiers"}},
 	"subscriptions":                          {"subscription-fields", []string{"name", "productId", "familySharable", "state", "subscriptionPeriod", "reviewNote", "groupLevel", "multiSeatStatus", "marketSettings", "subscriptionLocalizations", "appStoreReviewScreenshot", "group", "introductoryOffers", "promotionalOffers", "offerCodes", "prices", "pricePoints", "promotedPurchase", "subscriptionAvailability", "winBackOffers", "images", "planAvailabilities", "versions", "retentionOffers", "retentionMessage", "retentionMessageOffers"}},
 	"territories":                            {"territory-fields", []string{"currency"}},
 }

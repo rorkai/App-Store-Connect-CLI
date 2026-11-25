@@ -69,9 +69,9 @@ func TestRetentionMessagesRequestWiring(t *testing.T) {
 			wantOutput: `{"subscriptionId":"sub-1","retentionMessageId":"msg-1","assigned":true}`,
 		},
 		{
-			name: "subscriptions list", args: []string{"subscriptions", "list", "--message-id", "msg-1", "--fields", "name", "--product-id", "com.example.monthly", "--name", "Monthly", "--state", "APPROVED", "--sort", "-name"},
+			name: "subscriptions list", args: []string{"subscriptions", "list", "--message-id", "msg-1", "--fields", "name", "--product-id", "com.example.monthly", "--name", "Monthly", "--state", "APPROVED", "--sort", "-name", "--include", "prices", "--price-fields", "additionalPriceTiers"},
 			method: "GET", path: "/v1/retentionMessages/msg-1/subscriptions", response: subs,
-			query: url.Values{"fields[subscriptions]": {"name"}, "filter[productId]": {"com.example.monthly"}, "filter[name]": {"Monthly"}, "filter[state]": {"APPROVED"}, "sort": {"-name"}},
+			query: url.Values{"fields[subscriptions]": {"name"}, "filter[productId]": {"com.example.monthly"}, "filter[name]": {"Monthly"}, "filter[state]": {"APPROVED"}, "sort": {"-name"}, "include": {"prices"}, "fields[subscriptionPrices]": {"additionalPriceTiers"}},
 		},
 		{
 			name: "versions list", args: []string{"versions", "list", "--message-id", "msg-1", "--include", "localizations", "--retention-message-localization-fields", "header", "--localizations-limit", "3"},

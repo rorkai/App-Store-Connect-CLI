@@ -2,6 +2,7 @@ package asc
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -63,13 +64,15 @@ type subscriptionPricePointsQuery struct {
 
 type subscriptionPricesQuery struct {
 	listQuery
-	territory        string
-	planType         SubscriptionPlanType
-	pricePointIDs    []string
-	include          []string
-	priceFields      []string
-	pricePointFields []string
-	territoryFields  []string
+	territory                 string
+	planType                  SubscriptionPlanType
+	pricePointIDs             []string
+	include                   []string
+	priceFields               []string
+	pricePointFields          []string
+	territoryFields           []string
+	priceTierFields           []string
+	additionalPriceTiersLimit int
 }
 
 // WithSubscriptionPricePointsLimit sets the max number of price points to return.
@@ -201,6 +204,16 @@ func WithSubscriptionPricesTerritoryFields(fields []string) SubscriptionPricesOp
 	}
 }
 
+// WithSubscriptionPricesTierFields selects fields for included additional price tiers.
+func WithSubscriptionPricesTierFields(fields []string) SubscriptionPricesOption {
+	return func(q *subscriptionPricesQuery) { q.priceTierFields = normalizeList(fields) }
+}
+
+// WithSubscriptionPricesAdditionalTiersLimit limits included additional price tiers.
+func WithSubscriptionPricesAdditionalTiersLimit(limit int) SubscriptionPricesOption {
+	return func(q *subscriptionPricesQuery) { q.additionalPriceTiersLimit = limit }
+}
+
 // WithSubscriptionOfferCodeSubscriptionFields sets fields[subscriptions] on an offer code detail read.
 func WithSubscriptionOfferCodeSubscriptionFields(fields []string) SubscriptionOfferCodeOption {
 	return func(q *subscriptionRelatedFieldsQuery) {
@@ -261,6 +274,10 @@ func buildSubscriptionPricesQuery(query *subscriptionPricesQuery) string {
 	addCSV(values, "fields[subscriptionPrices]", query.priceFields)
 	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
 	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "fields[subscriptionPriceTiers]", query.priceTierFields)
+	if query.additionalPriceTiersLimit > 0 {
+		values.Set("limit[additionalPriceTiers]", strconv.Itoa(query.additionalPriceTiersLimit))
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

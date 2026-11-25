@@ -3,6 +3,7 @@ package subscriptions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -869,7 +870,9 @@ func newSubscriptionsPricesListCommand(d *shared.Deps) *ffcli.Command {
 	fields := fs.String("fields", "", "Subscription price fields (comma-separated)")
 	territoryFields := fs.String("territory-fields", "", "Included territory fields (comma-separated): currency")
 	pricePointFields := fs.String("price-point-fields", "", "Included subscription price point fields (comma-separated)")
-	include := fs.String("include", "", "Relationships to include (comma-separated): territory, subscriptionPricePoint")
+	priceTierFields := fs.String("price-tier-fields", "", "Included subscription price tier fields (comma-separated): minQuantity, subscriptionPricePoint")
+	additionalTiersLimit := fs.Int("additional-price-tiers-limit", 0, "Maximum included additional price tiers (1-50)")
+	include := fs.String("include", "", "Relationships to include (comma-separated): territory, subscriptionPricePoint, additionalPriceTiers")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
@@ -886,7 +889,7 @@ Use --plan-type to filter by MONTHLY or UPFRONT billing plan prices.
 Use --territory to filter by one or more comma-separated territories. With
 --resolved, the current price is returned for each listed territory.
 Use --price-point-id to filter by subscription price point IDs. Use --fields,
---price-point-fields, and --territory-fields to request sparse response fields;
+--price-point-fields, --price-tier-fields, and --territory-fields for sparse fields;
 the corresponding relationship is included automatically when needed.
 
 Examples:
@@ -899,7 +902,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions prices list", 200, "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions prices list", 200, "price-point-id", "fields", "territory-fields", "price-point-fields", "price-tier-fields", "additional-price-tiers-limit", "include"); err != nil {
 				return err
 			}
 			if *resolved && strings.TrimSpace(*next) != "" {
@@ -907,7 +910,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if *resolved {
-				for _, name := range []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "include"} {
+				for _, name := range []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "price-tier-fields", "additional-price-tiers-limit", "include"} {
 					if flagWasProvided(fs, name) {
 						return d.UsageErrorf("--resolved cannot be combined with --%s", name)
 					}
@@ -959,7 +962,14 @@ Examples:
 			if err != nil {
 				return d.UsageError(err.Error())
 			}
-			selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory", "subscriptionPricePoint"})
+			selectedTierFields, err := normalizeOptionalSelection(fs, "price-tier-fields", *priceTierFields, []string{"minQuantity", "subscriptionPricePoint"})
+			if err != nil {
+				return d.UsageError(err.Error())
+			}
+			if flagWasProvided(fs, "additional-price-tiers-limit") && (*additionalTiersLimit < 1 || *additionalTiersLimit > 50) {
+				return d.UsageError("--additional-price-tiers-limit must be between 1 and 50")
+			}
+			selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory", "subscriptionPricePoint", "additionalPriceTiers"})
 			if err != nil {
 				return d.UsageError(err.Error())
 			}
@@ -968,6 +978,9 @@ Examples:
 			}
 			if slices.Contains(selectedPriceFields, "subscriptionPricePoint") || len(selectedPricePointFields) != 0 {
 				selectedIncludes = appendIncludeForFields(selectedIncludes, []string{"subscriptionPricePoint"}, "subscriptionPricePoint")
+			}
+			if slices.Contains(selectedPriceFields, "additionalPriceTiers") || len(selectedTierFields) > 0 || *additionalTiersLimit > 0 {
+				selectedIncludes = appendIncludeForFields(selectedIncludes, []string{"additionalPriceTiers"}, "additionalPriceTiers")
 			}
 			if len(selectedPriceFields) > 0 {
 				for _, relationship := range selectedIncludes {
@@ -1015,6 +1028,8 @@ Examples:
 				asc.WithSubscriptionPricesTerritoryFields(selectedTerritoryFields),
 				asc.WithSubscriptionPricesPricePointFields(selectedPricePointFields),
 				asc.WithSubscriptionPricesInclude(selectedIncludes),
+				asc.WithSubscriptionPricesTierFields(selectedTierFields),
+				asc.WithSubscriptionPricesAdditionalTiersLimit(*additionalTiersLimit),
 			}
 			if planTypeFilter != "" && nextURL == "" {
 				opts = append(opts, asc.WithSubscriptionPricesPlanType(planTypeFilter))
@@ -1041,6 +1056,15 @@ Examples:
 						selectedPricePointFields,
 						selectedIncludes,
 					)
+					if err != nil {
+						return nil, err
+					}
+					additions := url.Values{}
+					setSubscriptionPricesCSVQuery(additions, "fields[subscriptionPriceTiers]", selectedTierFields)
+					if *additionalTiersLimit > 0 {
+						additions.Set("limit[additionalPriceTiers]", strconv.Itoa(*additionalTiersLimit))
+					}
+					nextURL, err = mergeSubscriptionPricesNextQuery(nextURL, additions)
 					if err != nil {
 						return nil, err
 					}
@@ -1140,13 +1164,13 @@ type subscriptionPriceRelationshipData struct {
 	Territory              *asc.Relationship `json:"territory"`
 }
 
-func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subID, pricePointID, territoryID string, attrs asc.SubscriptionPriceCreateAttributes) (*asc.SubscriptionPriceResponse, error) {
+func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subID, pricePointID, territoryID string, attrs asc.SubscriptionPriceCreateAttributes, tiers ...asc.ProposedSubscriptionPriceTier) (*asc.SubscriptionPriceResponse, error) {
 	pricePointID = strings.TrimSpace(pricePointID)
 	territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
 
 	opts := []asc.SubscriptionPricesOption{
 		asc.Limit[asc.SubscriptionPricesOption](200),
-		asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
+		asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory", "additionalPriceTiers"}),
 	}
 	if territoryID != "" {
 		opts = append(opts, asc.WithSubscriptionPricesTerritory(territoryID))
@@ -1155,23 +1179,47 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 		opts = append(opts, asc.WithSubscriptionPricesPlanType(attrs.PlanType))
 	}
 
+	requiresTierIntent := false
 	for {
 		resp, err := client.GetSubscriptionPrices(ctx, subID, opts...)
 		if err != nil {
 			return nil, err
 		}
 
+		if resp == nil || resp.Data == nil {
+			return nil, fmt.Errorf("subscription price comparison requires a data array")
+		}
 		for _, price := range resp.Data {
-			if subscriptionPriceMatchesTarget(price, pricePointID, territoryID, attrs) {
-				return &asc.SubscriptionPriceResponse{Data: price}, nil
+			requiresTierIntent = requiresTierIntent || subscriptionPriceRequiresTierIntent(price)
+			if !subscriptionPriceMatchesTarget(price, pricePointID, territoryID, attrs) {
+				continue
 			}
+			if tiers != nil {
+				matches, err := subscriptionPriceTiersMatch(ctx, client, price.ID, tiers)
+				if err != nil {
+					return nil, err
+				}
+				if !matches {
+					continue
+				}
+			}
+			return &asc.SubscriptionPriceResponse{Data: price}, nil
 		}
 
 		next := strings.TrimSpace(resp.Links.Next)
 		if next == "" {
+			if tiers == nil && requiresTierIntent {
+				return nil, errSubscriptionPriceTierIntentRequired
+			}
 			return nil, nil
 		}
-		nextURL, err := mergeSubscriptionPricesPlanType(next, attrs.PlanType)
+		canonical, err := client.ValidateNoRedirectReadContinuationQuery(ctx, next, "/v1/subscriptions/"+url.PathEscape(subID)+"/prices", url.Values{
+			"filter[planType]": {string(attrs.PlanType)}, "filter[territory]": {territoryID},
+		})
+		if err != nil {
+			return nil, err
+		}
+		nextURL, err := mergeSubscriptionPricesListQuery(canonical, attrs.PlanType, territoryID, nil, nil, nil, nil, []string{"subscriptionPricePoint", "territory", "additionalPriceTiers"})
 		if err != nil {
 			return nil, err
 		}
@@ -1234,6 +1282,7 @@ func newSubscriptionsPricesAddCommand(d *shared.Deps) *ffcli.Command {
 	tier := fs.Int("tier", 0, "Pricing tier number (mutually exclusive with --price-point and --price)")
 	price := fs.String("price", "", "Customer price to select price point (mutually exclusive with --price-point and --tier)")
 	territory := fs.String("territory", "", "Territory input (accepts alpha-2, alpha-3, or exact English country name; e.g., US, USA, United States)")
+	additionalTiers := fs.String("additional-price-tiers", "", "JSON file of additional tiers [{minQuantity, subscriptionPricePointId}]; [] selects a single-tier price")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
 	preserved := fs.Bool("preserved", false, "Preserve existing prices")
 	planType := fs.String("plan-type", "", "Billing plan: MONTHLY or UPFRONT (default Apple's UPFRONT)")
@@ -1258,6 +1307,12 @@ Examples:
 By default, an identical existing price is returned without sending another
 write. Use --force with --territory to rebuild and atomically re-save the full
 equalized price matrix when repairing Apple's MISSING_METADATA state.
+
+Use --additional-price-tiers with a JSON array of {"minQuantity": 10,
+"subscriptionPricePointId": "PRICE_POINT_ID"} objects. Supply up to four tiers
+in ascending quantity order, starting at 2 or more seats. Tiers require UPFRONT
+prices. Use [] to select a single-tier price. Changing an existing volume price
+requires this file so its removal is explicit. This flag cannot combine with --force.
 
 --plan-type MONTHLY sets a Monthly with 12-Month Commitment price. It cannot be
 combined with --force or USA, and it needs MONTHLY plan availability.`,
@@ -1311,6 +1366,28 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return d.UsageError("--force only repairs UPFRONT prices")
 			}
 
+			var tiers []asc.ProposedSubscriptionPriceTier
+			if flagWasProvided(fs, "additional-price-tiers") {
+				if *force {
+					return d.UsageError("--additional-price-tiers cannot be combined with --force")
+				}
+				if strings.TrimSpace(*additionalTiers) == "" {
+					return d.UsageError("--additional-price-tiers must not be empty")
+				}
+				input, err := readSubscriptionPriceTiersInput(d, *additionalTiers)
+				if err != nil {
+					return d.UsageError(err.Error())
+				}
+				if input == nil || *input == nil {
+					return d.UsageError("--additional-price-tiers must contain an array")
+				}
+				tiers = *input
+				if len(tiers) > 0 && planTypeValue == asc.SubscriptionPlanTypeMonthly {
+					return d.UsageError("--additional-price-tiers requires UPFRONT plan type")
+				}
+			}
+
+			ctx = asc.WithNoRedirectReads(ctx)
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: %w", err)
@@ -1350,26 +1427,32 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			if pricesErr != nil {
 				return fmt.Errorf("subscriptions prices add: failed to check existing prices: %w", pricesErr)
 			}
+			if existingPrices == nil || existingPrices.Data == nil || (len(existingPrices.Data) == 0 && existingPrices.Links.Next != "") {
+				return fmt.Errorf("subscriptions prices add: existing price membership was not verified")
+			}
 			hasExistingPrices := len(existingPrices.Data) > 0
 
 			attrs := asc.SubscriptionPriceCreateAttributes{
 				StartDate: strings.TrimSpace(*startDate),
 				PlanType:  planTypeValue,
 			}
-			if *preserved {
+			if *preserved || flagWasProvided(fs, "preserved") || (tiers != nil && len(tiers) == 0) {
 				attrs.Preserved = preserved
 			}
 
 			if !hasExistingPrices {
 				// Initial price: use PATCH with inline resources
-				subResp, err := client.SetSubscriptionInitialPrice(requestCtx, id, pricePoint, territoryID, attrs)
+				subResp, err := client.SetSubscriptionInitialPrice(requestCtx, id, pricePoint, territoryID, attrs, tiers...)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices add: failed to set initial price: %w", err)
 				}
 				return d.PrintOutput(subResp, *output.Output, *output.Pretty)
 			}
 
-			matchingPrice, err := findMatchingSubscriptionPrice(requestCtx, client, id, pricePoint, territoryID, attrs)
+			matchingPrice, err := findMatchingSubscriptionPrice(requestCtx, client, id, pricePoint, territoryID, attrs, tiers...)
+			if errors.Is(err, errSubscriptionPriceTierIntentRequired) {
+				return d.UsageError(err.Error())
+			}
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: failed to check matching price: %w", err)
 			}
@@ -1377,6 +1460,13 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return d.PrintOutput(matchingPrice, *output.Output, *output.Pretty)
 			}
 			if matchingPrice != nil && *force {
+				hasTiers, err := subscriptionHasPriceTiers(requestCtx, d, client, id, nil)
+				if err != nil {
+					return fmt.Errorf("subscriptions prices add: check volume tiers before repair: %w", err)
+				}
+				if hasTiers {
+					return d.UsageError("--force cannot rebuild a subscription with volume tiers; use --additional-price-tiers without --force")
+				}
 				equalizations, equalizationsErr := fetchEqualizations(requestCtx, d, client, pricePoint, territoryID)
 				if equalizationsErr != nil {
 					return fmt.Errorf("subscriptions prices add: build repair matrix: %w", equalizationsErr)
@@ -1398,7 +1488,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			}
 
 			// Existing prices: use POST /v1/subscriptionPrices for a price change
-			resp, err := client.CreateSubscriptionPrice(requestCtx, id, pricePoint, territoryID, attrs)
+			resp, err := client.CreateSubscriptionPrice(requestCtx, id, pricePoint, territoryID, attrs, tiers...)
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: failed to create: %w", err)
 			}

@@ -321,7 +321,7 @@ func newSubscriptionsRetentionMessagesCommand(d *shared.Deps) *ffcli.Command {
 				path: "subscriptions list", help: "List subscriptions assigned to a retention message.", list: true,
 				examples:  []string{`asc subscriptions retention-messages subscriptions list --message-id "MESSAGE_ID" --state APPROVED`},
 				ownerFlag: "message-id", ownerType: "retentionMessages", ownerUsage: "Retention message ID",
-				primary: "subscriptions",
+				primary: "subscriptions", includes: map[string]string{"prices": "subscriptionPrices"},
 				filters: []retentionFilter{
 					{"product-id", "filter[productId]", "Filter by product IDs (comma-separated)", nil},
 					{"name", "filter[name]", "Filter by subscription names (comma-separated)", nil},

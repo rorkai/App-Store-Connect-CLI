@@ -600,6 +600,8 @@ func TestSubscriptionsPricingEqualize_AutoSchedulesApprovedSubscriptions(t *test
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
@@ -764,6 +766,8 @@ func TestSubscriptionsPricingEqualize_AutoStartDateFalseLeavesExistingPricesImme
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
@@ -944,6 +948,8 @@ func TestSubscriptionsPricingEqualize_ReturnsReportedErrorWhenAnyTerritoryFails(
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
@@ -1047,6 +1053,8 @@ func TestSubscriptionsPricingEqualize_RetriesRetryableTerritoryFailures(t *testi
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
@@ -1155,6 +1163,8 @@ func TestSubscriptionsPricingEqualize_RetriesRetryableFailuresButKeepsNonRetryab
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"},{"type":"territories","id":"MEX"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
@@ -1269,6 +1279,8 @@ func TestSubscriptionsPricingEqualize_ReconcilesBeforeRetryingMutation(t *testin
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
@@ -1476,6 +1488,8 @@ func TestSubscriptionsPricingEqualize_ApplyPaginatesAvailabilityTerritories(t *t
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/subscriptionAvailability":
@@ -1576,6 +1590,8 @@ func TestSubscriptionsPricingEqualize_FailsWhenAcceptedPriceDoesNotApply(t *test
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":

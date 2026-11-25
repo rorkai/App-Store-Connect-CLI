@@ -95,6 +95,8 @@ func TestSubscriptionsPricingEqualize_ReconcilesAutoScheduledPriceOnItsStartDate
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
@@ -223,6 +225,8 @@ func runEqualizeOnEarliestStartDateAppleAccepts(t *testing.T, baseAlreadyPriced 
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":

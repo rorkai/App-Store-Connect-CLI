@@ -111,7 +111,9 @@ func TestSubscriptionsPricingPricesListSendsQueryControls(t *testing.T) {
 		"--fields", "startDate,preserved",
 		"--territory-fields", "currency",
 		"--price-point-fields", "customerPrice,proceeds",
-		"--include", "territory,subscriptionPricePoint",
+		"--price-tier-fields", "minQuantity,subscriptionPricePoint",
+		"--additional-price-tiers-limit", "25",
+		"--include", "territory,subscriptionPricePoint,additionalPriceTiers",
 		"--limit", "25",
 		"--output", "json",
 	)
@@ -128,10 +130,12 @@ func TestSubscriptionsPricingPricesListSendsQueryControls(t *testing.T) {
 		"filter[planType]":                {"MONTHLY"},
 		"filter[subscriptionPricePoint]":  {"point-1,point-2"},
 		"filter[territory]":               {"USA,GBR"},
-		"fields[subscriptionPrices]":      {"startDate,preserved,territory,subscriptionPricePoint"},
+		"fields[subscriptionPrices]":      {"startDate,preserved,territory,subscriptionPricePoint,additionalPriceTiers"},
 		"fields[territories]":             {"currency"},
 		"fields[subscriptionPricePoints]": {"customerPrice,proceeds"},
-		"include":                         {"territory,subscriptionPricePoint"},
+		"fields[subscriptionPriceTiers]":  {"minQuantity,subscriptionPricePoint"},
+		"limit[additionalPriceTiers]":     {"25"},
+		"include":                         {"territory,subscriptionPricePoint,additionalPriceTiers"},
 		"limit":                           {"25"},
 	}
 	if got := captured.query.Encode(); got != wantQuery.Encode() {
@@ -173,7 +177,7 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 			captured := subscriptionPricesListQuerySurfaceStub(t)
 			captured.response = func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"price-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"PRICE_POINT_1"}}}}],"included":[{"type":"subscriptionPricePoints","id":"PRICE_POINT_1","attributes":{"customerPrice":"9.99"},"relationships":{"territory":{"data":{"type":"territories","id":"GBR"}},"equalizations":{"links":{"related":"/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations"}},"adjustedEqualizations":{"links":{"self":"/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations"}}}}],"links":{"next":""}}`)
+				_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"price-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"PRICE_POINT_1"}},"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"TIER_1"}]}}}],"included":[{"type":"subscriptionPricePoints","id":"PRICE_POINT_1","attributes":{"customerPrice":"9.99"},"relationships":{"territory":{"data":{"type":"territories","id":"GBR"}},"equalizations":{"links":{"related":"/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations"}},"adjustedEqualizations":{"links":{"self":"/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations"}}}},{"type":"subscriptionPriceTiers","id":"TIER_1","attributes":{"minQuantity":10}}],"links":{"next":""}}`)
 			}
 
 			stdout, stderr, err := runSubscriptionPricesListQuerySurface(
@@ -181,6 +185,7 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 				"subscriptions", "pricing", "prices", "list",
 				"--subscription-id", "8000000001",
 				"--price-point-fields", "territory,equalizations,adjustedEqualizations",
+				"--price-tier-fields", "minQuantity",
 				"--output", outputFormat,
 			)
 			if err != nil {
@@ -192,6 +197,7 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 
 			for _, want := range []string{
 				"Price Point Territory ID", "GBR",
+				"Additional Price Tiers", "TIER_1 (10+)",
 				"Equalizations URL", "/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations",
 				"Adjusted Equalizations URL", "/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations",
 			} {
@@ -202,6 +208,8 @@ func TestSubscriptionsPricingPricesListRendersIncludedPricePointRelationships(t 
 			if outputFormat == "json" {
 				for _, want := range []string{
 					`"territory":{"data":{"type":"territories","id":"GBR"}}`,
+					`"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"TIER_1"}]}`,
+					`"minQuantity":10`,
 					`"equalizations":{"links":{"related":"/v1/subscriptionPricePoints/PRICE_POINT_1/equalizations"}}`,
 					`"adjustedEqualizations":{"links":{"self":"/v1/subscriptionPricePoints/PRICE_POINT_1/adjustedEqualizations"}}`,
 				} {
@@ -229,10 +237,12 @@ func TestSubscriptionsPricingPricesListPaginatePreservesQueryControls(t *testing
 			t.Fatalf("cursor = %q, want next", got)
 		}
 		wantQuery := url.Values{
-			"cursor":                     {"next"},
-			"fields[subscriptionPrices]": {"startDate,preserved,territory"},
-			"fields[territories]":        {"currency"},
-			"include":                    {"territory"},
+			"cursor":                         {"next"},
+			"fields[subscriptionPrices]":     {"startDate,preserved,territory,additionalPriceTiers"},
+			"fields[territories]":            {"currency"},
+			"fields[subscriptionPriceTiers]": {"minQuantity"},
+			"limit[additionalPriceTiers]":    {"4"},
+			"include":                        {"territory,additionalPriceTiers"},
 		}
 		if got := req.URL.Query().Encode(); got != wantQuery.Encode() {
 			t.Fatalf("continuation query = %q, want %q", got, wantQuery.Encode())
@@ -246,7 +256,7 @@ func TestSubscriptionsPricingPricesListPaginatePreservesQueryControls(t *testing
 		"--subscription-id", "8000000001",
 		"--fields", "startDate,preserved",
 		"--territory-fields", "currency",
-		"--include", "territory",
+		"--include", "territory", "--price-tier-fields", "minQuantity", "--additional-price-tiers-limit", "4",
 		"--paginate",
 		"--output", "json",
 	)
@@ -273,6 +283,8 @@ func TestSubscriptionsPricingPricesListRejectsInvalidQuerySelections(t *testing.
 	}{
 		{name: "include", flag: "include", value: "app", want: "--include must be one of"},
 		{name: "subscription prices fields", flag: "fields", value: "name", want: "--fields must be one of"},
+		{name: "price tier fields", flag: "price-tier-fields", value: "name", want: "--price-tier-fields must be one of"},
+		{name: "additional tiers limit", flag: "additional-price-tiers-limit", value: "51", want: "--additional-price-tiers-limit must be between 1 and 50"},
 		{name: "territory fields", flag: "territory-fields", value: "name", want: "--territory-fields must be one of"},
 		{name: "price point fields", flag: "price-point-fields", value: "name", want: "--price-point-fields must be one of"},
 		{name: "territory", flag: "territory", value: "USA,Narnia", want: `territory "Narnia" could not be mapped`},
@@ -308,11 +320,15 @@ func TestSubscriptionsPricingPricesListRejectsQueryControlsWithNextOrResolved(t 
 	}
 
 	for _, mode := range modes {
-		for _, flagName := range []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "include"} {
+		for _, flagName := range []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "price-tier-fields", "additional-price-tiers-limit", "include"} {
 			t.Run(mode.flag+" with "+flagName, func(t *testing.T) {
 				captured := subscriptionPricesListQuerySurfaceStub(t)
 				args := append([]string{"subscriptions", "pricing", "prices", "list"}, mode.args...)
-				_, stderr, err := runSubscriptionPricesListQuerySurface(t, append(args, "--"+flagName, "value")...)
+				value := "value"
+				if flagName == "additional-price-tiers-limit" {
+					value = "1"
+				}
+				_, stderr, err := runSubscriptionPricesListQuerySurface(t, append(args, "--"+flagName, value)...)
 				if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d (err=%v, requests=%d, path=%q)", got, rootcmd.ExitUsage, err, captured.calls, captured.path)
 				}
