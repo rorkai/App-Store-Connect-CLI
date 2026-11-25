@@ -248,6 +248,7 @@ func newAppsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Update bundle ID")
 	primaryLocale := fs.String("primary-locale", "", "Update primary locale (e.g., en-US)")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
+	groupPurchaseMode := fs.String("group-purchase-invitation-mode", "", "Group purchase invitations: APPLE_HOSTED or DEVELOPER_HOSTED")
 	accessibilityURL := fs.String("accessibility-url", "", "Accessibility URL for the app")
 	subscriptionStatusURL := fs.String("subscription-status-url", "", "Production App Store Server Notifications HTTPS URL (sets version V2)")
 	sandboxSubscriptionStatusURL := fs.String("sandbox-subscription-status-url", "", "Sandbox App Store Server Notifications HTTPS URL (sets version V2)")
@@ -257,7 +258,7 @@ func newAppsUpdateCommand(d *shared.Deps) *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION] [--accessibility-url URL] [--subscription-status-url URL] [--sandbox-subscription-status-url URL] [--streamlined-purchasing-enabled true|false]",
+		ShortUsage: "asc apps update --id APP_ID [--bundle-id BUNDLE_ID] [--primary-locale LOCALE] [--content-rights DECLARATION] [--group-purchase-invitation-mode MODE] [--accessibility-url URL] [--subscription-status-url URL] [--sandbox-subscription-status-url URL] [--streamlined-purchasing-enabled true|false]",
 		ShortHelp:  "Update app metadata and App Store Server Notifications URLs.",
 		LongHelp: `Update app metadata and App Store Server Notifications URLs.
 
@@ -271,7 +272,8 @@ Examples:
   asc apps update --id "APP_ID" --accessibility-url "https://example.com/accessibility"
   asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
   asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"
-  asc apps update --id "APP_ID" --streamlined-purchasing-enabled false`,
+  asc apps update --id "APP_ID" --streamlined-purchasing-enabled false
+  asc apps update --id "APP_ID" --group-purchase-invitation-mode "APPLE_HOSTED"`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -296,6 +298,15 @@ Examples:
 				default:
 					fmt.Fprintf(d.IO.ErrOut, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
 					return flag.ErrHelp
+				}
+			}
+			if appFlagWasProvided(fs, "group-purchase-invitation-mode") {
+				mode := asc.GroupPurchaseInvitationMode(strings.ToUpper(strings.TrimSpace(*groupPurchaseMode)))
+				switch mode {
+				case asc.GroupPurchaseInvitationModeAppleHosted, asc.GroupPurchaseInvitationModeDeveloperHosted:
+					attrs.GroupPurchaseInvitationMode = &mode
+				default:
+					return d.UsageErrorf("--group-purchase-invitation-mode must be %s or %s", asc.GroupPurchaseInvitationModeAppleHosted, asc.GroupPurchaseInvitationModeDeveloperHosted)
 				}
 			}
 			if appFlagWasProvided(fs, "accessibility-url") {
@@ -328,7 +339,7 @@ Examples:
 				attrs.StreamlinedPurchasingEnabled = &value
 			}
 			if attrs == (asc.AppUpdateAttributes{}) {
-				return d.UpdateFlagRequired(fs, bundleID, primaryLocale, contentRights, accessibilityURL, subscriptionStatusURL, sandboxSubscriptionStatusURL, &streamlinedPurchasing)
+				return d.UpdateFlagRequired(fs, bundleID, primaryLocale, contentRights, groupPurchaseMode, accessibilityURL, subscriptionStatusURL, sandboxSubscriptionStatusURL, &streamlinedPurchasing)
 			}
 
 			client, err := d.Client()
@@ -505,7 +516,7 @@ func validateAccessibilityURL(value string) (string, error) {
 
 // These attributes are supported by GET /v1/apps/{id} and decoded by AppAttributes.
 var appAttributeFields = []string{
-	"name", "bundleId", "sku", "primaryLocale", "contentRightsDeclaration", "accessibilityUrl",
+	"name", "bundleId", "sku", "primaryLocale", "contentRightsDeclaration", "groupPurchaseInvitationMode", "accessibilityUrl",
 	"subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox",
 }
 
