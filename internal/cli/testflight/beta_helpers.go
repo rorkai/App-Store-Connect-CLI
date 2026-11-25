@@ -74,6 +74,10 @@ func resolveBetaGroupIDs(ctx context.Context, client *asc.Client, appID, rawGrou
 		groups.Links.Next = page.Links.Next
 	}
 
+	return matchBetaGroupIDs(groups, rawGroups)
+}
+
+func matchBetaGroupIDs(groups *asc.BetaGroupsResponse, rawGroups string) ([]string, error) {
 	id, err := matchBetaGroupID(groups, strings.TrimSpace(rawGroups))
 	if err == nil {
 		return []string{id}, nil
