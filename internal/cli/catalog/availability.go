@@ -40,6 +40,7 @@ func validateAvailability(a *availability) error {
 
 func collect[T any](ctx context.Context, collection string, fetch func(context.Context, string) (*asc.Response[T], error)) ([]asc.Resource[T], error) {
 	seen := map[string]bool{}
+	expectedTotal := 0
 	page := func(ctx context.Context, next string) (*asc.Response[T], error) {
 		if next != "" {
 			var err error
@@ -55,6 +56,7 @@ func collect[T any](ctx context.Context, collection string, fetch func(context.C
 		if r == nil || r.Data == nil {
 			return nil, fmt.Errorf("collection response data must be an array")
 		}
+		expectedTotal = max(expectedTotal, asc.ParsePagingTotal(r.Meta))
 		for _, item := range r.Data {
 			if item.ID == "" || item.Type == "" {
 				return nil, fmt.Errorf("collection response is missing resource identity")
@@ -73,6 +75,9 @@ func collect[T any](ctx context.Context, collection string, fetch func(context.C
 	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) { return page(ctx, next) })
 	if err != nil {
 		return nil, err
+	}
+	if len(seen) < expectedTotal {
+		return nil, fmt.Errorf("incomplete collection %s: received %d of %d resources", collection, len(seen), expectedTotal)
 	}
 	return all.(*asc.Response[T]).Data, nil
 }

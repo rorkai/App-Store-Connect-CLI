@@ -23,9 +23,9 @@ type subscription struct {
 	Localizations      []localization      `json:"localizations,omitempty"`
 }
 
-func validateSubscriptions(m manifest, groups, products map[string]bool) error {
+func validateSubscriptions(m manifest, groups, products map[string]bool, today string) error {
 	for i, s := range m.Subscriptions {
-		if err := validateOffers(s.IntroductoryOffers); err != nil {
+		if err := validateOffers(s.IntroductoryOffers, today); err != nil {
 			return err
 		}
 		if err := validateLocalizations("subscription", s.Localizations); err != nil {

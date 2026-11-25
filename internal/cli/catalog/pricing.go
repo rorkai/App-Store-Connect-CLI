@@ -304,7 +304,7 @@ func comparePricing(ctx context.Context, c *asc.Client, kind, id string, p *pric
 		}
 		result.exists = len(prices) > 0
 		for _, price := range prices {
-			if price.Attributes.PlanType != "" || price.Attributes.Preserved {
+			if plan := price.Attributes.PlanType; price.Attributes.Preserved || (plan != "" && plan != asc.SubscriptionPlanTypeUpfront) {
 				block("preserved or alternate-plan prices must be preserved")
 				continue
 			}
