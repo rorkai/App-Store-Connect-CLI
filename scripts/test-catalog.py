@@ -302,6 +302,55 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
             offers[:]=[original_offer]
             print('PASS expired offers: active offer retained and matching historical offer unchanged')
 
+            for period, mode, duration, count in [('ONE_MONTH','PAY_AS_YOU_GO','ONE_MONTH',13), ('ONE_MONTH','PAY_AS_YOU_GO','ONE_WEEK',1),
+                                                  ('THREE_MONTHS','PAY_AS_YOU_GO','THREE_MONTHS',5), ('ONE_YEAR','PAY_AS_YOU_GO','ONE_YEAR',2),
+                                                  ('ONE_MONTH','PAY_UP_FRONT','ONE_WEEK',1), ('ONE_MONTH','FREE_TRIAL','ONE_WEEK',2)]:
+                payload=copy.deepcopy(manifest)
+                sub=payload['subscriptions'][0]
+                sub['subscriptionPeriod']=period
+                sub['name']='Withheld invalid offer rename'
+                offer=sub['introductoryOffers'][0]
+                offer.update(offerMode=mode, duration=duration, numberOfPeriods=count)
+                if mode!='FREE_TRIAL':offer['customerPrice']='9.99'
+                result=run('apply',payload,confirm=True)
+                assert result.returncode!=0 and not result.stdout and all(m=='GET' for m,p in requests) and offers==[original_offer],(mode,duration,count,result,requests)
+            payload=copy.deepcopy(manifest)
+            payload['subscriptions'][0]['introductoryOffers'][0].update(offerMode='PAY_AS_YOU_GO',duration='ONE_MONTH',numberOfPeriods=12,customerPrice='9.99')
+            result=run('plan',payload)
+            assert result.returncode==0 and [item['action'] for item in json.loads(result.stdout)['items'] if item['kind']=='introductoryOffer']==['delete','create'],(result,requests)
+            print('PASS invalid introductory terms: no writes before an unsupported replacement')
+
+            offers[:]=[copy.deepcopy(original_offer)]
+            offers[0]['attributes']['targetSubscriptionPlanType']='UPFRONT'
+            result=run('apply')
+            assert result.returncode==0 and all(m=='GET' for m,p in requests),(result,requests)
+            offers[:]=[copy.deepcopy(original_offer)]
+            print('PASS explicit UPFRONT: identical default offer remains unchanged')
+
+            first_future={'startDate':'2998-01-01','endDate':'2998-01-31'}
+            second_future={'startDate':'2999-01-01','endDate':'2999-01-31'}
+            for first_is_remote in (False, True):
+                payload=copy.deepcopy(manifest)
+                sub=payload['subscriptions'][0]
+                sub['name']='Withheld future offer rename'
+                trial=sub['introductoryOffers'][0]
+                sub['introductoryOffers']=[dict(trial,**second_future)]
+                offers.clear()
+                if first_is_remote:
+                    offers.append(copy.deepcopy(original_offer))
+                    offers[0]['attributes'].update(first_future)
+                else:
+                    sub['introductoryOffers'].insert(0,dict(trial,**first_future))
+                before=copy.deepcopy(offers)
+                result=run('apply',payload,confirm=True)
+                assert result.returncode!=0 and not result.stdout and all(m=='GET' for m,p in requests) and offers==before,(result,requests)
+            payload=copy.deepcopy(manifest)
+            payload['subscriptions'][0]['introductoryOffers'][0].update(first_future,duration='TWO_WEEKS')
+            result=run('apply',payload,confirm=True)
+            assert result.returncode==0 and len(offers)==1 and offers[0]['attributes']['duration']=='TWO_WEEKS',(result,requests)
+            offers[:]=[copy.deepcopy(original_offer)]
+            print('PASS future offer capacity: one per storefront, including existing offers and replacements')
+
             saved_prices=copy.deepcopy(sub_prices)
             sub_prices[0]['relationships']['subscriptionPricePoint']['data']['id']='old-point'
             for incomplete_collection in ('/v1/subscriptions/sub-local/prices','/v1/subscriptionPricePoints/sub-USA/equalizations'):

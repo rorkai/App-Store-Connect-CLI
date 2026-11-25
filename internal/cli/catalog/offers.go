@@ -60,10 +60,33 @@ func validateOffers(offers []introductoryOffer, today string) error {
 			return fmt.Errorf("introductory offer endDate precedes startDate")
 		}
 		for _, prior := range offers[:i] {
-			if prior.Territory == o.Territory && (prior.EndDate == "" || o.StartDate == "" || prior.EndDate >= o.StartDate) && (o.EndDate == "" || prior.StartDate == "" || o.EndDate >= prior.StartDate) {
+			if prior.Territory != territory {
+				continue
+			}
+			if prior.StartDate > today && o.StartDate > today {
+				return fmt.Errorf("only one future introductory offer is allowed in %s", territory)
+			}
+			if (prior.EndDate == "" || o.StartDate == "" || prior.EndDate >= o.StartDate) && (o.EndDate == "" || prior.StartDate == "" || o.EndDate >= prior.StartDate) {
 				return fmt.Errorf("overlapping introductory offers in %s", territory)
 			}
 		}
+	}
+	return nil
+}
+
+func validateOfferTerms(o introductoryOffer, subscriptionPeriod string) error {
+	if o.OfferMode == asc.SubscriptionOfferModePayAsYouGo {
+		maxPeriods := map[string]int{"ONE_WEEK": 12, "ONE_MONTH": 12, "TWO_MONTHS": 6, "THREE_MONTHS": 4, "SIX_MONTHS": 2, "ONE_YEAR": 1}
+		if string(o.Duration) != subscriptionPeriod || o.NumberOfPeriods > maxPeriods[subscriptionPeriod] {
+			return fmt.Errorf("%s introductory offer in %s requires duration %s and 1 to %d periods", o.OfferMode, o.Territory, subscriptionPeriod, maxPeriods[subscriptionPeriod])
+		}
+		return nil
+	}
+	if o.NumberOfPeriods != 1 {
+		return fmt.Errorf("%s introductory offer in %s requires exactly one period", o.OfferMode, o.Territory)
+	}
+	if o.OfferMode == asc.SubscriptionOfferModePayUpFront && !slices.Contains([]asc.SubscriptionOfferDuration{"ONE_MONTH", "TWO_MONTHS", "THREE_MONTHS", "SIX_MONTHS", "ONE_YEAR"}, o.Duration) {
+		return fmt.Errorf("PAY_UP_FRONT introductory offer in %s requires a duration of 1, 2, 3 or 6 months, or 1 year", o.Territory)
 	}
 	return nil
 }
@@ -127,12 +150,15 @@ func matchingOffer(existing []existingOffer, want introductoryOffer, today strin
 			continue
 		}
 		a := old.attributes
+		if a.StartDate > today && start > today && a.StartDate != start {
+			return nil, fmt.Errorf("another future introductory offer %s already exists in %s", old.id, want.Territory)
+		}
 		startMatches := a.StartDate == want.StartDate || (want.StartDate == "" && a.StartDate <= today && (a.EndDate == "" || a.EndDate >= today))
 		overlaps := (a.EndDate == "" || a.EndDate >= start) && (want.EndDate == "" || a.StartDate == "" || want.EndDate >= a.StartDate)
 		if !startMatches && !overlaps {
 			continue
 		}
-		if a.TargetSubscriptionPlanType != "" {
+		if a.TargetSubscriptionPlanType != "" && a.TargetSubscriptionPlanType != asc.SubscriptionPlanTypeUpfront {
 			return nil, fmt.Errorf("introductory offer %s has an unsupported plan scope", old.id)
 		}
 		if !startMatches {
@@ -160,11 +186,16 @@ func planOffers(ctx context.Context, c *asc.Client, s subscription, id *string, 
 		return nil, err
 	}
 	ops := []operation{}
-	remove := func(planned existingOffer) operation {
+	remove := func(planned existingOffer, replacement *introductoryOffer) operation {
 		return operation{item: asc.CatalogItem{Kind: "introductoryOffer", Key: s.ProductID + "/" + planned.id, ID: planned.id, Action: "delete", Status: "pending"}, destructive: true, write: func(ctx context.Context) (string, error) {
 			actual, err := readOffers(ctx, c, *id)
 			if err != nil {
 				return "", err
+			}
+			if replacement != nil {
+				if _, err := matchingOffer(actual, *replacement, today); err != nil {
+					return "", err
+				}
 			}
 			for _, current := range actual {
 				if current.id != planned.id {
@@ -180,7 +211,7 @@ func planOffers(ctx context.Context, c *asc.Client, s subscription, id *string, 
 	}
 	if len(s.IntroductoryOffers) == 0 {
 		for _, old := range existing {
-			ops = append(ops, remove(old))
+			ops = append(ops, remove(old, nil))
 		}
 		return ops, nil
 	}
@@ -210,8 +241,14 @@ func planOffers(ctx context.Context, c *asc.Client, s subscription, id *string, 
 		if want.EndDate != "" && want.EndDate < today {
 			return nil, fmt.Errorf("cannot create an introductory offer for %s in %s with expired endDate %s", s.ProductID, want.Territory, want.EndDate)
 		}
+		if err := validateOfferTerms(want, s.SubscriptionPeriod); err != nil {
+			return nil, err
+		}
 		if old != nil {
-			ops = append(ops, remove(*old))
+			if old.attributes.TargetSubscriptionPlanType != "" {
+				return nil, fmt.Errorf("cannot replace explicitly scoped %s introductory offer %s", old.attributes.TargetSubscriptionPlanType, old.id)
+			}
+			ops = append(ops, remove(*old, &want))
 		}
 		op.write = func(ctx context.Context) (string, error) {
 			if want.OfferMode != asc.SubscriptionOfferModeFreeTrial && point == "" {
