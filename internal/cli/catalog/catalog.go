@@ -134,6 +134,7 @@ No product or group is deleted.`,
 			}
 			ctx, cancel := d.Timeout(ctx)
 			defer cancel()
+			ctx = asc.WithNoRedirectReads(ctx)
 			ops, err := plan(ctx, client, appID, m, d.Now().Format(time.DateOnly))
 			if err != nil {
 				return fmt.Errorf("catalog preflight: %w", err)
@@ -274,7 +275,7 @@ func plan(ctx context.Context, c *asc.Client, appID string, m manifest, today st
 	var remoteGroups []asc.Resource[asc.SubscriptionGroupAttributes]
 	if len(m.Groups)+len(m.Subscriptions)+len(m.InAppPurchases) > 0 {
 		var err error
-		remoteGroups, err = collect(ctx, func(ctx context.Context, next string) (*asc.SubscriptionGroupsResponse, error) {
+		remoteGroups, err = collect(ctx, "/v1/apps/"+appID+"/subscriptionGroups", func(ctx context.Context, next string) (*asc.SubscriptionGroupsResponse, error) {
 			return c.GetSubscriptionGroups(ctx, appID, asc.Limit[asc.SubscriptionGroupsOption](200), asc.NextURL[asc.SubscriptionGroupsOption](next))
 		})
 		if err != nil {
@@ -337,7 +338,7 @@ func plan(ctx context.Context, c *asc.Client, appID string, m manifest, today st
 		}
 	}
 	if len(m.InAppPurchases)+len(m.Subscriptions) > 0 {
-		all, err := collect(ctx, func(ctx context.Context, next string) (*asc.InAppPurchasesV2Response, error) {
+		all, err := collect(ctx, "/v1/apps/"+appID+"/inAppPurchasesV2", func(ctx context.Context, next string) (*asc.InAppPurchasesV2Response, error) {
 			return c.GetInAppPurchasesV2Strict(ctx, appID, asc.Limit[asc.IAPOption](200), asc.NextURL[asc.IAPOption](next))
 		})
 		if err != nil {

@@ -2,6 +2,9 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -132,7 +135,7 @@ func TestCatalogPricingRefusesUnsafeReplacementAcrossPages(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			reg.Register(asctest.GET("/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices", "cursor=two"), asctest.JSON(200, string(body)))
+			reg.Register(asctest.GET("/v1/inAppPurchasePriceSchedules/schedule-1/manualPrices", "cursor=two", "include=territory,inAppPurchasePricePoint"), asctest.JSON(200, string(body)))
 			out, _, err := runCommand(t, []string{"catalog", "apply", "--app", "app-1", "--file", catalogFile(t, `{"inAppPurchases":[{"productId":"p","name":"New","type":"NON_CONSUMABLE","pricing":{"baseTerritory":"USA","customerPrice":"9.99","equalize":true}}]}`)})
 			if err == nil || out != "" {
 				t.Fatalf("out=%q err=%v", out, err)
@@ -225,5 +228,153 @@ func TestCatalogRejectsDuplicateIAPResourceBeforeWrites(t *testing.T) {
 	out, _, err := runCommand(t, []string{"catalog", "apply", "--app", "app-1", "--file", catalogFile(t, `{"inAppPurchases":[{"productId":"p1","name":"First","type":"CONSUMABLE"},{"productId":"p2","name":"Renamed","type":"CONSUMABLE"}]}`)})
 	if err == nil || out != "" || !strings.Contains(err.Error(), "duplicate resource") {
 		t.Fatalf("out=%q err=%v", out, err)
+	}
+}
+
+func TestCatalogRejectsDiscoveryOutsideSelectedCollection(t *testing.T) {
+	for _, tc := range []struct{ name, body, location string }{
+		{name: "continuation", body: `{"data":[],"links":{"next":"/v1/apps/app-2/subscriptionGroups?cursor=next"}}`},
+		{name: "redirect", location: "https://api.appstoreconnect.apple.com/v1/apps/app-2/subscriptionGroups"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupAuth(t)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			response := asctest.JSON(200, tc.body)
+			if tc.location != "" {
+				response = func(req *http.Request) (*http.Response, error) {
+					r, err := asctest.JSON(302, `{}`)(req)
+					r.Header.Set("Location", tc.location)
+					return r, err
+				}
+			}
+			reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), response)
+			out, _, err := runCommand(t, []string{"catalog", "apply", "--app", "app-1", "--file", catalogFile(t, `{"groups":[{"referenceName":"Pro"}]}`)})
+			if err == nil || out != "" || len(reg.Requests()) != 1 {
+				t.Fatalf("out=%q err=%v request count=%d", out, err, len(reg.Requests()))
+			}
+			if tc.location == "" && !strings.Contains(err.Error(), "scoped collection") {
+				t.Fatalf("expected scoped continuation refusal, got %v", err)
+			}
+		})
+	}
+}
+
+func TestCatalogSubscriptionPaginationPreservesQuery(t *testing.T) {
+	for _, conflict := range []bool{false, true} {
+		t.Run(map[bool]string{false: "cursor keeps query", true: "changed territory refused"}[conflict], func(t *testing.T) {
+			setupAuth(t)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(200, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}],"links":{}}`))
+			reg.Register(asctest.GET("/v1/apps/app-1/inAppPurchasesV2", "limit=200"), asctest.JSON(200, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/inAppPurchasesV2"}}`))
+			reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(200, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"productId":"p","name":"Monthly","subscriptionPeriod":"ONE_MONTH"}}],"links":{}}`))
+			next := "/v1/subscriptions/sub-1/pricePoints?cursor=two"
+			if conflict {
+				next += "&filter%5Bterritory%5D=CAN"
+			}
+			reg.Register(asctest.GET("/v1/subscriptions/sub-1/pricePoints", "filter[territory]=USA", "limit=200"), asctest.JSON(200, `{"data":[],"links":{"next":"`+next+`"}}`))
+			if !conflict {
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/pricePoints", "cursor=two", "filter[territory]=USA"), asctest.JSON(200, `{"data":[{"type":"subscriptionPricePoints","id":"point-1","attributes":{"customerPrice":"9.99"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{}}`))
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/prices", "include=territory,subscriptionPricePoint,additionalPriceTiers", "limit=200"), asctest.JSON(200, `{"data":[],"links":{}}`))
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/introductoryOffers", "include=territory,subscriptionPricePoint", "limit=200"), asctest.JSON(200, `{"data":[],"links":{"next":"/v1/subscriptions/sub-1/introductoryOffers?cursor=two"}}`))
+				reg.Register(asctest.GET("/v1/subscriptions/sub-1/introductoryOffers", "include=territory,subscriptionPricePoint", "cursor=two"), asctest.JSON(200, `{"data":[],"links":{}}`))
+			}
+			out, _, err := runCommand(t, []string{"catalog", "plan", "--app", "app-1", "--file", catalogFile(t, `{"groups":[{"referenceName":"Pro"}],"subscriptions":[{"group":"Pro","productId":"p","name":"Monthly","subscriptionPeriod":"ONE_MONTH","pricing":{"baseTerritory":"USA","customerPrice":"9.99"},"introductoryOffers":[]}]}`), "--output", "json"})
+			if conflict {
+				if err == nil || out != "" || !strings.Contains(err.Error(), "scoped collection query") || len(reg.Requests()) != 4 {
+					t.Fatalf("out=%q err=%v request count=%d", out, err, len(reg.Requests()))
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("catalog pagination: %v", err)
+			}
+			var result struct {
+				Items []struct{ Kind, Action string }
+			}
+			if err := json.Unmarshal([]byte(out), &result); err != nil {
+				t.Fatal(err)
+			}
+			if len(result.Items) != 3 || result.Items[2].Kind != "subscriptionPricing" || result.Items[2].Action != "create" {
+				t.Fatalf("receipt=%s", out)
+			}
+		})
+	}
+}
+
+func TestCatalogSubscriptionPricingPreservesAdditionalTiers(t *testing.T) {
+	for _, tc := range []struct {
+		name, tiers                        string
+		matching, allowed, paginated, late bool
+		wantWrites                         int
+	}{
+		{name: "linked tiers", tiers: `,"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}`},
+		{name: "missing linkage"},
+		{name: "null linkage", tiers: `,"additionalPriceTiers":{"data":null}`},
+		{name: "malformed linkage", tiers: `,"additionalPriceTiers":{"data":{}}`},
+		{name: "incomplete linkage", tiers: `,"additionalPriceTiers":{"data":[],"meta":{"paging":{"total":1}}}`},
+		{name: "omitted linkage on next page", paginated: true},
+		{name: "tiers appear before write", late: true, tiers: `,"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}`},
+		{name: "matching tiered price", matching: true, allowed: true, tiers: `,"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}`},
+		{name: "matching without linkage", matching: true, allowed: true},
+		{name: "complete empty linkage", allowed: true, wantWrites: 1, tiers: `,"additionalPriceTiers":{"data":[]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupAuth(t)
+			point := "old-price"
+			if tc.matching {
+				point = "new-price"
+			}
+			writes, priceReads := 0, 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				var body string
+				switch r.Method + " " + r.URL.Path {
+				case "GET /v1/apps/app-1/subscriptionGroups":
+					body = `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}],"links":{}}`
+				case "GET /v1/apps/app-1/inAppPurchasesV2":
+					body = `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/inAppPurchasesV2"}}`
+				case "GET /v1/subscriptionGroups/group-1/subscriptions":
+					body = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"productId":"p","name":"Monthly","subscriptionPeriod":"ONE_MONTH"}}],"links":{}}`
+				case "GET /v1/subscriptions/sub-1/pricePoints":
+					body = `{"data":[{"type":"subscriptionPricePoints","id":"new-price","attributes":{"customerPrice":"9.99"}}],"links":{}}`
+				case "GET /v1/subscriptions/sub-1/prices":
+					if tc.paginated && r.URL.Query().Get("cursor") == "" {
+						body = `{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/prices?cursor=two"}}`
+						break
+					}
+					priceReads++
+					tiers := tc.tiers
+					if tc.late && priceReads == 1 {
+						tiers = `,"additionalPriceTiers":{"data":[]}`
+					}
+					if !strings.Contains(r.URL.Query().Get("include"), "additionalPriceTiers") {
+						tiers = `,"additionalPriceTiers":{"links":{"related":"https://api.appstoreconnect.apple.com/v1/subscriptionPrices/price-1/additionalPriceTiers"}}`
+					}
+					body = fmt.Sprintf(`{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"preserved":false},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}%s}}],"links":{}}`, point, tiers)
+				case "PATCH /v1/subscriptions/sub-1":
+					writes++
+					point = "new-price"
+					body = `{"data":{"type":"subscriptions","id":"sub-1"}}`
+				default:
+					t.Errorf("unexpected request %s %s", r.Method, r.URL)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				_, _ = w.Write([]byte(body))
+			}))
+			defer server.Close()
+			out, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "catalog", "apply", "--app", "app-1", "--file", catalogFile(t, `{"groups":[{"referenceName":"Pro"}],"subscriptions":[{"group":"Pro","productId":"p","name":"Monthly","subscriptionPeriod":"ONE_MONTH","pricing":{"baseTerritory":"USA","customerPrice":"9.99"}}]}`), "--output", "json")
+			if !tc.allowed {
+				if err == nil || writes != 0 || !strings.Contains(err.Error(), "additional price tiers") {
+					t.Fatalf("unsafe replacement: writes=%d err=%v stdout=%s stderr=%s", writes, err, out, stderr)
+				}
+				return
+			}
+			if err != nil || writes != tc.wantWrites {
+				t.Fatalf("allowed operation: writes=%d err=%v stdout=%s stderr=%s", writes, err, out, stderr)
+			}
+		})
 	}
 }

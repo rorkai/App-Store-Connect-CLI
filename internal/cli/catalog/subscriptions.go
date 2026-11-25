@@ -73,7 +73,7 @@ func planSubscriptions(ctx context.Context, c *asc.Client, m manifest, groups ma
 	}
 	byProduct := map[string]existing{}
 	for _, g := range remoteGroups {
-		resources, err := collect(ctx, func(ctx context.Context, next string) (*asc.SubscriptionsResponse, error) {
+		resources, err := collect(ctx, "/v1/subscriptionGroups/"+g.ID+"/subscriptions", func(ctx context.Context, next string) (*asc.SubscriptionsResponse, error) {
 			return c.GetSubscriptions(ctx, g.ID, asc.Limit[asc.SubscriptionsOption](200), asc.NextURL[asc.SubscriptionsOption](next))
 		})
 		if err != nil {

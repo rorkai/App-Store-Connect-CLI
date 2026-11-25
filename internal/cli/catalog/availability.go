@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"slices"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -37,9 +38,16 @@ func validateAvailability(a *availability) error {
 	return nil
 }
 
-func collect[T any](ctx context.Context, fetch func(context.Context, string) (*asc.Response[T], error)) ([]asc.Resource[T], error) {
+func collect[T any](ctx context.Context, collection string, fetch func(context.Context, string) (*asc.Response[T], error)) ([]asc.Resource[T], error) {
 	seen := map[string]bool{}
 	page := func(ctx context.Context, next string) (*asc.Response[T], error) {
+		if next != "" {
+			var err error
+			next, err = collectionContinuation(next, collection)
+			if err != nil {
+				return nil, err
+			}
+		}
 		r, err := fetch(ctx, next)
 		if err != nil {
 			return nil, err
@@ -69,6 +77,35 @@ func collect[T any](ctx context.Context, fetch func(context.Context, string) (*a
 	return all.(*asc.Response[T]).Data, nil
 }
 
+func collectionContinuation(next, collection string) (string, error) {
+	original, err := url.Parse(collection)
+	if err != nil {
+		return "", err
+	}
+	canonical, err := asc.ScopedContinuationURL(next, original.Path)
+	if err != nil {
+		return "", err
+	}
+	parsed, err := url.Parse(canonical)
+	if err != nil {
+		return "", err
+	}
+	query, err := url.ParseQuery(parsed.RawQuery)
+	if err != nil {
+		return "", fmt.Errorf("invalid scoped collection query: %w", err)
+	}
+	expectedQuery := original.Query()
+	expectedQuery.Del("limit")
+	for key, expected := range expectedQuery {
+		if actual, exists := query[key]; exists && !slices.Equal(actual, expected) {
+			return "", fmt.Errorf("pagination URL changed scoped collection query %q", key)
+		}
+		query[key] = expected
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
+}
+
 type availabilitySnapshot struct {
 	id          string
 	territories []string
@@ -94,7 +131,7 @@ func readAvailability(ctx context.Context, c *asc.Client, kind, id string) (avai
 			return snapshot, fmt.Errorf("invalid subscription availability identity")
 		}
 		snapshot.id, snapshot.future = r.Data.ID, r.Data.Attributes.AvailableInNewTerritories
-		existing, err = collect(ctx, func(ctx context.Context, next string) (*asc.TerritoriesResponse, error) {
+		existing, err = collect(ctx, "/v1/subscriptionAvailabilities/"+snapshot.id+"/availableTerritories", func(ctx context.Context, next string) (*asc.TerritoriesResponse, error) {
 			return c.GetSubscriptionAvailabilityAvailableTerritories(ctx, snapshot.id, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200), asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](next))
 		})
 	} else {
@@ -109,7 +146,7 @@ func readAvailability(ctx context.Context, c *asc.Client, kind, id string) (avai
 			return snapshot, fmt.Errorf("invalid in-app purchase availability identity")
 		}
 		snapshot.id, snapshot.future = r.Data.ID, r.Data.Attributes.AvailableInNewTerritories
-		existing, err = collect(ctx, func(ctx context.Context, next string) (*asc.TerritoriesResponse, error) {
+		existing, err = collect(ctx, "/v1/inAppPurchaseAvailabilities/"+snapshot.id+"/availableTerritories", func(ctx context.Context, next string) (*asc.TerritoriesResponse, error) {
 			return c.GetInAppPurchaseAvailabilityAvailableTerritories(ctx, snapshot.id, asc.Limit[asc.IAPAvailabilityTerritoriesOption](200), asc.NextURL[asc.IAPAvailabilityTerritoriesOption](next))
 		})
 	}

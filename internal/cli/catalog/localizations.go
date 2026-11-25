@@ -62,23 +62,30 @@ func validateLocalizations(kind string, values []localization) error {
 }
 
 func readResources[T any](ctx context.Context, c *asc.Client, path, kind string) ([]asc.Resource[T], error) {
-	data, err := c.RawPaginatedGET(ctx, path, nil)
+	resources, err := collect(ctx, path, func(ctx context.Context, next string) (*asc.Response[T], error) {
+		target := path
+		if next != "" {
+			target = next
+		}
+		data, err := c.RawRequest(ctx, "GET", target, nil)
+		if err != nil {
+			return nil, err
+		}
+		var response asc.Response[T]
+		if err := json.Unmarshal(data, &response); err != nil {
+			return nil, err
+		}
+		return &response, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	var response asc.Response[T]
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, err
-	}
-	if response.Data == nil {
-		return nil, fmt.Errorf("%s data must be an array", kind)
-	}
-	for _, r := range response.Data {
+	for _, r := range resources {
 		if r.ID == "" || string(r.Type) != kind {
 			return nil, fmt.Errorf("invalid %s resource identity", kind)
 		}
 	}
-	return response.Data, nil
+	return resources, nil
 }
 
 func localizationPaths(kind string) (parent, version, localized string) {

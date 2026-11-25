@@ -125,7 +125,9 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
                     elif method=='GET' and '/subscriptionPricePoints/' in path and path.endswith('/equalizations'):
                         response=collection([resource('subscriptionPricePoints','sub-'+t,{'customerPrice':price},{'territory':link('territories',t)}) for t,price in [('USA','9.99'),('CAN','12.99')]])
                     elif method=='GET' and path=='/v1/subscriptions/sub-local/prices':
-                        response=collection(sub_prices)
+                        response=collection(copy.deepcopy(sub_prices))
+                        for price in response['data']:
+                            price['relationships'].setdefault('additionalPriceTiers', {'data': []})
                     elif method=='GET' and path.endswith('/iapPriceSchedule'):
                         if 'iap' not in schedules:status='404 Not Found';response=missing('inAppPurchasePriceSchedules')
                         else:response={'data':schedules['iap']}

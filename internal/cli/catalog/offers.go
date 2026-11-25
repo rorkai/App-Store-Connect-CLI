@@ -75,7 +75,10 @@ func readOffers(ctx context.Context, c *asc.Client, id string) ([]existingOffer,
 	if id == "" {
 		return nil, nil
 	}
-	rows, err := collect(ctx, func(ctx context.Context, next string) (*asc.SubscriptionIntroductoryOffersResponse, error) {
+	rows, err := collect(ctx, "/v1/subscriptions/"+id+"/introductoryOffers?include=territory,subscriptionPricePoint", func(ctx context.Context, next string) (*asc.SubscriptionIntroductoryOffersResponse, error) {
+		if next != "" {
+			return c.GetSubscriptionIntroductoryOffers(ctx, id, asc.NextURL[asc.SubscriptionIntroductoryOffersOption](next))
+		}
 		return c.GetSubscriptionIntroductoryOffers(ctx, id, asc.WithSubscriptionIntroductoryOffersInclude([]string{"territory", "subscriptionPricePoint"}), asc.Limit[asc.SubscriptionIntroductoryOffersOption](200), asc.NextURL[asc.SubscriptionIntroductoryOffersOption](next))
 	})
 	if err != nil {

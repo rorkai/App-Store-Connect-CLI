@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -65,11 +67,17 @@ func validatePricing(p *pricing) error {
 }
 
 func relationshipID(data json.RawMessage, key string) (string, error) {
-	var relationships map[string]asc.Relationship
+	var relationships map[string]json.RawMessage
 	if err := json.Unmarshal(data, &relationships); err != nil {
 		return "", fmt.Errorf("invalid %s relationship: %w", key, err)
 	}
-	id := relationships[key].Data.ID
+	var relationship asc.Relationship
+	if raw, ok := relationships[key]; ok {
+		if err := json.Unmarshal(raw, &relationship); err != nil {
+			return "", fmt.Errorf("invalid %s relationship: %w", key, err)
+		}
+	}
+	id := relationship.Data.ID
 	if id == "" {
 		return "", fmt.Errorf("missing %s relationship ID", key)
 	}
@@ -83,7 +91,10 @@ func resolvePrice(ctx context.Context, c *asc.Client, kind, id, territory, price
 	}
 	var matches []string
 	if kind == "subscription" {
-		points, err := collect(ctx, func(ctx context.Context, next string) (*asc.SubscriptionPricePointsResponse, error) {
+		points, err := collect(ctx, "/v1/subscriptions/"+id+"/pricePoints?filter%5Bterritory%5D="+url.QueryEscape(territory), func(ctx context.Context, next string) (*asc.SubscriptionPricePointsResponse, error) {
+			if next != "" {
+				return c.GetSubscriptionPricePoints(ctx, id, asc.WithSubscriptionPricePointsNextURL(next))
+			}
 			return c.GetSubscriptionPricePoints(ctx, id, asc.WithSubscriptionPricePointsTerritory(territory), asc.WithSubscriptionPricePointsLimit(200), asc.WithSubscriptionPricePointsNextURL(next))
 		})
 		if err != nil {
@@ -95,7 +106,7 @@ func resolvePrice(ctx context.Context, c *asc.Client, kind, id, territory, price
 			}
 		}
 	} else {
-		points, err := collect(ctx, func(ctx context.Context, next string) (*asc.InAppPurchasePricePointsResponse, error) {
+		points, err := collect(ctx, "/v2/inAppPurchases/"+id+"/pricePoints?filter%5Bterritory%5D="+url.QueryEscape(territory), func(ctx context.Context, next string) (*asc.InAppPurchasePricePointsResponse, error) {
 			return c.GetInAppPurchasePricePoints(ctx, id, asc.WithIAPPricePointsTerritory(territory), asc.Limit[asc.IAPPricePointsOption](200), asc.NextURL[asc.IAPPricePointsOption](next))
 		})
 		if err != nil {
@@ -127,7 +138,10 @@ func resolvePrices(ctx context.Context, c *asc.Client, kind, id string, p *prici
 		points[t.Territory] = point
 	}
 	if p.Equalize && kind == "subscription" {
-		equalized, err := collect(ctx, func(ctx context.Context, next string) (*asc.SubscriptionPricePointsResponse, error) {
+		equalized, err := collect(ctx, "/v1/subscriptionPricePoints/"+base+"/equalizations?include=territory", func(ctx context.Context, next string) (*asc.SubscriptionPricePointsResponse, error) {
+			if next != "" {
+				return c.GetSubscriptionPricePointEqualizations(ctx, base, asc.WithSubscriptionPricePointsNextURL(next))
+			}
 			return c.GetSubscriptionPricePointEqualizations(ctx, base, asc.WithSubscriptionPricePointsInclude([]string{"territory"}), asc.WithSubscriptionPricePointsLimit(200), asc.WithSubscriptionPricePointsNextURL(next))
 		})
 		if err != nil {
@@ -281,8 +295,9 @@ func comparePricing(ctx context.Context, c *asc.Client, kind, id string, p *pric
 	}
 	baseMatches := true
 	if kind == "subscription" {
-		prices, err := collect(ctx, func(ctx context.Context, next string) (*asc.SubscriptionPricesResponse, error) {
-			return c.GetSubscriptionPrices(ctx, id, asc.WithSubscriptionPricesInclude([]string{"territory", "subscriptionPricePoint"}), asc.Limit[asc.SubscriptionPricesOption](200), asc.NextURL[asc.SubscriptionPricesOption](next))
+		const include = "territory,subscriptionPricePoint,additionalPriceTiers"
+		prices, err := collect(ctx, "/v1/subscriptions/"+id+"/prices?include="+include, func(ctx context.Context, next string) (*asc.SubscriptionPricesResponse, error) {
+			return c.GetSubscriptionPrices(ctx, id, asc.WithSubscriptionPricesInclude(strings.Split(include, ",")), asc.Limit[asc.SubscriptionPricesOption](200), asc.NextURL[asc.SubscriptionPricesOption](next))
 		})
 		if err != nil {
 			return result, err
@@ -292,6 +307,24 @@ func comparePricing(ctx context.Context, c *asc.Client, kind, id string, p *pric
 			if price.Attributes.PlanType != "" || price.Attributes.Preserved {
 				block("preserved or alternate-plan prices must be preserved")
 				continue
+			}
+			var relationships struct {
+				AdditionalPriceTiers struct {
+					Data  []json.RawMessage `json:"data"`
+					Links asc.Links         `json:"links"`
+					Meta  struct {
+						Paging struct {
+							Total int `json:"total"`
+						} `json:"paging"`
+					} `json:"meta"`
+				} `json:"additionalPriceTiers"`
+			}
+			if err := json.Unmarshal(price.Relationships, &relationships); err != nil {
+				return result, fmt.Errorf("invalid additional price tiers relationship: %w", err)
+			}
+			tiers := relationships.AdditionalPriceTiers
+			if tiers.Data == nil || len(tiers.Data) > 0 || tiers.Links.Next != "" || tiers.Meta.Paging.Total != 0 {
+				block("additional price tiers must be preserved; complete empty tier linkage is required")
 			}
 			territory, err := relationshipID(price.Relationships, "territory")
 			if err != nil {
@@ -325,7 +358,7 @@ func comparePricing(ctx context.Context, c *asc.Client, kind, id string, p *pric
 		if !baseMatches {
 			block("changing the base territory changes automatic prices outside the manifest")
 		}
-		prices, err := collect(ctx, func(ctx context.Context, next string) (*asc.InAppPurchasePricesResponse, error) {
+		prices, err := collect(ctx, "/v1/inAppPurchasePriceSchedules/"+schedule.Data.ID+"/manualPrices?include=territory,inAppPurchasePricePoint", func(ctx context.Context, next string) (*asc.InAppPurchasePricesResponse, error) {
 			return c.GetInAppPurchasePriceScheduleManualPrices(ctx, schedule.Data.ID, asc.WithIAPPriceSchedulePricesInclude([]string{"territory", "inAppPurchasePricePoint"}), asc.Limit[asc.IAPPriceSchedulePricesOption](200), asc.NextURL[asc.IAPPriceSchedulePricesOption](next))
 		})
 		if err != nil {
