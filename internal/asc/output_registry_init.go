@@ -654,6 +654,10 @@ func registerAllOutputRenderers() {
 	registerDirect(func(v *BetaTestersImportSummary, render func([]string, [][]string)) error {
 		h, r := betaTestersImportSummaryRows(v)
 		render(h, r)
+		if len(v.Groups) > 0 {
+			gh, gr := betaTestersImportGroupRows(v.Groups)
+			render(gh, gr)
+		}
 		if len(v.Failures) > 0 {
 			fh, fr := betaTestersImportFailureRows(v.Failures)
 			render(fh, fr)

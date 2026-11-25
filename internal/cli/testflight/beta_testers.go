@@ -351,12 +351,13 @@ See also: asc testflight beta-testers beta-groups list --id "TESTER_ID" for the 
 func newBetaTestersAddCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("add", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID, used to resolve --group (or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID, scopes groups and builds (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
 	firstName := fs.String("first-name", "", "Tester first name")
 	lastName := fs.String("last-name", "", "Tester last name")
 	group := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group names or IDs")
 	buildID := shared.BindOnceCSVFlag(fs, "build-id", "Build ID(s) to attach, comma-separated")
+	createMissingGroups := fs.Bool("create-missing-groups", false, "Create unresolved group names as external groups with public links disabled (requires --app and --group)")
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -372,11 +373,17 @@ in one list, reference that group by its ID instead.
 
 --build-id attaches builds in the same create request. At least one of --group
 or --build-id is required, and --app is required only to resolve --group.
+When an app is resolved, every build must belong to it before any mutation.
 
-When the email is already a tester of the app, App Store Connect rejects the
-create with 409. add then reads that tester back, adds it to only the groups
-and builds it is missing, and prints the existing tester; stderr says what
-changed. An email outside your team cannot join an internal group: add the
+Add first looks up the input email within the selected app, adds only
+missing groups and builds, and prints the existing tester when found. Repeating
+the same request sends no writes. First and last names apply only on creation.
+--create-missing-groups creates unresolved group names as external groups with
+public links disabled; --app and --group are required.
+The build-only form resolves each named build's app before looking up the tester.
+Its output retains the tester resource envelope with only ID, type and email;
+other profile fields are omitted. Only named builds are read or assigned.
+An email outside your team cannot join an internal group: add the
 person to an external group instead. Inviting them to the team (asc users
 invite) gives them a team role and is for the Account Holder or an Admin to
 decide.
@@ -407,6 +414,18 @@ Examples:
 				return shared.MissingRequiredUsageError("--group")
 			}
 
+			if *createMissingGroups && (resolvedAppID == "" || !hasGroup) {
+				return d.UsageError("--create-missing-groups requires --app and --group")
+			}
+			if !isValidTesterEmail(strings.TrimSpace(*email)) {
+				return d.UsageError("invalid email format")
+			}
+
+			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+				return d.UsageError(err.Error())
+			}
+
+			ctx = asc.WithNoRedirectReads(ctx)
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers add: %w", err)
@@ -415,20 +434,93 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			lookupAppIDs := []string{}
+			if resolvedAppID != "" {
+				lookupAppIDs = append(lookupAppIDs, resolvedAppID)
+			}
+			for _, id := range buildIDs {
+				owner, err := client.GetBuildAppRelationship(requestCtx, id)
+				if err != nil {
+					return fmt.Errorf("beta-testers add: read app for build %q: %w", id, err)
+				}
+				if owner == nil || owner.Data.Type != asc.ResourceTypeApps || strings.TrimSpace(owner.Data.ID) == "" {
+					return fmt.Errorf("beta-testers add: build %q returned no verified owning app", id)
+				}
+				ownerID := strings.TrimSpace(owner.Data.ID)
+				if resolvedAppID != "" && ownerID != resolvedAppID {
+					return d.UsageErrorf("--build-id %q does not belong to --app %q", id, resolvedAppID)
+				}
+				lookupAppIDs = append(lookupAppIDs, ownerID)
+			}
+			lookupAppIDs = uniqueSortedStrings(lookupAppIDs)
+			printTester := func(tester *asc.BetaTesterResponse) error {
+				if !hasGroup {
+					if tester == nil || strings.TrimSpace(tester.Data.ID) == "" {
+						return fmt.Errorf("beta-testers add: tester returned no ID")
+					}
+					tester = &asc.BetaTesterResponse{Data: asc.Resource[asc.BetaTesterAttributes]{
+						Type:       asc.ResourceTypeBetaTesters,
+						ID:         tester.Data.ID,
+						Attributes: asc.BetaTesterAttributes{Email: strings.TrimSpace(*email)},
+					}}
+				}
+				return d.PrintOutput(tester, *output.Output, *output.Pretty)
+			}
+
 			var groupIDs []string
+			var resolver *betaGroupResolver
+			var requested, missing []string
 			if hasGroup {
-				groupIDs, err = resolveBetaGroupIDs(requestCtx, client, resolvedAppID, group.String())
+				if *createMissingGroups {
+					resolver, err = newBetaGroupResolver(ctx, d, client, resolvedAppID)
+					if err == nil {
+						requested, missing, err = planBetaTesterAddGroups(resolver, group.String())
+					}
+				} else {
+					groupIDs, err = resolveBetaGroupIDs(requestCtx, client, resolvedAppID, group.String())
+				}
 				if err != nil {
 					return fmt.Errorf("beta-testers add: %w", err)
 				}
 			}
+			var fields []string
+			if !hasGroup {
+				fields = []string{"email"}
+			}
+			found, err := fetchExistingTestersByEmail(ctx, d, client, lookupAppIDs, []betaTestersCSVRow{{email: *email}}, fields...)
+			if err != nil {
+				return fmt.Errorf("beta-testers add: look up tester: %w", err)
+			}
+			existing := found[strings.ToLower(strings.TrimSpace(*email))]
+			for _, name := range missing {
+				id, err := ensureBetaTesterImportGroup(ctx, d, client, resolvedAppID, name)
+				if err != nil {
+					return fmt.Errorf("beta-testers add: create group %q: %w", name, err)
+				}
+				resolver.addImportGroup(name, id)
+				fmt.Fprintf(d.IO.ErrOut, "Created external beta group %q (%s)\n", shared.SanitizeTerminal(name), shared.SanitizeTerminal(id))
+			}
+			if resolver != nil {
+				groupIDs, err = resolver.ResolveAll(requested)
+				if err != nil {
+					return fmt.Errorf("beta-testers add: %w", err)
+				}
+			}
+			if existing != nil {
+				outcome, err := reconcileBetaTesterRelationships(ctx, d, client, existing, groupIDs, buildIDs)
+				if err != nil {
+					return fmt.Errorf("beta-testers add: %w", err)
+				}
+				reportBetaTesterAddConflict(d, strings.TrimSpace(*email), outcome)
+				return printTester(outcome.tester)
+			}
 
 			tester, err := client.CreateBetaTester(requestCtx, *email, *firstName, *lastName, groupIDs, buildIDs)
 			if err != nil {
-				if !isHTTPConflict(err) || resolvedAppID == "" {
+				if !isHTTPConflict(err) {
 					return fmt.Errorf("beta-testers add: failed to create: %w", err)
 				}
-				outcome, resolveErr := resolveBetaTesterAddConflict(ctx, d, client, resolvedAppID, strings.TrimSpace(*email), groupIDs, buildIDs)
+				outcome, resolveErr := resolveBetaTesterAddConflict(ctx, d, client, lookupAppIDs, strings.TrimSpace(*email), groupIDs, buildIDs)
 				if resolveErr != nil {
 					return fmt.Errorf("beta-testers add: failed to create: %w (%w)", err, resolveErr)
 				}
@@ -448,7 +540,7 @@ Examples:
 				tester = outcome.tester
 			}
 
-			return d.PrintOutput(tester, *output.Output, *output.Pretty)
+			return printTester(tester)
 		},
 	}
 }
