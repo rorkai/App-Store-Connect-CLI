@@ -483,6 +483,9 @@ Examples:
 				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
+			if err := validatePublishBuildDistribution(buildResp, hasExternalGroups); err != nil {
+				return reportPartialFailure(publishFailureStageBetaDistribution, err)
+			}
 			groupsToAssign := resolvedGroups
 			submissionGroupIDs := resolvedPublishBetaGroupIDs(resolvedGroups)
 			externalSubmission := *submit && hasExternalGroups
@@ -505,13 +508,13 @@ Examples:
 
 			if *notify && !uploaded && hasExternalGroups && len(groupsToAssign) == 0 {
 				result.NotificationRecovery = publishNotificationRecovery(buildResp.Data.ID)
-				return reportPartialFailure(publishFailureStageNotification, errors.New(result.NotificationRecovery.Message))
 			}
 
 			if testNotesValue != "" {
 				upsertOpts := shared.UpsertBetaBuildLocalizationOptions{
-					AppID:       resolvedPublishAppID,
-					Diagnostics: d.IO.ErrOut,
+					AppID:        resolvedPublishAppID,
+					Diagnostics:  d.IO.ErrOut,
+					NotesWritten: func() { hasProgress = true },
 					AppLocalizationCreated: func() {
 						hasProgress = true
 						completedStages = append(completedStages, "beta_app_localization")
@@ -522,7 +525,6 @@ Examples:
 					result.Recovery = recoveryErr.Recovery()
 					return reportPartialFailure(publishFailureStageTestNotes, fmt.Errorf("publish testflight: %w", recoveryErr))
 				}
-				hasProgress = true
 				completedStages = append(completedStages, publishCompletedStageTestNotes)
 			}
 
@@ -530,7 +532,7 @@ Examples:
 				// Apple requires Xcode Cloud builds to be added to internal groups manually,
 				// so only skip redundant internal-group adds for builds uploaded by this command.
 				SkipInternalWithAllBuilds: uploaded,
-				Notify:                    *notify,
+				Notify:                    *notify && result.NotificationRecovery == nil,
 			}
 			var addResult *shared.AddBuildBetaGroupsResult
 			if uploaded {
@@ -555,11 +557,11 @@ Examples:
 				}
 				return reportPartialFailure(failureStage, wrapPublishTestFlightAddGroupsError(err))
 			}
-			hasProgress = true
+			hasProgress = hasProgress || len(addResult.AddedGroupIDs) > 0
 			completedStages = append(completedStages, publishCompletedStageBetaDistribution)
 
 			var notified *bool
-			if *notify {
+			if addOptions.Notify {
 				value := addResult.NotificationAction == asc.BuildBetaGroupsNotificationActionManual
 				notified = &value
 			}
@@ -583,6 +585,13 @@ Examples:
 			reportSkippedInternalAllBuildsGroups(d, addResult.SkippedInternalAllBuildsGroups)
 			result.BetaReviewSubmitted = betaReviewSubmitted
 			result.BetaReviewSubmissionID = submissionResult.SubmissionID
+			if result.NotificationRecovery != nil {
+				if submissionResult.Created {
+					hasProgress = true
+					completedStages = append(completedStages, "beta_review_submission")
+				}
+				return reportPartialFailure(publishFailureStageNotification, errors.New(result.NotificationRecovery.Message))
+			}
 			attachTestFlightLocalPublishResult(result, localBuildResult)
 
 			return d.PrintOutput(result, *output.Output, *output.Pretty)

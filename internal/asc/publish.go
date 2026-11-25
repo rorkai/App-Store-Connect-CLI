@@ -75,6 +75,7 @@ type TestFlightPublishResult struct {
 	Status                 string                            `json:"status,omitempty"`
 	FailureStage           string                            `json:"failureStage,omitempty"`
 	FailureCode            string                            `json:"failureCode,omitempty"`
+	HTTPStatus             int                               `json:"httpStatus,omitempty"`
 	Failure                string                            `json:"failure,omitempty"`
 	CompletedStages        []string                          `json:"completedStages,omitempty"`
 	Recovery               *TestNotesRecovery                `json:"recovery,omitempty"`

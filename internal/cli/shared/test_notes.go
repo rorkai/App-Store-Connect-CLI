@@ -27,6 +27,8 @@ type UpsertBetaBuildLocalizationOptions struct {
 	Diagnostics io.Writer
 	// AppLocalizationCreated records a completed app-locale creation before notes are written.
 	AppLocalizationCreated func()
+	// NotesWritten records a successful create or update of the build localization.
+	NotesWritten func()
 }
 
 // TestNotesNormalization reports the What to Test text that will be stored and
@@ -250,22 +252,21 @@ func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildI
 			break
 		}
 	}
+	var saved *asc.BetaBuildLocalizationResponse
 	if foundLocale {
 		if localizationID == "" {
 			return nil, fmt.Errorf("missing localization ID for locale %q", localeValue)
 		}
-		var attrs asc.BetaBuildLocalizationUpdateAttributes
-		if notesValue != "" {
-			attrs.WhatsNew = &notesValue
-		}
-		return client.UpdateBetaBuildLocalization(ctx, localizationID, attrs)
+		attrs := asc.BetaBuildLocalizationUpdateAttributes{WhatsNew: &notesValue}
+		saved, err = client.UpdateBetaBuildLocalization(ctx, localizationID, attrs)
+	} else {
+		attrs := asc.BetaBuildLocalizationCreateAttributes{Locale: localeValue, WhatsNew: &notesValue}
+		saved, err = client.CreateBetaBuildLocalization(ctx, buildID, attrs)
 	}
-
-	attrs := asc.BetaBuildLocalizationCreateAttributes{Locale: localeValue}
-	if notesValue != "" {
-		attrs.WhatsNew = &notesValue
+	if err == nil && opts.NotesWritten != nil {
+		opts.NotesWritten()
 	}
-	return client.CreateBetaBuildLocalization(ctx, buildID, attrs)
+	return saved, err
 }
 
 // ensureBetaAppLocalization makes the locale available for TestFlight notes by

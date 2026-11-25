@@ -44,6 +44,13 @@ func BindCollectionNextURL(ctx context.Context, client scopedContinuationClient,
 	}
 	for key, expected := range requiredQuery {
 		actual := values[key]
+		if len(expected) == 1 && len(actual) == 0 && strings.TrimSpace(values.Get("cursor")) != "" {
+			// Apple can omit the initial filter from an opaque cursor. Keep the
+			// next request scoped even when the cursor does not repeat it.
+			values.Set(key, expected[0])
+			parsed.RawQuery = values.Encode()
+			continue
+		}
 		if len(expected) != 1 || len(actual) != 1 || actual[0] != expected[0] {
 			return "", fmt.Errorf("collection pagination URL changed a required scope filter")
 		}

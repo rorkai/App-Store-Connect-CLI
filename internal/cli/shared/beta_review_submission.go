@@ -19,6 +19,7 @@ type buildBetaReviewSubmissionClient interface {
 // BuildBetaReviewSubmissionResult reports the beta app review submission outcome.
 type BuildBetaReviewSubmissionResult struct {
 	Submitted    bool
+	Created      bool
 	SubmissionID string
 	Message      string
 }
@@ -62,6 +63,7 @@ func SubmitBuildBetaReviewIfNeeded(ctx context.Context, client buildBetaReviewSu
 	}
 
 	submissionID := strings.TrimSpace(submission.Data.ID)
+	result.Created = true
 	result.Submitted = true
 	result.SubmissionID = submissionID
 	if submissionID == "" {

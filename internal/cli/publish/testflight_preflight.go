@@ -94,6 +94,20 @@ func boundedPublishFailure(failure error) string {
 	return message[:end] + "..."
 }
 
+func validatePublishBuildDistribution(build *asc.BuildResponse, includesExternal bool) error {
+	var reason string
+	switch {
+	case build.Data.Attributes.Expired:
+		reason = "has expired and cannot be distributed to beta groups"
+	case includesExternal && build.Data.Attributes.BuildAudienceType == asc.BuildAudienceTypeInternalOnly:
+		reason = "is INTERNAL_ONLY and cannot be distributed to external beta groups"
+	default:
+		return nil
+	}
+	err := fmt.Errorf("publish testflight: build %q %s", build.Data.ID, reason)
+	return shared.WithDiagnostic(shared.NewValidationError(err), shared.DiagnosticStateNotReady, "")
+}
+
 func validatePublishBuildIdentity(build *asc.BuildResponse, expectedID string) error {
 	if expectedID == "" || expectedID == "." || expectedID == ".." || url.PathEscape(expectedID) != expectedID || build == nil || build.Data.Type != "builds" || build.Data.ID != expectedID {
 		return fmt.Errorf("build response does not match requested build %s", expectedID)
@@ -117,6 +131,12 @@ func verifyPublishBuildPlatform(ctx context.Context, client *asc.Client, buildID
 
 func writePublishFailure(d *shared.Deps, output string, pretty bool, result *asc.TestFlightPublishResult, failure error) error {
 	result.Failure = publishFailureMessage(result.FailureStage)
+	var httpErr interface{ HTTPStatusCode() int }
+	if errors.As(failure, &httpErr) {
+		if status := httpErr.HTTPStatusCode(); status >= 400 && status <= 599 {
+			result.HTTPStatus = status
+		}
+	}
 	if err := d.PrintOutput(result, output, pretty); err != nil {
 		return errors.Join(failure, fmt.Errorf("print publish failure result: %w", err))
 	}

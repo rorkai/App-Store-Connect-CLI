@@ -45,6 +45,10 @@ func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][
 		result.BetaReviewSubmissionID,
 	}
 	rows := [][]string{row}
+	if result.HTTPStatus != 0 {
+		headers = append(headers, "HTTP Status")
+		rows[0] = append(rows[0], fmt.Sprint(result.HTTPStatus))
+	}
 	if result.NotificationRecovery != nil {
 		recovery := result.NotificationRecovery
 		headers = append(headers, "Notification State", "Notification Recovery")

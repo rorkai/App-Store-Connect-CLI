@@ -26,6 +26,11 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 		autoNotify     bool
 	}{
 		{name: "submit", submit: true},
+		{name: "reconcile assigned group with pending notes and review", submit: true, failure: "unknown_delivery"},
+		{name: "build expired after approval", submit: true, noNotify: true, failure: "expired"},
+		{name: "build for internal testing only", submit: true, noNotify: true, failure: "INTERNAL_ONLY"},
+		{name: "terminal detail EXPIRED", submit: true, failure: "EXPIRED"},
+		{name: "terminal detail NOT_APPLICABLE", submit: true, failure: "NOT_APPLICABLE"},
 		{name: "without submit"},
 		{name: "existing review rejected", submit: true, noNotify: true, failure: "rejected"},
 		{name: "missing export compliance", submit: true, noNotify: true, failure: "export compliance"},
@@ -53,6 +58,11 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ready, assigned, submitted := false, false, false
 			writes, buildReads, ownerReads := 0, 0, 0
+			terminalDetail := tc.failure == "EXPIRED" || tc.failure == "NOT_APPLICABLE"
+			pendingNotes := tc.failure == "unknown_delivery" || terminalDetail
+			if pendingNotes {
+				assigned = true
+			}
 			manualNotifications, automaticNotifications := 0, 0
 			notificationCommitted := false
 			groups := []asc.Resource[asc.BetaGroupAttributes]{
@@ -80,6 +90,12 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 						t.Error("build content read before ownership was verified")
 					}
 					payload = `{"data":{"type":"builds","id":"b1","attributes":{"version":"42","processingState":"VALID"}}}`
+					if ready && tc.failure == "expired" {
+						payload = `{"data":{"type":"builds","id":"b1","attributes":{"version":"42","processingState":"VALID","expired":true}}}`
+					}
+					if ready && tc.failure == "INTERNAL_ONLY" {
+						payload = `{"data":{"type":"builds","id":"b1","attributes":{"version":"42","processingState":"VALID","expired":false,"buildAudienceType":"INTERNAL_ONLY"}}}`
+					}
 					switch tc.invalidBuild {
 					case "id":
 						payload = `{"data":{"type":"builds","id":"other-build","attributes":{"version":"42","processingState":"VALID"}}}`
@@ -99,7 +115,9 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 						payload = `{"data":{"type":"builds","id":"123"}}`
 					}
 				case "GET /v1/builds/b1/betaAppReviewSubmission":
-					if ready && tc.failure == "rejected" {
+					if ready && tc.failure == "expired" {
+						payload = `{"data":{"type":"betaAppReviewSubmissions","id":"s1","attributes":{"betaReviewState":"APPROVED"}}}`
+					} else if ready && tc.failure == "rejected" {
 						payload = `{"data":{"type":"betaAppReviewSubmissions","id":"s1","attributes":{"betaReviewState":"REJECTED"}}}`
 					} else if submitted {
 						payload = `{"data":{"type":"betaAppReviewSubmissions","id":"s1"}}`
@@ -116,7 +134,11 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 				case "GET /v1/betaAppReviewDetails":
 					payload = `{"data":[{"type":"betaAppReviewDetails","id":"d1","attributes":{"contactFirstName":"Dev","contactLastName":"Tester","contactPhone":"+1 408 555 0100","contactEmail":"test@example.com"}}]}`
 				case "GET /v1/builds/b1/buildBetaDetail":
-					if ready && tc.failure == "export compliance" {
+					if ready && terminalDetail {
+						payload = fmt.Sprintf(`{"data":{"type":"buildBetaDetails","id":"bd1","attributes":{"externalBuildState":%q}}}`, tc.failure)
+					} else if ready && tc.failure == "INTERNAL_ONLY" {
+						payload = `{"data":{"type":"buildBetaDetails","id":"bd1","attributes":{"externalBuildState":"NOT_APPLICABLE"}}}`
+					} else if ready && tc.failure == "export compliance" {
 						payload = `{"data":{"type":"buildBetaDetails","id":"bd1","attributes":{"externalBuildState":"MISSING_EXPORT_COMPLIANCE"}}}`
 					} else if strings.HasPrefix(tc.failure, "read") {
 						w.WriteHeader(http.StatusForbidden)
@@ -139,7 +161,16 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 					} else {
 						payload = `{"data":[]}`
 					}
+				case "PATCH /v1/betaBuildLocalizations/bl1":
+					pendingNotes = false
+					writes++
+					payload = `{"data":{"type":"betaBuildLocalizations","id":"bl1","attributes":{"locale":"en-US","whatsNew":"Changed notes"}}}`
 				case "POST /v1/builds/b1/relationships/betaGroups":
+					if tc.failure == "expired" || tc.failure == "INTERNAL_ONLY" {
+						w.WriteHeader(409)
+						payload = `{"errors":[{"status":"409","code":"STATE_ERROR","title":"Cannot distribute this build"}]}`
+						break
+					}
 					var body struct {
 						Data []struct {
 							ID string `json:"id"`
@@ -172,6 +203,9 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 						t.Error("test notes read before build ownership was verified")
 					}
 					payload = `{"data":[{"type":"betaBuildLocalizations","id":"bl1","attributes":{"locale":"en-US","whatsNew":"Existing instructions"}}]}`
+					if pendingNotes {
+						payload = `{"data":[{"type":"betaBuildLocalizations","id":"bl1","attributes":{"locale":"en-US","whatsNew":"Stale notes"}}]}`
+					}
 				case "POST /v1/buildBetaNotifications":
 					writes++
 					manualNotifications++
@@ -237,7 +271,11 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 				if tc.incremental == "named" {
 					groupNames = "Existing,External"
 				}
-				args := []string{"publish", "testflight", "--app", "123", "--build-id", "b1", "--group", groupNames, "--test-notes", "Existing instructions", "--locale", "en-US"}
+				notes := "Existing instructions"
+				if tc.failure == "expired" || tc.failure == "INTERNAL_ONLY" {
+					notes = "Changed notes"
+				}
+				args := []string{"publish", "testflight", "--app", "123", "--build-id", "b1", "--group", groupNames, "--test-notes", notes, "--locale", "en-US"}
 				if !tc.noNotify {
 					args = append(args, "--notify")
 				}
@@ -258,6 +296,33 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 			}
 			ready = true
 			stdout, stderr, err := run()
+			if terminalDetail {
+				var receipt asc.TestFlightPublishResult
+				if err == nil || writes != 0 || !pendingNotes || submitted || json.Unmarshal([]byte(stdout), &receipt) != nil || receipt.Status != "failed" || !strings.Contains(err.Error()+stderr, tc.failure) {
+					t.Fatalf("externalBuildState=%s writes=%d notesPatched=%t reviewSubmitted=%t stdout=%s stderr=%s err=%v", tc.failure, writes, !pendingNotes, submitted, stdout, stderr, err)
+				}
+				return
+			}
+			if tc.failure == "unknown_delivery" {
+				for attempt, wantStatus := range []string{"partial", "failed"} {
+					if attempt == 1 {
+						stdout, stderr, err = run()
+					}
+					var result asc.TestFlightPublishResult
+					if err == nil || json.Unmarshal([]byte(stdout), &result) != nil || pendingNotes || !submitted || writes != 2 || manualNotifications != 0 || automaticNotifications != 0 ||
+						result.Status != wantStatus || result.Notified != nil || result.FailureCode != "notification_delivery_unknown" || result.NotificationRecovery == nil || result.NotificationRecovery.State != "unknown" || strings.Contains(stdout, `"command"`) ||
+						result.BetaReviewSubmitted == nil || !*result.BetaReviewSubmitted {
+						t.Fatalf("attempt=%d writes=%d submitted=%v pendingNotes=%v stdout=%s stderr=%s err=%v", attempt, writes, submitted, pendingNotes, stdout, stderr, err)
+					}
+				}
+				return
+			}
+			if tc.failure == "expired" || tc.failure == "INTERNAL_ONLY" {
+				if err == nil || writes != 0 || !strings.Contains(strings.ToLower(err.Error()+stderr), strings.ToLower(tc.failure)) {
+					t.Fatalf("known blocker: writes=%d receipt=%s err=%v", writes, stdout, err)
+				}
+				return
+			}
 			if tc.failure == "rejected" || tc.failure == "export compliance" {
 				var receipt asc.TestFlightPublishResult
 				if err == nil || writes != 0 || json.Unmarshal([]byte(stdout), &receipt) != nil || receipt.Status != "failed" || receipt.FailureStage != "beta_review_submission" {
