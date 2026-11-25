@@ -499,11 +499,11 @@ func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID str
 		return BuildBetaGroupsNotificationActionNone, err
 	}
 	if notify {
-		detail, err := c.GetBuildBuildBetaDetail(ctx, buildID)
+		autoNotifyEnabled, err := c.readBuildAutoNotifyEnabled(ctx, buildID)
 		if err != nil {
 			return BuildBetaGroupsNotificationActionNone, buildBetaGroupsNotifyPartialError(buildID, "checking notification state", err)
 		}
-		if detail.Data.Attributes.AutoNotifyEnabled {
+		if autoNotifyEnabled {
 			return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
 		}
 		notification, err := c.CreateBuildBetaNotification(ctx, buildID)
@@ -513,9 +513,34 @@ func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID str
 		if notification != nil && notification.NotificationAction == BuildBetaGroupsNotificationActionAutoNotifyEnabled {
 			return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
 		}
+		if notification == nil || notification.Data.Type != "buildBetaNotifications" || strings.TrimSpace(notification.Data.ID) == "" {
+			return BuildBetaGroupsNotificationActionNone, buildBetaGroupsNotifyPartialError(buildID, "notifying testers", fmt.Errorf("invalid build notification acknowledgement"))
+		}
 		return BuildBetaGroupsNotificationActionManual, nil
 	}
 	return BuildBetaGroupsNotificationActionNone, nil
+}
+
+func (c *Client) readBuildAutoNotifyEnabled(ctx context.Context, buildID string) (bool, error) {
+	type notificationStateResponse struct {
+		Data struct {
+			Type       string `json:"type"`
+			ID         string `json:"id"`
+			Attributes struct {
+				AutoNotifyEnabled *bool `json:"autoNotifyEnabled"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
+	response, err := getJSON[notificationStateResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/builds/%s/buildBetaDetail", buildID),
+	})
+	if err != nil {
+		return false, err
+	}
+	if response == nil || response.Data.Type != "buildBetaDetails" || strings.TrimSpace(response.Data.ID) == "" || response.Data.Attributes.AutoNotifyEnabled == nil {
+		return false, fmt.Errorf("notification settings response is missing a valid build detail or explicit auto-notify state")
+	}
+	return *response.Data.Attributes.AutoNotifyEnabled, nil
 }
 
 func buildBetaGroupsNotifyPartialError(buildID, step string, err error) error {

@@ -72,10 +72,13 @@ func (c *Client) CreateBuildBetaNotification(ctx context.Context, buildID string
 		return nil, err
 	}
 
-	var response BuildBetaNotificationResponse
+	var response struct {
+		Data  BuildBetaNotificationResource `json:"data"`
+		Links Links                         `json:"links"`
+	}
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return &response, nil
+	return &BuildBetaNotificationResponse{Data: response.Data, Links: response.Links}, nil
 }

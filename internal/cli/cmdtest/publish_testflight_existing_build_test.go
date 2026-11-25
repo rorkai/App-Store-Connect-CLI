@@ -15,8 +15,12 @@ func TestPublishTestflightExistingBuildIDSkipsUpload(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-1/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`),
@@ -55,8 +59,12 @@ func TestPublishTestflightExistingBuildDoesNotRetryPostUploadPropagationError(t 
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-1/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`),
@@ -72,11 +80,11 @@ func TestPublishTestflightExistingBuildDoesNotRetryPostUploadPropagationError(t 
 	if runErr == nil || !strings.Contains(runErr.Error(), "failed to add groups") {
 		t.Fatalf("expected existing-build relationship failure, got %v", runErr)
 	}
-	if requestCount := len(reg.Requests()); requestCount != 3 {
-		t.Fatalf("request count = %d, want 3 with no confirming GET or retry", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 5 {
+		t.Fatalf("request count = %d, want 5 including ownership and membership reads, with no confirming GET or retry", requestCount)
 	}
-	if stdout != "" || stderr != "" {
-		t.Fatalf("existing-build failure must not emit uploaded-build recovery output: stdout=%q stderr=%q", stdout, stderr)
+	if !strings.Contains(stdout, `"status":"failed"`) || !strings.Contains(stdout, `"failureCode":"beta_group_distribution_failed"`) || strings.Contains(stdout, `"status":"partial"`) || stderr != "" {
+		t.Fatalf("existing-build failure must have a failed receipt without invented progress: stdout=%q stderr=%q", stdout, stderr)
 	}
 }
 
@@ -86,6 +94,10 @@ func TestPublishTestflightExistingBuildIDAllowsInternalGroup(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-internal/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -117,6 +129,8 @@ func TestPublishTestflightExistingBuildIDNotifyUsesBuildBetaNotificationsEndpoin
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -142,7 +156,7 @@ func TestPublishTestflightExistingBuildIDNotifyUsesBuildBetaNotificationsEndpoin
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount := len(reg.Requests()); requestCount != 5 {
+	if requestCount := len(reg.Requests()); requestCount != 6 {
 		t.Fatalf("expected group lookup, build fetch, group assignment, build beta detail fetch, and beta notification; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
@@ -162,6 +176,10 @@ func TestPublishTestflightExistingBuildIDAddsInternalGroupWithAccessToAllBuilds(
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-internal/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -179,7 +197,7 @@ func TestPublishTestflightExistingBuildIDAddsInternalGroupWithAccessToAllBuilds(
 		t.Fatalf("run error: %v", err)
 	}
 
-	if requestCount := len(reg.Requests()); requestCount != 3 {
+	if requestCount := len(reg.Requests()); requestCount != 5 {
 		t.Fatalf("expected group lookup, build fetch, and group assignment; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"buildId":"build-1"`) {
@@ -208,6 +226,8 @@ func TestPublishTestflightExistingBuildIDWithInternalAllBuildsGroupStillNotifies
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -233,7 +253,7 @@ func TestPublishTestflightExistingBuildIDWithInternalAllBuildsGroupStillNotifies
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount := len(reg.Requests()); requestCount != 5 {
+	if requestCount := len(reg.Requests()); requestCount != 6 {
 		t.Fatalf("expected group lookup, build fetch, group assignment, build beta detail fetch, and beta notification; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
@@ -253,6 +273,8 @@ func TestPublishTestflightExistingBuildIDNotifySkipsManualNotificationWhenAutoNo
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -276,7 +298,7 @@ func TestPublishTestflightExistingBuildIDNotifySkipsManualNotificationWhenAutoNo
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount := len(reg.Requests()); requestCount != 4 {
+	if requestCount := len(reg.Requests()); requestCount != 5 {
 		t.Fatalf("expected group lookup, build fetch, group assignment, and build beta detail fetch; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
@@ -296,8 +318,14 @@ func TestPublishTestflightExistingBuildIDAddsInternalAndExternalGroupsWhenIntern
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/betaGroups/group-internal/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}},{"type":"betaGroups","id":"group-external","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-external/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
 	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"},{"type":"betaGroups","id":"group-external"}]}`),
@@ -313,8 +341,8 @@ func TestPublishTestflightExistingBuildIDAddsInternalAndExternalGroupsWhenIntern
 		t.Fatalf("run error: %v", err)
 	}
 
-	if requestCount := len(reg.Requests()); requestCount != 3 {
-		t.Fatalf("expected group lookup, build fetch, and group assignment; got %d requests", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 6 {
+		t.Fatalf("expected group lookup, build and ownership fetches, membership reads, and group assignment; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal","group-external"]`) {
 		t.Fatalf("expected internal and external groups in output, got %q", stdout)
@@ -336,6 +364,8 @@ func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlready
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -370,8 +400,8 @@ func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlready
 	if !strings.Contains(stdout, `"notificationAction":"auto_notify_enabled"`) {
 		t.Fatalf("expected notificationAction=auto_notify_enabled in output, got %q", stdout)
 	}
-	if requestCount := len(reg.Requests()); requestCount != 5 {
-		t.Fatalf("expected 5 requests, got %d", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 6 {
+		t.Fatalf("expected 6 requests, got %d", requestCount)
 	}
 }
 
@@ -381,6 +411,8 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-1/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-1"),
@@ -403,8 +435,8 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 	if runErr == nil {
 		t.Fatal("expected error")
 	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+	if !strings.Contains(stdout, `"status":"partial"`) || !strings.Contains(stdout, `"failureStage":"notification"`) {
+		t.Fatalf("expected partial notification receipt, got %q", stdout)
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -418,8 +450,8 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 	if !strings.Contains(runErr.Error(), "Service unavailable: email delivery temporarily unavailable") {
 		t.Fatalf("expected underlying notification error, got %v", runErr)
 	}
-	if requestCount := len(reg.Requests()); requestCount != 5 {
-		t.Fatalf("expected 5 requests, got %d", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 6 {
+		t.Fatalf("expected 6 requests, got %d", requestCount)
 	}
 }
 
@@ -429,8 +461,14 @@ func TestPublishTestflightExistingBuildNumberResolvesAndWaits(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-42/preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-42","attributes":{"platform":"IOS"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-42/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-1/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=123", "filter[preReleaseVersion.platform]=IOS", "filter[processingState]=PROCESSING,FAILED,INVALID,VALID", "filter[version]=42", "limit=1", "sort=-uploadedDate"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"PROCESSING"}}]}`))
 	reg.Register(asctest.GET("/v1/builds/build-42"),
@@ -467,10 +505,33 @@ func TestPublishTestflightExistingBuildNumberResolvesAndWaits(t *testing.T) {
 	assertBuildsRequestOrder(t, reg,
 		"GET /v1/apps/123/betaGroups",
 		"GET /v1/builds",
+		"GET /v1/builds/build-42/app",
+		"GET /v1/builds/build-42/preReleaseVersion",
 		"GET /v1/builds/build-42",
 		"GET /v1/builds/build-42",
+		"GET /v1/betaGroups/group-1/relationships/builds",
 		"POST /v1/builds/build-42/relationships/betaGroups",
 	)
+}
+
+func TestPublishTestflightExistingBuildNumberRejectsAnotherPlatform(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Internal","isInternalGroup":true}}]}`))
+	reg.Register(asctest.GET("/v1/builds", "filter[app]=123", "filter[preReleaseVersion.platform]=IOS", "filter[processingState]=PROCESSING,FAILED,INVALID,VALID", "filter[version]=42", "limit=1", "sort=-uploadedDate"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-42/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
+	reg.Register(asctest.GET("/v1/builds/build-42/preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-42","attributes":{"platform":"MAC_OS"}}}`))
+
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), "publish", "testflight", "--app", "123", "--build-number", "42", "--platform", "IOS", "--group", "Internal", "--test-notes", "Fixture", "--locale", "en-US")
+	if err == nil || !strings.Contains(stdout, `"failureCode":"build_platform_unverified"`) {
+		t.Fatalf("expected platform refusal, got stdout=%s err=%v", stdout, err)
+	}
+	assertBuildsRequestOrder(t, reg, "GET /v1/apps/123/betaGroups", "GET /v1/builds", "GET /v1/builds/build-42/app", "GET /v1/builds/build-42/preReleaseVersion")
 }
 
 func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEndpoint(t *testing.T) {
@@ -479,8 +540,14 @@ func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEnd
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/builds/build-42/preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"pr-42","attributes":{"platform":"IOS"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-42/app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-1/relationships/builds", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=123", "filter[preReleaseVersion.platform]=IOS", "filter[processingState]=PROCESSING,FAILED,INVALID,VALID", "filter[version]=42", "limit=1", "sort=-uploadedDate"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}]}`))
 	reg.Register(asctest.POST("/v1/builds/build-42/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`),
@@ -504,8 +571,8 @@ func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEnd
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount := len(reg.Requests()); requestCount != 5 {
-		t.Fatalf("expected build lookup, group assignment, build beta detail fetch, and beta notification; got %d requests", requestCount)
+	if requestCount := len(reg.Requests()); requestCount != 8 {
+		t.Fatalf("expected group lookup, build lookup, ownership and platform checks, external group read, group assignment, build beta detail fetch, and beta notification; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"buildId":"build-42"`) {
 		t.Fatalf("expected build ID in output, got %q", stdout)

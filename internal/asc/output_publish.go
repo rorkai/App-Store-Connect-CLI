@@ -15,6 +15,13 @@ type TestNotesRecovery struct {
 	Arguments      []string `json:"arguments"`
 }
 
+// TestFlightNotificationRecovery reports an unresolved notification outcome.
+type TestFlightNotificationRecovery struct {
+	BuildID string `json:"buildId"`
+	State   string `json:"state"`
+	Message string `json:"message"`
+}
+
 func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][]string) {
 	headers := []string{"Build ID", "Version", "Build Number", "Processing", "Groups", "Uploaded", "Notified", "Notification Action", "Beta Review Submitted", "Beta Review Submission ID"}
 	notified := ""
@@ -38,13 +45,18 @@ func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][
 		result.BetaReviewSubmissionID,
 	}
 	rows := [][]string{row}
+	if result.NotificationRecovery != nil {
+		recovery := result.NotificationRecovery
+		headers = append(headers, "Notification State", "Notification Recovery")
+		rows[0] = append(rows[0], recovery.State, recovery.Message)
+	}
 	if result.UploadOnly {
 		headers = append(headers, "Upload Only")
 		rows[0] = append(rows[0], "true")
 	}
 	if strings.TrimSpace(result.Status) != "" {
-		headers = append(headers, "Status", "Failure Stage", "Completed Stages", "Failure")
-		rows[0] = append(rows[0], result.Status, result.FailureStage, strings.Join(result.CompletedStages, ", "), result.Failure)
+		headers = append(headers, "Status", "Failure Stage", "Failure Code", "Completed Stages", "Failure")
+		rows[0] = append(rows[0], result.Status, result.FailureStage, result.FailureCode, strings.Join(result.CompletedStages, ", "), result.Failure)
 	}
 	return headers, rows
 }

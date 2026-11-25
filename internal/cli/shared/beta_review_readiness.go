@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -101,10 +102,8 @@ func describeMissingBetaReviewInfo(ctx context.Context, client betaReviewReadine
 	}
 	if externalState == externalBetaStateMissingExportCompliance {
 		missing = append(missing, "export compliance for build "+buildID)
-		fixes = append(fixes,
-			fmt.Sprintf("asc builds update --build-id %q --uses-non-exempt-encryption=false", buildID),
-			fmt.Sprintf("(or, if the app uses non-exempt encryption: asc encryption declarations assign-builds --id \"DECLARATION_ID\" --build-id %q)", buildID),
-		)
+		exempt, nonExempt := betaReviewExportComplianceCommands(buildID)
+		fixes = append(fixes, exempt, "(or, if the app uses non-exempt encryption: "+nonExempt+")")
 	}
 	if len(missing) == 0 {
 		if externalState == externalBetaStateReadyForBetaSubmission && len(details.Data) > 0 && betaReviewErrorNamesNoReason(apiErr) {
@@ -215,4 +214,109 @@ func appendMissingBetaReviewDetailInfo(missing, fixes []string, detail asc.Resou
 		fixes = append(fixes, fmt.Sprintf("asc testflight review edit --id %q %s", detail.ID, strings.Join(flags, " ")))
 	}
 	return missing, fixes
+}
+
+// CheckBuildAppOwnership verifies the selected app before acting on an existing build.
+func CheckBuildAppOwnership(ctx context.Context, client betaReviewReadinessClient, appID, buildID string) error {
+	app, err := client.GetBuildApp(ctx, buildID)
+	if err != nil {
+		return fmt.Errorf("read build app: %w", err)
+	}
+	if app == nil || app.Data.Type != "apps" || app.Data.ID != appID {
+		return fmt.Errorf("build %s does not belong to app %s", buildID, appID)
+	}
+	return nil
+}
+
+// CheckBuildBetaReviewReadiness checks external testing requirements before mutations.
+func CheckBuildBetaReviewReadiness(ctx context.Context, client buildBetaReviewSubmissionClient, appID, buildID string) error {
+	submission, err := client.GetBuildBetaAppReviewSubmission(ctx, buildID)
+	if err == nil {
+		if submission == nil || submission.Data.Type != "betaAppReviewSubmissions" || strings.TrimSpace(submission.Data.ID) == "" {
+			return fmt.Errorf("beta review submission response is missing its ID")
+		}
+		return checkBetaReviewSubmissionState(buildID, submission.Data.Attributes.BetaReviewState)
+	}
+	if !asc.IsNotFound(err) {
+		return fmt.Errorf("read beta review submission: %w", err)
+	}
+	first, err := client.GetBetaAppLocalizations(ctx, asc.WithBetaAppLocalizationAppIDs([]string{appID}))
+	if err != nil {
+		return fmt.Errorf("read beta app localizations: %w", err)
+	}
+	if err := validateBetaReviewLocalizationPage(first); err != nil {
+		return err
+	}
+	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
+		boundNext, err := BindCollectionNextURL(ctx, client, next, "/v1/betaAppLocalizations", url.Values{"filter[app]": {appID}})
+		if err != nil {
+			return nil, err
+		}
+		page, err := client.GetBetaAppLocalizations(ctx, asc.NextURL[asc.BetaAppLocalizationsOption](boundNext))
+		if err == nil {
+			err = validateBetaReviewLocalizationPage(page)
+		}
+		return page, err
+	})
+	if err != nil {
+		return err
+	}
+	localizations, ok := all.(*asc.BetaAppLocalizationsResponse)
+	if !ok || localizations == nil {
+		return fmt.Errorf("invalid beta app localizations response")
+	}
+	details, err := client.GetBetaAppReviewDetails(ctx, asc.WithBetaAppReviewDetailsAppID(appID))
+	if err != nil {
+		return fmt.Errorf("read beta review details: %w", err)
+	}
+	beta, err := client.GetBuildBuildBetaDetail(ctx, buildID)
+	if err != nil {
+		return fmt.Errorf("read beta build details: %w", err)
+	}
+	if beta == nil || beta.Data.Type != "buildBetaDetails" || strings.TrimSpace(beta.Data.ID) == "" {
+		return fmt.Errorf("invalid build beta details response")
+	}
+	if details != nil {
+		for _, detail := range details.Data {
+			if detail.Type != "betaAppReviewDetails" || strings.TrimSpace(detail.ID) == "" {
+				return fmt.Errorf("invalid beta app review details resource")
+			}
+		}
+	}
+	missing, fixes := appendMissingBetaLocalizationInfo(nil, nil, appID, localizations.Data)
+	if details == nil || len(details.Data) == 0 {
+		missing = append(missing, "beta app review details")
+	} else {
+		missing, fixes = appendMissingBetaReviewDetailInfo(missing, fixes, details.Data[0])
+	}
+	if beta != nil && strings.EqualFold(strings.TrimSpace(beta.Data.Attributes.ExternalBuildState), externalBetaStateMissingExportCompliance) {
+		missing = append(missing, "export compliance")
+		exempt, nonExempt := betaReviewExportComplianceCommands(buildID)
+		fixes = append(fixes, exempt+" or, if the app uses non-exempt encryption, "+nonExempt)
+	}
+	if len(missing) > 0 {
+		message := fmt.Sprintf("external testing requires %s before groups can be assigned or testers notified", strings.Join(missing, ", "))
+		if len(fixes) > 0 {
+			message += ". Set the missing values with " + strings.Join(fixes, ". Then run ")
+		}
+		return WithDiagnostic(NewValidationError(errors.New(message)), DiagnosticStateNotReady, "")
+	}
+	return nil
+}
+
+func betaReviewExportComplianceCommands(buildID string) (exempt, nonExempt string) {
+	return fmt.Sprintf("asc builds update --build-id %q --uses-non-exempt-encryption=false", buildID),
+		fmt.Sprintf("asc encryption declarations assign-builds --id \"DECLARATION_ID\" --build-id %q", buildID)
+}
+
+func validateBetaReviewLocalizationPage(page *asc.BetaAppLocalizationsResponse) error {
+	if page == nil || page.Data == nil {
+		return fmt.Errorf("missing beta app localizations response data")
+	}
+	for _, localization := range page.Data {
+		if localization.Type != "betaAppLocalizations" || strings.TrimSpace(localization.ID) == "" {
+			return fmt.Errorf("invalid beta app localization resource")
+		}
+	}
+	return nil
 }

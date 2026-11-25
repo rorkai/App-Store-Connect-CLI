@@ -78,6 +78,11 @@ asc publish testflight \
 `buildId` with `asc builds wait`, then `asc builds add-groups`, in later
 resumable steps.
 
+Use `--notify` to request a build-wide notification. This can reach eligible
+testers in groups outside the `--group` selection. Adding a group can also
+trigger Apple's automatic notification. If delivery is unknown, reconcile
+the same build without `--notify` to avoid a second manual send.
+
 ### App Store workflow
 
 Ship to the App Store with the canonical publish command:
