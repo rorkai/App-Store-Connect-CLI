@@ -47,8 +47,10 @@ func checkPriceCollectionPage[T any](count *priceCollectionCount, page *asc.Resp
 	return nil
 }
 
-func subscriptionHasExistingPrices(ctx context.Context, client *asc.Client, subscriptionID string) (bool, error) {
-	prices, err := client.GetSubscriptionPricesRelationships(asc.WithNoRedirectReads(ctx), subscriptionID)
+func subscriptionHasExistingPrices(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string) (bool, error) {
+	requestCtx, cancel := d.Timeout(asc.WithNoRedirectReads(ctx))
+	defer cancel()
+	prices, err := client.GetSubscriptionPricesRelationships(requestCtx, subscriptionID)
 	if err != nil {
 		return false, err
 	}
@@ -61,8 +63,8 @@ func subscriptionHasExistingPrices(ctx context.Context, client *asc.Client, subs
 	return len(prices.Data) > 0, nil
 }
 
-func requireUnpricedSubscription(ctx context.Context, client *asc.Client, id string) error {
-	exists, err := subscriptionHasExistingPrices(ctx, client, id)
+func requireUnpricedSubscription(ctx context.Context, d *shared.Deps, client *asc.Client, id string) error {
+	exists, err := subscriptionHasExistingPrices(ctx, d, client, id)
 	if err != nil {
 		return err
 	}
@@ -107,7 +109,7 @@ func subscriptionPriceRequiresTierIntent(price asc.Resource[asc.SubscriptionPric
 	return tiers.Data == nil || len(tiers.Data) > 0 || tiers.Links.Next != "" || tiers.Meta.Paging.Total != 0
 }
 
-func subscriptionPriceTiersMatch(ctx context.Context, client *asc.Client, priceID string, desired []asc.ProposedSubscriptionPriceTier) (bool, error) {
+func subscriptionPriceTiersMatch(ctx context.Context, d *shared.Deps, client *asc.Client, priceID string, desired []asc.ProposedSubscriptionPriceTier) (bool, error) {
 	var count priceCollectionCount
 	fetch := func(next string) (*asc.SubscriptionPriceTiersResponse, error) {
 		if next != "" {
@@ -120,7 +122,9 @@ func subscriptionPriceTiersMatch(ctx context.Context, client *asc.Client, priceI
 				return nil, err
 			}
 		}
-		resp, err := client.GetSubscriptionPriceAdditionalPriceTiers(ctx, priceID,
+		requestCtx, cancel := d.Timeout(ctx)
+		defer cancel()
+		resp, err := client.GetSubscriptionPriceAdditionalPriceTiers(requestCtx, priceID,
 			asc.Limit[asc.SubscriptionPriceTiersOption](200), asc.WithSubscriptionPriceTiersInclude([]string{"subscriptionPricePoint"}), asc.NextURL[asc.SubscriptionPriceTiersOption](next))
 		if err == nil {
 			err = checkPriceCollectionPage(&count, resp, "price tier", "subscriptionPriceTiers")

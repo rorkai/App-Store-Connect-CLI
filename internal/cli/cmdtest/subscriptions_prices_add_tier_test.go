@@ -644,13 +644,20 @@ func TestSubscriptionsPricesAdd_ForceRejectsInvalidBoolean(t *testing.T) {
 func TestSubscriptionsPricesAddRefreshesContextAfterTierResolution(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_TIMEOUT", "80ms")
+	setPriceReplayRetryOptions(t)
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
+	writes := 0
 	var relationshipDeadlineRemaining time.Duration
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if writes > 0 || req.Method == http.MethodPost {
+			if err := delayPriceRetryRequest(req); err != nil {
+				return nil, err
+			}
+		}
 		switch {
 		case req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/subscriptions/8000000003/pricePoints"):
 			time.Sleep(60 * time.Millisecond)
@@ -692,6 +699,10 @@ func TestSubscriptionsPricesAddRefreshesContextAfterTierResolution(t *testing.T)
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case req.Method == http.MethodPost && strings.Contains(req.URL.Path, "/subscriptionPrices"):
+			writes++
+			if writes == 1 {
+				return jsonHTTPResponse(http.StatusTooManyRequests, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED"}]}`), nil
+			}
 			resp := `{"data":{"type":"subscriptionPrices","id":"sub-price-1","attributes":{}}}`
 			return &http.Response{
 				StatusCode: http.StatusCreated,
@@ -731,7 +742,7 @@ func TestSubscriptionsPricesAddRefreshesContextAfterTierResolution(t *testing.T)
 	if relationshipDeadlineRemaining == 0 {
 		t.Fatal("expected relationship request to run")
 	}
-	if !strings.Contains(stdout, `"id":"sub-price-1"`) {
+	if writes != 2 || !strings.Contains(stdout, `"id":"sub-price-1"`) {
 		t.Fatalf("expected create output, got %q", stdout)
 	}
 }

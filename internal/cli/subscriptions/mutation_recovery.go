@@ -45,6 +45,7 @@ func runReconciledMutation(
 // retried by the caller after reconciliation. Both need fresh price eligibility.
 func writeSubscriptionPrice(
 	ctx context.Context,
+	d *shared.Deps,
 	replay bool,
 	matches func(context.Context) (bool, error),
 	eligible func(context.Context) error,
@@ -62,7 +63,9 @@ func writeSubscriptionPrice(
 				return false, err
 			}
 		}
-		return false, write(attemptCtx)
+		writeCtx, cancel := d.Timeout(attemptCtx)
+		defer cancel()
+		return false, write(writeCtx)
 	})
 }
 
@@ -74,15 +77,21 @@ func runReconciledPriceMutation(
 	write func(context.Context) error,
 ) (reconciledMutationStatus, error) {
 	replay := false
-	var matched bool
-	status, err := runReconciledMutation(ctx, d, matches, func(requestCtx context.Context) error {
-		var err error
-		matched, err = writeSubscriptionPrice(requestCtx, replay, matches, eligible, write)
-		replay = true
-		return err
-	})
-	if matched && err == nil {
+	matched, _, err := shared.RunReconciledMultiRequestMutationWith(ctx, d,
+		func(attemptCtx context.Context) (bool, error) {
+			matched, err := writeSubscriptionPrice(attemptCtx, d, replay, matches, eligible, write)
+			replay = true
+			return matched, err
+		},
+		func(readCtx context.Context) (bool, bool, error) {
+			matched, err := matches(readCtx)
+			return matched, matched, err
+		}, true)
+	if err != nil {
+		return "", err
+	}
+	if matched {
 		return reconciledMutationReconciled, nil
 	}
-	return status, err
+	return reconciledMutationCreated, nil
 }
