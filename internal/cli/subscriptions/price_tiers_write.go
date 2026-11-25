@@ -16,6 +16,38 @@ import (
 
 var errSubscriptionPriceTierIntentRequired = errors.New("--additional-price-tiers is required when changing a price with volume tiers or unverified tier linkage. Supply all desired tiers or [] for a single-tier price")
 
+// Price write decisions that depend on absence must account for every advertised row.
+type priceCollectionCount struct {
+	read       int
+	advertised int
+}
+
+func checkPriceCollectionPage[T any](count *priceCollectionCount, page *asc.Response[T], name string) error {
+	if page == nil || page.Data == nil {
+		return fmt.Errorf("missing %s collection", name)
+	}
+	count.read += len(page.Data)
+	count.advertised = max(count.advertised, asc.ParsePagingTotal(page.Meta))
+	if page.Links.Next == "" && count.read < count.advertised {
+		return fmt.Errorf("incomplete %s collection: received %d of %d", name, count.read, count.advertised)
+	}
+	return nil
+}
+
+func subscriptionHasExistingPrices(ctx context.Context, client *asc.Client, subscriptionID string) (bool, error) {
+	prices, err := client.GetSubscriptionPricesRelationships(asc.WithNoRedirectReads(ctx), subscriptionID)
+	if err != nil {
+		return false, err
+	}
+	if prices == nil || prices.Data == nil {
+		return false, fmt.Errorf("missing existing price collection")
+	}
+	if len(prices.Data) == 0 && (prices.Links.Next != "" || asc.ParsePagingTotal(prices.Meta) > 0) {
+		return false, fmt.Errorf("unverified existing price membership: empty page reports additional prices")
+	}
+	return len(prices.Data) > 0, nil
+}
+
 func subscriptionPriceRequiresTierIntent(price asc.Resource[asc.SubscriptionPriceAttributes]) bool {
 	if price.Attributes.PlanType == asc.SubscriptionPlanTypeMonthly {
 		return false
@@ -39,6 +71,7 @@ func subscriptionPriceRequiresTierIntent(price asc.Resource[asc.SubscriptionPric
 }
 
 func subscriptionPriceTiersMatch(ctx context.Context, client *asc.Client, priceID string, desired []asc.ProposedSubscriptionPriceTier) (bool, error) {
+	var count priceCollectionCount
 	fetch := func(next string) (*asc.SubscriptionPriceTiersResponse, error) {
 		if next != "" {
 			canonical, err := client.ValidateNoRedirectReadContinuationQuery(ctx, next, "/v1/subscriptionPrices/"+url.PathEscape(priceID)+"/additionalPriceTiers", url.Values{"include": {"subscriptionPricePoint"}})
@@ -52,8 +85,8 @@ func subscriptionPriceTiersMatch(ctx context.Context, client *asc.Client, priceI
 		}
 		resp, err := client.GetSubscriptionPriceAdditionalPriceTiers(ctx, priceID,
 			asc.Limit[asc.SubscriptionPriceTiersOption](200), asc.WithSubscriptionPriceTiersInclude([]string{"subscriptionPricePoint"}), asc.NextURL[asc.SubscriptionPriceTiersOption](next))
-		if err == nil && (resp == nil || resp.Data == nil) {
-			return nil, fmt.Errorf("subscription tier readback requires a data array")
+		if err == nil {
+			err = checkPriceCollectionPage(&count, resp, "price tier")
 		}
 		return resp, err
 	}
@@ -76,8 +109,8 @@ func subscriptionPriceTiersMatch(ctx context.Context, client *asc.Client, priceI
 		if err := json.Unmarshal(tier.Relationships, &relationships); err != nil {
 			return false, err
 		}
-		if tier.Attributes.MinQuantity == nil || relationships.SubscriptionPricePoint == nil {
-			return false, nil
+		if tier.Attributes.MinQuantity == nil || relationships.SubscriptionPricePoint == nil || relationships.SubscriptionPricePoint.Data.Type != asc.ResourceTypeSubscriptionPricePoints {
+			return false, fmt.Errorf("price tier %q is missing its minimum quantity or price point", tier.ID)
 		}
 		actual = append(actual, asc.ProposedSubscriptionPriceTier{
 			MinQuantity:              *tier.Attributes.MinQuantity,
@@ -87,6 +120,9 @@ func subscriptionPriceTiersMatch(ctx context.Context, client *asc.Client, priceI
 	slices.SortFunc(actual, func(a, b asc.ProposedSubscriptionPriceTier) int {
 		return cmp.Compare(a.MinQuantity, b.MinQuantity)
 	})
+	if err := asc.ValidateProposedSubscriptionPriceTiers(actual); err != nil {
+		return false, fmt.Errorf("invalid price tier readback: %w", err)
+	}
 	return slices.Equal(actual, desired), nil
 }
 
@@ -98,6 +134,7 @@ func subscriptionHasPriceTiers(ctx context.Context, d *shared.Deps, client *asc.
 	if len(territories) > 0 {
 		query.Set("filter[territory]", strings.Join(territories, ","))
 	}
+	var count priceCollectionCount
 	fetch := func(next string) (*asc.SubscriptionPriceTiersResponse, error) {
 		opts := []asc.SubscriptionPriceTiersOption{
 			asc.WithSubscriptionPriceTiersSubscriptions([]string{subscriptionID}),
@@ -121,10 +158,7 @@ func subscriptionHasPriceTiers(ctx context.Context, d *shared.Deps, client *asc.
 		if err != nil {
 			return nil, err
 		}
-		if response == nil || response.Data == nil {
-			return nil, fmt.Errorf("cannot verify volume price tiers for subscription %s: missing tier collection", subscriptionID)
-		}
-		return response, nil
+		return response, checkPriceCollectionPage(&count, response, "price tier")
 	}
 	first, err := fetch("")
 	if err != nil {
