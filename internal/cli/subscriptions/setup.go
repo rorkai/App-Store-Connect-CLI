@@ -1731,7 +1731,7 @@ func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client,
 			if !ok {
 				return fmt.Errorf("unexpected subscription prices pagination type %T", page)
 			}
-			if err := checkPriceCollectionPage(&count, resp, "price"); err != nil {
+			if err := checkPriceCollectionPage(&count, resp, "price", asc.ResourceTypeSubscriptionPrices); err != nil {
 				return err
 			}
 			for _, price := range resp.Data {

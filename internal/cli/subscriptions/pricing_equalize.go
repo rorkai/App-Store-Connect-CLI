@@ -817,7 +817,7 @@ func fetchEqualizations(ctx context.Context, d *shared.Deps, client *asc.Client,
 	}
 
 	var count priceCollectionCount
-	if err := checkPriceCollectionPage(&count, resp, "equalization"); err != nil {
+	if err := checkPriceCollectionPage(&count, resp, "equalization", asc.ResourceTypeSubscriptionPricePoints); err != nil {
 		return nil, err
 	}
 	allPages, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
@@ -836,7 +836,7 @@ func fetchEqualizations(ctx context.Context, d *shared.Deps, client *asc.Client,
 		if err != nil {
 			return nil, err
 		}
-		return page, checkPriceCollectionPage(&count, page, "equalization")
+		return page, checkPriceCollectionPage(&count, page, "equalization", asc.ResourceTypeSubscriptionPricePoints)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate equalizations: %w", err)

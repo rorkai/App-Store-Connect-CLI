@@ -1195,20 +1195,16 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 
 	var count priceCollectionCount
 	guardedTerritories := map[string]bool{}
-	seenPriceIDs := map[string]bool{}
 	for {
 		resp, err := client.GetSubscriptionPrices(ctx, subID, opts...)
 		if err != nil {
 			return nil, err
 		}
 
-		if err := checkPriceCollectionPage(&count, resp, "price"); err != nil {
+		if err := checkPriceCollectionPage(&count, resp, "price", asc.ResourceTypeSubscriptionPrices); err != nil {
 			return nil, err
 		}
 		for _, price := range resp.Data {
-			if id := strings.TrimSpace(price.ID); territoryID == "" && tiers == nil && price.Type == asc.ResourceTypeSubscriptionPrices && id != "" {
-				seenPriceIDs[id] = true
-			}
 			if tiers == nil && subscriptionPriceRequiresTierIntent(price) {
 				guardedTerritories[verifiedSubscriptionPriceTerritory(price.Relationships)] = true
 			}
@@ -1230,8 +1226,7 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 		next := strings.TrimSpace(resp.Links.Next)
 		if next == "" {
 			if len(guardedTerritories) > 0 {
-				// Only a complete set of distinct prices can rule out tiers in the target storefront.
-				if territoryID != "" || guardedTerritories[""] || len(seenPriceIDs) != count.read {
+				if territoryID != "" || guardedTerritories[""] {
 					return nil, errSubscriptionPriceTierIntentRequired
 				}
 				point, err := client.GetSubscriptionPricePoint(ctx, url.PathEscape(pricePointID), asc.WithSubscriptionPricePointInclude([]string{"territory"}))
