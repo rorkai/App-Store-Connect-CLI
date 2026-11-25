@@ -159,12 +159,33 @@ func subscriptionPricesRows(resp *SubscriptionPricesResponse) ([]string, [][]str
 	showPricePointTerritory := false
 	showEqualizations := false
 	showAdjustedEqualizations := false
+	showAdditionalTiers := false
+	additionalTiers := make([]string, len(resp.Data))
 	pricePointRelationships := make([]subscriptionPricePointIncludedRelationships, len(resp.Data))
 
 	for index, item := range resp.Data {
 		_, pricePointID, err := subscriptionPriceRelationshipIDs(item.Relationships)
 		if err != nil {
 			return nil, nil, err
+		}
+		var relationships SubscriptionPriceRelationships
+		if len(item.Relationships) > 0 {
+			if err := json.Unmarshal(item.Relationships, &relationships); err != nil {
+				return nil, nil, err
+			}
+		}
+		if relationships.AdditionalPriceTiers != nil {
+			showAdditionalTiers = true
+			var labels []string
+			for _, tier := range relationships.AdditionalPriceTiers.Data {
+				label := tier.ID
+				var quantity int
+				if raw := included[ResourceType("subscriptionPriceTiers")][tier.ID].Attributes["minQuantity"]; len(raw) > 0 && json.Unmarshal(raw, &quantity) == nil {
+					label = fmt.Sprintf("%s (%d+)", label, quantity)
+				}
+				labels = append(labels, label)
+			}
+			additionalTiers[index] = strings.Join(labels, ", ")
 		}
 		pricePointRelationships[index].Territory, pricePointRelationships[index].HasTerritory = includedPricePointRelationshipValue(included, pricePointID, "territory")
 		pricePointRelationships[index].Equalizations, pricePointRelationships[index].HasEqualizations = includedPricePointRelationshipValue(included, pricePointID, "equalizations")
@@ -195,6 +216,10 @@ func subscriptionPricesRows(resp *SubscriptionPricesResponse) ([]string, [][]str
 	}
 	if showAdjustedEqualizations {
 		headers = append(headers, "Adjusted Equalizations URL")
+	}
+
+	if showAdditionalTiers {
+		headers = append(headers, "Additional Price Tiers")
 	}
 
 	rows := make([][]string, 0, len(resp.Data))
@@ -235,6 +260,9 @@ func subscriptionPricesRows(resp *SubscriptionPricesResponse) ([]string, [][]str
 		}
 		if showAdjustedEqualizations {
 			row = append(row, pricePointRelationships[index].AdjustedEqualizations)
+		}
+		if showAdditionalTiers {
+			row = append(row, additionalTiers[index])
 		}
 		rows = append(rows, row)
 	}

@@ -493,7 +493,7 @@ func TestSubscriptionsPricesAdd_ExistingMatchingPriceSkipsCreate(t *testing.T) {
 			if got := query.Get("filter[territory]"); got != "USA" {
 				t.Fatalf("expected filter[territory]=USA, got %q", got)
 			}
-			if got := query.Get("include"); got != "subscriptionPricePoint,territory" {
+			if got := query.Get("include"); got != "subscriptionPricePoint,territory,additionalPriceTiers" {
 				t.Fatalf("expected relationship include query, got %q", got)
 			}
 			body := subscriptionPriceListFixture("PP_ID", "USA", `{"startDate":"2026-05-01","preserved":true}`)
@@ -563,6 +563,15 @@ func TestSubscriptionsPricesAdd_ForceResavesCompletePriceMatrix(t *testing.T) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			if req.URL.Query().Get("filter[subscription]") != "8000000003" || req.URL.Query().Get("limit") != "1" {
+				t.Fatalf("volume tiers query = %s", req.URL.RawQuery)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{}}`)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/PP_ID/equalizations":

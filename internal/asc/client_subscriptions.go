@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -46,6 +47,16 @@ func (c *Client) SetSubscriptionPriceMatrix(ctx context.Context, subID string, e
 		entry.TerritoryID = strings.ToUpper(strings.TrimSpace(entry.TerritoryID))
 		entry.Attributes.StartDate = strings.TrimSpace(entry.Attributes.StartDate)
 		entry.Attributes.PlanType = SubscriptionPlanType(strings.TrimSpace(string(entry.Attributes.PlanType)))
+		entry.AdditionalPriceTiers = slices.Clone(entry.AdditionalPriceTiers)
+		for index := range entry.AdditionalPriceTiers {
+			entry.AdditionalPriceTiers[index].SubscriptionPricePointID = strings.TrimSpace(entry.AdditionalPriceTiers[index].SubscriptionPricePointID)
+		}
+		if err := ValidateProposedSubscriptionPriceTiers(entry.AdditionalPriceTiers); err != nil {
+			return nil, fmt.Errorf("subscription price row %d: %w", i+1, err)
+		}
+		if len(entry.AdditionalPriceTiers) > 0 && entry.Attributes.PlanType == SubscriptionPlanTypeMonthly {
+			return nil, fmt.Errorf("subscription price row %d: additional price tiers require UPFRONT plan type", i+1)
+		}
 		if entry.PricePointID == "" {
 			return nil, fmt.Errorf("subscription price row %d: price point ID is required", i+1)
 		}
@@ -63,7 +74,7 @@ func (c *Client) SetSubscriptionPriceMatrix(ctx context.Context, subID string, e
 	})
 
 	relationshipData := make([]ResourceData, 0, len(normalized))
-	included := make([]SubscriptionPriceInlineCreate, 0, len(normalized))
+	included := make([]any, 0, len(normalized))
 	for i, entry := range normalized {
 		inlinePriceID := fmt.Sprintf("${price-%d}", i+1)
 		relationshipData = append(relationshipData, ResourceData{
@@ -88,15 +99,23 @@ func (c *Client) SetSubscriptionPriceMatrix(ctx context.Context, subID string, e
 				},
 			}
 		}
+		tierLinkage, tierResources := subscriptionPriceTierResources(entry.AdditionalPriceTiers, fmt.Sprintf("price-%d-", i+1))
+		relationships.AdditionalPriceTiers = tierLinkage
 		included = append(included, SubscriptionPriceInlineCreate{
 			Type:          ResourceTypeSubscriptionPrices,
 			ID:            inlinePriceID,
 			Attributes:    attributes,
 			Relationships: relationships,
 		})
+		for _, resource := range tierResources {
+			included = append(included, resource)
+		}
 	}
 
-	payload := SubscriptionUpdateRequest{
+	payload := struct {
+		Data     SubscriptionUpdateData `json:"data"`
+		Included []any                  `json:"included"`
+	}{
 		Data: SubscriptionUpdateData{
 			Type: ResourceTypeSubscriptions,
 			ID:   subID,
@@ -117,7 +136,7 @@ func (c *Client) SetSubscriptionPriceMatrix(ctx context.Context, subID string, e
 }
 
 func subscriptionPriceMatrixEntriesEqual(a, b SubscriptionInlinePrice) bool {
-	if a.PricePointID != b.PricePointID || a.TerritoryID != b.TerritoryID || a.Attributes.StartDate != b.Attributes.StartDate || a.Attributes.PlanType != b.Attributes.PlanType {
+	if !slices.Equal(a.AdditionalPriceTiers, b.AdditionalPriceTiers) || a.PricePointID != b.PricePointID || a.TerritoryID != b.TerritoryID || a.Attributes.StartDate != b.Attributes.StartDate || a.Attributes.PlanType != b.Attributes.PlanType {
 		return false
 	}
 	if a.Attributes.Preserved == nil || b.Attributes.Preserved == nil {
@@ -131,22 +150,31 @@ func subscriptionPriceMatrixEntriesEqual(a, b SubscriptionInlinePrice) bool {
 // SubscriptionPriceInlineCreate resources, which is the only supported method
 // for setting the first price on a new subscription. POST /v1/subscriptionPrices
 // only works for price *changes* on subscriptions that already have a price.
-func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes) (*SubscriptionResponse, error) {
+func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes, tiers ...ProposedSubscriptionPriceTier) (*SubscriptionResponse, error) {
 	return c.SetSubscriptionPriceMatrix(ctx, subID, []SubscriptionInlinePrice{{
-		PricePointID: pricePointID,
-		TerritoryID:  territoryID,
-		Attributes:   attrs,
+		PricePointID:         pricePointID,
+		TerritoryID:          territoryID,
+		Attributes:           attrs,
+		AdditionalPriceTiers: tiers,
 	}})
 }
 
 // CreateSubscriptionPrice adds a price to a subscription.
-func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes) (*SubscriptionPriceResponse, error) {
+func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes, tiers ...ProposedSubscriptionPriceTier) (*SubscriptionPriceResponse, error) {
 	subID = strings.TrimSpace(subID)
 	pricePointID = strings.TrimSpace(pricePointID)
 	territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
 	if subID == "" || pricePointID == "" {
 		return nil, fmt.Errorf("subscription ID and price point ID are required")
 	}
+
+	if len(tiers) > 0 && attrs.PlanType == SubscriptionPlanTypeMonthly {
+		return nil, fmt.Errorf("additional price tiers require UPFRONT plan type")
+	}
+	if err := ValidateProposedSubscriptionPriceTiers(tiers); err != nil {
+		return nil, err
+	}
+	tierLinkage, tierResources := subscriptionPriceTierResources(tiers, "")
 
 	var attributes *SubscriptionPriceCreateAttributes
 	if attrs.StartDate != "" || attrs.Preserved != nil || attrs.PlanType != "" {
@@ -176,12 +204,19 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 		}
 	}
 
-	payload := SubscriptionPriceCreateRequest{
-		Data: SubscriptionPriceCreateData{
-			Type:          ResourceTypeSubscriptionPrices,
-			Attributes:    attributes,
-			Relationships: relationships,
+	relationships.AdditionalPriceTiers = tierLinkage
+	payload := struct {
+		SubscriptionPriceCreateRequest
+		Included []SubscriptionPriceTierInlineCreate `json:"included,omitempty"`
+	}{
+		SubscriptionPriceCreateRequest: SubscriptionPriceCreateRequest{
+			Data: SubscriptionPriceCreateData{
+				Type:          ResourceTypeSubscriptionPrices,
+				Attributes:    attributes,
+				Relationships: relationships,
+			},
 		},
+		Included: tierResources,
 	}
 
 	return sendJSON[SubscriptionPriceResponse](ctx, c, writeRequest{
