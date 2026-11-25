@@ -51,18 +51,25 @@ func newWebAppsVietnamLicenseCommand(d *shared.Deps) *ffcli.Command {
 				return withWebAuthHint(err, command)
 			}
 			var document struct {
-				Data struct {
-					ID         string `json:"id"`
-					Attributes struct {
-						License    json.RawMessage `json:"license"`
-						LicenseURL json.RawMessage `json:"licenseUrl"`
-					} `json:"attributes"`
-				} `json:"data"`
+				Data json.RawMessage `json:"data"`
 			}
 			if err := json.Unmarshal(result, &document); err != nil {
 				return fmt.Errorf("failed to parse Vietnam game license response: %w", err)
 			}
-			row := []string{document.Data.ID, summarizeJSONValue(document.Data.Attributes.License), summarizeJSONValue(document.Data.Attributes.LicenseURL)}
+			if len(document.Data) == 0 {
+				return fmt.Errorf("invalid Vietnam game license response: missing license resource")
+			}
+			var resource struct {
+				ID         string `json:"id"`
+				Attributes struct {
+					License    json.RawMessage `json:"license"`
+					LicenseURL json.RawMessage `json:"licenseUrl"`
+				} `json:"attributes"`
+			}
+			if err := json.Unmarshal(document.Data, &resource); err != nil {
+				return fmt.Errorf("failed to parse Vietnam game license resource: %w", err)
+			}
+			row := []string{resource.ID, summarizeJSONValue(resource.Attributes.License), summarizeJSONValue(resource.Attributes.LicenseURL)}
 			return d.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"id", "license", "license_url"}, [][]string{row})
 		},
 	}

@@ -18,7 +18,7 @@ func TestWebAppsVietnamLicenseView(t *testing.T) {
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	originalResolve := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = originalResolve })
-	const response = `{"data":{"type":"vietnamGameLicenseDetails","id":"license-1","attributes":{"license":null,"licenseUrl":null},"links":{"self":"detail"}},"links":{"self":"detail"},"meta":{"futureField":true}}`
+	response := `{"data":{"type":"vietnamGameLicenseDetails","id":"license-1","attributes":{"license":null,"licenseUrl":null},"links":{"self":"detail"}},"links":{"self":"detail"},"meta":{"futureField":true}}`
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requests++
@@ -63,5 +63,11 @@ func TestWebAppsVietnamLicenseView(t *testing.T) {
 	err = NewWebCommand(d).ParseAndRun(context.Background(), args)
 	if err == nil || !strings.Contains(stderr.String(), "--app is required") || stdout.Len() != 0 || requests != 2 || resolutions != 2 {
 		t.Fatalf("missing app: error = %v, stderr = %q, stdout = %q, requests = %d, resolutions = %d", err, stderr, stdout, requests, resolutions)
+	}
+	response = `{"errors":[{"title":"Detail unavailable"}]}`
+	d, stdout, _ = newWebTestDeps()
+	err = NewWebCommand(d).ParseAndRun(context.Background(), append(args, "--app", "app-1", "--output", "markdown"))
+	if err == nil || !strings.Contains(err.Error(), "missing license resource") || stdout.Len() != 0 {
+		t.Fatalf("missing resource: error = %v, stdout = %q", err, stdout)
 	}
 }

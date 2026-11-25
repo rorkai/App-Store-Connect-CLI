@@ -42,6 +42,7 @@ func TestWebAppsChinaPublicationPermitView(t *testing.T) {
 	for _, status := range []string{"absent", "present"} {
 		if status == "present" {
 			response = strings.Replace(response, `"data":null`, `"data":{"type":"appPublicationPermits","id":"permit-1"}`, 1)
+			response = strings.Replace(response, `"meta":`, `"included":[{"type":"appPublicationPermits","id":"permit-1","attributes":{"extra":true}}],"meta":`, 1)
 		}
 		for _, output := range []string{"json", "markdown"} {
 			d, stdout, stderr := newWebTestDeps()
@@ -80,10 +81,16 @@ func TestWebAppsChinaPublicationPermitView(t *testing.T) {
 			t.Fatalf("invalid args %v: error=%v stderr=%q stdout=%q requests=%d", tc.args, err, stderr, stdout, requests)
 		}
 	}
-	response = `{"data":{"type":"apps","id":"app-1","relationships":{}}}`
-	d, stdout, _ := newWebTestDeps()
-	err = NewWebCommand(d).ParseAndRun(context.Background(), []string{"apps", "compliance", "china-publication-permit", "view", "--app", "app-1"})
-	if err == nil || !strings.Contains(err.Error(), "missing app or permit relationship") || stdout.Len() != 0 {
-		t.Fatalf("missing relationship: error=%v stdout=%q", err, stdout)
+	for _, tc := range []struct{ body, diagnostic string }{
+		{`{"data":{"type":"apps","id":"app-1","relationships":{}}}`, "missing app or permit relationship"},
+		{strings.Replace(response, `"id":"app-1"`, `"id":"another-app"`, 1), "requested app"},
+		{strings.Replace(response, `{"type":"appPublicationPermits","id":"permit-1"}`, `{}`, 1), "permit linkage"},
+	} {
+		response = tc.body
+		d, stdout, _ := newWebTestDeps()
+		err = NewWebCommand(d).ParseAndRun(context.Background(), []string{"apps", "compliance", "china-publication-permit", "view", "--app", "app-1", "--output", "markdown"})
+		if err == nil || !strings.Contains(err.Error(), tc.diagnostic) || stdout.Len() != 0 {
+			t.Errorf("expected %q, error=%v stdout=%q", tc.diagnostic, err, stdout)
+		}
 	}
 }

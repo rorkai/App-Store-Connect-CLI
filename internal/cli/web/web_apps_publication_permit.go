@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -63,6 +65,7 @@ func newWebAppsChinaPublicationPermitViewCommand(d *shared.Deps) *ffcli.Command 
 			}
 			var document struct {
 				Data struct {
+					Type          string `json:"type"`
 					ID            string `json:"id"`
 					Relationships struct {
 						Permit *struct {
@@ -74,13 +77,20 @@ func newWebAppsChinaPublicationPermitViewCommand(d *shared.Deps) *ffcli.Command 
 			if err := json.Unmarshal(result, &document); err != nil {
 				return fmt.Errorf("failed to parse publication permit response: %w", err)
 			}
+			if document.Data.Type != "apps" || document.Data.ID != resolvedAppID {
+				return fmt.Errorf("invalid publication permit response: resource does not identify the requested app")
+			}
 			permit := document.Data.Relationships.Permit
-			if document.Data.ID == "" || permit == nil || len(permit.Data) == 0 {
+			if permit == nil || len(permit.Data) == 0 {
 				return fmt.Errorf("invalid publication permit response: missing app or permit relationship")
 			}
-			status := "present"
-			if string(permit.Data) == "null" {
-				status = "absent"
+			status := "absent"
+			if string(permit.Data) != "null" {
+				var linkage asc.RelationshipData
+				if err := json.Unmarshal(permit.Data, &linkage); err != nil || strings.TrimSpace(string(linkage.Type)) == "" || strings.TrimSpace(linkage.ID) == "" {
+					return fmt.Errorf("invalid publication permit response: malformed permit linkage")
+				}
+				status = "present"
 			}
 			return d.PrintOutputRows(result, *output.Output, *output.Pretty, []string{"app_id", "publication_permit"}, [][]string{{document.Data.ID, status}})
 		},

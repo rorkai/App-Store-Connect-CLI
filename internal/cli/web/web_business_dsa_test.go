@@ -18,12 +18,13 @@ func TestWebBusinessDSAStatus(t *testing.T) {
 	originalResolve := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = originalResolve })
 
-	const response = `{"accountId":"private-account","traderDeclaration":"TRADER","sellerInfo":[{"id":"private-seller","verificationStatus":"VERIFIED","isEuCovered":false,"verificationStatusLocKey":"private-key","email":"private-contact@example.com","address":{"line":"private-address"}}]}`
+	const accountID = "abcde123-45ab-4cde-8fab-0123456789ab"
+	response := `{"accountId":"` + strings.ToUpper(accountID) + `","traderDeclaration":"TRADER","sellerInfo":[{"id":"private-seller","verificationStatus":"VERIFIED","isEuCovered":false,"verificationStatusLocKey":"private-key","email":"private-contact@example.com","address":{"line":"private-address"}}]}`
 	var responseBody string
 	var requests int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requests++
-		if req.Method != http.MethodGet || req.Host != "appstoreconnect.apple.com" || req.URL.Path != "/v1/accounts/private-account/sellerInfo" || req.URL.RawQuery != "" {
+		if req.Method != http.MethodGet || req.Host != "appstoreconnect.apple.com" || req.URL.Path != "/v1/accounts/"+accountID+"/sellerInfo" || req.URL.RawQuery != "" {
 			t.Errorf("request = %s %s", req.Method, req.URL)
 		}
 		_, _ = io.WriteString(w, responseBody)
@@ -37,7 +38,7 @@ func TestWebBusinessDSAStatus(t *testing.T) {
 	var sessionResolutions int
 	resolveSessionFn = func(context.Context, string, string, string) (*webcore.AuthSession, string, error) {
 		sessionResolutions++
-		return &webcore.AuthSession{PublicProviderID: "private-account", Client: &http.Client{Transport: transport}}, "fixture", nil
+		return &webcore.AuthSession{PublicProviderID: accountID, Client: &http.Client{Transport: transport}}, "fixture", nil
 	}
 
 	for _, tc := range []struct {
@@ -47,7 +48,7 @@ func TestWebBusinessDSAStatus(t *testing.T) {
 		{name: "sanitized JSON", body: response, output: "json", want: `{"traderDeclaration":"TRADER","sellerInfo":[{"verificationStatus":"VERIFIED","isEuCovered":false}]}`},
 		{name: "table", body: response, output: "table", want: "VERIFIED"},
 		{name: "malformed response", body: `{"traderDeclaration":"private-contact@example.com",`, output: "json", requestError: "DSA status returned a malformed response"},
-		{name: "different account", body: strings.Replace(response, "private-account", "private-other-account", 1), output: "json", requestError: "DSA status response identifies another account"},
+		{name: "different account", body: strings.Replace(response, strings.ToUpper(accountID), "private-other-account", 1), output: "json", requestError: "DSA status response identifies another account"},
 		{name: "missing declaration", body: `{"accountId":"private-account"}`, output: "json", requestError: "DSA status response is missing traderDeclaration"},
 		{name: "invalid output before auth", output: "csv", diagnostic: "--output"},
 		{name: "unexpected arguments before auth", output: "json", extra: []string{"stray"}, diagnostic: "unexpected positional arguments"},
@@ -68,7 +69,7 @@ func TestWebBusinessDSAStatus(t *testing.T) {
 				t.Fatalf("requests = %d, sessions = %d", requests-beforeRequests, sessionResolutions-beforeSessions)
 			}
 			if tc.requestError != "" {
-				if err == nil || !strings.Contains(err.Error(), tc.requestError) || strings.Contains(err.Error(), "private-") || stdout.Len() != 0 {
+				if err == nil || !strings.Contains(err.Error(), tc.requestError) || strings.Contains(err.Error(), "private-") || strings.Contains(strings.ToLower(err.Error()), accountID) || stdout.Len() != 0 {
 					t.Fatalf("error = %v, stdout = %q", err, stdout)
 				}
 				return
