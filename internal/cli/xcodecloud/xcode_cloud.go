@@ -195,6 +195,7 @@ Examples:
 			if !hasSourceRunID {
 				// Resolve workflow ID if needed.
 				if resolvedWorkflowID == "" {
+					requestCtx = asc.WithNoRedirectReads(requestCtx)
 					resolvedAppID, err = resolveXcodeCloudAppID(requestCtx, client, appSelector)
 					if err != nil {
 						return fmt.Errorf("xcode-cloud run: %w", err)

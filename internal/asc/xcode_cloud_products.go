@@ -499,6 +499,7 @@ func (c *Client) GetCiWorkflowRepository(ctx context.Context, workflowID string)
 // ResolveCiProductForApp finds the CI product for a given app ID.
 // Returns an error if no product or multiple products are found.
 func (c *Client) ResolveCiProductForApp(ctx context.Context, appID string) (*CiProductResource, error) {
+	ctx = WithNoRedirectReads(ctx)
 	resp, err := c.GetCiProducts(ctx, WithCiProductsAppID(appID), Limit[CiProductsOption](200))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CI products: %w", err)
@@ -523,8 +524,13 @@ func (c *Client) ResolveCiWorkflowByName(ctx context.Context, productID, workflo
 		return nil, fmt.Errorf("failed to fetch CI workflows: %w", err)
 	}
 
+	expectedPath := fmt.Sprintf("/v1/ciProducts/%s/workflows", url.PathEscape(productID))
 	result, err := PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetCiWorkflows(ctx, productID, NextURL[CiWorkflowsOption](nextURL))
+		canonicalURL, err := c.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+		if err != nil {
+			return nil, err
+		}
+		return c.GetCiWorkflows(ctx, productID, NextURL[CiWorkflowsOption](canonicalURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CI workflows: %w", err)
