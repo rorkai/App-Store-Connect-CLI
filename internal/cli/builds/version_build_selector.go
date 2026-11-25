@@ -30,9 +30,10 @@ type VersionBuildSelector struct {
 // VersionBuildScope is the train a selector searches: builds of one app with
 // the version's marketing version string and platform.
 type VersionBuildScope struct {
-	AppID    string
-	Version  string
-	Platform string
+	AppID       string
+	Version     string
+	Platform    string
+	BuildNumber string
 }
 
 // BindVersionBuildSelectorWith binds the build selector flags to fs. The
@@ -96,6 +97,11 @@ func (s *VersionBuildSelector) Validate() error {
 // NeedsScope reports whether the build is chosen from the version's train.
 func (s *VersionBuildSelector) NeedsScope() bool {
 	return s.buildIDValue() == ""
+}
+
+// RequestedBuildNumber returns the explicit build number selector, if any.
+func (s *VersionBuildSelector) RequestedBuildNumber() string {
+	return s.buildNumberValue()
 }
 
 // Resolve returns the selected build ID. --build-id without --wait makes no

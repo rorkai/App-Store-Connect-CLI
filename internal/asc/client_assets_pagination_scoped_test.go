@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"testing"
 )
 
@@ -29,6 +30,22 @@ func TestValidateNoRedirectReadContinuationCanonicalizesOnlyScopedURL(t *testing
 	}
 	if unchanged != original {
 		t.Fatalf("unmarked URL = %q, want original %q", unchanged, original)
+	}
+}
+
+func TestValidateNoRedirectReadContinuationQueryBindsRepeatedScope(t *testing.T) {
+	client := &Client{}
+	ctx := WithNoRedirectReads(context.Background())
+	expected := url.Values{"filter[app]": {"app-1"}, "filter[preReleaseVersion]": {"train-1"}}
+
+	if _, err := client.ValidateNoRedirectReadContinuationQuery(ctx, "/v1/builds?cursor=opaque", "/v1/builds", expected); err != nil {
+		t.Fatalf("opaque continuation error: %v", err)
+	}
+	if _, err := client.ValidateNoRedirectReadContinuationQuery(ctx, "/v1/builds?filter%5Bapp%5D=app-2&cursor=foreign", "/v1/builds", expected); err == nil {
+		t.Fatal("expected conflicting app filter to be rejected")
+	}
+	if _, err := client.ValidateNoRedirectReadContinuationQuery(context.Background(), "https://evil.example/v1/builds?filter%5Bapp%5D=app-2", "/v1/builds", expected); err != nil {
+		t.Fatalf("unmarked continuation should retain legacy validation, got %v", err)
 	}
 }
 
