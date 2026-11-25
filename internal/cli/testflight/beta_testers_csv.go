@@ -759,18 +759,19 @@ func fetchExistingTestersByEmail(ctx context.Context, d *shared.Deps, client *as
 				return nil, err
 			}
 			all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-				canonical, err := client.ValidateNoRedirectReadContinuationQuery(ctx, next, "/v1/betaTesters", url.Values{
-					"filter[apps]": {appID}, "filter[email]": {emailFilter},
+				parsed, err := url.Parse(next)
+				if err != nil {
+					return nil, err
+				}
+				fieldset := strings.Join(fields, ",")
+				if returned := parsed.Query().Get("fields[betaTesters]"); returned != "" && slices.Equal(uniqueSortedStrings(strings.Split(returned, ",")), uniqueSortedStrings(fields)) {
+					fieldset = returned
+				}
+				canonical, err := shared.BindCollectionNextURL(ctx, client, next, "/v1/betaTesters", url.Values{
+					"filter[apps]": {appID}, "filter[email]": {emailFilter}, "fields[betaTesters]": {fieldset},
 				})
 				if err != nil {
 					return nil, err
-				}
-				parsed, err := url.Parse(canonical)
-				if err != nil {
-					return nil, err
-				}
-				if actual, present := parsed.Query()["fields[betaTesters]"]; present && (len(actual) != 1 || !slices.Equal(uniqueSortedStrings(strings.Split(actual[0], ",")), uniqueSortedStrings(fields))) {
-					return nil, fmt.Errorf("tester pagination changed the requested fields")
 				}
 				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
