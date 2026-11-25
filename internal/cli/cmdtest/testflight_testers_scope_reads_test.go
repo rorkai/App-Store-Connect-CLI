@@ -25,6 +25,9 @@ func TestTesterReconciliationReadsStayInScope(t *testing.T) {
 			{name: "group membership continuation", path: "/v1/betaTesters/t1/relationships/betaGroups", next: "/fixture/scope-sentinel"},
 			{name: "build membership continuation", path: "/v1/builds/b1/relationships/individualTesters", next: "/fixture/scope-sentinel"},
 			{name: "changed tester filter", path: "/v1/betaTesters", next: "/v1/betaTesters?filter%5Bapps%5D=other"},
+			{name: "unscoped tester page without cursor", path: "/v1/betaTesters", next: "/v1/betaTesters?limit=200"},
+			{name: "tester cursor adds unrelated expansion", path: "/v1/betaTesters", next: "/v1/betaTesters?cursor=two&include=apps"},
+			{name: "tester cursor reorders sparse fields", path: "/v1/betaTesters", next: "/v1/betaTesters?cursor=two&fields%5BbetaTesters%5D=state,inviteType,lastName,firstName,email", allowed: true},
 			{name: "opaque tester cursor", path: "/v1/betaTesters", next: "/v1/betaTesters?cursor=two", allowed: true},
 		} {
 			if command == "import" && strings.HasPrefix(tc.path, "/v1/builds/") {
@@ -45,6 +48,19 @@ func TestTesterReconciliationReadsStayInScope(t *testing.T) {
 						http.Redirect(w, r, "/fixture/scope-sentinel", http.StatusTemporaryRedirect)
 						return
 					}
+					if tc.name == "unscoped tester page without cursor" && r.URL.Path == "/v1/betaTesters" && r.URL.RawQuery == "limit=200" {
+						escaped++
+						_, _ = w.Write([]byte(`{"data":[{"type":"betaTesters","id":"foreign","attributes":{"email":"tester@example.com"}}]}`))
+						return
+					}
+					if tc.allowed && r.URL.Path == "/v1/betaTesters" && r.URL.Query().Get("cursor") == "two" {
+						q := r.URL.Query()
+						fields := q.Get("fields[betaTesters]")
+						validFields := fields == "email,firstName,lastName,inviteType,state" || fields == "state,inviteType,lastName,firstName,email"
+						if q.Get("filter[apps]") != "app-1" || q.Get("filter[email]") != "tester@example.com" || !validFields {
+							t.Errorf("tester page omitted request scope: %v", q)
+						}
+					}
 					var body string
 					switch r.URL.Path {
 					case "/v1/apps/app-1/betaGroups":
@@ -54,6 +70,8 @@ func TestTesterReconciliationReadsStayInScope(t *testing.T) {
 							escaped++
 						}
 						body = `{"data":[{"type":"betaTesters","id":"t1","attributes":{"email":"tester@example.com"}}]}`
+					case "/v1/betaTesters/foreign/relationships/betaGroups":
+						body = `{"data":[]}`
 					case "/v1/betaTesters/t1/relationships/betaGroups":
 						body = `{"data":[{"type":"betaGroups","id":"g1"}]}`
 					case "/v1/builds/b1/relationships/app":
@@ -70,6 +88,9 @@ func TestTesterReconciliationReadsStayInScope(t *testing.T) {
 						if err := json.Unmarshal([]byte(body), &document); err != nil {
 							t.Error(err)
 							return
+						}
+						if tc.name == "unscoped tester page without cursor" {
+							document["data"] = []any{}
 						}
 						document["links"] = map[string]string{"next": tc.next}
 						if err := json.NewEncoder(w).Encode(document); err != nil {
