@@ -179,9 +179,17 @@ func subscriptionPricesRows(resp *SubscriptionPricesResponse) ([]string, [][]str
 			var labels []string
 			for _, tier := range relationships.AdditionalPriceTiers.Data {
 				label := tier.ID
+				resource := included[ResourceType("subscriptionPriceTiers")][tier.ID]
 				var quantity int
-				if raw := included[ResourceType("subscriptionPriceTiers")][tier.ID].Attributes["minQuantity"]; len(raw) > 0 && json.Unmarshal(raw, &quantity) == nil {
+				if raw := resource.Attributes["minQuantity"]; len(raw) > 0 && json.Unmarshal(raw, &quantity) == nil {
 					label = fmt.Sprintf("%s (%d+)", label, quantity)
+				}
+				_, point, err := subscriptionPriceRelationshipIDs(resource.Relationships)
+				if err != nil {
+					return nil, nil, err
+				}
+				if point != "" {
+					label += " [price point " + point + "]"
 				}
 				labels = append(labels, label)
 			}

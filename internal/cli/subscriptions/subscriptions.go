@@ -1045,6 +1045,25 @@ Examples:
 					return fmt.Errorf("subscriptions prices list: failed to fetch: %w", err)
 				}
 
+				additions := url.Values{}
+				setSubscriptionPricesCSVQuery(additions, "fields[subscriptionPriceTiers]", selectedTierFields)
+				if *additionalTiersLimit > 0 {
+					additions.Set("limit[additionalPriceTiers]", strconv.Itoa(*additionalTiersLimit))
+				}
+				if nextURL != "" {
+					parsed, _ := url.Parse(nextURL) // validated by ValidatePaginationFlags
+					saved := parsed.Query()
+					for _, key := range []string{
+						"filter[planType]", "filter[territory]", "filter[subscriptionPricePoint]",
+						"fields[subscriptionPrices]", "fields[territories]", "fields[subscriptionPricePoints]",
+						"fields[subscriptionPriceTiers]", "include", "limit[additionalPriceTiers]",
+					} {
+						if saved.Has(key) {
+							additions[key] = saved[key]
+						}
+					}
+				}
+
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					nextURL, err := mergeSubscriptionPricesListQuery(
 						nextURL,
@@ -1058,11 +1077,6 @@ Examples:
 					)
 					if err != nil {
 						return nil, err
-					}
-					additions := url.Values{}
-					setSubscriptionPricesCSVQuery(additions, "fields[subscriptionPriceTiers]", selectedTierFields)
-					if *additionalTiersLimit > 0 {
-						additions.Set("limit[additionalPriceTiers]", strconv.Itoa(*additionalTiersLimit))
 					}
 					nextURL, err = mergeSubscriptionPricesNextQuery(nextURL, additions)
 					if err != nil {
