@@ -50,7 +50,7 @@ func writeSubscriptionPrice(
 	eligible func(context.Context) error,
 	write func(context.Context) error,
 ) (bool, error) {
-	return asc.RetrySubscriptionPriceWrite(ctx, func(attemptCtx context.Context, rateLimited bool) (bool, error) {
+	return asc.RetryGuardedMutation(ctx, func(attemptCtx context.Context, rateLimited bool) (bool, error) {
 		if rateLimited && matches != nil {
 			matched, err := matches(attemptCtx)
 			if err != nil || matched {

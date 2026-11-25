@@ -1453,7 +1453,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 
 			if !hasExistingPrices {
 				// Initial price: use PATCH with inline resources
-				subResp, err := asc.RetrySubscriptionPriceWrite(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
+				subResp, err := asc.RetryGuardedMutation(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
 					if replay {
 						exists, err := subscriptionHasExistingPrices(attemptCtx, client, id)
 						if err != nil {
@@ -1515,7 +1515,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				if matrixErr != nil {
 					return fmt.Errorf("subscriptions prices add: build repair matrix: %w", matrixErr)
 				}
-				resp, matrixErr := asc.RetrySubscriptionPriceWrite(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
+				resp, matrixErr := asc.RetryGuardedMutation(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
 					if replay {
 						if err := checkRepair(attemptCtx); err != nil {
 							return nil, err
@@ -1537,7 +1537,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			}
 
 			// Existing prices: use POST /v1/subscriptionPrices for a price change
-			resp, err := asc.RetrySubscriptionPriceWrite(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionPriceResponse, error) {
+			resp, err := asc.RetryGuardedMutation(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionPriceResponse, error) {
 				if replay && tiers == nil && planTypeValue != asc.SubscriptionPlanTypeMonthly {
 					match, err := findMatchingSubscriptionPrice(attemptCtx, client, id, pricePoint, territoryID, attrs)
 					if err != nil || match != nil {

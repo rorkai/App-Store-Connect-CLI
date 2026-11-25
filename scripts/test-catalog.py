@@ -28,6 +28,7 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
     fail_product = True
     fail_localization = False
     mutate_after_patch = None
+    availability_rejection = None
     default_iap_availability = False
     incomplete_collection = None
     versions, localized, availability, territories, schedules = {}, {}, {}, {}, {}
@@ -39,7 +40,7 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
 
     class Provider(socketserver.StreamRequestHandler):
         def handle(self):
-            global fail_product, fail_localization, mutate_after_patch
+            global fail_product, fail_localization, mutate_after_patch, availability_rejection
             try:
                 assert self.rfile.readline().decode().split()[:2] == ["CONNECT", "api.appstoreconnect.apple.com:443"]
                 while (line := self.rfile.readline()) and line != b"\r\n":
@@ -152,6 +153,13 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
                         kind='subscriptionAvailabilities' if path.endswith('/subscriptionAvailability') else 'inAppPurchaseAvailabilities'
                         if kind not in availability:status='404 Not Found';response=missing(kind)
                         else:response={'data':availability[kind]}
+                    elif method == 'POST' and path == '/v1/subscriptionAvailabilities' and availability_rejection is not None:
+                        if availability_rejection == 'drift':
+                            ident = availability['subscriptionAvailabilities']['id']
+                            territories[ident].append(resource('territories', 'FRA'))
+                        availability_rejection = None
+                        status = '429 Too Many Requests'
+                        response = {'errors': [{'status': '429', 'code': 'RATE_LIMIT_EXCEEDED'}]}
                     elif method=='POST' and path.split('/')[-1] in ('subscriptionAvailabilities','inAppPurchaseAvailabilities'):
                         kind=data['type'];ident=kind+'-local'
                         availability[kind]=resource(kind,ident,data['attributes'])
@@ -406,6 +414,28 @@ with tempfile.TemporaryDirectory(dir=Path(__file__).parent, prefix="catalog-fixt
                 result=run('apply',payload)
                 assert result.returncode==2 and '--confirm' in result.stderr and all(m=='GET' for m,p in requests),(result,requests)
             print('PASS availability scope: ID, territory set and future-setting drift refuse replacement; true-to-false requires confirm')
+
+            availability_path = '/v1/subscriptionAvailabilities'
+            availability_id = availability['subscriptionAvailabilities']['id']
+            territory_path = f'{availability_path}/{availability_id}/availableTerritories'
+            payload = copy.deepcopy(manifest)
+            payload['subscriptions'][0]['availability']['territories'].append('GBR')
+            saved_territories = copy.deepcopy(territories[availability_id])
+            for mode in ('unchanged', 'drift'):
+                territories[availability_id] = copy.deepcopy(saved_territories)
+                availability_rejection = mode
+                result = run('apply', payload)
+                receipt = json.loads(result.stdout)
+                writes = requests.count(('POST', availability_path))
+                after_rejection = requests[requests.index(('POST', availability_path)) + 1:]
+                final = sorted(t['id'] for t in territories[availability_id])
+                if mode == 'drift':
+                    assert result.returncode != 0 and receipt['status'] == 'partial' and 'availability changed after planning' in result.stdout, (result, requests, final)
+                    assert writes == 1 and ('GET', territory_path) in after_rejection and final == ['CAN', 'FRA', 'USA'], (requests, final)
+                else:
+                    assert result.returncode == 0 and receipt['status'] == 'applied' and writes == 2 and final == ['CAN', 'GBR', 'USA'], (result, requests, final)
+            territories[availability_id] = saved_territories
+            print('PASS availability retry: scope drift preserves the new storefront; unchanged scope retries the additive update')
 
             saved_offers=copy.deepcopy(offers)
             for scenario in ('attributes','territory','membership'):

@@ -187,7 +187,7 @@ func (c *Client) doWithHTTPClient(ctx context.Context, method, path string, body
 		}, retryOpts)
 	}
 	if shouldLimitMutatingMethod(method) {
-		if ctx.Value(subscriptionPriceWriteAttemptKey{}) != nil {
+		if ctx.Value(guardedMutationAttemptKey{}) != nil {
 			return c.doWithMutatingRequestLimiter(ctx, request)
 		}
 		return c.doMutation(ctx, request, isRateLimitRejection)
@@ -196,12 +196,12 @@ func (c *Client) doWithHTTPClient(ctx context.Context, method, path string, body
 	return request(ctx)
 }
 
-type subscriptionPriceWriteAttemptKey struct{}
+type guardedMutationAttemptKey struct{}
 
-// RetrySubscriptionPriceWrite gives a pricing workflow control of each actual
-// write attempt so it can refresh price state after rate-limit backoff.
-func RetrySubscriptionPriceWrite[T any](ctx context.Context, attempt func(context.Context, bool) (T, error)) (T, error) {
-	ctx = context.WithValue(ctx, subscriptionPriceWriteAttemptKey{}, true)
+// RetryGuardedMutation reruns a single mutation and its eligibility checks after
+// a rate-limit rejection. Each attempt must issue at most one write.
+func RetryGuardedMutation[T any](ctx context.Context, attempt func(context.Context, bool) (T, error)) (T, error) {
+	ctx = context.WithValue(ctx, guardedMutationAttemptKey{}, true)
 	replay := false
 	return withRetry(ctx, func() (T, error) {
 		value, err := attempt(ctx, replay)
