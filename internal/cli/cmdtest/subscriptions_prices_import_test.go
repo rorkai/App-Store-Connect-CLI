@@ -259,7 +259,7 @@ func TestSubscriptionsPricesImport_SkipsExactExistingPrice(t *testing.T) {
 			assertSubscriptionPriceImportStateQuery(t, req)
 			readCount++
 			if req.URL.Query().Get("cursor") == "" {
-				return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":"/v1/subscriptions/8000000001/prices?cursor=page-2"}}`), nil
+				return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":"/v1/subscriptions/8000000001/prices?cursor=page-2&limit=1&include=territory"}}`), nil
 			}
 			body := `{"data":[{"type":"subscriptionPrices","id":"price-existing","attributes":{"startDate":"2026-08-01","preserved":true,"planType":"UPFRONT"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-usa"}}}}],"links":{}}`
 			return jsonHTTPResponse(http.StatusOK, body), nil

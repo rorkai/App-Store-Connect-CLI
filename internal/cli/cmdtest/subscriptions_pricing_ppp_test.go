@@ -79,10 +79,13 @@ func TestPPPTerritoryScopeValidation(t *testing.T) {
 	}
 }
 
-func pppTestTransport(t *testing.T, subID string, priceReads *int, posts *[]string) roundTripFunc {
+func pppTestTransport(t *testing.T, priceReads *int, posts *[]string) roundTripFunc {
+	const subID = "8000000001"
 	return func(req *http.Request) (*http.Response, error) {
 		query := req.URL.Query()
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/"+subID+"/prices":
 			*priceReads++
 			if *priceReads > 1 {
@@ -177,7 +180,7 @@ func runPPPCommand(t *testing.T, args ...string) pppTestResult {
 func TestSubscriptionsPricingPPPDryRunPlansIndexedTerritoriesWithoutMutating(t *testing.T) {
 	setupAuth(t)
 	priceReads := 0
-	installDefaultTransport(t, pppTestTransport(t, "8000000001", &priceReads, nil))
+	installDefaultTransport(t, pppTestTransport(t, &priceReads, nil))
 
 	result := runPPPCommand(t, "--dry-run")
 
@@ -206,7 +209,7 @@ func TestSubscriptionsPricingPPPConfirmAppliesChangedTerritoriesAndVerifies(t *t
 	setupAuth(t)
 	priceReads := 0
 	var posts []string
-	installDefaultTransport(t, pppTestTransport(t, "8000000001", &priceReads, &posts))
+	installDefaultTransport(t, pppTestTransport(t, &priceReads, &posts))
 
 	result := runPPPCommand(t, "--confirm")
 
@@ -237,7 +240,7 @@ func TestSubscriptionsPricingPPPTerritorySelection(t *testing.T) {
 			defer restore()
 			priceReads := 0
 			posts := []string{}
-			transport := pppTestTransport(t, "8000000001", &priceReads, &posts)
+			transport := pppTestTransport(t, &priceReads, &posts)
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if test.start != "" && req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices" {
 					prices := []deriveHTTPPrice{{priceID: "p-ind-current", pricePointID: "ind-999", territory: "IND", currency: "INR", customerPrice: "999"}, {priceID: "p-ind-successor", pricePointID: "ind-219", territory: "IND", currency: "INR", customerPrice: "219"}}
@@ -305,5 +308,26 @@ func TestSubscriptionsPricingPPPTerritorySelection(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestSubscriptionsPricingPPPRefusesChangedVolumeTerritories(t *testing.T) {
+	setupAuth(t)
+	priceReads, tierReads := 0, 0
+	var posts []string
+	transport := pppTestTransport(t, &priceReads, &posts)
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers" {
+			tierReads++
+			if req.URL.Query().Get("filter[territory]") != "IND" || req.URL.Query().Get("filter[subscription]") != "8000000001" {
+				t.Fatalf("guard must include only changed IND territory: %s", req.URL.RawQuery)
+			}
+			return jsonHTTPResponse(200, `{"data":[{"type":"subscriptionPriceTiers","id":"tier-ind","attributes":{"minQuantity":10}}],"links":{}}`), nil
+		}
+		return transport(req)
+	}))
+	out, _, err := runCommand(t, []string{"subscriptions", "pricing", "ppp", "--subscription-id", "8000000001", "--base-price", "9.99", "--workers", "1", "--auto-start-date=false", "--confirm", "--output", "json"})
+	if err == nil || !strings.Contains(err.Error()+out, "asc subscriptions pricing prices set --additional-price-tiers") || len(posts) != 0 || tierReads != 1 {
+		t.Fatalf("err=%v posts=%d tier reads=%d output=%s", err, len(posts), tierReads, out)
 	}
 }

@@ -49,7 +49,9 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 					}
 					_, _ = fmt.Fprintf(w, `{"data":%s,"links":{}}`, prices)
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000003/prices":
-					_, _ = io.WriteString(w, subscriptionPriceListFixture("base-point", "USA", ""))
+					fixture := subscriptionPriceListFixture("base-point", "USA", "")
+					fixture = strings.Replace(fixture, `"additionalPriceTiers":{"data":[]}`, `"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}`, 1)
+					_, _ = io.WriteString(w, fixture)
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPrices/existing-price-1/additionalPriceTiers":
 					point := "old-bulk-point"
 					if test.unchanged {
@@ -234,6 +236,59 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 			_, stderr, err := runSubscriptionPricesListQuerySurface(t, args...)
 			if rootcmd.ExitCodeFromError(err) != rootcmd.ExitUsage || !strings.Contains(stderr, test.want) {
 				t.Fatalf("run = %v, stderr %q, want %q", err, stderr, test.want)
+			}
+		})
+	}
+}
+
+func TestSubscriptionsPricesSetRequiresCompleteTierProofForChangedPrices(t *testing.T) {
+	for _, test := range []struct {
+		name, relationship, planType string
+		matching, allowed            bool
+	}{
+		{name: "missing linkage"},
+		{name: "explicit upfront missing linkage", planType: "UPFRONT"},
+		{name: "null linkage", relationship: `,"additionalPriceTiers":{"data":null}`},
+		{name: "malformed linkage", relationship: `,"additionalPriceTiers":{"data":{}}`},
+		{name: "links only", relationship: `,"additionalPriceTiers":{"links":{"related":"tiers"}}`},
+		{name: "unchanged price", matching: true, allowed: true},
+		{name: "monthly price", planType: "MONTHLY", allowed: true},
+		{name: "verified single tier", relationship: `,"additionalPriceTiers":{"data":[]}`, allowed: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			captured := subscriptionPricesListQuerySurfaceStub(t)
+			writes := 0
+			captured.response = func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if req.Method != http.MethodGet {
+					writes++
+					_, _ = io.WriteString(w, `{"data":{"type":"subscriptionPrices","id":"saved"}}`)
+					return
+				}
+				if strings.HasSuffix(req.URL.Path, "/relationships/prices") {
+					_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"current"}],"links":{}}`)
+					return
+				}
+				if req.URL.Path != "/v1/subscriptions/8000000003/prices" {
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL)
+				}
+				point := "old-base"
+				if test.matching {
+					point = "new-base"
+				}
+				_, _ = fmt.Fprintf(w, `{"data":[{"type":"subscriptionPrices","id":"current","attributes":{"planType":%q},"relationships":{"territory":{"data":{"type":"territories","id":"NOR"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}%s}}],"links":{}}`, test.planType, point, test.relationship)
+			}
+			args := []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--price-point", "new-base", "--territory", "NOR"}
+			if test.planType != "" {
+				args = append(args, "--plan-type", test.planType)
+			}
+			stdout, stderr, err := runSubscriptionPricesListQuerySurface(t, args...)
+			wantWrites := 0
+			if test.allowed && !test.matching {
+				wantWrites = 1
+			}
+			if (err == nil) != test.allowed || writes != wantWrites {
+				t.Fatalf("allowed=%t writes=%d stdout=%s stderr=%s err=%v", test.allowed, writes, stdout, stderr, err)
 			}
 		})
 	}

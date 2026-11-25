@@ -314,7 +314,20 @@ func applySubscriptionPriceDeriveRows(
 			PricePointID: row.TargetPricePointID,
 		})
 	}
-	_, failures := applyEqualizedPrices(ctx, d, client, targetSubscriptionID, changes, workers, attrs, effectiveAt)
+	var failures []equalizeAttemptFailure
+	if len(changes) > 0 {
+		territories := make([]string, 0, len(changes))
+		for _, change := range changes {
+			territories = append(territories, change.Territory)
+		}
+		if err := requireSingleTierBulkPriceWrite(ctx, d, client, targetSubscriptionID, territories); err != nil {
+			for _, change := range changes {
+				failures = append(failures, equalizeAttemptFailure{Target: change, Err: err})
+			}
+		} else {
+			_, failures = applyEqualizedPrices(ctx, d, client, targetSubscriptionID, changes, workers, attrs, effectiveAt)
+		}
+	}
 	failureByTerritory := make(map[string]error, len(failures))
 	for _, failure := range failures {
 		failureByTerritory[strings.ToUpper(strings.TrimSpace(failure.Target.Territory))] = failure.Err

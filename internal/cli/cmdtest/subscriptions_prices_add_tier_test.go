@@ -30,7 +30,7 @@ func subscriptionPriceListFixture(pricePointID, territoryID, attrs string) strin
 	}
 
 	return fmt.Sprintf(
-		`{"data":[{"type":"subscriptionPrices","id":%q,"attributes":%s,"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}%s}}],"links":{"next":""}}`,
+		`{"data":[{"type":"subscriptionPrices","id":%q,"attributes":%s,"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}%s,"additionalPriceTiers":{"data":[]}}}],"links":{"next":""}}`,
 		"existing-price-1",
 		attrs,
 		pricePointID,

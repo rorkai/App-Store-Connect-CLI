@@ -1179,15 +1179,18 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 		opts = append(opts, asc.WithSubscriptionPricesPlanType(attrs.PlanType))
 	}
 
-	hasVolumeTiers := false
+	requiresTierIntent := false
 	for {
 		resp, err := client.GetSubscriptionPrices(ctx, subID, opts...)
 		if err != nil {
 			return nil, err
 		}
 
+		if resp == nil || resp.Data == nil {
+			return nil, fmt.Errorf("subscription price comparison requires a data array")
+		}
 		for _, price := range resp.Data {
-			hasVolumeTiers = hasVolumeTiers || subscriptionPriceHasAdditionalTiers(price)
+			requiresTierIntent = requiresTierIntent || subscriptionPriceRequiresTierIntent(price)
 			if !subscriptionPriceMatchesTarget(price, pricePointID, territoryID, attrs) {
 				continue
 			}
@@ -1205,12 +1208,18 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 
 		next := strings.TrimSpace(resp.Links.Next)
 		if next == "" {
-			if tiers == nil && hasVolumeTiers {
+			if tiers == nil && requiresTierIntent {
 				return nil, errSubscriptionPriceTierIntentRequired
 			}
 			return nil, nil
 		}
-		nextURL, err := mergeSubscriptionPricesListQuery(next, attrs.PlanType, territoryID, nil, nil, nil, nil, []string{"subscriptionPricePoint", "territory", "additionalPriceTiers"})
+		canonical, err := client.ValidateNoRedirectReadContinuationQuery(ctx, next, "/v1/subscriptions/"+url.PathEscape(subID)+"/prices", url.Values{
+			"filter[planType]": {string(attrs.PlanType)}, "filter[territory]": {territoryID},
+		})
+		if err != nil {
+			return nil, err
+		}
+		nextURL, err := mergeSubscriptionPricesListQuery(canonical, attrs.PlanType, territoryID, nil, nil, nil, nil, []string{"subscriptionPricePoint", "territory", "additionalPriceTiers"})
 		if err != nil {
 			return nil, err
 		}
@@ -1378,6 +1387,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				}
 			}
 
+			ctx = asc.WithNoRedirectReads(ctx)
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: %w", err)
@@ -1417,6 +1427,9 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			if pricesErr != nil {
 				return fmt.Errorf("subscriptions prices add: failed to check existing prices: %w", pricesErr)
 			}
+			if existingPrices == nil || existingPrices.Data == nil || (len(existingPrices.Data) == 0 && existingPrices.Links.Next != "") {
+				return fmt.Errorf("subscriptions prices add: existing price membership was not verified")
+			}
 			hasExistingPrices := len(existingPrices.Data) > 0
 
 			attrs := asc.SubscriptionPriceCreateAttributes{
@@ -1447,14 +1460,11 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return d.PrintOutput(matchingPrice, *output.Output, *output.Pretty)
 			}
 			if matchingPrice != nil && *force {
-				volumeTiers, err := client.GetSubscriptionPriceTiers(requestCtx,
-					asc.WithSubscriptionPriceTiersSubscriptions([]string{id}),
-					asc.Limit[asc.SubscriptionPriceTiersOption](1),
-				)
+				hasTiers, err := subscriptionHasPriceTiers(requestCtx, d, client, id, nil)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices add: check volume tiers before repair: %w", err)
 				}
-				if len(volumeTiers.Data) > 0 {
+				if hasTiers {
 					return d.UsageError("--force cannot rebuild a subscription with volume tiers; use --additional-price-tiers without --force")
 				}
 				equalizations, equalizationsErr := fetchEqualizations(requestCtx, d, client, pricePoint, territoryID)

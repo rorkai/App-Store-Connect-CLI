@@ -629,6 +629,8 @@ func TestSubscriptionsPricingDeriveApplyCreatesAndVerifiesTargetPrice(t *testing
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/"+sourceID+"/prices":
 			if got := req.URL.Query().Get("filter[territory]"); got != "SWE" {
 				t.Fatalf("source territory filter = %q, want SWE", got)
@@ -777,6 +779,8 @@ func TestSubscriptionsPricingDeriveReportsMutationFailuresInStructuredOutput(t *
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/"+sourceID+"/prices":
 			return jsonResponse(http.StatusOK, subscriptionPriceDerivePricesFixture([]deriveHTTPPrice{
 				{priceID: "source-price-swe", pricePointID: "source-pp-swe", territory: "SWE", currency: "SEK", customerPrice: "9"},

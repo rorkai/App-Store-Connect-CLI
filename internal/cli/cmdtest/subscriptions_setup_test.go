@@ -1028,6 +1028,11 @@ func TestSubscriptionsSetupRepairReplacesMismatchedPrice(t *testing.T) {
 
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"data":[],"links":{}}`)
+			return
+		}
 		requestCount++
 		respond := func(status int, body string) {
 			w.Header().Set("Content-Type", "application/json")
@@ -1385,6 +1390,9 @@ func TestSubscriptionsSetupCreateLocalizationPricingAndAvailabilitySuccess(t *te
 	requestCount := 0
 	coveragePriceReads := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers" {
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		}
 		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/pp-399/equalizations" {
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-can-399","attributes":{"customerPrice":"5.49"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{"next":""}}`), nil
 		}
@@ -1799,6 +1807,8 @@ func runSubscriptionsSetupPriceFailureCase(t *testing.T, mode subscriptionsSetup
 			_, _ = io.WriteString(w, body)
 		}
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			respond(http.StatusOK, `{"data":[],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionGroups/group-1/subscriptions":
 			respond(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH","state":"READY_TO_SUBMIT"}}],"links":{"next":""}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/prices" && req.URL.Query().Get("filter[planType]") == "":

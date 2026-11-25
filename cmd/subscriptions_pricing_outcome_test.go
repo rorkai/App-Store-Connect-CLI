@@ -78,6 +78,11 @@ func TestRunSubscriptionsPricingEqualizePartialFailureKeepsConflictCause(t *test
 				fmt.Fprint(w, `{"data":[{"type":"subscriptionPricePoints","id":"pp-can","attributes":{"customerPrice":"1.29"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`)
 			case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/relationships/prices":
 				fmt.Fprint(w, `{"data":[{"type":"subscriptionPrices","id":"price-existing"}],"links":{}}`)
+			case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+				if query := req.URL.Query(); query.Get("filter[subscription]") != "8000000001" || query.Get("limit") != "1" {
+					t.Errorf("unexpected tier lookup query %s", req.URL.RawQuery)
+				}
+				fmt.Fprint(w, `{"data":[],"links":{}}`)
 			case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
 				fmt.Fprint(w, `{"data":[{"type":"subscriptionPrices","id":"price-usa","attributes":{"startDate":"2025-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"`+equalizeTestPricePointUSA+`"}}}}],"included":[{"type":"subscriptionPricePoints","id":"`+equalizeTestPricePointUSA+`","attributes":{"customerPrice":"0.99"}},{"type":"territories","id":"USA","attributes":{"currency":"USD"}}],"links":{}}`)
 			case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":

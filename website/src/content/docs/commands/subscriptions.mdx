@@ -640,7 +640,9 @@ asc subscriptions pricing prices list --subscription-id "SUB_ID" \
 * `--fields` - Sparse fields for returned subscription prices
 * `--territory-fields` - Sparse fields for included territories (`currency`)
 * `--price-point-fields` - Sparse fields for included subscription price points
-* `--include` - Include `territory` and/or `subscriptionPricePoint`
+* `--include` - Include `territory`, `subscriptionPricePoint`, or `additionalPriceTiers`
+* `--price-tier-fields` - Sparse fields for included tiers (`minQuantity`, `subscriptionPricePoint`)
+* `--additional-price-tiers-limit` - Maximum included tiers per price (1–50)
 * `--limit` - Results per page (1-200)
 * `--paginate` - Fetch all pages
 
@@ -702,6 +704,7 @@ asc subscriptions pricing prices set \
 * `--preserved` - Preserve existing customer pricing
 * `--plan-type` - Billing plan: `MONTHLY` or `UPFRONT`. Omit it to send no plan type. `MONTHLY` cannot be combined with `--force` or USA
 * `--refresh` - Force refresh of tier cache
+* `--additional-price-tiers` - JSON file of additional quantity tiers for an `UPFRONT` price. Use `-` to read from stdin
 
 **Examples:**
 
@@ -731,6 +734,28 @@ asc subscriptions pricing prices set \
   --start-date "2026-06-01" \
   --preserved
 ```
+
+#### Set Volume Tiers
+
+Supply the full list of additional tiers when changing an existing volume price.
+List up to four additional tiers in ascending quantity order, starting at two
+seats or more. Each tier uses a lower per-seat price than the previous tier.
+
+```json
+[{"minQuantity":10,"subscriptionPricePointId":"TIER_POINT_ID"}]
+```
+
+```bash
+asc subscriptions pricing prices set --subscription-id "SUB_ID" \
+  --territory USA --price-point "BASE_POINT_ID" --additional-price-tiers tiers.json
+```
+
+Supply `[]` to schedule a single-tier price. Use the price-change preview to
+check the subscriber impact before scheduling. The `--force` matrix repair
+cannot be combined with `--additional-price-tiers`.
+
+Use `prices set` for changes to territories with volume pricing. Bulk price
+updates stop when the affected prices include volume tiers.
 
 **Initial vs. Change Pricing:**
 

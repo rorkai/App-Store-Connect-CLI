@@ -1449,6 +1449,12 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, d *shared.Deps, cl
 	if preMutationMatched && !repair {
 		return territories, false, nil
 	}
+	if len(state.states) > 0 {
+		if err := requireSingleTierBulkPriceWrite(ctx, d, client, subscriptionID, nil); err != nil {
+			return nil, false, err
+		}
+	}
+
 	// The complete matrix PATCH may apply before a transport/5xx response is
 	// observed, so reconcile its exact state without replaying the write.
 	_, _, err = shared.RunReconciledMutationNoReplayWith(

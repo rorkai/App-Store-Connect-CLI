@@ -292,7 +292,11 @@ Examples:
 
 				resolvedRow.pricePointID = pricePointID
 				status := reconciledMutationSkipped
-				if !stateIndex.matches(resolvedRow) {
+				matched := stateIndex.matches(resolvedRow)
+				if !matched && len(stateIndex.states) > 0 && resolvedRow.planType != asc.SubscriptionPlanTypeMonthly {
+					rowErr = requireSingleTierBulkPriceWrite(ctx, d, client, summary.SubscriptionID, []string{resolvedRow.territoryID})
+				}
+				if !matched && rowErr == nil {
 					status, rowErr = runReconciledMutation(
 						ctx,
 						d,
@@ -487,6 +491,7 @@ func subscriptionPriceImportStatePlanFilter(rows []subscriptionPriceImportCSVRow
 }
 
 func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	query := url.Values{
 		"fields[subscriptionPrices]": []string{"startDate,preserved,planType,territory,subscriptionPricePoint"},
 		"filter[planType]":           []string{string(planFilter)},
@@ -495,7 +500,11 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.De
 	}
 	fetchPage := func(nextURL string) (*asc.SubscriptionPricesResponse, error) {
 		if nextURL != "" {
-			mergedNext, err := mergeSubscriptionPricesNextQuery(nextURL, query)
+			canonical, err := client.ValidateNoRedirectReadContinuationQuery(ctx, nextURL, "/v1/subscriptions/"+url.PathEscape(subscriptionID)+"/prices", url.Values{"filter[planType]": query["filter[planType]"]})
+			if err != nil {
+				return nil, err
+			}
+			mergedNext, err := mergeSubscriptionPricesNextQuery(canonical, query)
 			if err != nil {
 				return nil, err
 			}
@@ -519,6 +528,9 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.De
 	if err != nil {
 		return nil, err
 	}
+	if firstPage == nil || firstPage.Data == nil {
+		return nil, fmt.Errorf("missing price collection for subscription %s", subscriptionID)
+	}
 	index := &subscriptionPriceImportStateIndex{}
 	err = asc.PaginateEach(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return fetchPage(nextURL)
@@ -526,6 +538,9 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.De
 		prices, ok := page.(*asc.SubscriptionPricesResponse)
 		if !ok {
 			return fmt.Errorf("unexpected subscription prices response type %T", page)
+		}
+		if prices.Data == nil {
+			return fmt.Errorf("missing price collection for subscription %s", subscriptionID)
 		}
 		for _, price := range prices.Data {
 			index.states = append(index.states, subscriptionPriceImportState{
