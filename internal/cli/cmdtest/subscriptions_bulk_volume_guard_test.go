@@ -60,7 +60,7 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 			args := []string{"subscriptions", "pricing", "equalize", "--subscription-id", subscriptionID, "--base-price", "9.99", "--auto-start-date=false", "--confirm"}
 			if surface == "import" {
 				csv := filepath.Join(t.TempDir(), "prices.csv")
-				if err := os.WriteFile(csv, []byte("territory,price,price_point_id\nUSA,9.99,point-new\n"), 0600); err != nil {
+				if err := os.WriteFile(csv, []byte("territory,price,price_point_id\nUSA,9.99,point-new\n"), 0o600); err != nil {
 					t.Fatal(err)
 				}
 				args = []string{"subscriptions", "pricing", "prices", "import", "--subscription-id", subscriptionID, "--input", csv, "--confirm"}
@@ -127,7 +127,7 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 			}))
 			csv := filepath.Join(t.TempDir(), "prices.csv")
 			body := "territory,price,price_point_id,plan_type\n" + territory + ",9.99," + point + "," + plan + "\n"
-			if err := os.WriteFile(csv, []byte(body), 0600); err != nil {
+			if err := os.WriteFile(csv, []byte(body), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			args := []string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "8000000001", "--input", csv, "--output", "json", "--confirm"}
