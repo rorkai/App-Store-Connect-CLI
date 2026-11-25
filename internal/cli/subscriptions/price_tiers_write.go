@@ -19,18 +19,30 @@ var errSubscriptionPriceTierIntentRequired = errors.New("--additional-price-tier
 
 // Price write decisions that depend on absence must account for every advertised row.
 type priceCollectionCount struct {
-	read       int
+	seen       map[string]bool
 	advertised int
 }
 
-func checkPriceCollectionPage[T any](count *priceCollectionCount, page *asc.Response[T], name string) error {
+func checkPriceCollectionPage[T any](count *priceCollectionCount, page *asc.Response[T], name string, resourceType asc.ResourceType) error {
 	if page == nil || page.Data == nil {
 		return fmt.Errorf("missing %s collection", name)
 	}
-	count.read += len(page.Data)
+	if count.seen == nil {
+		count.seen = make(map[string]bool)
+	}
+	for _, resource := range page.Data {
+		id := strings.TrimSpace(resource.ID)
+		if id == "" || resource.Type != resourceType {
+			return fmt.Errorf("invalid %s identity: expected %s with a nonempty ID", name, resourceType)
+		}
+		if count.seen[id] {
+			return fmt.Errorf("duplicate %s ID %q in collection", name, id)
+		}
+		count.seen[id] = true
+	}
 	count.advertised = max(count.advertised, asc.ParsePagingTotal(page.Meta))
-	if page.Links.Next == "" && count.read < count.advertised {
-		return fmt.Errorf("incomplete %s collection: received %d of %d", name, count.read, count.advertised)
+	if strings.TrimSpace(page.Links.Next) == "" && len(count.seen) < count.advertised {
+		return fmt.Errorf("incomplete %s collection: received %d of %d", name, len(count.seen), count.advertised)
 	}
 	return nil
 }
@@ -111,7 +123,7 @@ func subscriptionPriceTiersMatch(ctx context.Context, client *asc.Client, priceI
 		resp, err := client.GetSubscriptionPriceAdditionalPriceTiers(ctx, priceID,
 			asc.Limit[asc.SubscriptionPriceTiersOption](200), asc.WithSubscriptionPriceTiersInclude([]string{"subscriptionPricePoint"}), asc.NextURL[asc.SubscriptionPriceTiersOption](next))
 		if err == nil {
-			err = checkPriceCollectionPage(&count, resp, "price tier")
+			err = checkPriceCollectionPage(&count, resp, "price tier", "subscriptionPriceTiers")
 		}
 		return resp, err
 	}
@@ -183,7 +195,7 @@ func subscriptionHasPriceTiers(ctx context.Context, d *shared.Deps, client *asc.
 		if err != nil {
 			return nil, err
 		}
-		return response, checkPriceCollectionPage(&count, response, "price tier")
+		return response, checkPriceCollectionPage(&count, response, "price tier", "subscriptionPriceTiers")
 	}
 	first, err := fetch("")
 	if err != nil {

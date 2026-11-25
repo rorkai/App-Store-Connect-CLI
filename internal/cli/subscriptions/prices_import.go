@@ -547,7 +547,7 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.De
 		if !ok {
 			return fmt.Errorf("unexpected subscription prices response type %T", page)
 		}
-		if err := checkPriceCollectionPage(&count, prices, "price"); err != nil {
+		if err := checkPriceCollectionPage(&count, prices, "price", asc.ResourceTypeSubscriptionPrices); err != nil {
 			return err
 		}
 		for _, price := range prices.Data {

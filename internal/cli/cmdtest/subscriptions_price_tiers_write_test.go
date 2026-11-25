@@ -218,7 +218,7 @@ func TestSubscriptionsPricesSetAdditionalTiersRejectsUnsafeInput(t *testing.T) {
 func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *testing.T) {
 	for _, test := range []struct {
 		name, tierTerritory, pointResponse string
-		duplicatePage                      bool
+		duplicatePage, withoutTiers        bool
 		force                              bool
 		noTerritory                        bool
 		retry                              bool
@@ -228,7 +228,9 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 		{name: "selected territory", want: "--additional-price-tiers is required when changing a price with volume tiers"},
 		{name: "implicit territory", noTerritory: true, want: "--additional-price-tiers is required when changing a price with volume tiers"},
 		{name: "other territory tiers", noTerritory: true, tierTerritory: "JPN"},
-		{name: "incomplete distinct price membership", tierTerritory: "JPN", noTerritory: true, duplicatePage: true, want: "--additional-price-tiers is required"},
+		{name: "duplicate tiered price", tierTerritory: "JPN", noTerritory: true, duplicatePage: true, want: "duplicate price ID"},
+		{name: "duplicate single-tier price implicit territory", tierTerritory: "JPN", noTerritory: true, duplicatePage: true, withoutTiers: true, want: "duplicate price ID"},
+		{name: "duplicate single-tier price explicit territory", duplicatePage: true, withoutTiers: true, want: "duplicate price ID"},
 		{name: "wrong price point returned", noTerritory: true, tierTerritory: "JPN", pointResponse: `{"data":{"type":"subscriptionPricePoints","id":"other","relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}}`, want: "--additional-price-tiers is required"},
 		{name: "unverified point territory", noTerritory: true, tierTerritory: "JPN", pointResponse: `{"data":{"type":"subscriptionPricePoints","id":"new-base","relationships":{"territory":{"data":null}}}}`, want: "--additional-price-tiers is required"},
 		{name: "unverified tiered price territory", noTerritory: true, tierTerritory: "unknown", want: "--additional-price-tiers is required"},
@@ -323,7 +325,11 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 				if test.duplicatePage {
 					total = 2
 				}
-				_, _ = fmt.Fprintf(w, `{"data":[{"type":"subscriptionPrices","id":"current","relationships":{"territory":{"data":{"type":"territories","id":%q}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-base"}},"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}}}],"links":{"next":%q},"meta":{"paging":{"total":%d}}}`, tierTerritory, nextURL, total)
+				tiers := `[{"type":"subscriptionPriceTiers","id":"tier-1"}]`
+				if test.withoutTiers {
+					tiers = "[]"
+				}
+				_, _ = fmt.Fprintf(w, `{"data":[{"type":"subscriptionPrices","id":"current","relationships":{"territory":{"data":{"type":"territories","id":%q}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-base"}},"additionalPriceTiers":{"data":%s}}}],"links":{"next":%q},"meta":{"paging":{"total":%d}}}`, tierTerritory, tiers, nextURL, total)
 			}
 			args := []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--price-point", "new-base"}
 			if !test.noTerritory {
@@ -342,7 +348,10 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 			if test.retry && writes != 1 {
 				t.Fatalf("expected only the rejected write, got %d", writes)
 			}
-			if test.baseChanged {
+			if test.duplicatePage && writes != 0 {
+				t.Fatalf("sent %d writes with duplicate price membership", writes)
+			}
+			if test.baseChanged || test.duplicatePage {
 				if err == nil || !strings.Contains(err.Error(), test.want) {
 					t.Fatalf("run = %v, want %q", err, test.want)
 				}
