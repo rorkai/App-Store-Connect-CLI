@@ -137,7 +137,7 @@ func metadataSettingsNeedAppInfo(scopes []metadataSettingScope) bool {
 	return false
 }
 
-func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingScope) (map[string]string, error) {
+func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingScope, missingFilePrefix string) (map[string]string, error) {
 	path := filepath.Join(dir, scope.fileName)
 	root, err := rootfs.New(dir)
 	if err != nil {
@@ -147,7 +147,7 @@ func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingSc
 	data, err := root.ReadFileLimited(scope.fileName, shared.MaxIndirectFileValueSize)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, d.UsageErrorf("--include %s requires %s", scope.name, path)
+			return nil, d.UsageErrorf("%s %s", missingFilePrefix, path)
 		}
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}

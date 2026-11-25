@@ -92,7 +92,7 @@ Examples:
 			}
 			scope := reviewInformationSettingScope
 			scope.fileName = filepath.Base(path)
-			local, err := readMetadataSettingFile(d, filepath.Dir(path), scope)
+			local, err := readMetadataSettingFile(d, filepath.Dir(path), scope, "--file does not exist:")
 			if err != nil {
 				return err
 			}
