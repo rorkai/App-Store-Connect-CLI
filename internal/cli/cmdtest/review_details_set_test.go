@@ -43,6 +43,19 @@ func TestReviewDetailsSetValidatesWholeFileBeforeRequests(t *testing.T) {
 	}
 }
 
+func TestReviewDetailsMissingFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing.json")
+	for _, command := range []string{"plan", "set"} {
+		t.Run(command, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "review", "details", command, "--version-id", "v1", "--file", path)
+			if code != 2 || stdout != "" || !strings.Contains(stderr, "--file does not exist: "+path) || len(reg.Requests()) != 0 {
+				t.Fatalf("code=%d stdout=%q stderr=%q requests=%d", code, stdout, stderr, len(reg.Requests()))
+			}
+		})
+	}
+}
+
 func TestReviewDetailsPlanSetAndRepeat(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 	t.Setenv("ASC_DEMO_ACCOUNT_PASSWORD", "fixture-password")
