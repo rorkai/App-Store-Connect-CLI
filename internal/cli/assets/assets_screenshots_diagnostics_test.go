@@ -31,7 +31,7 @@ func TestScreenshotRetryHintSanitizesTerminal(t *testing.T) {
 	d, stdoutBuf, stderrBuf := newAssetsTestDeps(nil)
 	err := screenshotUploadRetryError(d,
 		asc.AppScreenshotUploadResult{FailureArtifactPath: "reports/\x1b]0;changed-title\x07broken\nreport.json", Total: 1, Pending: 1},
-		screenshotUploadProgress{PendingFiles: []string{"home.png"}}, cause,
+		screenshotUploadProgress{PendingFiles: []string{"home.png"}}, false, cause,
 	)
 	if !errors.Is(err, cause) {
 		t.Fatalf("upload failure cause lost: %v", err)

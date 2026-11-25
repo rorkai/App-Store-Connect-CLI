@@ -819,7 +819,9 @@ After a partial failure, --resume requires an independently selected canonical
 numeric app ID (--app, ASC_APP_ID, or the configured default), plus explicit
 --version-localization and --device-type. It verifies ownership, live set membership,
 and source checksums before non-destructive recovery. It never authorizes screenshot deletion.
-Pending deletions or cleanup require a fresh explicitly targeted --replace --dry-run,
+For an append upload, inspect stuck reservations and preview missing files with
+--skip-existing --dry-run before retrying with --skip-existing.
+For a replacement, pending deletions or cleanup require a fresh targeted --replace --dry-run,
 then a separately authorized --replace --confirm for that exact app, localization,
 and device. COMPLETE matching upload survivors are retained.
 Legacy replacement receipts must identify the localization, device, and set; an

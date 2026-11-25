@@ -135,7 +135,35 @@ func appendScreenshotUploadFailure(result *asc.AppScreenshotUploadResult, progre
 	})
 }
 
-func screenshotUploadRetryError(d *shared.Deps, result asc.AppScreenshotUploadResult, progress screenshotUploadProgress, cause error) error {
+var errScreenshotReceiptCannotDelete = errors.New("resume receipts do not authorize screenshot deletion")
+
+func screenshotCleanupHint(replace bool) string {
+	if replace {
+		return "inspect the intended app, localization, and device, then run a fresh explicitly targeted screenshots upload --replace --dry-run and a separately confirmed --replace --confirm for that exact target"
+	}
+	return "inspect the intended screenshot set, keep completed screenshots, and remove only reservations you have verified are stuck and no longer in use. Preview the missing files with asc screenshots upload --skip-existing --dry-run, then upload them with --skip-existing"
+}
+
+func screenshotDestructiveRecoveryError(replace bool) error {
+	return fmt.Errorf("%w; %s", errScreenshotReceiptCannotDelete, screenshotCleanupHint(replace))
+}
+
+func (artifact *screenshotUploadFailureArtifact) blockedResume(path, failureName string, err error) (asc.AppScreenshotUploadResult, error) {
+	result := asc.AppScreenshotUploadResult{
+		VersionLocalizationID: artifact.VersionLocalizationID,
+		SetID:                 artifact.SetID,
+		DisplayType:           artifact.DisplayType,
+		Resumed:               true,
+		FailureArtifactPath:   path,
+		Pending:               len(artifact.PendingFiles),
+		Results:               artifact.Results,
+		Failures:              []asc.AssetUploadFailureItem{{FileName: failureName, Error: err.Error()}},
+	}
+	finalizeAppScreenshotUploadResult(&result)
+	return result, err
+}
+
+func screenshotUploadRetryError(d *shared.Deps, result asc.AppScreenshotUploadResult, progress screenshotUploadProgress, replace bool, cause error) error {
 	var summary string
 	switch {
 	case progress.PendingDeletions > 0:
@@ -149,8 +177,8 @@ func screenshotUploadRetryError(d *shared.Deps, result asc.AppScreenshotUploadRe
 	}
 	err := fmt.Errorf("%s: %w", summary, cause)
 	fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
-	if progress.PendingDeletions > 0 || len(progress.CleanupFailures) > 0 {
-		fmt.Fprintln(d.IO.ErrOut, "Hint:", screenshotDestructiveRecoveryError())
+	if progress.PendingDeletions > 0 || len(progress.CleanupFailures) > 0 || errors.Is(cause, errScreenshotReceiptCannotDelete) {
+		fmt.Fprintln(d.IO.ErrOut, "Hint:", screenshotCleanupHint(replace))
 	} else if quotedPath, ok := shared.ShellQuote(result.FailureArtifactPath); ok {
 		fmt.Fprintf(d.IO.ErrOut, "Hint: verify the target, then resume with `asc screenshots upload --resume %s --app APP_ID --version-localization VERSION_LOCALIZATION_ID --device-type DEVICE_TYPE`\n", quotedPath)
 	} else {
@@ -354,7 +382,7 @@ func executeAppScreenshotUpload(ctx context.Context, cfg screenshotUploadConfig[
 		return result, screenshotUploadArtifactWriteError(uploadErr, artifactErr)
 	}
 	result.FailureArtifactPath = writtenPath
-	return result, screenshotUploadRetryError(cfg.Deps, result, progress, uploadErr)
+	return result, screenshotUploadRetryError(cfg.Deps, result, progress, false, uploadErr)
 }
 
 // screenshotUploadArtifactWriteError reports that the upload failed and that no
@@ -400,10 +428,10 @@ func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.
 		defer release()
 	}
 	if artifact.Replacement != nil && len(artifact.Replacement.Remove) > 0 {
-		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
+		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError(true)
 	}
 	if !artifact.Replace && artifact.Replacement == nil && len(artifact.CleanupFailures) > 0 {
-		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
+		return artifact.blockedResume(artifactPath, "screenshot cleanup", screenshotDestructiveRecoveryError(false))
 	}
 	ctx, err = prepareScreenshotResumeScope(asc.WithNoRedirectReads(ctx), d, client, artifact, target)
 	if err != nil {
@@ -424,10 +452,6 @@ func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.
 
 	uploadCtx, cancel := ContextWithAssetUploadTimeoutWith(withAssetUploadWork(ctx, artifact.PendingFiles), d)
 	defer cancel()
-
-	if len(artifact.CleanupFailures) > 0 {
-		return asc.AppScreenshotUploadResult{}, screenshotDestructiveRecoveryError()
-	}
 
 	progress, uploadErr := resumeScreenshotsWithOrderState(uploadCtx, d.IO.ErrOut, d.Timeout, client, artifact.SetID, artifact.OrderedIDs, artifact.PendingFiles, artifact.PendingAssets, sourceRootPath, true, syncAfterUpload)
 
@@ -502,7 +526,7 @@ func resumeAppScreenshotUpload(ctx context.Context, d *shared.Deps, client *asc.
 		return result, screenshotUploadArtifactWriteError(uploadErr, artifactErr)
 	}
 	result.FailureArtifactPath = writtenPath
-	return result, screenshotUploadRetryError(d, result, progress, uploadErr)
+	return result, screenshotUploadRetryError(d, result, progress, artifact.Replace, uploadErr)
 }
 
 func splitSkippedScreenshotResults(results []asc.AssetUploadResultItem) ([]asc.AssetUploadResultItem, []asc.AssetUploadResultItem) {

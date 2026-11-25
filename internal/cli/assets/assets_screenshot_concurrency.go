@@ -153,7 +153,7 @@ func cleanupScreenshotAssets(ctx context.Context, requestContext func(context.Co
 		return nil, nil
 	}
 	if resumed, _ := ctx.Value(screenshotResumeKey{}).(bool); resumed {
-		return append([]screenshotPendingAsset(nil), assets...), screenshotDestructiveRecoveryError()
+		return append([]screenshotPendingAsset(nil), assets...), errScreenshotReceiptCannotDelete
 	}
 	cleanupBase := shared.ContextWithoutTimeout(ctx)
 	cleanupCtx, cancel := requestContext(context.WithoutCancel(cleanupBase))
