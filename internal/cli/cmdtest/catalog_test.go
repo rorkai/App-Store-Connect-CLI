@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
@@ -46,6 +47,34 @@ func TestCatalogRejectsEntireInvalidManifestBeforeHTTP(t *testing.T) {
 				t.Fatalf("out=%q stderr=%q err=%v", out, stderr, err)
 			}
 		})
+	}
+}
+
+func TestCatalogApplyUsesFreshRequestTimeoutAfterPlanning(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_TIMEOUT", "1s")
+	t.Setenv("ASC_MAX_RETRIES", "0")
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	delayed := func(body string) asctest.Responder {
+		return func(req *http.Request) (*http.Response, error) {
+			select {
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			case <-time.After(750 * time.Millisecond):
+				return asctest.JSON(http.StatusOK, body)(req)
+			}
+		}
+	}
+	reg.Register(asctest.GET("/v1/apps/123/subscriptionGroups", "limit=200"), delayed(`{"data":[]}`))
+	reg.Register(asctest.POST("/v1/subscriptionGroups"), delayed(`{"data":{"type":"subscriptionGroups","id":"group-1"}}`))
+	out, stderr, err := runCommandOnFakeClock(t, []string{"catalog", "apply", "--app", "123", "--file", catalogFile(t, `{"groups":[{"referenceName":"Pro"}]}`), "--output", "json"})
+	if err != nil {
+		t.Fatalf("out=%s stderr=%s err=%v", out, stderr, err)
+	}
+	var receipt asc.CatalogResult
+	if err := json.Unmarshal([]byte(out), &receipt); err != nil || len(receipt.Items) != 1 || receipt.Items[0].ID != "group-1" || receipt.Items[0].Status != "applied" {
+		t.Fatalf("receipt=%s err=%v", out, err)
 	}
 }
 

@@ -133,8 +133,6 @@ No product or group is deleted.`,
 			if err != nil {
 				return err
 			}
-			ctx, cancel := d.Timeout(ctx)
-			defer cancel()
 			ctx = asc.WithNoRedirectReads(ctx)
 			ops, err := plan(ctx, client, appID, m, today)
 			if err != nil {
