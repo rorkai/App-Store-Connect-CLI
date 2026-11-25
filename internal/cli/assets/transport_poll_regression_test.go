@@ -133,13 +133,9 @@ func TestScreenshotUploadRecoversLostCommitResponse(t *testing.T) {
 			wantMethods := []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodGet}
 			if tc.resume {
 				wantMethods = []string{http.MethodGet, http.MethodPatch, http.MethodGet}
-				var retry bool
-				result, pending, retry, err = reconcilePendingScreenshotAsset(ctx, nil, client, screenshotPendingAsset{
+				result, pending, err = reconcilePendingScreenshotAsset(ctx, nil, client, screenshotPendingAsset{
 					AssetID: "screenshot-1", FileName: "01-home.png", FilePath: path, Checksum: checksum, State: "UPLOADED",
 				}, root)
-				if retry {
-					t.Fatal("resume tried to reserve a new asset")
-				}
 			} else {
 				result, pending, err = uploadScreenshotAsset(ctx, nil, client, "set-1", root, path)
 			}

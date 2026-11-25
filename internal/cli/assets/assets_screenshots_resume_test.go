@@ -454,6 +454,10 @@ func TestResumeAppScreenshotUploadReusesCreatedAssetAfterCommitFailure(t *testin
 		if createCount > 0 {
 			members = append(members, "pending-1")
 		}
+		if committed && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots" {
+			writeAssetsTestJSON(w, http.StatusOK, fmt.Sprintf(`{"data":[{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":"COMPLETE"}}}]}`, checksum))
+			return
+		}
 		if payload, ok := screenshotResumeScopeTestPayload(t, req, members); ok {
 			writeAssetsTestJSON(w, http.StatusOK, payload)
 			return
@@ -571,7 +575,7 @@ func assertPendingScreenshotSettles(t *testing.T, wantCalls int) {
 		writeAssetsTestJSON(w, http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"pending-1","attributes":{"sourceFileChecksum":%q,"assetDeliveryState":{"state":"COMPLETE"}}}}`, strings.ToUpper(checksum)))
 	}))
 
-	result, pending, retry, err := reconcilePendingScreenshotAsset(context.Background(), nil, client, screenshotPendingAsset{
+	result, pending, err := reconcilePendingScreenshotAsset(context.Background(), nil, client, screenshotPendingAsset{
 		FileName: filepath.Base(filePath),
 		FilePath: filePath,
 		AssetID:  "pending-1",
@@ -580,9 +584,6 @@ func assertPendingScreenshotSettles(t *testing.T, wantCalls int) {
 	}, workDir)
 	if err != nil {
 		t.Fatalf("reconcilePendingScreenshotAsset() error: %v", err)
-	}
-	if retry {
-		t.Fatal("expected completed reservation to be reused")
 	}
 	if pending.AssetID != "" {
 		t.Fatalf("expected settled pending asset to be cleared, got %#v", pending)
@@ -784,41 +785,56 @@ func TestResumeScreenshotsRefusesDestructivePendingRecovery(t *testing.T) {
 }
 
 func TestResumeScreenshotsDoesNotCreateWhenPendingLookupFails(t *testing.T) {
-	filePath := writeAssetsTestPNG(t, t.TempDir(), "01-home.png")
-	createCalled := false
-	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/pending-1":
-			writeAssetsTestJSON(w, http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","detail":"lookup unavailable"}]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
-			createCalled = true
-			writeAssetsTestJSON(w, http.StatusInternalServerError, `{}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	}))
-
-	progress, err := resumeScreenshotsWithOrderState(
-		context.Background(),
-		nil,
-		shared.ContextWithTimeout,
-		client,
-		"set-1",
-		nil,
-		[]string{filePath},
-		[]screenshotPendingAsset{{FileName: filepath.Base(filePath), FilePath: filePath, AssetID: "pending-1", State: "UPLOAD_COMPLETE"}},
-		filepath.Dir(filePath),
-		true,
-		true,
-	)
-	if err == nil {
-		t.Fatal("expected pending lookup error")
-	}
-	if createCalled {
-		t.Fatal("did not expect a new reservation after an inconclusive lookup")
-	}
-	if len(progress.PendingAssets) != 1 || progress.PendingAssets[0].AssetID != "pending-1" {
-		t.Fatalf("expected pending asset to remain resumable, got %#v", progress.PendingAssets)
+	for _, tc := range []struct {
+		name, path     string
+		failOn, status int
+		wantError      error
+	}{
+		{"forbidden detail", "/v1/appScreenshots/pending-1", 1, http.StatusForbidden, asc.ErrForbidden},
+		{"missing detail", "/v1/appScreenshots/pending-1", 1, http.StatusNotFound, asc.ErrNotFound},
+		{"missing owner on recheck", "/v1/appStoreVersions/VERSION_123", 2, http.StatusNotFound, asc.ErrNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			file := writeAssetsTestPNG(t, dir, "home.png")
+			pending := screenshotPendingAsset{FilePath: file, FileName: "home.png", AssetID: "pending-1", State: "UPLOAD_COMPLETE"}
+			d := newAssetsUploadTestDeps()
+			path, err := persistScreenshotUploadFailureArtifact(d, filepath.Join(dir, "resume.json"), screenshotUploadFailureArtifact{
+				VersionLocalizationID: "LOC_123", DisplayType: "APP_IPHONE_65", SetID: "set-1",
+				Files: []string{file}, PendingFiles: []string{file}, PendingAssets: []screenshotPendingAsset{pending},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			reads, writes := 0, 0
+			client := newAssetsUploadTestHandlerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.Method != http.MethodGet {
+					writes++
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if req.URL.Path == tc.path {
+					reads++
+					if reads == tc.failOn {
+						writeAssetsTestJSON(w, tc.status, fmt.Sprintf(`{"errors":[{"status":"%d","detail":"lookup unavailable"}]}`, tc.status))
+						return
+					}
+				}
+				payload, ok := screenshotResumeScopeTestPayload(t, req, []string{pending.AssetID})
+				if !ok {
+					t.Fatalf("unexpected request: %s", req.URL)
+				}
+				writeAssetsTestJSON(w, http.StatusOK, payload)
+			}))
+			result, err := resumeAppScreenshotUpload(context.Background(), d, client, path, assetsScreenshotResumeTarget(), nil)
+			if !errors.Is(err, tc.wantError) || writes != 0 || result.FailureArtifactPath != path {
+				t.Fatalf("error=%v writes=%d receipt=%q", err, writes, result.FailureArtifactPath)
+			}
+			record, err := loadScreenshotUploadFailureArtifact(d, path)
+			if err != nil || len(record.PendingAssets) != 1 || record.PendingAssets[0] != pending {
+				t.Fatalf("pending reservation lost: %+v, err=%v", record.PendingAssets, err)
+			}
+		})
 	}
 }
 

@@ -174,7 +174,11 @@ func TestRunScreenshotsResumeRequiresIndependentScopeAndLiveMembership(t *testin
 					}
 					resources := make([]map[string]any, 0, len(members))
 					for _, id := range members {
-						resources = append(resources, map[string]any{"type": "appScreenshots", "id": id})
+						item := map[string]any{"type": "appScreenshots", "id": id}
+						if id == "pending" && committed {
+							item["attributes"] = map[string]any{"sourceFileChecksum": checksum, "assetDeliveryState": map[string]string{"state": "COMPLETE"}}
+						}
+						resources = append(resources, item)
 					}
 					response = collection("inventory", resources)
 				case "GET /v1/appScreenshotSets/set-1/relationships/appScreenshots":

@@ -2,9 +2,11 @@ package assets
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -19,10 +21,11 @@ type screenshotResumeTarget struct {
 type screenshotResumeScopeKey struct{}
 
 type screenshotResumeScope struct {
-	mu      sync.Mutex
-	config  screenshotUploadConfig[asc.AppScreenshotUploadResult]
-	setID   string
-	members map[string]bool
+	mu                    sync.Mutex
+	config                screenshotUploadConfig[asc.AppScreenshotUploadResult]
+	setID                 string
+	members               map[string]bool
+	unobservedReservation string
 }
 
 func prepareScreenshotResumeScope(ctx context.Context, d *shared.Deps, client *asc.Client, artifact screenshotUploadFailureArtifact, target screenshotResumeTarget) (context.Context, error) {
@@ -92,6 +95,47 @@ func prepareScreenshotResumeScope(ctx context.Context, d *shared.Deps, client *a
 	return context.WithValue(ctx, screenshotResumeScopeKey{}, scope), nil
 }
 
+// A successful create can precede its appearance in either membership view.
+// All writes hold mu, so only the last reservation may still be propagating.
+func (scope *screenshotResumeScope) verifyLiveMembership(ctx context.Context) error {
+	const maxChecks = 3
+	checks := 0
+	_, err := asc.PollUntil(ctx, min(2*time.Second, asc.MediaPollInterval(ctx, 1)), func(ctx context.Context) (bool, bool, error) {
+		checks++
+		items, order, err := replacementInventory(ctx, scope.config, scope.setID)
+		if err != nil && (scope.unobservedReservation == "" || !errors.Is(err, errScreenshotInventoryChanged)) {
+			return false, false, err
+		}
+		// Each view has unique IDs. Every previously observed member must be in both.
+		appearances := make(map[string]int, len(scope.members))
+		for _, item := range items {
+			appearances[item.ID]++
+		}
+		for _, id := range order {
+			appearances[id]++
+		}
+		for id := range appearances {
+			if !scope.members[id] {
+				return false, false, fmt.Errorf("screenshot membership changed during resume")
+			}
+		}
+		for id := range scope.members {
+			if appearances[id] != 2 && id != scope.unobservedReservation {
+				return false, false, fmt.Errorf("screenshot membership changed during resume")
+			}
+		}
+		if id := scope.unobservedReservation; id != "" && appearances[id] != 2 {
+			if checks == maxChecks {
+				return false, false, fmt.Errorf("screenshot reservation %q is not yet visible in both views of the selected set; retry after it appears", id)
+			}
+			return false, false, nil
+		}
+		scope.unobservedReservation = ""
+		return true, true, nil
+	})
+	return err
+}
+
 func lockScreenshotResumeScope(ctx context.Context, client *asc.Client, setID, assetID string, orderedIDs []string) (*screenshotResumeScope, func(), error) {
 	scope, _ := ctx.Value(screenshotResumeScopeKey{}).(*screenshotResumeScope)
 	if scope == nil {
@@ -108,17 +152,8 @@ func lockScreenshotResumeScope(ctx context.Context, client *asc.Client, setID, a
 	if client != scope.config.Client || (setID != "" && setID != scope.setID) {
 		return reject(fmt.Errorf("resume request does not match the independently selected screenshot set"))
 	}
-	_, order, err := replacementInventory(ctx, scope.config, scope.setID)
-	if err != nil {
+	if err := scope.verifyLiveMembership(ctx); err != nil {
 		return reject(err)
-	}
-	if len(order) != len(scope.members) {
-		return reject(fmt.Errorf("screenshot membership changed during resume"))
-	}
-	for _, id := range order {
-		if !scope.members[id] {
-			return reject(fmt.Errorf("screenshot membership changed during resume"))
-		}
 	}
 	if assetID != "" && !scope.members[assetID] {
 		return reject(fmt.Errorf("screenshot %q does not belong to the independently selected set", assetID))
@@ -150,6 +185,38 @@ func getScopedAppScreenshot(ctx context.Context, client *asc.Client, assetID str
 	return client.GetAppScreenshot(ctx, assetID)
 }
 
+// Delivery polls read the asset from its independently selected set. The initial
+// pending-asset read and each mutation still verify the full ownership chain.
+func getScreenshotDelivery(ctx context.Context, client *asc.Client, assetID string) (*asc.AppScreenshotResponse, error) {
+	scope, _ := ctx.Value(screenshotResumeScopeKey{}).(*screenshotResumeScope)
+	if scope == nil {
+		return getScopedAppScreenshot(ctx, client, assetID)
+	}
+	scope.mu.Lock()
+	known := client == scope.config.Client && scope.members[assetID]
+	scope.mu.Unlock()
+	if !known {
+		return nil, fmt.Errorf("screenshot %q does not belong to the independently selected set", assetID)
+	}
+	response, err := getScopedAppScreenshots(ctx, client, scope.setID, scope.config.RequestContext)
+	if err != nil {
+		return nil, err
+	}
+	var found *asc.AppScreenshotResponse
+	for _, item := range response.Data {
+		if item.ID == assetID {
+			if item.Type != asc.ResourceTypeAppScreenshots || found != nil {
+				return nil, fmt.Errorf("cannot verify screenshot %q in selected set", assetID)
+			}
+			found = &asc.AppScreenshotResponse{Data: item}
+		}
+	}
+	if found == nil {
+		return nil, fmt.Errorf("screenshot %q is missing from the selected set", assetID)
+	}
+	return found, nil
+}
+
 func createScopedAppScreenshot(ctx context.Context, client *asc.Client, setID, fileName string, fileSize int64) (*asc.AppScreenshotResponse, error) {
 	scope, unlock, err := lockScreenshotResumeScope(ctx, client, setID, "", nil)
 	if err != nil {
@@ -161,7 +228,11 @@ func createScopedAppScreenshot(ctx context.Context, client *asc.Client, setID, f
 		if response == nil || strings.TrimSpace(response.Data.ID) == "" {
 			return nil, fmt.Errorf("screenshot reservation response is missing its ID")
 		}
+		if response.Data.Type != asc.ResourceTypeAppScreenshots || scope.members[response.Data.ID] {
+			return nil, fmt.Errorf("screenshot reservation response does not identify a new screenshot")
+		}
 		scope.members[response.Data.ID] = true
+		scope.unobservedReservation = response.Data.ID
 	}
 	return response, err
 }

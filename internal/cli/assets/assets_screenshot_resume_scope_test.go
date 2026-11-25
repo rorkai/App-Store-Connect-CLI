@@ -27,9 +27,13 @@ func screenshotResumeScopeTestPayload(t *testing.T, req *http.Request, members [
 	case "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
 		return `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`, true
 	case "/v1/appScreenshotSets/set-1/appScreenshots", "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
-		data := make([]map[string]string, 0, len(members))
+		data := make([]map[string]any, 0, len(members))
 		for _, id := range members {
-			data = append(data, map[string]string{"type": "appScreenshots", "id": id})
+			item := map[string]any{"type": "appScreenshots", "id": id}
+			if req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots" {
+				item["attributes"] = map[string]any{"sourceFileChecksum": "settled", "assetDeliveryState": map[string]string{"state": "COMPLETE"}}
+			}
+			data = append(data, item)
 		}
 		payload, err := json.Marshal(map[string]any{"data": data})
 		if err != nil {
