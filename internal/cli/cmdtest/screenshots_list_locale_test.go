@@ -60,6 +60,8 @@ func TestScreenshotsListWithoutLocaleListsEveryLocalization(t *testing.T) {
 		switch req.URL.Path {
 		case "/v1/apps/123456789/appStoreVersions":
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{}}`)
+		case "/v1/appStoreVersions/version-1":
+			writeScreenshotsListJSON(t, w, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}},{"type":"appStoreVersionLocalizations","id":"loc-de","attributes":{"locale":"de-DE"}}],"links":{}}`)
 		case "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets":

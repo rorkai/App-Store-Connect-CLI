@@ -74,6 +74,7 @@ func ResolveAppStoreVersionID(ctx context.Context, client *asc.Client, appID, ve
 // ResolveOwnedAppStoreVersionByID fetches a version by ID and validates its app ownership and optional platform.
 func ResolveOwnedAppStoreVersionByID(ctx context.Context, client *asc.Client, appID, versionID, platform string) (asc.Resource[asc.AppStoreVersionAttributes], error) {
 	trimmedVersionID := strings.TrimSpace(versionID)
+	ctx = asc.WithNoRedirectReads(ctx)
 	resp, err := client.GetAppStoreVersion(ctx, trimmedVersionID, asc.WithAppStoreVersionInclude([]string{"app"}))
 	if err != nil {
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, err

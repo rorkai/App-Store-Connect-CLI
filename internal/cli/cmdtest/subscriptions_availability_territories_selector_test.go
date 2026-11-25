@@ -101,6 +101,27 @@ func TestSubscriptionsAvailabilitySelectorRefusesScopedCollectionRedirects(t *te
 				"GET /v1/subscriptionGroups/group-1/subscriptions",
 			},
 		},
+		{
+			name:           "subscription availability relationship",
+			redirectPath:   "/v1/subscriptions/sub-1/subscriptionAvailability",
+			redirectTarget: "/v1/subscriptions/other/subscriptionAvailability",
+			wantRequests: []string{
+				"GET /v1/apps/1/subscriptionGroups",
+				"GET /v1/subscriptionGroups/group-1/subscriptions",
+				"GET /v1/subscriptions/sub-1/subscriptionAvailability",
+			},
+		},
+		{
+			name:           "availability territories",
+			redirectPath:   "/v1/subscriptionAvailabilities/avail-1/availableTerritories",
+			redirectTarget: "/v1/subscriptionAvailabilities/other/availableTerritories",
+			wantRequests: []string{
+				"GET /v1/apps/1/subscriptionGroups",
+				"GET /v1/subscriptionGroups/group-1/subscriptions",
+				"GET /v1/subscriptions/sub-1/subscriptionAvailability",
+				"GET /v1/subscriptionAvailabilities/avail-1/availableTerritories",
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -126,6 +147,15 @@ func TestSubscriptionsAvailabilitySelectorRefusesScopedCollectionRedirects(t *te
 				}
 				if req.URL.Path == "/v1/apps/1/subscriptionGroups" {
 					return selectorJSONResponse(`{"data":[{"type":"subscriptionGroups","id":"group-1"}],"links":{}}`), nil
+				}
+				if req.URL.Path == "/v1/subscriptionGroups/group-1/subscriptions" {
+					return selectorJSONResponse(`{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly"}}],"links":{}}`), nil
+				}
+				if req.URL.Path == "/v1/subscriptions/sub-1/subscriptionAvailability" {
+					return selectorJSONResponse(`{"data":{"type":"subscriptionAvailabilities","id":"avail-1"}}`), nil
+				}
+				if req.URL.Path == "/v1/subscriptionAvailabilities/avail-1/availableTerritories" {
+					return selectorJSONResponse(`{"data":[{"type":"territories","id":"USA"}],"links":{}}`), nil
 				}
 				return jsonHTTPResponse(http.StatusInternalServerError, `{"errors":[{"title":"unexpected request"}]}`), nil
 			})
@@ -267,6 +297,7 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesRejectsNextWithSelectorsBe
 
 func TestSubscriptionsAvailabilityAvailableTerritoriesAllowsStandaloneNextCursor(t *testing.T) {
 	setupStableSelectorAuth(t)
+	t.Setenv("ASC_APP_ID", "1")
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	requests := 0

@@ -567,7 +567,8 @@ Examples:
 
 			switch normalizedType {
 			case shared.LocalizationTypeVersion:
-				if strings.TrimSpace(*versionID) == "" {
+				resolvedVersionID := strings.TrimSpace(*versionID)
+				if resolvedVersionID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations")
 					return shared.MissingRequiredUsageError("--version")
 				}
@@ -579,22 +580,57 @@ Examples:
 
 				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
+				appSelector := d.ResolveAppSelector(*appID)
+				scopedToApp := appSelector.Value != ""
+				if scopedToApp {
+					requestCtx = asc.WithNoRedirectReads(requestCtx)
+					resolvedAppID, resolveErr := shared.ResolveScopedAppID(requestCtx, client, appSelector)
+					if resolveErr != nil {
+						return fmt.Errorf("localizations download: resolve app: %w", resolveErr)
+					}
+					ownedVersion, resolveErr := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, resolvedVersionID, "")
+					if resolveErr != nil {
+						if diagnostic, ok := shared.DiagnosticFromError(resolveErr); ok && diagnostic.Parameter == "--version-id" {
+							resolveErr = shared.WithDiagnostic(resolveErr, diagnostic.Code, "--version")
+						}
+						return fmt.Errorf("localizations download: verify version ownership: %w", resolveErr)
+					}
+					resolvedVersionID = ownedVersion.ID
+				}
+
+				nextValue := strings.TrimSpace(*next)
+				if scopedToApp && nextValue != "" {
+					expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", url.PathEscape(resolvedVersionID))
+					validatedNextURL, nextErr := client.ValidateNoRedirectReadContinuation(requestCtx, nextValue, expectedPath)
+					if nextErr != nil {
+						return d.UsageErrorf("localizations download: %v", nextErr)
+					}
+					nextValue = validatedNextURL
+				}
 
 				opts := []asc.AppStoreVersionLocalizationsOption{
 					asc.Limit[asc.AppStoreVersionLocalizationsOption](pageLimit),
-					asc.NextURL[asc.AppStoreVersionLocalizationsOption](*next),
+					asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextValue),
 				}
 				if len(locales) > 0 {
 					opts = append(opts, asc.WithAppStoreVersionLocalizationLocales(locales))
 				}
 
-				firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), opts...)
+				firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, resolvedVersionID, opts...)
 				if err != nil {
 					return fmt.Errorf("localizations download: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionLocalizations(ctx, strings.TrimSpace(*versionID), asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
+					if !scopedToApp {
+						return client.GetAppStoreVersionLocalizations(ctx, resolvedVersionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
+					}
+					expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", url.PathEscape(resolvedVersionID))
+					scopedNextURL, nextErr := client.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+					if nextErr != nil {
+						return nil, nextErr
+					}
+					return client.GetAppStoreVersionLocalizations(ctx, resolvedVersionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](scopedNextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("localizations download: %w", err)
@@ -612,7 +648,7 @@ Examples:
 
 				result := asc.LocalizationDownloadResult{
 					Type:       normalizedType,
-					VersionID:  strings.TrimSpace(*versionID),
+					VersionID:  resolvedVersionID,
 					OutputPath: *path,
 					Files:      files,
 				}

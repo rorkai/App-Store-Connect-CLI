@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -495,16 +496,11 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 	if locID == "" {
 		resolvedVersionID := versionIDValue
 		if versionValue != "" || appValue != "" {
+			ctx = asc.WithNoRedirectReads(ctx)
 			requestCtx, cancel := d.Timeout(ctx)
 			resolvedAppID, resolveErr := shared.ResolveScopedAppID(requestCtx, client, appSelector)
 			if resolveErr == nil {
-				if versionValue != "" {
-					resolvedVersionID, resolveErr = shared.ResolveAppStoreVersionID(requestCtx, client, resolvedAppID, versionValue, normalizedPlatform)
-				} else {
-					versionData, ownedErr := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, versionIDValue, normalizedPlatform)
-					resolveErr = ownedErr
-					resolvedVersionID = strings.TrimSpace(versionData.ID)
-				}
+				resolvedVersionID, _, _, resolveErr = resolveScreenshotPlanVersion(requestCtx, client, resolvedAppID, versionValue, versionIDValue, normalizedPlatform)
 			}
 			cancel()
 			if resolveErr != nil {
@@ -643,7 +639,12 @@ func fetchAllScreenshotVersionLocalizations(
 		return nil, fmt.Errorf("empty version localization response")
 	}
 
+	expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", url.PathEscape(versionID))
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		nextURL, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, expectedPath)
+		if err != nil {
+			return nil, err
+		}
 		nextCtx, nextCancel := requestContext(pageCtx)
 		nextPage, nextErr := client.GetAppStoreVersionLocalizations(nextCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 		nextCancel()
