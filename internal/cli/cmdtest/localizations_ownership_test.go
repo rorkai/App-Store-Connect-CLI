@@ -352,6 +352,165 @@ func TestVersionLocalizationUploadsCheckAppOwnership(t *testing.T) {
 	}
 }
 
+func TestVersionLocalizationUploadAcceptsNumericResourceID(t *testing.T) {
+	setupLocUpdateAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	t.Setenv("ASC_APP_ID", "")
+	inputPath := filepath.Join(t.TempDir(), "en-US.strings")
+	if err := os.WriteFile(inputPath, []byte("\"description\" = \"Updated\";\n\"whatsNew\" = \"Notes\";\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var requests []string
+	stubTransport(t, func(req *http.Request) (*http.Response, error) {
+		request := req.Method + " " + req.URL.RequestURI()
+		requests = append(requests, request)
+		switch req.Method + " " + req.URL.Path {
+		case "GET /v1/appStoreVersions/1234567890":
+			return locUpdateJSONResponse(`{"data":{"type":"appStoreVersions","id":"1234567890","relationships":{"app":{"data":{"type":"apps","id":"1234567890"}}}}}`)
+		case "GET /v1/appStoreVersions/1234567890/appStoreVersionLocalizations":
+			return locUpdateJSONResponse(`{"data":[],"links":{"next":""}}`)
+		case "POST /v1/appStoreVersionLocalizations":
+			return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Updated","whatsNew":"Notes"}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request %s", request)
+		}
+	})
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{"localizations", "upload", "--app", "1234567890", "--version", "1234567890", "--path", inputPath, "--output", "json"}, "test")
+	})
+	if code != cmd.ExitSuccess || stdout == "" {
+		t.Fatalf("numeric resource ID upload: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	want := []string{
+		"GET /v1/appStoreVersions/1234567890?include=app",
+		"GET /v1/appStoreVersions/1234567890/appStoreVersionLocalizations?limit=200",
+		"POST /v1/appStoreVersionLocalizations",
+	}
+	if !slices.Equal(requests, want) {
+		t.Fatalf("numeric resource ID requests=%v, want %v", requests, want)
+	}
+}
+
+func TestLocalizationsMutationsResolveConfiguredBundleBeforeVersionLookup(t *testing.T) {
+	for _, command := range []string{"create", "update"} {
+		t.Run(command, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+			t.Setenv("ASC_APP_ID", "com.example.owner")
+			var requests []string
+			stubTransport(t, func(req *http.Request) (*http.Response, error) {
+				request := req.Method + " " + req.URL.RequestURI()
+				requests = append(requests, request)
+				switch req.URL.Path {
+				case "/v1/apps":
+					if req.URL.Query().Get("filter[bundleId]") != "com.example.owner" {
+						return nil, fmt.Errorf("unexpected app selector query: %s", req.URL.RawQuery)
+					}
+					return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"1234567890","attributes":{"bundleId":"com.example.owner"}}]}`)
+				case "/v1/apps/1234567890/appStoreVersions":
+					if req.URL.Query().Get("filter[versionString]") != "1.17.0" || req.URL.Query().Get("filter[platform]") != "IOS" {
+						return nil, fmt.Errorf("unexpected version lookup query: %s", req.URL.RawQuery)
+					}
+					return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.17.0"}}],"links":{"next":""}}`)
+				case "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+					if command != "update" {
+						return nil, fmt.Errorf("unexpected update lookup for create")
+					}
+					return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"links":{"next":""}}`)
+				case "/v1/appStoreVersionLocalizations":
+					if command != "create" || req.Method != http.MethodPost {
+						return nil, fmt.Errorf("unexpected localization request: %s", request)
+					}
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description"}}}`)
+				case "/v1/appStoreVersionLocalizations/loc-1":
+					if command != "update" || req.Method != http.MethodPatch {
+						return nil, fmt.Errorf("unexpected localization request: %s", request)
+					}
+					return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description"}}}`)
+				default:
+					return nil, fmt.Errorf("unexpected request %s", request)
+				}
+			})
+
+			args := []string{"localizations", command, "--version", "1.17.0", "--platform", "IOS", "--locale", "en-US", "--description", "Description", "--whats-new", "Notes", "--output", "json"}
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
+			if code != cmd.ExitSuccess || stdout == "" {
+				t.Fatalf("configured bundle %s: exit=%d stdout=%q stderr=%q", command, code, stdout, stderr)
+			}
+			if slices.ContainsFunc(requests, func(request string) bool {
+				return strings.Contains(request, "/v1/apps/com.example.owner/appStoreVersions")
+			}) {
+				t.Fatalf("configured bundle was sent as raw app ID: %v", requests)
+			}
+			wantCount := 3
+			if command == "update" {
+				wantCount = 4
+			}
+			if len(requests) != wantCount || requests[0] != "GET /v1/apps?filter%5BbundleId%5D=com.example.owner&limit=200" || !strings.HasPrefix(requests[1], "GET /v1/apps/1234567890/appStoreVersions?") {
+				t.Fatalf("configured bundle request sequence=%v", requests)
+			}
+		})
+	}
+}
+
+func TestLocalizationsMutationsRejectMissingConfiguredBundleBeforeVersionLookup(t *testing.T) {
+	for _, command := range []string{"create", "update"} {
+		t.Run(command, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+			t.Setenv("ASC_APP_ID", "com.example.missing")
+			var requests []string
+			stubTransport(t, func(req *http.Request) (*http.Response, error) {
+				requests = append(requests, req.Method+" "+req.URL.RequestURI())
+				if req.URL.Path != "/v1/apps" || req.URL.Query().Get("filter[bundleId]") != "com.example.missing" {
+					return nil, fmt.Errorf("unexpected request: %s", req.URL.RequestURI())
+				}
+				return locUpdateJSONResponse(`{"data":[{"type":"apps","id":"other-app","attributes":{"bundleId":"com.other.app","name":"com.example.missing"}}]}`)
+			})
+
+			args := []string{"localizations", command, "--version", "1.17.0", "--platform", "IOS", "--locale", "en-US", "--description", "Description", "--output", "json"}
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
+			if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, `no app found for bundle ID "com.example.missing" (exact match required)`) {
+				t.Fatalf("missing configured bundle: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			if len(requests) != 1 || slices.ContainsFunc(requests, func(request string) bool {
+				return strings.Contains(request, "appStoreVersions") || strings.HasPrefix(request, "POST ") || strings.HasPrefix(request, "PATCH ")
+			}) {
+				t.Fatalf("missing configured bundle requests=%v, want one app lookup and no version lookup/write", requests)
+			}
+		})
+	}
+}
+
+func TestVersionLocalizationUploadRejectsDottedVersionStringBeforeClient(t *testing.T) {
+	setupLocUpdateAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	t.Setenv("ASC_APP_ID", "")
+	inputPath := filepath.Join(t.TempDir(), "en-US.strings")
+	if err := os.WriteFile(inputPath, []byte("\"description\" = \"Updated\";\n\"whatsNew\" = \"Notes\";\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	requests := 0
+	stubTransport(t, func(req *http.Request) (*http.Response, error) {
+		requests++
+		return nil, fmt.Errorf("unexpected request %s", req.URL.RequestURI())
+	})
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{"localizations", "upload", "--version", "1.2.3", "--path", inputPath}, "test")
+	})
+	if code != cmd.ExitUsage || stdout != "" || !strings.Contains(stderr, "expects an App Store version ID") {
+		t.Fatalf("dotted version string upload: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if requests != 0 {
+		t.Fatalf("dotted version string sent %d requests", requests)
+	}
+}
+
 func TestVersionLocalizationUploadsBindPaginationToVerifiedVersion(t *testing.T) {
 	inputPath := filepath.Join(t.TempDir(), "en-US.strings")
 	if err := os.WriteFile(inputPath, []byte("\"description\" = \"Updated\";\n\"whatsNew\" = \"Notes\";\n"), 0o600); err != nil {

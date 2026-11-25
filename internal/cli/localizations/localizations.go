@@ -133,18 +133,19 @@ Examples:
 				platformProvided = platformProvided || f.Name == "platform"
 			})
 			versionValue := strings.TrimSpace(*versionID)
+			appSelector := d.ResolveAppSelector(*appID)
 			// With --app, a numeric dotted value such as 1.2.3 is a version
 			// string to resolve on the app. Version resource IDs are UUIDs,
 			// so every other value keeps its version-ID meaning.
 			versionIsString := normalizedType == shared.LocalizationTypeVersion &&
 				versionValue != "" &&
-				d.ResolveAppID(*appID) != "" &&
+				appSelector.Value != "" &&
 				shared.IsAppStoreVersionString(versionValue)
-			if strings.TrimSpace(*next) == "" && d.ResolveAppID(*appID) == "" && normalizedType == shared.LocalizationTypeVersion && versionValue == "" {
+			if strings.TrimSpace(*next) == "" && appSelector.Value == "" && normalizedType == shared.LocalizationTypeVersion && versionValue == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations (or pass --app to use the app's editable or live version)")
 				return shared.MissingRequiredUsageError("--version")
 			}
-			if normalizedType == shared.LocalizationTypeAppInfo && d.ResolveAppID(*appID) == "" {
+			if normalizedType == shared.LocalizationTypeAppInfo && appSelector.Value == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 				return shared.MissingRequiredUsageError("--app")
 			}
@@ -203,7 +204,7 @@ Examples:
 			switch normalizedType {
 			case shared.LocalizationTypeVersion:
 				resolvedVersionID := strings.TrimSpace(*versionID)
-				resolvedAppID := d.ResolveAppID(*appID)
+				resolvedAppID := appSelector.Value
 
 				client, err := d.Client()
 				if err != nil {
@@ -219,6 +220,13 @@ Examples:
 				// announce a version the page may not belong to, and fail a
 				// valid continuation whenever the app's defaults are ambiguous
 				// or absent.
+				if strings.TrimSpace(*next) == "" && resolvedAppID != "" && (versionIsString || resolvedVersionID == "") {
+					requestCtx = asc.WithNoRedirectReads(requestCtx)
+					resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+					if err != nil {
+						return fmt.Errorf("localizations list: resolve app: %w", err)
+					}
+				}
 				if versionIsString {
 					resolvedVersionID = ""
 					if strings.TrimSpace(*next) == "" {
@@ -268,6 +276,11 @@ Examples:
 
 					// Fetch all remaining pages
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", url.PathEscape(resolvedVersionID))
+						nextURL, err := client.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+						if err != nil {
+							return nil, err
+						}
 						return client.GetAppStoreVersionLocalizations(ctx, resolvedVersionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 					})
 					if err != nil {
@@ -282,7 +295,6 @@ Examples:
 				}
 				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
-				appSelector := d.ResolveAppSelector(*appID)
 				resolvedAppID := appSelector.Value
 				nextValue := strings.TrimSpace(*next)
 				if resolvedAppID == "" {
@@ -871,12 +883,21 @@ func normalizeLocalizationVersionSelector(d *shared.Deps, version, appID, platfo
 // Without a selected app, a version ID remains a supported standalone
 // selector.
 func ResolveVersionIDForMutation(ctx context.Context, d *shared.Deps, client *asc.Client, version, appID, platform string) (string, error) {
+	version = strings.TrimSpace(version)
 	appSelector := d.ResolveAppSelector(appID)
-	appID = appSelector.Value
+	requestCtx := asc.WithNoRedirectReads(ctx)
 	if shared.IsAppStoreVersionString(version) {
-		return resolveLocalizationsVersionString(asc.WithNoRedirectReads(ctx), d, client, appID, version, platform)
+		ownerAppID, err := shared.ResolveScopedAppID(requestCtx, client, appSelector)
+		if err != nil {
+			return "", fmt.Errorf("resolve selected app: %w", err)
+		}
+		return resolveLocalizationsVersionString(requestCtx, d, client, ownerAppID, version, platform)
 	}
-	if appID == "" {
+	return resolveOwnedLocalizationVersionID(requestCtx, client, appSelector, version)
+}
+
+func resolveOwnedLocalizationVersionID(ctx context.Context, client *asc.Client, appSelector shared.AppSelector, version string) (string, error) {
+	if appSelector.Value == "" {
 		return version, nil
 	}
 	ownerAppID, err := shared.ResolveScopedAppID(ctx, client, appSelector)
@@ -899,13 +920,14 @@ func ResolveVersionIDForUpload(ctx context.Context, d *shared.Deps, client *asc.
 		return "", err
 	}
 	version = strings.TrimSpace(version)
-	return ResolveVersionIDForMutation(ctx, d, client, version, appID, "")
+	return resolveOwnedLocalizationVersionID(asc.WithNoRedirectReads(ctx), client, d.ResolveAppSelector(appID), version)
 }
 
 // ValidateVersionIDForUpload preserves the upload command's resource-ID
 // contract without creating a client or making a request for a version string.
 func ValidateVersionIDForUpload(d *shared.Deps, version string) error {
-	if shared.IsAppStoreVersionString(strings.TrimSpace(version)) {
+	version = strings.TrimSpace(version)
+	if strings.Contains(version, ".") && shared.IsAppStoreVersionString(version) {
 		return d.UsageError("--version expects an App Store version ID; pass an ID from asc versions list")
 	}
 	return nil
