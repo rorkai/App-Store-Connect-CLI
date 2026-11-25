@@ -120,9 +120,32 @@ Use --paginate to fetch every page.`,
 			if len(selectedFields) > 0 && slices.Contains(includes, "subscriptionPricePoint") && !slices.Contains(selectedFields, "subscriptionPricePoint") {
 				selectedFields = append(selectedFields, "subscriptionPricePoint")
 			}
+			expectedPath := "/v1/subscriptionPriceTiers"
+			if related {
+				expectedPath, err = subscriptionPriceTierRelationshipPath(strings.TrimSpace(*priceID), *next, "/additionalPriceTiers")
+				if err != nil {
+					return d.UsageError(fmt.Sprintf("--next: %v", err))
+				}
+			}
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
+			}
+			ctx = asc.WithNoRedirectReads(ctx)
+			nextURL, err := client.ValidateNoRedirectReadContinuation(ctx, *next, expectedPath)
+			if err != nil {
+				return d.UsageError(fmt.Sprintf("--next: %v", err))
+			}
+			scopeQuery := url.Values{}
+			setSubscriptionPricesCSVQuery(scopeQuery, "filter[subscription]", ids)
+			setSubscriptionPricesCSVQuery(scopeQuery, "filter[territory]", territories)
+			if nextURL != "" {
+				parsed, _ := url.Parse(nextURL)
+				for _, key := range []string{"filter[subscription]", "filter[territory]"} {
+					if values, present := parsed.Query()[key]; present {
+						scopeQuery[key] = values
+					}
+				}
 			}
 			firstLimit := *limit
 			if *paginate && firstLimit == 0 {
@@ -135,7 +158,7 @@ Use --paginate to fetch every page.`,
 				asc.WithSubscriptionPriceTiersPricePointFields(selectedPointFields),
 				asc.WithSubscriptionPriceTiersInclude(includes),
 				asc.Limit[asc.SubscriptionPriceTiersOption](firstLimit),
-				asc.NextURL[asc.SubscriptionPriceTiersOption](*next),
+				asc.NextURL[asc.SubscriptionPriceTiersOption](nextURL),
 			}
 			fetch := func(parent context.Context, opts ...asc.SubscriptionPriceTiersOption) (*asc.SubscriptionPriceTiersResponse, error) {
 				requestCtx, cancel := d.Timeout(parent)
@@ -156,8 +179,15 @@ Use --paginate to fetch every page.`,
 				setSubscriptionPricesCSVQuery(values, "fields[subscriptionPriceTiers]", selectedFields)
 				setSubscriptionPricesCSVQuery(values, "fields[subscriptionPricePoints]", selectedPointFields)
 				setSubscriptionPricesCSVQuery(values, "include", includes)
+				for key, scopeValues := range scopeQuery {
+					values[key] = scopeValues
+				}
 				all, err := asc.PaginateAll(ctx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					mergedNextURL, mergeErr := mergeSubscriptionPricesNextQuery(nextURL, values)
+					scopedNextURL, scopeErr := client.ValidateNoRedirectReadContinuationQuery(pageCtx, nextURL, expectedPath, scopeQuery)
+					if scopeErr != nil {
+						return nil, scopeErr
+					}
+					mergedNextURL, mergeErr := mergeSubscriptionPricesNextQuery(scopedNextURL, values)
 					if mergeErr != nil {
 						return nil, mergeErr
 					}
@@ -198,9 +228,18 @@ func newSubscriptionsPricesAdditionalPriceTiersLinksCommand(d *shared.Deps) *ffc
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--price-id")
 			}
+			expectedPath, err := subscriptionPriceTierRelationshipPath(id, *next, "/relationships/additionalPriceTiers")
+			if err != nil {
+				return d.UsageError(fmt.Sprintf("--next: %v", err))
+			}
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
+			}
+			ctx = asc.WithNoRedirectReads(ctx)
+			nextURL, err := client.ValidateNoRedirectReadContinuation(ctx, *next, expectedPath)
+			if err != nil {
+				return d.UsageError(fmt.Sprintf("--next: %v", err))
 			}
 			fetch := func(parent context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
 				requestCtx, cancel := d.Timeout(parent)
@@ -211,13 +250,17 @@ func newSubscriptionsPricesAdditionalPriceTiersLinksCommand(d *shared.Deps) *ffc
 			if *paginate && firstLimit == 0 {
 				firstLimit = 200
 			}
-			resp, err := fetch(ctx, asc.Limit[asc.LinkagesOption](firstLimit), asc.NextURL[asc.LinkagesOption](*next))
+			resp, err := fetch(ctx, asc.Limit[asc.LinkagesOption](firstLimit), asc.NextURL[asc.LinkagesOption](nextURL))
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
 			if *paginate {
 				all, err := asc.PaginateAll(ctx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return fetch(pageCtx, asc.NextURL[asc.LinkagesOption](nextURL))
+					scopedNextURL, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, expectedPath)
+					if err != nil {
+						return nil, err
+					}
+					return fetch(pageCtx, asc.NextURL[asc.LinkagesOption](scopedNextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("%s: %w", command, err)
@@ -488,4 +531,21 @@ func decodeSubscriptionPricingInput(data []byte, value any) error {
 		return fmt.Errorf("input must contain one JSON value")
 	}
 	return nil
+}
+
+func subscriptionPriceTierRelationshipPath(priceID, nextURL, suffix string) (string, error) {
+	const prefix = "/v1/subscriptionPrices/"
+	if priceID != "" {
+		return prefix + url.PathEscape(priceID) + suffix, nil
+	}
+	parsed, err := url.Parse(strings.TrimSpace(nextURL))
+	if err != nil {
+		return "", fmt.Errorf("invalid subscription price tier pagination URL")
+	}
+	path := parsed.Path
+	id := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if path != prefix+id+suffix || id == "" || id == "." || id == ".." || strings.Contains(id, "/") {
+		return "", fmt.Errorf("pagination URL must target one subscription price%s collection", suffix)
+	}
+	return prefix + url.PathEscape(id) + suffix, nil
 }
