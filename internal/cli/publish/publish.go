@@ -424,6 +424,13 @@ Examples:
 				if err != nil {
 					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, "", "build_lookup", "build_lookup_failed", fmt.Errorf("publish testflight: %w", err))
 				}
+				if err := shared.CheckBuildAppOwnership(requestCtx, client, resolvedPublishAppID, buildResp.Data.ID); err != nil {
+					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildResp.Data.ID, "build_ownership", "build_ownership_failed", fmt.Errorf("publish testflight: %w", err))
+				}
+				if err := verifyPublishBuildPlatform(requestCtx, client, buildResp.Data.ID, platformValue); err != nil {
+					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildResp.Data.ID, "build_identity", "build_platform_unverified", fmt.Errorf("publish testflight: %w", err))
+				}
+				buildAppVerified = true
 				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
 			}
 
@@ -459,13 +466,6 @@ Examples:
 				result.ProcessingState = buildResp.Data.Attributes.ProcessingState
 				attachTestFlightLocalPublishResult(result, localBuildResult)
 				return writePublishFailure(d, *output.Output, *output.Pretty, result, failure)
-			}
-
-			if !uploaded && !buildAppVerified {
-				if err := shared.CheckBuildAppOwnership(requestCtx, client, resolvedPublishAppID, buildResp.Data.ID); err != nil {
-					return writePublishPreflightFailure(d, *output.Output, *output.Pretty, buildResp.Data.ID, "build_ownership", "build_ownership_failed", fmt.Errorf("publish testflight: %w", err))
-				}
-				buildAppVerified = true
 			}
 
 			if *wait || testNotesValue != "" || (*submit && !isPublishBuildProcessed(buildResp)) {

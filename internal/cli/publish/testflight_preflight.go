@@ -101,6 +101,20 @@ func validatePublishBuildIdentity(build *asc.BuildResponse, expectedID string) e
 	return nil
 }
 
+func verifyPublishBuildPlatform(ctx context.Context, client *asc.Client, buildID string, platform asc.Platform) error {
+	preRelease, err := client.GetBuildPreReleaseVersion(ctx, buildID)
+	if err != nil {
+		return fmt.Errorf("read pre-release version for build %q: %w", buildID, err)
+	}
+	if preRelease == nil || preRelease.Data.Type != asc.ResourceTypePreReleaseVersions || strings.TrimSpace(preRelease.Data.ID) == "" {
+		return fmt.Errorf("build %q has no verified pre-release version", buildID)
+	}
+	if preRelease.Data.Attributes.Platform != platform {
+		return fmt.Errorf("build %q pre-release platform %q does not match requested platform %q", buildID, preRelease.Data.Attributes.Platform, platform)
+	}
+	return nil
+}
+
 func writePublishFailure(d *shared.Deps, output string, pretty bool, result *asc.TestFlightPublishResult, failure error) error {
 	result.Failure = publishFailureMessage(result.FailureStage)
 	if err := d.PrintOutput(result, output, pretty); err != nil {

@@ -99,6 +99,11 @@ func TestPublishTestflightBindsCollectionPagesAndResourceTypes(t *testing.T) {
 						ownerType = "builds"
 					}
 					payload = map[string]any{"data": map[string]string{"type": ownerType, "id": ownerID}}
+				case "GET /v1/builds/b1/preReleaseVersion":
+					if !tc.byNumber || tc.wrongApp || tc.wrongBuildNumber {
+						t.Error("unexpected prerelease read for an unselected build")
+					}
+					payload = map[string]any{"data": map[string]any{"type": "preReleaseVersions", "id": "pr-1", "attributes": map[string]string{"platform": "IOS"}}}
 				case "GET /v1/builds/b1":
 					if tc.wrongApp || tc.wrongOwnerType {
 						t.Error("foreign build content was read")
