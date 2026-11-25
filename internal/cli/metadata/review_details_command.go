@@ -106,8 +106,12 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			var versionErr error
-			if selectedAppID := d.ResolveAppID(*appID); selectedAppID != "" {
+			if selector := d.ResolveAppSelector(*appID); selector.Value != "" {
 				requestCtx = asc.WithNoRedirectReads(requestCtx)
+				selectedAppID, err := shared.ResolveScopedAppID(requestCtx, client, selector)
+				if err != nil {
+					return fmt.Errorf("review details %s: resolve app: %w", name, err)
+				}
 				_, versionErr = shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, selectedAppID, id, "")
 			} else {
 				_, versionErr = client.GetAppStoreVersion(requestCtx, id)

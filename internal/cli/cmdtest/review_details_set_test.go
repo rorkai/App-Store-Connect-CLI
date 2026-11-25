@@ -46,16 +46,22 @@ func TestReviewDetailsSetValidatesWholeFileBeforeRequests(t *testing.T) {
 func TestReviewDetailsPlanSetAndRepeat(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 	t.Setenv("ASC_DEMO_ACCOUNT_PASSWORD", "fixture-password")
-	t.Setenv("ASC_APP_ID", "app-b")
+	t.Setenv("ASC_APP_ID", "com.example.review")
 	var current map[string]any
 	var writes int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/apps" && r.URL.Query().Get("filter[bundleId]") == "com.example.review" {
+			if _, err := w.Write([]byte(`{"data":[{"type":"apps","id":"100000002","attributes":{"bundleId":"com.example.review"}}]}`)); err != nil {
+				t.Error(err)
+			}
+			return
+		}
 		if r.Method == http.MethodGet && r.URL.Path == "/v1/appStoreVersions/v1" {
 			if r.URL.Query().Get("include") != "app" {
 				t.Errorf("scoped version read must include app ownership: %s", r.URL.RawQuery)
 			}
-			if err := json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"id": "v1", "type": "appStoreVersions", "relationships": map[string]any{"app": map[string]any{"data": map[string]any{"type": "apps", "id": "app-b"}}}}}); err != nil {
+			if err := json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"id": "v1", "type": "appStoreVersions", "relationships": map[string]any{"app": map[string]any{"data": map[string]any{"type": "apps", "id": "100000002"}}}}}); err != nil {
 				t.Error(err)
 			}
 			return
@@ -161,13 +167,13 @@ func TestReviewDetailsEnforcesSelectedAppBeforeReadingDetails(t *testing.T) {
 			envApp                   *string
 			scoped, allowed          bool
 		}{
-			{name: "explicit mismatch", flagApp: "app-a", envApp: env("app-b"), configApp: "app-b", scoped: true},
-			{name: "environment mismatch", envApp: env("app-a"), configApp: "app-b", scoped: true},
-			{name: "default mismatch", configApp: "app-a", scoped: true},
-			{name: "explicit overrides environment and default", flagApp: "app-b", envApp: env("app-a"), configApp: "app-a", scoped: true, allowed: true},
-			{name: "environment overrides default", envApp: env("app-b"), configApp: "app-a", scoped: true, allowed: true},
-			{name: "matching default", configApp: "app-b", scoped: true, allowed: true},
-			{name: "empty environment disables default", envApp: env(""), configApp: "app-a", allowed: true},
+			{name: "explicit mismatch", flagApp: "100000001", envApp: env("100000002"), configApp: "100000002", scoped: true},
+			{name: "environment mismatch", envApp: env("100000001"), configApp: "100000002", scoped: true},
+			{name: "default mismatch", configApp: "100000001", scoped: true},
+			{name: "explicit overrides environment and default", flagApp: "100000002", envApp: env("100000001"), configApp: "100000001", scoped: true, allowed: true},
+			{name: "environment overrides default", envApp: env("100000002"), configApp: "100000001", scoped: true, allowed: true},
+			{name: "matching default", configApp: "100000002", scoped: true, allowed: true},
+			{name: "empty environment disables default", envApp: env(""), configApp: "100000001", allowed: true},
 			{name: "resource only", allowed: true},
 		} {
 			t.Run(command+"/"+tc.name, func(t *testing.T) {
@@ -194,7 +200,7 @@ func TestReviewDetailsEnforcesSelectedAppBeforeReadingDetails(t *testing.T) {
 					query = []string{"include=app"}
 				}
 				reg.Register(asctest.GET("/v1/appStoreVersions/v1", query...),
-					asctest.JSON(http.StatusOK, `{"data":{"id":"v1","type":"appStoreVersions","relationships":{"app":{"data":{"id":"app-b","type":"apps"}}}}}`))
+					asctest.JSON(http.StatusOK, `{"data":{"id":"v1","type":"appStoreVersions","relationships":{"app":{"data":{"id":"100000002","type":"apps"}}}}}`))
 				if tc.allowed {
 					reg.Register(asctest.GET("/v1/appStoreVersions/v1/appStoreReviewDetail"),
 						asctest.JSON(http.StatusOK, `{"data":{"id":"d1","type":"appStoreReviewDetails","attributes":{"notes":"Unchanged"}}}`))
