@@ -69,6 +69,7 @@ func newWebAppsComplianceCommand(d *shared.Deps) *ffcli.Command {
 		Subcommands: []*ffcli.Command{
 			newWebAppsComplianceListCommand(d),
 			newWebAppsComplianceSetCommand(d),
+			newWebAppsVietnamLicenseCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

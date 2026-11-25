@@ -4342,6 +4342,54 @@
         ]
       }
     },
+    "/iris/v1/apps/{appId}/vietnamGameLicenseDetail": {
+      "parameters": [
+        {
+          "name": "appId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "get": {
+        "tags": [
+          "VietnamGameLicenseDetails"
+        ],
+        "operationId": "apps_vietnamGameLicenseDetail_getToOneRelated",
+        "responses": {
+          "2XX": {
+            "description": "Success. Preserves the complete Apple response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VietnamGameLicenseDetailResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. The client reads the status code and JSON:API error details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-25",
+          "live": "2026-11-25"
+        },
+        "x-asc-source": [
+          "Client.GetAppVietnamGameLicense"
+        ]
+      }
+    },
     "/iris/v1/apps/{id}": {
       "parameters": [
         {
@@ -19953,6 +20001,45 @@
           }
         },
         "additionalProperties": true
+      },
+      "VietnamGameLicenseDetailResponse": {
+        "type": "object",
+        "title": "VietnamGameLicenseDetailResponse",
+        "additionalProperties": true,
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "attributes": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                  "license": {
+                    "description": "Observed as null. The populated value shape has not been captured."
+                  },
+                  "licenseUrl": {
+                    "description": "Observed as null. The populated value shape has not been captured."
+                  }
+                }
+              },
+              "links": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "links": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
       },
       "WebsitePushId": {
         "type": "object",

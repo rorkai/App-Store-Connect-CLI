@@ -100,6 +100,8 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
   - The form walk for every answer was live-verified on 2026-11-22 (2 metadata requests for No, 3 for an affirmative Security Assessment, 4 for an affirmative AI Generated or Synthetic Content answer), through a `--dry-run` that still walked the form then; a dry run no longer does.
   - Both save requests were live-verified on 2026-11-22 with a No on the Security Assessment: the first answer was a `POST` (200) that moved the requirement from `PENDING_COLLECT` to `COLLECTED_VERIFY_NOT_NECESSARY` and gave it a `formId`, `dateSigned`, and `lastUpdatedDate`; saving No again was a `PUT` (200) that kept the `formId` and `dateSigned` and advanced `lastUpdatedDate`. A No leaves no `requiredActions`. Saving an affirmative answer with evidence has not been sent live.
 
+- `asc web apps compliance vietnam-license view --app APP_ID` reads `GET /iris/v1/apps/{appId}/vietnamGameLicenseDetail` without query parameters and preserves the Apple JSON envelope. The November 25, 2026 browser capture returned a `vietnamGameLicenseDetails` resource with `license: null` and `licenseUrl: null`. Populated values and write requests have not been captured.
+
 ## Web-session API keys
 
 - `asc web api-keys list` combines iris v1 team keys (`GET /iris/v1/apiKeys?include=createdBy,revokedBy,provider&sort=-isActive,-revokingDate&limit=2000`) and iris v2 individual keys (`GET /iris/v2/apiKeys?include=visibleApps,createdByActor,revokedByActor&limit[visibleApps]=3&limit=2000`), following `links.next` internally (no `--paginate`). Use `asc web auth capabilities --key-id` to resolve actor-backed roles when an individual key's `roles` array is empty.
