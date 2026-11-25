@@ -16,10 +16,10 @@ func newWebBusinessCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:        "business",
 		ShortUsage:  "asc web business <subcommand> [flags]",
-		ShortHelp:   "Manage App Store Connect Business agreements.",
+		ShortHelp:   "Manage App Store Connect Business agreements and trader status.",
 		FlagSet:     d.NewFlagSet("web business", flag.ExitOnError),
 		UsageFunc:   d.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{newWebBusinessAgreementsCommand(d)},
+		Subcommands: []*ffcli.Command{newWebBusinessAgreementsCommand(d), newWebBusinessDSACommand(d)},
 		Exec:        func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }

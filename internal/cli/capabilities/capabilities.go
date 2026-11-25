@@ -734,6 +734,13 @@ func capabilityRows() []Capability {
 		},
 		{
 			Area:       "access",
+			Capability: "Digital Services Act trader status",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web business dsa status"},
+			NextAction: "Use asc web business dsa status to check the selected account's trader declaration and verification status.",
+		},
+		{
+			Area:       "access",
 			Capability: "App Store Connect API key web-session management",
 			Status:     statusWebSession,
 			Commands:   []string{"asc web api-keys"},

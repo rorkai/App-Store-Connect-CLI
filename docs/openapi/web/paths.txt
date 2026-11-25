@@ -101,6 +101,7 @@ GET /ppm/complianceform/v1/accounts/{id}/requirements
 GET /ppm/compliancerequirements/v1/accounts/{accountId}/requirements
 GET /sandbox/v2/provider/account/list
 GET /services-account/QH65B2/account/auth/key/download
+GET /v1/accounts/{accountId}/sellerInfo
 HEAD /logout
 PATCH /iris/v1/ageRatingDeclarations/{id}
 PATCH /iris/v1/apiKeys/{id}
