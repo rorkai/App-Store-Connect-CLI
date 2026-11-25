@@ -115,7 +115,15 @@ func TestEqualizeRateLimitReplayUsesFreshRequestDeadlines(t *testing.T) {
 			response := resolvedPricesJSONResponse(`{"data":{"type":"subscriptionPrices","id":"created"}}`)
 			response.StatusCode = http.StatusCreated
 			return response, nil
-		case prices, tiers:
+		case prices:
+			if got := req.URL.Query().Get("filter[territory]"); got != "CAN" {
+				t.Errorf("retry price read territory = %q, want CAN", got)
+			}
+			if req.URL.Query().Get("cursor") == "" {
+				return resolvedPricesJSONResponse(`{"data":[],"links":{"next":"/v1/subscriptions/sub-1/prices?cursor=next"}}`), nil
+			}
+			return resolvedPricesJSONResponse(`{"data":[]}`), nil
+		case tiers:
 			return resolvedPricesJSONResponse(`{"data":[]}`), nil
 		default:
 			t.Fatalf("unexpected request %s", call)
@@ -129,7 +137,7 @@ func TestEqualizeRateLimitReplayUsesFreshRequestDeadlines(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		succeeded, failures := applyEqualizedPrices(context.Background(), shared.DefaultDeps(), client, "sub-1",
 			[]equalization{{Territory: "CAN", PricePointID: "can-point"}}, 1, asc.SubscriptionPriceCreateAttributes{}, time.Now(), false)
-		if succeeded != 1 || len(failures) != 0 || !slices.Equal(calls, []string{post, prices, tiers, post}) {
+		if succeeded != 1 || len(failures) != 0 || !slices.Equal(calls, []string{post, prices, prices, tiers, post}) {
 			t.Fatalf("succeeded=%d failures=%v requests=%v", succeeded, failures, calls)
 		}
 	})
