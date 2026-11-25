@@ -437,6 +437,13 @@ func capabilityRows() []Capability {
 			NextAction: "Read with asc web apps compliance list --app APP_ID. Answer with asc web apps compliance set --app APP_ID --requirement SECURITY_ASSESSMENT|AI_GENERATED_CONTENT --declared true|false --confirm, or check an answer first with --dry-run.",
 		},
 		{
+			Area:       "app-management",
+			Capability: "China mainland publication permit",
+			Status:     statusWebSession,
+			Commands:   []string{"asc web apps compliance china-publication-permit view"},
+			NextAction: "Check the app's permit with asc web apps compliance china-publication-permit view --app APP_ID.",
+		},
+		{
 			Area:       "monetization",
 			Capability: "Subscriptions and in-app purchases",
 			Status:     statusCLISupported,

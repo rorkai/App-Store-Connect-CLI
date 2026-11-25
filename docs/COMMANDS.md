@@ -182,6 +182,9 @@ asc web apps age-ratings list --app APP_ID --output json
 asc web apps age-ratings territories --app-info APP_INFO_ID --output table
 asc web apps age-ratings edit --id DECLARATION_ID --input ./age-rating.json --confirm
 
+# Read the China mainland publication permit relationship
+asc web apps compliance china-publication-permit view --app APP_ID --output json
+
 # Upload a build
 asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
 
