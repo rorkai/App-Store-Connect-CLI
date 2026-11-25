@@ -97,6 +97,52 @@ func TestLocalizationsListRejectsMismatchedVersionAndCursor(t *testing.T) {
 	}
 }
 
+func TestLocalizationsListSelectedVersionStringCursorChecksLiteral(t *testing.T) {
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-string-cursor/appStoreVersionLocalizations?cursor=next"
+	for _, test := range []struct {
+		name            string
+		returnedVersion string
+		wantError       bool
+	}{
+		{name: "matching cursor version", returnedVersion: "1.17.0"},
+		{name: "mismatched cursor version", returnedVersion: "9.9.9", wantError: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(
+				asctest.GET("/v1/appStoreVersions/version-string-cursor", "include=app"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-string-cursor","attributes":{"platform":"IOS","versionString":"`+test.returnedVersion+`"},"relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`),
+			)
+			if !test.wantError {
+				reg.Register(
+					asctest.GET("/v1/appStoreVersions/version-string-cursor/appStoreVersionLocalizations", "cursor=next"),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-cursor","attributes":{"locale":"en-US"}}],"links":{}}`),
+				)
+			}
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "localizations", "list", "--app", "100000001", "--version", "1.17.0", "--next", nextURL, "--output", "json")
+			if test.wantError {
+				if err == nil || !strings.Contains(err.Error(), "does not match the cursor version") || stdout != "" || !strings.Contains(stderr, "does not match the cursor version") {
+					t.Fatalf("err=%v stdout=%q stderr=%q, want version-string cursor refusal", err, stdout, stderr)
+				}
+				requests := reg.Requests()
+				if len(requests) != 1 || requests[0].URL.Path != "/v1/appStoreVersions/version-string-cursor" {
+					t.Fatalf("requests=%v, want only ownership read before mismatch", requests)
+				}
+				return
+			}
+			if err != nil || stderr != "" || !strings.Contains(stdout, `"id":"loc-cursor"`) {
+				t.Fatalf("err=%v stdout=%q stderr=%q, want matching cursor localization output", err, stdout, stderr)
+			}
+			requests := reg.Requests()
+			if len(requests) != 2 || requests[1].URL.Path != "/v1/appStoreVersions/version-string-cursor/appStoreVersionLocalizations" {
+				t.Fatalf("requests=%v, want ownership then localization read", requests)
+			}
+		})
+	}
+}
+
 func TestLocalizationsListStandaloneSelectorsRemainUnscoped(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)

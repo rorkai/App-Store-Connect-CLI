@@ -223,14 +223,11 @@ Examples:
 					}
 				}
 				if nextValue != "" && resolvedAppID != "" {
-					if versionIsString {
-						return d.UsageError("--version cannot be combined with --next")
-					}
 					scopedNextURL, cursorVersionID, nextErr := appStoreVersionLocalizationsScopedURL(nextValue)
 					if nextErr != nil {
 						return d.UsageErrorf("localizations list: %v", nextErr)
 					}
-					if resolvedVersionID != "" && resolvedVersionID != cursorVersionID {
+					if !versionIsString && resolvedVersionID != "" && resolvedVersionID != cursorVersionID {
 						return d.UsageErrorf("localizations list: --version %q does not match the --next target %q", resolvedVersionID, cursorVersionID)
 					}
 					nextValue, err = client.ValidateNoRedirectReadContinuation(requestCtx, scopedNextURL, fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", url.PathEscape(cursorVersionID)))
@@ -241,6 +238,12 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("localizations list: verify version ownership: %w", err)
 					}
+					if versionIsString {
+						returnedVersion := strings.TrimSpace(ownedVersion.Attributes.VersionString)
+						if returnedVersion != versionValue {
+							return d.UsageErrorf("localizations list: --version %q does not match the cursor version %q", versionValue, returnedVersion)
+						}
+					}
 					resolvedVersionID = ownedVersion.ID
 				} else if nextValue == "" && resolvedAppID != "" && resolvedVersionID != "" && !versionIsString {
 					ownedVersion, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, resolvedVersionID, "")
@@ -249,16 +252,13 @@ Examples:
 					}
 					resolvedVersionID = ownedVersion.ID
 				}
-				if versionIsString {
-					resolvedVersionID = ""
-					if nextValue == "" {
-						resolvedVersionID, err = resolveLocalizationsVersionString(requestCtx, d, client, resolvedAppID, versionValue, normalizedPlatform)
-						if err != nil {
-							if errors.Is(err, flag.ErrHelp) {
-								return err
-							}
-							return fmt.Errorf("localizations list: %w", err)
+				if versionIsString && nextValue == "" {
+					resolvedVersionID, err = resolveLocalizationsVersionString(requestCtx, d, client, resolvedAppID, versionValue, normalizedPlatform)
+					if err != nil {
+						if errors.Is(err, flag.ErrHelp) {
+							return err
 						}
+						return fmt.Errorf("localizations list: %w", err)
 					}
 				} else if resolvedVersionID == "" && nextValue == "" {
 					resolved, err := d.ResolveAndAnnounceDefaultAppStoreVersion(requestCtx, client, resolvedAppID, normalizedPlatform, "--version")
