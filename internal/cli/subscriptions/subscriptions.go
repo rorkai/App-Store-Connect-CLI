@@ -1439,7 +1439,25 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 
 			if !hasExistingPrices {
 				// Initial price: use PATCH with inline resources
-				subResp, err := client.SetSubscriptionInitialPrice(requestCtx, id, pricePoint, territoryID, attrs, tiers...)
+				subResp, err := asc.RetrySubscriptionPriceWrite(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
+					if replay {
+						exists, err := subscriptionHasExistingPrices(attemptCtx, client, id)
+						if err != nil {
+							return nil, err
+						}
+						if exists {
+							match, err := findMatchingSubscriptionPrice(attemptCtx, client, id, pricePoint, territoryID, attrs, tiers...)
+							if err != nil {
+								return nil, err
+							}
+							if match == nil {
+								return nil, fmt.Errorf("subscription %s already has prices; cannot replay the initial price matrix", id)
+							}
+							return client.GetSubscription(attemptCtx, id)
+						}
+					}
+					return client.SetSubscriptionInitialPrice(attemptCtx, id, pricePoint, territoryID, attrs, tiers...)
+				})
 				if err != nil {
 					return fmt.Errorf("subscriptions prices add: failed to set initial price: %w", err)
 				}
@@ -1457,12 +1475,18 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return d.PrintOutput(matchingPrice, *output.Output, *output.Pretty)
 			}
 			if matchingPrice != nil && *force {
-				hasTiers, err := subscriptionHasPriceTiers(requestCtx, d, client, id, nil)
-				if err != nil {
-					return fmt.Errorf("subscriptions prices add: check volume tiers before repair: %w", err)
+				checkRepair := func(checkCtx context.Context) error {
+					hasTiers, err := subscriptionHasPriceTiers(checkCtx, d, client, id, nil)
+					if err != nil {
+						return fmt.Errorf("subscriptions prices add: check volume tiers before repair: %w", err)
+					}
+					if hasTiers {
+						return d.UsageError("--force cannot rebuild a subscription with volume tiers; use --additional-price-tiers without --force")
+					}
+					return nil
 				}
-				if hasTiers {
-					return d.UsageError("--force cannot rebuild a subscription with volume tiers; use --additional-price-tiers without --force")
+				if err := checkRepair(requestCtx); err != nil {
+					return err
 				}
 				equalizations, equalizationsErr := fetchEqualizations(requestCtx, d, client, pricePoint, territoryID)
 				if equalizationsErr != nil {
@@ -1477,7 +1501,21 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				if matrixErr != nil {
 					return fmt.Errorf("subscriptions prices add: build repair matrix: %w", matrixErr)
 				}
-				resp, matrixErr := client.SetSubscriptionPriceMatrix(requestCtx, id, matrix)
+				resp, matrixErr := asc.RetrySubscriptionPriceWrite(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
+					if replay {
+						if err := checkRepair(attemptCtx); err != nil {
+							return nil, err
+						}
+						match, err := findMatchingSubscriptionPrice(attemptCtx, client, id, pricePoint, territoryID, attrs)
+						if err != nil {
+							return nil, err
+						}
+						if match == nil {
+							return nil, fmt.Errorf("subscription %s base price changed; cannot replay the repair matrix", id)
+						}
+					}
+					return client.SetSubscriptionPriceMatrix(attemptCtx, id, matrix)
+				})
 				if matrixErr != nil {
 					return fmt.Errorf("subscriptions prices add: failed to re-save price matrix: %w", matrixErr)
 				}
@@ -1485,7 +1523,18 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			}
 
 			// Existing prices: use POST /v1/subscriptionPrices for a price change
-			resp, err := client.CreateSubscriptionPrice(requestCtx, id, pricePoint, territoryID, attrs, tiers...)
+			resp, err := asc.RetrySubscriptionPriceWrite(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionPriceResponse, error) {
+				if replay && tiers == nil && planTypeValue != asc.SubscriptionPlanTypeMonthly {
+					match, err := findMatchingSubscriptionPrice(attemptCtx, client, id, pricePoint, territoryID, attrs)
+					if err != nil || match != nil {
+						return match, err
+					}
+				}
+				return client.CreateSubscriptionPrice(attemptCtx, id, pricePoint, territoryID, attrs, tiers...)
+			})
+			if errors.Is(err, errSubscriptionPriceTierIntentRequired) {
+				return d.UsageError(err.Error())
+			}
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: failed to create: %w", err)
 			}

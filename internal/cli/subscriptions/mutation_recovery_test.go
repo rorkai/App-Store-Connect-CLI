@@ -100,6 +100,8 @@ func TestApplyEqualizedPricesDoesNotReplayExhaustedClientRateLimit(t *testing.T)
 				Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED"}]}`)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			return resolvedPricesJSONResponse(`{"data":[]}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/prices":
 			readbacks++
 			return resolvedPricesJSONResponse(`{"data":[],"included":[],"links":{"next":""}}`), nil
@@ -121,7 +123,7 @@ func TestApplyEqualizedPricesDoesNotReplayExhaustedClientRateLimit(t *testing.T)
 		[]equalization{{Territory: "CAN", Price: "1.29", PricePointID: "price-point-can"}},
 		1,
 		asc.SubscriptionPriceCreateAttributes{},
-		time.Now().UTC(),
+		time.Now().UTC(), false,
 	)
 	if succeeded != 0 || len(failures) != 1 {
 		t.Fatalf("unexpected equalize result: succeeded=%d failures=%d", succeeded, len(failures))
@@ -129,8 +131,8 @@ func TestApplyEqualizedPricesDoesNotReplayExhaustedClientRateLimit(t *testing.T)
 	if want := asc.DefaultMaxRetries + 1; postAttempts != want {
 		t.Fatalf("expected one client retry budget (%d POSTs), got %d; outer pricing recovery replayed an exhausted 429", want, postAttempts)
 	}
-	if readbacks != 1 {
-		t.Fatalf("expected one final reconciliation readback, got %d", readbacks)
+	if readbacks != postAttempts {
+		t.Fatalf("expected a readback before each replay and after exhaustion, got %d for %d POSTs", readbacks, postAttempts)
 	}
 }
 
@@ -180,7 +182,7 @@ func TestApplyEqualizedPricesDoesNotSleepOnUnhonoredRetryAfter(t *testing.T) {
 			[]equalization{{Territory: "CAN", Price: "1.29", PricePointID: "price-point-can"}},
 			1,
 			asc.SubscriptionPriceCreateAttributes{},
-			time.Now().UTC(),
+			time.Now().UTC(), false,
 		)
 	})
 	if succeeded != 0 || len(failures) != 1 {

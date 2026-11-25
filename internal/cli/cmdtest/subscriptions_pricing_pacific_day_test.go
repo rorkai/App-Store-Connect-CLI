@@ -208,7 +208,7 @@ func TestSubscriptionsPricingEqualize_AutoScheduleMovesStartDateWhenBaseAlreadyH
 func runEqualizeOnEarliestStartDateAppleAccepts(t *testing.T, baseAlreadyPriced bool) {
 	t.Helper()
 	setupAuth(t)
-	t.Setenv("ASC_MAX_RETRIES", "0")
+	setPriceReplayRetryOptions(t)
 	// 11:01 PST on 2026-11-12: the Pacific next day is 2026-11-13, but App
 	// Store Connect only accepts 2026-11-14 (observed 2026-11-12).
 	t.Cleanup(setRootNow(func() time.Time {
@@ -268,6 +268,9 @@ func runEqualizeOnEarliestStartDateAppleAccepts(t *testing.T, baseAlreadyPriced 
 				t.Fatalf("parse body: %v", err)
 			}
 			posts = append(posts, payload.Data.Relationships.Territory.Data.ID+"@"+payload.Data.Attributes.StartDate)
+			if baseAlreadyPriced && len(posts) == 1 {
+				return jsonHTTPResponse(http.StatusTooManyRequests, `{"errors":[{"code":"RATE_LIMIT_EXCEEDED","status":"429"}]}`), nil
+			}
 			if payload.Data.Attributes.StartDate < "2026-11-14" {
 				return jsonHTTPResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"An attribute value is invalid.","detail":"Invalid startDate=`+payload.Data.Attributes.StartDate+`, must be on or after 2026-11-14","source":{"pointer":"/data/attributes/startDate"}}]}`), nil
 			}
@@ -296,7 +299,11 @@ func runEqualizeOnEarliestStartDateAppleAccepts(t *testing.T, baseAlreadyPriced 
 		}
 	})
 
-	if got := strings.Join(posts, ","); got != "USA@2026-11-13,USA@2026-11-14,CAN@2026-11-14" {
+	wantPosts := "USA@2026-11-13,USA@2026-11-14,CAN@2026-11-14"
+	if baseAlreadyPriced {
+		wantPosts = "USA@2026-11-13," + wantPosts
+	}
+	if got := strings.Join(posts, ","); got != wantPosts {
 		t.Fatalf("expected one rejected base POST, then every territory on Apple's earliest date, got %s", got)
 	}
 	if !strings.Contains(stderr, "scheduling price changes for 2026-11-14") {

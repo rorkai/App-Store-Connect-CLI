@@ -312,22 +312,45 @@ func TestSubscriptionsPricingPPPTerritorySelection(t *testing.T) {
 }
 
 func TestSubscriptionsPricingPPPRefusesChangedVolumeTerritories(t *testing.T) {
+	t.Run("tier present at first write", func(t *testing.T) { checkPPPTiersBeforeWrite(t, false) })
+	t.Run("tier appeared after 503", func(t *testing.T) { checkPPPTiersBeforeWrite(t, true) })
+}
+
+func checkPPPTiersBeforeWrite(t *testing.T, retry bool) {
+	t.Helper()
 	setupAuth(t)
 	priceReads, tierReads := 0, 0
 	var posts []string
+	attempts := 0
 	transport := pppTestTransport(t, &priceReads, &posts)
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers" {
 			tierReads++
+			if retry && attempts == 0 {
+				return jsonHTTPResponse(200, `{"data":[]}`), nil
+			}
 			if req.URL.Query().Get("filter[territory]") != "IND" || req.URL.Query().Get("filter[subscription]") != "8000000001" {
 				t.Fatalf("guard must include only changed IND territory: %s", req.URL.RawQuery)
 			}
 			return jsonHTTPResponse(200, `{"data":[{"type":"subscriptionPriceTiers","id":"tier-ind","attributes":{"minQuantity":10}}],"links":{}}`), nil
 		}
+		if retry && req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices" {
+			attempts++
+			if attempts == 1 {
+				return jsonHTTPResponse(503, `{"errors":[{"status":"503","detail":"temporarily unavailable"}]}`), nil
+			}
+		}
+		if retry && req.URL.Path == "/v1/subscriptions/8000000001/prices" {
+			priceReads = 0 // The old base price remains effective across both reads.
+		}
 		return transport(req)
 	}))
 	out, _, err := runCommand(t, []string{"subscriptions", "pricing", "ppp", "--subscription-id", "8000000001", "--base-price", "9.99", "--workers", "1", "--auto-start-date=false", "--confirm", "--output", "json"})
-	if err == nil || !strings.Contains(err.Error()+out, "asc subscriptions pricing prices set --additional-price-tiers") || len(posts) != 0 || tierReads != 1 {
+	wantTierReads, wantAttempts := 1, 0
+	if retry {
+		wantTierReads, wantAttempts = 2, 1
+	}
+	if attempts != wantAttempts || err == nil || !strings.Contains(err.Error()+out, "asc subscriptions pricing prices set --additional-price-tiers") || len(posts) != 0 || tierReads != wantTierReads {
 		t.Fatalf("err=%v posts=%d tier reads=%d output=%s", err, len(posts), tierReads, out)
 	}
 }

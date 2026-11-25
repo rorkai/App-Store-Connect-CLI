@@ -16,14 +16,17 @@ import (
 
 func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 	for _, test := range []struct {
-		name          string
-		initial       bool
-		unchanged     bool
-		noTerritory   bool
-		empty         bool
-		explicitFalse bool
+		name            string
+		initial         bool
+		unchanged       bool
+		noTerritory     bool
+		empty           bool
+		explicitFalse   bool
+		initialRejected bool
 	}{
 		{name: "initial price", initial: true},
+		{name: "initial replay sees desired tiers", initial: true, initialRejected: true, unchanged: true},
+		{name: "initial replay sees different tiers", initial: true, initialRejected: true},
 		{name: "changed tiers"},
 		{name: "unchanged tiers", unchanged: true},
 		{name: "unchanged tiers implicit territory", unchanged: true, noTerritory: true},
@@ -41,12 +44,15 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 				t.Fatal(err)
 			}
 			writes := 0
+			if test.initialRejected {
+				setPriceReplayRetryOptions(t)
+			}
 			captured.response = func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				switch {
 				case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/relationships/prices"):
 					prices := `[{"type":"subscriptionPrices","id":"current"}]`
-					if test.initial {
+					if test.initial && (!test.initialRejected || writes == 0) {
 						prices = `[]`
 					}
 					_, _ = fmt.Fprintf(w, `{"data":%s,"links":{}}`, prices)
@@ -60,6 +66,8 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 						point = "bulk-point"
 					}
 					_, _ = fmt.Fprintf(w, `{"data":[{"type":"subscriptionPriceTiers","id":"tier-1","attributes":{"minQuantity":10},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":%q}}}}],"links":{}}`, point)
+				case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000003":
+					_, _ = io.WriteString(w, `{"data":{"type":"subscriptions","id":"8000000003"}}`)
 				case req.Method == http.MethodPatch || req.Method == http.MethodPost:
 					writes++
 					wantPath, wantMethod := "/v1/subscriptionPrices", http.MethodPost
@@ -120,6 +128,11 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 							t.Fatalf("tier price point = %s", got)
 						}
 					}
+					if test.initialRejected && writes == 1 {
+						w.WriteHeader(http.StatusTooManyRequests)
+						_, _ = io.WriteString(w, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED"}]}`)
+						return
+					}
 					resourceType := "subscriptionPrices"
 					if test.initial {
 						resourceType = "subscriptions"
@@ -137,11 +150,19 @@ func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
 				args = append(args, "--preserved=false")
 			}
 			stdout, stderr, err := runSubscriptionPricesListQuerySurface(t, args...)
+			if test.initialRejected && !test.unchanged {
+				if err == nil || !strings.Contains(err.Error(), "cannot replay the initial price matrix") || writes != 1 {
+					t.Fatalf("err=%v writes=%d", err, writes)
+				}
+				return
+			}
 			if err != nil || stderr != "" {
 				t.Fatalf("run = %v, stderr %q", err, stderr)
 			}
 			wantWrites, wantID := 1, "saved"
-			if test.unchanged {
+			if test.initialRejected {
+				wantID = "8000000003"
+			} else if test.unchanged {
 				wantWrites, wantID = 0, "existing-price-1"
 			}
 			var result struct {
@@ -198,18 +219,35 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 		name        string
 		force       bool
 		noTerritory bool
+		retry       bool
+		baseChanged bool
 		want        string
 	}{
 		{name: "selected territory", want: "--additional-price-tiers is required when changing a price with volume tiers"},
 		{name: "implicit territory", noTerritory: true, want: "--additional-price-tiers is required when changing a price with volume tiers"},
+		{name: "base changed before force replay", force: true, retry: true, baseChanged: true, want: "base price changed"},
 		{name: "global force repair", force: true, want: "--force cannot rebuild a subscription with volume tiers"},
+		{name: "volume appeared after rate limit", retry: true, want: "--additional-price-tiers is required when changing a price with volume tiers"},
+		{name: "volume appeared before force replay", force: true, retry: true, want: "--force cannot rebuild a subscription with volume tiers"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			captured := subscriptionPricesListQuerySurfaceStub(t)
+			writes := 0
+			if test.retry {
+				setPriceReplayRetryOptions(t)
+			}
 			captured.response = func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				if req.Method != http.MethodGet {
-					t.Fatalf("unexpected mutation %s %s", req.Method, req.URL)
+					writes++
+					if test.retry && writes == 1 {
+						w.WriteHeader(http.StatusTooManyRequests)
+						_, _ = io.WriteString(w, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED"}]}`)
+						return
+					}
+					t.Errorf("unexpected mutation %s %s", req.Method, req.URL)
+					w.WriteHeader(http.StatusBadRequest)
+					return
 				}
 				if strings.HasSuffix(req.URL.Path, "/relationships/prices") {
 					_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"current"}],"links":{}}`)
@@ -219,14 +257,30 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 					if !test.force || req.URL.Query().Get("filter[subscription]") != "8000000003" {
 						t.Fatalf("unexpected volume tier query %s", req.URL)
 					}
+					if test.retry && (writes == 0 || test.baseChanged) {
+						_, _ = io.WriteString(w, `{"data":[]}`)
+						return
+					}
 					_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPriceTiers","id":"other-territory-tier"}],"links":{}}`)
+					return
+				}
+				if strings.HasSuffix(req.URL.Path, "/equalizations") {
+					_, _ = io.WriteString(w, `{"data":[]}`)
 					return
 				}
 				if req.URL.Query().Get("include") != "subscriptionPricePoint,territory,additionalPriceTiers" {
 					t.Fatalf("price read must include tiers, got %s", req.URL.RawQuery)
 				}
 				if test.force {
-					_, _ = io.WriteString(w, subscriptionPriceListFixture("new-base", "USA", ""))
+					point := "new-base"
+					if test.baseChanged && writes > 0 {
+						point = "concurrent-alternative"
+					}
+					_, _ = io.WriteString(w, subscriptionPriceListFixture(point, "USA", ""))
+					return
+				}
+				if test.retry && writes == 0 {
+					_, _ = io.WriteString(w, subscriptionPriceListFixture("old-base", "USA", ""))
 					return
 				}
 				_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"current","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-base"}},"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}}}],"links":{}}`)
@@ -239,6 +293,15 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 				args = append(args, "--force")
 			}
 			_, stderr, err := runSubscriptionPricesListQuerySurface(t, args...)
+			if test.retry && writes != 1 {
+				t.Fatalf("expected only the rejected write, got %d", writes)
+			}
+			if test.baseChanged {
+				if err == nil || !strings.Contains(err.Error(), test.want) {
+					t.Fatalf("run = %v, want %q", err, test.want)
+				}
+				return
+			}
 			if rootcmd.ExitCodeFromError(err) != rootcmd.ExitUsage || !strings.Contains(stderr, test.want) {
 				t.Fatalf("run = %v, stderr %q, want %q", err, stderr, test.want)
 			}
