@@ -198,11 +198,6 @@ func territoryAgeRatingsScopedURL(nextValue string) (string, string, error) {
 	return scopedURL, appInfoID, nil
 }
 
-func territoryAgeRatingsAppInfoID(nextValue string) (string, error) {
-	_, appInfoID, err := territoryAgeRatingsScopedURL(nextValue)
-	return appInfoID, err
-}
-
 func normalizeTerritoryAgeRatingFields(value string) ([]string, error) {
 	fields := shared.SplitCSV(value)
 	if len(fields) == 0 {

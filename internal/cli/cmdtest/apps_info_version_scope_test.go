@@ -148,3 +148,70 @@ func TestAppsInfoViewVersionIDRefusesForeignVersionBeforeLocalizationRead(t *tes
 		t.Fatalf("requests = %v, want only the ownership read", requests)
 	}
 }
+
+func TestAppsInfoViewNextUsesOwnedCursorVersion(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(
+		asctest.GET("/v1/appStoreVersions/version-old", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-old","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`),
+	)
+	reg.Register(
+		asctest.GET("/v1/appStoreVersions/version-old/appStoreVersionLocalizations", "cursor=older"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-old","attributes":{"locale":"en-US"}}],"links":{}}`),
+	)
+
+	nextURL := "https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-old/appStoreVersionLocalizations?cursor=older"
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "apps", "info", "view", "--app", "100000001", "--next", nextURL, "--output", "json")
+	if err != nil || stderr != "" || !strings.Contains(stdout, `"id":"loc-old"`) {
+		t.Fatalf("run error=%v stdout=%q stderr=%q, want owned older-version cursor output", err, stdout, stderr)
+	}
+	requests := reg.Requests()
+	if len(requests) != 2 || requests[0].URL.Path != "/v1/appStoreVersions/version-old" || requests[1].URL.Path != "/v1/appStoreVersions/version-old/appStoreVersionLocalizations" {
+		t.Fatalf("requests=%v, want ownership then older-version localization reads", requests)
+	}
+}
+
+func TestAppsInfoViewNextRefusesForeignCursorVersionBeforeLocalizationRead(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(
+		asctest.GET("/v1/appStoreVersions/version-foreign", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-foreign","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"100000002"}}}}}`),
+	)
+
+	nextURL := "https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-foreign/appStoreVersionLocalizations?cursor=foreign"
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "apps", "info", "view", "--app", "100000001", "--next", nextURL, "--output", "json")
+	if err == nil || !strings.Contains(err.Error(), `version "version-foreign" belongs to app "100000002", not "100000001"`) {
+		t.Fatalf("err=%v, want foreign cursor-version refusal", err)
+	}
+	if stdout != "" || stderr != "" {
+		t.Fatalf("stdout=%q stderr=%q, want no output", stdout, stderr)
+	}
+	requests := reg.Requests()
+	if len(requests) != 1 || requests[0].URL.Path != "/v1/appStoreVersions/version-foreign" {
+		t.Fatalf("requests=%v, want only foreign-version ownership read", requests)
+	}
+}
+
+func TestAppsInfoViewNextSupportsStandaloneCursor(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(
+		asctest.GET("/v1/appStoreVersions/version-old/appStoreVersionLocalizations", "cursor=standalone"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-standalone","attributes":{"locale":"en-US"}}],"links":{}}`),
+	)
+
+	nextURL := "https://api.appstoreconnect.apple.com/v1/appStoreVersions/version-old/appStoreVersionLocalizations?cursor=standalone"
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "apps", "info", "view", "--next", nextURL, "--output", "json")
+	if err != nil || stderr != "" || !strings.Contains(stdout, `"id":"loc-standalone"`) {
+		t.Fatalf("run error=%v stdout=%q stderr=%q, want standalone cursor output", err, stdout, stderr)
+	}
+	requests := reg.Requests()
+	if len(requests) != 1 || requests[0].URL.Path != "/v1/appStoreVersions/version-old/appStoreVersionLocalizations" {
+		t.Fatalf("requests=%v, want one standalone cursor read", requests)
+	}
+}
