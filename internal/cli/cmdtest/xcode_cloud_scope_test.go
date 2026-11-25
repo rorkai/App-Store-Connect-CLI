@@ -153,3 +153,15 @@ func TestXcodeCloudWorkflowIDBindsNamedGitReference(t *testing.T) {
 		})
 	}
 }
+
+func TestXcodeCloudWorkflowListCursorRejectsExplicitApp(t *testing.T) {
+	reg := asctest.NewRegistry(t)
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "xcode-cloud", "workflows", "list",
+		"--app", "123456789", "--next", asc.BaseURL+"/v1/ciProducts/product-1/workflows?cursor=next")
+	if err == nil || stdout != "" || !strings.Contains(err.Error()+stderr, "--app") || !strings.Contains(err.Error()+stderr, "--next") {
+		t.Fatalf("stdout=%q stderr=%q err=%v, want conflicting selectors", stdout, stderr, err)
+	}
+	if count := len(reg.Requests()); count != 0 {
+		t.Fatalf("requests=%d, want zero", count)
+	}
+}
