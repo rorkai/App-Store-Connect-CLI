@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -70,10 +71,10 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		{checkID: "metadata.required.keywords", field: "keywords", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --keywords "KEYWORDS"`}},
 		{checkID: "metadata.required.support_url", field: "supportUrl", userInput: true, want: []string{`asc localizations update --id "ver-loc-1" --support-url "SUPPORT_URL"`}},
 		{checkID: "legal.required.copyright", field: "copyright", userInput: true, want: []string{`asc versions update --version-id "ver-1" --copyright "YEAR RIGHTS_HOLDER"`}},
-		{checkID: "age_rating.missing_field", field: "sharedLocation", userInput: true, want: []string{`asc age-rating edit --app "app-1" --shared-location "TRUE_OR_FALSE"`}},
-		{checkID: "age_rating.missing_field", field: "datingAndRelationships", userInput: true, want: []string{`asc age-rating edit --app "app-1" --dating-and-relationships "TRUE_OR_FALSE"`}},
-		{checkID: "age_rating.missing_field", field: "advertising", userInput: true, want: []string{`asc age-rating edit --app "app-1" --advertising "TRUE_OR_FALSE"`}},
-		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", userInput: true, want: []string{`asc age-rating edit --app "app-1" --alcohol-tobacco-drug-use "LEVEL"`}, note: "LEVEL is NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, or FREQUENT"},
+		{checkID: "age_rating.missing_field", field: "sharedLocation", userInput: true, want: []string{`asc age-rating edit --app "app-1" --app-info-id "info-1" --shared-location "TRUE_OR_FALSE"`}},
+		{checkID: "age_rating.missing_field", field: "datingAndRelationships", userInput: true, want: []string{`asc age-rating edit --app "app-1" --app-info-id "info-1" --dating-and-relationships "TRUE_OR_FALSE"`}},
+		{checkID: "age_rating.missing_field", field: "advertising", userInput: true, want: []string{`asc age-rating edit --app "app-1" --app-info-id "info-1" --advertising "TRUE_OR_FALSE"`}},
+		{checkID: "age_rating.missing_field", field: "alcoholTobaccoOrDrugUseOrReferences", userInput: true, want: []string{`asc age-rating edit --app "app-1" --app-info-id "info-1" --alcohol-tobacco-drug-use "LEVEL"`}, note: "LEVEL is NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE, INFREQUENT, or FREQUENT"},
 		{checkID: "availability.missing", field: "appAvailabilityV2", userInput: true, want: []string{`asc pricing availability create --app "app-1" --territory "TERRITORIES" --available true --available-in-new-territories "TRUE_OR_FALSE"`}},
 		{checkID: "pricing.schedule.missing", field: "appPriceSchedule", userInput: true, want: []string{
 			`asc pricing schedule create --app "app-1" --price-point "PRICE_POINT_ID" --base-territory "BASE_TERRITORY"`,
@@ -112,6 +113,41 @@ func TestValidateBlockersCarryTheirFixCommand(t *testing.T) {
 		if step.Blocking && step.Resolution == nil && step.CheckID != "version.state.editable" {
 			t.Errorf("blocking remediation step %s (field %q) has no resolution", step.CheckID, step.Field)
 		}
+	}
+}
+
+func TestValidateAgeRatingFixUsesSelectedAppInfo(t *testing.T) {
+	for _, tt := range []struct {
+		versionState, nextInfoState, wantInfoID string
+	}{
+		{"READY_FOR_SALE", "PREPARE_FOR_SUBMISSION", "info-live"},
+		{"PREPARE_FOR_SUBMISSION", "WAITING_FOR_REVIEW", "info-1"},
+	} {
+		t.Run(tt.versionState, func(t *testing.T) {
+			fixture := validValidateFixture()
+			fixture.version = strings.ReplaceAll(fixture.version, "PREPARE_FOR_SUBMISSION", tt.versionState)
+			fixture.appInfos = fmt.Sprintf(`{"data":[
+				{"type":"appInfos","id":"info-1","attributes":{"state":%q},"relationships":{"ageRatingDeclaration":{"data":{"type":"ageRatingDeclarations","id":"age-next"}}}},
+				{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_DISTRIBUTION"},"relationships":{"ageRatingDeclaration":{"data":{"type":"ageRatingDeclarations","id":"age-live"}}}}
+			],"included":[
+				{"type":"ageRatingDeclarations","id":"age-live","attributes":{}},
+				{"type":"ageRatingDeclarations","id":"age-next","attributes":{}}
+			]}`, tt.nextInfoState)
+			report, err := runValidateReport(t, fixture)
+			if err == nil || !strings.Contains(err.Error(), "blocking issue(s)") {
+				t.Fatalf("validate: %v", err)
+			}
+			want := fmt.Sprintf(`asc age-rating edit --app "app-1" --app-info-id %q --shared-location "TRUE_OR_FALSE"`, tt.wantInfoID)
+			for _, check := range report.Checks {
+				if check.ID == "age_rating.missing_field" && check.Field == "sharedLocation" {
+					if check.Resolution == nil || !slices.Equal(check.Resolution.Commands, []string{want}) {
+						t.Fatalf("resolution = %+v, want %s", check.Resolution, want)
+					}
+					return
+				}
+			}
+			t.Fatal("missing sharedLocation finding")
+		})
 	}
 }
 

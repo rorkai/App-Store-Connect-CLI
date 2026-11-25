@@ -170,8 +170,9 @@ func publicAPIResolutionCommand(report Report, check CheckResult) fixCommand {
 		}
 	case "age_rating.missing_field":
 		appID := strings.TrimSpace(report.AppID)
-		if flag, values := ageRatingResolutionField(field); appID != "" && flag != "" {
-			fix := userFix(fmt.Sprintf("asc age-rating edit --app %q --%s %q", appID, flag, values))
+		appInfoID := strings.TrimSpace(check.ageRatingAppInfoID)
+		if flag, values := ageRatingResolutionField(field); appID != "" && appInfoID != "" && flag != "" {
+			fix := userFix(fmt.Sprintf("asc age-rating edit --app %q --app-info-id %q --%s %q", appID, appInfoID, flag, values))
 			if values == ageRatingLevelPlaceholder {
 				// INFREQUENT_OR_MILD is one value, so the levels cannot be
 				// joined with _OR_ the way TRUE_OR_FALSE is.

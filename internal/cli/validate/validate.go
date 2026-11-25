@@ -508,8 +508,9 @@ func fetchAllScreenshotsForValidation(ctx context.Context, client *asc.Client, s
 	return response, nil
 }
 
-func mapAgeRatingDeclaration(attrs asc.AgeRatingDeclarationAttributes) *validation.AgeRatingDeclaration {
+func mapAgeRatingDeclaration(appInfoID string, attrs asc.AgeRatingDeclarationAttributes) *validation.AgeRatingDeclaration {
 	return &validation.AgeRatingDeclaration{
+		AppInfoID:                           appInfoID,
 		DatingAndRelationships:              attrs.DatingAndRelationships,
 		SharedLocation:                      attrs.SharedLocation,
 		Advertising:                         attrs.Advertising,
