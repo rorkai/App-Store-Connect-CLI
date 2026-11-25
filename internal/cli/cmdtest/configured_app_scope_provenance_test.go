@@ -163,3 +163,72 @@ func TestConfiguredBundleCollisionStopsBeforeTestFlightConfigExport(t *testing.T
 		t.Fatalf("expected no export file, stat error = %v", err)
 	}
 }
+
+func TestConfiguredBundleCollisionStopsBeforePublishTestFlight(t *testing.T) {
+	assertConfiguredBundleCollisionStopsBeforeContent(t,
+		"publish", "testflight",
+		"--workspace", "Demo.xcworkspace", "--scheme", "Demo",
+		"--version", "1.2.3", "--build-number", "42", "--upload-only",
+		"--output", "json")
+}
+
+func TestConfiguredBundleCollisionStopsBeforePublishAppStore(t *testing.T) {
+	assertConfiguredBundleCollisionStopsBeforeContent(t,
+		"publish", "appstore",
+		"--workspace", "Demo.xcworkspace", "--scheme", "Demo",
+		"--version", "1.2.3", "--build-number", "42",
+		"--dry-run", "--output", "json")
+}
+
+func TestConfiguredBundleReachesPublishAppStoreDryRun(t *testing.T) {
+	for _, source := range []string{"environment", "saved configuration"} {
+		t.Run(source, func(t *testing.T) {
+			configureAppSelector(t, source, configuredAppBundle)
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/apps", "filter[bundleId]="+configuredAppBundle, "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-configured","attributes":{"bundleId":"`+configuredAppBundle+`"}}]}`))
+
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
+				"publish", "appstore",
+				"--workspace", "Demo.xcworkspace", "--scheme", "Demo",
+				"--version", "1.2.3", "--build-number", "42",
+				"--dry-run", "--output", "json")
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if stderr != "" || !strings.Contains(stdout, "\"dryRun\":true") {
+				t.Fatalf("stdout=%q stderr=%q, want configured publish dry-run", stdout, stderr)
+			}
+			if requests := reg.Requests(); len(requests) != 1 {
+				t.Fatalf("expected only exact bundle lookup before dry-run planning, got %d: %v", len(requests), requests)
+			}
+		})
+	}
+}
+
+func TestExplicitAppNameReachesPublishAppStoreDryRun(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Friendly App", "limit=200"),
+		asctest.JSON(http.StatusOK, "{\"data\":[],\"links\":{\"next\":\"\"}}"))
+	reg.Register(asctest.GET("/v1/apps", "filter[name]=Friendly App", "limit=200"),
+		asctest.JSON(http.StatusOK, "{\"data\":[{\"type\":\"apps\",\"id\":\"app-friendly\",\"attributes\":{\"bundleId\":\"com.example.friendly\",\"name\":\"Friendly App\"}}],\"links\":{\"next\":\"\"}}"))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
+		"publish", "appstore", "--app", "Friendly App",
+		"--workspace", "Demo.xcworkspace", "--scheme", "Demo",
+		"--version", "1.2.3", "--build-number", "42",
+		"--dry-run", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if stderr != "" || !strings.Contains(stdout, "\"dryRun\":true") {
+		t.Fatalf("stdout=%q stderr=%q, want explicit-name publish dry-run", stdout, stderr)
+	}
+	if requests := reg.Requests(); len(requests) != 2 {
+		t.Fatalf("expected exact bundle then name lookup, got %d: %v", len(requests), requests)
+	}
+}

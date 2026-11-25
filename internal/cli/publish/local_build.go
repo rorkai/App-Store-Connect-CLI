@@ -31,6 +31,7 @@ var (
 	}
 	uploadBuildAndWaitForIDFn       = uploadBuildAndWaitForID
 	uploadPKGBuildAndWaitForIDFn    = uploadPKGBuildAndWaitForID
+	resolvePublishScopedAppIDFn     = shared.ResolveScopedAppID
 	resolvePublishAppIDWithLookupFn = func(ctx context.Context, client *asc.Client, appID string) (string, error) {
 		return shared.ResolveAppIDWithLookup(ctx, client, appID)
 	}
