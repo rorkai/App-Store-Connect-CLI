@@ -136,17 +136,6 @@ Use --paginate to fetch every page.`,
 			if err != nil {
 				return d.UsageError(fmt.Sprintf("--next: %v", err))
 			}
-			scopeQuery := url.Values{}
-			setSubscriptionPricesCSVQuery(scopeQuery, "filter[subscription]", ids)
-			setSubscriptionPricesCSVQuery(scopeQuery, "filter[territory]", territories)
-			if nextURL != "" {
-				parsed, _ := url.Parse(nextURL)
-				for _, key := range []string{"filter[subscription]", "filter[territory]"} {
-					if values, present := parsed.Query()[key]; present {
-						scopeQuery[key] = values
-					}
-				}
-			}
 			firstLimit := *limit
 			if *paginate && firstLimit == 0 {
 				firstLimit = 200
@@ -179,8 +168,20 @@ Use --paginate to fetch every page.`,
 				setSubscriptionPricesCSVQuery(values, "fields[subscriptionPriceTiers]", selectedFields)
 				setSubscriptionPricesCSVQuery(values, "fields[subscriptionPricePoints]", selectedPointFields)
 				setSubscriptionPricesCSVQuery(values, "include", includes)
-				for key, scopeValues := range scopeQuery {
-					values[key] = scopeValues
+				if nextURL != "" {
+					parsed, _ := url.Parse(nextURL) // validated above
+					saved := parsed.Query()
+					for _, key := range []string{"filter[subscription]", "filter[territory]", "fields[subscriptionPriceTiers]", "fields[subscriptionPricePoints]", "include"} {
+						if saved.Has(key) {
+							values[key] = saved[key]
+						}
+					}
+				}
+				scopeQuery := url.Values{}
+				for _, key := range []string{"filter[subscription]", "filter[territory]"} {
+					if values.Has(key) {
+						scopeQuery[key] = values[key]
+					}
 				}
 				all, err := asc.PaginateAll(ctx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					scopedNextURL, scopeErr := client.ValidateNoRedirectReadContinuationQuery(pageCtx, nextURL, expectedPath, scopeQuery)

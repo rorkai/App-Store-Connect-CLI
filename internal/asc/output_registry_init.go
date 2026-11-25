@@ -253,8 +253,8 @@ func registerAllOutputRenderers() {
 	registerRows(signingResignResultRows)
 	registerRows(iosArtifactResultRows)
 	registerRows(subscriptionAvailabilityRows)
-	registerRows(subscriptionPriceTiersRows)
-	registerRows(subscriptionPriceTierEqualizationRows)
+	registerRowsErr(subscriptionPriceTiersRows)
+	registerDirectTo(subscriptionPriceTierEqualizationTables)
 	registerRows(subscriptionPriceChangePreviewRows)
 	registerRowsWithSingleResourceAdapter(subscriptionPlanAvailabilitiesRows)
 	registerDirect(func(v *SubscriptionPlanAvailabilitySetResult, render func([]string, [][]string)) error {
