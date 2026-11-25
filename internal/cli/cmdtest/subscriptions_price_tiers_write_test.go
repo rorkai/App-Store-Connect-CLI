@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestSubscriptionsPricesSetAdditionalTiers(t *testing.T) {
@@ -216,15 +217,21 @@ func TestSubscriptionsPricesSetAdditionalTiersRejectsUnsafeInput(t *testing.T) {
 
 func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *testing.T) {
 	for _, test := range []struct {
-		name        string
-		force       bool
-		noTerritory bool
-		retry       bool
-		baseChanged bool
-		want        string
+		name, tierTerritory, pointResponse string
+		duplicatePage                      bool
+		force                              bool
+		noTerritory                        bool
+		retry                              bool
+		baseChanged                        bool
+		want                               string
 	}{
 		{name: "selected territory", want: "--additional-price-tiers is required when changing a price with volume tiers"},
 		{name: "implicit territory", noTerritory: true, want: "--additional-price-tiers is required when changing a price with volume tiers"},
+		{name: "other territory tiers", noTerritory: true, tierTerritory: "JPN"},
+		{name: "incomplete distinct price membership", tierTerritory: "JPN", noTerritory: true, duplicatePage: true, want: "--additional-price-tiers is required"},
+		{name: "wrong price point returned", noTerritory: true, tierTerritory: "JPN", pointResponse: `{"data":{"type":"subscriptionPricePoints","id":"other","relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}}`, want: "--additional-price-tiers is required"},
+		{name: "unverified point territory", noTerritory: true, tierTerritory: "JPN", pointResponse: `{"data":{"type":"subscriptionPricePoints","id":"new-base","relationships":{"territory":{"data":null}}}}`, want: "--additional-price-tiers is required"},
+		{name: "unverified tiered price territory", noTerritory: true, tierTerritory: "unknown", want: "--additional-price-tiers is required"},
 		{name: "base changed before force replay", force: true, retry: true, baseChanged: true, want: "base price changed"},
 		{name: "global force repair", force: true, want: "--force cannot rebuild a subscription with volume tiers"},
 		{name: "volume appeared after rate limit", retry: true, want: "--additional-price-tiers is required when changing a price with volume tiers"},
@@ -245,12 +252,33 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 						_, _ = io.WriteString(w, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED"}]}`)
 						return
 					}
+					if test.want == "" && req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices" {
+						var payload struct {
+							Data struct{ Relationships map[string]asc.Relationship }
+						}
+						if err := json.NewDecoder(req.Body).Decode(&payload); err != nil || len(payload.Data.Relationships) != 2 || payload.Data.Relationships["subscriptionPricePoint"].Data.ID != "new-base" || payload.Data.Relationships["subscription"].Data.ID != "8000000003" {
+							t.Errorf("unexpected implicit-territory write: %+v, %v", payload, err)
+						}
+						_, _ = io.WriteString(w, `{"data":{"type":"subscriptionPrices","id":"saved"}}`)
+						return
+					}
 					t.Errorf("unexpected mutation %s %s", req.Method, req.URL)
 					w.WriteHeader(http.StatusBadRequest)
 					return
 				}
 				if strings.HasSuffix(req.URL.Path, "/relationships/prices") {
 					_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"current"}],"links":{}}`)
+					return
+				}
+				if req.URL.Path == "/v1/subscriptionPricePoints/new-base" {
+					if !test.noTerritory || req.URL.Query().Get("include") != "territory" {
+						t.Errorf("unexpected price point lookup %s", req.URL)
+					}
+					body := test.pointResponse
+					if body == "" {
+						body = `{"data":{"type":"subscriptionPricePoints","id":"new-base","relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}}`
+					}
+					_, _ = io.WriteString(w, body)
 					return
 				}
 				if req.URL.Path == "/v1/subscriptionPriceTiers" {
@@ -283,7 +311,19 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 					_, _ = io.WriteString(w, subscriptionPriceListFixture("old-base", "USA", ""))
 					return
 				}
-				_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPrices","id":"current","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-base"}},"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}}}],"links":{}}`)
+				tierTerritory := test.tierTerritory
+				if tierTerritory == "" {
+					tierTerritory = "USA"
+				}
+				nextURL := ""
+				if test.duplicatePage && req.URL.Query().Get("cursor") == "" {
+					nextURL = "/v1/subscriptions/8000000003/prices?cursor=second"
+				}
+				total := 1
+				if test.duplicatePage {
+					total = 2
+				}
+				_, _ = fmt.Fprintf(w, `{"data":[{"type":"subscriptionPrices","id":"current","relationships":{"territory":{"data":{"type":"territories","id":%q}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-base"}},"additionalPriceTiers":{"data":[{"type":"subscriptionPriceTiers","id":"tier-1"}]}}}],"links":{"next":%q},"meta":{"paging":{"total":%d}}}`, tierTerritory, nextURL, total)
 			}
 			args := []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "8000000003", "--price-point", "new-base"}
 			if !test.noTerritory {
@@ -293,6 +333,12 @@ func TestSubscriptionsPricesSetRequiresTierIntentWhenChangingTieredPrice(t *test
 				args = append(args, "--force")
 			}
 			_, stderr, err := runSubscriptionPricesListQuerySurface(t, args...)
+			if test.want == "" {
+				if err != nil || writes != 1 {
+					t.Fatalf("implicit price change: writes=%d stderr=%q err=%v", writes, stderr, err)
+				}
+				return
+			}
 			if test.retry && writes != 1 {
 				t.Fatalf("expected only the rejected write, got %d", writes)
 			}

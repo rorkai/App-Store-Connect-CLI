@@ -1194,7 +1194,8 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 	}
 
 	var count priceCollectionCount
-	requiresTierIntent := false
+	guardedTerritories := map[string]bool{}
+	seenPriceIDs := map[string]bool{}
 	for {
 		resp, err := client.GetSubscriptionPrices(ctx, subID, opts...)
 		if err != nil {
@@ -1205,7 +1206,12 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 			return nil, err
 		}
 		for _, price := range resp.Data {
-			requiresTierIntent = requiresTierIntent || subscriptionPriceRequiresTierIntent(price)
+			if id := strings.TrimSpace(price.ID); territoryID == "" && tiers == nil && price.Type == asc.ResourceTypeSubscriptionPrices && id != "" {
+				seenPriceIDs[id] = true
+			}
+			if tiers == nil && subscriptionPriceRequiresTierIntent(price) {
+				guardedTerritories[verifiedSubscriptionPriceTerritory(price.Relationships)] = true
+			}
 			if !subscriptionPriceMatchesTarget(price, pricePointID, territoryID, attrs) {
 				continue
 			}
@@ -1223,8 +1229,19 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 
 		next := strings.TrimSpace(resp.Links.Next)
 		if next == "" {
-			if tiers == nil && requiresTierIntent {
-				return nil, errSubscriptionPriceTierIntentRequired
+			if len(guardedTerritories) > 0 {
+				// Only a complete set of distinct prices can rule out tiers in the target storefront.
+				if territoryID != "" || guardedTerritories[""] || len(seenPriceIDs) != count.read {
+					return nil, errSubscriptionPriceTierIntentRequired
+				}
+				point, err := client.GetSubscriptionPricePoint(ctx, url.PathEscape(pricePointID), asc.WithSubscriptionPricePointInclude([]string{"territory"}))
+				if err != nil {
+					return nil, fmt.Errorf("resolve territory for price point %q: %w", pricePointID, err)
+				}
+				resolved := verifiedSubscriptionPriceTerritory(point.Data.Relationships)
+				if point.Data.Type != asc.ResourceTypeSubscriptionPricePoints || point.Data.ID != pricePointID || resolved == "" || guardedTerritories[resolved] {
+					return nil, errSubscriptionPriceTierIntentRequired
+				}
 			}
 			return nil, nil
 		}

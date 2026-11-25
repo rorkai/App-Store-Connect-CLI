@@ -33,7 +33,8 @@ func (c *Client) GetSubscriptionPricePoint(ctx context.Context, pricePointID str
 type SubscriptionPricePointOption func(*subscriptionPricePointDetailQuery)
 
 type subscriptionPricePointDetailQuery struct {
-	fields []string
+	fields  []string
+	include []string
 }
 
 // WithSubscriptionPricePointFields sets fields[subscriptionPricePoints].
@@ -43,8 +44,16 @@ func WithSubscriptionPricePointFields(fields []string) SubscriptionPricePointOpt
 	}
 }
 
+// WithSubscriptionPricePointInclude sets include.
+func WithSubscriptionPricePointInclude(include []string) SubscriptionPricePointOption {
+	return func(q *subscriptionPricePointDetailQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
 func buildSubscriptionPricePointDetailQuery(query *subscriptionPricePointDetailQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[subscriptionPricePoints]", query.fields)
+	addCSV(values, "include", query.include)
 	return values.Encode()
 }
