@@ -37,7 +37,7 @@ func (c *Client) GetDSAStatus(ctx context.Context, accountID string) (*asc.WebDS
 	if response.TraderDeclaration == nil {
 		return nil, errors.New("DSA status response is missing traderDeclaration")
 	}
-	if response.AccountID != "" && response.AccountID != accountID {
+	if response.AccountID != "" && !strings.EqualFold(response.AccountID, accountID) {
 		return nil, errors.New("DSA status response identifies another account")
 	}
 	return &asc.WebDSAStatus{TraderDeclaration: *response.TraderDeclaration, SellerInfo: response.SellerInfo}, nil
