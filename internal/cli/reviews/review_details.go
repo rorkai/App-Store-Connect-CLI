@@ -165,9 +165,10 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
-			requestCtx = reviewDetailsReadContext(requestCtx, d.ResolveAppSelector(""))
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
-			if err := verifyReviewDetailsVersionOwner(requestCtx, d, client, versionValue, "review details-for-version"); err != nil {
+			if err := verifyReviewDetailsVersionOwner(requestCtx, client, appSelector, versionValue, "review details-for-version"); err != nil {
 				return err
 			}
 
@@ -213,8 +214,7 @@ func printReviewDetailForVersion(ctx context.Context, d *shared.Deps, client *as
 	return d.PrintOutput(presentableReviewDetail(resp, includeSensitive), *output.Output, *output.Pretty)
 }
 
-func verifyReviewDetailsVersionOwner(ctx context.Context, d *shared.Deps, client *asc.Client, versionValue, command string) error {
-	appSelector := d.ResolveAppSelector("")
+func verifyReviewDetailsVersionOwner(ctx context.Context, client *asc.Client, appSelector shared.AppSelector, versionValue, command string) error {
 	if appSelector.Value == "" {
 		return nil
 	}
@@ -410,9 +410,10 @@ Any other 409 keeps failing.`,
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
-			requestCtx = reviewDetailsReadContext(requestCtx, d.ResolveAppSelector(""))
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
-			if err := verifyReviewDetailsVersionOwner(requestCtx, d, client, versionValue, "review details-create"); err != nil {
+			if err := verifyReviewDetailsVersionOwner(requestCtx, client, appSelector, versionValue, "review details-create"); err != nil {
 				return err
 			}
 

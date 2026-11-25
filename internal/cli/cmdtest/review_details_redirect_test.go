@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -15,6 +16,7 @@ func TestReviewDetailsSelectedReadsRefuseRedirects(t *testing.T) {
 	tests := []struct {
 		name                string
 		appEnv              string
+		appChanges          bool
 		args                []string
 		redirectPath        string
 		redirectAfterSparse bool
@@ -55,6 +57,33 @@ func TestReviewDetailsSelectedReadsRefuseRedirects(t *testing.T) {
 				"GET /v1/appStoreVersions/version-1",
 				"GET /v1/appStoreReviewDetails/detail-1",
 			},
+		},
+		{
+			name:         "update ownership proof",
+			wantCode:     cmd.ExitError,
+			appEnv:       "100000001",
+			args:         []string{"review", "details-update", "--id", "detail-1", "--notes", "Updated"},
+			redirectPath: "/v1/appStoreVersions/version-1",
+			wantRequests: []string{"GET /v1/appStoreReviewDetails/detail-1", "GET /v1/appStoreVersions/version-1"},
+		},
+		{
+			name:         "configured read keeps initial app selection",
+			wantCode:     cmd.ExitError,
+			appEnv:       "100000001",
+			appChanges:   true,
+			args:         []string{"review", "details-for-version", "--version-id", "version-1", "--output", "json"},
+			wantRequests: []string{"GET /v1/appStoreVersions/version-1"},
+		},
+		{
+			name:       "configured create keeps initial app selection",
+			wantCode:   cmd.ExitError,
+			appEnv:     "100000001",
+			appChanges: true,
+			args: []string{
+				"review", "details-create", "--version-id", "version-1",
+				"--contact-first-name", "Dev", "--contact-phone", "+1 408 555 0100",
+			},
+			wantRequests: []string{"GET /v1/appStoreVersions/version-1"},
 		},
 		{
 			name:     "create conflict recovery",
@@ -100,7 +129,11 @@ func TestReviewDetailsSelectedReadsRefuseRedirects(t *testing.T) {
 				switch {
 				case r.Method == http.MethodGet && r.URL.Path == "/v1/appStoreVersions/version-1":
 					w.Header().Set("Content-Type", "application/json")
-					_, _ = w.Write([]byte(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
+					appID := "100000001"
+					if test.appChanges {
+						appID = "100000002"
+					}
+					_, _ = w.Write([]byte(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"` + appID + `"}}}}}`))
 				case r.Method == http.MethodGet && r.URL.Path == "/v1/appStoreReviewDetails/detail-1":
 					if r.URL.Query().Get("include") == "appStoreVersion" {
 						w.Header().Set("Content-Type", "application/json")
@@ -118,11 +151,29 @@ func TestReviewDetailsSelectedReadsRefuseRedirects(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			stdout, stderr, code := runWithDeps(t, stubServerClient(t, server), test.args...)
+			deps, stdout, stderr := newTestDeps(t, stubServerClient(t, server))
+			appLookups := 0
+			if test.appChanges {
+				lookupEnv := deps.LookupEnv
+				deps.LookupEnv = func(name string) (string, bool) {
+					if name != "ASC_APP_ID" {
+						return lookupEnv(name)
+					}
+					appLookups++
+					if appLookups == 1 {
+						return test.appEnv, true
+					}
+					return "", true
+				}
+			}
+			code := cmd.RunWithDeps(test.args, "1.2.3", deps)
+			if test.appChanges && (appLookups != 1 || !strings.Contains(stderr.String(), "belongs to app")) {
+				t.Fatalf("app lookups=%d stderr=%q, want one lookup and ownership refusal", appLookups, stderr)
+			}
 			mu.Lock()
 			defer mu.Unlock()
-			if code != test.wantCode || stdout != "" {
-				t.Fatalf("redirected %s exit=%d stdout=%q stderr=%q, want error and no output", test.name, code, stdout, stderr)
+			if code != test.wantCode || stdout.Len() != 0 {
+				t.Fatalf("%s exit=%d stdout=%q stderr=%q, want error and no output", test.name, code, stdout, stderr)
 			}
 			if sentinelReached {
 				t.Fatalf("redirected %s read followed the inert sentinel: %v", test.name, requests)
