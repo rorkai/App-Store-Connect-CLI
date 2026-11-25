@@ -110,6 +110,7 @@ asc <subcommand> [flags]
 
 ### Monetization
 
+- `catalog` - Plan and reconcile a product catalog from a JSON file.
 - `iap` - Manage in-app purchases in App Store Connect.
 - `storekit` - Manage StoreKit server APIs with In-App Purchase API keys.
 - `app-events` - Manage App Store in-app events.

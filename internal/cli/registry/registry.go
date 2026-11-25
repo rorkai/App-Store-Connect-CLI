@@ -30,6 +30,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/builds"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/bundleids"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/capabilities"
+	catalogcmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/catalog"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/categories"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/certificates"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/completion"
@@ -299,6 +300,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("notarization", "Manage macOS notarization submissions.", func() *ffcli.Command {
 			return notarization.NewNotarizationCommand(d)
 		}),
+		commandFactory("catalog", "Plan and reconcile a product catalog from a JSON file.", func() *ffcli.Command { return catalogcmd.NewCommand(d) }),
 		commandFactory("iap", "Manage in-app purchases in App Store Connect.", func() *ffcli.Command {
 			return iap.NewIAPCommand(d)
 		}),
