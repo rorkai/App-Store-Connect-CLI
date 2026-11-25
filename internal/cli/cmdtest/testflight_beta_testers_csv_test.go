@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
@@ -525,7 +527,7 @@ func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 	}
 }
 
-func TestTestFlightBetaTestersImport_InvalidEmailRejectsFile(t *testing.T) {
+func TestTestFlightBetaTestersImport_InvalidEmailReportsRowFailure(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 
 	csvPath := filepath.Join(t.TempDir(), "invalid-email.csv")
@@ -538,7 +540,8 @@ func TestTestFlightBetaTestersImport_InvalidEmailRejectsFile(t *testing.T) {
 
 	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm")
 
-	if !errors.Is(runErr, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, "invalid email") {
+	var summary asc.BetaTestersImportSummary
+	if _, ok := errors.AsType[ReportedError](runErr); !ok || json.Unmarshal([]byte(stdout), &summary) != nil || len(summary.Failures) != 1 || summary.Failed != 1 || summary.Failures[0].Row != 1 || summary.Failures[0].Error != "invalid email format" {
 		t.Fatalf("stdout=%q stderr=%q err=%v", stdout, stderr, runErr)
 	}
 }
