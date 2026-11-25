@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -378,11 +379,44 @@ func TestMetadataPullVersionNotFound(t *testing.T) {
 	if !strings.Contains(runErr.Error(), `metadata pull: app store version not found for version "1.2.3"`) {
 		t.Fatalf("expected wrapped version-not-found error, got %v", runErr)
 	}
+	if !strings.Contains(runErr.Error(), `No existing App Store versions match version "1.2.3"; no exact version and platform are available to retry.`) {
+		t.Fatalf("expected read-only no-match guidance, got %v", runErr)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestMetadataPullVersionNotFoundSuggestsExactReadRetry(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	outputDir := filepath.Join(t.TempDir(), "metadata")
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.0.0", "limit=10"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"fixture-version","attributes":{"versionString":"1.0","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}],"links":{"next":""}}`))
+
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg),
+		"metadata", "pull", "--app", "123456789", "--version", "1.0.0", "--platform", "IOS", "--dir", outputDir)
+	if runErr == nil || !errors.Is(runErr, asc.ErrNotFound) {
+		t.Fatalf("expected classified version-not-found error, got %v", runErr)
+	}
+	if !strings.Contains(runErr.Error(), `No existing App Store version exactly matches "1.0.0" on IOS; retry with the exact existing version and platform: --version 1.0 --platform IOS (keep --dir and other flags unchanged)`) {
+		t.Fatalf("expected exact metadata retry guidance, got %v", runErr)
+	}
+	if stdout != "" || stderr != "" {
+		t.Fatalf("expected no output, got stdout=%q stderr=%q", stdout, stderr)
+	}
+	if _, err := os.Stat(outputDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected no destination writes, stat %s: %v", outputDir, err)
 	}
 }
 

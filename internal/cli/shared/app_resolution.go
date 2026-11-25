@@ -19,6 +19,17 @@ func IsAppStoreVersionString(value string) bool {
 
 // ResolveAppStoreVersionIDAndState finds a version ID and state by version string and platform.
 func ResolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, appID, version, platform string) (string, string, error) {
+	return resolveAppStoreVersionIDAndState(ctx, client, appID, version, platform, nil)
+}
+
+// ResolveAppStoreVersionIDAndStateForRead finds a version for a read command
+// and uses exact, read-only retry guidance when the requested version is not
+// present.
+func ResolveAppStoreVersionIDAndStateForRead(ctx context.Context, client *asc.Client, appID, version, platform string, retryCommand AppStoreVersionRetryCommand) (string, string, error) {
+	return resolveAppStoreVersionIDAndState(ctx, client, appID, version, platform, retryCommand)
+}
+
+func resolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, appID, version, platform string, retryCommand AppStoreVersionRetryCommand) (string, string, error) {
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
 		asc.WithAppStoreVersionsPlatforms([]string{platform}),
@@ -39,10 +50,14 @@ func ResolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, a
 		return "", "", MarkAmbiguousSelectionSample(AmbiguousAppStoreVersionError(version, platform, resp.Data, "", "--version-id"))
 	}
 	if len(resp.Data) == 0 {
-		return "", "", WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, platform, NewErrorWithCause(
+		notFound := NewErrorWithCause(
 			fmt.Errorf("app store version not found for version %q and platform %q", version, platform),
 			asc.ErrNotFound,
-		))
+		)
+		if retryCommand != nil {
+			return "", "", WithAppStoreVersionNotFoundReadDiagnostics(ctx, client, appID, version, platform, retryCommand, notFound)
+		}
+		return "", "", WithAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, platform, notFound)
 	}
 	if len(resp.Data) > 1 {
 		return "", "", AmbiguousAppStoreVersionError(version, platform, resp.Data, "", "--version-id")
