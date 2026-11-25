@@ -11,6 +11,7 @@ import (
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestReviewDetailsCreateRejectsDemoAccountRequiredWithoutCredentials(t *testing.T) {
@@ -440,6 +441,12 @@ func TestReviewDetailsDirectIDsCheckSelectedAppBeforeReadOrWrite(t *testing.T) {
 			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
 			if err == nil || !strings.Contains(err.Error()+stderr, `version "version-1" belongs to app "200000002", not "100000001"`) {
 				t.Fatalf("err=%v stderr=%q, want selected-app ownership failure", err, stderr)
+			}
+			if diagnostic, ok := shared.DiagnosticFromError(err); !ok || diagnostic.Parameter != "--id" || diagnostic.Code != shared.DiagnosticInvalidInput {
+				t.Fatalf("unexpected diagnostic: %+v", diagnostic)
+			}
+			if !strings.Contains(err.Error()+stderr, `verify review detail "detail-1"`) || !strings.Contains(err.Error()+stderr, "ASC_APP_ID=") {
+				t.Fatalf("err=%v stderr=%q, want scoped recovery guidance", err, stderr)
 			}
 			if stdout != "" {
 				t.Fatalf("expected no output, got %q", stdout)

@@ -29,6 +29,13 @@ const (
 	reviewDetailDemoPasswordMaxLength    = 100
 )
 
+func reviewDetailsReadContext(ctx context.Context, appSelector shared.AppSelector) context.Context {
+	if strings.TrimSpace(appSelector.Value) == "" {
+		return ctx
+	}
+	return asc.WithNoRedirectReads(ctx)
+}
+
 func newReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("details-get", flag.ExitOnError)
 
@@ -46,7 +53,8 @@ func newReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Get an App Store review detail by ID, by its App Store version, or for an
 app's editable version (its live version when none is editable).
 
-With --version-id, --app also checks that the version belongs to the app.
+The app selected by --app, ASC_APP_ID, or saved config scopes review detail
+reads. For a standalone --id, set ASC_APP_ID= and omit --app.
 
 Examples:
   asc review details-get --id "DETAIL_ID"
@@ -89,6 +97,7 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
 			if detailValue != "" {
 				if err := verifyReviewDetailsDetailOwner(requestCtx, client, appSelector, detailValue, "review details-get"); err != nil {
@@ -140,6 +149,8 @@ func newReviewDetailsForVersionCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Get the review detail for a version.",
 		LongHelp: `Get the review detail for a specific App Store version.
 
+When ASC_APP_ID or saved config selects an app, the version must belong to it.
+
 Examples:
   asc review details-for-version --version-id "VERSION_ID"`,
 		FlagSet:   fs,
@@ -157,8 +168,10 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
-			if err := verifyReviewDetailsVersionOwner(requestCtx, d, client, versionValue, "review details-for-version"); err != nil {
+			if err := verifyReviewDetailsVersionOwner(requestCtx, client, appSelector, versionValue, "review details-for-version"); err != nil {
 				return err
 			}
 
@@ -204,8 +217,7 @@ func printReviewDetailForVersion(ctx context.Context, d *shared.Deps, client *as
 	return d.PrintOutput(presentableReviewDetail(resp, includeSensitive), *output.Output, *output.Pretty)
 }
 
-func verifyReviewDetailsVersionOwner(ctx context.Context, d *shared.Deps, client *asc.Client, versionValue, command string) error {
-	appSelector := d.ResolveAppSelector("")
+func verifyReviewDetailsVersionOwner(ctx context.Context, client *asc.Client, appSelector shared.AppSelector, versionValue, command string) error {
 	if appSelector.Value == "" {
 		return nil
 	}
@@ -245,6 +257,10 @@ func verifyReviewDetailsDetailOwner(ctx context.Context, client *asc.Client, app
 		return fmt.Errorf("%s: %w", command, err)
 	}
 	if _, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, resolvedAppID, versionID, ""); err != nil {
+		if diagnostic, ok := shared.DiagnosticFromError(err); ok && diagnostic.Parameter == "--version-id" {
+			err = fmt.Errorf("verify review detail %q: %w. For an intentional standalone ID, set ASC_APP_ID=", detailID, err)
+			err = shared.WithDiagnostic(err, diagnostic.Code, "--id")
+		}
 		return fmt.Errorf("%s: %w", command, err)
 	}
 	return nil
@@ -292,6 +308,8 @@ func newReviewDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc review details-create --version-id \"VERSION_ID\" [flags]",
 		ShortHelp:  "Create App Store review details for a version.",
 		LongHelp: `Create App Store review details for a version.
+
+When ASC_APP_ID or saved config selects an app, the version must belong to it.
 
 New review details need ` + "`--contact-first-name`" + ` and ` + "`--contact-phone`" + `, which App
 Store Connect rejects a new detail without; with ` + "`--if-exists skip`" + ` or ` + "`update`" + ` they
@@ -401,8 +419,10 @@ Any other 409 keeps failing.`,
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
-			if err := verifyReviewDetailsVersionOwner(requestCtx, d, client, versionValue, "review details-create"); err != nil {
+			if err := verifyReviewDetailsVersionOwner(requestCtx, client, appSelector, versionValue, "review details-create"); err != nil {
 				return err
 			}
 
@@ -490,6 +510,9 @@ func newReviewDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Update App Store review details.",
 		LongHelp: `Update App Store review details.
 
+When ASC_APP_ID or saved config selects an app, the detail must belong to it.
+For a standalone --id, set ASC_APP_ID=.
+
 ` + "`--notes`" + ` allow at most 4,000 characters, and +1 phone numbers need 10 digits
 after the country code. These are checked before any request.
 
@@ -531,8 +554,10 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			appSelector := d.ResolveAppSelector("")
+			requestCtx = reviewDetailsReadContext(requestCtx, appSelector)
 
-			if err := verifyReviewDetailsDetailOwner(requestCtx, client, d.ResolveAppSelector(""), detailValue, "review details-update"); err != nil {
+			if err := verifyReviewDetailsDetailOwner(requestCtx, client, appSelector, detailValue, "review details-update"); err != nil {
 				return err
 			}
 
