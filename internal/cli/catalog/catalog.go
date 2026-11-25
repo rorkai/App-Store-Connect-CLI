@@ -157,7 +157,9 @@ No product or group is deleted.`,
 						item.Status = "unchanged"
 						continue
 					}
-					id, writeErr := op.write(ctx)
+					id, writeErr := asc.RetryGuardedMutation(ctx, func(attemptCtx context.Context, _ bool) (string, error) {
+						return op.write(attemptCtx)
+					})
 					if writeErr == nil && strings.TrimSpace(id) == "" {
 						writeErr = fmt.Errorf("response from Apple did not contain a resource ID; rerun to reconcile")
 					}
