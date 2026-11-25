@@ -108,6 +108,34 @@ func TestResolveAppStoreVersionIDAndState_PrefersAppVersionState(t *testing.T) {
 	}
 }
 
+func TestResolveOwnedAppStoreVersionByIDRejectsRedirectBeforeScopedValidation(t *testing.T) {
+	requests := 0
+	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
+		requests++
+		if requests > 1 {
+			t.Fatalf("ownership redirect was followed: %s", req.URL.RequestURI())
+		}
+		response := &http.Response{
+			StatusCode: http.StatusTemporaryRedirect,
+			Status:     http.StatusText(http.StatusTemporaryRedirect),
+			Header: http.Header{
+				"Location": []string{"/v1/apps/foreign/appStoreVersions"},
+			},
+			Body:    io.NopCloser(strings.NewReader("")),
+			Request: req,
+		}
+		return response, nil
+	})
+
+	_, err := ResolveOwnedAppStoreVersionByID(context.Background(), client, "app-1", "version-1", "IOS")
+	if err == nil {
+		t.Fatal("ResolveOwnedAppStoreVersionByID() succeeded after a redirect response")
+	}
+	if requests != 1 {
+		t.Fatalf("ownership requests = %d, want one request and no redirect follow-up", requests)
+	}
+}
+
 func TestResolveAppStoreVersionIDAndState_FallsBackToTrimmedAppStoreState(t *testing.T) {
 	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
 		return appResolutionJSONResponse(`{"data":[{"type":"appStoreVersions","id":"ver-456","attributes":{"appVersionState":"   ","appStoreState":" READY_FOR_SALE "}}]}`)

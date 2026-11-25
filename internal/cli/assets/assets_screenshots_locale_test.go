@@ -54,6 +54,8 @@ func TestExecuteScreenshotUploadCommandLocaleReplaceTouchesOnlySelectedLocaleSet
 				t.Errorf("filter[versionString] = %q, want 1.2.3", got)
 			}
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"}}],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			writeAssetsTestJSON(w, http.StatusOK, screenshotLocaleTestLocalizationsJSON)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets":
@@ -217,6 +219,8 @@ func TestExecuteScreenshotUploadCommandLocaleMissingRemoteLocalizationListsValid
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appStoreVersions":
 			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"}}],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			writeAssetsTestJSON(w, http.StatusOK, screenshotLocaleTestLocalizationsJSON)
 		default:

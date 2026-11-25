@@ -1584,8 +1584,8 @@ Examples:
 			if subscriptionValue == "" && flagWasProvided(fs, "app") {
 				return d.UsageError("--app requires --subscription-id")
 			}
-			resolvedAppID := d.ResolveAppID(*appID)
-			if err := d.RequireAppForStableSelector(resolvedAppID, subscriptionValue, "--subscription-id"); err != nil {
+			appSelector := d.ResolveAppSelector(*appID)
+			if err := d.RequireAppForStableSelector(appSelector.Value, subscriptionValue, "--subscription-id"); err != nil {
 				return err
 			}
 
@@ -1593,13 +1593,19 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 			}
+			requestContext := ctx
+			if subscriptionValue != "" && appSelector.Value != "" {
+				requestContext = asc.WithNoRedirectReads(requestContext)
+			}
 			if subscriptionValue != "" && nextURL == "" {
-				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, subscriptionValue)
+				lookupCtx, lookupCancel := d.Timeout(requestContext)
+				subscriptionValue, err = shared.ResolveSubscriptionIDWithAppSelector(lookupCtx, client, appSelector, subscriptionValue)
+				lookupCancel()
 				if err != nil {
 					return err
 				}
 
-				availabilityCtx, availabilityCancel := d.Timeout(ctx)
+				availabilityCtx, availabilityCancel := d.Timeout(requestContext)
 				availability, fetchErr := client.GetSubscriptionAvailabilityForSubscription(availabilityCtx, subscriptionValue)
 				availabilityCancel()
 				if fetchErr != nil {
@@ -1614,7 +1620,7 @@ Examples:
 				expectedPath = fmt.Sprintf("/v1/subscriptionAvailabilities/%s/availableTerritories", availabilityValue)
 			}
 
-			requestCtx, cancel := d.Timeout(ctx)
+			requestCtx, cancel := d.Timeout(requestContext)
 			defer cancel()
 
 			opts := []asc.SubscriptionAvailabilityTerritoriesOption{

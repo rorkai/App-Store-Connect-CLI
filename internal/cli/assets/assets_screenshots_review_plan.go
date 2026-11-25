@@ -480,20 +480,28 @@ func printScreenshotReviewPlanResult(d *shared.Deps, result *screenshotReviewPla
 
 func resolveScreenshotPlanVersion(ctx context.Context, client *asc.Client, appID, version, versionID, platform string) (string, string, string, error) {
 	ctx = asc.WithNoRedirectReads(ctx)
-	if strings.TrimSpace(versionID) != "" {
-		versionData, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, versionID, platform)
+	version = strings.TrimSpace(version)
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		resolvedVersionID, err := shared.ResolveAppStoreVersionID(ctx, client, appID, version, strings.TrimSpace(platform))
 		if err != nil {
 			return "", "", "", err
 		}
-		resolvedPlatform := strings.TrimSpace(string(versionData.Attributes.Platform))
-		return strings.TrimSpace(versionData.ID), strings.TrimSpace(versionData.Attributes.VersionString), resolvedPlatform, nil
+		versionID = strings.TrimSpace(resolvedVersionID)
+		if versionID == "" {
+			return "", "", "", fmt.Errorf("version %q did not return a resource ID", version)
+		}
 	}
 
-	resolvedVersionID, err := shared.ResolveAppStoreVersionID(ctx, client, appID, strings.TrimSpace(version), strings.TrimSpace(platform))
+	versionData, err := shared.ResolveOwnedAppStoreVersionByID(ctx, client, appID, versionID, platform)
 	if err != nil {
 		return "", "", "", err
 	}
-	return resolvedVersionID, strings.TrimSpace(version), strings.TrimSpace(platform), nil
+	resolvedVersion := strings.TrimSpace(versionData.Attributes.VersionString)
+	if version != "" && resolvedVersion != version {
+		return "", "", "", fmt.Errorf("version ID %q has version %q, expected %q", versionID, resolvedVersion, version)
+	}
+	return versionID, resolvedVersion, strings.TrimSpace(string(versionData.Attributes.Platform)), nil
 }
 
 func resolveReviewArtifactPaths(d *shared.Deps, outputDir, manifestPath, approvalPath string) (string, string, string, error) {

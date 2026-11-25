@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -110,6 +111,69 @@ func TestResolveScreenshotPlanVersionRefusesRedirectBeforeVersionSelection(t *te
 	}
 	if requests.Load() != 1 {
 		t.Fatalf("requests=%d, want one version collection read", requests.Load())
+	}
+}
+
+func TestExecuteScreenshotListCommandRefusesUnverifiedScope(t *testing.T) {
+	const versions = "/v1/apps/123456789/appStoreVersions"
+	const version = "/v1/appStoreVersions/version-1"
+	const locales = version + "/appStoreVersionLocalizations"
+	const sets = "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets"
+
+	for _, tc := range []struct {
+		name      string
+		stop      string
+		requests  int32
+		responses string
+		wantError string
+	}{
+		{name: "version redirect", stop: versions, requests: 1, wantError: "Temporary Redirect"},
+		{name: "not the requested version", stop: version, requests: 2, responses: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`, wantError: "expected \"1.2.3\""},
+		{name: "locale continuation leaves version", stop: locales, requests: 3, responses: `{"data":[],"links":{"next":"/v1/appStoreVersions/foreign/appStoreVersionLocalizations?cursor=2"}}`, wantError: "scoped pagination URL path"},
+		{name: "set redirect", stop: sets, requests: 4, wantError: "Temporary Redirect"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var requests atomic.Int32
+			client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				if r.Method != http.MethodGet {
+					t.Errorf("unexpected write: %s %s", r.Method, r.URL.Path)
+					http.Error(w, "unexpected write", http.StatusMethodNotAllowed)
+					return
+				}
+				if r.URL.Path == tc.stop {
+					if tc.responses == "" {
+						http.Redirect(w, r, "/fixture/off-collection", http.StatusTemporaryRedirect)
+					} else {
+						writeAssetsTestJSON(w, http.StatusOK, tc.responses)
+					}
+					return
+				}
+				switch r.URL.Path {
+				case versions:
+					writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{}}`)
+				case version:
+					writeAssetsTestJSON(w, http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
+				case locales:
+					writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`)
+				default:
+					t.Errorf("unexpected read on %s", r.URL.Path)
+					http.Error(w, "unexpected read", http.StatusNotFound)
+				}
+			}))
+			d := newAssetsClientTestDeps(func() (*asc.Client, error) { return client, nil })
+			result, err := executeScreenshotListCommand(context.Background(), screenshotListCommandOptions{
+				AppID:   "123456789",
+				Version: "1.2.3",
+				Locale:  "en-US",
+			}, d)
+			if result != nil || err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("result=%v error=%v, want refusal containing %q", result, err, tc.wantError)
+			}
+			if requests.Load() != tc.requests {
+				t.Fatalf("requests=%d, want %d through %s", requests.Load(), tc.requests, tc.stop)
+			}
+		})
 	}
 }
 
