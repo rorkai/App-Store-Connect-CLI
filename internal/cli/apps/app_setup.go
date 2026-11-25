@@ -9,6 +9,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	localizationscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/localizations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -442,6 +443,9 @@ Examples:
 					fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations")
 					return shared.MissingRequiredUsageError("--version")
 				}
+				if err := localizationscli.ValidateVersionIDForUpload(d, *versionID); err != nil {
+					return err
+				}
 
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
 				if err != nil {
@@ -459,7 +463,14 @@ Examples:
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
 
-				results, err := d.UploadVersionLocalizations(ctx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun)
+				resolveCtx, resolveCancel := d.Timeout(ctx)
+				resolvedVersionID, err := localizationscli.ResolveVersionIDForUpload(resolveCtx, d, client, strings.TrimSpace(*versionID), *appID)
+				resolveCancel()
+				if err != nil {
+					return fmt.Errorf("app-setup localizations upload: %w", err)
+				}
+
+				results, err := d.UploadVersionLocalizations(ctx, client, resolvedVersionID, valuesByLocale, *dryRun)
 				if err != nil && len(results) == 0 {
 					if shared.IsLocalizationInputError(err) {
 						return d.UsageError(err.Error())
@@ -470,7 +481,7 @@ Examples:
 
 				result := asc.LocalizationUploadResult{
 					Type:      normalizedType,
-					VersionID: strings.TrimSpace(*versionID),
+					VersionID: resolvedVersionID,
 					DryRun:    *dryRun,
 					InputPath: strings.TrimSpace(*path),
 					Results:   results,

@@ -107,6 +107,7 @@ Examples:
 			defer cancel()
 			var versionErr error
 			if selectedAppID := d.ResolveAppID(*appID); selectedAppID != "" {
+				requestCtx = asc.WithNoRedirectReads(requestCtx)
 				_, versionErr = shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, selectedAppID, id, "")
 			} else {
 				_, versionErr = client.GetAppStoreVersion(requestCtx, id)

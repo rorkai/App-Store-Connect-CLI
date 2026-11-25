@@ -1,6 +1,10 @@
 package asc
 
-import "strings"
+import (
+	"fmt"
+	"net/url"
+	"strings"
+)
 
 type pager interface{ page() *listQuery }
 
@@ -25,4 +29,25 @@ func NextURL[O ~func(Q), Q pager](next string) O {
 			q.page().nextURL = next
 		}
 	}
+}
+
+// ValidateVersionLocalizationNextURL validates a pagination cursor and binds it to the
+// resource path that produced it.
+func ValidateVersionLocalizationNextURL(nextURL, expectedPath string) error {
+	nextURL = strings.TrimSpace(nextURL)
+	expectedPath = strings.TrimSpace(expectedPath)
+	if nextURL == "" {
+		return nil
+	}
+	if err := validateNextURL(nextURL); err != nil {
+		return err
+	}
+	parsed, err := url.Parse(nextURL)
+	if err != nil {
+		return fmt.Errorf("invalid pagination URL: %w", err)
+	}
+	if parsed.Path != expectedPath {
+		return fmt.Errorf("pagination URL path %q does not match expected resource path %q", parsed.Path, expectedPath)
+	}
+	return nil
 }

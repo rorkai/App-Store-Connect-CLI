@@ -249,12 +249,14 @@ func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
 		}
 	}
 	tests := []struct {
-		name       string
-		args       []string
-		stubs      []stub
-		wantStdout string
-		wantStderr string
-		wantErr    string
+		name         string
+		args         []string
+		envApp       string
+		stubs        []stub
+		wantStdout   string
+		wantStderr   string
+		wantErr      string
+		wantRequests int
 	}{
 		{
 			name:       "version ID",
@@ -288,8 +290,13 @@ func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
 			wantStderr: "Using version 1.1 (PREPARE_FOR_SUBMISSION) for platform IOS; pass --version-id to override",
 		},
 		{
-			name:    "detail ID with app",
+			name:    "detail ID with explicit app",
 			args:    []string{"--id", "detail-1", "--app", "100000001"},
+			wantErr: "--app selects the review detail through the app's version; pass --app with or without --version-id, not with --id",
+		},
+		{
+			name:    "detail ID with explicit app and platform",
+			args:    []string{"--id", "detail-1", "--app", "100000001", "--platform", "IOS"},
 			wantErr: "--app selects the review detail through the app's version; pass --app with or without --version-id, not with --id",
 		},
 		{
@@ -297,11 +304,21 @@ func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
 			args:    []string{"--id", "detail-1", "--version-id", "version-1"},
 			wantErr: "--id and --version-id are mutually exclusive",
 		},
+		{
+			name:   "configured bundle miss does not use app name",
+			envApp: "com.example.missing",
+			args:   []string{"--version-id", "version-1"},
+			stubs: []stub{
+				{matcher: asctest.GET("/v1/apps", "filter[bundleId]=com.example.missing", "limit=200"), body: `{"data":[{"type":"apps","id":"name-collision","attributes":{"bundleId":"com.other.app","name":"com.example.missing"}}]}`},
+			},
+			wantErr:      `no app found for bundle ID "com.example.missing" (exact match required)`,
+			wantRequests: 1,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_APP_ID", test.envApp)
 			reg := asctest.NewRegistry(t)
 			for _, stub := range test.stubs {
 				reg.Register(stub.matcher, asctest.JSON(http.StatusOK, stub.body))
@@ -317,6 +334,9 @@ func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
 				if stdout != "" {
 					t.Fatalf("expected no output, got %q", stdout)
 				}
+				if test.wantRequests > 0 && len(reg.Requests()) != test.wantRequests {
+					t.Fatalf("requests = %d, want %d; got %+v", len(reg.Requests()), test.wantRequests, reg.Requests())
+				}
 				return
 			}
 			if err != nil {
@@ -329,5 +349,221 @@ func TestReviewDetailsGetSelectsByVersionOrApp(t *testing.T) {
 				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
 			}
 		})
+	}
+}
+
+func TestReviewDetailsVersionSelectorsCheckSelectedAppBeforeReadsOrWrites(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "for version",
+			args: []string{"review", "details-for-version", "--version-id", "version-1"},
+		},
+		{
+			name: "create",
+			args: []string{
+				"review", "details-create", "--version-id", "version-1",
+				"--contact-first-name", "Dev", "--contact-phone", "+1 408 555 0100",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_APP_ID", "100000001")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK,
+				`{"data":{"type":"appStoreVersions","id":"version-1","relationships":{"app":{"data":{"type":"apps","id":"200000002"}}}}}`))
+
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
+			if err == nil || !strings.Contains(err.Error()+stderr, `version "version-1" belongs to app "200000002", not "100000001"`) {
+				t.Fatalf("err=%v stderr=%q, want selected-app ownership failure", err, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no output, got %q", stdout)
+			}
+			if requests := reg.Requests(); len(requests) != 1 {
+				t.Fatalf("expected one ownership lookup and no detail read/write, got %d requests", len(requests))
+			}
+		})
+	}
+}
+
+func TestReviewDetailsCreateSelectedAppWritesOnceAfterOwnershipCheck(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "100000001")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK,
+		`{"data":{"type":"appStoreVersions","id":"version-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
+	reg.Register(asctest.POST("/v1/appStoreReviewDetails"), asctest.JSON(http.StatusCreated,
+		`{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactFirstName":"Dev","contactPhone":"+1 408 555 0100"}}}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
+		"review", "details-create", "--version-id", "version-1",
+		"--contact-first-name", "Dev", "--contact-phone", "+1 408 555 0100")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if stderr != "" || !strings.Contains(stdout, `"id":"detail-1"`) {
+		t.Fatalf("stdout=%q stderr=%q", stdout, stderr)
+	}
+	requests := reg.Requests()
+	if len(requests) != 2 || requests[0].Method != http.MethodGet || requests[1].Method != http.MethodPost {
+		t.Fatalf("expected one ownership GET followed by one create POST, got %+v", requests)
+	}
+}
+
+func TestReviewDetailsDirectIDsCheckSelectedAppBeforeReadOrWrite(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "get mismatch",
+			args: []string{"review", "details-get", "--id", "detail-1"},
+		},
+		{
+			name: "update mismatch",
+			args: []string{"review", "details-update", "--id", "detail-1", "--notes", "Updated"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("ASC_APP_ID", "100000001")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1", "fields[appStoreReviewDetails]=appStoreVersion", "include=appStoreVersion"), asctest.JSON(http.StatusOK,
+				`{"data":{"type":"appStoreReviewDetails","id":"detail-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`))
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK,
+				`{"data":{"type":"appStoreVersions","id":"version-1","relationships":{"app":{"data":{"type":"apps","id":"200000002"}}}}}`))
+
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
+			if err == nil || !strings.Contains(err.Error()+stderr, `version "version-1" belongs to app "200000002", not "100000001"`) {
+				t.Fatalf("err=%v stderr=%q, want selected-app ownership failure", err, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no output, got %q", stdout)
+			}
+			if requests := reg.Requests(); len(requests) != 2 {
+				t.Fatalf("expected sparse detail and version ownership reads only, got %d requests", len(requests))
+			}
+		})
+	}
+}
+
+func TestReviewDetailsDirectIDOwnershipRejectsMalformedRelationship(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "100000001")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1", "fields[appStoreReviewDetails]=appStoreVersion", "include=appStoreVersion"), asctest.JSON(http.StatusOK,
+		`{"data":{"type":"appStoreReviewDetails","id":"detail-1","relationships":{"appStoreVersion":{"data":{"type":"appInfos","id":"version-1"}}}}}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-get", "--id", "detail-1")
+	if err == nil || !strings.Contains(err.Error()+stderr, `expected review detail appStoreVersion relationship type "appStoreVersions", got "appInfos"`) {
+		t.Fatalf("err=%v stderr=%q, want malformed relationship error", err, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no output, got %q", stdout)
+	}
+	if requests := reg.Requests(); len(requests) != 1 {
+		t.Fatalf("expected only sparse ownership read, got %d requests", len(requests))
+	}
+}
+
+func TestReviewDetailsDirectIDOwnershipRejectsWrongIdentity(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "100000001")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1", "fields[appStoreReviewDetails]=appStoreVersion", "include=appStoreVersion"), asctest.JSON(http.StatusOK,
+		`{"data":{"type":"appStoreReviewDetails","id":"detail-other","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-get", "--id", "detail-1")
+	if err == nil || !strings.Contains(err.Error()+stderr, `expected review detail "detail-1", got "detail-other"`) {
+		t.Fatalf("err=%v stderr=%q, want wrong identity error", err, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no output, got %q", stdout)
+	}
+	if requests := reg.Requests(); len(requests) != 1 {
+		t.Fatalf("expected only sparse ownership read, got %d requests", len(requests))
+	}
+}
+
+func TestReviewDetailsDirectIDMatchingAppWritesAfterOwnershipCheck(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "100000001")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	for _, test := range []struct {
+		name string
+		args []string
+	}{
+		{name: "get", args: []string{"review", "details-get", "--id", "detail-1"}},
+		{name: "update", args: []string{"review", "details-update", "--id", "detail-1", "--notes", "Updated"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reg := asctest.NewRegistry(t)
+			reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1", "fields[appStoreReviewDetails]=appStoreVersion", "include=appStoreVersion"), asctest.JSON(http.StatusOK,
+				`{"data":{"type":"appStoreReviewDetails","id":"detail-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`))
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK,
+				`{"data":{"type":"appStoreVersions","id":"version-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
+			if test.name == "get" {
+				reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK,
+					`{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"notes":"Updated"}}}`))
+			} else {
+				reg.Register(asctest.PATCH("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK,
+					`{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"notes":"Updated"}}}`))
+			}
+
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if stderr != "" || !strings.Contains(stdout, `"id":"detail-1"`) {
+				t.Fatalf("stdout=%q stderr=%q", stdout, stderr)
+			}
+			requests := reg.Requests()
+			if len(requests) != 3 || requests[0].Method != http.MethodGet || requests[1].Method != http.MethodGet || requests[2].Method != map[string]string{"get": http.MethodGet, "update": http.MethodPatch}[test.name] {
+				t.Fatalf("expected two ownership reads and one final operation, got %+v", requests)
+			}
+		})
+	}
+}
+
+func TestReviewDetailsDirectIDUpdateWithoutSelectedAppWritesOnce(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.PATCH("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK,
+		`{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"notes":"Updated"}}}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
+		"review", "details-update", "--id", "detail-1", "--notes", "Updated")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if stderr != "" || !strings.Contains(stdout, `"id":"detail-1"`) {
+		t.Fatalf("stdout=%q stderr=%q", stdout, stderr)
+	}
+	requests := reg.Requests()
+	if len(requests) != 1 || requests[0].Method != http.MethodPatch {
+		t.Fatalf("expected one unrestricted direct-ID PATCH, got %+v", requests)
+	}
+}
+
+func TestReviewDetailsGetConfiguredAppVersionMismatchStopsBeforeDetailRead(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "100000001")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	reg := asctest.NewRegistry(t)
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK,
+		`{"data":{"type":"appStoreVersions","id":"version-1","relationships":{"app":{"data":{"type":"apps","id":"200000002"}}}}}`))
+
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-get", "--version-id", "version-1", "--output", "json")
+	if err == nil || !strings.Contains(err.Error()+stderr, `version "version-1" belongs to app "200000002", not "100000001"`) {
+		t.Fatalf("err=%v stderr=%q, want selected-app ownership failure", err, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no output, got %q", stdout)
+	}
+	if requests := reg.Requests(); len(requests) != 1 {
+		t.Fatalf("expected one version ownership lookup and no detail read, got %d requests", len(requests))
 	}
 }

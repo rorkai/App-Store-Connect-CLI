@@ -110,6 +110,22 @@ At least one field flag must be provided.`,
 			if flagProvided(fs, "platform") && strings.TrimSpace(*platform) == "" {
 				return d.UsageError("--platform must not be empty")
 			}
+			versionFields, appInfoFields := activeProvidedFlags(fs, versionFieldNames...), activeProvidedFlags(fs, appInfoFieldNames...)
+			if len(versionFields) > 0 && len(appInfoFields) > 0 {
+				conflicting := appInfoFields[0]
+				if normalizedType == shared.LocalizationTypeAppInfo {
+					conflicting = versionFields[0]
+				}
+				return shared.WithDiagnostic(
+					d.UsageErrorf(
+						"localizations update: version fields (%s) and app-info fields (%s) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+						strings.Join(versionFields, ", "),
+						strings.Join(appInfoFields, ", "),
+					),
+					shared.DiagnosticConflictingInput,
+					conflicting,
+				)
+			}
 
 			if normalizedType == shared.LocalizationTypeAppInfo && flagProvided(fs, "platform") {
 				return d.UsageError("--platform requires --type version")
@@ -156,6 +172,13 @@ At least one field flag must be provided.`,
 					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
 					output:                output,
 				}
+				if len(versionFields) > 0 {
+					return shared.WithDiagnostic(
+						d.UsageError("--type version is required for version update flags"),
+						shared.DiagnosticRequiredInputMissing,
+						"--type",
+					)
+				}
 				if !hasAnyAppInfoField(params) {
 					return d.UpdateFlagRequired(fs, name, subtitle, clearSubtitle, privacyPolicyURL, clearPrivacyPolicyURL, privacyChoicesURL, privacyPolicyText)
 				}
@@ -175,6 +198,13 @@ At least one field flag must be provided.`,
 					marketingURL:         *marketingURL,
 					clearPromotionalText: *clearPromotionalText,
 					output:               output,
+				}
+				if len(appInfoFields) > 0 {
+					return shared.WithDiagnostic(
+						d.UsageError("--type app-info is required for app-info update flags"),
+						shared.DiagnosticRequiredInputMissing,
+						"--type",
+					)
 				}
 				if !hasAnyVersionField(params) {
 					return d.UpdateFlagRequired(fs, description, keywords, whatsNew, promotionalText, clearPromotionalText, supportURL, marketingURL)
@@ -234,6 +264,40 @@ func flagProvided(fs *flag.FlagSet, name string) bool {
 		}
 	})
 	return provided
+}
+
+var appInfoFieldNames = []string{
+	"name",
+	"subtitle",
+	"privacy-policy-url",
+	"privacy-choices-url",
+	"privacy-policy-text",
+	"clear-subtitle",
+	"clear-privacy-policy-url",
+}
+
+var versionFieldNames = []string{
+	"description",
+	"keywords",
+	"whats-new",
+	"promotional-text",
+	"clear-promotional-text",
+	"support-url",
+	"marketing-url",
+}
+
+func activeProvidedFlags(fs *flag.FlagSet, names ...string) []string {
+	var active []string
+	for _, name := range names {
+		if !flagProvided(fs, name) {
+			continue
+		}
+		if strings.HasPrefix(name, "clear-") && fs.Lookup(name).Value.String() != "true" {
+			continue
+		}
+		active = append(active, "--"+name)
+	}
+	return active
 }
 
 type updateAppInfoParams struct {
@@ -393,7 +457,7 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 	defer cancel()
 
 	if localizationID == "" {
-		vid, err = resolveLocalizationMutationVersionID(requestCtx, d, client, vid, p.appID, normalizedPlatform)
+		vid, err = ResolveVersionIDForMutation(requestCtx, d, client, vid, p.appID, normalizedPlatform)
 		if err != nil {
 			return fmt.Errorf("localizations update: %w", err)
 		}
@@ -412,6 +476,8 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 		if localizationID == "" {
 			return fmt.Errorf("localizations update: no existing localization found for locale %q", p.locale)
 		}
+	} else if err := verifyVersionLocalizationOwner(requestCtx, d, client, localizationID); err != nil {
+		return fmt.Errorf("localizations update: %w", err)
 	}
 
 	resp, err := patchVersionLocalization(requestCtx, client, localizationID, p, attrs)
