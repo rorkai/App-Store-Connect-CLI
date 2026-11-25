@@ -276,6 +276,11 @@ func CheckBuildBetaReviewReadiness(ctx context.Context, client buildBetaReviewSu
 	if beta == nil || beta.Data.Type != "buildBetaDetails" || strings.TrimSpace(beta.Data.ID) == "" {
 		return fmt.Errorf("invalid build beta details response")
 	}
+	switch state := strings.ToUpper(strings.TrimSpace(beta.Data.Attributes.ExternalBuildState)); state {
+	case externalBetaStateExpired, externalBetaStateNotApplicable:
+		err := fmt.Errorf("build %q cannot be distributed to external beta groups (externalBuildState %s)", buildID, state)
+		return WithDiagnostic(NewValidationError(err), DiagnosticStateNotReady, "")
+	}
 	if details != nil {
 		for _, detail := range details.Data {
 			if detail.Type != "betaAppReviewDetails" || strings.TrimSpace(detail.ID) == "" {

@@ -225,7 +225,7 @@ func TestPublishTestflightReportsLocaleCreationBeforeBoundedNotesFailure(t *test
 	if decodeErr := json.Unmarshal([]byte(stdout), &result); decodeErr != nil {
 		t.Fatal(decodeErr)
 	}
-	if result.Status != "partial" || result.FailureStage != "test_notes" || result.FailureCode != "test_notes_failed" ||
+	if result.Status != "partial" || result.FailureStage != "test_notes" || result.FailureCode != "test_notes_failed" || result.HTTPStatus != http.StatusUnprocessableEntity ||
 		!slices.Contains(result.CompletedStages, "beta_app_localization") || slices.Contains(result.CompletedStages, "test_notes") ||
 		result.Recovery == nil || result.Recovery.Locale != "en-US" || result.Recovery.SubmittedNotes != "Original instructions" ||
 		result.Failure != "Test notes could not be saved." || strings.Contains(stdout, "PRIVATE-CANARY") || strings.Contains(stdout, "private-secret") || len(err.Error()) > 2048 || !strings.Contains(err.Error(), "PRIVATE-CANARY") {
@@ -264,7 +264,8 @@ func TestPublishTestflightBindsReviewMetadataPages(t *testing.T) {
 		{name: "scoped metadata pages"},
 		{name: "reject alternate API origin", failure: true, next: asc.EnterpriseBaseURL + "/v1/betaAppLocalizations?filter[app]=123&cursor=next"},
 		{name: "foreign app filter", next: asc.BaseURL + "/v1/betaAppLocalizations?filter[app]=other&cursor=next", failure: true},
-		{name: "missing app filter", next: asc.BaseURL + "/v1/betaAppLocalizations?cursor=next", failure: true},
+		{name: "opaque cursor retains selected app", next: asc.BaseURL + "/v1/betaAppLocalizations?cursor=next"},
+		{name: "unfiltered listing without cursor", next: asc.BaseURL + "/v1/betaAppLocalizations?limit=10", failure: true},
 		{name: "different metadata collection", next: asc.BaseURL + "/v1/betaAppReviewDetails?filter[app]=123&cursor=next", failure: true},
 		{name: "wrong localization type", wrongResource: "localization", failure: true},
 		{name: "wrong review detail type", wrongResource: "review detail", failure: true},
