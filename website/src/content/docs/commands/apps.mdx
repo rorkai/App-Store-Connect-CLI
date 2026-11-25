@@ -114,7 +114,8 @@ Apple omits notification endpoints from its default response. Request them using
 
 <ParamField path="--fields" type="string">
   Comma-separated app attributes: `name`, `bundleId`, `sku`, `primaryLocale`,
-  `contentRightsDeclaration`, `subscriptionStatusUrl`, `subscriptionStatusUrlVersion`,
+  `contentRightsDeclaration`, `groupPurchaseInvitationMode`, `subscriptionStatusUrl`,
+  `subscriptionStatusUrlVersion`,
   `subscriptionStatusUrlForSandbox`, `subscriptionStatusUrlVersionForSandbox`.
 </ParamField>
 
@@ -294,6 +295,10 @@ Update app metadata and App Store Server Notifications URLs.
   Content rights declaration: `DOES_NOT_USE_THIRD_PARTY_CONTENT` or `USES_THIRD_PARTY_CONTENT`
 </ParamField>
 
+<ParamField path="--group-purchase-invitation-mode" type="string">
+  Choose who hosts invitations for group purchases: `APPLE_HOSTED` or `DEVELOPER_HOSTED`.
+</ParamField>
+
 <ParamField path="--accessibility-url" type="string">
   Accessibility URL for the app. Must be an absolute HTTP or HTTPS URL without credentials. An empty value is rejected; this flag does not remove an existing URL.
 </ParamField>
@@ -321,6 +326,8 @@ these flags do not remove existing endpoints. Use `asc apps view --id "APP_ID" -
 asc apps update --id "APP_ID" --bundle-id "com.example.app"
 asc apps update --id "APP_ID" --primary-locale "en-US"
 asc apps update --id "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"
+asc apps update --id "APP_ID" --group-purchase-invitation-mode "APPLE_HOSTED"
+asc apps view --id "APP_ID" --fields groupPurchaseInvitationMode --output json
 asc apps update --id "APP_ID" --accessibility-url "https://example.com/accessibility"
 asc apps update --id "APP_ID" --subscription-status-url "https://example.com/notifications"
 asc apps update --id "APP_ID" --sandbox-subscription-status-url "https://example.com/sandbox-notifications"

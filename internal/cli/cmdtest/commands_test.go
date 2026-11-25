@@ -3188,7 +3188,17 @@ func TestAppsValidationErrors(t *testing.T) {
 		{
 			name:    "apps update missing fields",
 			args:    []string{"apps", "update", "--id", "APP_ID"},
-			wantErr: "Error: at least one update flag is required (--bundle-id, --primary-locale, --content-rights, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)",
+			wantErr: "Error: at least one update flag is required (--bundle-id, --primary-locale, --content-rights, --group-purchase-invitation-mode, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)",
+		},
+		{
+			name:    "apps update unknown group purchase mode",
+			args:    []string{"apps", "update", "--id", "APP_ID", "--bundle-id", "com.example.app", "--group-purchase-invitation-mode", "INVALID"},
+			wantErr: "Error: --group-purchase-invitation-mode must be APPLE_HOSTED or DEVELOPER_HOSTED",
+		},
+		{
+			name:    "apps update empty group purchase mode",
+			args:    []string{"apps", "update", "--id", "APP_ID", "--bundle-id", "com.example.app", "--group-purchase-invitation-mode", ""},
+			wantErr: "Error: --group-purchase-invitation-mode must be APPLE_HOSTED or DEVELOPER_HOSTED",
 		},
 		{
 			name:    "apps update invalid content rights",

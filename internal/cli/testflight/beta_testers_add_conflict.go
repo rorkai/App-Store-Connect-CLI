@@ -3,6 +3,7 @@ package testflight
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -22,7 +23,7 @@ type betaTesterAddConflictOutcome struct {
 	internalGroups []string
 }
 
-// resolveBetaTesterAddConflict reads the app's tester with this email after a
+// resolveBetaTesterAddConflict reads the selected apps' exact-email tester after a
 // 409 on create. When one exists, it adds whatever requested groups and builds
 // the tester is still missing, so the end state is the one the caller asked
 // for. It returns a nil tester when no tester with this email exists, so the
@@ -31,40 +32,49 @@ func resolveBetaTesterAddConflict(
 	ctx context.Context,
 	d *shared.Deps,
 	client *asc.Client,
-	appID, email string,
+	appIDs []string,
+	email string,
 	groupIDs, buildIDs []string,
 ) (*betaTesterAddConflictOutcome, error) {
-	requestCtx, cancel := d.Timeout(ctx)
-	testers, err := client.GetBetaTesters(requestCtx, appID, asc.WithBetaTestersEmail(email))
-	cancel()
+	var fields []string
+	if len(groupIDs) == 0 {
+		fields = []string{"email"}
+	}
+	testers, err := fetchExistingTestersByEmail(ctx, d, client, appIDs, []betaTestersCSVRow{{email: email}}, fields...)
 	if err != nil {
 		return nil, fmt.Errorf("look up tester %q: %w", email, err)
 	}
-	if len(testers.Data) > 1 || strings.TrimSpace(testers.Links.Next) != "" {
-		// Several testers share the email: no single record to read back.
-		return nil, nil
-	}
-	if len(testers.Data) == 0 {
+	tester := testers[strings.ToLower(strings.TrimSpace(email))]
+	if tester == nil {
 		internal, err := internalBetaGroupNames(ctx, d, client, groupIDs)
 		if err != nil {
 			return nil, err
 		}
 		return &betaTesterAddConflictOutcome{internalGroups: internal}, nil
 	}
-	tester := testers.Data[0]
-	testerID := strings.TrimSpace(tester.ID)
+	return reconcileBetaTesterRelationships(ctx, d, client, tester, groupIDs, buildIDs)
+}
 
-	missingGroups, err := missingBetaTesterLinkages(ctx, d, groupIDs, func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
+func reconcileBetaTesterRelationships(ctx context.Context, d *shared.Deps, client *asc.Client, tester *asc.BetaTesterResponse, groupIDs, buildIDs []string) (*betaTesterAddConflictOutcome, error) {
+	testerID := strings.TrimSpace(tester.Data.ID)
+
+	missingGroups, err := missingBetaTesterLinkages(ctx, d, client, groupIDs, "/v1/betaTesters/"+url.PathEscape(testerID)+"/relationships/betaGroups", func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
 		return client.GetBetaTesterBetaGroupsRelationships(ctx, testerID, opts...)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("read groups of tester %s: %w", testerID, err)
 	}
-	missingBuilds, err := missingBetaTesterLinkages(ctx, d, buildIDs, func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
-		return client.GetBetaTesterBuildsRelationships(ctx, testerID, opts...)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("read builds of tester %s: %w", testerID, err)
+	var missingBuilds []string
+	for _, buildID := range uniqueSortedStrings(buildIDs) {
+		missing, err := missingBetaTesterLinkages(ctx, d, client, []string{testerID}, "/v1/builds/"+url.PathEscape(buildID)+"/relationships/individualTesters", func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
+			return client.GetBuildIndividualTestersRelationships(ctx, buildID, opts...)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("read testers of build %s: %w", buildID, err)
+		}
+		if len(missing) > 0 {
+			missingBuilds = append(missingBuilds, buildID)
+		}
 	}
 
 	if len(missingGroups) > 0 {
@@ -89,7 +99,7 @@ func resolveBetaTesterAddConflict(
 	}
 
 	return &betaTesterAddConflictOutcome{
-		tester:        &asc.BetaTesterResponse{Data: tester},
+		tester:        tester,
 		addedGroupIDs: missingGroups,
 		addedBuildIDs: missingBuilds,
 	}, nil
@@ -100,7 +110,9 @@ func resolveBetaTesterAddConflict(
 func missingBetaTesterLinkages(
 	ctx context.Context,
 	d *shared.Deps,
+	client *asc.Client,
 	requested []string,
+	collectionPath string,
 	read func(context.Context, ...asc.LinkagesOption) (*asc.LinkagesResponse, error),
 ) ([]string, error) {
 	if len(requested) == 0 {
@@ -115,7 +127,11 @@ func missingBetaTesterLinkages(
 	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
-		return read(requestCtx, asc.NextURL[asc.LinkagesOption](nextURL))
+		canonical, err := client.ValidateNoRedirectReadContinuation(ctx, nextURL, collectionPath)
+		if err != nil {
+			return nil, err
+		}
+		return read(requestCtx, asc.NextURL[asc.LinkagesOption](canonical))
 	})
 	if err != nil {
 		return nil, err

@@ -106,7 +106,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 		{
 			name:  "apps update",
 			args:  []string{"apps", "update", "--id", "ID"},
-			flags: "--bundle-id, --primary-locale, --content-rights, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled",
+			flags: "--bundle-id, --primary-locale, --content-rights, --group-purchase-invitation-mode, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled",
 			deps:  true,
 		},
 		{
