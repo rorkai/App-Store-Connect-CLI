@@ -140,6 +140,11 @@ func resumeScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, stderr 
 	return progress, err
 }
 
+func (pending screenshotPendingAsset) hasUploadedBytes() bool {
+	state := strings.ToUpper(strings.TrimSpace(pending.State))
+	return state == "UPLOADED" || state == "UPLOAD_COMPLETE" || state == "COMPLETE"
+}
+
 func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, client *asc.Client, pending screenshotPendingAsset, sourceRootPath string) (asc.AssetUploadResultItem, screenshotPendingAsset, bool, error) {
 	remote, err := getScopedAppScreenshot(ctx, client, pending.AssetID)
 	if err != nil {
@@ -176,8 +181,7 @@ func reconcilePendingScreenshotAsset(ctx context.Context, stderr io.Writer, clie
 		}
 		return waitForPendingScreenshotDelivery(ctx, stderr, client, pending)
 	case "AWAITING_UPLOAD", "":
-		pendingState := strings.ToUpper(strings.TrimSpace(pending.State))
-		if pendingState == "UPLOADED" || pendingState == "UPLOAD_COMPLETE" || pendingState == "COMPLETE" {
+		if pending.hasUploadedBytes() {
 			if err := validatePendingScreenshotChecksum(sourceRootPath, pending); err != nil {
 				return asc.AssetUploadResultItem{}, pending, false, err
 			}

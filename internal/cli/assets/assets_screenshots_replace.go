@@ -27,6 +27,22 @@ func screenshotDestructiveRecoveryError() error {
 	return fmt.Errorf("resume receipts do not authorize screenshot deletion; inspect the intended app, localization, and device, then run a fresh explicitly targeted screenshots upload --replace --dry-run and a separately confirmed --replace --confirm for that exact target")
 }
 
+func screenshotRecoveryIDArgument(id string) (string, bool) {
+	if segment, err := asc.ValidateResourcePathSegment(id); err != nil || segment != id {
+		return "", false
+	}
+	return shared.ShellQuote(id)
+}
+
+func screenshotReservationRecoveryError(setID, assetID, state string) error {
+	setArg, setOK := screenshotRecoveryIDArgument(setID)
+	assetArg, assetOK := screenshotRecoveryIDArgument(assetID)
+	if !setOK || !assetOK {
+		return fmt.Errorf("screenshot reservation %q in set %q is %s. Inspect the set in App Store Connect and remove the reservation only after confirming it is no longer in use, then preview a fresh replacement", assetID, setID, state)
+	}
+	return fmt.Errorf("screenshot reservation %q is %s. Inspect the selected set with asc screenshots list --set-id %s --fields fileName,assetDeliveryState --paginate. If this reservation is no longer in use, remove it with asc screenshots delete --id %s --confirm, then run a fresh --replace --dry-run for the same app, localization, and device before using --replace --confirm", assetID, state, setArg, assetArg)
+}
+
 func screenshotMutationAppID(d *shared.Deps, value, operation string) (string, error) {
 	value = d.ResolveAppID(value)
 	if value == "" {
@@ -217,6 +233,10 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 		if previous != nil && !known[item.ID] {
 			return asc.AppScreenshotUploadResult{}, fmt.Errorf("screenshot %s appeared after replacement failed; inspect the set before starting a new replacement", item.ID)
 		}
+		state := ""
+		if item.Attributes.AssetDeliveryState != nil {
+			state = item.Attributes.AssetDeliveryState.State
+		}
 		if owned, ok := pending[item.ID]; ok {
 			source, err := filepath.Abs(owned.FilePath)
 			if err != nil {
@@ -229,14 +249,12 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 			if err := validatePendingScreenshotRemoteChecksum(item.ID, item.Attributes.SourceFileChecksum, expected); err != nil {
 				return asc.AppScreenshotUploadResult{}, err
 			}
-			state := ""
-			if item.Attributes.AssetDeliveryState != nil {
-				state = item.Attributes.AssetDeliveryState.State
-			}
 			switch state {
-			case "COMPLETE":
-			case "AWAITING_UPLOAD", "FAILED":
-				continue
+			case "COMPLETE", "FAILED":
+			case "AWAITING_UPLOAD":
+				if !cleanup[item.ID] && owned.hasUploadedBytes() {
+					continue
+				}
 			case "UPLOAD_COMPLETE":
 				if !cleanup[item.ID] {
 					continue
@@ -246,8 +264,11 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 				return asc.AppScreenshotUploadResult{}, fmt.Errorf("cannot verify pending screenshot %s with state %q", item.ID, state)
 			}
 		}
+		if state == "FAILED" || state == "AWAITING_UPLOAD" {
+			return asc.AppScreenshotUploadResult{}, screenshotReservationRecoveryError(set.ID, item.ID, state)
+		}
 		checksum, valid := replacementChecksum(item.Attributes.SourceFileChecksum)
-		if !valid || item.Attributes.AssetDeliveryState == nil || item.Attributes.AssetDeliveryState.State != "COMPLETE" {
+		if !valid || state != "COMPLETE" {
 			return asc.AppScreenshotUploadResult{}, fmt.Errorf("cannot verify screenshot %s: replacement requires COMPLETE assets with source checksums; finish or inspect the existing upload first", item.ID)
 		}
 		item.Attributes.SourceFileChecksum = checksum
