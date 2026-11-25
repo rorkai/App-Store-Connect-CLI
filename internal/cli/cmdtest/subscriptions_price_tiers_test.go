@@ -277,9 +277,15 @@ func TestSubscriptionPriceTierPaginationKeepsSelectedOperation(t *testing.T) {
 	const tierPath = "/v1/subscriptionPriceTiers"
 	const relatedPath = "/v1/subscriptionPrices/price-1/additionalPriceTiers"
 	const linksPath = "/v1/subscriptionPrices/price-1/relationships/additionalPriceTiers"
+	savedSelectors := url.Values{
+		"filter[subscription]":            {"8000000001"},
+		"include":                         {"subscriptionPricePoint"},
+		"fields[subscriptionPriceTiers]":  {"subscriptionPricePoint"},
+		"fields[subscriptionPricePoints]": {"customerPrice"},
+	}
 	for _, tc := range []struct {
 		name, path, next string
-		subscription     string
+		wantQuery        url.Values
 		args             []string
 		redirectAt       int
 		wantRequests     int
@@ -299,7 +305,7 @@ func TestSubscriptionPriceTierPaginationKeepsSelectedOperation(t *testing.T) {
 		{name: "manual cursor pagination drift", path: linksPath, next: "/v1/subscriptionPrices/price-2/relationships/additionalPriceTiers?cursor=foreign", args: []string{"prices", "additional-price-tiers-links", "--next", "https://api.appstoreconnect.apple.com" + linksPath + "?cursor=first", "--paginate"}, wantRequests: 1, wantError: true},
 		{name: "initial redirect drift", path: relatedPath, redirectAt: 1, args: []string{"prices", "additional-price-tiers", "--price-id", "price-1"}, wantRequests: 1, wantError: true},
 		{name: "continuation redirect drift", path: linksPath, next: linksPath + "?cursor=second", redirectAt: 2, args: []string{"prices", "additional-price-tiers-links", "--price-id", "price-1", "--paginate"}, wantRequests: 2, wantError: true},
-		{name: "manual list opaque cursor", path: tierPath, next: tierPath + "?cursor=second", subscription: "8000000001", args: []string{"price-tiers", "list", "--next", "https://api.appstoreconnect.apple.com" + tierPath + "?filter%5Bsubscription%5D=8000000001&cursor=first", "--paginate"}, wantRequests: 2},
+		{name: "manual list opaque cursor", path: tierPath, next: tierPath + "?cursor=second", wantQuery: savedSelectors, args: []string{"price-tiers", "list", "--next", "https://api.appstoreconnect.apple.com" + tierPath + "?" + savedSelectors.Encode() + "&cursor=first", "--paginate"}, wantRequests: 2},
 		{name: "related valid pagination", path: relatedPath, next: relatedPath + "?cursor=second", args: []string{"prices", "additional-price-tiers", "--price-id", "price-1", "--paginate"}, wantRequests: 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -310,8 +316,10 @@ func TestSubscriptionPriceTierPaginationKeepsSelectedOperation(t *testing.T) {
 				if req.Method != http.MethodGet || req.URL.Path != tc.path {
 					t.Errorf("request left selected operation: %s %s", req.Method, req.URL)
 				}
-				if tc.subscription != "" && req.URL.Query().Get("filter[subscription]") != tc.subscription {
-					t.Errorf("pagination dropped manual subscription scope: %s", req.URL)
+				for key, want := range tc.wantQuery {
+					if got := req.URL.Query()[key]; !reflect.DeepEqual(got, want) {
+						t.Errorf("page %d query %s = %v, want %v", requests, key, got, want)
+					}
 				}
 				if requests == tc.redirectAt {
 					return &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": {"https://api.appstoreconnect.apple.com/v1/subscriptions?cursor=redirect"}}, Body: http.NoBody}, nil
@@ -337,6 +345,56 @@ func TestSubscriptionPriceTierPaginationKeepsSelectedOperation(t *testing.T) {
 			var result struct{ Data []json.RawMessage }
 			if err := json.Unmarshal([]byte(stdout), &result); err != nil || len(result.Data) != tc.wantRequests {
 				t.Fatalf("output=%q error=%v", stdout, err)
+			}
+		})
+	}
+}
+
+func TestSubscriptionPriceTierIncludedPricePointOutput(t *testing.T) {
+	const included = `"included":[{
+		"type":"subscriptionPricePoints","id":"point-1",
+		"attributes":{"customerPrice":"4.99","proceeds":"3.50","proceedsYear2":"4.25"},
+		"relationships":{"territory":{"data":{"type":"territories","id":"USA"}},
+			"equalizations":{"links":{"related":"/standard"}},"adjustedEqualizations":{"links":{"related":"/adjusted"}}}
+	}]`
+	const points = `"relationships":{"priceTierPricePoints":{"data":[{"type":"subscriptionPricePoints","id":"point-1"},{"type":"subscriptionPricePoints","id":"point-2"}]}}`
+	for _, tc := range []struct {
+		name, response string
+		args, want     []string
+	}{
+		{
+			name:     "tier list",
+			response: `{"data":[{"type":"subscriptionPriceTiers","id":"tier-1","relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"point-1"}}}}],` + included + `}`,
+			args:     []string{"list", "--include", "subscriptionPricePoint", "--output", "markdown"},
+			want:     []string{"Customer Price", "tier-1", "point-1", "4.99", "3.50", "4.25", "USA", "/standard", "/adjusted"},
+		},
+		{
+			name:     "equalization with matrix",
+			response: `{"data":{"type":"subscriptionPriceTierEqualizations","id":"eq","attributes":{"equalizedPrices":[{"territoryId":"GBR","basePricePointId":"base-point"}]},` + points + `},` + included + `}`,
+			args:     []string{"equalize", "--base-price-point", "base-point", "--include", "priceTierPricePoints", "--output", "table"},
+			want:     []string{"Base Price Point", "GBR", "base-point", "point-1", "Customer Price", "4.99", "point-2"},
+		},
+		{
+			name:     "relationship only",
+			response: `{"data":{"type":"subscriptionPriceTierEqualizations","id":"eq",` + points + `}}`,
+			args:     []string{"equalize", "--base-price-point", "base-point", "--fields", "priceTierPricePoints", "--output", "markdown"},
+			want:     []string{"Price Point", "point-1", "point-2"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupAuth(t)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return jsonResponse(http.StatusOK, tc.response)
+			}))
+			args := append([]string{"subscriptions", "pricing", "price-tiers"}, tc.args...)
+			stdout, stderr, err := runCommand(t, append(args, "--subscription-id", "8000000001"))
+			if err != nil {
+				t.Fatalf("run = %v stderr=%q", err, stderr)
+			}
+			for _, value := range tc.want {
+				if !strings.Contains(stdout, value) {
+					t.Errorf("missing %q in %s", value, stdout)
+				}
 			}
 		})
 	}
