@@ -61,6 +61,8 @@ func AgeRatingChecks(declaration *AgeRatingDeclaration) []CheckResult {
 		field string
 		value *bool
 	}{
+		{field: "datingAndRelationships", value: declaration.DatingAndRelationships},
+		{field: "sharedLocation", value: declaration.SharedLocation},
 		{field: "advertising", value: declaration.Advertising},
 		{field: "gambling", value: declaration.Gambling},
 		{field: "healthOrWellnessTopics", value: declaration.HealthOrWellnessTopics},

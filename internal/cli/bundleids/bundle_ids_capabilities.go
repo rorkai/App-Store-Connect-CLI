@@ -543,9 +543,11 @@ func capabilityTypeRejectedHint(bundle, capability string) string {
 }
 
 // closestAPICapabilityTypes returns up to three API capability types the
-// rejected capability is a likely misspelling of. The suggester ranks
-// hyphen-separated names, so underscores are swapped for hyphens going in
-// and back coming out.
+// rejected capability is a likely misspelling of. A name that holds a whole
+// API type and more words, such as HEALTHKIT_RECALIBRATE_ESTIMATES, is a
+// different capability rather than a misspelling of that type. The suggester
+// ranks hyphen-separated names, so underscores are swapped for hyphens going
+// in and back coming out.
 func closestAPICapabilityTypes(capability string) []string {
 	toSuggest := func(value string) string { return strings.ReplaceAll(value, "_", "-") }
 	candidates := make([]string, len(apiCapabilityTypes))
@@ -553,6 +555,10 @@ func closestAPICapabilityTypes(capability string) []string {
 		candidates[i] = toSuggest(capabilityType)
 	}
 	matches := suggest.Commands(toSuggest(capability), candidates)
+	words := "-" + strings.ToLower(strings.TrimSpace(toSuggest(capability))) + "-"
+	matches = slices.DeleteFunc(matches, func(apiType string) bool {
+		return strings.Contains(words, "-"+apiType+"-")
+	})
 	for i, match := range matches {
 		matches[i] = strings.ToUpper(strings.ReplaceAll(match, "-", "_"))
 	}

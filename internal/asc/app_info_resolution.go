@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 )
@@ -62,6 +63,9 @@ func AppInfoAppID(resp *AppInfoResponse) (string, error) {
 	if appID == "" {
 		return "", fmt.Errorf("app relationship missing for app info %q", strings.TrimSpace(resp.Data.ID))
 	}
+	if appType := relationships.App.Data.Type; appType != ResourceTypeApps {
+		return "", fmt.Errorf("expected app relationship type %q, got %q for app info %q", ResourceTypeApps, appType, resp.Data.ID)
+	}
 	return appID, nil
 }
 
@@ -77,6 +81,7 @@ func (c *Client) ListAppInfoCandidatesForApp(ctx context.Context, appID string) 
 	if appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
+	ctx = WithNoRedirectReads(ctx)
 
 	firstPage, err := c.GetAppInfos(
 		ctx,
@@ -88,7 +93,14 @@ func (c *Client) ListAppInfoCandidatesForApp(ctx context.Context, appID string) 
 		return nil, err
 	}
 	allPages, err := PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetAppInfos(ctx, appID, NextURL[AppInfoOption](nextURL))
+		if err := validateAppInfoCandidatesNextURL(nextURL, appID); err != nil {
+			return nil, err
+		}
+		canonicalURL, err := c.ValidateNoRedirectReadContinuation(ctx, nextURL, fmt.Sprintf("/v1/apps/%s/appInfos", appID))
+		if err != nil {
+			return nil, err
+		}
+		return c.GetAppInfos(ctx, appID, NextURL[AppInfoOption](canonicalURL))
 	})
 	if err != nil {
 		return nil, err
@@ -98,6 +110,22 @@ func (c *Client) ListAppInfoCandidatesForApp(ctx context.Context, appID string) 
 		return nil, fmt.Errorf("unexpected app info pagination response %T", allPages)
 	}
 	return AppInfoCandidates(appInfos.Data), nil
+}
+
+func validateAppInfoCandidatesNextURL(nextURL, appID string) error {
+	parsed, err := url.Parse(nextURL)
+	if err != nil {
+		return fmt.Errorf("invalid app info pagination URL: %w", err)
+	}
+	parts := strings.Split(parsed.Path, "/")
+	if len(parts) != 5 || parts[0] != "" || parts[1] != "v1" || parts[2] != "apps" || parts[4] != "appInfos" {
+		return fmt.Errorf("app info pagination URL must target /v1/apps/{id}/appInfos")
+	}
+	nextAppID := parts[3]
+	if nextAppID == "" || strings.Contains(nextAppID, "%") || nextAppID != appID {
+		return fmt.Errorf("app info pagination URL target app %q does not match selected app %q", nextAppID, appID)
+	}
+	return nil
 }
 
 // CurrentAppInfoCandidates excludes historical app info records.

@@ -15,11 +15,11 @@ func addSubscriptionLookupAppFlag(fs *flag.FlagSet) *string {
 }
 
 func resolveSubscriptionLookupID(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
-	resolvedAppID := d.ResolveAppID(appValue)
-	if err := d.RequireAppForStableSelector(resolvedAppID, selector, "--subscription-id"); err != nil {
+	appSelector := d.ResolveAppSelector(appValue)
+	if err := d.RequireAppForStableSelector(appSelector.Value, selector, "--subscription-id"); err != nil {
 		return "", err
 	}
-	return shared.ResolveSubscriptionID(ctx, client, resolvedAppID, selector)
+	return shared.ResolveSubscriptionIDWithAppSelector(ctx, client, appSelector, selector)
 }
 
 func resolveSubscriptionLookupIDWithTimeout(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {

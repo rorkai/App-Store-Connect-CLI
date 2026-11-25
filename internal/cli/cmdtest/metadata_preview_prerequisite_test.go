@@ -39,7 +39,7 @@ func TestMetadataPreviewPlanIncludesPrerequisites(t *testing.T) {
 			reg := asctest.NewRegistry(t)
 			reg.Install()
 			for range []string{"push --dry-run", "plan"} {
-				reg.Register(asctest.GET("/v1/apps/APP_ID/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+				reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
 					asctest.JSON(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`))
 				reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"), asctest.JSON(200, localizations))
 				reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations"), asctest.JSON(200, localizations))
@@ -84,7 +84,7 @@ func TestMetadataPreviewPlanIncludesPrerequisites(t *testing.T) {
 			}
 			var runErr error
 			stdout, _ := captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "previews", "--dry-run", "--output", "json"})
+				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "123456789", "--version", "1.0", "--dir", root, "--include", "previews", "--dry-run", "--output", "json"})
 			})
 			if runErr != nil {
 				t.Fatal(runErr)
@@ -95,7 +95,7 @@ func TestMetadataPreviewPlanIncludesPrerequisites(t *testing.T) {
 			}
 			check(dryRun)
 			reviewDir := t.TempDir()
-			stdout = runMetadataReviewCommand(t, []string{"metadata", "plan", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "previews", "--review-dir", reviewDir, "--output", "json"})
+			stdout = runMetadataReviewCommand(t, []string{"metadata", "plan", "--app", "123456789", "--version", "1.0", "--dir", root, "--include", "previews", "--review-dir", reviewDir, "--output", "json"})
 			var review struct {
 				PlanHash string
 				Plan     planResult

@@ -274,6 +274,10 @@ const ageRatingLevelPlaceholder = "LEVEL"
 func ageRatingResolutionField(field string) (string, string) {
 	const levels = ageRatingLevelPlaceholder
 	switch field {
+	case "datingAndRelationships":
+		return "dating-and-relationships", "TRUE_OR_FALSE"
+	case "sharedLocation":
+		return "shared-location", "TRUE_OR_FALSE"
 	case "advertising", "gambling":
 		return field, "TRUE_OR_FALSE"
 	case "contests":

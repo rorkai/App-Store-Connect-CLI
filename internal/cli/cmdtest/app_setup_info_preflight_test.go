@@ -25,7 +25,7 @@ const appSetupInfoLocalizationsURI = "/v1/appInfos/info-1/appInfoLocalizations?f
 var appSetupInfoOwnershipStep = appSetupInfoHTTPStep{
 	method:       http.MethodGet,
 	uri:          "/v1/appInfos/info-1?include=app",
-	responseBody: `{"data":{"type":"appInfos","id":"info-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}},"included":[{"type":"apps","id":"app-1"}]}`,
+	responseBody: `{"data":{"type":"appInfos","id":"info-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}},"included":[{"type":"apps","id":"100000001"}]}`,
 }
 
 type appSetupInfoHTTPStep struct {
@@ -60,7 +60,7 @@ func TestAppSetupInfoSetRejectsOverLimitLocalizationBeforeClient(t *testing.T) {
 
 			stdout, stderr, runErr := runAppSetupInfoSet(
 				t,
-				"--app", "app-1",
+				"--app", "100000001",
 				"--bundle-id", "com.example.changed",
 				"--locale", "en-US",
 				test.fieldFlag, strings.Repeat("x", test.limit+1),
@@ -89,27 +89,27 @@ func TestAppSetupInfoSetPlanningFailuresDoNotMutate(t *testing.T) {
 	}{
 		{
 			name: "ambiguous app info",
-			args: []string{"--app", "app-1", "--bundle-id", "com.example.changed", "--locale", "en-US", "--name", "Example App"},
+			args: []string{"--app", "100000001", "--bundle-id", "com.example.changed", "--locale", "en-US", "--name", "Example App"},
 			steps: []appSetupInfoHTTPStep{{
 				method: http.MethodGet,
-				uri:    "/v1/apps/app-1/appInfos",
+				uri:    "/v1/apps/100000001/appInfos",
 				responseBody: `{"data":[
 					{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}},
 					{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_SALE"}}
 				]}`,
 			}},
-			wantError: `2 app infos match app "app-1"; pass --app-info with one of:`,
+			wantError: `2 app infos match app "100000001"; pass --app-info with one of:`,
 		},
 		{
 			name:      "create without name",
-			args:      []string{"--app", "app-1", "--app-info", "info-1", "--bundle-id", "com.example.changed", "--locale", "en-US", "--subtitle", "Subtitle"},
+			args:      []string{"--app", "100000001", "--app-info", "info-1", "--bundle-id", "com.example.changed", "--locale", "en-US", "--subtitle", "Subtitle"},
 			steps:     []appSetupInfoHTTPStep{appSetupInfoOwnershipStep, {method: http.MethodGet, uri: appSetupInfoLocalizationsURI, responseBody: `{"data":[]}`}},
 			wantError: "--name is required when creating an app info localization",
 			usage:     true,
 		},
 		{
 			name: "ambiguous localization",
-			args: []string{"--app", "app-1", "--app-info", "info-1", "--bundle-id", "com.example.changed", "--locale", "en-US", "--name", "Example App"},
+			args: []string{"--app", "100000001", "--app-info", "info-1", "--bundle-id", "com.example.changed", "--locale", "en-US", "--name", "Example App"},
 			steps: []appSetupInfoHTTPStep{{
 				method:       appSetupInfoOwnershipStep.method,
 				uri:          appSetupInfoOwnershipStep.uri,
@@ -145,9 +145,9 @@ func TestAppSetupInfoSetPlanningFailuresDoNotMutate(t *testing.T) {
 func TestAppSetupInfoSetPlansExplicitLocalizationTargetBeforeWrites(t *testing.T) {
 	appPatch := appSetupInfoHTTPStep{
 		method:       http.MethodPatch,
-		uri:          "/v1/apps/app-1",
-		requestBody:  `{"data":{"type":"apps","id":"app-1","attributes":{"bundleId":"com.example.changed"}}}`,
-		responseBody: `{"data":{"type":"apps","id":"app-1","attributes":{"bundleId":"com.example.changed"}}}`,
+		uri:          "/v1/apps/100000001",
+		requestBody:  `{"data":{"type":"apps","id":"100000001","attributes":{"bundleId":"com.example.changed"}}}`,
+		responseBody: `{"data":{"type":"apps","id":"100000001","attributes":{"bundleId":"com.example.changed"}}}`,
 	}
 	tests := []struct {
 		name              string
@@ -201,13 +201,13 @@ func TestAppSetupInfoSetPlansExplicitLocalizationTargetBeforeWrites(t *testing.T
 				appPatch,
 				test.localizationWrite,
 			}
-			args := []string{"--app", "app-1", "--app-info", "info-1", "--bundle-id", "com.example.changed", "--locale", "en-US"}
+			args := []string{"--app", "100000001", "--app-info", "info-1", "--bundle-id", "com.example.changed", "--locale", "en-US"}
 			args = append(args, test.args...)
 			stdout, stderr, mutationCount, runErr := runAppSetupInfoSetWithServer(t, steps, args...)
 			if runErr != nil {
 				t.Fatalf("run error: %v (stderr=%q)", runErr, stderr)
 			}
-			if !strings.Contains(stdout, `"appId":"app-1"`) || mutationCount != 2 {
+			if !strings.Contains(stdout, `"appId":"100000001"`) || mutationCount != 2 {
 				t.Errorf("stdout = %q, mutation count = %d; want app result and two ordered writes", stdout, mutationCount)
 			}
 		})

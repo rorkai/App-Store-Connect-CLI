@@ -675,6 +675,7 @@ func findMatchingAppInfoLocalization(ctx context.Context, client appInfoLocaliza
 }
 
 func fetchAllVersionLocalizations(ctx context.Context, client versionLocalizationClient, versionID string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
 		return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	})
@@ -687,8 +688,12 @@ func fetchAllVersionLocalizations(ctx context.Context, client versionLocalizatio
 	if strings.TrimSpace(firstPage.Links.Next) == "" {
 		return firstPage.Data, nil
 	}
+	resourcePath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID)
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		if err := asc.ValidateVersionLocalizationNextURL(nextURL, resourcePath); err != nil {
+			return nil, err
+		}
 		nextPage, err := RetryReadWithFreshTimeout(pageCtx, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
 			return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 		})
@@ -711,6 +716,7 @@ func fetchAllVersionLocalizations(ctx context.Context, client versionLocalizatio
 }
 
 func fetchAllAppInfoLocalizations(ctx context.Context, client appInfoLocalizationClient, appInfoID string) ([]asc.Resource[asc.AppInfoLocalizationAttributes], error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	firstPage, err := RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
 		return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.Limit[asc.AppInfoLocalizationsOption](200))
 	})
@@ -725,8 +731,12 @@ func fetchAllAppInfoLocalizations(ctx context.Context, client appInfoLocalizatio
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		scopedURL, err := asc.ScopedContinuationURL(nextURL, fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID))
+		if err != nil {
+			return nil, err
+		}
 		nextPage, err := RetryReadWithFreshTimeout(pageCtx, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
-			return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
+			return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.NextURL[asc.AppInfoLocalizationsOption](scopedURL))
 		})
 		if err != nil {
 			return nil, err

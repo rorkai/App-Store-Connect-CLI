@@ -32,11 +32,11 @@ func TestAppsRenameValidatesRequiredFlagsBeforeClient(t *testing.T) {
 	}{
 		{name: "missing app", args: []string{"--locale", "en-US", "--name", "New Name"}, wantStderr: "Error: --app is required (or set ASC_APP_ID)\n"},
 		{name: "blank app", args: []string{"--app", "   ", "--locale", "en-US", "--name", "New Name"}, wantStderr: "Error: --app must not be empty\n"},
-		{name: "missing locale", args: []string{"--app", "app-1", "--name", "New Name"}, wantStderr: "Error: --locale is required\n"},
-		{name: "missing name", args: []string{"--app", "app-1", "--locale", "en-US"}, wantStderr: "Error: --name is required\n"},
-		{name: "invalid locale", args: []string{"--app", "app-1", "--locale", "not_a_locale", "--name", "New Name"}, wantStderr: "Error: invalid locale \"not_a_locale\": must match pattern like en or en-US\n"},
-		{name: "name too long", args: []string{"--app", "app-1", "--locale", "en-US", "--name", strings.Repeat("x", validation.LimitName+1)}, wantStderr: fmt.Sprintf("Error: --name exceeds %d characters\n", validation.LimitName)},
-		{name: "Unicode name too long", args: []string{"--app", "app-1", "--locale", "ja", "--name", strings.Repeat("名", validation.LimitName+1)}, wantStderr: fmt.Sprintf("Error: --name exceeds %d characters\n", validation.LimitName)},
+		{name: "missing locale", args: []string{"--app", "100000001", "--name", "New Name"}, wantStderr: "Error: --locale is required\n"},
+		{name: "missing name", args: []string{"--app", "100000001", "--locale", "en-US"}, wantStderr: "Error: --name is required\n"},
+		{name: "invalid locale", args: []string{"--app", "100000001", "--locale", "not_a_locale", "--name", "New Name"}, wantStderr: "Error: invalid locale \"not_a_locale\": must match pattern like en or en-US\n"},
+		{name: "name too long", args: []string{"--app", "100000001", "--locale", "en-US", "--name", strings.Repeat("x", validation.LimitName+1)}, wantStderr: fmt.Sprintf("Error: --name exceeds %d characters\n", validation.LimitName)},
+		{name: "Unicode name too long", args: []string{"--app", "100000001", "--locale", "ja", "--name", strings.Repeat("名", validation.LimitName+1)}, wantStderr: fmt.Sprintf("Error: --name exceeds %d characters\n", validation.LimitName)},
 	}
 
 	for _, test := range tests {
@@ -94,13 +94,13 @@ func TestAppsRenameWritesLocalizationAndRendersResult(t *testing.T) {
 		{
 			name:  "updates existing localization as json",
 			steps: updateSteps("en-US"),
-			args:  []string{"--name", "New Name", "--app-info", "info-1", "--locale", "en-US", "--app", "app-1", "--output", "json"},
+			args:  []string{"--name", "New Name", "--app-info", "info-1", "--locale", "en-US", "--app", "100000001", "--output", "json"},
 			check: func(t *testing.T, stdout string) {
 				var got asc.AppRenameResult
 				if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 					t.Fatalf("decode output %q: %v", stdout, err)
 				}
-				if got.AppID != "app-1" || got.AppInfoID != "info-1" || got.Locale != "en-US" || got.Name != "New Name" || got.Action != "update" || got.LocalizationID != "loc-1" {
+				if got.AppID != "100000001" || got.AppInfoID != "info-1" || got.Locale != "en-US" || got.Name != "New Name" || got.Action != "update" || got.LocalizationID != "loc-1" {
 					t.Fatalf("unexpected result: %+v", got)
 				}
 			},
@@ -122,9 +122,9 @@ func TestAppsRenameWritesLocalizationAndRendersResult(t *testing.T) {
 					responseBody: `{"data":{"type":"appInfoLocalizations","id":"loc-created","attributes":{"locale":"fr-FR","name":"Nouveau nom"}}}`,
 				},
 			},
-			args: []string{"--app", "app-1", "--locale", "fr-FR", "--name", "Nouveau nom", "--app-info", "info-1", "--output", "table"},
+			args: []string{"--app", "100000001", "--locale", "fr-FR", "--name", "Nouveau nom", "--app-info", "info-1", "--output", "table"},
 			check: func(t *testing.T, stdout string) {
-				for _, value := range []string{"App ID", "App Info ID", "Locale", "Name", "Action", "Localization ID", "app-1", "info-1", "fr-FR", "Nouveau nom", "create", "loc-created"} {
+				for _, value := range []string{"App ID", "App Info ID", "Locale", "Name", "Action", "Localization ID", "100000001", "info-1", "fr-FR", "Nouveau nom", "create", "loc-created"} {
 					if !strings.Contains(stdout, value) {
 						t.Fatalf("table output missing %q: %s", value, stdout)
 					}
@@ -134,9 +134,9 @@ func TestAppsRenameWritesLocalizationAndRendersResult(t *testing.T) {
 		{
 			name:  "renders markdown",
 			steps: updateSteps("en-US"),
-			args:  []string{"--app", "app-1", "--app-info", "info-1", "--locale", "en-US", "--name", "New Name", "--output", "markdown"},
+			args:  []string{"--app", "100000001", "--app-info", "info-1", "--locale", "en-US", "--name", "New Name", "--output", "markdown"},
 			check: func(t *testing.T, stdout string) {
-				for _, value := range []string{"| App ID |", "| app-1", "New Name", "update", "loc-1"} {
+				for _, value := range []string{"| App ID", "| 100000001", "New Name", "update", "loc-1"} {
 					if !strings.Contains(stdout, value) {
 						t.Fatalf("markdown output missing %q: %s", value, stdout)
 					}
@@ -190,9 +190,9 @@ func TestAppsRenameFailsBeforeMutation(t *testing.T) {
 			steps: []appsRenameHTTPStep{{
 				method:       http.MethodGet,
 				uri:          "/v1/appInfos/info-foreign?include=app",
-				responseBody: `{"data":{"type":"appInfos","id":"info-foreign","relationships":{"app":{"data":{"type":"apps","id":"app-other"}}}},"included":[{"type":"apps","id":"app-other"}]}`,
+				responseBody: `{"data":{"type":"appInfos","id":"info-foreign","relationships":{"app":{"data":{"type":"apps","id":"100000002"}}}},"included":[{"type":"apps","id":"100000002"}]}`,
 			}},
-			wantError: []string{`app info "info-foreign" belongs to app "app-other", not "app-1"`},
+			wantError: []string{`app info "info-foreign" belongs to app "100000002", not "100000001"`},
 		},
 		{
 			name:      "multiple localizations",
@@ -215,7 +215,7 @@ func TestAppsRenameFailsBeforeMutation(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			stdout, _, runErr := runAppsRenameWithServer(
 				t, test.steps,
-				"--app", "app-1", "--app-info", test.appInfoID, "--locale", "en-US", "--name", "New Name",
+				"--app", "100000001", "--app-info", test.appInfoID, "--locale", "en-US", "--name", "New Name",
 			)
 			if runErr == nil {
 				t.Fatalf("run error = nil, want %q", test.wantError)
@@ -242,7 +242,7 @@ type appsRenameHTTPStep struct {
 
 func appInfoOwnershipStep() appsRenameHTTPStep {
 	const (
-		appID     = "app-1"
+		appID     = "100000001"
 		appInfoID = "info-1"
 	)
 	return appsRenameHTTPStep{

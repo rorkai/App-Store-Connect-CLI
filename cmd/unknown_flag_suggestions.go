@@ -317,14 +317,15 @@ func guidanceFlagNames(rule removedFlagRule) []string {
 // naming the command with the flags those filter keys map to on it. It does
 // not run the command: --filter is not a flag asc maps.
 //
-// A key maps only to a flag of exactly that name (camelCase read as
-// kebab-case) that selects the app or filters results. Values are printed only
+// A key maps only to a flag of exactly that name (in any case, camelCase read
+// as kebab-case) that selects the app or filters results. Values are printed only
 // when every key mapped and every value was read whole; otherwise the mapped
 // flags are named with placeholders, so a suggestion never carries a value the
 // caller did not give that exact key. When no key maps, the usual unknown-flag
 // answer applies. A key that means a different thing to Apple than to the flag
-// of the same name (ambiguousFilterKeys) never carries a value, and its note
-// is returned for the caller to print.
+// of the same name (ambiguousFilterKeyNote) never carries a value, and its note
+// is returned for the caller to print unless the filter already names the
+// flag the note points to.
 func filterSuggestion(analysis invocationAnalysis, commandName string, args []string) (string, []string, bool) {
 	command := analysis.command
 	if command == nil || command.FlagSet == nil {
@@ -370,8 +371,8 @@ func filterSuggestion(analysis invocationAnalysis, commandName string, args []st
 	suggestion.WriteString(commandName)
 	for i, name := range flags {
 		value := values[i]
-		note, ambiguous := ambiguousFilterKeys[commandName][name]
-		if ambiguous {
+		note, meant, ambiguous := ambiguousFilterKeyNote(command.FlagSet, name)
+		if ambiguous && !slices.Contains(flags, meant) {
 			notes = append(notes, note)
 		}
 		if !exact || ambiguous {
@@ -382,14 +383,21 @@ func filterSuggestion(analysis invocationAnalysis, commandName string, args []st
 	return suggestion.String(), notes, true
 }
 
-// ambiguousFilterKeys names, per command, the flags whose filter key means
-// something else to Apple. On /v1/builds, filter[version] is the build number
-// (CFBundleVersion), while `asc builds list --version` is the marketing
-// version, so a value given for `version` could belong to either flag.
-var ambiguousFilterKeys = map[string]map[string]string{
-	"asc builds list": {
-		"version": "Apple's filter[version] on builds is the build number; for that, use --build-number BUILD_NUMBER.",
-	},
+// ambiguousFilterKeyNote reports a mapped flag whose filter key means
+// something else to Apple on this command, with the note that says so and the
+// flag the note points to. On /v1/builds, filter[version] is the build number
+// (CFBundleVersion), while a command that filters builds by both --version and
+// --build-number takes the marketing version in --version, so a value given
+// for `version` could belong to either flag.
+func ambiguousFilterKeyNote(flags *flag.FlagSet, name string) (note, meant string, ambiguous bool) {
+	if name != "version" {
+		return "", "", false
+	}
+	buildNumber, filtersBuilds := filterKeyFlag(flags, "buildNumber")
+	if !filtersBuilds {
+		return "", "", false
+	}
+	return "Apple's filter[version] on builds is the build number; for that, use --" + buildNumber + " BUILD_NUMBER.", buildNumber, true
 }
 
 // filterPair is one key and value read from a filter expression.
@@ -473,24 +481,17 @@ func filterBracketKey(name string) (string, bool) {
 var filterKeyPattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]*$`)
 
 // filterKeyFlag names the flag a filter key maps to exactly on a command: the
-// flag spelled like the key, read as kebab-case, that selects the app or whose
-// help says it filters. A value-less boolean flag never maps.
+// flag spelled like the key, whatever its case and with or without hyphens
+// (`processingState`, `PROCESSINGSTATE` and `processing-state` all name
+// --processing-state), that selects the app or whose help says it filters. A
+// value-less boolean flag never maps.
 func filterKeyFlag(flags *flag.FlagSet, key string) (string, bool) {
 	if !filterKeyPattern.MatchString(key) {
 		return "", false
 	}
-	var name strings.Builder
-	for i, r := range key {
-		if r >= 'A' && r <= 'Z' {
-			if i > 0 {
-				name.WriteByte('-')
-			}
-			r += 'a' - 'A'
-		}
-		name.WriteRune(r)
-	}
+	spelling := func(name string) string { return strings.ToLower(strings.ReplaceAll(name, "-", "")) }
 	for _, candidate := range suggestibleFlags(flags) {
-		if candidate.Name != name.String() || isBoolFlag(candidate) {
+		if spelling(candidate.Name) != spelling(key) || isBoolFlag(candidate) {
 			continue
 		}
 		if candidate.Name == "app" || strings.HasPrefix(strings.ToLower(candidate.Usage), "filter by") {

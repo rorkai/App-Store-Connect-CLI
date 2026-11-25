@@ -26,16 +26,16 @@ func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
 		{"apps list app info", []string{"apps", "list", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
 		{"apps view group", []string{"apps", "view", "--id", "app-1", "--subscription-group-fields", "bogus"}, "--subscription-group-fields must be one of: referenceName"},
 		{"apps list retention message", []string{"apps", "list", "--retention-message-fields", "bogus"}, "--retention-message-fields must be one of: referenceName"},
-		{"app infos list fields", []string{"apps", "info", "list", "--app", "app-1", "--fields", "bogus"}, "--fields must be one of: appStoreState"},
+		{"app infos list fields", []string{"apps", "info", "list", "--app", "100000001", "--fields", "bogus"}, "--fields must be one of: appStoreState"},
 		{"app info view age rating", []string{"apps", "info", "view", "--info-id", "info-1", "--age-rating-fields", "bogus"}, "--age-rating-fields must be one of: advertising"},
 		{"app info view unsupported include", []string{"apps", "info", "view", "--info-id", "info-1", "--include", "territoryAgeRatings"}, "--include must be one of: app, ageRatingDeclaration, appInfoLocalizations, primaryCategory"},
-		{"app infos list unsupported include", []string{"apps", "info", "list", "--app", "app-1", "--include", "territoryAgeRatings"}, "--include must be one of: app, ageRatingDeclaration, appInfoLocalizations, primaryCategory"},
+		{"app infos list unsupported include", []string{"apps", "info", "list", "--app", "100000001", "--include", "territoryAgeRatings"}, "--include must be one of: app, ageRatingDeclaration, appInfoLocalizations, primaryCategory"},
 		{"apps view unsupported include", []string{"apps", "view", "--id", "app-1", "--include", "appStoreVersionLocalizations"}, "--include must be one of: appStoreIcon, ciProduct, betaGroups"},
 		{"apps view include Apple rejects", []string{"apps", "view", "--id", "app-1", "--include", "appEncryptionDeclarations"}, "--include must be one of: appStoreIcon, ciProduct, betaGroups"},
-		{"app info fields conflict with version", []string{"apps", "info", "view", "--app", "app-1", "--version-id", "version-1", "--fields", "kidsAgeBand"}, "--fields cannot be used with version localization flags"},
-		{"app info age rating fields conflict with next", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--age-rating-fields", "socialMedia"}, "--next cannot be combined with --age-rating-fields"},
+		{"app info fields conflict with version", []string{"apps", "info", "view", "--app", "100000001", "--version-id", "version-1", "--fields", "kidsAgeBand"}, "--fields cannot be used with version localization flags"},
+		{"app info age rating fields conflict with next", []string{"apps", "info", "view", "--app", "100000001", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--age-rating-fields", "socialMedia"}, "--next cannot be combined with --age-rating-fields"},
 		{"age rating view", []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "bogus"}, "--fields must be one of: advertising"},
-		{"app info localizations", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
+		{"app info localizations", []string{"localizations", "list", "--type", "app-info", "--app", "100000001", "--app-info", "info-1", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
 		{"xcode cloud product app", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--iap-fields", "bogus"}, "--iap-fields must be one of: referenceName"},
 		{"xcode cloud product app app info", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", "bogus"}, "--app-info-fields must be one of: appStoreState"},
 		{"apps list iap empty", []string{"apps", "list", "--iap-fields", ""}, "--iap-fields must not be empty"},
@@ -44,23 +44,23 @@ func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
 		{"apps view iap whitespace", []string{"apps", "view", "--id", "app-1", "--iap-fields", " \t"}, "--iap-fields must not be empty"},
 		{"apps view group empty", []string{"apps", "view", "--id", "app-1", "--subscription-group-fields", ""}, "--subscription-group-fields must not be empty"},
 		{"apps view app info empty", []string{"apps", "view", "--id", "app-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
-		{"app infos list fields empty", []string{"apps", "info", "list", "--app", "app-1", "--fields", ""}, "--fields must not be empty"},
-		{"app infos list age rating whitespace", []string{"apps", "info", "list", "--app", "app-1", "--age-rating-fields", " \t"}, "--age-rating-fields must not be empty"},
+		{"app infos list fields empty", []string{"apps", "info", "list", "--app", "100000001", "--fields", ""}, "--fields must not be empty"},
+		{"app infos list age rating whitespace", []string{"apps", "info", "list", "--app", "100000001", "--age-rating-fields", " \t"}, "--age-rating-fields must not be empty"},
 		{"app info view fields whitespace", []string{"apps", "info", "view", "--info-id", "info-1", "--fields", " \t"}, "--fields must not be empty"},
 		{"app info view age rating empty", []string{"apps", "info", "view", "--info-id", "info-1", "--age-rating-fields", ""}, "--age-rating-fields must not be empty"},
 		{"age rating view fields empty", []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", ""}, "--fields must not be empty"},
-		{"app info localizations fields empty", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
+		{"app info localizations fields empty", []string{"localizations", "list", "--type", "app-info", "--app", "100000001", "--app-info", "info-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
 		{"xcode cloud product app iap empty", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--iap-fields", ""}, "--iap-fields must not be empty"},
 		{"xcode cloud product app group whitespace", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--subscription-group-fields", " \t"}, "--subscription-group-fields must not be empty"},
 		{"xcode cloud product app app info empty", []string{"xcode-cloud", "products", "app", "--id", "product-1", "--app-info-fields", ""}, "--app-info-fields must not be empty"},
-		{"app info localizations next conflict", []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?cursor=next", "--app-info-fields", ""}, "--next cannot be combined with --app-info-fields"},
+		{"app info localizations next conflict", []string{"localizations", "list", "--type", "app-info", "--app", "100000001", "--next", "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?cursor=next", "--app-info-fields", ""}, "--next cannot be combined with --app-info-fields"},
 		{"app info localizations version type", []string{"localizations", "list", "--version", "version-1", "--app-info-fields", "kidsAgeBand"}, "--app-info-fields requires --type app-info"},
 		{"apps list next app info", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--app-info-fields", ""}, "--next cannot be combined with --app-info-fields"},
 		{"apps list next iap", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--iap-fields", ""}, "--next cannot be combined with --iap-fields"},
 		{"apps list next group", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--subscription-group-fields", ""}, "--next cannot be combined with --subscription-group-fields"},
 		{"apps list next retention message", []string{"apps", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=next", "--retention-message-fields", ""}, "--next cannot be combined with --retention-message-fields"},
-		{"app info view next fields", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--fields", ""}, "--next cannot be combined with --fields"},
-		{"app info view next age rating", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--age-rating-fields", ""}, "--next cannot be combined with --age-rating-fields"},
+		{"app info view next fields", []string{"apps", "info", "view", "--app", "100000001", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--fields", ""}, "--next cannot be combined with --fields"},
+		{"app info view next age rating", []string{"apps", "info", "view", "--app", "100000001", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--age-rating-fields", ""}, "--next cannot be combined with --age-rating-fields"},
 	}
 
 	for _, test := range tests {
@@ -107,7 +107,7 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 		},
 
 		{
-			name: "localizations continuation", args: []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--next", "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?fields%5BappInfos%5D=kidsAgeBand&cursor=next", "--output", "json"},
+			name: "localizations continuation", args: []string{"localizations", "list", "--type", "app-info", "--app", "100000001", "--app-info", "info-1", "--next", "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/appInfoLocalizations?fields%5BappInfos%5D=kidsAgeBand&cursor=next", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1/appInfoLocalizations", response: `{"data":[]}`,
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "cursor": "next"},
 		},
@@ -122,14 +122,14 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[inAppPurchases]": "versions", "fields[subscriptionGroups]": "versions", "fields[retentionMessages]": "referenceName", "include": "appInfos,inAppPurchases,subscriptionGroups,retentionMessages"},
 		},
 		{
-			name: "app infos list", args: []string{"apps", "info", "list", "--app", "app-1", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
-			wantPath: "/v1/apps/app-1/appInfos", response: `{"data":[]}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted", "include": "ageRatingDeclaration"},
+			name: "app infos list", args: []string{"apps", "info", "list", "--app", "100000001", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia,socialMediaAgeRestricted,sharedLocation,datingAndRelationships", "--output", "json"},
+			wantPath: "/v1/apps/100000001/appInfos", response: `{"data":[]}`,
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted,sharedLocation,datingAndRelationships", "include": "ageRatingDeclaration"},
 		},
 		{
-			name: "app info view", args: []string{"apps", "info", "view", "--info-id", "info-1", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia", "--output", "json"},
+			name: "app info view", args: []string{"apps", "info", "view", "--info-id", "info-1", "--fields", "kidsAgeBand", "--age-rating-fields", "sharedLocation,datingAndRelationships", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1", response: `{"data":{"type":"appInfos","id":"info-1"}}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia", "include": "ageRatingDeclaration"},
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "sharedLocation,datingAndRelationships", "include": "ageRatingDeclaration"},
 		},
 		{
 			name: "age rating kids age band remains valid", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--output", "json"},
@@ -137,12 +137,12 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 			wantQuery: map[string]string{},
 		},
 		{
-			name: "age rating view", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
+			name: "age rating view", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "socialMedia,socialMediaAgeRestricted,sharedLocation,datingAndRelationships", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1/ageRatingDeclaration", response: `{"data":{"type":"ageRatingDeclarations","id":"age-1"}}`,
-			wantQuery: map[string]string{"fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted"},
+			wantQuery: map[string]string{"fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted,sharedLocation,datingAndRelationships"},
 		},
 		{
-			name: "app info localizations", args: []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1", "--app-info-fields", "kidsAgeBand", "--output", "json"},
+			name: "app info localizations", args: []string{"localizations", "list", "--type", "app-info", "--app", "100000001", "--app-info", "info-1", "--app-info-fields", "kidsAgeBand", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1/appInfoLocalizations", response: `{"data":[]}`,
 			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "include": "appInfo"},
 		},
@@ -157,6 +157,9 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
 			reg.Install()
+			if slices.Contains(test.args, "--app") && slices.Contains(test.args, "--app-info") {
+				reg.Register(asctest.GET("/v1/appInfos/info-1", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
+			}
 			reg.Register(asctest.GET(test.wantPath, queryPairs(test.wantQuery)...), asctest.JSON(http.StatusOK, test.response))
 
 			stdout, stderr, err := runCommand(t, test.args)
@@ -174,8 +177,12 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 				t.Fatalf("age rating kidsAgeBand lost: %s", stdout)
 			}
 
-			if calls := len(reg.Requests()); calls != 1 {
-				t.Fatalf("calls = %d, want 1", calls)
+			wantCalls := 1
+			if slices.Contains(test.args, "--app") && slices.Contains(test.args, "--app-info") {
+				wantCalls++
+			}
+			if calls := len(reg.Requests()); calls != wantCalls {
+				t.Fatalf("calls = %d, want %d", calls, wantCalls)
 			}
 		})
 	}
@@ -208,24 +215,25 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 	}
 
 	const (
-		appInfos   = "fields[appInfos]"
-		ageRatings = "fields[ageRatingDeclarations]"
-		iaps       = "fields[inAppPurchases]"
-		groups     = "fields[subscriptionGroups]"
-		retention  = "fields[retentionMessages]"
-		list       = `{"data":[]}`
-		app        = `{"data":{"type":"apps","id":"app-1"}}`
-		appInfo    = `{"data":{"type":"appInfos","id":"info-1"}}`
-		ageRating  = `{"data":{"type":"ageRatingDeclarations","id":"age-1"}}`
+		appInfos         = "fields[appInfos]"
+		ageRatings       = "fields[ageRatingDeclarations]"
+		iaps             = "fields[inAppPurchases]"
+		groups           = "fields[subscriptionGroups]"
+		retention        = "fields[retentionMessages]"
+		list             = `{"data":[]}`
+		app              = `{"data":{"type":"apps","id":"app-1"}}`
+		appInfo          = `{"data":{"type":"appInfos","id":"info-1"}}`
+		appInfoOwnership = `{"data":{"type":"appInfos","id":"info-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`
+		ageRating        = `{"data":{"type":"ageRatingDeclarations","id":"age-1"}}`
 	)
 	// Values the spec lists that Apple production rejects.
 	appleRejects := map[string][]string{"/v1/apps/{id} --include": {"appEncryptionDeclarations"}}
 	appsList := []string{"apps", "list"}
 	appsView := []string{"apps", "view", "--id", "100000001"}
-	infosList := []string{"apps", "info", "list", "--app", "app-1"}
+	infosList := []string{"apps", "info", "list", "--app", "100000001"}
 	infoView := []string{"apps", "info", "view", "--info-id", "info-1"}
 	ageRatingView := []string{"age-rating", "view", "--app-info-id", "info-1"}
-	localizations := []string{"localizations", "list", "--type", "app-info", "--app", "app-1", "--app-info", "info-1"}
+	localizations := []string{"localizations", "list", "--type", "app-info", "--app", "100000001", "--app-info", "info-1"}
 	productApp := []string{"xcode-cloud", "products", "app", "--id", "product-1"}
 	tests := []struct {
 		command             []string
@@ -242,9 +250,9 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 		{appsView, "--subscription-group-fields", groups, "/v1/apps/{id}", "/v1/apps/100000001", app},
 		{appsView, "--retention-message-fields", retention, "/v1/apps/{id}", "/v1/apps/100000001", app},
 		{appsView, "--include", "include", "/v1/apps/{id}", "/v1/apps/100000001", app},
-		{infosList, "--fields", appInfos, "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
-		{infosList, "--age-rating-fields", ageRatings, "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
-		{infosList, "--include", "include", "/v1/apps/{id}/appInfos", "/v1/apps/app-1/appInfos", list},
+		{infosList, "--fields", appInfos, "/v1/apps/{id}/appInfos", "/v1/apps/100000001/appInfos", list},
+		{infosList, "--age-rating-fields", ageRatings, "/v1/apps/{id}/appInfos", "/v1/apps/100000001/appInfos", list},
+		{infosList, "--include", "include", "/v1/apps/{id}/appInfos", "/v1/apps/100000001/appInfos", list},
 		{infoView, "--fields", appInfos, "/v1/appInfos/{id}", "/v1/appInfos/info-1", appInfo},
 		{infoView, "--age-rating-fields", ageRatings, "/v1/appInfos/{id}", "/v1/appInfos/info-1", appInfo},
 		{ageRatingView, "--fields", ageRatings, "/v1/appInfos/{id}/ageRatingDeclaration", "/v1/appInfos/info-1/ageRatingDeclaration", ageRating},
@@ -269,8 +277,15 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 			want = slices.DeleteFunc(want, func(value string) bool { return slices.Contains(appleRejects[test.specPath+" "+test.flagName], value) })
 
 			calls := 0
+			needsOwnership := slices.Equal(test.command, localizations)
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				calls++
+				if needsOwnership && calls == 1 {
+					if req.URL.Path != "/v1/appInfos/info-1" || req.URL.Query().Get("include") != "app" {
+						t.Fatalf("ownership request = %s?%s, want app-info include=app", req.URL.Path, req.URL.RawQuery)
+					}
+					return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(appInfoOwnership)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+				}
 				if req.URL.Path != test.path {
 					t.Fatalf("path = %s, want %s", req.URL.Path, test.path)
 				}
@@ -295,8 +310,12 @@ func TestSparseAppFieldFlagsForwardEveryOpenAPIValue(t *testing.T) {
 			if stderr != "" {
 				t.Errorf("stderr = %q, want empty", stderr)
 			}
-			if calls != 1 {
-				t.Fatalf("calls = %d, want 1", calls)
+			wantCalls := 1
+			if needsOwnership {
+				wantCalls = 2
+			}
+			if calls != wantCalls {
+				t.Fatalf("calls = %d, want %d", calls, wantCalls)
 			}
 		})
 	}

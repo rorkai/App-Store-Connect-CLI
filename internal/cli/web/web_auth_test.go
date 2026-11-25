@@ -2189,8 +2189,8 @@ func TestResolveSessionAutoReauthRestoresCachedProvider(t *testing.T) {
 			return errors.New("provider not available")
 		}
 		_, _, err := resolveSession(context.Background(), d, "user@example.com", "", "")
-		if err == nil || !strings.Contains(err.Error(), "provider 42") || !strings.Contains(err.Error(), "--provider-id") {
-			t.Fatalf("expected provider restore error naming provider 42 and --provider-id, got %v", err)
+		if err == nil || !strings.Contains(err.Error(), "provider 42") || !strings.Contains(err.Error(), "--provider-id") || strings.Contains(err.Error(), "read-only") {
+			t.Fatalf("expected provider restore error naming provider 42 and --provider-id, and no read-only mode that is not set, got %v", err)
 		}
 		if len(persisted) != 0 {
 			t.Fatalf("did not expect the default-provider session to be persisted, got %+v", persisted)
@@ -2365,6 +2365,13 @@ func TestResolveSessionAutoReauthRestoresCachedProvider(t *testing.T) {
 				}
 				if want := fmt.Sprintf("asc web auth login --provider-id %d", test.wantRefusedProvider); !strings.Contains(hint, want) {
 					t.Fatalf("refusal hint %q does not name the recovery command %q", hint, want)
+				}
+				wantMode, otherMode := "neither --read-only nor ASC_READ_ONLY", "without --dry-run"
+				if test.dryRun {
+					wantMode, otherMode = "without --dry-run", "read-only"
+				}
+				if !strings.Contains(hint, wantMode) || strings.Contains(hint, otherMode) {
+					t.Fatalf("refusal hint %q must name the mode that is set (%q), not %q", hint, wantMode, otherMode)
 				}
 				return
 			}

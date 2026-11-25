@@ -50,17 +50,23 @@ var appStoreVersionSettledStates = map[string]struct{}{
 }
 
 type appStoreVersionDiagnosticRow struct {
-	ID            string
-	VersionString string
-	Platform      string
-	State         string
-	createdAt     time.Time
-	hasCreatedAt  bool
+	ID              string
+	VersionString   string
+	Platform        string
+	State           string
+	createdAt       time.Time
+	hasCreatedAt    bool
+	exactReadTarget bool
 }
 
 type appStoreVersionDiagnosticListing struct {
 	Rows []appStoreVersionDiagnosticRow
 }
+
+// AppStoreVersionRetryCommand formats exact replacement flags for one version
+// and platform from a diagnostic listing. Its arguments have already been
+// bounded and sanitized for display.
+type AppStoreVersionRetryCommand func(version, platform string) string
 
 // WithAppStoreVersionNotFoundDiagnostics appends the app's existing App Store
 // versions, newest first, and the command that targets or creates the
@@ -68,6 +74,18 @@ type appStoreVersionDiagnosticListing struct {
 // every platform. The returned error keeps notFound's classification; when
 // the extra read fails, notFound is returned unchanged.
 func WithAppStoreVersionNotFoundDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, notFound error) error {
+	return withAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, platform, nil, notFound)
+}
+
+// WithAppStoreVersionNotFoundReadDiagnostics appends an exact read retry to a
+// "version not found" error. Unlike the default write-oriented diagnostics,
+// it never suggests creating or renaming a version. When the listing cannot
+// identify one exact version and platform, it says so instead of guessing.
+func WithAppStoreVersionNotFoundReadDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, retryCommand AppStoreVersionRetryCommand, notFound error) error {
+	return withAppStoreVersionNotFoundDiagnostics(ctx, client, appID, version, platform, retryCommand, notFound)
+}
+
+func withAppStoreVersionNotFoundDiagnostics(ctx context.Context, client *asc.Client, appID, version, platform string, retryCommand AppStoreVersionRetryCommand, notFound error) error {
 	if notFound == nil {
 		return nil
 	}
@@ -84,7 +102,9 @@ func WithAppStoreVersionNotFoundDiagnostics(ctx context.Context, client *asc.Cli
 	safePlatform := sanitizeAmbiguousText(platform)
 	lines := make([]string, 0, appStoreVersionDiagnosticShown+4)
 	if len(listing.Rows) == 0 {
-		if safePlatform == "" {
+		if retryCommand != nil {
+			lines = append(lines, noExistingAppStoreVersionReadLine(safeVersion, safePlatform))
+		} else if safePlatform == "" {
 			lines = append(lines, fmt.Sprintf("App %q has no App Store versions. Create one: asc versions create --app %q --version %q --platform PLATFORM", safeAppID, safeAppID, safeVersion))
 		} else {
 			lines = append(lines, noAppStoreVersionsOnPlatformLine(ctx, client, appID, safeAppID, safeVersion, safePlatform))
@@ -99,7 +119,9 @@ func WithAppStoreVersionNotFoundDiagnostics(ctx context.Context, client *asc.Cli
 	}
 	lines = append(lines, formatAppStoreVersionDiagnosticRows(listing, safeAppID, safePlatform)...)
 
-	if safePlatform == "" {
+	if retryCommand != nil {
+		lines = append(lines, appStoreVersionReadRetryLine(listing, safeVersion, safePlatform, retryCommand))
+	} else if safePlatform == "" {
 		lines = append(lines, "Retry with one of the listed version strings and its platform.")
 	} else if editable, found := newestEditableAppStoreVersion(listing.Rows); found {
 		lines = append(lines, fmt.Sprintf(
@@ -110,6 +132,58 @@ func WithAppStoreVersionNotFoundDiagnostics(ctx context.Context, client *asc.Cli
 		lines = append(lines, fmt.Sprintf("Retry with one of the listed version strings, or create it: %s", versionsCreateCommand(safeAppID, safeVersion, safePlatform)))
 	}
 	return appendAppStoreVersionDiagnostics(notFound, lines)
+}
+
+func noExistingAppStoreVersionReadLine(version, platform string) string {
+	if platform == "" {
+		return fmt.Sprintf("No existing App Store versions match version %q; no exact version and platform are available to retry.", version)
+	}
+	return fmt.Sprintf("No existing App Store versions match version %q on %s; no exact version is available to retry.", version, platform)
+}
+
+func appStoreVersionReadRetryLine(listing appStoreVersionDiagnosticListing, safeVersion, safePlatform string, retryCommand AppStoreVersionRetryCommand) string {
+	var candidates, exact []appStoreVersionDiagnosticRow
+	for _, row := range listing.Rows {
+		platform, err := NormalizeAppStoreVersionPlatform(row.Platform)
+		if err != nil || !row.exactReadTarget || !IsAppStoreVersionString(row.VersionString) || (safePlatform != "" && platform != safePlatform) {
+			continue
+		}
+		row.Platform = platform
+		candidates = append(candidates, row)
+		if row.VersionString == safeVersion {
+			exact = append(exact, row)
+		}
+	}
+
+	if len(exact) == 1 {
+		return fmt.Sprintf("Retry with the exact existing version and platform: %s", retryCommand(exact[0].VersionString, exact[0].Platform))
+	}
+	if len(exact) > 1 {
+		platforms := make([]string, 0, len(exact))
+		for _, row := range exact {
+			if !slices.Contains(platforms, row.Platform) {
+				platforms = append(platforms, row.Platform)
+			}
+		}
+		if len(platforms) > 1 {
+			return fmt.Sprintf("Version %q exists on multiple platforms (%s); retry with --platform set to one of them.", safeVersion, strings.Join(platforms, ", "))
+		}
+		return fmt.Sprintf("Version %q has multiple matching entries on %s; use the intended listed version ID.", safeVersion, platforms[0])
+	}
+
+	scope := ""
+	if safePlatform != "" {
+		scope = " on " + safePlatform
+	}
+	switch len(candidates) {
+	case 0:
+		return noExistingAppStoreVersionReadLine(safeVersion, safePlatform)
+	case 1:
+		row := candidates[0]
+		return fmt.Sprintf("No existing App Store version exactly matches %q%s; retry with the exact existing version and platform: %s", safeVersion, scope, retryCommand(row.VersionString, row.Platform))
+	default:
+		return fmt.Sprintf("No existing App Store version exactly matches %q%s; retry with one of the exact listed version strings and its platform.", safeVersion, scope)
+	}
 }
 
 // WithAppStoreVersionCreateConflictDiagnostics explains an HTTP 409 from
@@ -186,8 +260,13 @@ func readAppStoreVersionDiagnosticListing(ctx context.Context, client *asc.Clien
 	// "Newest" guidance is only sound over every version: one page of an
 	// unordered collection can miss the newest or the matching version. Read
 	// every page within the budget, or give up and keep the original error.
+	expectedPath := fmt.Sprintf("/v1/apps/%s/appStoreVersions", appID)
 	allPages, err := asc.PaginateAll(diagnosticCtx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
+		continuation, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, expectedPath)
+		if err != nil {
+			return nil, err
+		}
+		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](continuation))
 	})
 	if err != nil {
 		return appStoreVersionDiagnosticListing{}, false
@@ -205,6 +284,7 @@ func readAppStoreVersionDiagnosticListing(ctx context.Context, client *asc.Clien
 			Platform:      sanitizeAmbiguousText(string(item.Attributes.Platform), AmbiguousDiagnosticTextLimit),
 			State:         strings.ToUpper(sanitizeAmbiguousText(ResolveAppStoreVersionState(item.Attributes), AmbiguousDiagnosticTextLimit)),
 		}
+		row.exactReadTarget = row.VersionString == item.Attributes.VersionString && row.Platform == string(item.Attributes.Platform)
 		if createdAt, parseErr := time.Parse(time.RFC3339, strings.TrimSpace(item.Attributes.CreatedDate)); parseErr == nil {
 			row.createdAt = createdAt
 			row.hasCreatedAt = true

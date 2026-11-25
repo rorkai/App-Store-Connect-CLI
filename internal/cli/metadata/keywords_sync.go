@@ -54,7 +54,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(d, *appID, *version, *dir, *platform)
+			versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(d, *appID, *version, *dir, *platform)
 			if err != nil {
 				return fmt.Errorf("metadata keywords sync: %w", err)
 			}
@@ -89,7 +89,7 @@ Examples:
 			}
 
 			planResult, err := executeMetadataKeywordsPlan(ctx, d, metadataKeywordsPlanOptions{
-				AppID:                resolvedAppID,
+				AppID:                *appID,
 				Version:              versionValue,
 				Platform:             platformValue,
 				Dir:                  dirValue,

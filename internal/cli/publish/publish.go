@@ -128,8 +128,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppInput := d.ResolveAppID(*appID)
-			if resolvedAppInput == "" {
+			appSelector := d.ResolveAppSelector(*appID)
+			if appSelector.Value == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
@@ -300,7 +300,6 @@ Examples:
 				defer cancel()
 			}
 
-			resolvedPublishAppID := resolvedAppInput
 			preflightCtx := requestCtx
 			if localBuildMode {
 				cancel()
@@ -308,7 +307,7 @@ Examples:
 				preflightCtx, preflightCancel = newPublishRequestCtx()
 				defer preflightCancel()
 			}
-			resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
+			resolvedPublishAppID, err := resolvePublishScopedAppIDFn(preflightCtx, client, appSelector)
 			if err != nil {
 				return fmt.Errorf("publish testflight: resolve app: %w", err)
 			}
@@ -589,8 +588,8 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 
-			resolvedAppInput := d.ResolveAppID(*appID)
-			if resolvedAppInput == "" {
+			appSelector := d.ResolveAppSelector(*appID)
+			if appSelector.Value == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
@@ -703,7 +702,7 @@ Examples:
 			var client *asc.Client
 			var requestCtx context.Context
 			var cancel context.CancelFunc
-			resolvedPublishAppID := resolvedAppInput
+			resolvedPublishAppID := appSelector.Value
 
 			if *dryRun && canPlanAppStorePublishWithoutASC(resolvedPublishAppID, localBuildMode, buildNumberValue) {
 				if localBuildMode {
@@ -730,7 +729,7 @@ Examples:
 					preflightCtx, preflightCancel = newPublishRequestCtx()
 					defer preflightCancel()
 				}
-				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
+				resolvedPublishAppID, err = resolvePublishScopedAppIDFn(preflightCtx, client, appSelector)
 				if err != nil {
 					return fmt.Errorf("publish appstore: resolve app: %w", err)
 				}

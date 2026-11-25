@@ -27,11 +27,13 @@ var reviewInformationSettingScope = metadataSettingScope{
 	name:     "review-information",
 	fileName: "review-information.json",
 	fields:   reviewInformationFields,
+	validate: validateReviewInformation,
 	fetch:    fetchReviewInformationSetting,
 	update:   updateReviewInformationSetting,
 }
 
 func fetchReviewDetail(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string) (*asc.AppStoreReviewDetailResponse, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreReviewDetailResponse, error) {
 		return client.GetAppStoreReviewDetailForVersion(requestCtx, versionID)
 	})
@@ -40,6 +42,9 @@ func fetchReviewDetail(ctx context.Context, d *shared.Deps, client *asc.Client, 
 			return nil, nil
 		}
 		return nil, err
+	}
+	if resp == nil || strings.TrimSpace(resp.Data.ID) == "" {
+		return nil, nil
 	}
 	return resp, nil
 }

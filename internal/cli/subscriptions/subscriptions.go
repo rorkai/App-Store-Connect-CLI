@@ -1559,13 +1559,22 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions pricing availability available-territories", 200, "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions pricing availability available-territories", 200, "limit", "app", "subscription-id", "availability-id"); err != nil {
 				return err
 			}
 
 			availabilityValue := strings.TrimSpace(*availabilityID)
 			subscriptionValue := strings.TrimSpace(*subscriptionID)
-			if availabilityValue == "" && subscriptionValue == "" && strings.TrimSpace(*next) == "" {
+			nextURL := strings.TrimSpace(*next)
+			expectedPath := ""
+			if nextURL != "" {
+				var err error
+				nextURL, expectedPath, err = validateSubscriptionAvailabilityTerritoriesNextURL(nextURL)
+				if err != nil {
+					return d.UsageError(fmt.Sprintf("--next: %v", err))
+				}
+			}
+			if availabilityValue == "" && subscriptionValue == "" && nextURL == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --availability-id or --subscription-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
@@ -1575,8 +1584,8 @@ Examples:
 			if subscriptionValue == "" && flagWasProvided(fs, "app") {
 				return d.UsageError("--app requires --subscription-id")
 			}
-			resolvedAppID := d.ResolveAppID(*appID)
-			if err := d.RequireAppForStableSelector(resolvedAppID, subscriptionValue, "--subscription-id"); err != nil {
+			appSelector := d.ResolveAppSelector(*appID)
+			if err := d.RequireAppForStableSelector(appSelector.Value, subscriptionValue, "--subscription-id"); err != nil {
 				return err
 			}
 
@@ -1584,13 +1593,19 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 			}
-			if subscriptionValue != "" && strings.TrimSpace(*next) == "" {
-				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, resolvedAppID, subscriptionValue)
+			requestContext := ctx
+			if subscriptionValue != "" && appSelector.Value != "" {
+				requestContext = asc.WithNoRedirectReads(requestContext)
+			}
+			if subscriptionValue != "" && nextURL == "" {
+				lookupCtx, lookupCancel := d.Timeout(requestContext)
+				subscriptionValue, err = shared.ResolveSubscriptionIDWithAppSelector(lookupCtx, client, appSelector, subscriptionValue)
+				lookupCancel()
 				if err != nil {
 					return err
 				}
 
-				availabilityCtx, availabilityCancel := d.Timeout(ctx)
+				availabilityCtx, availabilityCancel := d.Timeout(requestContext)
 				availability, fetchErr := client.GetSubscriptionAvailabilityForSubscription(availabilityCtx, subscriptionValue)
 				availabilityCancel()
 				if fetchErr != nil {
@@ -1601,13 +1616,16 @@ Examples:
 				}
 				availabilityValue = strings.TrimSpace(availability.Data.ID)
 			}
+			if nextURL == "" {
+				expectedPath = fmt.Sprintf("/v1/subscriptionAvailabilities/%s/availableTerritories", availabilityValue)
+			}
 
-			requestCtx, cancel := d.Timeout(ctx)
+			requestCtx, cancel := d.Timeout(requestContext)
 			defer cancel()
 
 			opts := []asc.SubscriptionAvailabilityTerritoriesOption{
 				asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](*limit),
-				asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](*next),
+				asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL),
 			}
 
 			if *paginate {
@@ -1618,7 +1636,11 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityValue, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
+					scopedNextURL, err := shared.ScopedPaginationURL(nextURL, expectedPath)
+					if err != nil {
+						return nil, err
+					}
+					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityValue, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](scopedNextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
@@ -1635,6 +1657,32 @@ Examples:
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func validateSubscriptionAvailabilityTerritoriesNextURL(nextURL string) (string, string, error) {
+	trimmed := strings.TrimSpace(nextURL)
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid pagination URL: %w", err)
+	}
+
+	const (
+		prefix = "/v1/subscriptionAvailabilities/"
+		suffix = "/availableTerritories"
+	)
+	if !strings.HasPrefix(parsed.Path, prefix) || !strings.HasSuffix(parsed.Path, suffix) {
+		return "", "", fmt.Errorf("pagination URL must target a subscription availability territories collection")
+	}
+	availabilityID := strings.TrimSuffix(strings.TrimPrefix(parsed.Path, prefix), suffix)
+	if availabilityID == "" || strings.Contains(availabilityID, "/") {
+		return "", "", fmt.Errorf("pagination URL must target one subscription availability")
+	}
+
+	canonical, err := shared.ScopedPaginationURL(trimmed, parsed.Path)
+	if err != nil {
+		return "", "", err
+	}
+	return canonical, parsed.Path, nil
 }
 
 // newSubscriptionsAvailabilityEditCommand returns the availability edit subcommand.

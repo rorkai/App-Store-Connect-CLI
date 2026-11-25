@@ -1694,13 +1694,17 @@ func restoreCachedWebProvider(ctx context.Context, d *shared.Deps, session, cach
 				RequestedProvider:   fmt.Sprint(cached.ProviderID),
 				RequestedProviderID: cached.ProviderID,
 			}
-			hint := fmt.Sprintf("Sign-in landed on provider %d. To refresh the session for cached provider %d, run 'asc web auth login --provider-id %d' outside read-only mode before retrying.", session.ProviderID, cached.ProviderID, cached.ProviderID)
+			how := "with neither --read-only nor ASC_READ_ONLY set, then retry"
+			if refuseSwitchUnder == "--dry-run" {
+				how = "first (or run this command without --dry-run), then retry"
+			}
+			hint := fmt.Sprintf("Sign-in landed on provider %d. To refresh the session for cached provider %d, run 'asc web auth login --provider-id %d' %s.", session.ProviderID, cached.ProviderID, cached.ProviderID, how)
 			return reportProviderSwitchRefusal(d, refused, hint)
 		}
 		providerCtx, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 		defer cancel()
 		if err := selectWebProviderFn(providerCtx, session, webcore.ProviderSelection{ProviderID: cached.ProviderID}); err != nil {
-			return fmt.Errorf("web auth signed in, but could not switch back to provider %d used by the cached web session: %w; run 'asc web auth login --provider-id ID' outside read-only mode to choose another provider", cached.ProviderID, err)
+			return fmt.Errorf("web auth signed in, but could not switch back to provider %d used by the cached web session: %w; run 'asc web auth login --provider-id ID' to choose another provider", cached.ProviderID, err)
 		}
 	}
 	session.DeveloperTeamID = cached.DeveloperTeamID

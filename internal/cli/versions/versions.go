@@ -1002,7 +1002,9 @@ func newVersionsAttachBuildCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Attach a build to an app store version.
 
 Select the version with --version-id, or with --app and --version (and
---platform). Select the build with --build-id, or with --build-number or
+--platform). With --version-id, --build-number and --latest derive the
+version's app, version string, and platform from that exact version resource,
+so --app is optional. Select the build with --build-id, or with --build-number or
 --latest, which only match builds of the version's app, version string, and
 platform. A selected build must be VALID; --wait waits for processing first.
 Right after an upload, prefer --build-number: --latest picks the newest build
@@ -1015,6 +1017,8 @@ returned id field:
 
 Examples:
   asc versions attach-build --version-id "VERSION_ID" --build-id "BUILD_ID"
+  asc versions attach-build --version-id "VERSION_ID" --latest
+  asc versions attach-build --version-id "VERSION_ID" --build-number "45"
   asc versions attach-build --app "123456789" --version "1.2.0" --build-number "45"
   asc versions attach-build --app "123456789" --version "1.2.0" --platform MAC_OS --latest
   asc versions attach-build --app "123456789" --version "1.2.0" --build-number "46" --wait --timeout 30m`,
@@ -1039,9 +1043,10 @@ Examples:
 				visited[f.Name] = true
 			})
 			needsScope := versionValue != "" || build.NeedsScope() || visited["app"] || visited["platform"]
-			appValue := d.ResolveAppID(*appID)
-			if needsScope && appValue == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required with --version, --platform, --build-number, or --latest (or set ASC_APP_ID)")
+			appSelector := d.ResolveAppSelector(*appID)
+			appValue := appSelector.Value
+			if needsScope && versionIDValue == "" && appValue == "" {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required with --version, --platform, --build-number, or --latest unless --version-id is provided (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			requestedPlatform := ""
@@ -1061,19 +1066,30 @@ Examples:
 			resolvedVersionID := versionIDValue
 			var scope builds.VersionBuildScope
 			if needsScope {
-				resolvedVersionID, scope, err = resolveAttachBuildVersion(ctx, d, client, appValue, versionIDValue, versionValue, requestedPlatform)
+				resolvedVersionID, scope, err = resolveAttachBuildVersion(ctx, d, client, appSelector, versionIDValue, versionValue, requestedPlatform)
 				if err != nil {
 					return fmt.Errorf("versions attach-build: %w", err)
 				}
 			}
 
-			buildID, err := build.Resolve(ctx, client, scope)
+			buildCtx := ctx
+			if needsScope {
+				buildCtx = asc.WithNoRedirectReads(buildCtx)
+			}
+			buildID, err := build.Resolve(buildCtx, client, scope)
 			if err != nil {
 				return fmt.Errorf("versions attach-build: %w", err)
 			}
+			scope.BuildNumber = build.RequestedBuildNumber()
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+			if needsScope {
+				requestCtx = asc.WithNoRedirectReads(requestCtx)
+				if err := validateAttachBuildScope(requestCtx, client, buildID, scope); err != nil {
+					return fmt.Errorf("versions attach-build: %w", err)
+				}
+			}
 
 			if err := client.AttachBuildToVersion(requestCtx, resolvedVersionID, buildID); err != nil {
 				return withAttachBuildConflictHint(requestCtx, client, resolvedVersionID, buildID, fmt.Errorf("versions attach-build: %w", err))
@@ -1092,31 +1108,163 @@ Examples:
 
 // resolveAttachBuildVersion returns the version ID and the train its builds
 // come from, checking that a --version-id belongs to the app.
-func resolveAttachBuildVersion(ctx context.Context, d *shared.Deps, client *asc.Client, appInput, versionID, version, platform string) (string, builds.VersionBuildScope, error) {
+func resolveAttachBuildVersion(ctx context.Context, d *shared.Deps, client *asc.Client, appSelector shared.AppSelector, versionID, version, platform string) (string, builds.VersionBuildScope, error) {
 	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
+	requestCtx = asc.WithNoRedirectReads(requestCtx)
 
-	appID, err := shared.ResolveAppIDWithLookup(requestCtx, client, appInput)
-	if err != nil {
-		return "", builds.VersionBuildScope{}, err
+	appID := ""
+	var err error
+	if appSelector.Value != "" {
+		appID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+		if err != nil {
+			return "", builds.VersionBuildScope{}, err
+		}
 	}
 	if versionID == "" {
 		versionID, err = shared.ResolveAppStoreVersionID(requestCtx, client, appID, version, platform)
 		if err != nil {
 			return "", builds.VersionBuildScope{}, err
 		}
-		return versionID, builds.VersionBuildScope{AppID: appID, Version: version, Platform: platform}, nil
+		versionData, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, appID, versionID, platform)
+		if err != nil {
+			return "", builds.VersionBuildScope{}, err
+		}
+		resolvedVersion := strings.TrimSpace(versionData.Attributes.VersionString)
+		if resolvedVersion == "" {
+			return "", builds.VersionBuildScope{}, fmt.Errorf("discovered app store version %q has no version string", versionID)
+		}
+		if resolvedVersion != strings.TrimSpace(version) {
+			return "", builds.VersionBuildScope{}, fmt.Errorf("discovered app store version %q returned version string %q, not requested %q", versionID, resolvedVersion, strings.TrimSpace(version))
+		}
+		resolvedPlatform, err := shared.NormalizeAppStoreVersionPlatform(string(versionData.Attributes.Platform))
+		if err != nil {
+			return "", builds.VersionBuildScope{}, fmt.Errorf("discovered app store version %q has invalid platform: %w", versionID, err)
+		}
+		return versionID, builds.VersionBuildScope{AppID: appID, Version: resolvedVersion, Platform: resolvedPlatform}, nil
 	}
 
-	versionData, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, appID, versionID, platform)
+	var versionData asc.Resource[asc.AppStoreVersionAttributes]
+	resolvedPlatform := ""
+	if appID == "" {
+		versionData, appID, resolvedPlatform, err = resolveAttachBuildVersionByID(requestCtx, client, versionID, platform)
+	} else {
+		versionData, err = shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, appID, versionID, platform)
+		if err == nil {
+			resolvedPlatform, err = shared.NormalizeAppStoreVersionPlatform(string(versionData.Attributes.Platform))
+			if err != nil {
+				err = fmt.Errorf("app store version %q has invalid platform: %w", versionID, err)
+			}
+		}
+	}
 	if err != nil {
 		return "", builds.VersionBuildScope{}, err
 	}
+	versionString := strings.TrimSpace(versionData.Attributes.VersionString)
+	if versionString == "" {
+		return "", builds.VersionBuildScope{}, fmt.Errorf("app store version %q has no version string", versionID)
+	}
+	if !shared.IsAppStoreVersionString(versionString) {
+		return "", builds.VersionBuildScope{}, fmt.Errorf("app store version %q has invalid version string %q", versionID, versionString)
+	}
 	return versionID, builds.VersionBuildScope{
 		AppID:    appID,
-		Version:  strings.TrimSpace(versionData.Attributes.VersionString),
-		Platform: strings.TrimSpace(string(versionData.Attributes.Platform)),
+		Version:  versionString,
+		Platform: resolvedPlatform,
 	}, nil
+}
+
+func resolveAttachBuildVersionByID(ctx context.Context, client *asc.Client, versionID, requestedPlatform string) (asc.Resource[asc.AppStoreVersionAttributes], string, string, error) {
+	trimmedVersionID := strings.TrimSpace(versionID)
+	if trimmedVersionID == "" {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, "", "", fmt.Errorf("version ID is required")
+	}
+	resp, err := client.GetAppStoreVersion(ctx, trimmedVersionID, asc.WithAppStoreVersionInclude([]string{"app"}))
+	if err != nil {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, "", "", err
+	}
+	if resp.Data.Type != asc.ResourceTypeAppStoreVersions {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, "", "", fmt.Errorf("expected resource type %q, got %q when reading app store version %q", asc.ResourceTypeAppStoreVersions, resp.Data.Type, trimmedVersionID)
+	}
+	if resp.Data.ID != trimmedVersionID {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, "", "", fmt.Errorf("expected app store version %q, got %q", trimmedVersionID, resp.Data.ID)
+	}
+	appID, err := asc.AppStoreVersionAppID(resp)
+	if err != nil {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, "", "", err
+	}
+	resolvedPlatform, err := shared.NormalizeAppStoreVersionPlatform(string(resp.Data.Attributes.Platform))
+	if err != nil {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, "", "", fmt.Errorf("app store version %q has invalid platform: %w", trimmedVersionID, err)
+	}
+	if requestedPlatform != "" && !strings.EqualFold(resolvedPlatform, requestedPlatform) {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, "", "", fmt.Errorf("version %q is on platform %q, not %q", trimmedVersionID, resolvedPlatform, requestedPlatform)
+	}
+	return resp.Data, appID, resolvedPlatform, nil
+}
+
+type attachBuildScopeRelationships struct {
+	App               asc.Relationship `json:"app"`
+	PreReleaseVersion asc.Relationship `json:"preReleaseVersion"`
+}
+
+func validateAttachBuildScope(ctx context.Context, client *asc.Client, buildID string, scope builds.VersionBuildScope) error {
+	resp, err := client.GetBuild(ctx, buildID, asc.WithBuildInclude([]string{"app", "preReleaseVersion"}))
+	if err != nil {
+		return fmt.Errorf("failed to verify build %q app and marketing train: %w", buildID, err)
+	}
+	if resp == nil {
+		return fmt.Errorf("empty build proof for %q", buildID)
+	}
+	if resp.Data.Type != asc.ResourceTypeBuilds {
+		return fmt.Errorf("build proof returned resource type %q, not %q", resp.Data.Type, asc.ResourceTypeBuilds)
+	}
+	if strings.TrimSpace(resp.Data.ID) != strings.TrimSpace(buildID) {
+		return fmt.Errorf("build proof returned ID %q, not %q", resp.Data.ID, buildID)
+	}
+	if err := builds.RequireValidBuild(&asc.BuildResponse{Data: resp.Data}); err != nil {
+		return err
+	}
+
+	var relationships attachBuildScopeRelationships
+	if len(resp.Data.Relationships) == 0 {
+		return fmt.Errorf("build %q has no app and marketing train relationships", buildID)
+	}
+	if err := json.Unmarshal(resp.Data.Relationships, &relationships); err != nil {
+		return fmt.Errorf("failed to parse build %q scope relationships: %w", buildID, err)
+	}
+	if relationships.App.Data.Type != asc.ResourceTypeApps || strings.TrimSpace(relationships.App.Data.ID) != strings.TrimSpace(scope.AppID) {
+		return fmt.Errorf("build %q belongs to app %q, not %q", buildID, relationships.App.Data.ID, scope.AppID)
+	}
+	if relationships.PreReleaseVersion.Data.Type != asc.ResourceTypePreReleaseVersions || strings.TrimSpace(relationships.PreReleaseVersion.Data.ID) == "" {
+		return fmt.Errorf("build %q has no valid marketing train relationship", buildID)
+	}
+
+	var included []asc.Resource[asc.PrereleaseVersionAttributes]
+	if len(resp.Included) == 0 || json.Unmarshal(resp.Included, &included) != nil {
+		return fmt.Errorf("build %q did not return its marketing train proof", buildID)
+	}
+	trainID := strings.TrimSpace(relationships.PreReleaseVersion.Data.ID)
+	for _, resource := range included {
+		if resource.Type != asc.ResourceTypePreReleaseVersions || strings.TrimSpace(resource.ID) != trainID {
+			continue
+		}
+		if !shared.IsEquivalentAppStoreVersion(scope.Version, resource.Attributes.Version) {
+			return fmt.Errorf("build %q belongs to marketing train %q, not version %q", buildID, trainID, scope.Version)
+		}
+		platform, err := shared.NormalizeAppStoreVersionPlatform(string(resource.Attributes.Platform))
+		if err != nil {
+			return fmt.Errorf("marketing train %q has invalid platform: %w", trainID, err)
+		}
+		if !strings.EqualFold(platform, strings.TrimSpace(scope.Platform)) {
+			return fmt.Errorf("build %q belongs to platform %q, not %q", buildID, platform, scope.Platform)
+		}
+		if buildNumber := strings.TrimSpace(scope.BuildNumber); buildNumber != "" && strings.TrimSpace(resp.Data.Attributes.Version) != buildNumber {
+			return fmt.Errorf("build %q reports build number %q, not %q", buildID, resp.Data.Attributes.Version, buildNumber)
+		}
+		return nil
+	}
+	return fmt.Errorf("build %q did not include marketing train %q", buildID, trainID)
 }
 
 func normalizeAppStoreVersionReleaseType(value string) (string, error) {

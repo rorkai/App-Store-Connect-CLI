@@ -28,7 +28,7 @@ func TestMigrateImportAppliesAppClipAction(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
-		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"1000000001"}}}}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
 		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"OPEN"}}}`))
 	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations"),
@@ -38,7 +38,7 @@ func TestMigrateImportAppliesAppClipAction(t *testing.T) {
 	cmd := RootCommand("test")
 	var runErr error
 	captureOutput(t, func() {
-		runErr = cmd.ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--confirm", "--output", "json"})
+		runErr = cmd.ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "1000000001", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--confirm", "--output", "json"})
 	})
 	if runErr != nil {
 		t.Fatal(runErr)
@@ -56,10 +56,10 @@ func TestMigrateExportFetchesAppClipMetadata(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
-		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"1000000001"}}}}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"),
 		asctest.JSON(200, `{"data":[]}`))
-	reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/1000000001/appInfos"),
 		asctest.JSON(200, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreReviewDetail"),
 		asctest.JSON(404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`))
@@ -72,7 +72,7 @@ func TestMigrateExportFetchesAppClipMetadata(t *testing.T) {
 	cmd := RootCommand("test")
 	var runErr error
 	captureOutput(t, func() {
-		runErr = cmd.ParseAndRun(context.Background(), []string{"migrate", "export", "--app", "APP_ID", "--version-id", "VERSION_ID", "--output-dir", root, "--output", "json"})
+		runErr = cmd.ParseAndRun(context.Background(), []string{"migrate", "export", "--app", "1000000001", "--version-id", "VERSION_ID", "--output-dir", root, "--output", "json"})
 	})
 	if runErr != nil {
 		t.Fatal(runErr)
@@ -93,7 +93,7 @@ func TestMetadataPullExportsAppClip(t *testing.T) {
 	cmd := RootCommand("test")
 	var runErr error
 	captureOutput(t, func() {
-		runErr = cmd.ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "localizations,app-clip", "--output", "json"})
+		runErr = cmd.ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "1000000001", "--version", "1.0", "--dir", root, "--include", "localizations,app-clip", "--output", "json"})
 	})
 	if runErr != nil {
 		t.Fatal(runErr)
@@ -118,7 +118,7 @@ func TestMetadataPushAppliesAppClipAction(t *testing.T) {
 	cmd := RootCommand("test")
 	var runErr error
 	captureOutput(t, func() {
-		runErr = cmd.ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "localizations,app-clip", "--confirm", "--output", "json"})
+		runErr = cmd.ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "1000000001", "--version", "1.0", "--dir", root, "--include", "localizations,app-clip", "--confirm", "--output", "json"})
 	})
 	if runErr != nil {
 		t.Fatal(runErr)
@@ -133,9 +133,9 @@ func installStoreAssetMetadataFixture(t *testing.T, applyAction bool) *asctest.R
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	empty := asctest.JSON(200, `{"data":[]}`)
-	reg.Register(asctest.GET("/v1/apps/APP_ID/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/1000000001/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
 		asctest.JSON(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`))
-	reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/1000000001/appInfos"),
 		asctest.JSON(200, `{"data":[{"type":"appInfos","id":"INFO_ID","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/INFO_ID/appInfoLocalizations", "limit=200"), empty)
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"), empty)
@@ -218,8 +218,8 @@ func TestMigrateStoreAssetsProductionRoundTrip(t *testing.T) {
 		key := req.Method + " " + req.URL.Path
 		switch key {
 		case "GET /v1/appStoreVersions/VERSION_ID":
-			return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
-		case "GET /v1/apps/APP_ID/appInfos":
+			return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"1000000001"}}}}}`), nil
+		case "GET /v1/apps/1000000001/appInfos":
 			return migrateJSONResponse(200, `{"data":[]}`), nil
 		case "GET /v1/appStoreVersions/VERSION_ID/appStoreReviewDetail":
 			return migrateJSONResponse(404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`), nil
@@ -289,7 +289,7 @@ func TestMigrateStoreAssetsProductionRoundTrip(t *testing.T) {
 	}))
 	var runErr error
 	captureOutput(t, func() {
-		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "export", "--app", "APP_ID", "--version-id", "VERSION_ID", "--output-dir", root, "--output", "json"})
+		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "export", "--app", "1000000001", "--version-id", "VERSION_ID", "--output-dir", root, "--output", "json"})
 	})
 	if runErr != nil {
 		t.Fatal(runErr)
@@ -302,7 +302,7 @@ func TestMigrateStoreAssetsProductionRoundTrip(t *testing.T) {
 	}
 	phase = "import"
 	stdout, _ := captureOutput(t, func() {
-		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--confirm", "--output", "json"})
+		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "1000000001", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--confirm", "--output", "json"})
 	})
 	if runErr != nil {
 		t.Fatalf("import: %v; receipt=%s", runErr, stdout)
@@ -336,7 +336,7 @@ func TestMetadataAssetsOnlyNeverMutatesLocalizations(t *testing.T) {
 			writeFile(t, filepath.Join(root, "app_clip/action.txt"), "PLAY")
 			reg := asctest.NewRegistry(t)
 			reg.Install()
-			reg.Register(asctest.GET("/v1/apps/APP_ID/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
+			reg.Register(asctest.GET("/v1/apps/1000000001/appStoreVersions", "filter[versionString]=1.0", "limit=200"),
 				asctest.JSON(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`))
 			reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
 				asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`))
@@ -344,7 +344,7 @@ func TestMetadataAssetsOnlyNeverMutatesLocalizations(t *testing.T) {
 				asctest.JSON(200, `{"data":[]}`))
 			reg.Register(asctest.PATCH("/v1/appClipDefaultExperiences/EXP").JSONBody(`{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"PLAY"}}}`),
 				asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"PLAY"}}}`))
-			args := []string{"metadata", "push", "--app", "APP_ID", "--version", "1.0", "--dir", root, "--include", "app-clip", "--confirm", "--output", "json"}
+			args := []string{"metadata", "push", "--app", "1000000001", "--version", "1.0", "--dir", root, "--include", "app-clip", "--confirm", "--output", "json"}
 			if allowDeletes {
 				args = append(args, "--allow-deletes")
 			}
@@ -374,7 +374,7 @@ func TestMigrateHeaderReplacementFailureKeepsDeletionReceipt(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
-		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
+		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","relationships":{"app":{"data":{"type":"apps","id":"1000000001"}}}}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
 		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"EXP","attributes":{"action":"OPEN"}}}`))
 	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/EXP/appClipDefaultExperienceLocalizations"),
@@ -393,7 +393,7 @@ func TestMigrateHeaderReplacementFailureKeepsDeletionReceipt(t *testing.T) {
 		asctest.JSON(400, `{"errors":[{"status":"400","code":"INVALID","title":"reservation rejected"}]}`))
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
-		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--confirm", "--output", "json"})
+		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "1000000001", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--confirm", "--output", "json"})
 	})
 	deleted := false
 	for _, req := range reg.Requests() {
@@ -435,7 +435,7 @@ func TestMigrateSkippedAssetsAreNotReadOrUploaded(t *testing.T) {
 	asctest.NewRegistry(t).Install()
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
-		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--skip-app-clip", "--skip-previews", "--dry-run", "--output", "json"})
+		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "1000000001", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--skip-app-clip", "--skip-previews", "--dry-run", "--output", "json"})
 	})
 	if runErr != nil {
 		t.Fatal(runErr)
@@ -483,7 +483,7 @@ func TestMigrateImportReportsPreviewOutsideDeviceFolder(t *testing.T) {
 	asctest.NewRegistry(t).Install()
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
-		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--skip-app-clip", "--dry-run", "--output", "json"})
+		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "1000000001", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--skip-app-clip", "--dry-run", "--output", "json"})
 	})
 	if runErr != nil {
 		t.Fatal(runErr)

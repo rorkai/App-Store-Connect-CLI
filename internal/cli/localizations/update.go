@@ -2,8 +2,10 @@ package localizations
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -110,6 +112,22 @@ At least one field flag must be provided.`,
 			if flagProvided(fs, "platform") && strings.TrimSpace(*platform) == "" {
 				return d.UsageError("--platform must not be empty")
 			}
+			versionFields, appInfoFields := activeProvidedFlags(fs, versionFieldNames...), activeProvidedFlags(fs, appInfoFieldNames...)
+			if len(versionFields) > 0 && len(appInfoFields) > 0 {
+				conflicting := appInfoFields[0]
+				if normalizedType == shared.LocalizationTypeAppInfo {
+					conflicting = versionFields[0]
+				}
+				return shared.WithDiagnostic(
+					d.UsageErrorf(
+						"localizations update: version fields (%s) and app-info fields (%s) cannot be combined in one command; update version fields with --type version and app-info fields with --type app-info in separate commands",
+						strings.Join(versionFields, ", "),
+						strings.Join(appInfoFields, ", "),
+					),
+					shared.DiagnosticConflictingInput,
+					conflicting,
+				)
+			}
 
 			if normalizedType == shared.LocalizationTypeAppInfo && flagProvided(fs, "platform") {
 				return d.UsageError("--platform requires --type version")
@@ -156,6 +174,13 @@ At least one field flag must be provided.`,
 					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
 					output:                output,
 				}
+				if len(versionFields) > 0 {
+					return shared.WithDiagnostic(
+						d.UsageError("--type version is required for version update flags"),
+						shared.DiagnosticRequiredInputMissing,
+						"--type",
+					)
+				}
 				if !hasAnyAppInfoField(params) {
 					return d.UpdateFlagRequired(fs, name, subtitle, clearSubtitle, privacyPolicyURL, clearPrivacyPolicyURL, privacyChoicesURL, privacyPolicyText)
 				}
@@ -175,6 +200,13 @@ At least one field flag must be provided.`,
 					marketingURL:         *marketingURL,
 					clearPromotionalText: *clearPromotionalText,
 					output:               output,
+				}
+				if len(appInfoFields) > 0 {
+					return shared.WithDiagnostic(
+						d.UsageError("--type app-info is required for app-info update flags"),
+						shared.DiagnosticRequiredInputMissing,
+						"--type",
+					)
 				}
 				if !hasAnyVersionField(params) {
 					return d.UpdateFlagRequired(fs, description, keywords, whatsNew, promotionalText, clearPromotionalText, supportURL, marketingURL)
@@ -236,6 +268,40 @@ func flagProvided(fs *flag.FlagSet, name string) bool {
 	return provided
 }
 
+var appInfoFieldNames = []string{
+	"name",
+	"subtitle",
+	"privacy-policy-url",
+	"privacy-choices-url",
+	"privacy-policy-text",
+	"clear-subtitle",
+	"clear-privacy-policy-url",
+}
+
+var versionFieldNames = []string{
+	"description",
+	"keywords",
+	"whats-new",
+	"promotional-text",
+	"clear-promotional-text",
+	"support-url",
+	"marketing-url",
+}
+
+func activeProvidedFlags(fs *flag.FlagSet, names ...string) []string {
+	var active []string
+	for _, name := range names {
+		if !flagProvided(fs, name) {
+			continue
+		}
+		if strings.HasPrefix(name, "clear-") && fs.Lookup(name).Value.String() != "true" {
+			continue
+		}
+		active = append(active, "--"+name)
+	}
+	return active
+}
+
 type updateAppInfoParams struct {
 	localizationID                                                         string
 	appID, appInfoID, locale                                               string
@@ -246,9 +312,9 @@ type updateAppInfoParams struct {
 
 func updateAppInfoLocalization(ctx context.Context, d *shared.Deps, p updateAppInfoParams) error {
 	localizationID := strings.TrimSpace(p.localizationID)
-	resolvedAppID := ""
+	appSelector := d.ResolveAppSelector(p.appID)
+	resolvedAppID := appSelector.Value
 	if localizationID == "" {
-		resolvedAppID = d.ResolveAppID(p.appID)
 		if resolvedAppID == "" {
 			fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations (or set ASC_APP_ID)")
 			return shared.MissingRequiredUsageError("--app")
@@ -262,6 +328,19 @@ func updateAppInfoLocalization(ctx context.Context, d *shared.Deps, p updateAppI
 
 	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
+
+	if resolvedAppID != "" {
+		resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+		if err != nil {
+			return fmt.Errorf("localizations update: resolve app: %w", err)
+		}
+		requestCtx = asc.WithNoRedirectReads(requestCtx)
+		if localizationID != "" {
+			if err := verifyAppInfoLocalizationOwnership(requestCtx, client, localizationID, resolvedAppID); err != nil {
+				return fmt.Errorf("localizations update: %w", err)
+			}
+		}
+	}
 
 	if localizationID == "" {
 		appInfo, err := d.ResolveOwnedAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(p.appInfoID))
@@ -302,6 +381,68 @@ func updateAppInfoLocalization(ctx context.Context, d *shared.Deps, p updateAppI
 	}
 
 	return d.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
+}
+
+type appInfoLocalizationOwnershipResponse struct {
+	Data struct {
+		Type          asc.ResourceType
+		ID            string
+		Relationships struct {
+			AppInfo asc.Relationship
+		}
+	}
+}
+
+func verifyAppInfoLocalizationOwnership(ctx context.Context, client *asc.Client, localizationID, appID string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return fmt.Errorf("app info localization ID is required")
+	}
+	body, err := client.RawRequestWithQuery(
+		ctx,
+		"GET",
+		fmt.Sprintf("/v1/appInfoLocalizations/%s", url.PathEscape(localizationID)),
+		url.Values{
+			"include":                      {"appInfo"},
+			"fields[appInfoLocalizations]": {"appInfo"},
+		},
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	var response appInfoLocalizationOwnershipResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("decode app info localization %q: %w", localizationID, err)
+	}
+	if response.Data.Type != asc.ResourceTypeAppInfoLocalizations {
+		return fmt.Errorf("expected resource type %q, got %q when reading app info localization %q", asc.ResourceTypeAppInfoLocalizations, response.Data.Type, localizationID)
+	}
+	if response.Data.ID != localizationID {
+		return fmt.Errorf("expected app info localization %q, got %q", localizationID, response.Data.ID)
+	}
+	if response.Data.Relationships.AppInfo.Data.Type != asc.ResourceTypeAppInfos || strings.TrimSpace(response.Data.Relationships.AppInfo.Data.ID) == "" {
+		return fmt.Errorf("app info relationship missing or invalid for app info localization %q", localizationID)
+	}
+	appInfoID := strings.TrimSpace(response.Data.Relationships.AppInfo.Data.ID)
+	appInfo, err := client.GetAppInfo(ctx, appInfoID, asc.WithAppInfoInclude([]string{"app"}))
+	if err != nil {
+		return fmt.Errorf("read app info %q for localization %q: %w", appInfoID, localizationID, err)
+	}
+	if appInfo.Data.Type != asc.ResourceTypeAppInfos {
+		return fmt.Errorf("expected app info resource type %q, got %q for app info %q", asc.ResourceTypeAppInfos, appInfo.Data.Type, appInfoID)
+	}
+	if appInfo.Data.ID != appInfoID {
+		return fmt.Errorf("expected app info %q, got %q when reading localization %q", appInfoID, appInfo.Data.ID, localizationID)
+	}
+	ownerAppID, err := asc.AppInfoAppID(appInfo)
+	if err != nil {
+		return fmt.Errorf("resolve owner for app info localization %q: %w", localizationID, err)
+	}
+	if !strings.EqualFold(strings.TrimSpace(ownerAppID), strings.TrimSpace(appID)) {
+		return fmt.Errorf("app info localization %q belongs to app %q, not %q", localizationID, ownerAppID, appID)
+	}
+	return nil
 }
 
 // patchAppInfoLocalization sends nullable attributes when the caller clears a
@@ -393,12 +534,12 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 	defer cancel()
 
 	if localizationID == "" {
-		vid, err = resolveLocalizationMutationVersionID(requestCtx, d, client, vid, p.appID, normalizedPlatform)
+		vid, err = ResolveVersionIDForMutation(requestCtx, d, client, vid, p.appID, normalizedPlatform)
 		if err != nil {
 			return fmt.Errorf("localizations update: %w", err)
 		}
 		// Find existing localization ID for the locale
-		existing, err := client.GetAppStoreVersionLocalizations(requestCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
+		existing, err := client.GetAppStoreVersionLocalizations(asc.WithNoRedirectReads(requestCtx), vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 		if err != nil {
 			return fmt.Errorf("localizations update: failed to fetch localizations: %w", err)
 		}
@@ -412,6 +553,8 @@ func updateVersionLocalization(ctx context.Context, d *shared.Deps, p updateVers
 		if localizationID == "" {
 			return fmt.Errorf("localizations update: no existing localization found for locale %q", p.locale)
 		}
+	} else if err := verifyVersionLocalizationOwner(requestCtx, d, client, localizationID); err != nil {
+		return fmt.Errorf("localizations update: %w", err)
 	}
 
 	resp, err := patchVersionLocalization(requestCtx, client, localizationID, p, attrs)

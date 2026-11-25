@@ -27,8 +27,9 @@ func (s *sequenceAppLookupStub) GetApps(_ context.Context, _ ...asc.AppsOption) 
 }
 
 type appFixture struct {
-	id   string
-	name string
+	id       string
+	name     string
+	bundleID string
 }
 
 func appsResponseFromApps(apps []appFixture) *asc.AppsResponse {
@@ -39,7 +40,7 @@ func appsResponseFromApps(apps []appFixture) *asc.AppsResponse {
 		resp.Data = append(resp.Data, asc.Resource[asc.AppAttributes]{
 			ID: app.id,
 			Attributes: asc.AppAttributes{
-				Name: app.name,
+				Name: app.name, BundleID: app.bundleID,
 			},
 		})
 	}
@@ -122,7 +123,7 @@ func TestResolveAppIDWithLookup_ResolvesByBundleThenName(t *testing.T) {
 
 	bundleOnly := &sequenceAppLookupStub{
 		responses: []*asc.AppsResponse{
-			appsResponseFromApps([]appFixture{{id: "app-bundle", name: "Bundle App"}}),
+			appsResponseFromApps([]appFixture{{id: "app-bundle", name: "Bundle App", bundleID: "com.example.app"}}),
 		},
 	}
 	got, err := ResolveAppIDWithLookup(context.Background(), bundleOnly, "com.example.app")
@@ -187,71 +188,14 @@ func TestResolveAppIDWithLookup_AmbiguousName(t *testing.T) {
 	}
 }
 
-func TestResolveAppIDLookupsRejectSingleBundleSample(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		resolve func(context.Context, appLookupClient, string) (string, error)
-	}{
-		{name: "lookup", resolve: ResolveAppIDWithLookup},
-		{name: "exact lookup", resolve: ResolveAppIDWithExactLookup},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("ASC_APP_ID", "")
-			stub := &sequenceAppLookupStub{responses: []*asc.AppsResponse{
-				appsResponseFromAppsWithNext([]appFixture{{id: "app-1", name: "Example"}}),
-			}}
-
-			_, err := test.resolve(context.Background(), stub, "com.example.app")
-			if err == nil {
-				t.Fatal("expected incomplete-page ambiguity")
-			}
-			if !strings.Contains(err.Error(), "sample matches") || !strings.Contains(err.Error(), "app-1") {
-				t.Fatalf("expected sample candidate error, got %v", err)
-			}
-			if stub.calls != 1 {
-				t.Fatalf("expected one lookup and no fallback, got %d calls", stub.calls)
-			}
-		})
-	}
-}
-
-func TestResolveAppIDLookupsRejectEmptyBundleSampleWithoutFallback(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		resolve func(context.Context, appLookupClient, string) (string, error)
-	}{
-		{name: "lookup", resolve: ResolveAppIDWithLookup},
-		{name: "exact lookup", resolve: ResolveAppIDWithExactLookup},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("ASC_APP_ID", "")
-			stub := &sequenceAppLookupStub{responses: []*asc.AppsResponse{
-				appsResponseFromAppsWithNext(nil),
-			}}
-
-			_, err := test.resolve(context.Background(), stub, "com.example.app")
-			if err == nil || !strings.Contains(err.Error(), "sample matches") {
-				t.Fatalf("expected incomplete-page ambiguity, got %v", err)
-			}
-			if stub.calls != 1 {
-				t.Fatalf("expected one lookup and no name fallback, got %d calls", stub.calls)
-			}
-		})
-	}
-}
-
-func TestResolveAppIDWithLookupRejectsSingleFuzzySample(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	stub := &sequenceAppLookupStub{responses: []*asc.AppsResponse{
-		appsResponseFromApps(nil),
-		appsResponseFromApps(nil),
-		appsResponseFromApps(nil),
-		appsResponseFromAppsWithNext([]appFixture{{id: "app-fuzzy", name: "Example Pro"}}),
-	}}
-
-	_, err := ResolveAppIDWithLookup(context.Background(), stub, "Example")
-	if err == nil || !strings.Contains(err.Error(), "sample matches") {
-		t.Fatalf("expected incomplete fuzzy-page ambiguity, got %v", err)
+func TestResolveAppIDWithLookupRejectsUnfinishedBundleSearch(t *testing.T) {
+	page := appsResponseFromAppsWithNext([]appFixture{
+		{id: "app-1", bundleID: "com.example.app"},
+	})
+	stub := &sequenceAppLookupStub{responses: []*asc.AppsResponse{page, page}}
+	got, err := ResolveAppIDWithLookup(context.Background(), stub, "com.example.app")
+	if got != "" || err == nil || !strings.Contains(err.Error(), "pagination") {
+		t.Fatalf("incomplete lookup resolved %q or failed unexpectedly: %v", got, err)
 	}
 }
 
@@ -299,50 +243,12 @@ func TestResolveAppIDWithLookup_FallsBackToFullScanWhenNameFilterMissesExact(t *
 	}
 }
 
-func TestResolveAppIDWithLookup_FallsBackToUniqueFuzzyMatchWhenNoExact(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	stub := &sequenceAppLookupStub{
-		responses: []*asc.AppsResponse{
-			appsResponseFromApps(nil),
-			appsResponseFromApps([]appFixture{
-				{id: "app-fuzzy", name: "Relax: Sleep + Focus"},
-			}),
-			appsResponseFromApps(nil),
-			appsResponseFromApps([]appFixture{
-				{id: "app-fuzzy", name: "Relax: Sleep + Focus"},
-			}),
-		},
-	}
-
-	got, err := ResolveAppIDWithLookup(context.Background(), stub, "Relax")
-	if err != nil {
-		t.Fatalf("ResolveAppIDWithLookup() error: %v", err)
-	}
-	if got != "app-fuzzy" {
-		t.Fatalf("expected legacy fuzzy fallback app id app-fuzzy, got %q", got)
-	}
-}
-
-func TestResolveAppIDWithExactLookup_RejectsUniqueFuzzyMatch(t *testing.T) {
-	t.Setenv("ASC_APP_ID", "")
-	stub := &sequenceAppLookupStub{
-		responses: []*asc.AppsResponse{
-			appsResponseFromApps(nil),
-			appsResponseFromApps([]appFixture{
-				{id: "app-fuzzy", name: "Relax: Sleep + Focus"},
-			}),
-			appsResponseFromApps([]appFixture{
-				{id: "app-fuzzy", name: "Relax: Sleep + Focus"},
-			}),
-		},
-	}
-
-	_, err := ResolveAppIDWithExactLookup(context.Background(), stub, "Relax")
-	if err == nil {
-		t.Fatal("expected not found error")
-	}
-	if !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("expected not found error, got %v", err)
+func TestResolveAppIDWithLookupRejectsUniqueFuzzyName(t *testing.T) {
+	candidate := appsResponseFromApps([]appFixture{{id: "app-fuzzy", name: "Example Pro"}})
+	stub := &sequenceAppLookupStub{responses: []*asc.AppsResponse{appsResponseFromApps(nil), candidate, candidate, candidate}}
+	got, err := ResolveAppIDWithLookup(context.Background(), stub, "Example")
+	if got != "" || err == nil || !strings.Contains(err.Error(), "asc apps list") {
+		t.Fatalf("fuzzy lookup resolved %q or lacked discovery guidance: %v", got, err)
 	}
 }
 
@@ -366,5 +272,134 @@ func TestResolveAppIDWithExactLookup_NumericPassthroughTakesPriorityOverExactNam
 	}
 	if stub.calls != 0 {
 		t.Fatalf("expected numeric passthrough without lookup calls, got %d", stub.calls)
+	}
+}
+
+func TestResolveAppIDWithLookup_ExactBundleIDWinsOverPrefixSiblings(t *testing.T) {
+	page := func(hasNext bool, apps ...[2]string) *asc.AppsResponse {
+		resp := &asc.AppsResponse{}
+		for _, app := range apps {
+			resp.Data = append(resp.Data, asc.Resource[asc.AppAttributes]{ID: app[0], Attributes: asc.AppAttributes{BundleID: app[1]}})
+		}
+		if hasNext {
+			resp.Links.Next = "https://api.appstoreconnect.apple.com/v1/apps?cursor=next"
+		}
+		return resp
+	}
+	exact, dev, beta := [2]string{"app-exact", "com.example.app"}, [2]string{"app-dev", "com.example.app.dev"}, [2]string{"app-beta", "com.example.app.beta"}
+
+	for _, test := range []struct {
+		name      string
+		input     string
+		pages     []*asc.AppsResponse
+		want      string
+		wantErr   string
+		wantCalls int
+	}{
+		{name: "exact match with a longer sibling", pages: []*asc.AppsResponse{page(false, dev, exact)}, want: "app-exact", wantCalls: 1},
+		{name: "exact match in another letter case", input: "com.example.APP", pages: []*asc.AppsResponse{page(false, exact, dev)}, want: "app-exact", wantCalls: 1},
+		{name: "two siblings and no exact match", pages: []*asc.AppsResponse{page(false, dev, beta)}, wantErr: "not found", wantCalls: 3},
+		{name: "one result that is not exact", pages: []*asc.AppsResponse{page(false, dev)}, wantErr: "not found", wantCalls: 3},
+		{name: "two exact apps", pages: []*asc.AppsResponse{page(false, exact, [2]string{"duplicate", "com.example.app"})}, wantErr: "2 apps match", wantCalls: 1},
+		{name: "exact match beyond the first page", pages: []*asc.AppsResponse{page(true, dev, beta), page(false, dev, beta, exact)}, want: "app-exact", wantCalls: 2},
+		{name: "exact match after an empty first page", pages: []*asc.AppsResponse{page(true), page(false, exact)}, want: "app-exact", wantCalls: 2},
+		{name: "no exact match on a truncated wider page", pages: []*asc.AppsResponse{page(true, dev, beta), page(true, dev, beta)}, wantErr: "pagination", wantCalls: 2},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stub := &sequenceAppLookupStub{responses: test.pages}
+			input := test.input
+			if input == "" {
+				input = "com.example.app"
+			}
+			got, err := ResolveAppIDWithLookup(context.Background(), stub, input)
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+					t.Fatalf("error = %v, want it to contain %q", err, test.wantErr)
+				}
+			} else if err != nil || got != test.want {
+				t.Fatalf("resolved %q, %v, want %q", got, err, test.want)
+			}
+			if stub.calls != test.wantCalls {
+				t.Fatalf("lookups = %d, want %d", stub.calls, test.wantCalls)
+			}
+		})
+	}
+}
+
+func TestResolveAppIDWithLookupRejectsForeignContinuationPath(t *testing.T) {
+	foreignPage := func(path string) *asc.AppsResponse {
+		resp := appsResponseFromApps(nil)
+		resp.Links.Next = "https://api.appstoreconnect.apple.com" + path + "?cursor=next"
+		return resp
+	}
+	for _, test := range []struct {
+		name      string
+		selector  string
+		responses []*asc.AppsResponse
+		wantCalls int
+	}{
+		{
+			name:      "bundle lookup",
+			selector:  "com.example.app",
+			responses: []*asc.AppsResponse{foreignPage("/v1/subscriptionGroups")},
+			wantCalls: 1,
+		},
+		{
+			name:     "name lookup",
+			selector: "Example App",
+			responses: []*asc.AppsResponse{
+				appsResponseFromApps(nil),
+				foreignPage("/v1/subscriptionGroups"),
+			},
+			wantCalls: 2,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stub := &sequenceAppLookupStub{responses: test.responses}
+			_, err := ResolveAppIDWithLookup(context.Background(), stub, test.selector)
+			if err == nil || !strings.Contains(err.Error(), "pagination URL") {
+				t.Fatalf("expected foreign continuation to fail closed, got %v", err)
+			}
+			if stub.calls != test.wantCalls {
+				t.Fatalf("lookups = %d, want %d proof calls and no foreign-page fetch", stub.calls, test.wantCalls)
+			}
+		})
+	}
+}
+
+func TestScopedAppLookupsRequireExactIdentity(t *testing.T) {
+	for _, lookup := range []struct {
+		name    string
+		resolve func(context.Context, appLookupClient, string) (string, error)
+	}{
+		{name: "default", resolve: ResolveAppIDWithLookup},
+		{name: "exact", resolve: ResolveAppIDWithExactLookup},
+	} {
+		t.Run(lookup.name, func(t *testing.T) {
+			for _, test := range []struct {
+				name     string
+				selector string
+				filter   *asc.AppsResponse
+			}{
+				{
+					name: "bundle prefix", selector: "com.example.demo",
+					filter: &asc.AppsResponse{Data: []asc.Resource[asc.AppAttributes]{
+						{ID: "other", Attributes: asc.AppAttributes{BundleID: "com.example.demo.preview"}},
+					}},
+				},
+				{
+					name: "bundle attribute absent", selector: "com.example.demo",
+					filter: &asc.AppsResponse{Data: []asc.Resource[asc.AppAttributes]{{ID: "other"}}},
+				},
+			} {
+				t.Run(test.name, func(t *testing.T) {
+					stub := &sequenceAppLookupStub{responses: []*asc.AppsResponse{test.filter}}
+					got, err := lookup.resolve(context.Background(), stub, test.selector)
+					if got != "" || err == nil {
+						t.Fatalf("lookup resolved an unverified app: id=%q error=%v", got, err)
+					}
+				})
+			}
+		})
 	}
 }

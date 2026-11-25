@@ -15,8 +15,8 @@ func TestXcodeCloudWorkflowsResolvesAppByBundleID(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.lookup", "limit=2"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-lookup"}]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.lookup", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-lookup","attributes":{"bundleId":"com.example.lookup"}}]}`))
 	reg.Register(asctest.GET("/v1/ciProducts", "filter[app]=app-lookup", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciProducts","id":"prod-1"}]}`))
 	reg.Register(asctest.GET("/v1/ciProducts/prod-1/workflows"),
@@ -41,7 +41,7 @@ func TestXcodeCloudProductsResolvesAppByExactName(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Focus Rail", "limit=2"),
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Focus Rail", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps", "filter[name]=Focus Rail", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-lookup","attributes":{"name":"Focus Rail"}}]}`))
@@ -67,7 +67,7 @@ func TestXcodeCloudRunResolvesAppByExactNameWhenWorkflowNameProvided(t *testing.
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Focus Rail", "limit=2"),
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Focus Rail", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps", "filter[name]=Focus Rail", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-lookup","attributes":{"name":"Focus Rail"}}]}`))
@@ -101,7 +101,7 @@ func TestXcodeCloudProductsRejectsUniqueFuzzyAppName(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Relax", "limit=2"),
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Relax", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps", "filter[name]=Relax", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-fuzzy","attributes":{"name":"Relax: Sleep + Focus"}}],"links":{"next":""}}`))

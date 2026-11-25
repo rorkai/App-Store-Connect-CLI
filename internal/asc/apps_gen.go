@@ -516,7 +516,7 @@ func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAtt
 			ID:   appID,
 		},
 	}
-	if attrs.AccessibilityURL != nil || attrs.BundleID != nil || attrs.PrimaryLocale != nil || attrs.SubscriptionStatusURL != nil || attrs.SubscriptionStatusURLVersion != nil || attrs.SubscriptionStatusURLForSandbox != nil || attrs.SubscriptionStatusURLVersionForSandbox != nil || attrs.ContentRightsDeclaration != nil || attrs.StreamlinedPurchasingEnabled != nil {
+	if attrs.AccessibilityURL != nil || attrs.BundleID != nil || attrs.PrimaryLocale != nil || attrs.SubscriptionStatusURL != nil || attrs.SubscriptionStatusURLVersion != nil || attrs.SubscriptionStatusURLForSandbox != nil || attrs.SubscriptionStatusURLVersionForSandbox != nil || attrs.ContentRightsDeclaration != nil || attrs.StreamlinedPurchasingEnabled != nil || attrs.GroupPurchaseInvitationMode != nil {
 		payload.Data.Attributes = &attrs
 	}
 	return sendJSON[AppResponse](ctx, c, writeRequest{

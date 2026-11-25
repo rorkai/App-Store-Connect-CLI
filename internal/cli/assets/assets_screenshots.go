@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -420,6 +421,7 @@ type screenshotListCommandOptions struct {
 
 func executeScreenshotListCommand(ctx context.Context, opts screenshotListCommandOptions, d *shared.Deps) (*asc.AppScreenshotListResult, error) {
 	locID := strings.TrimSpace(opts.VersionLocalizationID)
+	appSelector := d.ResolveAppSelector(opts.AppID)
 	appValue := strings.TrimSpace(opts.AppID)
 	versionValue := strings.TrimSpace(opts.Version)
 	versionIDValue := strings.TrimSpace(opts.VersionID)
@@ -452,7 +454,7 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 			return nil, shared.MissingRequiredUsageError("")
 		}
 		if versionValue != "" || (versionIDValue != "" && platformValue != "") {
-			appValue = d.ResolveAppID(appValue)
+			appValue = strings.TrimSpace(appSelector.Value)
 		}
 		if versionValue != "" {
 			if appValue == "" {
@@ -494,16 +496,11 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 	if locID == "" {
 		resolvedVersionID := versionIDValue
 		if versionValue != "" || appValue != "" {
+			ctx = asc.WithNoRedirectReads(ctx)
 			requestCtx, cancel := d.Timeout(ctx)
-			resolvedAppID, resolveErr := shared.ResolveAppIDWithLookup(requestCtx, client, appValue)
+			resolvedAppID, resolveErr := shared.ResolveScopedAppID(requestCtx, client, appSelector)
 			if resolveErr == nil {
-				if versionValue != "" {
-					resolvedVersionID, resolveErr = shared.ResolveAppStoreVersionID(requestCtx, client, resolvedAppID, versionValue, normalizedPlatform)
-				} else {
-					versionData, ownedErr := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, versionIDValue, normalizedPlatform)
-					resolveErr = ownedErr
-					resolvedVersionID = strings.TrimSpace(versionData.ID)
-				}
+				resolvedVersionID, _, _, resolveErr = resolveScreenshotPlanVersion(requestCtx, client, resolvedAppID, versionValue, versionIDValue, normalizedPlatform)
 			}
 			cancel()
 			if resolveErr != nil {
@@ -642,7 +639,12 @@ func fetchAllScreenshotVersionLocalizations(
 		return nil, fmt.Errorf("empty version localization response")
 	}
 
+	expectedPath := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", url.PathEscape(versionID))
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		nextURL, err := client.ValidateNoRedirectReadContinuation(pageCtx, nextURL, expectedPath)
+		if err != nil {
+			return nil, err
+		}
 		nextCtx, nextCancel := requestContext(pageCtx)
 		nextPage, nextErr := client.GetAppStoreVersionLocalizations(nextCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 		nextCancel()
@@ -974,6 +976,7 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 
 	locID := strings.TrimSpace(opts.VersionLocalizationID)
 	appFlagValue := strings.TrimSpace(opts.AppID)
+	appSelector := d.ResolveAppSelector(appFlagValue)
 	versionValue := strings.TrimSpace(opts.Version)
 	versionIDValue := strings.TrimSpace(opts.VersionID)
 	platformValue := strings.TrimSpace(opts.Platform)
@@ -1015,7 +1018,7 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 	}
 
 	if locID == "" {
-		resolvedAppValue := d.ResolveAppID(appFlagValue)
+		resolvedAppValue := strings.TrimSpace(appSelector.Value)
 		if resolvedAppValue == "" {
 			fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 			return nil, shared.MissingRequiredUsageError("--app")
@@ -1028,7 +1031,6 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 			fmt.Fprintln(d.IO.ErrOut, "Error: --version and --version-id are mutually exclusive")
 			return nil, flag.ErrHelp
 		}
-		appFlagValue = resolvedAppValue
 	}
 
 	versionValue, versionIDValue, err := normalizeScreenshotVersionSelector(versionValue, versionIDValue)
@@ -1170,7 +1172,7 @@ func executeScreenshotUploadCommand(ctx context.Context, d *shared.Deps, opts sc
 	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
-	resolvedAppID, err := shared.ResolveAppIDWithLookup(requestCtx, client, appFlagValue)
+	resolvedAppID, err := shared.ResolveScopedAppID(requestCtx, client, appSelector)
 	if err != nil {
 		return nil, err
 	}

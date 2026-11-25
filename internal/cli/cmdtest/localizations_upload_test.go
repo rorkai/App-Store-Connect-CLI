@@ -257,7 +257,7 @@ func TestAppInfoLocalizationsUploadUsesFreshReadbackAfterMutationTimeout(t *test
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1":
-			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"appinfo-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"appinfo-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			reads++
 			name := "Old Name"
@@ -279,7 +279,7 @@ func TestAppInfoLocalizationsUploadUsesFreshReadbackAfterMutationTimeout(t *test
 	root.FlagSet.SetOutput(io.Discard)
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"localizations", "upload", "--type", "app-info", "--app", "app-1", "--app-info", "appinfo-1", "--path", dir, "--output", "json",
+			"localizations", "upload", "--type", "app-info", "--app", "100000001", "--app-info", "appinfo-1", "--path", dir, "--output", "json",
 		}); err != nil {
 			t.Fatalf("parse: %v", err)
 		}
@@ -523,7 +523,7 @@ func runPartialAppInfoLocalizationUpload(t *testing.T) (partialLocalizationUploa
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1", "include=app"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"appinfo-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"appinfo-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"en-id","attributes":{"locale":"en-US","name":"Old English"}},{"type":"appInfoLocalizations","id":"fr-id","attributes":{"locale":"fr-FR","name":"Old French"}},{"type":"appInfoLocalizations","id":"ja-id","attributes":{"locale":"ja","name":"Old Japanese"}}],"links":{"next":""}}`))
 	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/en-id").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"en-id","attributes":{"name":"English","subtitle":"English subtitle"}}}`),
@@ -540,7 +540,7 @@ func runPartialAppInfoLocalizationUpload(t *testing.T) (partialLocalizationUploa
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"localizations", "upload", "--type", "app-info", "--app", "app-1", "--app-info", "appinfo-1", "--path", inputDir, "--output", "json",
+			"localizations", "upload", "--type", "app-info", "--app", "100000001", "--app-info", "appinfo-1", "--path", inputDir, "--output", "json",
 		}); err != nil {
 			t.Fatalf("parse: %v", err)
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -175,13 +176,18 @@ func (c *Client) GetScmRepository(ctx context.Context, repositoryID string) (*Sc
 func (c *Client) ResolveGitReferenceByName(ctx context.Context, repositoryID, refName string) (*ScmGitReferenceResource, error) {
 	var allRefs []ScmGitReferenceResource
 	var nextURL string
+	expectedPath := fmt.Sprintf("/v1/scmRepositories/%s/gitReferences", url.PathEscape(repositoryID))
 
 	for {
 		var resp *ScmGitReferencesResponse
 		var err error
 
 		if nextURL != "" {
-			resp, err = c.GetScmGitReferences(ctx, repositoryID, NextURL[ScmGitReferencesOption](nextURL))
+			canonicalURL, validationErr := c.ValidateNoRedirectReadContinuation(ctx, nextURL, expectedPath)
+			if validationErr != nil {
+				return nil, fmt.Errorf("failed to validate git reference pagination: %w", validationErr)
+			}
+			resp, err = c.GetScmGitReferences(ctx, repositoryID, NextURL[ScmGitReferencesOption](canonicalURL))
 		} else {
 			resp, err = c.GetScmGitReferences(ctx, repositoryID, Limit[ScmGitReferencesOption](200))
 		}

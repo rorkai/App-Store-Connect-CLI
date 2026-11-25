@@ -3,7 +3,9 @@ package cmdtest
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -79,5 +81,35 @@ func TestIAPPricingAvailabilitySetAcceptsSpacedBoolValue(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"avail-1"`) {
 		t.Fatalf("expected availability response, got %q", stdout)
+	}
+}
+
+func TestIAPScopedSelectorRefusesRedirectBeforeAvailabilityRead(t *testing.T) {
+	var mu sync.Mutex
+	var requests []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		mu.Unlock()
+		switch r.URL.Path {
+		case "/v1/apps/1234567890/inAppPurchasesV2":
+			http.Redirect(w, r, "/v1/apps/other/inAppPurchasesV2", http.StatusTemporaryRedirect)
+		case "/v1/apps/other/inAppPurchasesV2":
+			http.Error(w, "unexpected redirected product lookup", http.StatusInternalServerError)
+		default:
+			http.Error(w, "unexpected product lookup", http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	stdout, _, code := runWithDeps(t, stubServerClient(t, server), "iap", "pricing", "availability", "view", "--app", "1234567890", "--iap-id", "com.example.pro", "--output", "json")
+	if code != cmd.ExitError || stdout != "" {
+		t.Fatalf("redirected scoped product lookup exit=%d stdout=%q, want error and no output", code, stdout)
+	}
+	mu.Lock()
+	got := append([]string(nil), requests...)
+	mu.Unlock()
+	if len(got) != 1 || got[0] != "GET /v1/apps/1234567890/inAppPurchasesV2" {
+		t.Fatalf("scoped product lookup requests=%v, want one refusal and no follow-up", got)
 	}
 }

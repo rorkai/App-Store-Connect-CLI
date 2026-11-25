@@ -19,6 +19,34 @@ type testFlightSyncStub struct {
 	testersByGroup map[string]*asc.BetaTestersResponse
 }
 
+type testFlightPaginationStub struct {
+	groups      *asc.BetaGroupsResponse
+	builds      *asc.BuildsResponse
+	testers     *asc.BetaTestersResponse
+	groupCalls  int
+	buildCalls  int
+	testerCalls int
+}
+
+func (s *testFlightPaginationStub) GetApp(context.Context, string) (*asc.AppResponse, error) {
+	return &asc.AppResponse{}, nil
+}
+
+func (s *testFlightPaginationStub) GetBetaGroups(context.Context, string, ...asc.BetaGroupsOption) (*asc.BetaGroupsResponse, error) {
+	s.groupCalls++
+	return s.groups, nil
+}
+
+func (s *testFlightPaginationStub) GetBetaGroupBuilds(context.Context, string, ...asc.BetaGroupBuildsOption) (*asc.BuildsResponse, error) {
+	s.buildCalls++
+	return s.builds, nil
+}
+
+func (s *testFlightPaginationStub) GetBetaGroupTesters(context.Context, string, ...asc.BetaGroupTestersOption) (*asc.BetaTestersResponse, error) {
+	s.testerCalls++
+	return s.testers, nil
+}
+
 func (s *testFlightSyncStub) GetApp(ctx context.Context, appID string) (*asc.AppResponse, error) {
 	return s.app, nil
 }
@@ -39,6 +67,117 @@ func (s *testFlightSyncStub) GetBetaGroupTesters(ctx context.Context, groupID st
 		return resp, nil
 	}
 	return &asc.BetaTestersResponse{}, nil
+}
+
+func TestTestFlightSyncPaginationRejectsForeignCollections(t *testing.T) {
+	foreign := "https://api.appstoreconnect.apple.com/v1/apps/other/betaGroups?cursor=foreign"
+	for _, test := range []struct {
+		name  string
+		run   func(*testFlightPaginationStub) error
+		calls func(*testFlightPaginationStub) int
+	}{
+		{
+			name: "groups",
+			run: func(stub *testFlightPaginationStub) error {
+				first := &asc.BetaGroupsResponse{}
+				first.Links.Next = foreign
+				_, err := paginateBetaGroups(context.Background(), stub, "app-1", first)
+				return err
+			},
+			calls: func(stub *testFlightPaginationStub) int { return stub.groupCalls },
+		},
+		{
+			name: "builds",
+			run: func(stub *testFlightPaginationStub) error {
+				first := &asc.BuildsResponse{}
+				first.Links.Next = "https://api.appstoreconnect.apple.com/v1/betaGroups/other/builds?cursor=foreign"
+				_, err := paginateBetaGroupBuilds(context.Background(), stub, "group-1", first)
+				return err
+			},
+			calls: func(stub *testFlightPaginationStub) int { return stub.buildCalls },
+		},
+		{
+			name: "testers",
+			run: func(stub *testFlightPaginationStub) error {
+				first := &asc.BetaTestersResponse{}
+				first.Links.Next = "https://api.appstoreconnect.apple.com/v1/betaGroups/other/betaTesters?cursor=foreign"
+				_, err := paginateBetaGroupTesters(context.Background(), stub, "group-1", first)
+				return err
+			},
+			calls: func(stub *testFlightPaginationStub) int { return stub.testerCalls },
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stub := &testFlightPaginationStub{}
+			if err := test.run(stub); err == nil {
+				t.Fatal("expected foreign continuation to fail closed")
+			}
+			if calls := test.calls(stub); calls != 0 {
+				t.Fatalf("continuation calls = %d, want zero after foreign-path refusal", calls)
+			}
+		})
+	}
+}
+
+func TestTestFlightSyncPaginationAllowsSameCollections(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		run   func(*testFlightPaginationStub) int
+		calls func(*testFlightPaginationStub) int
+	}{
+		{
+			name: "groups",
+			run: func(stub *testFlightPaginationStub) int {
+				first := &asc.BetaGroupsResponse{Data: []asc.Resource[asc.BetaGroupAttributes]{{ID: "group-1"}}}
+				first.Links.Next = "https://api.appstoreconnect.apple.com/v1/apps/app-1/betaGroups?cursor=next"
+				stub.groups = &asc.BetaGroupsResponse{Data: []asc.Resource[asc.BetaGroupAttributes]{{ID: "group-2"}}}
+				all, err := paginateBetaGroups(context.Background(), stub, "app-1", first)
+				if err != nil {
+					return -1
+				}
+				return len(all.Data)
+			},
+			calls: func(stub *testFlightPaginationStub) int { return stub.groupCalls },
+		},
+		{
+			name: "builds",
+			run: func(stub *testFlightPaginationStub) int {
+				first := &asc.BuildsResponse{Data: []asc.Resource[asc.BuildAttributes]{{ID: "build-1"}}}
+				first.Links.Next = "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/builds?cursor=next"
+				stub.builds = &asc.BuildsResponse{Data: []asc.Resource[asc.BuildAttributes]{{ID: "build-2"}}}
+				all, err := paginateBetaGroupBuilds(context.Background(), stub, "group-1", first)
+				if err != nil {
+					return -1
+				}
+				return len(all.Data)
+			},
+			calls: func(stub *testFlightPaginationStub) int { return stub.buildCalls },
+		},
+		{
+			name: "testers",
+			run: func(stub *testFlightPaginationStub) int {
+				first := &asc.BetaTestersResponse{Data: []asc.Resource[asc.BetaTesterAttributes]{{ID: "tester-1"}}}
+				first.Links.Next = "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/betaTesters?cursor=next"
+				stub.testers = &asc.BetaTestersResponse{Data: []asc.Resource[asc.BetaTesterAttributes]{{ID: "tester-2"}}}
+				all, err := paginateBetaGroupTesters(context.Background(), stub, "group-1", first)
+				if err != nil {
+					return -1
+				}
+				return len(all.Data)
+			},
+			calls: func(stub *testFlightPaginationStub) int { return stub.testerCalls },
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stub := &testFlightPaginationStub{}
+			if got := test.run(stub); got != 2 {
+				t.Fatalf("merged page count = %d, want 2", got)
+			}
+			if calls := test.calls(stub); calls != 1 {
+				t.Fatalf("continuation calls = %d, want one same-collection fetch", calls)
+			}
+		})
+	}
 }
 
 func TestPullTestFlightConfig_IncludesBuildsAndTesters(t *testing.T) {
