@@ -13,6 +13,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestTestersImportValidatesAllRowsBeforeRequests(t *testing.T) {
@@ -164,7 +165,11 @@ func TestTestersCreateMissingGroupsPreservesNameMatching(t *testing.T) {
 				}
 				args := []string{"testflight", "testers", command, "--app", "a1", "--create-missing-groups"}
 				if command == "add" {
-					args = append(args, "--email", "existing@example.com", "--group", tc.selector)
+					selector := tc.selector
+					if tc.ambiguous {
+						selector += ",Unresolved"
+					}
+					args = append(args, "--email", "existing@example.com", "--group", selector)
 				} else {
 					path := filepath.Join(t.TempDir(), "testers.csv")
 					if err := os.WriteFile(path, []byte("email,groups\nexisting@example.com,"+tc.selector+"\n"), 0o600); err != nil {
@@ -176,6 +181,17 @@ func TestTestersCreateMissingGroupsPreservesNameMatching(t *testing.T) {
 				if tc.ambiguous {
 					if err == nil || stdout != "" || !strings.Contains(err.Error(), "2 groups match") {
 						t.Fatalf("stdout=%q stderr=%q err=%v", stdout, stderr, err)
+					}
+					ambiguous, ok := errors.AsType[*shared.AmbiguousSelectionError](err)
+					if !ok {
+						t.Fatalf("expected typed ambiguity, got %v", err)
+					}
+					if command == "import" {
+						if ambiguous.Flag != "" || !strings.Contains(ambiguous.Hint, "CSV groups column") {
+							t.Fatalf("CSV ambiguity gave flag guidance: %v", err)
+						}
+					} else if ambiguous.Flag != "--group" {
+						t.Fatalf("flag ambiguity lost --group guidance: %v", err)
 					}
 				} else if err != nil || stdout == "" {
 					t.Fatalf("stdout=%q stderr=%q err=%v", stdout, stderr, err)
@@ -193,7 +209,11 @@ func TestTestersCreateMissingGroupsPreservesNameMatching(t *testing.T) {
 func TestTestersReconciliationPreservesSelectedAppScope(t *testing.T) {
 	for _, command := range []string{"add", "import"} {
 		for _, selector := range []string{"explicit", "environment", "configured"} {
-			for _, scenario := range []string{"existing", "concurrent", "foreign", "duplicate"} {
+			for _, scenario := range []string{"existing", "concurrent", "concurrent skip existing", "foreign", "duplicate"} {
+				skipExisting := scenario == "concurrent skip existing"
+				if command == "add" && skipExisting {
+					continue
+				}
 				t.Run(command+"/"+selector+"/"+scenario, func(t *testing.T) {
 					folder := t.TempDir()
 					configPath := filepath.Join(folder, "config.json")
@@ -223,6 +243,9 @@ tester@example.com,Beta
 							t.Fatal(err)
 						}
 						args = append(args, "--input", input, "--confirm")
+						if skipExisting {
+							args = append(args, "--skip-existing", "--invite")
+						}
 					}
 					visible := scenario == "existing" || scenario == "duplicate"
 					member := scenario == "existing"
@@ -248,7 +271,7 @@ tester@example.com,Beta
 							}
 						case "POST /v1/betaTesters":
 							creates++
-							if scenario == "concurrent" {
+							if scenario == "concurrent" || skipExisting {
 								visible = true
 							}
 							w.WriteHeader(http.StatusConflict)
@@ -295,6 +318,16 @@ tester@example.com,Beta
 						wantCreates, wantWrites := 0, 0
 						if scenario == "concurrent" {
 							wantCreates, wantWrites = 1, 1
+						}
+						if skipExisting {
+							wantCreates = 1
+							var summary asc.BetaTestersImportSummary
+							if parseErr := json.Unmarshal([]byte(stdout), &summary); parseErr != nil {
+								t.Fatal(parseErr)
+							}
+							if summary.Existed != 1 || summary.Created != 0 || summary.Updated != 0 || summary.Invited != 0 || summary.Failed != 0 || membershipReads != 0 {
+								t.Fatalf("skip-existing receipt=%+v membershipReads=%d", summary, membershipReads)
+							}
 						}
 						if err != nil || creates != wantCreates || writes != wantWrites {
 							t.Fatalf("repeat %d: creates=%d writes=%d stdout=%s stderr=%s err=%v", attempt, creates, writes, stdout, stderr, err)

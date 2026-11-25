@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -61,7 +62,11 @@ func resolveBetaGroupIDs(ctx context.Context, client *asc.Client, appID, rawGrou
 		return nil, err
 	}
 	for groups.Links.Next != "" {
-		page, err := client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](groups.Links.Next))
+		canonical, err := client.ValidateNoRedirectReadContinuation(ctx, groups.Links.Next, "/v1/apps/"+url.PathEscape(appID)+"/betaGroups")
+		if err != nil {
+			return nil, err
+		}
+		page, err := client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](canonical))
 		if err != nil {
 			return nil, err
 		}

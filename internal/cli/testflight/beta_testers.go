@@ -425,6 +425,7 @@ Examples:
 				return d.UsageError(err.Error())
 			}
 
+			ctx = asc.WithNoRedirectReads(ctx)
 			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers add: %w", err)

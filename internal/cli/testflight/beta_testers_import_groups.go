@@ -30,21 +30,22 @@ func validateBetaTesterImportRows(d *shared.Deps, rows []betaTestersCSVRow) erro
 	return nil
 }
 
-func planBetaTesterImportGroups(resolver *betaGroupResolver, rows []betaTestersCSVRow, applied string, createMissing bool) ([]string, error) {
-	requested := []string{}
-	if applied != "" {
-		requested = append(requested, applied)
-	}
+func planBetaTesterImportGroups(resolver *betaGroupResolver, rows []betaTestersCSVRow, flagGroups []string, createMissing bool) ([]string, error) {
+	requested := append([]string(nil), flagGroups...)
 	for _, row := range rows {
 		requested = append(requested, row.groups...)
 	}
 	missing := map[string]string{}
-	for _, name := range requested {
+	for index, name := range requested {
 		name = strings.TrimSpace(name)
 		if name == "" {
 			continue
 		}
 		if _, err := resolver.Resolve(name); err != nil {
+			if ambiguous, ok := errors.AsType[*shared.AmbiguousSelectionError](err); ok && index >= len(flagGroups) {
+				ambiguous.Flag = ""
+				ambiguous.Hint = "Use one of these group IDs in the CSV groups column instead of the name."
+			}
 			if !createMissing || !errors.Is(err, errBetaGroupNotFound) {
 				return nil, err
 			}
@@ -107,6 +108,6 @@ func planBetaTesterAddGroups(resolver *betaGroupResolver, raw string) ([]string,
 			return nil, nil, fmt.Errorf("empty group name in --group value %q", raw)
 		}
 	}
-	missing, err := planBetaTesterImportGroups(resolver, []betaTestersCSVRow{{groups: requested}}, "", true)
+	missing, err := planBetaTesterImportGroups(resolver, nil, requested, true)
 	return requested, missing, err
 }

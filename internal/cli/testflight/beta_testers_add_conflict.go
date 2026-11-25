@@ -58,7 +58,7 @@ func resolveBetaTesterAddConflict(
 func reconcileBetaTesterRelationships(ctx context.Context, d *shared.Deps, client *asc.Client, tester *asc.BetaTesterResponse, groupIDs, buildIDs []string) (*betaTesterAddConflictOutcome, error) {
 	testerID := strings.TrimSpace(tester.Data.ID)
 
-	missingGroups, err := missingBetaTesterLinkages(ctx, d, groupIDs, func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
+	missingGroups, err := missingBetaTesterLinkages(ctx, d, client, groupIDs, "/v1/betaTesters/"+url.PathEscape(testerID)+"/relationships/betaGroups", func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
 		return client.GetBetaTesterBetaGroupsRelationships(ctx, testerID, opts...)
 	})
 	if err != nil {
@@ -66,18 +66,8 @@ func reconcileBetaTesterRelationships(ctx context.Context, d *shared.Deps, clien
 	}
 	var missingBuilds []string
 	for _, buildID := range uniqueSortedStrings(buildIDs) {
-		missing, err := missingBetaTesterLinkages(ctx, d, []string{testerID}, func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
-			response, err := client.GetBuildIndividualTestersRelationships(ctx, buildID, opts...)
-			if err != nil {
-				return nil, err
-			}
-			if next := response.Links.Next; next != "" {
-				parsed, err := url.Parse(next)
-				if err != nil || parsed.Path != "/v1/builds/"+buildID+"/relationships/individualTesters" {
-					return nil, fmt.Errorf("tester membership pagination changed the requested build")
-				}
-			}
-			return response, nil
+		missing, err := missingBetaTesterLinkages(ctx, d, client, []string{testerID}, "/v1/builds/"+url.PathEscape(buildID)+"/relationships/individualTesters", func(ctx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
+			return client.GetBuildIndividualTestersRelationships(ctx, buildID, opts...)
 		})
 		if err != nil {
 			return nil, fmt.Errorf("read testers of build %s: %w", buildID, err)
@@ -120,7 +110,9 @@ func reconcileBetaTesterRelationships(ctx context.Context, d *shared.Deps, clien
 func missingBetaTesterLinkages(
 	ctx context.Context,
 	d *shared.Deps,
+	client *asc.Client,
 	requested []string,
+	collectionPath string,
 	read func(context.Context, ...asc.LinkagesOption) (*asc.LinkagesResponse, error),
 ) ([]string, error) {
 	if len(requested) == 0 {
@@ -135,7 +127,11 @@ func missingBetaTesterLinkages(
 	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
-		return read(requestCtx, asc.NextURL[asc.LinkagesOption](nextURL))
+		canonical, err := client.ValidateNoRedirectReadContinuation(ctx, nextURL, collectionPath)
+		if err != nil {
+			return nil, err
+		}
+		return read(requestCtx, asc.NextURL[asc.LinkagesOption](canonical))
 	})
 	if err != nil {
 		return nil, err
