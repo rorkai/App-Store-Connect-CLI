@@ -193,19 +193,20 @@ Examples:
 			triggerSource := ""
 
 			if !hasSourceRunID {
+				proofCtx := asc.WithNoRedirectReads(requestCtx)
 				// Resolve workflow ID if needed.
 				if resolvedWorkflowID == "" {
-					resolvedAppID, err = resolveXcodeCloudAppID(requestCtx, client, appSelector)
+					resolvedAppID, err = resolveXcodeCloudAppID(proofCtx, client, appSelector)
 					if err != nil {
 						return fmt.Errorf("xcode-cloud run: %w", err)
 					}
 
-					product, err := client.ResolveCiProductForApp(requestCtx, resolvedAppID)
+					product, err := client.ResolveCiProductForApp(proofCtx, resolvedAppID)
 					if err != nil {
 						return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 					}
 
-					workflow, err := client.ResolveCiWorkflowByName(requestCtx, product.ID, strings.TrimSpace(*workflowName))
+					workflow, err := client.ResolveCiWorkflowByName(proofCtx, product.ID, strings.TrimSpace(*workflowName))
 					if err != nil {
 						return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 					}
@@ -219,12 +220,12 @@ Examples:
 				} else {
 					// Resolve git reference by name if needed.
 					if resolvedGitRefID == "" {
-						repo, err := client.GetCiWorkflowRepository(requestCtx, resolvedWorkflowID)
+						repo, err := client.GetCiWorkflowRepository(proofCtx, resolvedWorkflowID)
 						if err != nil {
 							return fmt.Errorf("xcode-cloud run: failed to get workflow repository: %w", err)
 						}
 
-						gitRef, err := client.ResolveGitReferenceByName(requestCtx, repo.ID, strings.TrimSpace(*branch))
+						gitRef, err := client.ResolveGitReferenceByName(proofCtx, repo.ID, strings.TrimSpace(*branch))
 						if err != nil {
 							return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud run: %w", err))
 						}
