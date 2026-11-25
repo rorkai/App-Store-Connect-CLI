@@ -61,6 +61,7 @@ GET /iris/v1/appStoreVersions/{id}/appStoreVersionStateChanges
 GET /iris/v1/appStoreVersions/{id}/resetRatingsRequest
 GET /iris/v1/appTaxCategories/{id}
 GET /iris/v1/apps
+GET /iris/v1/apps/{appId}/vietnamGameLicenseDetail
 GET /iris/v1/apps/{id}
 GET /iris/v1/apps/{id}/appAvailabilityV2
 GET /iris/v1/apps/{id}/appInfos
