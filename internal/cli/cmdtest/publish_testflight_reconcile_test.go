@@ -27,6 +27,8 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 	}{
 		{name: "submit", submit: true},
 		{name: "without submit"},
+		{name: "existing review rejected", submit: true, noNotify: true, failure: "rejected"},
+		{name: "missing export compliance", submit: true, noNotify: true, failure: "export compliance"},
 		{name: "mixed groups", submit: true, mixed: true},
 		{name: "mixed groups without submit", mixed: true},
 		{name: "without submit wrong app", wrongApp: true},
@@ -97,7 +99,9 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 						payload = `{"data":{"type":"builds","id":"123"}}`
 					}
 				case "GET /v1/builds/b1/betaAppReviewSubmission":
-					if submitted {
+					if ready && tc.failure == "rejected" {
+						payload = `{"data":{"type":"betaAppReviewSubmissions","id":"s1","attributes":{"betaReviewState":"REJECTED"}}}`
+					} else if submitted {
 						payload = `{"data":{"type":"betaAppReviewSubmissions","id":"s1"}}`
 					} else {
 						w.WriteHeader(404)
@@ -112,7 +116,9 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 				case "GET /v1/betaAppReviewDetails":
 					payload = `{"data":[{"type":"betaAppReviewDetails","id":"d1","attributes":{"contactFirstName":"Dev","contactLastName":"Tester","contactPhone":"+1 408 555 0100","contactEmail":"test@example.com"}}]}`
 				case "GET /v1/builds/b1/buildBetaDetail":
-					if strings.HasPrefix(tc.failure, "read") {
+					if ready && tc.failure == "export compliance" {
+						payload = `{"data":{"type":"buildBetaDetails","id":"bd1","attributes":{"externalBuildState":"MISSING_EXPORT_COMPLIANCE"}}}`
+					} else if strings.HasPrefix(tc.failure, "read") {
 						w.WriteHeader(http.StatusForbidden)
 						payload = `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Notification settings unavailable"}]}`
 					} else {
@@ -252,6 +258,22 @@ func TestPublishTestflightPreflightsAndReconcilesExternalRelease(t *testing.T) {
 			}
 			ready = true
 			stdout, stderr, err := run()
+			if tc.failure == "rejected" || tc.failure == "export compliance" {
+				var receipt asc.TestFlightPublishResult
+				if err == nil || writes != 0 || json.Unmarshal([]byte(stdout), &receipt) != nil || receipt.Status != "failed" || receipt.FailureStage != "beta_review_submission" {
+					t.Fatalf("writes=%d stdout=%s stderr=%s err=%v", writes, stdout, stderr, err)
+				}
+				want := []string{"rejected"}
+				if tc.failure == "export compliance" {
+					want = []string{`asc builds update --build-id "b1" --uses-non-exempt-encryption=false`, `asc encryption declarations assign-builds --id "DECLARATION_ID" --build-id "b1"`}
+				}
+				for _, hint := range want {
+					if !strings.Contains(err.Error()+stderr, hint) {
+						t.Fatalf("missing diagnostic %q: stderr=%s err=%v", hint, stderr, err)
+					}
+				}
+				return
+			}
 			if tc.wrongApp || tc.wrongOwnerType {
 				if err == nil || writes != 0 || buildReads != 0 || ownerReads != 1 || !strings.Contains(err.Error()+stderr, "does not belong to app 123") {
 					t.Fatalf("wrong-app writes=%d stdout=%s stderr=%s err=%v", writes, stdout, stderr, err)

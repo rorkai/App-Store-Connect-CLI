@@ -102,10 +102,8 @@ func describeMissingBetaReviewInfo(ctx context.Context, client betaReviewReadine
 	}
 	if externalState == externalBetaStateMissingExportCompliance {
 		missing = append(missing, "export compliance for build "+buildID)
-		fixes = append(fixes,
-			fmt.Sprintf("asc builds update --build-id %q --uses-non-exempt-encryption=false", buildID),
-			fmt.Sprintf("(or, if the app uses non-exempt encryption: asc encryption declarations assign-builds --id \"DECLARATION_ID\" --build-id %q)", buildID),
-		)
+		exempt, nonExempt := betaReviewExportComplianceCommands(buildID)
+		fixes = append(fixes, exempt, "(or, if the app uses non-exempt encryption: "+nonExempt+")")
 	}
 	if len(missing) == 0 {
 		if externalState == externalBetaStateReadyForBetaSubmission && len(details.Data) > 0 && betaReviewErrorNamesNoReason(apiErr) {
@@ -237,7 +235,7 @@ func CheckBuildBetaReviewReadiness(ctx context.Context, client buildBetaReviewSu
 		if submission == nil || submission.Data.Type != "betaAppReviewSubmissions" || strings.TrimSpace(submission.Data.ID) == "" {
 			return fmt.Errorf("beta review submission response is missing its ID")
 		}
-		return nil
+		return checkBetaReviewSubmissionState(buildID, submission.Data.Attributes.BetaReviewState)
 	}
 	if !asc.IsNotFound(err) {
 		return fmt.Errorf("read beta review submission: %w", err)
@@ -293,6 +291,8 @@ func CheckBuildBetaReviewReadiness(ctx context.Context, client buildBetaReviewSu
 	}
 	if beta != nil && strings.EqualFold(strings.TrimSpace(beta.Data.Attributes.ExternalBuildState), externalBetaStateMissingExportCompliance) {
 		missing = append(missing, "export compliance")
+		exempt, nonExempt := betaReviewExportComplianceCommands(buildID)
+		fixes = append(fixes, exempt+" or, if the app uses non-exempt encryption, "+nonExempt)
 	}
 	if len(missing) > 0 {
 		message := fmt.Sprintf("external testing requires %s before groups can be assigned or testers notified", strings.Join(missing, ", "))
@@ -302,6 +302,11 @@ func CheckBuildBetaReviewReadiness(ctx context.Context, client buildBetaReviewSu
 		return WithDiagnostic(NewValidationError(errors.New(message)), DiagnosticStateNotReady, "")
 	}
 	return nil
+}
+
+func betaReviewExportComplianceCommands(buildID string) (exempt, nonExempt string) {
+	return fmt.Sprintf("asc builds update --build-id %q --uses-non-exempt-encryption=false", buildID),
+		fmt.Sprintf("asc encryption declarations assign-builds --id \"DECLARATION_ID\" --build-id %q", buildID)
 }
 
 func validateBetaReviewLocalizationPage(page *asc.BetaAppLocalizationsResponse) error {
