@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -267,6 +268,75 @@ func TestSubscriptionPriceCalculationsPreserveEmptyResponseArrays(t *testing.T) 
 			}
 			if !reflect.DeepEqual(got.Data.Attributes, want.Data.Attributes) {
 				t.Fatalf("attributes=%v want=%v", got.Data.Attributes, want.Data.Attributes)
+			}
+		})
+	}
+}
+
+func TestSubscriptionPriceTierPaginationKeepsSelectedOperation(t *testing.T) {
+	const tierPath = "/v1/subscriptionPriceTiers"
+	const relatedPath = "/v1/subscriptionPrices/price-1/additionalPriceTiers"
+	const linksPath = "/v1/subscriptionPrices/price-1/relationships/additionalPriceTiers"
+	for _, tc := range []struct {
+		name, path, next string
+		subscription     string
+		args             []string
+		redirectAt       int
+		wantRequests     int
+		wantError        bool
+	}{
+		{name: "list collection drift", path: tierPath, next: "/v1/subscriptions?cursor=foreign", args: []string{"price-tiers", "list", "--subscription-id", "8000000001", "--paginate"}, wantRequests: 1, wantError: true},
+		{name: "list filter drift", path: tierPath, next: tierPath + "?filter%5Bsubscription%5D=8000000002&cursor=foreign", args: []string{"price-tiers", "list", "--subscription-id", "8000000001", "--paginate"}, wantRequests: 1, wantError: true},
+		{name: "manual list filter drift", path: tierPath, next: tierPath + "?filter%5Bsubscription%5D=8000000002&cursor=foreign", args: []string{"price-tiers", "list", "--next", "https://api.appstoreconnect.apple.com" + tierPath + "?filter%5Bsubscription%5D=8000000001&cursor=first", "--paginate"}, wantRequests: 1, wantError: true},
+		{name: "related price drift", path: relatedPath, next: "/v1/subscriptionPrices/price-2/additionalPriceTiers?cursor=foreign", args: []string{"prices", "additional-price-tiers", "--price-id", "price-1", "--paginate"}, wantRequests: 1, wantError: true},
+		{name: "relationship price drift", path: linksPath, next: "/v1/subscriptionPrices/price-2/relationships/additionalPriceTiers?cursor=foreign", args: []string{"prices", "additional-price-tiers-links", "--price-id", "price-1", "--paginate"}, wantRequests: 1, wantError: true},
+		{name: "related collection drift", path: relatedPath, next: linksPath + "?cursor=foreign", args: []string{"prices", "additional-price-tiers", "--price-id", "price-1", "--paginate"}, wantRequests: 1, wantError: true},
+		{name: "manual absolute related cursor", path: relatedPath, args: []string{"prices", "additional-price-tiers", "--next", "https://api.appstoreconnect.apple.com" + relatedPath + "?cursor=first"}, wantRequests: 1},
+		{name: "manual absolute relationship cursor", path: linksPath, args: []string{"prices", "additional-price-tiers-links", "--next", "https://api.appstoreconnect.apple.com" + linksPath + "?cursor=first"}, wantRequests: 1},
+		{name: "manual list wrong operation", path: tierPath, args: []string{"price-tiers", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptions?cursor=foreign"}, wantError: true},
+		{name: "manual related wrong operation", path: relatedPath, args: []string{"prices", "additional-price-tiers", "--next", "https://api.appstoreconnect.apple.com" + linksPath + "?cursor=foreign"}, wantError: true},
+		{name: "manual encoded collection alias", path: relatedPath, args: []string{"prices", "additional-price-tiers", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionPrices/price-1%2Frelationships/additionalPriceTiers?cursor=foreign"}, wantError: true},
+		{name: "manual cursor pagination drift", path: linksPath, next: "/v1/subscriptionPrices/price-2/relationships/additionalPriceTiers?cursor=foreign", args: []string{"prices", "additional-price-tiers-links", "--next", "https://api.appstoreconnect.apple.com" + linksPath + "?cursor=first", "--paginate"}, wantRequests: 1, wantError: true},
+		{name: "initial redirect drift", path: relatedPath, redirectAt: 1, args: []string{"prices", "additional-price-tiers", "--price-id", "price-1"}, wantRequests: 1, wantError: true},
+		{name: "continuation redirect drift", path: linksPath, next: linksPath + "?cursor=second", redirectAt: 2, args: []string{"prices", "additional-price-tiers-links", "--price-id", "price-1", "--paginate"}, wantRequests: 2, wantError: true},
+		{name: "manual list opaque cursor", path: tierPath, next: tierPath + "?cursor=second", subscription: "8000000001", args: []string{"price-tiers", "list", "--next", "https://api.appstoreconnect.apple.com" + tierPath + "?filter%5Bsubscription%5D=8000000001&cursor=first", "--paginate"}, wantRequests: 2},
+		{name: "related valid pagination", path: relatedPath, next: relatedPath + "?cursor=second", args: []string{"prices", "additional-price-tiers", "--price-id", "price-1", "--paginate"}, wantRequests: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setupAuth(t)
+			requests := 0
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				if req.Method != http.MethodGet || req.URL.Path != tc.path {
+					t.Errorf("request left selected operation: %s %s", req.Method, req.URL)
+				}
+				if tc.subscription != "" && req.URL.Query().Get("filter[subscription]") != tc.subscription {
+					t.Errorf("pagination dropped manual subscription scope: %s", req.URL)
+				}
+				if requests == tc.redirectAt {
+					return &http.Response{StatusCode: http.StatusFound, Header: http.Header{"Location": {"https://api.appstoreconnect.apple.com/v1/subscriptions?cursor=redirect"}}, Body: http.NoBody}, nil
+				}
+				next := ""
+				if requests == 1 {
+					next = tc.next
+				}
+				return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPriceTiers","id":`+strconv.Quote("tier-"+strconv.Itoa(requests))+`}],"links":{"next":`+strconv.Quote(next)+`}}`)
+			}))
+			args := append([]string{"subscriptions", "pricing"}, tc.args...)
+			args = append(args, "--output", "json")
+			stdout, stderr, err := runCommand(t, args)
+			if (err != nil) != tc.wantError || requests != tc.wantRequests {
+				t.Fatalf("requests=%d want=%d stdout=%q stderr=%q err=%v", requests, tc.wantRequests, stdout, stderr, err)
+			}
+			if tc.wantError {
+				if stdout != "" {
+					t.Fatalf("failed pagination printed partial output: %q", stdout)
+				}
+				return
+			}
+			var result struct{ Data []json.RawMessage }
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil || len(result.Data) != tc.wantRequests {
+				t.Fatalf("output=%q error=%v", stdout, err)
 			}
 		})
 	}
