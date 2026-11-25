@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"cmp"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -65,6 +66,7 @@ func TestRunScreenshotsReplaceRetainsVerifiedFiles(t *testing.T) {
 		{name: "missing deletion consent", state: "COMPLETE", noConfirm: true, wantCode: -1, wantError: "--confirm is required"},
 		{name: "inventory changed before delete", state: "COMPLETE", stale: true, wantCode: cmd.ExitError, wantError: "changed before replacement deletion"},
 		{name: "processing", state: "UPLOAD_COMPLETE", wantCode: cmd.ExitError},
+		{name: "awaiting reservation", state: "AWAITING_UPLOAD", checksum: "missing", wantCode: cmd.ExitError, wantError: "asc screenshots delete --id kept --confirm"},
 		{name: "checksum unavailable", state: "COMPLETE", checksum: "missing", wantCode: cmd.ExitError},
 		{name: "unverified membership", state: "COMPLETE", foreignOrder: true, wantCode: cmd.ExitError},
 	} {
@@ -188,7 +190,11 @@ func TestRunScreenshotsReplaceRequiresFreshConfirmationAfterFailure(t *testing.T
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
 			data := make([]map[string]any, 0, len(order))
 			for _, id := range order {
-				data = append(data, map[string]any{"type": "appScreenshots", "id": id, "attributes": map[string]any{"fileName": id + ".png", "sourceFileChecksum": checksums[id], "assetDeliveryState": map[string]string{"state": "COMPLETE"}}})
+				state := "COMPLETE"
+				if id == "old-failed" {
+					state = "FAILED"
+				}
+				data = append(data, map[string]any{"type": "appScreenshots", "id": id, "attributes": map[string]any{"fileName": id + ".png", "sourceFileChecksum": checksums[id], "assetDeliveryState": map[string]string{"state": state}}})
 			}
 			body, err := json.Marshal(map[string]any{"data": data})
 			if err != nil {
@@ -297,6 +303,18 @@ func TestRunScreenshotsReplaceRequiresFreshConfirmationAfterFailure(t *testing.T
 		t.Fatalf("receipt deletion: code=%d writes=%v stderr=%s", code, writes, stderr)
 	}
 	preview := slices.Replace(slices.Clone(args), slices.Index(args, "--confirm"), slices.Index(args, "--confirm")+1, "--dry-run")
+	order = append(order, "old-failed")
+	code, _, stderr = run(preview...)
+	if code == 0 || len(writes) != writeCount || !strings.Contains(stderr, "asc screenshots list --set-id set-1") || !strings.Contains(stderr, "asc screenshots delete --id old-failed --confirm") {
+		t.Fatalf("failed reservation: code=%d writes=%v stderr=%s", code, writes, stderr)
+	}
+	_, stderr = captureOutput(t, func() {
+		code = cmd.Run([]string{"screenshots", "delete", "--id", "old-failed", "--confirm"}, "test")
+	})
+	if code != 0 {
+		t.Fatalf("delete failed reservation: code=%d stderr=%s", code, stderr)
+	}
+	writeCount++
 	code, _, stderr = run(preview...)
 	if code != 0 || len(writes) != writeCount {
 		t.Fatalf("fresh preview: code=%d writes=%v stderr=%s", code, writes, stderr)
@@ -305,7 +323,7 @@ func TestRunScreenshotsReplaceRequiresFreshConfirmationAfterFailure(t *testing.T
 	if code != 0 || !reflect.DeepEqual(order, []string{"kept-1", "kept-2"}) {
 		t.Fatalf("fresh replacement: code=%d order=%v stderr=%s", code, order, stderr)
 	}
-	wantWrites := []string{"DELETE /v1/appScreenshots/old-a", "DELETE /v1/appScreenshots/old-b", "DELETE /v1/appScreenshots/old-b", "PATCH /v1/appScreenshotSets/set-1/relationships/appScreenshots"}
+	wantWrites := []string{"DELETE /v1/appScreenshots/old-a", "DELETE /v1/appScreenshots/old-b", "DELETE /v1/appScreenshots/old-failed", "DELETE /v1/appScreenshots/old-b", "PATCH /v1/appScreenshotSets/set-1/relationships/appScreenshots"}
 	if !reflect.DeepEqual(writes, wantWrites) {
 		t.Fatalf("writes=%v want=%v", writes, wantWrites)
 	}
@@ -317,7 +335,7 @@ func TestRunScreenshotsReplaceRequiresFreshConfirmationAfterFailure(t *testing.T
 
 func TestRunScreenshotsReplaceResumeReconcilesSurvivorsAndLegacyScope(t *testing.T) {
 	for _, tc := range []struct {
-		name, kind, state                                  string
+		name, kind, state, recordedState                   string
 		legacy, wrongSet, foreign, missingScope, orderOnly bool
 		mismatch, missingChecksum                          bool
 		wantError                                          string
@@ -328,8 +346,10 @@ func TestRunScreenshotsReplaceResumeReconcilesSurvivorsAndLegacyScope(t *testing
 		{name: "cleanup checksum missing", kind: "cleanupFailures", missingChecksum: true, wantError: "requires COMPLETE assets with source checksums"},
 		{name: "cleanup still processing", kind: "cleanupFailures", state: "UPLOAD_COMPLETE", wantError: "still processing"},
 		{name: "legacy complete cleanup", kind: "cleanupFailures", legacy: true},
-		{name: "legacy failed cleanup", kind: "cleanupFailures", legacy: true, state: "FAILED", wantError: "receipts do not authorize screenshot deletion"},
-		{name: "failed pending reservation", kind: "pendingAssets", state: "FAILED", wantError: "receipts do not authorize screenshot deletion"},
+		{name: "legacy failed cleanup", kind: "cleanupFailures", legacy: true, state: "FAILED", wantError: "asc screenshots delete --id kept --confirm"},
+		{name: "failed pending reservation", kind: "pendingAssets", state: "FAILED", wantError: "asc screenshots delete --id kept --confirm"},
+		{name: "awaiting cleanup", kind: "cleanupFailures", state: "AWAITING_UPLOAD", wantError: "asc screenshots delete --id kept --confirm"},
+		{name: "stale pending reservation", kind: "pendingAssets", state: "AWAITING_UPLOAD", recordedState: "AWAITING_UPLOAD", wantError: "asc screenshots delete --id kept --confirm"},
 		{name: "legacy wrong set", kind: "cleanupFailures", legacy: true, wrongSet: true, wantError: "selected localization and device"},
 		{name: "legacy new member", kind: "cleanupFailures", legacy: true, foreign: true, wantError: "live screenshot membership differs"},
 		{name: "legacy missing scope", kind: "cleanupFailures", legacy: true, missingScope: true, wantError: "cannot verify"},
@@ -366,7 +386,7 @@ func TestRunScreenshotsReplaceResumeReconcilesSurvivorsAndLegacyScope(t *testing
 				artifact["replacement"] = map[string]any{"checksums": map[string]string{file: checksum}}
 			}
 			if tc.kind != "" {
-				artifact[tc.kind] = []map[string]string{{"assetId": "kept", "filePath": file, "fileName": "01-home.png", "state": "COMPLETE"}}
+				artifact[tc.kind] = []map[string]string{{"assetId": "kept", "filePath": file, "fileName": "01-home.png", "state": cmp.Or(tc.recordedState, "COMPLETE")}}
 			}
 			if tc.missingScope {
 				delete(artifact, "versionLocalizationId")
@@ -439,6 +459,12 @@ func TestRunScreenshotsReplaceResumeReconcilesSurvivorsAndLegacyScope(t *testing
 			if tc.wantError != "" {
 				if code == 0 || len(writes) != 0 || !strings.Contains(stderr, tc.wantError) {
 					t.Fatalf("exit=%d writes=%v stderr=%s", code, writes, stderr)
+				}
+				if tc.name == "failed pending reservation" {
+					var receipt asc.AppScreenshotUploadResult
+					if err := json.Unmarshal([]byte(stdout), &receipt); err != nil || !receipt.Resumed || receipt.FailureArtifactPath != artifactPath || receipt.SetID != "set-1" || len(receipt.Failures) != 1 {
+						t.Fatalf("missing blocked resume receipt: %v, stdout=%s", err, stdout)
+					}
 				}
 				return
 			}
