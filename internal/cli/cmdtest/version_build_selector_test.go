@@ -140,6 +140,112 @@ func TestVersionsAttachBuildByBuildNumberResolvesVersionAndBuild(t *testing.T) {
 	}
 }
 
+func TestVersionsAttachBuildDiscoveredVersionUsesOwnedTypedProof(t *testing.T) {
+	transport := &versionTrainTransport{t: t, platform: "IOS", builds: func(req *http.Request) string {
+		return buildsCollection("build-45", "45", "VALID")
+	}}
+	code, stdout, stderr := runVersionBuildSelector(t, transport,
+		"versions", "attach-build", "--app", "123456789", "--version", "1.2.0", "--build-number", "45", "--output", "json")
+	if code != rootcmd.ExitSuccess || stdout == "" || stderr == "" {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	requests := strings.Join(transport.requests, ",")
+	if !strings.Contains(requests, "GET /v1/apps/123456789/appStoreVersions") || !strings.Contains(requests, "GET /v1/appStoreVersions/version-1") {
+		t.Fatalf("discovered version was not revalidated by ID: %s", requests)
+	}
+}
+
+func TestVersionsAttachBuildDiscoveredVersionRejectsUntrustedCandidate(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{
+			name: "foreign app",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"987654321"}}}}}`,
+			want: `belongs to app "987654321", not "123456789"`,
+		},
+		{
+			name: "version string drift",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"9.9.9","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `returned version string "9.9.9", not requested "1.2.0"`,
+		},
+		{
+			name: "platform drift",
+			body: `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"MAC_OS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`,
+			want: `is on platform "MAC_OS", not "IOS"`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+			requests := 0
+			flow := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				switch requests {
+				case 1:
+					if req.URL.Path != "/v1/apps/123456789/appStoreVersions" {
+						t.Fatalf("unexpected discovery request: %s", req.URL.RequestURI())
+					}
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.0","platform":"IOS"}}]}`)
+				case 2:
+					if req.URL.Path != "/v1/appStoreVersions/version-1" {
+						t.Fatalf("unexpected ownership request: %s", req.URL.RequestURI())
+					}
+					return jsonResponse(http.StatusOK, test.body)
+				default:
+					t.Fatalf("candidate rejection sent downstream request %d: %s %s", requests, req.Method, req.URL.RequestURI())
+					return nil, nil
+				}
+			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, flow), "versions", "attach-build", "--app", "123456789", "--version", "1.2.0", "--build-number", "45", "--output", "json")
+			if code == rootcmd.ExitSuccess || stdout != "" || !strings.Contains(stderr, test.want) || requests != 2 {
+				t.Fatalf("exit=%d stdout=%q stderr=%q requests=%d, want %q", code, stdout, stderr, requests, test.want)
+			}
+		})
+	}
+}
+
+func TestVersionsAttachBuildRejectsInvalidFinalBuildProof(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(string) string
+		want   string
+	}{
+		{
+			name: "internal audience",
+			mutate: func(body string) string {
+				return strings.Replace(body, `"processingState":"VALID"`, `"processingState":"VALID","buildAudienceType":"INTERNAL_ONLY"`, 1)
+			},
+			want: "INTERNAL_ONLY",
+		},
+		{
+			name: "not valid",
+			mutate: func(body string) string {
+				return strings.Replace(body, `"processingState":"VALID"`, `"processingState":"PROCESSING"`, 1)
+			},
+			want: "is still processing; add --wait",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			transport := &versionTrainTransport{t: t, platform: "IOS", builds: func(req *http.Request) string {
+				return buildsCollection("build-46", "46", "VALID")
+			}}
+			wrapped := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-46" {
+					return jsonResponse(http.StatusOK, test.mutate(buildScopeProof("build-46", "IOS")))
+				}
+				return transport.RoundTrip(req)
+			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, wrapped), "versions", "attach-build", "--version-id", "version-1", "--latest", "--output", "json")
+			if code == rootcmd.ExitSuccess || stdout != "" || !strings.Contains(stderr, test.want) || len(transport.attached) != 0 {
+				t.Fatalf("exit=%d stdout=%q stderr=%q attached=%v, want %q", code, stdout, stderr, transport.attached, test.want)
+			}
+		})
+	}
+}
+
 func TestVersionsAttachBuildLatestUsesTrainOfVersionID(t *testing.T) {
 	transport := &versionTrainTransport{t: t, platform: "MAC_OS", builds: func(req *http.Request) string {
 		query := req.URL.Query()

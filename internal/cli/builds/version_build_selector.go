@@ -129,7 +129,7 @@ func (s *VersionBuildSelector) Resolve(ctx context.Context, client *asc.Client, 
 			return "", err
 		}
 		reportSelectedVersionBuild(s.d.IO.ErrOut, buildResp, selector)
-		if err := requireValidBuild(buildResp); err != nil {
+		if err := RequireValidBuild(buildResp); err != nil {
 			return "", err
 		}
 		return strings.TrimSpace(buildResp.Data.ID), nil
@@ -191,7 +191,9 @@ func reportSelectedVersionBuild(stderr io.Writer, buildResp *asc.BuildResponse, 
 	)
 }
 
-func requireValidBuild(buildResp *asc.BuildResponse) error {
+// RequireValidBuild verifies that an attach candidate is App Store eligible
+// and has reached the documented VALID processing state.
+func RequireValidBuild(buildResp *asc.BuildResponse) error {
 	if err := shared.RequireAppStoreBuildAudience(buildResp); err != nil {
 		return err
 	}

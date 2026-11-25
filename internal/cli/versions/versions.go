@@ -1126,7 +1126,22 @@ func resolveAttachBuildVersion(ctx context.Context, d *shared.Deps, client *asc.
 		if err != nil {
 			return "", builds.VersionBuildScope{}, err
 		}
-		return versionID, builds.VersionBuildScope{AppID: appID, Version: version, Platform: platform}, nil
+		versionData, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, appID, versionID, platform)
+		if err != nil {
+			return "", builds.VersionBuildScope{}, err
+		}
+		resolvedVersion := strings.TrimSpace(versionData.Attributes.VersionString)
+		if resolvedVersion == "" {
+			return "", builds.VersionBuildScope{}, fmt.Errorf("discovered app store version %q has no version string", versionID)
+		}
+		if resolvedVersion != strings.TrimSpace(version) {
+			return "", builds.VersionBuildScope{}, fmt.Errorf("discovered app store version %q returned version string %q, not requested %q", versionID, resolvedVersion, strings.TrimSpace(version))
+		}
+		resolvedPlatform, err := shared.NormalizeAppStoreVersionPlatform(string(versionData.Attributes.Platform))
+		if err != nil {
+			return "", builds.VersionBuildScope{}, fmt.Errorf("discovered app store version %q has invalid platform: %w", versionID, err)
+		}
+		return versionID, builds.VersionBuildScope{AppID: appID, Version: resolvedVersion, Platform: resolvedPlatform}, nil
 	}
 
 	var versionData asc.Resource[asc.AppStoreVersionAttributes]
@@ -1206,6 +1221,9 @@ func validateAttachBuildScope(ctx context.Context, client *asc.Client, buildID s
 	}
 	if strings.TrimSpace(resp.Data.ID) != strings.TrimSpace(buildID) {
 		return fmt.Errorf("build proof returned ID %q, not %q", resp.Data.ID, buildID)
+	}
+	if err := builds.RequireValidBuild(&asc.BuildResponse{Data: resp.Data}); err != nil {
+		return err
 	}
 
 	var relationships attachBuildScopeRelationships
