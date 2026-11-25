@@ -460,6 +460,12 @@ func TestRunScreenshotsReplaceResumeReconcilesSurvivorsAndLegacyScope(t *testing
 				if code == 0 || len(writes) != 0 || !strings.Contains(stderr, tc.wantError) {
 					t.Fatalf("exit=%d writes=%v stderr=%s", code, writes, stderr)
 				}
+				if tc.name == "failed pending reservation" {
+					var receipt asc.AppScreenshotUploadResult
+					if err := json.Unmarshal([]byte(stdout), &receipt); err != nil || !receipt.Resumed || receipt.FailureArtifactPath != artifactPath || receipt.SetID != "set-1" || len(receipt.Failures) != 1 {
+						t.Fatalf("missing blocked resume receipt: %v, stdout=%s", err, stdout)
+					}
+				}
 				return
 			}
 			if code != 0 || (!tc.orderOnly && len(writes) != 0) {

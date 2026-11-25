@@ -265,7 +265,18 @@ func executeScreenshotReplacement(ctx context.Context, cfg screenshotUploadConfi
 			}
 		}
 		if state == "FAILED" || state == "AWAITING_UPLOAD" {
-			return asc.AppScreenshotUploadResult{}, screenshotReservationRecoveryError(set.ID, item.ID, state)
+			err := screenshotReservationRecoveryError(set.ID, item.ID, state)
+			if previous == nil {
+				return asc.AppScreenshotUploadResult{}, err
+			}
+			result := buildAppScreenshotUploadResult(cfg.LocalizationID, set, false, previous.Results)
+			result.Resumed = true
+			result.Pending = len(previous.PendingFiles)
+			result.Total = len(result.Results) + result.Pending
+			result.FailureArtifactPath = artifactPath
+			result.Failures = []asc.AssetUploadFailureItem{{FileName: item.Attributes.FileName, Error: err.Error()}}
+			finalizeAppScreenshotUploadResult(&result)
+			return result, err
 		}
 		checksum, valid := replacementChecksum(item.Attributes.SourceFileChecksum)
 		if !valid || state != "COMPLETE" {
