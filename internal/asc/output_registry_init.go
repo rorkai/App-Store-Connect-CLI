@@ -34,6 +34,7 @@ func registerAllOutputRenderers() {
 	registerDirect(webAgreementsStatusTables)
 	registerRows(webAgreementsAcceptRows)
 	registerRows(webBusinessAgreementAcceptRows)
+	registerRows(webDSAStatusRows)
 	registerRows(webAgreementDownloadRows)
 	registerRows(webTransactionTaxDownloadRows)
 	registerRows(webAppDeleteRows)

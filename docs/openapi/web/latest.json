@@ -9913,6 +9913,48 @@
           "Client.GetDeveloperWebsitePushID"
         ]
       }
+    },
+    "/v1/accounts/{accountId}/sellerInfo": {
+      "parameters": [
+        {
+          "name": "accountId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          },
+          "style": "simple"
+        }
+      ],
+      "get": {
+        "tags": [
+          "DSASellerInfo"
+        ],
+        "operationId": "accounts_sellerInfo_getRelated",
+        "description": "Reads the selected account trader declaration and seller verification states. The CLI summarizes these fields and omits account, seller, contact, and address identifiers.",
+        "responses": {
+          "2XX": {
+            "description": "Success. The schema lists the fields the client reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DSASellerInfoResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error. Status diagnostics omit the response body."
+          }
+        },
+        "x-asc-observed": {
+          "code": "2026-11-25",
+          "live": "2026-11-25"
+        },
+        "x-asc-source": [
+          "Client.GetDSAStatus"
+        ]
+      }
     }
   },
   "components": {
@@ -16082,6 +16124,37 @@
       "CustomAppUsersResponse": {
         "type": "object",
         "title": "CustomAppUsersResponse",
+        "additionalProperties": true
+      },
+      "DSASellerInfoResponse": {
+        "type": "object",
+        "required": [
+          "traderDeclaration"
+        ],
+        "properties": {
+          "accountId": {
+            "type": "string"
+          },
+          "traderDeclaration": {
+            "type": "string"
+          },
+          "sellerInfo": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "verificationStatus": {
+                  "type": "string"
+                },
+                "isEuCovered": {
+                  "type": "boolean",
+                  "nullable": true
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
         "additionalProperties": true
       },
       "DeleteAppRequest": {
