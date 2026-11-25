@@ -132,7 +132,7 @@ Examples:
 
 			var versionIDValue, versionStateValue string
 			if versionValue == "" {
-				resolved, err := d.ResolveAndAnnounceDefaultAppStoreVersion(requestCtx, client, resolvedAppID, platformValue, "--version")
+				resolved, err := d.ResolveAndAnnounceDefaultAppStoreVersion(asc.WithNoRedirectReads(requestCtx), client, resolvedAppID, platformValue, "--version")
 				if err != nil {
 					if errors.Is(err, flag.ErrHelp) {
 						return err
@@ -170,6 +170,7 @@ Examples:
 			var appInfoIDValue string
 			var appInfoItems []asc.Resource[asc.AppInfoLocalizationAttributes]
 			var versionItems []asc.Resource[asc.AppStoreVersionLocalizationAttributes]
+			var previewVersionItems []asc.Resource[asc.AppStoreVersionLocalizationAttributes]
 			settingScopes := selectedMetadataSettingScopes(includes)
 			if includesScope(includes, includeLocalizations) || metadataSettingsNeedAppInfo(settingScopes) {
 				appInfoIDValue, err = resolveMetadataPullAppInfoID(
@@ -189,6 +190,11 @@ Examples:
 			}
 			if includesScope(includes, includeLocalizations) {
 				appInfoItems, versionItems, err = fetchMetadataLocalizations(ctx, d, client, appInfoIDValue, versionIDValue, true, true)
+				if err != nil {
+					return fmt.Errorf("metadata pull: %w", err)
+				}
+			} else if includesScope(includes, "previews") {
+				previewVersionItems, err = fetchVersionLocalizations(ctx, d, client, versionIDValue)
 				if err != nil {
 					return fmt.Errorf("metadata pull: %w", err)
 				}
@@ -254,6 +260,8 @@ Examples:
 			var assetWarnings []string
 			if includesScope(includes, includeLocalizations) {
 				assetFiles, assetWarnings, err = storeassets.ExportPlanWithVersionLocalizations(ctx, d, client, versionIDValue, ".", includesScope(includes, "app-clip"), includesScope(includes, "previews"), versionItems)
+			} else if includesScope(includes, "previews") {
+				assetFiles, assetWarnings, err = storeassets.ExportPlanWithVersionLocalizations(ctx, d, client, versionIDValue, ".", includesScope(includes, "app-clip"), true, previewVersionItems)
 			} else {
 				assetFiles, assetWarnings, err = storeassets.ExportPlan(ctx, d, client, versionIDValue, ".", includesScope(includes, "app-clip"), includesScope(includes, "previews"))
 			}

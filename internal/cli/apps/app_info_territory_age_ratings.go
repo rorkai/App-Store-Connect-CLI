@@ -185,7 +185,7 @@ func territoryAgeRatingsScopedURL(nextValue string) (string, string, error) {
 	}
 	parts := strings.Split(parsed.Path, "/")
 	if len(parts) != 5 || parts[0] != "" || parts[1] != "v1" || parts[2] != "appInfos" || parts[4] != "territoryAgeRatings" {
-		return "", "", fmt.Errorf("--next must target /v1/appInfos/{id}/territoryAgeRatings when --app is selected")
+		return "", "", fmt.Errorf("--next must target /v1/appInfos/{id}/territoryAgeRatings")
 	}
 	appInfoID := parts[3]
 	if appInfoID == "" || appInfoID == "." || appInfoID == ".." || strings.Contains(appInfoID, "%") {

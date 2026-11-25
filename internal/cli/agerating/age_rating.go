@@ -471,6 +471,9 @@ func resolveAgeRatingDeclarationID(ctx context.Context, d *shared.Deps, client *
 	if err != nil {
 		return "", err
 	}
+	if resp.Data.Type != asc.ResourceTypeAgeRatingDeclarations {
+		return "", fmt.Errorf("expected age rating declaration, got resource type %q", resp.Data.Type)
+	}
 	id := strings.TrimSpace(resp.Data.ID)
 	if id == "" {
 		return "", fmt.Errorf("age rating declaration id is empty")
