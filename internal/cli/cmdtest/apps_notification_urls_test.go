@@ -25,6 +25,8 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 		{"sandbox with metadata", []string{"--sandbox-subscription-status-url", "https://example.com/sandbox?source=apple", "--primary-locale", "en-GB"}, map[string]any{"subscriptionStatusUrlForSandbox": "https://example.com/sandbox?source=apple", "subscriptionStatusUrlVersionForSandbox": "V2", "primaryLocale": "en-GB"}},
 		{"ordinary metadata leaves endpoints unchanged", []string{"--bundle-id", "com.example.app", "--content-rights", "DOES_NOT_USE_THIRD_PARTY_CONTENT"}, map[string]any{"bundleId": "com.example.app", "contentRightsDeclaration": "DOES_NOT_USE_THIRD_PARTY_CONTENT"}},
 		{"accessibility URL", []string{"--accessibility-url", "http://example.com/accessibility"}, map[string]any{"accessibilityUrl": "http://example.com/accessibility"}},
+		{"group purchase apple hosted", []string{"--group-purchase-invitation-mode", "APPLE_HOSTED"}, map[string]any{"groupPurchaseInvitationMode": "APPLE_HOSTED"}},
+		{"group purchase developer hosted", []string{"--group-purchase-invitation-mode", " developer_hosted "}, map[string]any{"groupPurchaseInvitationMode": "DEVELOPER_HOSTED"}},
 		{"streamlined purchasing on", []string{"--streamlined-purchasing-enabled", "true"}, map[string]any{"streamlinedPurchasingEnabled": true}},
 		{"streamlined purchasing explicit false", []string{"--streamlined-purchasing-enabled", "false"}, map[string]any{"streamlinedPurchasingEnabled": false}},
 	}
@@ -116,10 +118,10 @@ func TestAppsViewNotificationURLFields(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	fields := "accessibilityUrl,subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox"
+	fields := "groupPurchaseInvitationMode,accessibilityUrl,subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox"
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.GET("/v1/apps/100000001", "fields[apps]="+fields),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"100000001","attributes":{"accessibilityUrl":"https://example.com/accessibility","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V2"}}}`))
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"100000001","attributes":{"groupPurchaseInvitationMode":"DEVELOPER_HOSTED","accessibilityUrl":"https://example.com/accessibility","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V2"}}}`))
 	_, root, capture := appsDeps(t, reg)
 	var err error
 	stdout, stderr := capture(func() {
@@ -137,6 +139,7 @@ func TestAppsViewNotificationURLFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]any{
+		"groupPurchaseInvitationMode":            "DEVELOPER_HOSTED",
 		"accessibilityUrl":                       "https://example.com/accessibility",
 		"subscriptionStatusUrl":                  "https://example.com/production",
 		"subscriptionStatusUrlVersion":           "V2",
