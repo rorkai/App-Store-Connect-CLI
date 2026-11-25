@@ -19,14 +19,14 @@ func TestCategoriesSetFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"), asctest.JSON(http.StatusOK, `{
+	reg.Register(asctest.GET("/v1/apps/123456789/appInfos"), asctest.JSON(http.StatusOK, `{
 			"data":[
 				{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_DISTRIBUTION"}},
 				{"type":"appInfos","id":"info-rejected","attributes":{"state":"REJECTED"}}
 			]
 		}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"categories", "set", "--app", "app-1", "--primary", "GAMES", "--output", "json"})
+	stdout, stderr, runErr := runCommand(t, []string{"categories", "set", "--app", "123456789", "--primary", "GAMES", "--output", "json"})
 	if runErr == nil {
 		t.Fatal("expected run error, got nil")
 	}
@@ -37,14 +37,77 @@ func TestCategoriesSetFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	for _, want := range []string{
-		`2 app infos match app "app-1"; pass --app-info with one of:`,
-		`asc apps info list --app "app-1"`,
+		`2 app infos match app "123456789"; pass --app-info with one of:`,
+		`asc apps info list --app "123456789"`,
 		"READY_FOR_DISTRIBUTION",
 		"REJECTED",
 	} {
 		if !strings.Contains(runErr.Error(), want) {
 			t.Fatalf("expected error to contain %q, got %v", want, runErr)
 		}
+	}
+}
+
+func TestCategoriesSetChecksExplicitAppInfoOwnershipBeforeWrite(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		appInfoID     string
+		ownerAppID    string
+		wantError     string
+		wantMutations int
+	}{
+		{
+			name:          "rejects another app",
+			appInfoID:     "info-foreign",
+			ownerAppID:    "100000002",
+			wantError:     `app info "info-foreign" belongs to app "100000002", not "100000001"`,
+			wantMutations: 0,
+		},
+		{
+			name:          "writes matching app",
+			appInfoID:     "info-owned",
+			ownerAppID:    "100000001",
+			wantMutations: 1,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_PROFILE", "")
+
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/appInfos/"+test.appInfoID, "include=app"), asctest.JSON(http.StatusOK, `{
+				"data":{"type":"appInfos","id":"`+test.appInfoID+`","relationships":{"app":{"data":{"type":"apps","id":"`+test.ownerAppID+`"}}}}
+			}`))
+			if test.wantError == "" {
+				reg.Register(asctest.PATCH("/v1/appInfos/"+test.appInfoID), asctest.JSON(http.StatusOK, `{
+					"data":{"type":"appInfos","id":"`+test.appInfoID+`"}
+				}`))
+			}
+
+			stdout, stderr, runErr := runCommand(t, []string{
+				"categories", "set", "--app", "100000001", "--app-info", test.appInfoID,
+				"--primary", "GAMES", "--output", "json",
+			})
+			if test.wantError != "" {
+				if runErr == nil || !strings.Contains(runErr.Error(), test.wantError) {
+					t.Fatalf("expected %q, got %v (stdout=%q stderr=%q)", test.wantError, runErr, stdout, stderr)
+				}
+			} else if runErr != nil {
+				t.Fatalf("matching write failed: %v (stdout=%q stderr=%q)", runErr, stdout, stderr)
+			}
+
+			mutations := 0
+			for _, request := range reg.Requests() {
+				if request.Method != http.MethodGet {
+					mutations++
+				}
+			}
+			if mutations != test.wantMutations {
+				t.Fatalf("mutation count = %d, want %d; requests=%v", mutations, test.wantMutations, reg.Requests())
+			}
+		})
 	}
 }
 

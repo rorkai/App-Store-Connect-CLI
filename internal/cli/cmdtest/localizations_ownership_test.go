@@ -27,7 +27,7 @@ func TestAppInfoLocalizationWritesRejectOtherApp(t *testing.T) {
 				requests = append(requests, request)
 				switch req.Method + " " + req.URL.Path {
 				case "GET /v1/appInfos/info-b":
-					return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"info-b","relationships":{"app":{"data":{"type":"apps","id":"app-b"}}}}}`)
+					return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"info-b","relationships":{"app":{"data":{"type":"apps","id":"100000002"}}}}}`)
 				case "GET /v1/appInfos/info-b/appInfoLocalizations":
 					return locUpdateJSONResponse(`{"data":[{"type":"appInfoLocalizations","id":"loc-b","attributes":{"locale":"en-US","subtitle":"Old"}}]}`)
 				case "PATCH /v1/appInfoLocalizations/loc-b":
@@ -35,7 +35,7 @@ func TestAppInfoLocalizationWritesRejectOtherApp(t *testing.T) {
 				}
 				return nil, fmt.Errorf("unexpected request %s", request)
 			})
-			args := []string{"localizations", operation, "--type", "app-info", "--app", "app-a", "--app-info", "info-b", "--locale", "en-US", "--output", "json"}
+			args := []string{"localizations", operation, "--type", "app-info", "--app", "100000001", "--app-info", "info-b", "--locale", "en-US", "--output", "json"}
 			if operation == "update" {
 				args = append(args, "--subtitle", "Updated")
 			} else {
@@ -49,11 +49,98 @@ func TestAppInfoLocalizationWritesRejectOtherApp(t *testing.T) {
 			stdout, stderr := captureOutput(t, func() {
 				code = cmd.Run(args, "6.5.3")
 			})
-			if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, `belongs to app "app-b", not "app-a"`) {
+			if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, `belongs to app "100000002", not "100000001"`) {
 				t.Errorf("cross-app %s: exit=%d stdout=%q stderr=%q", operation, code, stdout, stderr)
 			}
 			if len(requests) != 1 || requests[0] != "GET /v1/appInfos/info-b?include=app" {
 				t.Errorf("cross-app %s requests=%q, want only App Info ownership lookup", operation, requests)
+			}
+		})
+	}
+}
+
+func TestAppInfoLocalizationDirectUpdateChecksSelectedApp(t *testing.T) {
+	tests := []struct {
+		name      string
+		app       string
+		mode      string
+		wantError string
+		wantPatch bool
+	}{
+		{name: "matching selected app", app: "100000001", mode: "matching", wantPatch: true},
+		{name: "localization wrong type", app: "100000001", mode: "localization-wrong-type", wantError: "expected resource type"},
+		{name: "localization wrong ID", app: "100000001", mode: "localization-wrong-id", wantError: "expected app info localization"},
+		{name: "app info wrong type", app: "100000001", mode: "app-info-wrong-type", wantError: "expected app info resource type"},
+		{name: "app info wrong ID", app: "100000001", mode: "app-info-wrong-id", wantError: "expected app info"},
+		{name: "app info wrong relationship type", app: "100000001", mode: "app-info-wrong-app-type", wantError: "expected app relationship type"},
+		{name: "foreign app", app: "100000001", mode: "foreign", wantError: "belongs to app"},
+		{name: "standalone direct ID", mode: "standalone", wantPatch: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupLocUpdateAuth(t)
+			t.Setenv("ASC_APP_ID", tt.app)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing-config.json"))
+			var requests []string
+			stubTransport(t, func(req *http.Request) (*http.Response, error) {
+				requests = append(requests, req.Method+" "+req.URL.Path)
+				switch req.Method + " " + req.URL.Path {
+				case "GET /v1/appInfoLocalizations/loc-1":
+					if tt.mode == "localization-wrong-type" {
+						return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"loc-1","relationships":{"appInfo":{"data":{"type":"appInfos","id":"info-a"}}}}}`)
+					}
+					if tt.mode == "localization-wrong-id" {
+						return locUpdateJSONResponse(`{"data":{"type":"appInfoLocalizations","id":"loc-other","relationships":{"appInfo":{"data":{"type":"appInfos","id":"info-a"}}}}}`)
+					}
+					appInfoID := "info-a"
+					if tt.mode == "foreign" {
+						appInfoID = "info-b"
+					}
+					return locUpdateJSONResponse(`{"data":{"type":"appInfoLocalizations","id":"loc-1","relationships":{"appInfo":{"data":{"type":"appInfos","id":"` + appInfoID + `"}}}}}`)
+				case "GET /v1/appInfos/info-a", "GET /v1/appInfos/info-b":
+					appInfoID := strings.TrimPrefix(req.URL.Path, "/v1/appInfos/")
+					if tt.mode == "app-info-wrong-type" {
+						return locUpdateJSONResponse(`{"data":{"type":"apps","id":"` + appInfoID + `","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`)
+					}
+					if tt.mode == "app-info-wrong-id" {
+						return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"info-other","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`)
+					}
+					appID := "100000001"
+					if tt.mode == "foreign" {
+						appID = "100000002"
+					}
+					appType := "apps"
+					if tt.mode == "app-info-wrong-app-type" {
+						appType = "builds"
+					}
+					return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"` + appInfoID + `","relationships":{"app":{"data":{"type":"` + appType + `","id":"` + appID + `"}}}}}`)
+				case "PATCH /v1/appInfoLocalizations/loc-1":
+					return locUpdateJSONResponse(`{"data":{"type":"appInfoLocalizations","id":"loc-1","attributes":{"name":"Updated"}}}`)
+				default:
+					return nil, fmt.Errorf("unexpected request %s %s", req.Method, req.URL.RequestURI())
+				}
+			})
+			args := []string{"localizations", "update", "--type", "app-info", "--id", "loc-1", "--name", "Updated", "--output", "json"}
+			var code int
+			stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "test") })
+			if tt.wantError != "" {
+				if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, tt.wantError) {
+					t.Errorf("exit=%d stdout=%q stderr=%q, want %q", code, stdout, stderr, tt.wantError)
+				}
+			} else if code != cmd.ExitSuccess || stdout == "" || stderr != "" {
+				t.Errorf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+			}
+			if tt.wantPatch {
+				if !slices.Contains(requests, "PATCH /v1/appInfoLocalizations/loc-1") {
+					t.Errorf("requests=%q, want PATCH", requests)
+				}
+			} else if slices.Contains(requests, "PATCH /v1/appInfoLocalizations/loc-1") {
+				t.Errorf("requests=%q, refused update sent a PATCH", requests)
+			}
+			if tt.mode == "standalone" {
+				if !slices.Equal(requests, []string{"PATCH /v1/appInfoLocalizations/loc-1"}) {
+					t.Errorf("standalone requests=%q, want only PATCH", requests)
+				}
 			}
 		})
 	}

@@ -28,7 +28,7 @@ func TestMetadataRepeatedAssetExportRemovesOnlyOwnedUnchangedFiles(t *testing.T)
 		t.Helper()
 		var err error
 		stdout, stderr := captureOutput(t, func() {
-			err = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "APP_ID", "--version", "1.0", "--dir", dir, "--include", scopes, "--force", "--output", "json"})
+			err = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "123456789", "--version", "1.0", "--dir", dir, "--include", scopes, "--force", "--output", "json"})
 		})
 		if err != nil {
 			t.Fatalf("pull: %v; stdout=%s stderr=%s", err, stdout, stderr)
@@ -81,7 +81,7 @@ func TestMetadataRepeatedAssetExportRemovesOnlyOwnedUnchangedFiles(t *testing.T)
 	}
 	var pushErr error
 	stdout, stderr := captureOutput(t, func() {
-		pushErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "APP_ID", "--version", "1.0", "--dir", dir, "--include", "app-clip", "--confirm", "--output", "json"})
+		pushErr = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "push", "--app", "123456789", "--version", "1.0", "--dir", dir, "--include", "app-clip", "--confirm", "--output", "json"})
 	})
 	if pushErr != nil {
 		t.Fatalf("empty exported tree import: %v; %s %s", pushErr, stdout, stderr)
@@ -104,9 +104,9 @@ func installMetadataAssetExportTransport(t *testing.T, empty *bool) {
 			return nil, fmt.Errorf("unexpected mutation %s", req.Method)
 		}
 		switch req.URL.Path {
-		case "/v1/apps/APP_ID/appClips":
+		case "/v1/apps/123456789/appClips":
 			return migrateJSONResponse(200, `{"data":[{"type":"appClips","id":"CLIP"}]}`), nil
-		case "/v1/apps/APP_ID/appStoreVersions":
+		case "/v1/apps/123456789/appStoreVersions":
 			return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`), nil
 		case "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
 			if *empty {
@@ -128,7 +128,7 @@ func installMetadataAssetExportTransport(t *testing.T, empty *bool) {
 			return migrateJSONResponse(200, `{"data":[{"type":"appPreviews","id":"PREVIEW","attributes":{"fileName":"demo.mp4","videoUrl":"https://media.example/demo.mp4","previewFrameTimeCode":"00:00:01.000"}}]}`), nil
 		case "/v1/appPreviewSets/SET/relationships/appPreviews":
 			return migrateJSONResponse(200, `{"data":[{"type":"appPreviews","id":"PREVIEW"}]}`), nil
-		case "/v1/apps/APP_ID/appInfos":
+		case "/v1/apps/123456789/appInfos":
 			return migrateJSONResponse(200, `{"data":[{"type":"appInfos","id":"APP_INFO","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
 		case "/v1/appInfos/APP_INFO/appInfoLocalizations":
 			return migrateJSONResponse(200, `{"data":[{"type":"appInfoLocalizations","id":"INFO_LOC","attributes":{"locale":"en-US","name":"App"}}]}`), nil
@@ -154,7 +154,7 @@ func TestMetadataRepullWithMediaRefreshesUnchangedFilesAndRefusesEdits(t *testin
 		t.Helper()
 		var err error
 		stdout, stderr := captureOutput(t, func() {
-			err = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "APP_ID", "--version", "1.0", "--dir", dir, "--include", "localizations,app-clip,previews", "--output", "json"})
+			err = RootCommand("test").ParseAndRun(context.Background(), []string{"metadata", "pull", "--app", "123456789", "--version", "1.0", "--dir", dir, "--include", "localizations,app-clip,previews", "--output", "json"})
 		})
 		return stdout, stderr, err
 	}

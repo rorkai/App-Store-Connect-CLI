@@ -101,7 +101,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appIDValue, err := d.AppIDFlagValue(d.ResolveAppID(*appID))
+			appSelector := d.ResolveAppSelector(*appID)
+			appIDValue, err := d.AppIDFlagValue(appSelector.Value)
 			if err != nil {
 				return err
 			}
@@ -177,6 +178,11 @@ Examples:
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
+
+			appIDValue, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+			if err != nil {
+				return fmt.Errorf("app-setup info set: resolve app: %w", err)
+			}
 
 			var localizationPlan *shared.AppInfoLocalizationUpsertPlan
 			if hasLocalization {
@@ -500,7 +506,8 @@ Examples:
 				}
 				return nil
 			case shared.LocalizationTypeAppInfo:
-				resolvedAppID := d.ResolveAppID(*appID)
+				appSelector := d.ResolveAppSelector(*appID)
+				resolvedAppID := appSelector.Value
 				if resolvedAppID == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 					return shared.MissingRequiredUsageError("--app")
@@ -519,6 +526,13 @@ Examples:
 				client, err := d.Client()
 				if err != nil {
 					return fmt.Errorf("app-setup localizations upload: %w", err)
+				}
+
+				requestCtx, cancel := d.Timeout(ctx)
+				resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				cancel()
+				if err != nil {
+					return fmt.Errorf("app-setup localizations upload: resolve app: %w", err)
 				}
 
 				appInfo, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(resolveCtx context.Context) (string, error) {

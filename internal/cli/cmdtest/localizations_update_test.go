@@ -437,7 +437,7 @@ func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"Old"}}],"links":{}}`))
@@ -451,7 +451,7 @@ func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 		if err := root.Parse([]string{
 			"localizations", "update",
 			"--type", "app-info",
-			"--app", "app-1",
+			"--app", "100000001",
 			"--locale", "en-US",
 			"--subtitle", "New Subtitle",
 		}); err != nil {
@@ -485,7 +485,7 @@ func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"appInfos","id":"appinfo-live","attributes":{"state":"READY_FOR_SALE"}},
 				{"type":"appInfos","id":"appinfo-rejected","attributes":{"state":"REJECTED"}}
@@ -494,7 +494,7 @@ func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 	stdout, stderr, runErr := runCommand(t, []string{
 		"localizations", "update",
 		"--type", "app-info",
-		"--app", "app-1",
+		"--app", "100000001",
 		"--locale", "en-US",
 		"--subtitle", "New Subtitle",
 	})
@@ -509,8 +509,8 @@ func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	for _, want := range []string{
-		`2 app infos match app "app-1"; pass --app-info with one of:`,
-		`asc apps info list --app "app-1"`,
+		`2 app infos match app "100000001"; pass --app-info with one of:`,
+		`asc apps info list --app "100000001"`,
 		"READY_FOR_SALE",
 		"REJECTED",
 	} {
@@ -566,7 +566,7 @@ func TestLocalizationsUpdateMissingAppInfoLocaleSuggestsCreation(t *testing.T) {
 	stubTransport(t, func(req *http.Request) (*http.Response, error) {
 		switch req.Method + " " + req.URL.Path {
 		case "GET /v1/appInfos/selected-info":
-			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"selected-info","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+			return locUpdateJSONResponse(`{"data":{"type":"appInfos","id":"selected-info","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`)
 		case "GET /v1/appInfos/selected-info/appInfoLocalizations":
 			return locUpdateJSONResponse(`{"data":[],"links":{}}`)
 		default:
@@ -575,11 +575,11 @@ func TestLocalizationsUpdateMissingAppInfoLocaleSuggestsCreation(t *testing.T) {
 		}
 	})
 	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"localizations", "update", "--type", "app-info", "--app", "app-1", "--app-info", "selected-info", "--locale", "fr-FR", "--subtitle", "Subtitle"}, "1.2.3"); code != cmd.ExitError {
+		if code := cmd.Run([]string{"localizations", "update", "--type", "app-info", "--app", "100000001", "--app-info", "selected-info", "--locale", "fr-FR", "--subtitle", "Subtitle"}, "1.2.3"); code != cmd.ExitError {
 			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
 		}
 	})
-	if stdout != "" || !strings.Contains(stderr, `no existing localization found for locale "fr-FR"`) || !strings.Contains(stderr, `asc apps rename --app "app-1" --app-info "selected-info" --locale "fr-FR" --name "APP_NAME"`) {
+	if stdout != "" || !strings.Contains(stderr, `no existing localization found for locale "fr-FR"`) || !strings.Contains(stderr, `asc apps rename --app "100000001" --app-info "selected-info" --locale "fr-FR" --name "APP_NAME"`) {
 		t.Fatalf("stdout=%q stderr=%q, want missing locale and creation command", stdout, stderr)
 	}
 }
@@ -589,7 +589,7 @@ func TestLocalizationsUpdateAppInfoErrorIncludesResolvedEndpoint(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/100000001/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Old Name"}}],"links":{}}`))
@@ -599,7 +599,7 @@ func TestLocalizationsUpdateAppInfoErrorIncludesResolvedEndpoint(t *testing.T) {
 	stdout, stderr, runErr := runCommand(t, []string{
 		"localizations", "update",
 		"--type", "app-info",
-		"--app", "app-1",
+		"--app", "100000001",
 		"--locale", "en-US",
 		"--name", "New Name",
 	})

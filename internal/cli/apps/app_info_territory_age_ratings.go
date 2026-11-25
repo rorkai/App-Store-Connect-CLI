@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -70,7 +71,8 @@ Examples:
 			}
 			infoIDValue := strings.TrimSpace(*infoID)
 
-			resolvedAppID := d.ResolveAppID(*appID)
+			appSelector := d.ResolveAppSelector(*appID)
+			resolvedAppID := appSelector.Value
 			if resolvedAppID == "" && infoIDValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
@@ -101,8 +103,35 @@ Examples:
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
+			if resolvedAppID != "" {
+				resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+				if err != nil {
+					return fmt.Errorf("apps info territory-age-ratings list: resolve app: %w", err)
+				}
+				requestCtx = asc.WithNoRedirectReads(requestCtx)
+			}
+
 			resolvedInfoID := infoIDValue
-			if resolvedInfoID == "" && strings.TrimSpace(*next) == "" {
+			nextValue := strings.TrimSpace(*next)
+			nextURLValue := nextValue
+			if nextValue != "" {
+				scopedNextURL, nextInfoID, nextErr := territoryAgeRatingsScopedURL(nextValue)
+				if nextErr != nil {
+					return d.UsageErrorf("apps info territory-age-ratings list: %v", nextErr)
+				}
+				nextURLValue = scopedNextURL
+				if infoIDValue != "" && infoIDValue != nextInfoID {
+					return d.UsageErrorf("apps info territory-age-ratings list: --info-id %q does not match the --next target %q", infoIDValue, nextInfoID)
+				}
+				if resolvedAppID != "" {
+					resolvedInfoID, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, nextInfoID, "--info-id")
+					if err != nil {
+						return fmt.Errorf("apps info territory-age-ratings list: %w", err)
+					}
+				} else {
+					resolvedInfoID = nextInfoID
+				}
+			} else if nextValue == "" {
 				resolvedInfoID, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: %w", err)
@@ -114,7 +143,7 @@ Examples:
 				asc.WithTerritoryAgeRatingsTerritoryFields(territoryFieldsValue),
 				asc.WithTerritoryAgeRatingsInclude(includeValue),
 				asc.Limit[asc.TerritoryAgeRatingsOption](*limit),
-				asc.NextURL[asc.TerritoryAgeRatingsOption](*next),
+				asc.NextURL[asc.TerritoryAgeRatingsOption](nextURLValue),
 			}
 
 			if *paginate {
@@ -124,7 +153,14 @@ Examples:
 					return fmt.Errorf("apps info territory-age-ratings list: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppInfoTerritoryAgeRatings(ctx, resolvedInfoID, asc.NextURL[asc.TerritoryAgeRatingsOption](nextURL))
+					scopedNextURL, nextInfoID, nextErr := territoryAgeRatingsScopedURL(nextURL)
+					if nextErr != nil {
+						return nil, nextErr
+					}
+					if nextInfoID != resolvedInfoID {
+						return nil, fmt.Errorf("--next target %q does not match selected app info %q", nextInfoID, resolvedInfoID)
+					}
+					return client.GetAppInfoTerritoryAgeRatings(ctx, resolvedInfoID, asc.NextURL[asc.TerritoryAgeRatingsOption](scopedNextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: %w", err)
@@ -140,6 +176,31 @@ Examples:
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func territoryAgeRatingsScopedURL(nextValue string) (string, string, error) {
+	parsed, err := url.Parse(nextValue)
+	if err != nil {
+		return "", "", fmt.Errorf("--next is not a valid territory age-ratings URL: %w", err)
+	}
+	parts := strings.Split(parsed.Path, "/")
+	if len(parts) != 5 || parts[0] != "" || parts[1] != "v1" || parts[2] != "appInfos" || parts[4] != "territoryAgeRatings" {
+		return "", "", fmt.Errorf("--next must target /v1/appInfos/{id}/territoryAgeRatings")
+	}
+	appInfoID := parts[3]
+	if appInfoID == "" || appInfoID == "." || appInfoID == ".." || strings.Contains(appInfoID, "%") {
+		return "", "", fmt.Errorf("--next must contain an app info ID")
+	}
+	scopedURL, err := asc.ScopedContinuationURL(nextValue, fmt.Sprintf("/v1/appInfos/%s/territoryAgeRatings", appInfoID))
+	if err != nil {
+		return "", "", err
+	}
+	return scopedURL, appInfoID, nil
+}
+
+func territoryAgeRatingsAppInfoID(nextValue string) (string, error) {
+	_, appInfoID, err := territoryAgeRatingsScopedURL(nextValue)
+	return appInfoID, err
 }
 
 func normalizeTerritoryAgeRatingFields(value string) ([]string, error) {

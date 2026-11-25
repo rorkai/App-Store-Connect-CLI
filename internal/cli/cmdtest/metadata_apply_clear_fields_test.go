@@ -32,9 +32,9 @@ func TestMetadataApplySendsNullForExplicitlyClearedAppInfoFields(t *testing.T) {
 	writeMetadataFile(t, dir, []string{"app-info", "en-US.json"}, `{"name":"Outslept","subtitle":null,"privacyPolicyUrl":null}`)
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Outslept","subtitle":"Sleep tracker","privacyPolicyUrl":"https://example.com/privacy"}}],"links":{"next":""}}`))
@@ -43,7 +43,7 @@ func TestMetadataApplySendsNullForExplicitlyClearedAppInfoFields(t *testing.T) {
 
 	stdout := runMetadataReviewCommand(t, []string{
 		"metadata", "apply",
-		"--app", "app-1",
+		"--app", "123456789",
 		"--version", "1.2.3",
 		"--platform", "IOS",
 		"--dir", dir,
@@ -82,15 +82,15 @@ func TestMetadataMutationRequiresConfirmForPlannedClear(t *testing.T) {
 			writeMetadataFile(t, dir, []string{"app-info", "en-US.json"}, `{"subtitle":null}`)
 			reg := asctest.NewRegistry(t)
 			reg.Install()
-			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+			reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
-			reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+			reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 			reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Outslept","subtitle":"Sleep tracker"}}],"links":{"next":""}}`))
 
 			stdout, stderr := captureOutput(t, func() {
-				code := cmd.Run([]string{"metadata", operation, "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir, "--output", "json"}, "1.2.3")
+				code := cmd.Run([]string{"metadata", operation, "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir, "--output", "json"}, "1.2.3")
 				if code != cmd.ExitUsage {
 					t.Fatalf("expected usage exit, got %d", code)
 				}
@@ -115,7 +115,7 @@ func TestMetadataApplySendsNullForExplicitlyClearedPromotionalText(t *testing.T)
 	writeMetadataFile(t, dir, []string{"version", "1.2.3", "en-US.json"}, `{"promotionalText":null}`)
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Remote description","promotionalText":"Old promo"}}],"links":{"next":""}}`))
@@ -124,7 +124,7 @@ func TestMetadataApplySendsNullForExplicitlyClearedPromotionalText(t *testing.T)
 
 	stdout := runMetadataReviewCommand(t, []string{
 		"metadata", "apply",
-		"--app", "app-1",
+		"--app", "123456789",
 		"--version", "1.2.3",
 		"--platform", "IOS",
 		"--dir", dir,
@@ -155,16 +155,16 @@ func TestMetadataApplySkipsClearWhenRemoteFieldIsAlreadyEmpty(t *testing.T) {
 	writeMetadataFile(t, dir, []string{"app-info", "en-US.json"}, `{"name":"Outslept","subtitle":null}`)
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Outslept"}}],"links":{"next":""}}`))
 
 	stdout := runMetadataReviewCommand(t, []string{
 		"metadata", "apply",
-		"--app", "app-1",
+		"--app", "123456789",
 		"--version", "1.2.3",
 		"--platform", "IOS",
 		"--dir", dir,
@@ -195,9 +195,9 @@ func TestMetadataApplyOmitsNoopClearFromMixedPatchWithoutConfirm(t *testing.T) {
 	writeMetadataFile(t, dir, []string{"app-info", "en-US.json"}, `{"subtitle":null,"privacyPolicyUrl":"https://example.com/new"}`)
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Outslept","privacyPolicyUrl":"https://example.com/old"}}],"links":{"next":""}}`))
@@ -206,7 +206,7 @@ func TestMetadataApplyOmitsNoopClearFromMixedPatchWithoutConfirm(t *testing.T) {
 
 	stdout := runMetadataReviewCommand(t, []string{
 		"metadata", "apply",
-		"--app", "app-1",
+		"--app", "123456789",
 		"--version", "1.2.3",
 		"--platform", "IOS",
 		"--dir", dir,
@@ -258,14 +258,14 @@ func TestMetadataClearOnlyFileRejectsMissingLocaleBeforeMutation(t *testing.T) {
 			reg := asctest.NewRegistry(t)
 			reg.Install()
 			for range []string{"plan", "apply"} {
-				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+				reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
 				if test.name == "version" {
 					reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 						asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 					continue
 				}
-				reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+				reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 				reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 					asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
@@ -275,7 +275,7 @@ func TestMetadataClearOnlyFileRejectsMissingLocaleBeforeMutation(t *testing.T) {
 				t.Run(command, func(t *testing.T) {
 					args := []string{
 						"metadata", command,
-						"--app", "app-1",
+						"--app", "123456789",
 						"--version", "1.2.3",
 						"--platform", "IOS",
 						"--dir", dir,
@@ -337,7 +337,7 @@ func TestMetadataPlanAndApplyRejectClearFieldsInDefaultFilesBeforeRequests(t *te
 
 				args := []string{
 					"metadata", command,
-					"--app", "app-1",
+					"--app", "123456789",
 					"--version", "1.2.3",
 					"--platform", "IOS",
 					"--dir", dir,
@@ -374,7 +374,7 @@ func TestMetadataApplyMixedSetAndClearCreatesWithoutNullAttribute(t *testing.T) 
 	writeMetadataFile(t, dir, []string{"version", "1.2.3", "fr-FR.json"}, `{"description":"Nouvelle description","keywords":"sommeil,sante","supportUrl":"https://example.com/support","whatsNew":"Premiere version","promotionalText":null}`)
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
@@ -383,7 +383,7 @@ func TestMetadataApplyMixedSetAndClearCreatesWithoutNullAttribute(t *testing.T) 
 
 	stdout := runMetadataReviewCommand(t, []string{
 		"metadata", "apply",
-		"--app", "app-1",
+		"--app", "123456789",
 		"--version", "1.2.3",
 		"--platform", "IOS",
 		"--dir", dir,

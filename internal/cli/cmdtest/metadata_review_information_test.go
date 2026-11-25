@@ -26,7 +26,7 @@ func metadataReviewInformationHTTP(t *testing.T, server *metadataReviewDetailSer
 	t.Helper()
 	withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
 		switch {
-		case req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.URL.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
 		case req.URL.Path == "/v1/appStoreVersions/version-1/appStoreReviewDetail" && req.Method == http.MethodGet:
 			if server.detail == nil {
@@ -82,7 +82,7 @@ func TestMetadataReviewInformationPullPlanApplyKeepsPasswordOutOfFilesAndOutput(
 
 	dir := t.TempDir()
 	reviewDir := filepath.Join(t.TempDir(), "review")
-	common := []string{"--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "review-information", "--output", "json"}
+	common := []string{"--app", "123456789", "--version", "1.2.3", "--dir", dir, "--include", "review-information", "--output", "json"}
 	filePath := filepath.Join(dir, "review-information.json")
 
 	runMetadataReviewCommand(t, append([]string{"metadata", "pull"}, common...))
@@ -164,7 +164,7 @@ func TestMetadataReviewInformationPlanAndApplyReportMutation(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, "review-information.json"), []byte(`{"contactFirstName":"Ada","contactEmail":"ada@example.com","demoAccountRequired":false}`), 0o644); err != nil {
 				t.Fatalf("write review information: %v", err)
 			}
-			common := []string{"--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "review-information", "--output", "json"}
+			common := []string{"--app", "123456789", "--version", "1.2.3", "--dir", dir, "--include", "review-information", "--output", "json"}
 			planStdout := runMetadataReviewCommand(t, append([]string{"metadata", "plan", "--review-dir", filepath.Join(t.TempDir(), "review")}, common...))
 			var planned struct {
 				Plan struct {
@@ -213,7 +213,7 @@ func TestMetadataReviewInformationReadBackMismatchRedactsPassword(t *testing.T) 
 		t.Fatalf("write review information: %v", err)
 	}
 	stdout, stderr, runErr := runRootCommand(t, []string{
-		"metadata", "apply", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "review-information", "--output", "json",
+		"metadata", "apply", "--app", "123456789", "--version", "1.2.3", "--dir", dir, "--include", "review-information", "--output", "json",
 	})
 	if runErr == nil || len(server.writes) == 0 {
 		t.Fatalf("expected a write and a failed apply, err=%v writes=%v", runErr, server.writes)
@@ -264,7 +264,7 @@ func TestMetadataReviewInformationRejectsUnsafePasswordSources(t *testing.T) {
 				t.Fatalf("write review information: %v", err)
 			}
 			stdout, stderr, runErr := runRootCommand(t, []string{
-				"metadata", "plan", "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--include", "review-information",
+				"metadata", "plan", "--app", "123456789", "--version", "1.2.3", "--dir", dir, "--include", "review-information",
 				"--review-dir", filepath.Join(t.TempDir(), "review"),
 			})
 			if !errors.Is(runErr, flag.ErrHelp) || stdout != "" || !strings.Contains(stderr, test.wantErr) ||

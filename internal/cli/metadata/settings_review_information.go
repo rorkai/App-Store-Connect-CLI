@@ -32,6 +32,7 @@ var reviewInformationSettingScope = metadataSettingScope{
 }
 
 func fetchReviewDetail(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string) (*asc.AppStoreReviewDetailResponse, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreReviewDetailResponse, error) {
 		return client.GetAppStoreReviewDetailForVersion(requestCtx, versionID)
 	})

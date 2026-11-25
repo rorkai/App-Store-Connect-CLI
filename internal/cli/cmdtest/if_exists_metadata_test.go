@@ -111,9 +111,9 @@ func metadataPushVersionConflictHandler(t *testing.T, conflictBody string, patch
 	posts := 0
 	return func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -143,7 +143,7 @@ func metadataPushVersionConflictHandler(t *testing.T, conflictBody string, patch
 func TestMetadataPushIfExistsSkipRecordsSkippedAction(t *testing.T) {
 	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "skip", "--output", "json",
 	}, metadataPushVersionConflictHandler(t, metadataVersionLocaleDuplicate409, nil))
 
@@ -189,7 +189,7 @@ func TestMetadataPushIfExistsUpdateRoutesToLocalizationPatch(t *testing.T) {
 	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
 	patched := false
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "update", "--output", "json",
 	}, metadataPushVersionConflictHandler(t, metadataVersionLocaleDuplicate409, &patched))
 
@@ -232,13 +232,13 @@ func TestMetadataPushIfExistsUpdateContinuesWhenOptionalMatchReadFails(t *testin
 	localizationReads := 0
 	patched := false
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "update", "--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -277,7 +277,7 @@ func TestMetadataPushIfExistsUpdateContinuesWhenOptionalMatchReadFails(t *testin
 func TestMetadataPushIfExistsFailKeepsConflictFailure(t *testing.T) {
 	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--output", "json",
 	}, metadataPushVersionConflictHandler(t, metadataVersionLocaleDuplicate409, nil))
 
@@ -299,7 +299,7 @@ func TestMetadataPushIfExistsFailKeepsConflictFailure(t *testing.T) {
 func TestMetadataPushIfExistsSkipKeepsNonExistenceConflictFailing(t *testing.T) {
 	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
 	stdout, stderr, _, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "skip", "--output", "json",
 	}, metadataPushVersionConflictHandler(t, metadataLocalizationState409, nil))
 
@@ -315,13 +315,13 @@ func TestMetadataPushIfExistsSkipKeepsNonExistenceConflictFailing(t *testing.T) 
 func TestMetadataPushIfExistsSkipFailsWhenReadBackFindsNothing(t *testing.T) {
 	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
 	stdout, stderr, _, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "skip", "--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -365,7 +365,7 @@ func TestMetadataRejectsUnsupportedIfExistsValue(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
 			stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-				"metadata", test.command, "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+				"metadata", test.command, "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 				"--if-exists", test.raw, "--output", "json",
 			}, func(req ifExistsRequest) (*http.Response, error) {
 				t.Fatalf("unexpected request %s %s before flag validation", req.Method, req.Path)
@@ -393,13 +393,13 @@ func TestMetadataPushIfExistsUpdateRoutesAppInfoConflictToPatch(t *testing.T) {
 	patched := false
 	posts := 0
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "update", "--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -442,13 +442,13 @@ func TestMetadataPushIfExistsUpdateRoutesPatchOnlyAppInfoLocaleToPatch(t *testin
 	patched := false
 	localizationReads := 0
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "update", "--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -501,13 +501,13 @@ func TestMetadataPushIfExistsSkipRefreshesPatchOnlyAppInfoLocalesOnce(t *testing
 
 	localizationReads := 0
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "skip", "--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -537,13 +537,13 @@ func TestMetadataPushIfExistsSkipRefreshesPatchOnlyAppInfoLocalesOnce(t *testing
 func TestMetadataPushIfExistsUpdateRejectsMissingPatchOnlyAppInfoLocaleBeforeMutation(t *testing.T) {
 	dir := writeMetadataAppInfoFixture(t, `{"subtitle":"Planned JA subtitle"}`)
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "update", "--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations", req.Method == http.MethodGet && req.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -572,7 +572,7 @@ func TestMetadataPushIfExistsUpdateEmitsNoCreateReadinessWarning(t *testing.T) {
 	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description"}`)
 	patched := false
 	stdout, stderr, _, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "update", "--output", "json",
 	}, metadataPushVersionConflictHandler(t, metadataVersionLocaleDuplicate409, &patched))
 
@@ -591,13 +591,13 @@ func TestMetadataPushSuppressesCreateWarningForReconciledDuplicateVersionLocaliz
 	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description"}`)
 	posts := 0
 	stdout, stderr, _, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -638,13 +638,13 @@ func TestMetadataPushRetainsCreateWarningAfterAmbiguousCreateReplayDuplicate(t *
 	posts := 0
 	createdAfterAmbiguousPost := false
 	stdout, stderr, _, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -695,13 +695,13 @@ func TestMetadataPushIfExistsReusesMatchingDuplicateReadBack(t *testing.T) {
 			dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description"}`)
 			localizationReads := 0
 			stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-				"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+				"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 				"--if-exists", mode, "--output", "json",
 			}, func(req ifExistsRequest) (*http.Response, error) {
 				switch {
-				case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+				case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 					return jsonResponse(http.StatusOK, metadataPushVersionsList)
-				case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+				case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 					return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 				case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 					return jsonResponse(http.StatusOK, metadataPushEmptyList)
@@ -752,7 +752,7 @@ const metadataVersionLocaleDuplicateSecondEntry409 = `{"errors":[{"id":"4d2b8e17
 func TestMetadataPushIfExistsSkipMatchesDuplicateCodeAfterTheFirstError(t *testing.T) {
 	dir := writeMetadataVersionFixture(t, `{"description":"Planned JA description","whatsNew":"Planned JA release notes"}`)
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--if-exists", "skip", "--output", "json",
 	}, metadataPushVersionConflictHandler(t, metadataVersionLocaleDuplicateSecondEntry409, nil))
 

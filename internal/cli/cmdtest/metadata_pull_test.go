@@ -37,19 +37,19 @@ func TestMetadataPullValidationErrors(t *testing.T) {
 		},
 		{
 			name:          "missing dir",
-			args:          []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3"},
+			args:          []string{"metadata", "pull", "--app", "123456789", "--version", "1.2.3"},
 			wantStderr:    "Error: --dir is required\n",
 			wantParameter: "--dir",
 			wantConcise:   true,
 		},
 		{
 			name:    "platform suffix in version",
-			args:    []string{"metadata", "pull", "--app", "app-1", "--version", "1.0.0/IOS", "--dir", "./metadata"},
+			args:    []string{"metadata", "pull", "--app", "123456789", "--version", "1.0.0/IOS", "--dir", "./metadata"},
 			wantErr: `Error: --version takes the version string alone; pass --version "1.0.0" --platform IOS`,
 		},
 		{
 			name:    "invalid include",
-			args:    []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3", "--dir", "./metadata", "--include", "screenshots"},
+			args:    []string{"metadata", "pull", "--app", "123456789", "--version", "1.2.3", "--dir", "./metadata", "--include", "screenshots"},
 			wantErr: "Error: --include supports localizations, app-clip, previews",
 		},
 	}
@@ -91,12 +91,12 @@ func TestMetadataPullWritesCanonicalLayout(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],
 				"links":{"next":""}
 			}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 		asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]
 			}`))
@@ -125,7 +125,7 @@ func TestMetadataPullWritesCanonicalLayout(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "pull",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--version", "1.2.3",
 			"--dir", outputDir,
 		}); err != nil {
@@ -247,16 +247,16 @@ func TestMetadataPullExistingFiles(t *testing.T) {
 			versionPath := filepath.Join(outputDir, "version", "1.2.3", "en-US.json")
 
 			reg := asctest.NewRegistry(t)
-			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+			reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
-			reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+			reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 			reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App Name","subtitle":"Great app"}}],"links":{"next":""}}`))
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"English description"}}],"links":{"next":""}}`))
 
-			args := []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3", "--dir", outputDir}
+			args := []string{"metadata", "pull", "--app", "123456789", "--version", "1.2.3", "--dir", outputDir}
 			if test.force {
 				args = append(args, "--force")
 			}
@@ -303,7 +303,7 @@ func TestMetadataPullRejectsAmbiguousVersionWithoutPlatform(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"appStoreVersions","id":"version-ios","attributes":{"versionString":"1.2.3","platform":"IOS"}},
@@ -319,7 +319,7 @@ func TestMetadataPullRejectsAmbiguousVersionWithoutPlatform(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "pull",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--version", "1.2.3",
 			"--dir", outputDir,
 		}); err != nil {
@@ -351,9 +351,9 @@ func TestMetadataPullVersionNotFound(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 
 	root := RootCommand("1.2.3")
@@ -363,7 +363,7 @@ func TestMetadataPullVersionNotFound(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "pull",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--version", "1.2.3",
 			"--dir", outputDir,
 		}); err != nil {
@@ -397,15 +397,15 @@ func TestMetadataPullAcceptsVersionID(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.GET("/v1/appStoreVersions/"+versionID, "include=app"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"`+versionID+`","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"WAITING_FOR_REVIEW"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"`+versionID+`","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"WAITING_FOR_REVIEW"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"WAITING_FOR_REVIEW"}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App EN"}}],"links":{"next":""}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/"+versionID+"/appStoreVersionLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"version-loc-1","attributes":{"locale":"en-US","description":"Desc EN"}}],"links":{"next":""}}`))
 
-	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "metadata", "pull", "--app", "app-1", "--version", versionID, "--dir", outputDir)
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "metadata", "pull", "--app", "123456789", "--version", versionID, "--dir", outputDir)
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q", runErr, stderr)
 	}
@@ -436,9 +436,9 @@ func TestMetadataPullPaginatesLocalizations(t *testing.T) {
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+	reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 		asctest.JSON(http.StatusOK, `{
@@ -467,7 +467,7 @@ func TestMetadataPullPaginatesLocalizations(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"metadata", "pull",
-			"--app", "app-1",
+			"--app", "123456789",
 			"--version", "1.2.3",
 			"--dir", outputDir,
 		}); err != nil {
@@ -508,7 +508,7 @@ func TestMetadataPullSupportsTableAndMarkdownOutput(t *testing.T) {
 		wantText   string
 	}{
 		{name: "table", outputFlag: "table", wantText: "File Count: 2"},
-		{name: "markdown", outputFlag: "markdown", wantText: "**App ID:** app-1"},
+		{name: "markdown", outputFlag: "markdown", wantText: "**App ID:** 123456789"},
 	}
 
 	for _, test := range tests {
@@ -517,9 +517,9 @@ func TestMetadataPullSupportsTableAndMarkdownOutput(t *testing.T) {
 
 			reg := asctest.NewRegistry(t)
 			reg.Install()
-			reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+			reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
-			reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+			reg.Register(asctest.GET("/v1/apps/123456789/appInfos"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`))
 			reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"appinfo-loc-1","attributes":{"locale":"en-US","name":"App EN"}}],"links":{"next":""}}`))
@@ -532,7 +532,7 @@ func TestMetadataPullSupportsTableAndMarkdownOutput(t *testing.T) {
 			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse([]string{
 					"metadata", "pull",
-					"--app", "app-1",
+					"--app", "123456789",
 					"--version", "1.2.3",
 					"--dir", outputDir,
 					"--output", test.outputFlag,

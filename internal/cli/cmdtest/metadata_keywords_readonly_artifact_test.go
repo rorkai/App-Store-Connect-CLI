@@ -56,7 +56,7 @@ func TestKeywordArtifactFailureKeepsBatchOutcome(t *testing.T) {
 			reg := asctest.NewRegistry(t)
 			reg.Install()
 			if operation != "push" {
-				reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+				reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`))
 			}
 			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
@@ -69,7 +69,7 @@ func TestKeywordArtifactFailureKeepsBatchOutcome(t *testing.T) {
 			if operation == "push" {
 				args = append(args, "--version-id", "version-1", "--input", input)
 			} else {
-				args = append(args, "--app", "app-1", "--version", "1.2.3", "--dir", dir, "--confirm")
+				args = append(args, "--app", "123456789", "--version", "1.2.3", "--dir", dir, "--confirm")
 				if operation == "sync" {
 					args = append(args, "--input", input, "--format", "json")
 				}

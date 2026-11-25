@@ -2,8 +2,10 @@ package localizations
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -310,9 +312,9 @@ type updateAppInfoParams struct {
 
 func updateAppInfoLocalization(ctx context.Context, d *shared.Deps, p updateAppInfoParams) error {
 	localizationID := strings.TrimSpace(p.localizationID)
-	resolvedAppID := ""
+	appSelector := d.ResolveAppSelector(p.appID)
+	resolvedAppID := appSelector.Value
 	if localizationID == "" {
-		resolvedAppID = d.ResolveAppID(p.appID)
 		if resolvedAppID == "" {
 			fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations (or set ASC_APP_ID)")
 			return shared.MissingRequiredUsageError("--app")
@@ -326,6 +328,19 @@ func updateAppInfoLocalization(ctx context.Context, d *shared.Deps, p updateAppI
 
 	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
+
+	if resolvedAppID != "" {
+		resolvedAppID, err = shared.ResolveScopedAppID(requestCtx, client, appSelector)
+		if err != nil {
+			return fmt.Errorf("localizations update: resolve app: %w", err)
+		}
+		requestCtx = asc.WithNoRedirectReads(requestCtx)
+		if localizationID != "" {
+			if err := verifyAppInfoLocalizationOwnership(requestCtx, client, localizationID, resolvedAppID); err != nil {
+				return fmt.Errorf("localizations update: %w", err)
+			}
+		}
+	}
 
 	if localizationID == "" {
 		appInfo, err := d.ResolveOwnedAppInfoID(requestCtx, client, resolvedAppID, strings.TrimSpace(p.appInfoID))
@@ -366,6 +381,68 @@ func updateAppInfoLocalization(ctx context.Context, d *shared.Deps, p updateAppI
 	}
 
 	return d.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
+}
+
+type appInfoLocalizationOwnershipResponse struct {
+	Data struct {
+		Type          asc.ResourceType
+		ID            string
+		Relationships struct {
+			AppInfo asc.Relationship
+		}
+	}
+}
+
+func verifyAppInfoLocalizationOwnership(ctx context.Context, client *asc.Client, localizationID, appID string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return fmt.Errorf("app info localization ID is required")
+	}
+	body, err := client.RawRequestWithQuery(
+		ctx,
+		"GET",
+		fmt.Sprintf("/v1/appInfoLocalizations/%s", url.PathEscape(localizationID)),
+		url.Values{
+			"include":                      {"appInfo"},
+			"fields[appInfoLocalizations]": {"appInfo"},
+		},
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	var response appInfoLocalizationOwnershipResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("decode app info localization %q: %w", localizationID, err)
+	}
+	if response.Data.Type != asc.ResourceTypeAppInfoLocalizations {
+		return fmt.Errorf("expected resource type %q, got %q when reading app info localization %q", asc.ResourceTypeAppInfoLocalizations, response.Data.Type, localizationID)
+	}
+	if response.Data.ID != localizationID {
+		return fmt.Errorf("expected app info localization %q, got %q", localizationID, response.Data.ID)
+	}
+	if response.Data.Relationships.AppInfo.Data.Type != asc.ResourceTypeAppInfos || strings.TrimSpace(response.Data.Relationships.AppInfo.Data.ID) == "" {
+		return fmt.Errorf("app info relationship missing or invalid for app info localization %q", localizationID)
+	}
+	appInfoID := strings.TrimSpace(response.Data.Relationships.AppInfo.Data.ID)
+	appInfo, err := client.GetAppInfo(ctx, appInfoID, asc.WithAppInfoInclude([]string{"app"}))
+	if err != nil {
+		return fmt.Errorf("read app info %q for localization %q: %w", appInfoID, localizationID, err)
+	}
+	if appInfo.Data.Type != asc.ResourceTypeAppInfos {
+		return fmt.Errorf("expected app info resource type %q, got %q for app info %q", asc.ResourceTypeAppInfos, appInfo.Data.Type, appInfoID)
+	}
+	if appInfo.Data.ID != appInfoID {
+		return fmt.Errorf("expected app info %q, got %q when reading localization %q", appInfoID, appInfo.Data.ID, localizationID)
+	}
+	ownerAppID, err := asc.AppInfoAppID(appInfo)
+	if err != nil {
+		return fmt.Errorf("resolve owner for app info localization %q: %w", localizationID, err)
+	}
+	if !strings.EqualFold(strings.TrimSpace(ownerAppID), strings.TrimSpace(appID)) {
+		return fmt.Errorf("app info localization %q belongs to app %q, not %q", localizationID, ownerAppID, appID)
+	}
+	return nil
 }
 
 // patchAppInfoLocalization sends nullable attributes when the caller clears a

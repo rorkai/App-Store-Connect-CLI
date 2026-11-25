@@ -35,13 +35,13 @@ func TestMetadataPushNewLocaleUpdatesVersionLocalizationCreatedByAppInfoCreate(t
 	appInfoCreated := false
 	versionPatched := false
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			if appInfoCreated {
@@ -103,13 +103,13 @@ func TestMetadataPushNewLocaleKeepsVersionConflictWhenAppInfoReconciledDuplicate
 
 	appInfoPosted := false
 	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
-		"metadata", "push", "--app", "app-1", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
+		"metadata", "push", "--app", "123456789", "--version", "1.2.3", "--platform", "IOS", "--dir", dir,
 		"--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
 		switch {
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appStoreVersions":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appStoreVersions":
 			return jsonResponse(http.StatusOK, metadataPushVersionsList)
-		case req.Method == http.MethodGet && req.Path == "/v1/apps/app-1/appInfos":
+		case req.Method == http.MethodGet && req.Path == "/v1/apps/123456789/appInfos":
 			return jsonResponse(http.StatusOK, metadataPushAppInfosList)
 		case req.Method == http.MethodGet && req.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
 			if appInfoPosted {

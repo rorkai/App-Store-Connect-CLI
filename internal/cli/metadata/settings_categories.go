@@ -74,6 +74,7 @@ var categoriesSettingScope = metadataSettingScope{
 }
 
 func fetchAppInfoCategories(ctx context.Context, d *shared.Deps, client *asc.Client, target metadataSettingTarget) (map[string]string, error) {
+	ctx = asc.WithNoRedirectReads(ctx)
 	values := map[string]string{}
 	needsParentCheck := false
 	for _, field := range categoryFields {

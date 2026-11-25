@@ -9,6 +9,40 @@ import (
 	"strings"
 )
 
+// ScopedContinuationURL validates and canonicalizes a provider pagination link before a scoped client call.
+func ScopedContinuationURL(nextURL, expectedPath string) (string, error) {
+	trimmed := strings.TrimSpace(nextURL)
+	if trimmed == "" {
+		return "", fmt.Errorf("pagination URL is empty")
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("invalid pagination URL: %w", err)
+	}
+	if parsed.Fragment != "" {
+		return "", fmt.Errorf("pagination URL must not contain a fragment")
+	}
+	if parsed.User != nil {
+		return "", fmt.Errorf("pagination URL must not contain userinfo")
+	}
+	if parsed.Scheme == "" {
+		if parsed.Host != "" || strings.HasPrefix(trimmed, "//") || !strings.HasPrefix(parsed.Path, "/") {
+			return "", fmt.Errorf("pagination URL must be a root-relative path or HTTPS App Store Connect URL")
+		}
+	} else {
+		if !strings.EqualFold(parsed.Scheme, "https") || parsed.Host == "" || !IsAPIHost(strings.ToLower(parsed.Host)) {
+			return "", fmt.Errorf("pagination URL must be an HTTPS App Store Connect URL")
+		}
+		parsed.Scheme = "https"
+		parsed.Host = strings.ToLower(parsed.Host)
+		trimmed = parsed.String()
+	}
+	if parsed.Path != expectedPath {
+		return "", fmt.Errorf("pagination URL escaped scoped collection: expected path %q, got %q", expectedPath, parsed.Path)
+	}
+	return trimmed, nil
+}
+
 // PaginateFunc is a function that fetches a page of results
 type PaginateFunc func(ctx context.Context, nextURL string) (PaginatedResponse, error)
 
