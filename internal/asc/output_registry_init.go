@@ -395,6 +395,7 @@ func registerAllOutputRenderers() {
 	registerRows(accessibilityDeclarationsRows)
 	registerRows(accessibilityDeclarationRows)
 	registerRows(appStoreReviewDetailRows)
+	registerRows(reviewDetailsResultRows)
 	registerRows(appStoreReviewAttachmentsRows)
 	registerRows(appStoreReviewAttachmentRows)
 	registerRows(appClipAppStoreReviewDetailRows)

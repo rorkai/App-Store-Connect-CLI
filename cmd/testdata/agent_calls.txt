@@ -1357,7 +1357,7 @@ ok subscriptions intro-offers list --subscription-id X --output X
 ok subscriptions introductory-offers list --subscription-id X --limit X --output X
 ok subscriptions prices list --subscription-id X --output X
 ok build-uploads list --app X --limit X --output X
-unknown-command review details --app X --json
+unknown-flag review details --app X --json
 ok apps view --app-id X --output X
 ok apps info view --id X --include X --output X
 ok iap versions view --id X --output X
