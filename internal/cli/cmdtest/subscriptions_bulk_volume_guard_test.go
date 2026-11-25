@@ -10,16 +10,23 @@ import (
 )
 
 func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
-	for _, surface := range []string{"equalize", "import", "setup", "equalize empty membership", "equalize positive total", "setup positive total"} {
+	for _, surface := range []string{"equalize", "import", "setup", "equalize empty membership", "equalize positive total", "setup positive total", "setup initial replay", "setup repair replay"} {
 		t.Run(surface, func(t *testing.T) {
 			setupAuth(t)
 			t.Chdir(t.TempDir())
 			tiersRead, writes := 0, 0
+			replay := strings.HasSuffix(surface, " replay")
+			if replay {
+				setPriceReplayRetryOptions(t)
+			}
 			const subscriptionID = "8000000001"
 			const prices = `{"data":[{"type":"subscriptionPrices","id":"price-old","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"point-old"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{}}`
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.Method != http.MethodGet {
 					writes++
+					if replay && writes == 1 {
+						return jsonHTTPResponse(429, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED"}]}`), nil
+					}
 					return nil, fmt.Errorf("unexpected bulk mutation")
 				}
 				switch req.URL.Path {
@@ -42,13 +49,16 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 					}
 					return jsonHTTPResponse(200, `{"data":[{"type":"subscriptionPrices","id":"price-old"}],"links":{}}`), nil
 				case "/v1/subscriptions/" + subscriptionID + "/prices":
+					if surface == "setup initial replay" && writes == 0 {
+						return jsonHTTPResponse(200, `{"data":[]}`), nil
+					}
 					if surface == "setup positive total" && req.URL.Query().Get("filter[planType]") == "" {
 						return jsonHTTPResponse(200, `{"data":[],"meta":{"paging":{"total":1}}}`), nil
 					}
 					return jsonHTTPResponse(200, prices), nil
 				case "/v1/subscriptionPriceTiers":
 					tiersRead++
-					if surface == "equalize empty membership" || surface == "setup positive total" {
+					if surface == "equalize empty membership" || surface == "setup positive total" || (replay && writes == 0) {
 						return jsonHTTPResponse(200, `{"data":[],"links":{}}`), nil
 					}
 					if req.URL.Query().Get("filter[subscription]") != subscriptionID {
@@ -73,7 +83,7 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 			}
 			if strings.HasPrefix(surface, "setup") {
 				args = []string{"subscriptions", "setup", "--group-id", "group-1", "--reference-name", "Monthly", "--product-id", "com.example.monthly", "--subscription-period", "ONE_MONTH", "--price-point-id", "point-new", "--price-territory", "USA", "--no-verify"}
-				if surface == "setup" {
+				if surface == "setup" || surface == "setup repair replay" {
 					args = append(args, "--repair")
 				}
 			}
@@ -85,7 +95,14 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 			if surface == "setup positive total" {
 				wantTierReads, diagnostic = 0, "incomplete price collection"
 			}
-			if err == nil || !strings.Contains(err.Error()+out, diagnostic) || tiersRead != wantTierReads || writes != 0 {
+			wantWrites := 0
+			switch surface {
+			case "setup initial replay":
+				wantWrites, wantTierReads, diagnostic = 1, 0, "cannot replay the initial price matrix"
+			case "setup repair replay":
+				wantWrites, wantTierReads = 1, 2
+			}
+			if err == nil || !strings.Contains(err.Error()+out, diagnostic) || tiersRead != wantTierReads || writes != wantWrites {
 				t.Fatalf("surface=%s err=%v tier reads=%d writes=%d output=%s", surface, err, tiersRead, writes, out)
 			}
 		})
@@ -93,11 +110,15 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 }
 
 func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
-	for _, mode := range []string{"dry-run", "matched", "new", "monthly", "other territory", "missing price collection", "incomplete price collection", "tiers added between rows"} {
+	for _, mode := range []string{"dry-run", "matched", "new", "monthly", "other territory", "missing price collection", "incomplete price collection", "tiers added between rows", "tiers after 503", "tiers after 429"} {
 		t.Run(mode, func(t *testing.T) {
 			setupAuth(t)
 			t.Chdir(t.TempDir())
 			reads, writes := 0, 0
+			retryStatus := map[string]int{"tiers after 503": 503, "tiers after 429": 429}[mode]
+			if retryStatus != 0 {
+				setPriceReplayRetryOptions(t)
+			}
 			territory, point, plan := "USA", "point-new", "UPFRONT"
 			if mode == "matched" {
 				point = "point-old"
@@ -112,6 +133,9 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices" {
 					writes++
+					if writes == 1 && retryStatus != 0 {
+						return jsonHTTPResponse(retryStatus, fmt.Sprintf(`{"errors":[{"status":"%d","detail":"retry later"}]}`, retryStatus)), nil
+					}
 					return jsonHTTPResponse(201, `{"data":{"type":"subscriptionPrices","id":"price-new"}}`), nil
 				}
 				if req.Method != http.MethodGet {
@@ -132,6 +156,12 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 				case "/v1/subscriptionPriceTiers":
 					reads++
 					wantTerritory := ""
+					if retryStatus != 0 {
+						wantTerritory = "USA"
+						if writes > 0 {
+							return jsonHTTPResponse(200, `{"data":[{"type":"subscriptionPriceTiers","id":"new-tier"}]}`), nil
+						}
+					}
 					if mode == "other territory" {
 						wantTerritory = "CAN"
 					}
@@ -165,7 +195,7 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 			if mode == "dry-run" || mode == "matched" || strings.HasSuffix(mode, "price collection") {
 				wantWrites = 0
 			}
-			if mode == "tiers added between rows" {
+			if mode == "tiers added between rows" || retryStatus != 0 {
 				wantReads, wantWrites = 2, 1
 			}
 			if mode == "other territory" {
@@ -175,7 +205,7 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 				if err == nil || !strings.Contains(err.Error(), "price collection") {
 					t.Fatalf("expected refusal of missing price proof, got %v", err)
 				}
-			} else if mode == "tiers added between rows" {
+			} else if mode == "tiers added between rows" || retryStatus != 0 {
 				if err == nil || !strings.Contains(out, "has volume price tiers") {
 					t.Fatalf("expected refusal after a new tier appeared: %v, %s", err, out)
 				}
@@ -187,4 +217,11 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 			}
 		})
 	}
+}
+
+func setPriceReplayRetryOptions(t *testing.T) {
+	t.Helper()
+	t.Setenv("ASC_MAX_RETRIES", "1")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "1ms")
 }

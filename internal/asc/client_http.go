@@ -187,10 +187,29 @@ func (c *Client) doWithHTTPClient(ctx context.Context, method, path string, body
 		}, retryOpts)
 	}
 	if shouldLimitMutatingMethod(method) {
+		if ctx.Value(subscriptionPriceWriteAttemptKey{}) != nil {
+			return c.doWithMutatingRequestLimiter(ctx, request)
+		}
 		return c.doMutation(ctx, request, isRateLimitRejection)
 	}
 
 	return request(ctx)
+}
+
+type subscriptionPriceWriteAttemptKey struct{}
+
+// RetrySubscriptionPriceWrite gives a pricing workflow control of each actual
+// write attempt so it can refresh price state after rate-limit backoff.
+func RetrySubscriptionPriceWrite[T any](ctx context.Context, attempt func(context.Context, bool) (T, error)) (T, error) {
+	ctx = context.WithValue(ctx, subscriptionPriceWriteAttemptKey{}, true)
+	replay := false
+	return withRetry(ctx, func() (T, error) {
+		value, err := attempt(ctx, replay)
+		replay = true
+		return value, err
+	}, ResolveRetryOptions(), func(err error) bool {
+		return isRateLimitRejection(err) && !IsRetryBudgetExhausted(err) && !IsRetryDelayExceeded(err)
+	})
 }
 
 // doAppBuildUploadsRead retries the app-scoped Build Upload API only after a

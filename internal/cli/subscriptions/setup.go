@@ -1455,22 +1455,34 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, d *shared.Deps, cl
 		}
 	}
 
+	matches := func(readCtx context.Context) (bool, error) {
+		readbackState, err := fetchSubscriptionPriceImportStateForPlans(readCtx, d, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
+		if err != nil {
+			return false, err
+		}
+		return subscriptionSetupPriceMatrixMatches(readbackState, matrix) && (!repair || !preMutationMatched), nil
+	}
 	// The complete matrix PATCH may apply before a transport/5xx response is
 	// observed, so reconcile its exact state without replaying the write.
 	_, _, err = shared.RunReconciledMutationNoReplayWith(
-		ctx,
-		d,
+		ctx, d,
 		func(requestCtx context.Context) (struct{}, error) {
-			_, mutationErr := client.SetSubscriptionPriceMatrix(requestCtx, subscriptionID, matrix)
-			return struct{}{}, mutationErr
+			_, err := writeSubscriptionPrice(requestCtx, false, matches,
+				func(checkCtx context.Context) error {
+					if len(state.states) == 0 {
+						return requireUnpricedSubscription(checkCtx, client, subscriptionID)
+					}
+					return requireSingleTierBulkPriceWrite(checkCtx, d, client, subscriptionID, nil)
+				},
+				func(writeCtx context.Context) error {
+					_, err := client.SetSubscriptionPriceMatrix(writeCtx, subscriptionID, matrix)
+					return err
+				})
+			return struct{}{}, err
 		},
-		func(readbackCtx context.Context) (struct{}, bool, error) {
-			readbackState, readbackErr := fetchSubscriptionPriceImportStateForPlans(readbackCtx, d, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
-			if readbackErr != nil {
-				return struct{}{}, false, readbackErr
-			}
-			matches := subscriptionSetupPriceMatrixMatches(readbackState, matrix)
-			return struct{}{}, matches && (!repair || !preMutationMatched), nil
+		func(readCtx context.Context) (struct{}, bool, error) {
+			matched, err := matches(readCtx)
+			return struct{}{}, matched, err
 		},
 	)
 	if err != nil {

@@ -366,6 +366,16 @@ func TestSubscriptionsPricingEqualize_PreflightFailuresStopBeforeMutation(t *tes
 }
 
 func TestSubscriptionsPricingEqualize_RetriesInitialPriceAfterNegativeReadback(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		priceAppears bool
+	}{{"still empty", false}, {"other initial price appeared", true}} {
+		t.Run(tc.name, func(t *testing.T) { checkEqualizeInitialPriceRetry(t, tc.priceAppears) })
+	}
+}
+
+func checkEqualizeInitialPriceRetry(t *testing.T, priceAppears bool) {
+	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "1")
 	t.Setenv("ASC_BASE_DELAY", "1ms")
@@ -402,6 +412,9 @@ func TestSubscriptionsPricingEqualize_RetriesInitialPriceAfterNegativeReadback(t
 			steps = append(steps, "territories")
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/relationships/prices":
+			if priceAppears && patchCount != 0 {
+				return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"other-initial-price"}]}`), nil
+			}
 			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/prices":
 			steps = append(steps, "verify")
@@ -435,6 +448,7 @@ func TestSubscriptionsPricingEqualize_RetriesInitialPriceAfterNegativeReadback(t
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
+	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "pricing", "equalize",
@@ -445,11 +459,18 @@ func TestSubscriptionsPricingEqualize_RetriesInitialPriceAfterNegativeReadback(t
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+		runErr = root.Run(context.Background())
 	})
 
+	if priceAppears {
+		if runErr == nil || patchCount != 1 || postCount != 0 || !strings.Contains(stdout, "cannot replay the initial price matrix") {
+			t.Fatalf("err=%v PATCHes=%d POSTs=%d output=%s", runErr, patchCount, postCount, stdout)
+		}
+		return
+	}
+	if runErr != nil {
+		t.Fatal(runErr)
+	}
 	if patchCount != 2 {
 		t.Fatalf("expected one replay after negative readback, got %d PATCHes", patchCount)
 	}
@@ -1373,6 +1394,12 @@ func TestSubscriptionsPricingEqualize_ReconcilesBeforeRetryingMutation(t *testin
 }
 
 func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStopping(t *testing.T) {
+	t.Run("single-tier follow-up", func(t *testing.T) { checkEqualizeReconciledInitialPrice(t, false) })
+	t.Run("tiered follow-up", func(t *testing.T) { checkEqualizeReconciledInitialPrice(t, true) })
+}
+
+func checkEqualizeReconciledInitialPrice(t *testing.T, tierAppears bool) {
+	t.Helper()
 	setupAuth(t)
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
@@ -1390,6 +1417,14 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPriceTiers":
+			if got := req.URL.Query().Get("filter[territory]"); got != "CAN" {
+				t.Fatalf("tier proof for %q, want CAN", got)
+			}
+			if tierAppears {
+				return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPriceTiers","id":"concurrent-can-tier"}]}`), nil
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":[]}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/territories":
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000001/pricePoints":
@@ -1410,6 +1445,9 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/subscriptions/8000000001":
 			// The initial USA price lands even though Apple answers 429.
 			ledger.set("USA", basePricePointID, "")
+			if tierAppears {
+				ledger.set("CAN", "old-can-point", "")
+			}
 			return jsonHTTPResponse(http.StatusTooManyRequests, `{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED","title":"Too Many Requests","detail":"retry later"}]}`), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
 			canPosts++
@@ -1431,6 +1469,7 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
+	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "pricing", "equalize",
@@ -1441,11 +1480,18 @@ func TestSubscriptionsPricingEqualize_ReconcilesInitialPriceFailureBeforeStoppin
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+		runErr = root.Run(context.Background())
 	})
 
+	if tierAppears {
+		if runErr == nil || canPosts != 0 || !strings.Contains(stdout, "volume price tiers") {
+			t.Fatalf("err=%v CAN POSTs=%d result=%s", runErr, canPosts, stdout)
+		}
+		return
+	}
+	if runErr != nil {
+		t.Fatal(runErr)
+	}
 	if verifyReads != 2 {
 		t.Fatalf("expected one reconciliation read after initial price failure and one final verification read, got %d", verifyReads)
 	}

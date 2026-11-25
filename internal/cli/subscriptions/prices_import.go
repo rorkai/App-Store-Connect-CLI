@@ -293,11 +293,17 @@ Examples:
 				resolvedRow.pricePointID = pricePointID
 				status := reconciledMutationSkipped
 				matched := stateIndex.matches(resolvedRow)
-				if !matched && len(stateIndex.states) > 0 && resolvedRow.planType != asc.SubscriptionPlanTypeMonthly {
-					rowErr = requireSingleTierBulkPriceWrite(ctx, d, client, summary.SubscriptionID, []string{resolvedRow.territoryID})
+				checkTiers := func(checkCtx context.Context) error {
+					if resolvedRow.planType == asc.SubscriptionPlanTypeMonthly {
+						return nil
+					}
+					return requireSingleTierBulkPriceWrite(checkCtx, d, client, summary.SubscriptionID, []string{resolvedRow.territoryID})
+				}
+				if !matched && len(stateIndex.states) > 0 {
+					rowErr = checkTiers(ctx)
 				}
 				if !matched && rowErr == nil {
-					status, rowErr = runReconciledMutation(
+					status, rowErr = runReconciledPriceMutation(
 						ctx,
 						d,
 						func(readbackCtx context.Context) (bool, error) {
@@ -308,6 +314,7 @@ Examples:
 							stateIndex = refreshed
 							return stateIndex.matches(resolvedRow), nil
 						},
+						checkTiers,
 						func(mutationCtx context.Context) error {
 							_, err := client.CreateSubscriptionPrice(mutationCtx, summary.SubscriptionID, pricePointID, resolvedRow.territoryID, attrs)
 							return err

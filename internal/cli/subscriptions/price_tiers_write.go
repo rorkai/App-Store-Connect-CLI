@@ -48,6 +48,17 @@ func subscriptionHasExistingPrices(ctx context.Context, client *asc.Client, subs
 	return len(prices.Data) > 0, nil
 }
 
+func requireUnpricedSubscription(ctx context.Context, client *asc.Client, id string) error {
+	exists, err := subscriptionHasExistingPrices(ctx, client, id)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("subscription %s already has prices; cannot replay the initial price matrix", id)
+	}
+	return nil
+}
+
 func subscriptionPriceRequiresTierIntent(price asc.Resource[asc.SubscriptionPriceAttributes]) bool {
 	if price.Attributes.PlanType == asc.SubscriptionPlanTypeMonthly {
 		return false

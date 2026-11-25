@@ -325,7 +325,7 @@ func applySubscriptionPriceDeriveRows(
 				failures = append(failures, equalizeAttemptFailure{Target: change, Err: err})
 			}
 		} else {
-			_, failures = applyEqualizedPrices(ctx, d, client, targetSubscriptionID, changes, workers, attrs, effectiveAt)
+			_, failures = applyEqualizedPrices(ctx, d, client, targetSubscriptionID, changes, workers, attrs, effectiveAt, false)
 		}
 	}
 	failureByTerritory := make(map[string]error, len(failures))
