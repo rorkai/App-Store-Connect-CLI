@@ -7642,6 +7642,9 @@ func TestCreateSubscriptionPrice(t *testing.T) {
 		if payload.Data.Relationships.Subscription.Data.ID != "sub-1" || payload.Data.Relationships.SubscriptionPricePoint.Data.ID != "price-point-1" || payload.Data.Relationships.Territory.Data.ID != "USA" {
 			t.Fatalf("unexpected relationships: %+v", payload.Data.Relationships)
 		}
+		if payload.Data.Relationships.AdditionalPriceTiers != nil {
+			t.Fatal("omitted tiers must not send a relationship")
+		}
 		assertAuthorized(t, req)
 	}, response)
 

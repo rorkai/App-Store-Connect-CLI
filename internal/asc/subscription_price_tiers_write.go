@@ -24,7 +24,7 @@ type SubscriptionPriceTierInlineRelationships struct {
 }
 
 func subscriptionPriceTierResources(tiers []ProposedSubscriptionPriceTier, prefix string) (*RelationshipList, []SubscriptionPriceTierInlineCreate) {
-	if len(tiers) == 0 {
+	if tiers == nil {
 		return nil, nil
 	}
 	linkage := &RelationshipList{Data: make([]ResourceData, 0, len(tiers))}
