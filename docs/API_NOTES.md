@@ -165,6 +165,12 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 - `asc web apps transfer status --app APP_ID` reads `GET /iris/v1/apps/{appId}?include=appTransferRequest` (live-verified for `data: null`). Do not call `/iris/v1/apps/{appId}/appTransferRequest` directly (returns HTTP 409 `ENTITY_ERROR.RELATIONSHIP.INVALID` when no transfer exists). Transfer initiation/acceptance actions have no captured API contract.
 
+## Age-rating location and relationship answers
+
+- OpenAPI 4.6.1 adds `sharedLocation` and `datingAndRelationships` to age-rating declarations. Public `PATCH /v1/ageRatingDeclarations/{id}` accepted boolean values, and an independent GET confirmed persistence on 2026-11-25. Explicit null returned `value cannot be null` even though the update schema marks both attributes nullable.
+- Submission readiness requires both answers. Apple requires them for app updates and questionnaire edits from November 19, 2026, with January 12, 2027 as the deadline for every app. [Apple release notes](https://developer.apple.com/help/app-store-connect/release-notes/)
+- `asc age-rating edit --shared-location true|false --dating-and-relationships true|false` and canonical `age-rating.json` use boolean values. Omitted fields leave existing answers unchanged. `--all-none` defaults both answers to false and permits explicit overrides.
+
 ## Last-compatible version settings (`downloadable`)
 
 - Last-compatible version settings use the nullable boolean `downloadable` attribute on public `appStoreVersions` (`asc versions list/view --output json` and `asc versions update --downloadable true|false`; `--downloadable false` requires `--confirm`). Absent `downloadable` is never defaulted to `true`.

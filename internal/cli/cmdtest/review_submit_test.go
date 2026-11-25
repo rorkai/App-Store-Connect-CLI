@@ -538,7 +538,7 @@ func TestReviewSubmitConflictAtFinalSubmitReportsCreatedSubmissionAndHints(t *te
 	}
 }
 
-const completeAgeRatingAttributes = `"advertising":false,"gambling":false,"healthOrWellnessTopics":false,"lootBox":false,"messagingAndChat":false,"parentalControls":false,"ageAssurance":false,"socialMedia":false,"socialMediaAgeRestricted":false,"unrestrictedWebAccess":false,"userGeneratedContent":false,"alcoholTobaccoOrDrugUseOrReferences":"NONE","contests":"NONE","gamblingSimulated":"NONE","gunsOrOtherWeapons":"NONE","medicalOrTreatmentInformation":"NONE","profanityOrCrudeHumor":"NONE","sexualContentGraphicAndNudity":"NONE","sexualContentOrNudity":"NONE","horrorOrFearThemes":"NONE","matureOrSuggestiveThemes":"NONE","violenceCartoonOrFantasy":"NONE","violenceRealistic":"NONE","violenceRealisticProlongedGraphicOrSadistic":"NONE"`
+const completeAgeRatingAttributes = `"datingAndRelationships":false,"sharedLocation":false,"advertising":false,"gambling":false,"healthOrWellnessTopics":false,"lootBox":false,"messagingAndChat":false,"parentalControls":false,"ageAssurance":false,"socialMedia":false,"socialMediaAgeRestricted":false,"unrestrictedWebAccess":false,"userGeneratedContent":false,"alcoholTobaccoOrDrugUseOrReferences":"NONE","contests":"NONE","gamblingSimulated":"NONE","gunsOrOtherWeapons":"NONE","medicalOrTreatmentInformation":"NONE","profanityOrCrudeHumor":"NONE","sexualContentGraphicAndNudity":"NONE","sexualContentOrNudity":"NONE","horrorOrFearThemes":"NONE","matureOrSuggestiveThemes":"NONE","violenceCartoonOrFantasy":"NONE","violenceRealistic":"NONE","violenceRealisticProlongedGraphicOrSadistic":"NONE"`
 
 // submitPreflightAppInfosJSON is the app info read by the submit age rating
 // preflight, with the declaration's attributes included.

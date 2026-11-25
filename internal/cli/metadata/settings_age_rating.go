@@ -14,6 +14,8 @@ import (
 var ageRatingContentLevels = []string{"NONE", "INFREQUENT_OR_MILD", "FREQUENT_OR_INTENSE", "INFREQUENT", "FREQUENT"}
 
 var ageRatingFields = []metadataSettingField{
+	{name: "datingAndRelationships", kind: metadataSettingBool},
+	{name: "sharedLocation", kind: metadataSettingBool},
 	{name: "advertising", kind: metadataSettingBool},
 	{name: "ageAssurance", kind: metadataSettingBool},
 	{name: "gambling", kind: metadataSettingBool},

@@ -15,6 +15,8 @@ func TestPrintTableAgeRatingIncludesSocialMediaFields(t *testing.T) {
 			ID:   "age-441",
 			Type: ResourceTypeAgeRatingDeclarations,
 			Attributes: AgeRatingDeclarationAttributes{
+				SharedLocation:                 &socialMedia,
+				DatingAndRelationships:         &ageRestricted,
 				SocialMedia:                    &NullableBool{Value: &socialMedia},
 				GracRatingClassificationNumber: &NullableString{Value: &gracNumber},
 				SocialMediaAgeRestricted:       &NullableBool{Value: &ageRestricted},
@@ -23,7 +25,7 @@ func TestPrintTableAgeRatingIncludesSocialMediaFields(t *testing.T) {
 	}
 
 	output := captureStdout(t, func() error { return PrintTable(resp) })
-	for _, want := range []string{"Social Media", "Social Media Age Restricted", "true", "false", "GRAC Rating Classification Number", gracNumber} {
+	for _, want := range []string{"Shared Location", "Dating and Relationships", "Social Media", "Social Media Age Restricted", "true", "false", "GRAC Rating Classification Number", gracNumber} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("expected table output to contain %q, got %q", want, output)
 		}
