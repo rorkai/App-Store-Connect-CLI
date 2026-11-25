@@ -22,8 +22,13 @@ func newSubscriptionsPricingCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc subscriptions pricing summary --app "APP_ID"
   asc subscriptions pricing prices list --subscription-id "SUB_ID"
+  asc subscriptions pricing prices additional-price-tiers --price-id "PRICE_ID"
+  asc subscriptions pricing prices additional-price-tiers-links --price-id "PRICE_ID"
   asc subscriptions pricing prices set --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
   asc subscriptions pricing price-points list --subscription-id "SUB_ID" --territory "United States"
+  asc subscriptions pricing price-tiers list --subscription-id "SUB_ID" --territory "USA"
+  asc subscriptions pricing price-tiers equalize --subscription-id "SUB_ID" --base-price-point "POINT_ID" --additional-price-tiers "./tiers.json"
+  asc subscriptions pricing price-change-preview --subscription-id "SUB_ID" --proposed-changes "./changes.json"
   asc subscriptions pricing availability view --subscription-id "SUB_ID"
   asc subscriptions pricing plan-availability show --subscription-id "SUB_ID"
   asc subscriptions pricing monthly-commitment list --subscription-id "SUB_ID"
@@ -36,6 +41,8 @@ Examples:
 			newSubscriptionsPricingSummaryCommand(d),
 			newSubscriptionsPricingPricesCommand(d),
 			newSubscriptionsPricingPricePointsCommand(d),
+			newSubscriptionsPricingPriceTiersCommand(d),
+			newSubscriptionsPriceChangePreviewCommand(d),
 			newSubscriptionsPricingAvailabilityCommand(d),
 			newSubscriptionsPricingPlanAvailabilityCommand(d),
 			newSubscriptionsPricingMonthlyCommitmentCommand(d),
@@ -61,12 +68,16 @@ func newSubscriptionsPricingPricesCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc subscriptions pricing prices list --subscription-id "SUB_ID"
+  asc subscriptions pricing prices additional-price-tiers --price-id "PRICE_ID"
+  asc subscriptions pricing prices additional-price-tiers-links --price-id "PRICE_ID"
   asc subscriptions pricing prices set --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
   asc subscriptions pricing prices import --subscription-id "SUB_ID" --input "./prices.csv" --confirm
   asc subscriptions pricing prices delete --price-id "PRICE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			newSubscriptionsPricesAdditionalPriceTiersCommand(d),
+			newSubscriptionsPricesAdditionalPriceTiersLinksCommand(d),
 			wrapSubscriptionsCommand(
 				newSubscriptionsPricesListCommand(d),
 				"asc subscriptions prices list",
