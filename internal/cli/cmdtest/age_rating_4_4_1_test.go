@@ -182,6 +182,26 @@ func TestAgeRatingEditScopedAppInfoWritesAfterOwnershipCheck(t *testing.T) {
 	}
 }
 
+func TestAgeRatingEditRefusesWrongDeclarationTypeBeforePatch(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appInfos/info-1", "include=app"), asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info-1","relationships":{"app":{"data":{"type":"apps","id":"100000001"}}}}}`))
+	reg.Register(asctest.GET("/v1/appInfos/info-1/ageRatingDeclaration"), asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"age-441"}}`))
+
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "age-rating", "edit", "--app", "100000001", "--app-info-id", "info-1", "--gambling", "true", "--output", "json")
+	if code != cmd.ExitError || stdout != "" || !strings.Contains(stderr, "expected age rating declaration") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q, want declaration type refusal", code, stdout, stderr)
+	}
+	requests := reg.Requests()
+	if len(requests) != 2 || requests[0].Method != http.MethodGet || requests[0].URL.Path != "/v1/appInfos/info-1" || requests[1].Method != http.MethodGet || requests[1].URL.Path != "/v1/appInfos/info-1/ageRatingDeclaration" {
+		t.Fatalf("requests=%v, want only the ownership and declaration GETs", requests)
+	}
+}
+
 func TestAgeRatingViewRejectsForeignVersionBeforeDeclarationRead(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
