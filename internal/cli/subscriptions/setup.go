@@ -1464,13 +1464,13 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, d *shared.Deps, cl
 	}
 	// The complete matrix PATCH may apply before a transport/5xx response is
 	// observed, so reconcile its exact state without replaying the write.
-	_, _, err = shared.RunReconciledMutationNoReplayWith(
+	_, _, err = shared.RunReconciledMultiRequestMutationWith(
 		ctx, d,
 		func(requestCtx context.Context) (struct{}, error) {
-			_, err := writeSubscriptionPrice(requestCtx, false, matches,
+			_, err := writeSubscriptionPrice(requestCtx, d, false, matches,
 				func(checkCtx context.Context) error {
 					if len(state.states) == 0 {
-						return requireUnpricedSubscription(checkCtx, client, subscriptionID)
+						return requireUnpricedSubscription(checkCtx, d, client, subscriptionID)
 					}
 					return requireSingleTierBulkPriceWrite(checkCtx, d, client, subscriptionID, nil)
 				},
@@ -1483,7 +1483,7 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, d *shared.Deps, cl
 		func(readCtx context.Context) (struct{}, bool, error) {
 			matched, err := matches(readCtx)
 			return struct{}{}, matched, err
-		},
+		}, false,
 	)
 	if err != nil {
 		return nil, false, err

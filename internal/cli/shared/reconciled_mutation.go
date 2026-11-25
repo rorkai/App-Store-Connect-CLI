@@ -57,6 +57,19 @@ func RunReconciledMutationNoReplayWith[T any](
 	return runReconciledMutation(ctx, d.Timeout, d.After, mutate, readback, false)
 }
 
+// RunReconciledMultiRequestMutationWith reconciles a mutation whose callback
+// sets deadlines for its own requests. Its eligibility reads, backoff and write
+// share the caller's context. replay allows replay after an ambiguous failure.
+func RunReconciledMultiRequestMutationWith[T any](
+	ctx context.Context,
+	d *Deps,
+	mutate func(context.Context) (T, error),
+	readback func(context.Context) (T, bool, error),
+	replay bool,
+) (T, ReconciledMutationStatus, error) {
+	return runReconciledMutation(ctx, context.WithCancel, d.After, mutate, readback, replay)
+}
+
 func runReconciledMutation[T any](
 	ctx context.Context,
 	timeout func(context.Context) (context.Context, context.CancelFunc),

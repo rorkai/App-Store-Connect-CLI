@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
@@ -17,11 +18,17 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 			tiersRead, writes := 0, 0
 			replay := strings.HasSuffix(surface, " replay")
 			if replay {
+				t.Setenv("ASC_TIMEOUT", "100ms")
 				setPriceReplayRetryOptions(t)
 			}
 			const subscriptionID = "8000000001"
 			const prices = `{"data":[{"type":"subscriptionPrices","id":"price-old","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"point-old"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{}}`
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if replay && (req.Method != http.MethodGet || writes > 0) {
+					if err := delayPriceRetryRequest(req); err != nil {
+						return nil, err
+					}
+				}
 				if req.Method != http.MethodGet {
 					writes++
 					if replay && writes == 1 {
@@ -87,7 +94,7 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 					args = append(args, "--repair")
 				}
 			}
-			out, _, err := runCommand(t, append(args, "--output", "json"))
+			out, _, err := runCommandOnFakeClock(t, append(args, "--output", "json"))
 			wantTierReads, diagnostic := 1, "asc subscriptions pricing prices set --additional-price-tiers"
 			if strings.HasPrefix(surface, "equalize ") {
 				wantTierReads, diagnostic = 0, "unverified existing price membership"
@@ -110,12 +117,15 @@ func TestSubscriptionBulkWritersRefuseVolumeTierReplacement(t *testing.T) {
 }
 
 func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
-	for _, mode := range []string{"dry-run", "matched", "new", "monthly", "other territory", "missing price collection", "incomplete price collection", "tiers added between rows", "tiers after 503", "tiers after 429"} {
+	for _, mode := range []string{"dry-run", "matched", "new", "monthly", "other territory", "missing price collection", "incomplete price collection", "tiers added between rows", "tiers after 503", "tiers after 429", "unchanged after 429"} {
 		t.Run(mode, func(t *testing.T) {
 			setupAuth(t)
 			t.Chdir(t.TempDir())
 			reads, writes := 0, 0
-			retryStatus := map[string]int{"tiers after 503": 503, "tiers after 429": 429}[mode]
+			retryStatus := map[string]int{"tiers after 503": 503, "tiers after 429": 429, "unchanged after 429": 429}[mode]
+			if mode == "unchanged after 429" {
+				t.Setenv("ASC_TIMEOUT", "100ms")
+			}
 			if retryStatus != 0 {
 				setPriceReplayRetryOptions(t)
 			}
@@ -131,6 +141,11 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 				territory = "CAN"
 			}
 			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if mode == "unchanged after 429" && (req.Method != http.MethodGet || writes > 0) {
+					if err := delayPriceRetryRequest(req); err != nil {
+						return nil, err
+					}
+				}
 				if req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices" {
 					writes++
 					if writes == 1 && retryStatus != 0 {
@@ -158,7 +173,7 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 					wantTerritory := ""
 					if retryStatus != 0 {
 						wantTerritory = "USA"
-						if writes > 0 {
+						if writes > 0 && mode != "unchanged after 429" {
 							return jsonHTTPResponse(200, `{"data":[{"type":"subscriptionPriceTiers","id":"new-tier"}]}`), nil
 						}
 					}
@@ -190,13 +205,16 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 			if mode == "dry-run" {
 				args[len(args)-1] = "--dry-run"
 			}
-			out, _, err := runCommand(t, args)
+			out, _, err := runCommandOnFakeClock(t, args)
 			wantWrites, wantReads := 1, 0
 			if mode == "dry-run" || mode == "matched" || strings.HasSuffix(mode, "price collection") {
 				wantWrites = 0
 			}
 			if mode == "tiers added between rows" || retryStatus != 0 {
 				wantReads, wantWrites = 2, 1
+			}
+			if mode == "unchanged after 429" {
+				wantWrites = 2
 			}
 			if mode == "other territory" {
 				wantReads = 1
@@ -205,7 +223,7 @@ func TestSubscriptionPriceImportPreservesUnaffectedWrites(t *testing.T) {
 				if err == nil || !strings.Contains(err.Error(), "price collection") {
 					t.Fatalf("expected refusal of missing price proof, got %v", err)
 				}
-			} else if mode == "tiers added between rows" || retryStatus != 0 {
+			} else if mode == "tiers added between rows" || (retryStatus != 0 && mode != "unchanged after 429") {
 				if err == nil || !strings.Contains(out, "has volume price tiers") {
 					t.Fatalf("expected refusal after a new tier appeared: %v, %s", err, out)
 				}
@@ -224,4 +242,14 @@ func setPriceReplayRetryOptions(t *testing.T) {
 	t.Setenv("ASC_MAX_RETRIES", "1")
 	t.Setenv("ASC_BASE_DELAY", "1ms")
 	t.Setenv("ASC_MAX_DELAY", "1ms")
+}
+
+// Each call fits ASC_TIMEOUT, but multiple calls cannot share the same deadline.
+func delayPriceRetryRequest(req *http.Request) error {
+	select {
+	case <-time.After(60 * time.Millisecond):
+		return nil
+	case <-req.Context().Done():
+		return req.Context().Err()
+	}
 }

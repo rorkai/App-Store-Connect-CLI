@@ -162,9 +162,7 @@ Examples:
 
 			if *dryRun {
 				if priceAttrs.StartDate == "" && *autoStartDate {
-					existingCtx, existingCancel := d.Timeout(ctx)
-					hasExistingPrices, err := subscriptionHasExistingPrices(existingCtx, client, subID)
-					existingCancel()
+					hasExistingPrices, err := subscriptionHasExistingPrices(ctx, d, client, subID)
 					if err != nil {
 						return fmt.Errorf("equalize: failed to check existing prices: %w", err)
 					}
@@ -196,9 +194,7 @@ Examples:
 			succeeded := 0
 			failures := make([]equalizeAttemptFailure, 0)
 
-			existingCtx, existingCancel := d.Timeout(ctx)
-			hasExistingPrices, err := subscriptionHasExistingPrices(existingCtx, client, subID)
-			existingCancel()
+			hasExistingPrices, err := subscriptionHasExistingPrices(ctx, d, client, subID)
 			if err != nil {
 				return fmt.Errorf("equalize: failed to check existing prices: %w", err)
 			}
@@ -267,7 +263,7 @@ Examples:
 						return reconciled == 1, readErr
 					},
 					func(checkCtx context.Context) error {
-						return requireUnpricedSubscription(checkCtx, client, subID)
+						return requireUnpricedSubscription(checkCtx, d, client, subID)
 					},
 					func(mutationCtx context.Context) error {
 						_, mutationErr := client.SetSubscriptionInitialPrice(mutationCtx, subID, baseTarget.PricePointID, baseTarget.Territory, priceAttrs)
@@ -485,9 +481,7 @@ func appleEarliestSubscriptionPriceStartDate(err error) (time.Time, bool) {
 }
 
 func writeEqualizedPrice(ctx context.Context, d *shared.Deps, client *asc.Client, subID string, target equalization, attrs asc.SubscriptionPriceCreateAttributes, replay bool, matches func(context.Context) (bool, error)) error {
-	setCtx, cancel := d.Timeout(ctx)
-	defer cancel()
-	_, err := writeSubscriptionPrice(setCtx, replay, matches,
+	_, err := writeSubscriptionPrice(ctx, d, replay, matches,
 		func(checkCtx context.Context) error {
 			return requireSingleTierBulkPriceWrite(checkCtx, d, client, subID, []string{target.Territory})
 		},

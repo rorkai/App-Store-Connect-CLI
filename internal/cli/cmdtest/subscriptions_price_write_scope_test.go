@@ -2,17 +2,20 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestSubscriptionPriceWriteProofReadsStayInScope(t *testing.T) {
 	for _, test := range []struct {
-		name, path, next, body string
-		tiers, force, allowed  bool
+		name, path, next, body        string
+		tiers, force, allowed, repeat bool
 	}{
 		{name: "price existence redirect", path: "/v1/subscriptions/8000000003/relationships/prices"},
 		{name: "prices redirect", path: "/v1/subscriptions/8000000003/prices"},
@@ -35,6 +38,7 @@ func TestSubscriptionPriceWriteProofReadsStayInScope(t *testing.T) {
 		{name: "duplicate equalization", path: "/v1/subscriptionPricePoints/new-base/equalizations", force: true, body: `{"data":[{"type":"subscriptionPricePoints","id":"repeat","relationships":{"territory":{"data":{"type":"territories","id":"NOR"}}}},{"type":"subscriptionPricePoints","id":"repeat","relationships":{"territory":{"data":{"type":"territories","id":"NOR"}}}}],"meta":{"paging":{"total":2}}}`},
 		{name: "tier quantity absent", path: "/v1/subscriptionPrices/current/additionalPriceTiers", tiers: true, body: `{"data":[{"type":"subscriptionPriceTiers","id":"tier-1","relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"point"}}}}]}`},
 		{name: "tier point missing", path: "/v1/subscriptionPrices/current/additionalPriceTiers", tiers: true, body: `{"data":[{"type":"subscriptionPriceTiers","id":"tier-1","attributes":{"minQuantity":10},"relationships":{"subscriptionPricePoint":{"data":null}}}]}`},
+		{name: "repeated empty price page", path: "/v1/subscriptions/8000000003/prices", next: "/v1/subscriptions/8000000003/prices?cursor=repeat", repeat: true},
 		{name: "opaque price cursor", path: "/v1/subscriptions/8000000003/prices", next: "/v1/subscriptions/8000000003/prices?cursor=next", allowed: true},
 		{name: "opaque tier cursor", path: "/v1/subscriptionPrices/current/additionalPriceTiers", next: "/v1/subscriptionPrices/current/additionalPriceTiers?cursor=next", tiers: true, allowed: true},
 		{name: "opaque force tier cursor", path: "/v1/subscriptionPriceTiers", next: "/v1/subscriptionPriceTiers?cursor=next", force: true, allowed: true},
@@ -42,7 +46,7 @@ func TestSubscriptionPriceWriteProofReadsStayInScope(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			captured := subscriptionPricesListQuerySurfaceStub(t)
-			writes, escaped := 0, 0
+			writes, escaped, pages := 0, 0, 0
 			captured.response = func(w http.ResponseWriter, req *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				if req.Method != http.MethodGet {
@@ -50,7 +54,12 @@ func TestSubscriptionPriceWriteProofReadsStayInScope(t *testing.T) {
 					_, _ = io.WriteString(w, `{"data":{"type":"subscriptions","id":"saved"}}`)
 					return
 				}
-				if req.URL.Path == test.path && req.URL.Query().Get("cursor") == "" {
+				if req.URL.Path == test.path && (req.URL.Query().Get("cursor") == "" || test.repeat) {
+					pages++
+					if test.repeat && pages > 2 {
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
 					switch {
 					case test.body != "":
 						_, _ = io.WriteString(w, test.body)
@@ -87,6 +96,9 @@ func TestSubscriptionPriceWriteProofReadsStayInScope(t *testing.T) {
 				args = append(args, "--additional-price-tiers", path)
 			}
 			stdout, stderr, err := runSubscriptionPricesListQuerySurface(t, args...)
+			if test.repeat && (!errors.Is(err, asc.ErrRepeatedPaginationURL) || pages != 2) {
+				t.Fatalf("repeated cursor: pages=%d writes=%d err=%v", pages, writes, err)
+			}
 			wantWrites := 0
 			if test.allowed && test.force {
 				wantWrites = 1

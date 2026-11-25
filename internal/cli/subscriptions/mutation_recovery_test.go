@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"testing/synctest"
@@ -80,6 +81,58 @@ func TestPartitionEqualizeFailuresKeepsUnhonoredRetryDelayFinal(t *testing.T) {
 	if len(retryable) != 0 || len(final) != 1 {
 		t.Fatalf("expected one final failure and no retryable failures, got retryable=%d final=%d", len(retryable), len(final))
 	}
+}
+
+func TestEqualizeRateLimitReplayUsesFreshRequestDeadlines(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "100ms")
+	t.Setenv("ASC_MAX_RETRIES", "1")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "1ms")
+	asc.ResetConfigCacheForTest()
+	t.Cleanup(asc.ResetConfigCacheForTest)
+
+	const post = "POST /v1/subscriptionPrices"
+	const prices = "GET /v1/subscriptions/sub-1/prices"
+	const tiers = "GET /v1/subscriptionPriceTiers"
+	var calls []string
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = resolvedPricesRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		call := req.Method + " " + req.URL.Path
+		calls = append(calls, call)
+		select {
+		case <-req.Context().Done():
+			return nil, req.Context().Err()
+		case <-time.After(60 * time.Millisecond):
+		}
+		switch call {
+		case post:
+			if len(calls) == 1 {
+				response := resolvedPricesJSONResponse(`{"errors":[{"status":"429","code":"RATE_LIMIT_EXCEEDED"}]}`)
+				response.StatusCode = http.StatusTooManyRequests
+				return response, nil
+			}
+			response := resolvedPricesJSONResponse(`{"data":{"type":"subscriptionPrices","id":"created"}}`)
+			response.StatusCode = http.StatusCreated
+			return response, nil
+		case prices, tiers:
+			return resolvedPricesJSONResponse(`{"data":[]}`), nil
+		default:
+			t.Fatalf("unexpected request %s", call)
+			return nil, nil
+		}
+	})
+	client, err := asc.NewClientFromPEM("KEY123", "issuer", introImportTestPrivateKeyPEM(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	synctest.Test(t, func(t *testing.T) {
+		succeeded, failures := applyEqualizedPrices(context.Background(), shared.DefaultDeps(), client, "sub-1",
+			[]equalization{{Territory: "CAN", PricePointID: "can-point"}}, 1, asc.SubscriptionPriceCreateAttributes{}, time.Now(), false)
+		if succeeded != 1 || len(failures) != 0 || !slices.Equal(calls, []string{post, prices, tiers, post}) {
+			t.Fatalf("succeeded=%d failures=%v requests=%v", succeeded, failures, calls)
+		}
+	})
 }
 
 func TestApplyEqualizedPricesDoesNotReplayExhaustedClientRateLimit(t *testing.T) {

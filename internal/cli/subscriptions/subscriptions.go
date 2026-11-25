@@ -1178,7 +1178,7 @@ type subscriptionPriceRelationshipData struct {
 	Territory              *asc.Relationship `json:"territory"`
 }
 
-func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subID, pricePointID, territoryID string, attrs asc.SubscriptionPriceCreateAttributes, tiers ...asc.ProposedSubscriptionPriceTier) (*asc.SubscriptionPriceResponse, error) {
+func findMatchingSubscriptionPrice(ctx context.Context, d *shared.Deps, client *asc.Client, subID, pricePointID, territoryID string, attrs asc.SubscriptionPriceCreateAttributes, tiers ...asc.ProposedSubscriptionPriceTier) (*asc.SubscriptionPriceResponse, error) {
 	pricePointID = strings.TrimSpace(pricePointID)
 	territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
 
@@ -1194,9 +1194,12 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 	}
 
 	var count priceCollectionCount
+	seenPages := map[string]bool{}
 	guardedTerritories := map[string]bool{}
 	for {
-		resp, err := client.GetSubscriptionPrices(ctx, subID, opts...)
+		requestCtx, cancel := d.Timeout(ctx)
+		resp, err := client.GetSubscriptionPrices(requestCtx, subID, opts...)
+		cancel()
 		if err != nil {
 			return nil, err
 		}
@@ -1212,7 +1215,7 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 				continue
 			}
 			if tiers != nil {
-				matches, err := subscriptionPriceTiersMatch(ctx, client, price.ID, tiers)
+				matches, err := subscriptionPriceTiersMatch(ctx, d, client, price.ID, tiers)
 				if err != nil {
 					return nil, err
 				}
@@ -1229,7 +1232,9 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 				if territoryID != "" || guardedTerritories[""] {
 					return nil, errSubscriptionPriceTierIntentRequired
 				}
-				point, err := client.GetSubscriptionPricePoint(ctx, url.PathEscape(pricePointID), asc.WithSubscriptionPricePointInclude([]string{"territory"}))
+				pointCtx, cancel := d.Timeout(ctx)
+				point, err := client.GetSubscriptionPricePoint(pointCtx, url.PathEscape(pricePointID), asc.WithSubscriptionPricePointInclude([]string{"territory"}))
+				cancel()
 				if err != nil {
 					return nil, fmt.Errorf("resolve territory for price point %q: %w", pricePointID, err)
 				}
@@ -1250,6 +1255,11 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 		if err != nil {
 			return nil, err
 		}
+		identity := asc.PaginationURLIdentity(nextURL)
+		if seenPages[identity] {
+			return nil, asc.ErrRepeatedPaginationURL
+		}
+		seenPages[identity] = true
 		opts = []asc.SubscriptionPricesOption{asc.NextURL[asc.SubscriptionPricesOption](nextURL)}
 	}
 }
@@ -1443,14 +1453,11 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				}
 			}
 
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
 			// Check if the subscription already has prices.
 			// New subscriptions without prices require PATCH /v1/subscriptions/{id}
 			// with inline price resources, while subscriptions that already have
 			// prices use POST /v1/subscriptionPrices for price changes.
-			hasExistingPrices, pricesErr := subscriptionHasExistingPrices(requestCtx, client, id)
+			hasExistingPrices, pricesErr := subscriptionHasExistingPrices(ctx, d, client, id)
 			if pricesErr != nil {
 				return fmt.Errorf("subscriptions prices add: failed to check existing prices: %w", pricesErr)
 			}
@@ -1465,24 +1472,28 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 
 			if !hasExistingPrices {
 				// Initial price: use PATCH with inline resources
-				subResp, err := asc.RetryGuardedMutation(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
+				subResp, err := asc.RetryGuardedMutation(ctx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
 					if replay {
-						exists, err := subscriptionHasExistingPrices(attemptCtx, client, id)
+						exists, err := subscriptionHasExistingPrices(attemptCtx, d, client, id)
 						if err != nil {
 							return nil, err
 						}
 						if exists {
-							match, err := findMatchingSubscriptionPrice(attemptCtx, client, id, pricePoint, territoryID, attrs, tiers...)
+							match, err := findMatchingSubscriptionPrice(attemptCtx, d, client, id, pricePoint, territoryID, attrs, tiers...)
 							if err != nil {
 								return nil, err
 							}
 							if match == nil {
 								return nil, fmt.Errorf("subscription %s already has prices; cannot replay the initial price matrix", id)
 							}
-							return client.GetSubscription(attemptCtx, id)
+							requestCtx, cancel := d.Timeout(attemptCtx)
+							defer cancel()
+							return client.GetSubscription(requestCtx, id)
 						}
 					}
-					return client.SetSubscriptionInitialPrice(attemptCtx, id, pricePoint, territoryID, attrs, tiers...)
+					requestCtx, cancel := d.Timeout(attemptCtx)
+					defer cancel()
+					return client.SetSubscriptionInitialPrice(requestCtx, id, pricePoint, territoryID, attrs, tiers...)
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions prices add: failed to set initial price: %w", err)
@@ -1490,7 +1501,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return d.PrintOutput(subResp, *output.Output, *output.Pretty)
 			}
 
-			matchingPrice, err := findMatchingSubscriptionPrice(requestCtx, client, id, pricePoint, territoryID, attrs, tiers...)
+			matchingPrice, err := findMatchingSubscriptionPrice(ctx, d, client, id, pricePoint, territoryID, attrs, tiers...)
 			if errors.Is(err, errSubscriptionPriceTierIntentRequired) {
 				return d.UsageError(err.Error())
 			}
@@ -1511,10 +1522,10 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 					}
 					return nil
 				}
-				if err := checkRepair(requestCtx); err != nil {
+				if err := checkRepair(ctx); err != nil {
 					return err
 				}
-				equalizations, equalizationsErr := fetchEqualizations(requestCtx, d, client, pricePoint, territoryID)
+				equalizations, equalizationsErr := fetchEqualizations(ctx, d, client, pricePoint, territoryID)
 				if equalizationsErr != nil {
 					return fmt.Errorf("subscriptions prices add: build repair matrix: %w", equalizationsErr)
 				}
@@ -1527,12 +1538,12 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				if matrixErr != nil {
 					return fmt.Errorf("subscriptions prices add: build repair matrix: %w", matrixErr)
 				}
-				resp, matrixErr := asc.RetryGuardedMutation(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
+				resp, matrixErr := asc.RetryGuardedMutation(ctx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionResponse, error) {
 					if replay {
 						if err := checkRepair(attemptCtx); err != nil {
 							return nil, err
 						}
-						match, err := findMatchingSubscriptionPrice(attemptCtx, client, id, pricePoint, territoryID, attrs)
+						match, err := findMatchingSubscriptionPrice(attemptCtx, d, client, id, pricePoint, territoryID, attrs)
 						if err != nil {
 							return nil, err
 						}
@@ -1540,7 +1551,9 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 							return nil, fmt.Errorf("subscription %s base price changed; cannot replay the repair matrix", id)
 						}
 					}
-					return client.SetSubscriptionPriceMatrix(attemptCtx, id, matrix)
+					requestCtx, cancel := d.Timeout(attemptCtx)
+					defer cancel()
+					return client.SetSubscriptionPriceMatrix(requestCtx, id, matrix)
 				})
 				if matrixErr != nil {
 					return fmt.Errorf("subscriptions prices add: failed to re-save price matrix: %w", matrixErr)
@@ -1549,14 +1562,16 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 			}
 
 			// Existing prices: use POST /v1/subscriptionPrices for a price change
-			resp, err := asc.RetryGuardedMutation(requestCtx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionPriceResponse, error) {
+			resp, err := asc.RetryGuardedMutation(ctx, func(attemptCtx context.Context, replay bool) (*asc.SubscriptionPriceResponse, error) {
 				if replay && tiers == nil && planTypeValue != asc.SubscriptionPlanTypeMonthly {
-					match, err := findMatchingSubscriptionPrice(attemptCtx, client, id, pricePoint, territoryID, attrs)
+					match, err := findMatchingSubscriptionPrice(attemptCtx, d, client, id, pricePoint, territoryID, attrs)
 					if err != nil || match != nil {
 						return match, err
 					}
 				}
-				return client.CreateSubscriptionPrice(attemptCtx, id, pricePoint, territoryID, attrs, tiers...)
+				requestCtx, cancel := d.Timeout(attemptCtx)
+				defer cancel()
+				return client.CreateSubscriptionPrice(requestCtx, id, pricePoint, territoryID, attrs, tiers...)
 			})
 			if errors.Is(err, errSubscriptionPriceTierIntentRequired) {
 				return d.UsageError(err.Error())
