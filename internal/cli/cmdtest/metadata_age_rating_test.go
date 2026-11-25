@@ -57,7 +57,7 @@ func TestMetadataAgeRatingPullPlanApproveApply(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	remote := map[string]any{"gambling": false, "violenceRealistic": "NONE", "kidsAgeBand": nil}
+	remote := map[string]any{"gambling": false, "violenceRealistic": "NONE", "kidsAgeBand": nil, "sharedLocation": false, "datingAndRelationships": true}
 	var patches []map[string]any
 	metadataAgeRatingHTTP(t, remote, true, &patches)
 
@@ -74,11 +74,11 @@ func TestMetadataAgeRatingPullPlanApproveApply(t *testing.T) {
 	if err := json.Unmarshal(pulled, &pulledValues); err != nil {
 		t.Fatalf("parse pulled age rating: %v\n%s", err, pulled)
 	}
-	if len(pulledValues) != 2 || pulledValues["gambling"] != false || pulledValues["violenceRealistic"] != "NONE" {
+	if len(pulledValues) != 4 || pulledValues["sharedLocation"] != false || pulledValues["datingAndRelationships"] != true || pulledValues["gambling"] != false || pulledValues["violenceRealistic"] != "NONE" {
 		t.Fatalf("pulled age rating = %v, want typed values without null fields", pulledValues)
 	}
 
-	edited := `{"gambling":true,"violenceRealistic":"INFREQUENT_OR_MILD","kidsAgeBand":"NINE_TO_ELEVEN"}`
+	edited := `{"sharedLocation":true,"datingAndRelationships":false,"gambling":true,"violenceRealistic":"INFREQUENT_OR_MILD","kidsAgeBand":"NINE_TO_ELEVEN"}`
 	if err := os.WriteFile(filepath.Join(dir, "age-rating.json"), []byte(edited), 0o644); err != nil {
 		t.Fatalf("write age rating: %v", err)
 	}
@@ -96,9 +96,11 @@ func TestMetadataAgeRatingPullPlanApproveApply(t *testing.T) {
 	if len(planOut.Plan.Adds) != 1 || planOut.Plan.Adds[0]["key"] != "age-rating:kidsAgeBand" || planOut.Plan.Adds[0]["to"] != "NINE_TO_ELEVEN" {
 		t.Fatalf("plan adds = %v", planOut.Plan.Adds)
 	}
-	if len(planOut.Plan.Updates) != 2 ||
-		planOut.Plan.Updates[0]["key"] != "age-rating:gambling" || planOut.Plan.Updates[0]["from"] != "false" || planOut.Plan.Updates[0]["to"] != "true" ||
-		planOut.Plan.Updates[1]["key"] != "age-rating:violenceRealistic" || planOut.Plan.Updates[1]["from"] != "NONE" || planOut.Plan.Updates[1]["to"] != "INFREQUENT_OR_MILD" {
+	if len(planOut.Plan.Updates) != 4 ||
+		planOut.Plan.Updates[0]["key"] != "age-rating:datingAndRelationships" || planOut.Plan.Updates[0]["from"] != "true" || planOut.Plan.Updates[0]["to"] != "false" ||
+		planOut.Plan.Updates[1]["key"] != "age-rating:gambling" || planOut.Plan.Updates[1]["from"] != "false" || planOut.Plan.Updates[1]["to"] != "true" ||
+		planOut.Plan.Updates[2]["key"] != "age-rating:sharedLocation" || planOut.Plan.Updates[2]["from"] != "false" || planOut.Plan.Updates[2]["to"] != "true" ||
+		planOut.Plan.Updates[3]["key"] != "age-rating:violenceRealistic" || planOut.Plan.Updates[3]["from"] != "NONE" || planOut.Plan.Updates[3]["to"] != "INFREQUENT_OR_MILD" {
 		t.Fatalf("plan updates = %v", planOut.Plan.Updates)
 	}
 
@@ -107,7 +109,7 @@ func TestMetadataAgeRatingPullPlanApproveApply(t *testing.T) {
 	if !strings.Contains(applyStdout, `"applied":true`) {
 		t.Fatalf("apply output = %s", applyStdout)
 	}
-	if len(patches) != 1 || len(patches[0]) != 3 || patches[0]["gambling"] != true ||
+	if len(patches) != 1 || len(patches[0]) != 5 || patches[0]["sharedLocation"] != true || patches[0]["datingAndRelationships"] != false || patches[0]["gambling"] != true ||
 		patches[0]["violenceRealistic"] != "INFREQUENT_OR_MILD" || patches[0]["kidsAgeBand"] != "NINE_TO_ELEVEN" {
 		t.Fatalf("PATCH attributes = %v, want only the changed fields with their API types", patches)
 	}
@@ -119,10 +121,10 @@ func TestMetadataAgeRatingApplyFailsWhenReadBackDiffers(t *testing.T) {
 	t.Chdir(t.TempDir())
 
 	var patches []map[string]any
-	metadataAgeRatingHTTP(t, map[string]any{"lootBox": false}, false, &patches)
+	metadataAgeRatingHTTP(t, map[string]any{"sharedLocation": false}, false, &patches)
 
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "age-rating.json"), []byte(`{"lootBox":true}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "age-rating.json"), []byte(`{"sharedLocation":true}`), 0o644); err != nil {
 		t.Fatalf("write age rating: %v", err)
 	}
 	stdout, _, runErr := runRootCommand(t, []string{
@@ -131,7 +133,7 @@ func TestMetadataAgeRatingApplyFailsWhenReadBackDiffers(t *testing.T) {
 	if runErr == nil || len(patches) == 0 {
 		t.Fatalf("expected a PATCH and a failed apply, err=%v patches=%v", runErr, patches)
 	}
-	if !strings.Contains(stdout, `"failed":1`) || !strings.Contains(stdout, `lootBox=\"false\" (want \"true\")`) {
+	if !strings.Contains(stdout, `"failed":1`) || !strings.Contains(stdout, `sharedLocation=\"false\" (want \"true\")`) {
 		t.Fatalf("apply output = %s", stdout)
 	}
 }
@@ -144,6 +146,8 @@ func TestMetadataAgeRatingRejectsInvalidValuesBeforeRequests(t *testing.T) {
 		body    string
 		wantErr string
 	}{
+		{name: "shared location as string", body: `{"sharedLocation":"true"}`, wantErr: "sharedLocation must be a boolean"},
+		{name: "dating as null", body: `{"datingAndRelationships":null}`, wantErr: "datingAndRelationships cannot be null"},
 		{name: "boolean as string", body: `{"gambling":"true"}`, wantErr: "gambling must be a boolean"},
 		{name: "unknown enum value", body: `{"violenceRealistic":"SOMETIMES"}`, wantErr: "violenceRealistic must be one of NONE, INFREQUENT_OR_MILD"},
 		{name: "invalid URL", body: `{"developerAgeRatingInfoUrl":"not a URL"}`, wantErr: "developerAgeRatingInfoUrl must be a valid URL"},

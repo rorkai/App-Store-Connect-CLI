@@ -34,7 +34,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 		{
 			name:  "age-rating edit",
 			args:  []string{"age-rating", "edit", "--id", "ID"},
-			flags: "--all-none, --advertising, --gambling, --health-or-wellness-topics, --loot-box, --messaging-and-chat, --parental-controls, --age-assurance, --social-media, --social-media-age-restricted, --unrestricted-web-access, --user-generated-content, --alcohol-tobacco-drug-use, --contests, --gambling-simulated, --guns-or-other-weapons, --medical-treatment, --profanity-humor, --sexual-content-nudity, --sexual-content-graphic-nudity, --horror-fear, --mature-suggestive, --violence-cartoon, --violence-realistic, --violence-realistic-graphic, --kids-age-band, --age-rating-override, --age-rating-override-v2, --korea-age-rating-override, --grac-rating-classification-number, --clear-grac-rating-classification-number, --developer-age-rating-info-url",
+			flags: "--all-none, --dating-and-relationships, --shared-location, --advertising, --gambling, --health-or-wellness-topics, --loot-box, --messaging-and-chat, --parental-controls, --age-assurance, --social-media, --social-media-age-restricted, --unrestricted-web-access, --user-generated-content, --alcohol-tobacco-drug-use, --contests, --gambling-simulated, --guns-or-other-weapons, --medical-treatment, --profanity-humor, --sexual-content-nudity, --sexual-content-graphic-nudity, --horror-fear, --mature-suggestive, --violence-cartoon, --violence-realistic, --violence-realistic-graphic, --kids-age-band, --age-rating-override, --age-rating-override-v2, --korea-age-rating-override, --grac-rating-classification-number, --clear-grac-rating-classification-number, --developer-age-rating-info-url",
 			deps:  true,
 		},
 		{
