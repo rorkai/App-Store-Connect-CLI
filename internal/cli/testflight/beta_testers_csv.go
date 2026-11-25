@@ -743,7 +743,7 @@ func fetchExistingTestersByEmail(ctx context.Context, d *shared.Deps, client *as
 	emails := make([]string, 0, len(rows))
 	for _, row := range rows {
 		if row.failure == "" {
-			emails = append(emails, strings.ToLower(strings.TrimSpace(row.email)))
+			emails = append(emails, strings.TrimSpace(row.email))
 		}
 	}
 	sort.Strings(emails)
@@ -785,7 +785,7 @@ func fetchExistingTestersByEmail(ctx context.Context, d *shared.Deps, client *as
 			}
 			for _, tester := range resp.Data {
 				email := strings.ToLower(strings.TrimSpace(tester.Attributes.Email))
-				if !slices.Contains(batch, email) {
+				if !slices.ContainsFunc(batch, func(requested string) bool { return strings.ToLower(requested) == email }) {
 					continue
 				}
 				id := strings.TrimSpace(tester.ID)

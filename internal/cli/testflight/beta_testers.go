@@ -431,15 +431,14 @@ Examples:
 				return fmt.Errorf("beta-testers add: %w", err)
 			}
 
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
 			lookupAppIDs := []string{}
 			if resolvedAppID != "" {
 				lookupAppIDs = append(lookupAppIDs, resolvedAppID)
 			}
 			for _, id := range buildIDs {
+				requestCtx, cancel := d.Timeout(ctx)
 				owner, err := client.GetBuildAppRelationship(requestCtx, id)
+				cancel()
 				if err != nil {
 					return fmt.Errorf("beta-testers add: read app for build %q: %w", id, err)
 				}
@@ -471,13 +470,14 @@ Examples:
 			var resolver *betaGroupResolver
 			var requested, missing []string
 			if hasGroup {
+				resolver, err = newBetaGroupResolver(ctx, d, client, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("beta-testers add: %w", err)
+				}
 				if *createMissingGroups {
-					resolver, err = newBetaGroupResolver(ctx, d, client, resolvedAppID)
-					if err == nil {
-						requested, missing, err = planBetaTesterAddGroups(resolver, group.String())
-					}
+					requested, missing, err = planBetaTesterAddGroups(resolver, group.String())
 				} else {
-					groupIDs, err = resolveBetaGroupIDs(requestCtx, client, resolvedAppID, group.String())
+					groupIDs, err = matchBetaGroupIDs(resolver.groups, group.String())
 				}
 				if err != nil {
 					return fmt.Errorf("beta-testers add: %w", err)
@@ -500,7 +500,7 @@ Examples:
 				resolver.addImportGroup(name, id)
 				fmt.Fprintf(d.IO.ErrOut, "Created external beta group %q (%s)\n", shared.SanitizeTerminal(name), shared.SanitizeTerminal(id))
 			}
-			if resolver != nil {
+			if *createMissingGroups {
 				groupIDs, err = resolver.ResolveAll(requested)
 				if err != nil {
 					return fmt.Errorf("beta-testers add: %w", err)
@@ -515,7 +515,9 @@ Examples:
 				return printTester(outcome.tester)
 			}
 
+			requestCtx, cancel := d.Timeout(ctx)
 			tester, err := client.CreateBetaTester(requestCtx, *email, *firstName, *lastName, groupIDs, buildIDs)
+			cancel()
 			if err != nil {
 				if !isHTTPConflict(err) {
 					return fmt.Errorf("beta-testers add: failed to create: %w", err)

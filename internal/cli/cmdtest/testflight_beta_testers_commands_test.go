@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
@@ -74,6 +75,8 @@ func TestTestFlightBetaTestersAddOutput(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "100ms")
+	t.Setenv("ASC_MAX_RETRIES", "0")
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -100,7 +103,7 @@ func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
 		{
 			name:         "groups and builds",
 			args:         []string{"--app", "app-1", "--group", "Beta", "--build-id", "build-1, build-2,build-1"},
-			wantRequests: []string{"GET /v1/builds/build-1/relationships/app", "GET /v1/builds/build-2/relationships/app", "GET /v1/apps/app-1/betaGroups", "GET /v1/betaTesters", "POST /v1/betaTesters"},
+			wantRequests: []string{"GET /v1/builds/build-1/relationships/app", "GET /v1/builds/build-2/relationships/app", "GET /v1/apps/app-1/betaGroups", "GET /v1/apps/app-1/betaGroups", "GET /v1/betaTesters", "POST /v1/betaTesters"},
 			want:         `{` + groups + `,` + builds + `}`,
 		},
 		{
@@ -125,15 +128,29 @@ func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
 			}
 			reg.Register(asctest.GET("/v1/betaTesters", "filter[email]=tester@example.com", "filter[apps]=app-1", "fields[betaTesters]="+fields, "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 			if slices.Contains(test.args, "--group") {
-				reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
-					asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
+				page := asctest.GET("/v1/apps/app-1/betaGroups", "limit=200")
+				if slices.Contains(test.args, "--build-id") {
+					reg.Register(page, asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"/v1/apps/app-1/betaGroups?cursor=two"}}`))
+					page = asctest.GET("/v1/apps/app-1/betaGroups", "cursor=two")
+				}
+				reg.Register(page, asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
 			}
 			reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"email":"tester@example.com"},"relationships":`+test.want+`}}`),
 				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}}`))
 
 			args := append([]string{"testflight", "testers", "add", "--email", "tester@example.com"}, test.args...)
-			if _, _, err := runRootWithDeps(t, stubClient(t, reg), args...); err != nil {
-				t.Fatalf("run error: %v", err)
+			// Each response fits ASC_TIMEOUT while the complete add takes longer.
+			client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				select {
+				case <-req.Context().Done():
+					return nil, req.Context().Err()
+				case <-time.After(60 * time.Millisecond):
+					return reg.RoundTrip(req)
+				}
+			}))
+			d, _, stderr := newTestDeps(t, client)
+			if code := runWithDepsOnFakeClock(t, d, "1.2.3", args...); code != 0 {
+				t.Fatalf("exit %d: %s", code, stderr)
 			}
 			var requests []string
 			for _, req := range reg.Requests() {

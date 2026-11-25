@@ -302,11 +302,11 @@ func TestTestersReconciliationPreservesSelectedAppScope(t *testing.T) {
 						}
 					}
 					if command == "add" {
-						args = append(args, "--email", "tester@example.com", "--group", "Beta")
+						args = append(args, "--email", "Tester@Example.com", "--group", "Beta")
 					} else {
 						input := filepath.Join(folder, "testers.csv")
 						if err := os.WriteFile(input, []byte(`email,groups
-tester@example.com,Beta
+Tester@Example.com,Beta
 `), 0o600); err != nil {
 							t.Fatal(err)
 						}
@@ -327,7 +327,7 @@ tester@example.com,Beta
 						case "GET /v1/betaGroups/g1":
 							data = map[string]any{"type": "betaGroups", "id": "g1", "attributes": map[string]any{"name": "Beta", "isInternalGroup": false}}
 						case "GET /v1/betaTesters":
-							if r.URL.Query().Get("filter[apps]") != "app-1" || r.URL.Query().Get("filter[email]") != "tester@example.com" {
+							if r.URL.Query().Get("filter[apps]") != "app-1" || r.URL.Query().Get("filter[email]") != "Tester@Example.com" {
 								t.Errorf("lookup escaped selected app: %s", r.URL.RawQuery)
 							}
 							data = []any{}
