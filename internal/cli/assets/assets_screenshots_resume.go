@@ -149,7 +149,9 @@ func screenshotUploadRetryError(d *shared.Deps, result asc.AppScreenshotUploadRe
 	}
 	err := fmt.Errorf("%s: %w", summary, cause)
 	fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
-	if quotedPath, ok := shared.ShellQuote(result.FailureArtifactPath); ok {
+	if progress.PendingDeletions > 0 || len(progress.CleanupFailures) > 0 {
+		fmt.Fprintln(d.IO.ErrOut, "Hint:", screenshotDestructiveRecoveryError())
+	} else if quotedPath, ok := shared.ShellQuote(result.FailureArtifactPath); ok {
 		fmt.Fprintf(d.IO.ErrOut, "Hint: verify the target, then resume with `asc screenshots upload --resume %s --app APP_ID --version-localization VERSION_LOCALIZATION_ID --device-type DEVICE_TYPE`\n", quotedPath)
 	} else {
 		fmt.Fprintln(d.IO.ErrOut, "Hint: verify the target, then use --resume with the failure artifact path from the JSON result and independently selected --app, --version-localization, and --device-type.")

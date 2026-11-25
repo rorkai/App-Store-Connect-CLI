@@ -247,6 +247,9 @@ func TestRunScreenshotsReplaceRequiresFreshConfirmationAfterFailure(t *testing.T
 	if code == 0 || failed.FailureArtifactPath == "" || failed.Skipped != 2 || !reflect.DeepEqual(order, []string{"kept-2", "old-b", "kept-1"}) {
 		t.Fatalf("partial deletion: code=%d result=%+v order=%v stderr=%s", code, failed, order, stderr)
 	}
+	if !strings.Contains(stderr, "--replace --dry-run") || !strings.Contains(stderr, "--replace --confirm") || strings.Contains(stderr, "resume with") {
+		t.Fatalf("pending deletions should point to fresh replacement, stderr=%q", stderr)
+	}
 	if !slices.ContainsFunc(failed.Results, func(item asc.AssetUploadResultItem) bool {
 		return item.State == "deleted" && item.AssetID == "old-a"
 	}) || len(failed.Failures) != 1 || failed.Failures[0].FileName != "old-b.png" {
