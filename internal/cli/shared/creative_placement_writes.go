@@ -15,6 +15,10 @@ import (
 
 var creativePlacementID = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
+func creativePlacementUsageError(d *Deps, message string, code DiagnosticCode, parameter string) error {
+	return WithDiagnostic(d.UsageError(message), code, parameter)
+}
+
 func creativePlacementCreateCommand(d *Deps, resource, prefix, label string) *ffcli.Command {
 	return creativePlacementWriteCommand(d, resource, prefix, label, false)
 }
@@ -63,34 +67,54 @@ func creativePlacementWriteCommand(d *Deps, resource, prefix, label string, swap
 			}
 			localizationID, imageID, videoID := strings.TrimSpace(*loc), strings.TrimSpace(*image), strings.TrimSpace(*video)
 			if !creativePlacementID.MatchString(localizationID) {
-				return d.UsageError("placements " + operation + ": --localization-id requires a resource ID")
+				code := DiagnosticInvalidInput
+				if localizationID == "" {
+					code = DiagnosticRequiredInputMissing
+				}
+				return creativePlacementUsageError(d, "placements "+operation+": --localization-id requires a resource ID", code, "--localization-id")
 			}
-			if (imageID == "") == (videoID == "") {
-				return d.UsageError("placements " + operation + ": supply exactly one of --image-id or --video-id")
+			if imageID == "" && videoID == "" {
+				return creativePlacementUsageError(d, "placements "+operation+": supply exactly one of --image-id or --video-id", DiagnosticRequiredInputMissing, "")
+			}
+			if imageID != "" && videoID != "" {
+				return creativePlacementUsageError(d, "placements "+operation+": supply exactly one of --image-id or --video-id", DiagnosticConflictingInput, "")
 			}
 			mediaID, mediaType, mediaRelationship := imageID, "appAssetLibraryImages", "image"
 			if videoID != "" {
 				mediaID, mediaType, mediaRelationship = videoID, "appAssetLibraryVideos", "video"
 			}
 			if !creativePlacementID.MatchString(mediaID) {
-				return d.UsageError("placements " + operation + ": media ID must be a resource ID")
+				parameter := "--image-id"
+				if videoID != "" {
+					parameter = "--video-id"
+				}
+				return creativePlacementUsageError(d, "placements "+operation+": media ID must be a resource ID", DiagnosticInvalidInput, parameter)
 			}
-			placementType, err := validatedPlacementCSV(*kind, creativePlacementTypes(resource))
+			rawPlacementType := strings.TrimSpace(*kind)
+			placementType, err := validatedPlacementCSV(rawPlacementType, creativePlacementTypes(resource))
+			placementTypeMessage := "placements " + operation + ": --placement-type must be one of " + strings.Join(creativePlacementTypes(resource), ", ")
+			if rawPlacementType == "" {
+				return creativePlacementUsageError(d, placementTypeMessage, DiagnosticRequiredInputMissing, "--placement-type")
+			}
 			if err != nil || placementType == "" || strings.Contains(placementType, ",") {
-				return d.UsageError("placements " + operation + ": --placement-type must be one of " + strings.Join(creativePlacementTypes(resource), ", "))
+				return creativePlacementUsageError(d, placementTypeMessage, DiagnosticInvalidInput, "--placement-type")
 			}
 			native := placementType == "APP_SCREENSHOT" || placementType == "IMESSAGE_APP_SCREENSHOT" || placementType == "APP_PREVIEW"
 			if placementType == "APP_PREVIEW" && videoID == "" {
-				return d.UsageError("placements " + operation + ": APP_PREVIEW requires --video-id")
+				return creativePlacementUsageError(d, "placements "+operation+": APP_PREVIEW requires --video-id", DiagnosticRequiredInputMissing, "--video-id")
 			}
 			if (placementType == "APP_SCREENSHOT" || placementType == "IMESSAGE_APP_SCREENSHOT") && imageID == "" {
-				return d.UsageError("placements " + operation + ": screenshots require --image-id")
+				return creativePlacementUsageError(d, "placements "+operation+": screenshots require --image-id", DiagnosticRequiredInputMissing, "--image-id")
 			}
 			previousID, placementGroup := "", ""
 			if swap {
 				previousID = strings.TrimSpace(*previous)
 				if !creativePlacementID.MatchString(previousID) {
-					return d.UsageError("placements swap: --placement-id requires a resource ID")
+					code := DiagnosticInvalidInput
+					if previousID == "" {
+						code = DiagnosticRequiredInputMissing
+					}
+					return creativePlacementUsageError(d, "placements swap: --placement-id requires a resource ID", code, "--placement-id")
 				}
 				if err := d.RequireConfirm(*confirm); err != nil {
 					return err
@@ -99,12 +123,16 @@ func creativePlacementWriteCommand(d *Deps, resource, prefix, label string, swap
 				placementGroup = strings.TrimSpace(*group)
 			}
 			if !swap && native {
+				groupMessage := "placements " + operation + ": screenshots/previews require a device --placement-group (not DEFAULT_PROFILE); inspect accepted groups with: asc asset-library specs --placement-type " + placementType
+				if placementGroup == "" {
+					return creativePlacementUsageError(d, groupMessage, DiagnosticRequiredInputMissing, "--placement-group")
+				}
 				if !creativePlacementID.MatchString(placementGroup) || placementGroup == "DEFAULT_PROFILE" {
-					return d.UsageError("placements " + operation + ": screenshots/previews require a device --placement-group")
+					return creativePlacementUsageError(d, groupMessage, DiagnosticInvalidInput, "--placement-group")
 				}
 			} else if !swap {
 				if placementGroup != "" && placementGroup != "DEFAULT_PROFILE" {
-					return d.UsageError("placements " + operation + ": creative assets require DEFAULT_PROFILE")
+					return creativePlacementUsageError(d, "placements "+operation+": creative assets require DEFAULT_PROFILE", DiagnosticInvalidInput, "--placement-group")
 				}
 				placementGroup = "DEFAULT_PROFILE"
 			}
