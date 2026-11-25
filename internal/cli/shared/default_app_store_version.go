@@ -102,6 +102,9 @@ func (e *AmbiguousDefaultAppStoreVersionError) selectionError() *AmbiguousSelect
 	}
 }
 
+// ErrNoDefaultAppStoreVersion indicates that selection completed without an editable or live version.
+var ErrNoDefaultAppStoreVersion = fmt.Errorf("no default App Store version: %w", asc.ErrNotFound)
+
 // ResolveDefaultAppStoreVersion selects the app's newest editable App Store
 // version, falling back to the newest live version. platform may be empty; when
 // candidates exist on more than one platform the returned error is an
@@ -161,7 +164,7 @@ func ResolveDefaultAppStoreVersion(ctx context.Context, client *asc.Client, appI
 	}
 	return DefaultAppStoreVersion{}, NewErrorWithCause(
 		fmt.Errorf("%s; create one with `asc versions create` or pass --version", message),
-		asc.ErrNotFound,
+		ErrNoDefaultAppStoreVersion,
 	)
 }
 

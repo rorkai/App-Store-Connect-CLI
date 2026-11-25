@@ -70,7 +70,7 @@ func TestMetadataPullDefaultVersionSelectionErrorsDoNotWriteFiles(t *testing.T) 
 			wantExit: rootcmd.ExitUsage,
 		},
 		{
-			name: "missing",
+			name: "unselectable",
 			versions: map[string]string{
 				editableVersionStateQuery:   `{"data":[],"links":{"next":""}}`,
 				removedEditableStateQuery:   `{"data":[],"links":{"next":""}}`,
@@ -90,6 +90,10 @@ func TestMetadataPullDefaultVersionSelectionErrorsDoNotWriteFiles(t *testing.T) 
 
 			reg := asctest.NewRegistry(t)
 			reg.Install()
+			if test.name == "unselectable" {
+				reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=1"),
+					asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"in-review","attributes":{"appVersionState":"IN_REVIEW"}}]}`))
+			}
 			for _, query := range []string{editableVersionStateQuery, removedEditableStateQuery, liveVersionStateQuery, liveVersionModernStateQuery} {
 				if body, ok := test.versions[query]; ok {
 					reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", query, "limit=200"), asctest.JSON(http.StatusOK, body))
@@ -115,5 +119,30 @@ func TestMetadataPullDefaultVersionSelectionErrorsDoNotWriteFiles(t *testing.T) 
 				t.Fatalf("selection failure created output path %q: %v", outputDir, err)
 			}
 		})
+	}
+}
+
+func TestMetadataPullBeforeFirstVersion(t *testing.T) {
+	setupAuth(t)
+	outputDir := t.TempDir()
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	for _, query := range []string{editableVersionStateQuery, removedEditableStateQuery, liveVersionStateQuery, liveVersionModernStateQuery} {
+		reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", query, "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	}
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/appInfos/info", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfos","id":"info","relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`))
+	reg.Register(asctest.GET("/v1/appInfos/info/appInfoLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc","attributes":{"locale":"en-US","name":"Fixture"}}]}`))
+	root := RootCommand("test")
+	if err := root.Parse([]string{"metadata", "pull", "--app", "123456789", "--app-info", "info", "--dir", outputDir}); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(outputDir, "app-info", "en-US.json"))
+	if err != nil || !strings.Contains(string(data), "Fixture") {
+		t.Fatalf("app-info = %q, err=%v", data, err)
 	}
 }
