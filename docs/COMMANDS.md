@@ -177,10 +177,16 @@ asc ads campaigns resume --campaign CAMPAIGN_ID --ad-account AD_ACCOUNT_ID --con
 asc web apps compatibility view --app "123456789"
 asc web apps compatibility edit --app "123456789" --ios-app-on-mac=false --ios-app-on-vision-pro=false
 
+# Read the selected account's Digital Services Act trader status
+asc web business dsa status --output json
+
 # Read and edit app age ratings through a web session
 asc web apps age-ratings list --app APP_ID --output json
 asc web apps age-ratings territories --app-info APP_INFO_ID --output table
 asc web apps age-ratings edit --id DECLARATION_ID --input ./age-rating.json --confirm
+
+# Read the China mainland publication permit relationship
+asc web apps compliance china-publication-permit view --app APP_ID --output json
 
 # Upload a build
 asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"

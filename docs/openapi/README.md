@@ -126,7 +126,7 @@ services accept or return:
 
 | Server | Path prefixes |
 |---|---|
-| `https://appstoreconnect.apple.com` (top-level server) | `/iris/v1`, `/iris/v2` (JSON:API resources), `/olympus/v1` (session, actors, contract messages), `/analytics/api/v1`, `/analytics/api/v2`, `/ci/api`, `/ci/auth` (Xcode Cloud), `/ppm/complianceform/v1`, `/ppm/compliancerequirements/v1`, `/sandbox/v2`, `/WebObjects/iTunesConnect.woa/ra` (app bundles, business agreements, transaction tax reports), `/logout` |
+| `https://appstoreconnect.apple.com` (top-level server) | `/v1/accounts` (DSA trader status), `/iris/v1`, `/iris/v2` (JSON:API resources), `/olympus/v1` (session, actors, contract messages), `/analytics/api/v1`, `/analytics/api/v2`, `/ci/api`, `/ci/auth` (Xcode Cloud), `/ppm/complianceform/v1`, `/ppm/compliancerequirements/v1`, `/sandbox/v2`, `/WebObjects/iTunesConnect.woa/ra` (app bundles, business agreements, transaction tax reports), `/logout` |
 | `https://developer.apple.com` (path-level `servers`) | `/services-account/QH65B2` (form endpoints), `/services-account/v1` |
 | `https://idmsa.apple.com` (path-level `servers`) | `/appleauth/auth` (sign-in and two-factor) |
 
