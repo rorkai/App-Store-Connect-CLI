@@ -288,6 +288,37 @@ func TestEmitNeverMarksCIAsFirstRun(t *testing.T) {
 	}
 }
 
+func TestEmitSkipsNoticeInRorkRuntimes(t *testing.T) {
+	for name, env := range map[string]map[string]string{
+		"sandbox":  {"RORK_SANDBOX_ID": "sandbox-1"},
+		"workflow": {"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "rorkai/user-workflows"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			enableTelemetryForTest(t)
+			notice := captureNotice(t)
+			for key, value := range env {
+				t.Setenv(key, value)
+			}
+
+			EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
+
+			if notice.Len() != 0 {
+				t.Fatalf("notice = %q, want none in a Rork runtime", notice.String())
+			}
+			if wire := spooledWire(t, 0); wire["first_run"] != false {
+				t.Fatalf("first_run = %v, want false", wire["first_run"])
+			}
+			path, err := StatePath()
+			if err != nil {
+				t.Fatalf("StatePath() error = %v", err)
+			}
+			if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("state file stat error = %v, want not exist", err)
+			}
+		})
+	}
+}
+
 func TestSchemaV6SpoolRecordOmitsSchemaV8Fields(t *testing.T) {
 	event := Event{EventID: "event-v6", SchemaVersion: schemaVersionV6, CommandPath: "asc builds list"}
 	encoded, err := json.Marshal(event)

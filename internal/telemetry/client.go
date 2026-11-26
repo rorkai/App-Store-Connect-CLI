@@ -87,7 +87,7 @@ func EmitWithContext(
 		return
 	}
 
-	if !st.NoticeShown {
+	if !st.NoticeShown && !noticeExempt(ev.RuntimeContext) {
 		send, newInstall := showNotice()
 		if !send {
 			return
@@ -120,6 +120,13 @@ Details: https://docs.asccli.sh/commands/telemetry
 `
 
 var noticeOutput io.Writer = os.Stderr
+
+// noticeExempt reports runtimes that Rork operates, whose telemetry the Rork
+// privacy policy covers; printing the notice there only adds it to every
+// sandbox's first command output.
+func noticeExempt(ctx RuntimeContext) bool {
+	return ctx == RuntimeRorkSandbox || ctx == RuntimeRorkGitHubWorkflow
+}
 
 // showNotice prints the one-time telemetry notice and reports whether this
 // event may be sent and whether it is the first from a new installation.

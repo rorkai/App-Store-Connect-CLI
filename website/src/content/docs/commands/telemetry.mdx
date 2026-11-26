@@ -13,7 +13,8 @@ needed.
 Telemetry is enabled by default. Before it sends the first event, `asc`
 prints a one-time notice to stderr that says what is collected and how to turn
 it off. The notice is recorded in `~/.asc/telemetry.json`; if that record
-cannot be written, nothing is sent.
+cannot be written, nothing is sent. Rork sandboxes and Rork GitHub workflows,
+which Rork operates under its own privacy policy, skip the notice.
 
 Events carry no persistent identifier unless you opt in with
 `asc telemetry enable --install-id`. Opting in stores a random installation ID

@@ -18,6 +18,8 @@ about telemetry before it sends anything.
   without an identifier; upgrades, CI, and Rork sandboxes always send `false`.
   The schema v7 fields `upload_phase` and `upload_size_bucket` are sent as
   `null`.
+- Rork sandboxes and Rork GitHub workflows skip the notice; Rork's privacy
+  policy covers those runtimes.
 - `asc telemetry disable` now also deletes the install ID.
 - `asc telemetry off` and `asc telemetry on` are aliases for `disable` and
   `enable`.
