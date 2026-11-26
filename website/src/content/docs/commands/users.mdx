@@ -148,7 +148,7 @@ asc users invite \
 * `--all-apps` - Grant access to all apps
 * `--visible-app` - Comma-separated app IDs for visible apps
 * `--provisioning-allowed` - Grant provisioning access: `true` or `false` (omit for Apple's default)
-* `--confirm` - Confirm sending the team invitation. Without it the invitation is still sent with a warning; a future release will require it
+* `--confirm` - Confirm sending the team invitation (required). Without it the command exits with usage code `2` and sends nothing
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
