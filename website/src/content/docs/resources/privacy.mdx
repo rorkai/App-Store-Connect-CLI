@@ -58,9 +58,8 @@ logs for the collector may record it.
 
 ## Retention
 
-TODO(retention): state the retention period once the server-side purge for
-`asc_cli_events` and its ClickHouse copy is live. Do not publish this page
-until then.
+Events are deleted 400 days after they are received, from the event store and
+from its analytics copy.
 
 ## Your rights
 
