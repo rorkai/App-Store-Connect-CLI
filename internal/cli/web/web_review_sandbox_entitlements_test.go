@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -35,6 +37,7 @@ type sandboxEntitlementsFixture struct {
 	usages         map[string]sandboxUsageRow
 	nextID         string
 	writes         []string
+	requests       int
 	// Faults Apple could return: another page, a paging total that disagrees
 	// with the rows, rows without their entitlement linkage, and a write that
 	// succeeds without changing the stored rows.
@@ -80,6 +83,7 @@ func newSandboxEntitlementsFixture(t *testing.T) *sandboxEntitlementsFixture {
 
 func (f *sandboxEntitlementsFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	f.requests++
 	path := strings.TrimPrefix(r.URL.Path, "/iris/v1")
 	query := r.URL.Query()
 	if r.Method != http.MethodGet {
@@ -531,6 +535,123 @@ func TestWebReviewSandboxEntitlementsReadsPreserveAppleEnvelope(t *testing.T) {
 			}
 			if len(fixture.writes) != 0 {
 				t.Fatalf("read commands wrote: %v", fixture.writes)
+			}
+		})
+	}
+}
+
+func writeSandboxFileForTest(t *testing.T, contents string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "sandbox.json")
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatalf("write sandbox file: %v", err)
+	}
+	return path
+}
+
+func TestWebReviewSandboxEntitlementsApplyWritesOnlyWhatChanged(t *testing.T) {
+	fixture := newSandboxEntitlementsFixture(t)
+	fixture.catalog = append(fixture.catalog, "com.apple.security.device.microphone")
+	fixture.usages["usage-1"] = sandboxUsageRow{entitlement: "com.apple.security.network.server", justification: "Old text"}
+	fixture.usages["usage-2"] = sandboxUsageRow{entitlement: "com.apple.security.network.client", justification: "Downloads data."}
+	path := writeSandboxFileForTest(t, `{
+		"com.apple.security.network.client": "Downloads data.",
+		"com.apple.security.network.server": " Listens for paired devices.\n",
+		"com.apple.security.device.microphone": "Hears spoken moves."
+	}`)
+
+	stdout, err := runSandboxEntitlementsCommand(t, newWebReviewSandboxEntitlementsApplyCommand,
+		"--version-id", "version-1", "--file", path, "--confirm", "--output", "json")
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	wantWrites := []string{"POST /appSandboxEntitlementUsages", "PATCH /appSandboxEntitlementUsages/usage-1"}
+	if !reflect.DeepEqual(fixture.writes, wantWrites) {
+		t.Fatalf("writes = %v, want %v", fixture.writes, wantWrites)
+	}
+	wantRows := map[string]sandboxUsageRow{
+		"usage-1":   {entitlement: "com.apple.security.network.server", justification: "Listens for paired devices."},
+		"usage-2":   {entitlement: "com.apple.security.network.client", justification: "Downloads data."},
+		"usage-new": {entitlement: "com.apple.security.device.microphone", justification: "Hears spoken moves."},
+	}
+	if !reflect.DeepEqual(fixture.usages, wantRows) {
+		t.Fatalf("stored rows = %+v, want %+v", fixture.usages, wantRows)
+	}
+	assertSandboxReceiptJSON(t, stdout, map[string]any{
+		"versionId":      "version-1",
+		"reviewDetailId": "detail-1",
+		"changed":        true,
+		"rows": []any{
+			map[string]any{"entitlement": "com.apple.security.device.microphone", "usageId": "usage-new", "justification": "Hears spoken moves.", "status": "created"},
+			map[string]any{"entitlement": "com.apple.security.network.client", "usageId": "usage-2", "justification": "Downloads data.", "status": "unchanged"},
+			map[string]any{"entitlement": "com.apple.security.network.server", "usageId": "usage-1", "justification": "Listens for paired devices.", "status": "updated"},
+		},
+	})
+}
+
+func TestWebReviewSandboxEntitlementsApplyRefusals(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		prepare    func(*sandboxEntitlementsFixture)
+		file       string
+		noFile     bool
+		wantErr    string
+		wantUsage  bool
+		wantWrites []string
+	}{
+		{name: "no file", noFile: true, wantErr: "--file is required"},
+		{name: "an empty file", file: `{}`, wantErr: "at least one entitlement"},
+		{name: "a value that is not text", file: `{"com.apple.security.network.server": true}`, wantErr: "invalid --file"},
+		{name: "empty usage information", file: `{"com.apple.security.network.server": "  "}`, wantErr: "usage information for com.apple.security.network.server is empty"},
+		{
+			name:      "a key repeated once trimmed",
+			file:      `{"com.apple.security.network.server": "A", " com.apple.security.network.server ": "B"}`,
+			wantErr:   "invalid --file: entitlement com.apple.security.network.server appears more than once",
+			wantUsage: true,
+		},
+		{
+			name: "a key outside the catalog beside a valid change",
+			prepare: func(f *sandboxEntitlementsFixture) {
+				f.usages["usage-1"] = sandboxUsageRow{entitlement: "com.apple.security.network.server", justification: "Old"}
+			},
+			file:    `{"com.apple.security.network.server": "New", "com.apple.security.network.typo": "Text"}`,
+			wantErr: "not in the App Sandbox catalog",
+		},
+		{
+			name:       "a write Apple did not keep",
+			prepare:    func(f *sandboxEntitlementsFixture) { f.dropWrites = true },
+			file:       `{"com.apple.security.network.server": "Text"}`,
+			wantErr:    "rerun the command to reconcile",
+			wantWrites: []string{"POST /appSandboxEntitlementUsages"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newSandboxEntitlementsFixture(t)
+			if tc.prepare != nil {
+				tc.prepare(fixture)
+			}
+			args := []string{"--version-id", "version-1", "--confirm", "--output", "json"}
+			if !tc.noFile {
+				args = append(args, "--file", writeSandboxFileForTest(t, tc.file))
+			}
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := newWebReviewSandboxEntitlementsApplyCommand(d)
+			if err := command.FlagSet.Parse(args); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+			var err error
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				err = command.Exec(context.Background(), nil)
+			})
+			// Usage errors are printed to stderr; other errors are returned.
+			if err == nil || !strings.Contains(err.Error()+stderr, tc.wantErr) {
+				t.Fatalf("error = %v, stderr = %q, want them to mention %q", err, stderr, tc.wantErr)
+			}
+			if tc.wantUsage && (!shared.IsReportedUsageError(err) || fixture.requests != 0) {
+				t.Fatalf("error = %v, requests = %d; want a usage error before any request", err, fixture.requests)
+			}
+			if stdout != "" || strings.Join(fixture.writes, ",") != strings.Join(tc.wantWrites, ",") {
+				t.Fatalf("stdout = %q, writes = %v; want no receipt and writes %v", stdout, fixture.writes, tc.wantWrites)
 			}
 		})
 	}

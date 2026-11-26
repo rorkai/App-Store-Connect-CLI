@@ -1124,7 +1124,7 @@ Available commands:
 * `asc web review subscriptions` - inspect and mutate next-version subscription review selection
 * `asc web review iaps` - attach a non-renewing IAP to the next app version review
 * `asc web review reply` - send one confirmed Resolution Center text reply
-* `asc web review sandbox-entitlements` - list, set, or delete the App Sandbox Information rows of a macOS version
+* `asc web review sandbox-entitlements` - list, set, apply from a file, or delete the App Sandbox Information rows of a macOS version
 
 Every app-scoped `asc web review` command resolves `--app` like the rest of
 `asc`: an explicit `--app` wins, then `ASC_APP_ID`, then the configured app ID.
@@ -1202,14 +1202,18 @@ to already have App Review details.
 asc web review sandbox-entitlements catalog
 asc web review sandbox-entitlements list --version-id "VERSION_ID"
 asc web review sandbox-entitlements set --version-id "VERSION_ID" --entitlement "com.apple.security.network.server" --justification "Accepts connections from paired devices on the local network." --confirm
+asc web review sandbox-entitlements apply --version-id "VERSION_ID" --file "./sandbox-information.json" --confirm
 asc web review sandbox-entitlements delete --version-id "VERSION_ID" --entitlement "com.apple.security.network.server" --confirm
 ```
 
 `set` reads the current rows first: it updates the row of the entitlement,
 creates one when none exists (the key must appear in `catalog`), and writes
-nothing when the usage information already matches. `delete` reports
-`unchanged` when the version has no row for the entitlement. Both verify the
-result with a fresh read, so rerunning them is safe. `list` and `catalog` JSON
+nothing when the usage information already matches. `apply` does the same for
+every entitlement in a JSON file that maps each key to its usage information,
+checks every new key against `catalog` before writing anything, and leaves rows
+the file does not name as they are. `delete` reports `unchanged` when the
+version has no row for the entitlement. All three verify the result with a
+fresh read, so rerunning them is safe. `list` and `catalog` JSON
 output preserves Apple's JSON:API envelope.
 
 ### `asc web subscriptions`

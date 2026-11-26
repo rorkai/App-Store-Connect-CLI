@@ -73,6 +73,7 @@ func registerAllOutputRenderers() {
 	registerRows(webReviewReplyResultRows)
 	registerRows(webReviewDraftResultRows)
 	registerRows(webReviewSandboxEntitlementResultRows)
+	registerRows(webReviewSandboxEntitlementsApplyResultRows)
 	registerRows(webWebsitePushIDMutationRows)
 	registerRows(webAPIKeysListRows)
 	registerRows(webAPIKeyRevokeRows)

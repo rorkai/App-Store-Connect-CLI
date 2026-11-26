@@ -2,14 +2,18 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"sort"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -36,6 +40,7 @@ Examples:
   asc web review sandbox-entitlements catalog
   asc web review sandbox-entitlements list --version-id "VERSION_ID"
   asc web review sandbox-entitlements set --version-id "VERSION_ID" --entitlement "com.apple.security.network.server" --justification "Accepts connections from paired devices on the local network." --confirm
+  asc web review sandbox-entitlements apply --version-id "VERSION_ID" --file "./sandbox-information.json" --confirm
   asc web review sandbox-entitlements delete --version-id "VERSION_ID" --entitlement "com.apple.security.network.server" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
@@ -43,6 +48,7 @@ Examples:
 			newWebReviewSandboxEntitlementsCatalogCommand(d),
 			newWebReviewSandboxEntitlementsListCommand(d),
 			newWebReviewSandboxEntitlementsSetCommand(d),
+			newWebReviewSandboxEntitlementsApplyCommand(d),
 			newWebReviewSandboxEntitlementsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -240,7 +246,7 @@ Example:
 						return err
 					}
 				} else {
-					if err := requireWebReviewSandboxCatalogKey(requestCtx, client, key); err != nil {
+					if err := requireWebReviewSandboxCatalogKeys(requestCtx, client, key); err != nil {
 						return err
 					}
 					created, err := client.CreateAppSandboxEntitlementUsage(requestCtx, target.ReviewDetailID, key, text)
@@ -270,6 +276,215 @@ Example:
 			return d.PrintOutput(receipt, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// newWebReviewSandboxEntitlementsApplyCommand creates or updates the usage
+// information of every entitlement a file names, and verifies them with one
+// fresh read.
+func newWebReviewSandboxEntitlementsApplyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web review sandbox-entitlements apply", flag.ExitOnError)
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "macOS App Store version ID (required)")
+	file := fs.String("file", "", "JSON file mapping each entitlement key to its usage information (required)")
+	confirm := fs.Bool("confirm", false, "Confirm writing the App Sandbox Information rows (required)")
+	authFlags := bindWebSessionFlags(fs)
+	output := d.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "apply",
+		ShortUsage: `asc web review sandbox-entitlements apply --version-id "VERSION_ID" --file FILE --confirm [flags]`,
+		ShortHelp:  "Create or update the usage information of the entitlements in a file.",
+		LongHelp: `WEB SESSION WORKFLOWS
+
+Create or update the App Sandbox Information rows of several entitlements on a
+macOS version. --file is a JSON object that maps each entitlement key to its
+usage information:
+
+  {
+    "com.apple.security.network.client": "Downloads the demo film when the person asks for it.",
+    "com.apple.security.device.microphone": "Recognizes spoken commands on the Mac."
+  }
+
+Like set, the command reads the current rows first, updates or creates only
+the rows whose usage information differs, and leaves rows the file does not
+name as they are. Every new key is checked against the catalog before
+anything is written. Surrounding whitespace of each value is trimmed.
+
+The result is verified with a fresh read. Rerunning the command is safe: it
+starts from the current rows again.
+
+Example:
+  asc web review sandbox-entitlements apply --version-id "VERSION_ID" --file "./sandbox-information.json" --confirm`,
+		FlagSet:   fs,
+		UsageFunc: d.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if err := validateWebReviewSandboxCommonInput(d, output); err != nil {
+				return err
+			}
+			version := strings.TrimSpace(*versionID)
+			if version == "" {
+				return d.UsageError("--version-id is required")
+			}
+			rows, err := readWebReviewSandboxFile(d, *file)
+			if err != nil {
+				return err
+			}
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
+			}
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
+			defer cancel()
+			if err != nil {
+				return withWebAuthHint(err, "web review sandbox-entitlements apply")
+			}
+			client := newWebClientFn(session)
+
+			var receipt *asc.WebReviewSandboxEntitlementsApplyResult
+			err = withWebSpinnerWith(d, "Applying App Sandbox Information", func() error {
+				target, err := resolveWebReviewSandboxTarget(requestCtx, client, version)
+				if err != nil {
+					return err
+				}
+				before, err := client.ListAppSandboxEntitlementUsages(requestCtx, target.ReviewDetailID)
+				if err != nil {
+					return err
+				}
+				result := &asc.WebReviewSandboxEntitlementsApplyResult{VersionID: target.VersionID, ReviewDetailID: target.ReviewDetailID}
+				var newKeys []string
+				for _, row := range rows {
+					existing, found, err := findWebReviewSandboxUsage(before, row.Entitlement)
+					if err != nil {
+						return err
+					}
+					switch {
+					case !found:
+						row.Status = "created"
+						newKeys = append(newKeys, row.Entitlement)
+					case existing.Justification != row.Justification:
+						row.UsageID, row.Status = existing.ID, "updated"
+					default:
+						row.UsageID, row.Status = existing.ID, "unchanged"
+					}
+					result.Rows = append(result.Rows, row)
+				}
+				if err := requireWebReviewSandboxCatalogKeys(requestCtx, client, newKeys...); err != nil {
+					return err
+				}
+
+				for index := range result.Rows {
+					row := &result.Rows[index]
+					switch row.Status {
+					case "updated":
+						if _, err := client.UpdateAppSandboxEntitlementUsage(requestCtx, row.UsageID, row.Justification); err != nil {
+							return webReviewSandboxApplyWriteError(err, result.Rows[:index])
+						}
+					case "created":
+						created, err := client.CreateAppSandboxEntitlementUsage(requestCtx, target.ReviewDetailID, row.Entitlement, row.Justification)
+						if err != nil {
+							return webReviewSandboxApplyWriteError(err, result.Rows[:index])
+						}
+						row.UsageID = created.ID
+					default:
+						continue
+					}
+					result.Changed = true
+				}
+				if !result.Changed {
+					receipt = result
+					return nil
+				}
+
+				after, err := client.ListAppSandboxEntitlementUsages(requestCtx, target.ReviewDetailID)
+				if err != nil {
+					return fmt.Errorf("could not verify the App Sandbox Information rows: %w", err)
+				}
+				for _, row := range result.Rows {
+					current, found, err := findWebReviewSandboxUsage(after, row.Entitlement)
+					if err != nil {
+						return err
+					}
+					if !found || current.ID != row.UsageID || current.Justification != row.Justification {
+						return fmt.Errorf("the %s row does not hold the requested usage information after the write; rerun the command to reconcile", row.Entitlement)
+					}
+				}
+				receipt = result
+				return nil
+			})
+			if err != nil {
+				return withWebAuthHint(err, "web review sandbox-entitlements apply")
+			}
+			return d.PrintOutput(receipt, *output.Output, *output.Pretty)
+		},
+	}
+}
+
+// webReviewSandboxApplyWriteError names the rows already written when a later
+// write fails, so the person knows a rerun reconciles them.
+func webReviewSandboxApplyWriteError(err error, earlier []asc.WebReviewSandboxEntitlementApplyRow) error {
+	written := 0
+	for _, row := range earlier {
+		if row.Status != "unchanged" {
+			written++
+		}
+	}
+	if written == 0 {
+		return err
+	}
+	return fmt.Errorf("%w; %d earlier row(s) were already written, so rerun the command to reconcile", err, written)
+}
+
+// readWebReviewSandboxFile reads --file: a JSON object mapping entitlement
+// keys to non-empty usage information, returned in key order.
+func readWebReviewSandboxFile(d *shared.Deps, path string) ([]asc.WebReviewSandboxEntitlementApplyRow, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return nil, d.RequiredFlag("--file")
+	}
+	if path == "-" {
+		return nil, d.InvalidInputError("--file does not support stdin")
+	}
+	opened, err := rootfs.OpenFile(d.OSPath(path))
+	if err != nil {
+		return nil, fmt.Errorf("read --file: %w", err)
+	}
+	defer opened.Close()
+	data, err := io.ReadAll(io.LimitReader(opened, shared.MaxIndirectFileValueSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("read --file: %w", err)
+	}
+	if len(data) > shared.MaxIndirectFileValueSize {
+		return nil, d.InvalidInputErrorf("--file exceeds the %d-byte size limit", shared.MaxIndirectFileValueSize)
+	}
+	var values map[string]string
+	if err := json.Unmarshal(data, &values); err != nil {
+		return nil, d.InvalidInputErrorf("invalid --file: want a JSON object mapping each entitlement key to its usage information: %v", err)
+	}
+	rawKeys := make([]string, 0, len(values))
+	for rawKey := range values {
+		rawKeys = append(rawKeys, rawKey)
+	}
+	sort.Strings(rawKeys)
+	rows := make([]asc.WebReviewSandboxEntitlementApplyRow, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, rawKey := range rawKeys {
+		key := strings.TrimSpace(rawKey)
+		if key == "" {
+			return nil, d.InvalidInputError("invalid --file: an entitlement key is empty")
+		}
+		if seen[key] {
+			return nil, d.InvalidInputErrorf("invalid --file: entitlement %s appears more than once", key)
+		}
+		seen[key] = true
+		text := strings.TrimSpace(values[rawKey])
+		if text == "" {
+			return nil, d.InvalidInputErrorf("invalid --file: the usage information for %s is empty", key)
+		}
+		rows = append(rows, asc.WebReviewSandboxEntitlementApplyRow{Entitlement: key, Justification: text})
+	}
+	if len(rows) == 0 {
+		return nil, d.InvalidInputError("--file must name at least one entitlement")
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Entitlement < rows[j].Entitlement })
+	return rows, nil
 }
 
 // newWebReviewSandboxEntitlementsDeleteCommand removes the App Sandbox
@@ -389,17 +604,26 @@ func resolveWebReviewSandboxTarget(ctx context.Context, client *webcore.Client, 
 	return target, nil
 }
 
-func requireWebReviewSandboxCatalogKey(ctx context.Context, client *webcore.Client, key string) error {
+// requireWebReviewSandboxCatalogKeys refuses keys the App Sandbox catalog does
+// not accept, naming the first one, with a single catalog read.
+func requireWebReviewSandboxCatalogKeys(ctx context.Context, client *webcore.Client, keys ...string) error {
+	if len(keys) == 0 {
+		return nil
+	}
 	catalog, err := client.ListAppSandboxEntitlements(ctx)
 	if err != nil {
 		return err
 	}
+	accepted := make(map[string]struct{}, len(catalog.Data))
 	for _, entitlement := range catalog.Data {
-		if entitlement.ID == key {
-			return nil
+		accepted[entitlement.ID] = struct{}{}
+	}
+	for _, key := range keys {
+		if _, ok := accepted[key]; !ok {
+			return fmt.Errorf("entitlement %q is not in the App Sandbox catalog; run asc web review sandbox-entitlements catalog to list accepted keys", key)
 		}
 	}
-	return fmt.Errorf("entitlement %q is not in the App Sandbox catalog; run asc web review sandbox-entitlements catalog to list accepted keys", key)
+	return nil
 }
 
 func findWebReviewSandboxUsage(result *webcore.AppSandboxEntitlementUsagesResult, key string) (webcore.AppSandboxEntitlementUsage, bool, error) {

@@ -36,3 +36,34 @@ func webReviewSandboxEntitlementResultRows(result *WebReviewSandboxEntitlementRe
 	)
 	return headers, rows
 }
+
+// WebReviewSandboxEntitlementsApplyResult is the receipt for App Sandbox
+// Information rows applied from a file to one App Store version, each verified
+// with a fresh read.
+type WebReviewSandboxEntitlementsApplyResult struct {
+	VersionID      string                                `json:"versionId"`
+	ReviewDetailID string                                `json:"reviewDetailId"`
+	Changed        bool                                  `json:"changed"`
+	Rows           []WebReviewSandboxEntitlementApplyRow `json:"rows"`
+}
+
+// WebReviewSandboxEntitlementApplyRow is one row of an applied file: created,
+// updated, or unchanged.
+type WebReviewSandboxEntitlementApplyRow struct {
+	Entitlement   string `json:"entitlement"`
+	UsageID       string `json:"usageId"`
+	Justification string `json:"justification"`
+	Status        string `json:"status"`
+}
+
+func webReviewSandboxEntitlementsApplyResultRows(result *WebReviewSandboxEntitlementsApplyResult) ([]string, [][]string) {
+	headers := []string{"Entitlement", "Status", "Usage ID", "Justification"}
+	if result == nil {
+		return headers, nil
+	}
+	rows := make([][]string, 0, len(result.Rows))
+	for _, row := range result.Rows {
+		rows = append(rows, []string{row.Entitlement, row.Status, row.UsageID, row.Justification})
+	}
+	return headers, rows
+}
