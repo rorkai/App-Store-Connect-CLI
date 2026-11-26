@@ -1,12 +1,14 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -49,17 +51,53 @@ func newAutoSignInDisabledError(appleID, alternative string) error {
 }
 
 // addAutoSignInStatus reports, for a missing or expired session, whether the
-// next asc web command signs in by itself: it needs ASC_WEB_PASSWORD or a
-// stored password, no ASC_WEB_NO_AUTO_LOGIN, and no recorded sign-in
-// cooldown, which it names. Apple may still ask that sign-in for a two-factor
-// code.
-func addAutoSignInStatus(d *shared.Deps, status *webAuthStatus) error {
+// next asc web command signs in by itself. It checks what
+// resolveWebSessionWithPolicy needs before it contacts Apple: an Apple ID
+// (--apple-id, ASC_WEB_APPLE_ID, the expired session's account, or the only
+// cached account), ASC_WEB_PASSWORD or a stored password, no
+// ASC_WEB_NO_AUTO_LOGIN, no recorded sign-in cooldown (which it names), and a
+// two-factor code source unless an expired cached session is re-authenticated.
+// flagAppleID is --apple-id; expired is the expired cached session, if any.
+func addAutoSignInStatus(ctx context.Context, d *shared.Deps, status *webAuthStatus, flagAppleID string, expired *webcore.AuthSession) error {
 	disabled, err := webAutoSignInDisabled(d)
 	if err != nil {
 		return err
 	}
-	auto := (status.PasswordStored || webPasswordProvided(readPasswordFromEnv())) && !disabled
-	if appleID := strings.TrimSpace(status.AppleID); appleID != "" {
+	preference, err := twoFactorPreferenceForSignIn(ctx, d)
+	if err != nil {
+		return err
+	}
+	appleID := strings.TrimSpace(flagAppleID)
+	if appleID == "" {
+		appleID = envAppleID()
+	}
+	// ASC_WEB_APPLE_ID selects that account's cache, not the last session
+	// status loaded, so only a flag or the last session itself reuses its jar.
+	if flagAppleID == "" && appleID != "" {
+		expired = nil
+	}
+	reauth := expired != nil && expired.Client != nil
+	if reauth && appleID == "" {
+		// A legacy cache entry without an Apple ID cannot be re-authenticated,
+		// and the real sign-in path refuses it rather than trying another account.
+		appleID = strings.TrimSpace(expired.UserEmail)
+	} else if appleID == "" {
+		if defaultAppleID, _, err := defaultCachedAppleIDFn(); err == nil {
+			appleID = strings.TrimSpace(defaultAppleID)
+		}
+	}
+	passwordStored := status.PasswordStored
+	if appleID != strings.TrimSpace(status.AppleID) {
+		passwordStored = storedWebPasswordStatus(d, appleID)
+	}
+	command := strings.TrimSpace(os.Getenv(webTwoFactorCodeCommandEnv))
+	twoFactorReady := command != "" || twoFactorPromptAvailableFn() || reauth
+	if preference.Delivery == appleauth.TwoFactorMethodSecurityKey {
+		twoFactorReady = command == "" && securityKeyAvailableFn()
+	}
+	auto := !disabled && appleID != "" && twoFactorReady &&
+		(passwordStored || webPasswordProvided(readPasswordFromEnv()))
+	if appleID != "" {
 		backoff, ok, err := loadSigninBackoffFn(appleID)
 		if err != nil {
 			printSigninBackoffWarning(d, fmt.Errorf("reading the sign-in backoff record failed: %w", err))

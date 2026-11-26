@@ -663,13 +663,17 @@ func TestWebAuthStatusReportsWhetherCommandsSignInAutomatically(t *testing.T) {
 	now := time.Date(2026, 11, 26, 3, 0, 0, 0, time.UTC)
 	pausedUntil := now.Add(10 * time.Minute)
 	tests := []struct {
-		name        string
-		stored      bool
-		envPassword string
-		noAutoLogin string
-		backoff     *webcore.SigninBackoff
-		wantAuto    string
-		wantPaused  bool
+		name             string
+		noAppleIDFlag    bool
+		missingSession   bool
+		stored           bool
+		envPassword      string
+		noAutoLogin      string
+		twoFactorCommand string
+		noPrompt         bool
+		backoff          *webcore.SigninBackoff
+		wantAuto         string
+		wantPaused       bool
 	}{
 		{name: "stored password", stored: true, wantAuto: `"autoSignIn":true`},
 		{name: "no stored password", wantAuto: `"autoSignIn":false`},
@@ -682,19 +686,70 @@ func TestWebAuthStatusReportsWhetherCommandsSignInAutomatically(t *testing.T) {
 			wantAuto:   `"autoSignIn":false`,
 			wantPaused: true,
 		},
+		{
+			name:          "expired legacy cache without Apple ID",
+			noAppleIDFlag: true,
+			envPassword:   "secret",
+			wantAuto:      `"autoSignIn":false`,
+		},
+		{
+			name:           "missing session without Apple ID",
+			noAppleIDFlag:  true,
+			missingSession: true,
+			envPassword:    "secret",
+			wantAuto:       `"autoSignIn":false`,
+		},
+		{
+			name:           "missing session without 2FA source",
+			missingSession: true,
+			envPassword:    "secret",
+			noPrompt:       true,
+			wantAuto:       `"autoSignIn":false`,
+		},
+		{
+			name:             "missing session with 2FA command",
+			missingSession:   true,
+			envPassword:      "secret",
+			twoFactorCommand: "echo 123456",
+			noPrompt:         true,
+			wantAuto:         `"autoSignIn":true`,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			preserveWebPasswordHooks(t)
 			preserveWebLoginHooks(t)
 			origLoadBackoff, origNow := loadSigninBackoffFn, signinBackoffNowFn
-			t.Cleanup(func() { loadSigninBackoffFn, signinBackoffNowFn = origLoadBackoff, origNow })
+			origPrompt, origDefault := twoFactorPromptAvailableFn, defaultCachedAppleIDFn
+			t.Cleanup(func() {
+				loadSigninBackoffFn, signinBackoffNowFn = origLoadBackoff, origNow
+				twoFactorPromptAvailableFn, defaultCachedAppleIDFn = origPrompt, origDefault
+			})
 			t.Setenv(webDontStorePasswordEnv, "")
 			t.Setenv(webNoAutoLoginEnv, test.noAutoLogin)
 			t.Setenv(webPasswordEnv, test.envPassword)
+			t.Setenv(webTwoFactorCodeCommandEnv, test.twoFactorCommand)
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+			twoFactorPromptAvailableFn = func() bool { return !test.noPrompt }
+			defaultCachedAppleIDFn = func() (string, webcore.CachedSessionSource, error) {
+				return "", webcore.CachedSessionSourceUnknown, nil
+			}
+			resumeErr := webcore.ErrCachedSessionExpired
+			if test.missingSession {
+				resumeErr = nil
+			}
 			tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
-				return nil, false, webcore.ErrCachedSessionExpired
+				return nil, false, resumeErr
+			}
+			tryResumeLastFn = func(context.Context) (*webcore.AuthSession, bool, error) {
+				return nil, false, resumeErr
+			}
+			loadCachedSessionFn = func(appleID string) (*webcore.AuthSession, bool, error) {
+				return &webcore.AuthSession{Client: &http.Client{}, UserEmail: appleID}, true, nil
+			}
+			loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+				// A legacy cache entry stored no Apple ID.
+				return &webcore.AuthSession{Client: &http.Client{}}, true, nil
 			}
 			storedWebPasswordExistsFn = func(string) (bool, error) { return test.stored, nil }
 			signinBackoffNowFn = func() time.Time { return now }
@@ -705,9 +760,13 @@ func TestWebAuthStatusReportsWhetherCommandsSignInAutomatically(t *testing.T) {
 				return *test.backoff, true, nil
 			}
 
+			args := []string{"--output", "json"}
+			if !test.noAppleIDFlag {
+				args = append(args, "--apple-id", "user@example.com")
+			}
 			d, depsStdout, depsStderr := newWebTestDeps()
 			cmd := newWebAuthStatusCommand(d)
-			if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--output", "json"}); err != nil {
+			if err := cmd.FlagSet.Parse(args); err != nil {
 				t.Fatalf("Parse() error = %v", err)
 			}
 			var runErr error

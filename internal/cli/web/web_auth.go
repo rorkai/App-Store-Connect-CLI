@@ -216,20 +216,23 @@ func printWebAuthStatus(d *shared.Deps, status webAuthStatus, format string, pre
 	return d.PrintOutputRows(status, format, pretty, []string{"Field", "Value"}, rows)
 }
 
-func expiredWebAuthStatus(d *shared.Deps, appleID string) webAuthStatus {
+func expiredWebAuthStatus(d *shared.Deps, appleID string) (webAuthStatus, *webcore.AuthSession) {
 	status := webAuthStatus{
 		Authenticated: false,
 		AppleID:       strings.TrimSpace(appleID),
 	}
 	cached, ok, err := loadExpiredWebAuthCache(status.AppleID)
-	if err == nil && ok && cached != nil {
+	if err != nil || !ok {
+		cached = nil
+	}
+	if cached != nil {
 		if status.AppleID == "" {
 			status.AppleID = strings.TrimSpace(cached.UserEmail)
 		}
 		status.DeveloperTeamID = strings.TrimSpace(cached.DeveloperTeamID)
 	}
 	status.PasswordStored = storedWebPasswordStatus(d, status.AppleID)
-	return status
+	return status, cached
 }
 
 func loadExpiredWebAuthCache(appleID string) (*webcore.AuthSession, bool, error) {
@@ -2049,8 +2052,8 @@ in by itself, and autoSignInPausedUntil when a sign-in cooldown is active.
 			}
 			if err != nil {
 				if errors.Is(err, webcore.ErrCachedSessionExpired) {
-					status := expiredWebAuthStatus(d, trimmedAppleID)
-					if err := addAutoSignInStatus(d, &status); err != nil {
+					status, cached := expiredWebAuthStatus(d, trimmedAppleID)
+					if err := addAutoSignInStatus(requestCtx, d, &status, trimmedAppleID, cached); err != nil {
 						return err
 					}
 					return printWebAuthStatus(d, status, *output.Output, *output.Pretty)
@@ -2064,7 +2067,7 @@ in by itself, and autoSignInPausedUntil when a sign-in cooldown is active.
 					PasswordStored: storedWebPasswordStatus(d, trimmedAppleID),
 					AppleID:        trimmedAppleID,
 				}
-				if err := addAutoSignInStatus(d, &status); err != nil {
+				if err := addAutoSignInStatus(requestCtx, d, &status, trimmedAppleID, nil); err != nil {
 					return err
 				}
 				return printWebAuthStatus(d, status, *output.Output, *output.Pretty)
