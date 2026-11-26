@@ -107,6 +107,16 @@ func TestSearchRanksExpectedCommandFirst(t *testing.T) {
 		{"App Review attachment upload status", "asc review attachments-upload"},
 		{"list App Review attachment uploads", "asc review attachments-list"},
 		{"get App Review attachment upload", "asc review attachments-get"},
+		{"App Review Information", "asc review details-get"},
+		{"view App Review Information", "asc review details-get"},
+		{"update App Review Information notes", "asc review details-update"},
+		{"create App Review Information", "asc review details-create"},
+		{"App Clip review information", "asc app-clips review-details update"},
+		{"subscription review information", "asc subscriptions review"},
+		{"iap review screenshot info", "asc iap review-screenshots view"},
+		{"cancel review submission info", "asc submit cancel"},
+		{"App Review status information", "asc review status"},
+		{"submit app info for review", "asc publish appstore"},
 		{"delete App Review attachment upload", "asc review attachments-delete"},
 		{"TestFlight beta review submission status", "asc testflight review submissions view"},
 		{"list beta review submissions status", "asc testflight review submissions list"},
@@ -202,6 +212,7 @@ func TestSearchDoesNotRankBroaderCommandFirst(t *testing.T) {
 	}{
 		{"duplicate Xcode Cloud build run status", "asc xcode-cloud workflows duplicate"},
 		{"app review", "asc publish appstore"},
+		{"TestFlight beta App Review Information", "asc review details-get"},
 	}
 
 	for _, test := range tests {

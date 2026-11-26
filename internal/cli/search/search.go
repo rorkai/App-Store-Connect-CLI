@@ -611,6 +611,18 @@ func scopedCanonicalIntent(queryTokens []string) (string, string, bool) {
 			return "asc review attachments-upload", "canonical:review-attachment-upload", true
 		}
 	}
+	// "App Review Information" is App Store Connect's name for a version's review details.
+	if tokenContains(queryTokens, "review") && tokenContainsAny(queryTokens, []string{"information", "info"}) && !testFlightContext(queryTokens) &&
+		!tokenContainsAny(queryTokens, []string{"clip", "subscription", "iap", "purchase", "screenshot", "cancel", "status", "submit", "submission"}) {
+		switch {
+		case tokenContains(queryTokens, "create"):
+			return "asc review details-create", "canonical:review-details-create", true
+		case tokenContainsAny(queryTokens, []string{"update", "edit", "change"}):
+			return "asc review details-update", "canonical:review-details-update", true
+		default:
+			return "asc review details-get", "canonical:review-details-get", true
+		}
+	}
 	if tokenContains(queryTokens, "cancel") && tokenContainsAny(queryTokens, []string{"submission", "submit"}) {
 		if !testFlightScopedQuery(queryTokens) {
 			return "asc submit cancel", "canonical:submission-cancel", true
