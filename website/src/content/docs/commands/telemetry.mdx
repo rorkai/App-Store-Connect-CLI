@@ -120,7 +120,7 @@ The CLI sends a single best-effort JSON event after command completion:
 ```json
 {
   "event_id": "2d2f86dd-6d75-4a6f-b97f-a6ce15d4bc79",
-  "schema_version": 6,
+  "schema_version": 8,
   "asc_version": "1.13.0",
   "os": "darwin",
   "arch": "arm64",
@@ -144,7 +144,10 @@ The CLI sends a single best-effort JSON event after command completion:
   "attempted_child": null,
   "api_method": null,
   "api_path_template": null,
-  "api_query_params": null
+  "api_query_params": null,
+  "upload_phase": null,
+  "upload_size_bucket": null,
+  "first_run": true
 }
 ```
 
@@ -173,6 +176,14 @@ and response bodies are never sent. For example, `asc api GET
 records `"api_method": "GET"`, `"api_path_template": "/v1/apps/{id}/builds"`,
 and `"api_query_params": ["filter[version]", "limit"]`. All three are `null`
 when the command fails before its METHOD and PATH are read.
+
+Schema v8 adds `first_run`, which is `true` only on the first event from a new
+local installation: one with no telemetry state from an earlier `asc`. It lets
+new installations be counted without any identifier. It is `false` on every
+other event, including the first event after upgrading from an earlier version
+and every event from CI, ephemeral runtimes, and Rork sandboxes. Schema v8 also
+carries the schema v7 fields `upload_phase` and `upload_size_bucket`, which
+`asc` sends as `null`.
 
 `invocation_shape` is one of `leaf`, `bare_group`, `group_with_flags`, or
 `unknown_child`. Failed schema-v4 events also include an allowlisted

@@ -182,29 +182,36 @@ func ResetInstallID() (string, error) {
 }
 
 // markNoticeShown records that the telemetry notice was printed, without
-// waiting for the state lock. It reports false when another process already
-// recorded it. A stored install ID without opt-in is deleted in the same write.
-func markNoticeShown() (bool, error) {
+// waiting for the state lock. marked is false when another process already
+// recorded it. newInstall reports that this installation has no state from an
+// earlier asc: no install ID, which earlier versions always created, no opt-in
+// and no opt-out. A stored install ID without opt-in is deleted in the same
+// write.
+func markNoticeShown() (marked, newInstall bool, err error) {
 	path, err := StatePath()
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
-	marked := false
-	if err := updateStateWithLockTimeout(path, 0, func(st *State) error {
+	err = updateStateWithLockTimeout(path, 0, func(st *State) error {
+		if st.NoticeShown {
+			if !st.InstallIDOptIn {
+				st.InstallID = ""
+			}
+			return nil
+		}
+		newInstall = strings.TrimSpace(st.InstallID) == "" && !st.InstallIDOptIn && !st.Disabled
 		if !st.InstallIDOptIn {
 			st.InstallID = ""
-		}
-		if st.NoticeShown {
-			return nil
 		}
 		st.NoticeShown = true
 		marked = true
 		return nil
-	}); err != nil {
-		return false, err
+	})
+	if err != nil {
+		return false, false, err
 	}
-	return marked, nil
+	return marked, newInstall, nil
 }
 
 func loadState(path string) (State, error) {

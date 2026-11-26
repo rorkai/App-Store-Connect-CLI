@@ -21,8 +21,10 @@ the registered command path, duration, outcome, and the runtime and invoking
 tool. Never arguments, flag values, credentials, Apple account, team, app, or
 bundle IDs, usernames, hostnames, or file paths.
 
-By default an event carries only a random event ID and a random session ID
-that lasts one process. A random install ID is added only after you run
+By default an event carries only a random event ID, a random session ID that
+lasts one process, and a `first_run` flag that is `true` on the first event
+from a new installation, so installations can be counted without an
+identifier. A random install ID is added only after you run
 `asc telemetry enable --install-id`.
 
 ## Purpose and legal basis

@@ -13,6 +13,11 @@ about telemetry before it sends anything.
   `~/.asc/telemetry.json`, nothing is sent.
 - An install ID stored by an earlier version without opt-in is deleted the
   first time the notice is shown, and is never sent.
+- Events move to schema version 8. `first_run` is `true` only on the first
+  event from a new local installation, so new installations can be counted
+  without an identifier; upgrades, CI, and Rork sandboxes always send `false`.
+  The schema v7 fields `upload_phase` and `upload_size_bucket` are sent as
+  `null`.
 - `asc telemetry disable` now also deletes the install ID.
 - `asc telemetry off` and `asc telemetry on` are aliases for `disable` and
   `enable`.

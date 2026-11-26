@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -214,5 +215,92 @@ func TestReadStatusReportsInstallIDOnlyAfterOptIn(t *testing.T) {
 	}
 	if !status.InstallIDEnabled || status.InstallID != id {
 		t.Fatalf("status = %+v, want install ID %q", status, id)
+	}
+}
+
+func spooledWire(t *testing.T, index int) map[string]any {
+	t.Helper()
+	records := readDefaultSpool(t)
+	if len(records) <= index {
+		t.Fatalf("spool records = %d, want more than %d", len(records), index)
+	}
+	encoded, err := json.Marshal(records[index].Event)
+	if err != nil {
+		t.Fatalf("marshal spooled event: %v", err)
+	}
+	var wire map[string]any
+	if err := json.Unmarshal(encoded, &wire); err != nil {
+		t.Fatalf("decode spooled event: %v", err)
+	}
+	return wire
+}
+
+func TestEmitMarksOnlyTheFirstEventOfANewLocalInstall(t *testing.T) {
+	enableTelemetryForTest(t)
+	captureNotice(t)
+
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
+
+	first := spooledWire(t, 0)
+	if first["schema_version"] != float64(8) || first["first_run"] != true {
+		t.Fatalf("first event = %v, want schema 8 with first_run true", first)
+	}
+	for _, key := range []string{"upload_phase", "upload_size_bucket"} {
+		if value, ok := first[key]; !ok || value != nil {
+			t.Fatalf("first event %s = %v (present %v), want null", key, value, ok)
+		}
+	}
+	if second := spooledWire(t, 1); second["first_run"] != false {
+		t.Fatalf("second event first_run = %v, want false", second["first_run"])
+	}
+}
+
+func TestEmitDoesNotMarkUpgradedInstallAsFirstRun(t *testing.T) {
+	enableTelemetryForTest(t)
+	notice := captureNotice(t)
+	if _, err := ensureInstallID(lockTimeout); err != nil {
+		t.Fatalf("ensureInstallID() error = %v", err)
+	}
+
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
+
+	if notice.Len() == 0 {
+		t.Fatal("expected the notice for an upgraded install")
+	}
+	if wire := spooledWire(t, 0); wire["first_run"] != false {
+		t.Fatalf("upgraded install first_run = %v, want false", wire["first_run"])
+	}
+}
+
+func TestEmitNeverMarksCIAsFirstRun(t *testing.T) {
+	enableTelemetryForTest(t)
+	notice := captureNotice(t)
+	t.Setenv("CI", "true")
+
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
+
+	if notice.Len() == 0 {
+		t.Fatal("expected the notice in CI")
+	}
+	if wire := spooledWire(t, 0); wire["first_run"] != false {
+		t.Fatalf("CI first_run = %v, want false", wire["first_run"])
+	}
+}
+
+func TestSchemaV6SpoolRecordOmitsSchemaV8Fields(t *testing.T) {
+	event := Event{EventID: "event-v6", SchemaVersion: schemaVersionV6, CommandPath: "asc builds list"}
+	encoded, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire map[string]any
+	if err := json.Unmarshal(encoded, &wire); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"first_run", "upload_phase", "upload_size_bucket"} {
+		if _, ok := wire[key]; ok {
+			t.Fatalf("schema v6 wire has %s: %s", key, encoded)
+		}
 	}
 }

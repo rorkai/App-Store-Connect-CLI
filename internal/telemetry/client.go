@@ -87,8 +87,14 @@ func EmitWithContext(
 		return
 	}
 
-	if !st.NoticeShown && !showNotice() {
-		return
+	if !st.NoticeShown {
+		send, newInstall := showNotice()
+		if !send {
+			return
+		}
+		if newInstall && ev.RuntimeContext == RuntimeLocal {
+			*ev.FirstRun = true
+		}
 	}
 
 	store, err := defaultSpoolStore()
@@ -116,17 +122,19 @@ Details: https://docs.asccli.sh/commands/telemetry
 var noticeOutput io.Writer = os.Stderr
 
 // showNotice prints the one-time telemetry notice and reports whether this
-// event may be sent. Nothing is sent until the notice is recorded as shown.
-func showNotice() bool {
-	marked, err := markNoticeShown()
+// event may be sent and whether it is the first from a new installation.
+// Nothing is sent until the notice is recorded as shown.
+func showNotice() (send, newInstall bool) {
+	marked, newInstall, err := markNoticeShown()
 	if err != nil {
 		debugf("telemetry notice not recorded: %v", err)
-		return false
+		return false, false
 	}
-	if marked {
-		fmt.Fprint(noticeOutput, noticeText)
+	if !marked {
+		return true, false
 	}
-	return true
+	fmt.Fprint(noticeOutput, noticeText)
+	return true, newInstall
 }
 
 func loadCurrentState() (State, error) {

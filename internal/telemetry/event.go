@@ -42,6 +42,13 @@ type Event struct {
 	APIMethod       *string   `json:"api_method,omitempty"`
 	APIPathTemplate *string   `json:"api_path_template,omitempty"`
 	APIQueryParams  *[]string `json:"api_query_params,omitempty"`
+	// UploadPhase and UploadSizeBucket are schema v7 fields asc does not
+	// compute yet; schema v8 sends them as null.
+	UploadPhase      *string `json:"upload_phase,omitempty"`
+	UploadSizeBucket *string `json:"upload_size_bucket,omitempty"`
+	// FirstRun is set from schema v8 on: true only on the first event of a
+	// new local installation, so new installs can be counted without an ID.
+	FirstRun *bool `json:"first_run,omitempty"`
 }
 
 type OutcomeKind string
@@ -72,6 +79,7 @@ const (
 const (
 	schemaVersionV5 uint8 = 5
 	schemaVersionV6 uint8 = 6
+	schemaVersionV8 uint8 = 8
 )
 
 // attemptedChildAllowlist is the only set of unknown-subcommand tokens that
@@ -161,7 +169,7 @@ func BuildEventWithContext(
 
 	return Event{
 		EventID:          uuid.NewString(),
-		SchemaVersion:    schemaVersionV6,
+		SchemaVersion:    schemaVersionV8,
 		ASCVersion:       strings.TrimSpace(version),
 		OS:               runtime.GOOS,
 		Arch:             runtime.GOARCH,
@@ -186,6 +194,7 @@ func BuildEventWithContext(
 		APIMethod:        apiMethod,
 		APIPathTemplate:  apiPathTemplate,
 		APIQueryParams:   apiQueryParams,
+		FirstRun:         new(bool),
 	}, true
 }
 
@@ -408,6 +417,31 @@ func (event Event) MarshalJSON() ([]byte, error) {
 			APIMethod:       event.APIMethod,
 			APIPathTemplate: event.APIPathTemplate,
 			APIQueryParams:  event.APIQueryParams,
+		})
+	case schemaVersionV8:
+		firstRun := event.FirstRun != nil && *event.FirstRun
+		return json.Marshal(struct {
+			eventAlias
+			HTTPStatus       *int      `json:"http_status"`
+			DiagnosticCode   *string   `json:"diagnostic_code"`
+			AttemptedChild   *string   `json:"attempted_child"`
+			APIMethod        *string   `json:"api_method"`
+			APIPathTemplate  *string   `json:"api_path_template"`
+			APIQueryParams   *[]string `json:"api_query_params"`
+			UploadPhase      *string   `json:"upload_phase"`
+			UploadSizeBucket *string   `json:"upload_size_bucket"`
+			FirstRun         bool      `json:"first_run"`
+		}{
+			eventAlias:       eventAlias(event),
+			HTTPStatus:       event.HTTPStatus,
+			DiagnosticCode:   event.DiagnosticCode,
+			AttemptedChild:   event.AttemptedChild,
+			APIMethod:        event.APIMethod,
+			APIPathTemplate:  event.APIPathTemplate,
+			APIQueryParams:   event.APIQueryParams,
+			UploadPhase:      event.UploadPhase,
+			UploadSizeBucket: event.UploadSizeBucket,
+			FirstRun:         firstRun,
 		})
 	default:
 		return json.Marshal(eventAlias(event))
