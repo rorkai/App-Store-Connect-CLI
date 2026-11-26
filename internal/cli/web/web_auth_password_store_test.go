@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -655,6 +656,134 @@ func TestWebAuthStatusReportsStoredPasswordForExpiredSession(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"authenticated":false`) || !strings.Contains(stdout, `"passwordStored":true`) {
 		t.Fatalf("status output = %q, want unauthenticated with stored password", stdout)
+	}
+}
+
+func TestWebAuthStatusReportsWhetherCommandsSignInAutomatically(t *testing.T) {
+	now := time.Date(2026, 11, 26, 3, 0, 0, 0, time.UTC)
+	pausedUntil := now.Add(10 * time.Minute)
+	tests := []struct {
+		name             string
+		noAppleIDFlag    bool
+		missingSession   bool
+		stored           bool
+		envPassword      string
+		noAutoLogin      string
+		twoFactorCommand string
+		noPrompt         bool
+		backoff          *webcore.SigninBackoff
+		wantAuto         string
+		wantPaused       bool
+	}{
+		{name: "stored password", stored: true, wantAuto: `"autoSignIn":true`},
+		{name: "no stored password", wantAuto: `"autoSignIn":false`},
+		{name: "password in environment", envPassword: "secret", wantAuto: `"autoSignIn":true`},
+		{name: "auto sign-in disabled", stored: true, noAutoLogin: "1", wantAuto: `"autoSignIn":false`},
+		{
+			name:       "sign-in cooldown",
+			stored:     true,
+			backoff:    &webcore.SigninBackoff{FailedAt: now.Add(-time.Minute), NotBefore: pausedUntil},
+			wantAuto:   `"autoSignIn":false`,
+			wantPaused: true,
+		},
+		{
+			name:          "expired legacy cache without Apple ID",
+			noAppleIDFlag: true,
+			envPassword:   "secret",
+			wantAuto:      `"autoSignIn":false`,
+		},
+		{
+			name:           "missing session without Apple ID",
+			noAppleIDFlag:  true,
+			missingSession: true,
+			envPassword:    "secret",
+			wantAuto:       `"autoSignIn":false`,
+		},
+		{
+			name:           "missing session without 2FA source",
+			missingSession: true,
+			envPassword:    "secret",
+			noPrompt:       true,
+			wantAuto:       `"autoSignIn":false`,
+		},
+		{
+			name:             "missing session with 2FA command",
+			missingSession:   true,
+			envPassword:      "secret",
+			twoFactorCommand: "echo 123456",
+			noPrompt:         true,
+			wantAuto:         `"autoSignIn":true`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			preserveWebPasswordHooks(t)
+			preserveWebLoginHooks(t)
+			origLoadBackoff, origNow := loadSigninBackoffFn, signinBackoffNowFn
+			origPrompt, origDefault := twoFactorPromptAvailableFn, defaultCachedAppleIDFn
+			t.Cleanup(func() {
+				loadSigninBackoffFn, signinBackoffNowFn = origLoadBackoff, origNow
+				twoFactorPromptAvailableFn, defaultCachedAppleIDFn = origPrompt, origDefault
+			})
+			t.Setenv(webDontStorePasswordEnv, "")
+			t.Setenv(webNoAutoLoginEnv, test.noAutoLogin)
+			t.Setenv(webPasswordEnv, test.envPassword)
+			t.Setenv(webTwoFactorCodeCommandEnv, test.twoFactorCommand)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+			twoFactorPromptAvailableFn = func() bool { return !test.noPrompt }
+			defaultCachedAppleIDFn = func() (string, webcore.CachedSessionSource, error) {
+				return "", webcore.CachedSessionSourceUnknown, nil
+			}
+			resumeErr := webcore.ErrCachedSessionExpired
+			if test.missingSession {
+				resumeErr = nil
+			}
+			tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
+				return nil, false, resumeErr
+			}
+			tryResumeLastFn = func(context.Context) (*webcore.AuthSession, bool, error) {
+				return nil, false, resumeErr
+			}
+			loadCachedSessionFn = func(appleID string) (*webcore.AuthSession, bool, error) {
+				return &webcore.AuthSession{Client: &http.Client{}, UserEmail: appleID}, true, nil
+			}
+			loadLastCachedSessionFn = func() (*webcore.AuthSession, bool, error) {
+				// A legacy cache entry stored no Apple ID.
+				return &webcore.AuthSession{Client: &http.Client{}}, true, nil
+			}
+			storedWebPasswordExistsFn = func(string) (bool, error) { return test.stored, nil }
+			signinBackoffNowFn = func() time.Time { return now }
+			loadSigninBackoffFn = func(string) (webcore.SigninBackoff, bool, error) {
+				if test.backoff == nil {
+					return webcore.SigninBackoff{}, false, nil
+				}
+				return *test.backoff, true, nil
+			}
+
+			args := []string{"--output", "json"}
+			if !test.noAppleIDFlag {
+				args = append(args, "--apple-id", "user@example.com")
+			}
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAuthStatusCommand(d)
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
+			var runErr error
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				runErr = cmd.Exec(context.Background(), nil)
+			})
+			if runErr != nil {
+				t.Fatalf("status Exec() error = %v", runErr)
+			}
+			if !strings.Contains(stdout, test.wantAuto) {
+				t.Fatalf("status output = %q, want %s", stdout, test.wantAuto)
+			}
+			paused := `"autoSignInPausedUntil":"` + pausedUntil.Format(time.RFC3339) + `"`
+			if got := strings.Contains(stdout, paused); got != test.wantPaused {
+				t.Fatalf("status output = %q, want paused-until %s reported: %v", stdout, paused, test.wantPaused)
+			}
+		})
 	}
 }
 
