@@ -37,6 +37,7 @@ type sandboxEntitlementsFixture struct {
 	usages         map[string]sandboxUsageRow
 	nextID         string
 	writes         []string
+	requests       int
 	// Faults Apple could return: another page, a paging total that disagrees
 	// with the rows, rows without their entitlement linkage, and a write that
 	// succeeds without changing the stored rows.
@@ -82,6 +83,7 @@ func newSandboxEntitlementsFixture(t *testing.T) *sandboxEntitlementsFixture {
 
 func (f *sandboxEntitlementsFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	f.requests++
 	path := strings.TrimPrefix(r.URL.Path, "/iris/v1")
 	query := r.URL.Query()
 	if r.Method != http.MethodGet {
@@ -594,12 +596,19 @@ func TestWebReviewSandboxEntitlementsApplyRefusals(t *testing.T) {
 		file       string
 		noFile     bool
 		wantErr    string
+		wantUsage  bool
 		wantWrites []string
 	}{
 		{name: "no file", noFile: true, wantErr: "--file is required"},
 		{name: "an empty file", file: `{}`, wantErr: "at least one entitlement"},
 		{name: "a value that is not text", file: `{"com.apple.security.network.server": true}`, wantErr: "invalid --file"},
 		{name: "empty usage information", file: `{"com.apple.security.network.server": "  "}`, wantErr: "usage information for com.apple.security.network.server is empty"},
+		{
+			name:      "a key repeated once trimmed",
+			file:      `{"com.apple.security.network.server": "A", " com.apple.security.network.server ": "B"}`,
+			wantErr:   "invalid --file: entitlement com.apple.security.network.server appears more than once",
+			wantUsage: true,
+		},
 		{
 			name: "a key outside the catalog beside a valid change",
 			prepare: func(f *sandboxEntitlementsFixture) {
@@ -637,6 +646,9 @@ func TestWebReviewSandboxEntitlementsApplyRefusals(t *testing.T) {
 			// Usage errors are printed to stderr; other errors are returned.
 			if err == nil || !strings.Contains(err.Error()+stderr, tc.wantErr) {
 				t.Fatalf("error = %v, stderr = %q, want them to mention %q", err, stderr, tc.wantErr)
+			}
+			if tc.wantUsage && (!shared.IsReportedUsageError(err) || fixture.requests != 0) {
+				t.Fatalf("error = %v, requests = %d; want a usage error before any request", err, fixture.requests)
 			}
 			if stdout != "" || strings.Join(fixture.writes, ",") != strings.Join(tc.wantWrites, ",") {
 				t.Fatalf("stdout = %q, writes = %v; want no receipt and writes %v", stdout, fixture.writes, tc.wantWrites)

@@ -458,13 +458,23 @@ func readWebReviewSandboxFile(d *shared.Deps, path string) ([]asc.WebReviewSandb
 	if err := json.Unmarshal(data, &values); err != nil {
 		return nil, d.InvalidInputErrorf("invalid --file: want a JSON object mapping each entitlement key to its usage information: %v", err)
 	}
+	rawKeys := make([]string, 0, len(values))
+	for rawKey := range values {
+		rawKeys = append(rawKeys, rawKey)
+	}
+	sort.Strings(rawKeys)
 	rows := make([]asc.WebReviewSandboxEntitlementApplyRow, 0, len(values))
-	for key, value := range values {
-		key = strings.TrimSpace(key)
+	seen := make(map[string]bool, len(values))
+	for _, rawKey := range rawKeys {
+		key := strings.TrimSpace(rawKey)
 		if key == "" {
 			return nil, d.InvalidInputError("invalid --file: an entitlement key is empty")
 		}
-		text := strings.TrimSpace(value)
+		if seen[key] {
+			return nil, d.InvalidInputErrorf("invalid --file: entitlement %s appears more than once", key)
+		}
+		seen[key] = true
+		text := strings.TrimSpace(values[rawKey])
 		if text == "" {
 			return nil, d.InvalidInputErrorf("invalid --file: the usage information for %s is empty", key)
 		}
