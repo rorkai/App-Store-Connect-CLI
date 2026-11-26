@@ -60,7 +60,14 @@ func fetchResolvedSubscriptionPrices(
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
 	if err := asc.PaginateEach(ctx, firstPage, func(_ context.Context, next string) (asc.PaginatedResponse, error) {
-		nextURL, err := mergeSubscriptionPricesNextQuery(next, resolvedSubscriptionPricesQuery(limit, planType, territory))
+		query := resolvedSubscriptionPricesQuery(limit, planType, territory)
+		canonical, err := client.ValidateNoRedirectReadContinuationQuery(ctx, next, "/v1/subscriptions/"+url.PathEscape(subscriptionID)+"/prices", url.Values{
+			"filter[territory]": query["filter[territory]"], "filter[planType]": query["filter[planType]"], "filter[subscriptionPricePoint]": nil,
+		})
+		if err != nil {
+			return nil, err
+		}
+		nextURL, err := mergeSubscriptionPricesNextQuery(canonical, query)
 		if err != nil {
 			return nil, err
 		}

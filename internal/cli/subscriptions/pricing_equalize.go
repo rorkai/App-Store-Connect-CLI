@@ -501,8 +501,13 @@ func runEqualizePricePass(ctx context.Context, d *shared.Deps, client *asc.Clien
 	}
 	writeTarget := func(target equalization) error {
 		return writeEqualizedPrice(ctx, d, client, subID, target, attrs, replay, func(readCtx context.Context) (bool, error) {
-			reconciled, _, err := reconcileEqualizeFailures(readCtx, d, client, subID, []equalizeAttemptFailure{{Target: target}}, effectiveAt, attrs.PlanType)
-			return reconciled == 1, err
+			territory := strings.ToUpper(strings.TrimSpace(target.Territory))
+			resolved, err := fetchResolvedSubscriptionPrices(asc.WithNoRedirectReads(readCtx), d, client, subID, 200, "", effectiveAt, attrs.PlanType, territory)
+			if err != nil {
+				return false, err
+			}
+			current := equalizedPlanPricePoints(resolved.Prices, attrs.PlanType)
+			return current[territory] == strings.TrimSpace(target.PricePointID), nil
 		})
 	}
 	if workers == 1 {
