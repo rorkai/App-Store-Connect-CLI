@@ -797,10 +797,11 @@ func capabilityRows() []Capability {
 				"asc web review sandbox-entitlements catalog",
 				"asc web review sandbox-entitlements list",
 				"asc web review sandbox-entitlements set",
+				"asc web review sandbox-entitlements apply",
 				"asc web review sandbox-entitlements delete",
 			},
 			APIResources: []string{"appSandboxEntitlements", "appSandboxEntitlementUsages"},
-			Notes:        []string{"Reads and writes the entitlement usage information of a macOS version's App Review details, which the public API does not expose. set and delete require --confirm, read the current rows first, and verify the result with a fresh read. Reads and writes were live-verified with a built-CLI canary on 2026-10-27."},
+			Notes:        []string{"Reads and writes the entitlement usage information of a macOS version's App Review details, which the public API does not expose. set, apply and delete require --confirm, read the current rows first, and verify the result with a fresh read; apply sets every row a JSON file names. Reads and writes were live-verified with a built-CLI canary on 2026-10-27."},
 		},
 	}
 }
