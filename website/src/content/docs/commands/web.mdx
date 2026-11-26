@@ -247,6 +247,12 @@ commands refuse to sign in automatically, exit with code `1`, and report when
 the next attempt is allowed. Running `asc web auth login` explicitly still
 signs in, and a successful sign-in clears the cooldown.
 
+Without a usable session, `asc web auth status` says whether the next web
+command will sign in by itself (`"autoSignIn":true`): it needs `ASC_WEB_PASSWORD`
+or a saved password, `ASC_WEB_NO_AUTO_LOGIN` unset, and no cooldown. During a
+cooldown it also prints `autoSignInPausedUntil`. Apple may still ask that
+sign-in for a verification code.
+
 ## Command families
 
 ### `asc web auth`

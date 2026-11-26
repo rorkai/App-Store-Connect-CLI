@@ -186,6 +186,10 @@ type webAuthStatus struct {
 	ProviderID       int64  `json:"providerId,omitempty"`
 	PublicProviderID string `json:"publicProviderId,omitempty"`
 	DeveloperTeamID  string `json:"developerTeamId,omitempty"`
+	// AutoSignIn is set when there is no usable session: whether the next asc
+	// web command signs in by itself with the stored password.
+	AutoSignIn            *bool  `json:"autoSignIn,omitempty"`
+	AutoSignInPausedUntil string `json:"autoSignInPausedUntil,omitempty"`
 }
 
 func printWebAuthStatus(d *shared.Deps, status webAuthStatus, format string, pretty bool) error {
@@ -202,6 +206,12 @@ func printWebAuthStatus(d *shared.Deps, status webAuthStatus, format string, pre
 		{"Provider ID", providerID},
 		{"Public Provider ID", status.PublicProviderID},
 		{"Developer Team ID", status.DeveloperTeamID},
+	}
+	if status.AutoSignIn != nil {
+		rows = append(rows, []string{"Auto Sign-In", strconv.FormatBool(*status.AutoSignIn)})
+	}
+	if status.AutoSignInPausedUntil != "" {
+		rows = append(rows, []string{"Auto Sign-In Paused Until", status.AutoSignInPausedUntil})
 	}
 	return d.PrintOutputRows(status, format, pretty, []string{"Field", "Value"}, rows)
 }
@@ -1999,6 +2009,8 @@ func newWebAuthStatusCommand(d *shared.Deps) *ffcli.Command {
 
 Check whether an existing cached web session can be resumed.
 If --apple-id is not provided, this checks the last cached session.
+Without a usable session, autoSignIn says whether the next web command signs
+in by itself, and autoSignInPausedUntil when a sign-in cooldown is active.
 
 `,
 		FlagSet:   fs,
@@ -2038,17 +2050,24 @@ If --apple-id is not provided, this checks the last cached session.
 			if err != nil {
 				if errors.Is(err, webcore.ErrCachedSessionExpired) {
 					status := expiredWebAuthStatus(d, trimmedAppleID)
+					if err := addAutoSignInStatus(d, &status); err != nil {
+						return err
+					}
 					return printWebAuthStatus(d, status, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("web auth status failed: %w", err)
 			}
 
 			if !ok || session == nil {
-				return printWebAuthStatus(d, webAuthStatus{
+				status := webAuthStatus{
 					Authenticated:  false,
 					PasswordStored: storedWebPasswordStatus(d, trimmedAppleID),
 					AppleID:        trimmedAppleID,
-				}, *output.Output, *output.Pretty)
+				}
+				if err := addAutoSignInStatus(d, &status); err != nil {
+					return err
+				}
+				return printWebAuthStatus(d, status, *output.Output, *output.Pretty)
 			}
 			return printWebAuthStatus(d, webAuthStatus{
 				Authenticated:    true,

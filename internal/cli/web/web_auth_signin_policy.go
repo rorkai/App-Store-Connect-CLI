@@ -48,6 +48,32 @@ func newAutoSignInDisabledError(appleID, alternative string) error {
 	return missingWebSessionErrorWithHint(appleID, hint, alternative)
 }
 
+// addAutoSignInStatus reports, for a missing or expired session, whether the
+// next asc web command signs in by itself: it needs ASC_WEB_PASSWORD or a
+// stored password, no ASC_WEB_NO_AUTO_LOGIN, and no recorded sign-in
+// cooldown, which it names. Apple may still ask that sign-in for a two-factor
+// code.
+func addAutoSignInStatus(d *shared.Deps, status *webAuthStatus) error {
+	disabled, err := webAutoSignInDisabled(d)
+	if err != nil {
+		return err
+	}
+	auto := (status.PasswordStored || webPasswordProvided(readPasswordFromEnv())) && !disabled
+	if appleID := strings.TrimSpace(status.AppleID); appleID != "" {
+		backoff, ok, err := loadSigninBackoffFn(appleID)
+		if err != nil {
+			printSigninBackoffWarning(d, fmt.Errorf("reading the sign-in backoff record failed: %w", err))
+		} else if ok {
+			if notBefore, active := backoff.ActiveUntil(signinBackoffNowFn()); active {
+				auto = false
+				status.AutoSignInPausedUntil = notBefore.UTC().Format(time.RFC3339)
+			}
+		}
+	}
+	status.AutoSignIn = &auto
+	return nil
+}
+
 // errSigninBackoffActive marks a refusal to sign in automatically while a
 // recorded Apple sign-in 5xx cooldown is still running.
 var errSigninBackoffActive = errors.New("automatic web sign-in is paused after an Apple sign-in failure")
