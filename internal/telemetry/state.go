@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,17 +26,20 @@ const (
 var errTelemetryLockBusy = errors.New("telemetry lock busy")
 
 type State struct {
-	InstallID string `json:"install_id,omitempty"`
-	Disabled  bool   `json:"disabled,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
+	InstallID      string `json:"install_id,omitempty"`
+	InstallIDOptIn bool   `json:"install_id_opt_in,omitempty"`
+	Disabled       bool   `json:"disabled,omitempty"`
+	NoticeShown    bool   `json:"notice_shown,omitempty"`
+	UpdatedAt      string `json:"updated_at,omitempty"`
 }
 
 type Status struct {
-	Path      string `json:"path"`
-	Enabled   bool   `json:"enabled"`
-	InstallID string `json:"install_id,omitempty"`
-	Reason    string `json:"reason,omitempty"`
-	Endpoint  string `json:"endpoint,omitempty"`
+	Path             string `json:"path"`
+	Enabled          bool   `json:"enabled"`
+	InstallIDEnabled bool   `json:"install_id_enabled"`
+	InstallID        string `json:"install_id,omitempty"`
+	Reason           string `json:"reason,omitempty"`
+	Endpoint         string `json:"endpoint,omitempty"`
 }
 
 func StatePath() (string, error) {
@@ -56,13 +60,34 @@ func ReadStatus() (Status, error) {
 		return Status{}, err
 	}
 	enabled, reason := enabledFromState(st)
-	return Status{
-		Path:      path,
-		Enabled:   enabled,
-		InstallID: st.InstallID,
-		Reason:    reason,
-		Endpoint:  endpoint(),
-	}, nil
+	status := Status{
+		Path:             path,
+		Enabled:          enabled,
+		InstallIDEnabled: st.InstallIDOptIn,
+		Reason:           reason,
+		Endpoint:         endpoint(),
+	}
+	if st.InstallIDOptIn {
+		status.InstallID = st.InstallID
+	}
+	return status, nil
+}
+
+// optedInInstallID returns the install ID only when the user opted in to it.
+// Without opt-in it reads state and writes nothing.
+func optedInInstallID() (string, bool) {
+	st, err := loadCurrentState()
+	if err != nil || !st.InstallIDOptIn {
+		return "", false
+	}
+	if st.InstallID != "" {
+		return st.InstallID, true
+	}
+	id, err := ensureInstallID(0)
+	if err != nil || id == "" {
+		return "", false
+	}
+	return id, true
 }
 
 func ensureInstallID(wait time.Duration) (string, error) {
@@ -91,6 +116,10 @@ func SetEnabled(enabled bool) error {
 	}
 	if err := updateState(path, func(st *State) error {
 		st.Disabled = !enabled
+		if !enabled {
+			st.InstallIDOptIn = false
+			st.InstallID = ""
+		}
 		return nil
 	}); err != nil {
 		return err
@@ -103,6 +132,34 @@ func SetEnabled(enabled bool) error {
 	return nil
 }
 
+// SetInstallIDEnabled records whether events may carry the install ID. Opting
+// in creates the ID; opting out deletes it. It returns the ID after opt-in.
+func SetInstallIDEnabled(enabled bool) (string, error) {
+	path, err := StatePath()
+	if err != nil {
+		return "", err
+	}
+
+	var installID string
+	if err := updateState(path, func(st *State) error {
+		st.InstallIDOptIn = enabled
+		if !enabled {
+			st.InstallID = ""
+			return nil
+		}
+		if strings.TrimSpace(st.InstallID) == "" {
+			st.InstallID = uuid.NewString()
+		}
+		installID = st.InstallID
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	return installID, nil
+}
+
+// ResetInstallID replaces the install ID when the user opted in to it, and
+// otherwise deletes any stored ID and returns "".
 func ResetInstallID() (string, error) {
 	path, err := StatePath()
 	if err != nil {
@@ -111,6 +168,10 @@ func ResetInstallID() (string, error) {
 
 	var installID string
 	if err := updateState(path, func(st *State) error {
+		if !st.InstallIDOptIn {
+			st.InstallID = ""
+			return nil
+		}
 		st.InstallID = uuid.NewString()
 		installID = st.InstallID
 		return nil
@@ -118,6 +179,39 @@ func ResetInstallID() (string, error) {
 		return "", err
 	}
 	return installID, nil
+}
+
+// markNoticeShown records that the telemetry notice was printed, without
+// waiting for the state lock. marked is false when another process already
+// recorded it. newInstall reports that this installation has no state from an
+// earlier asc: no install ID, which earlier versions always created, no opt-in
+// and no opt-out. A stored install ID without opt-in is deleted in the same
+// write.
+func markNoticeShown() (marked, newInstall bool, err error) {
+	path, err := StatePath()
+	if err != nil {
+		return false, false, err
+	}
+
+	err = updateStateWithLockTimeout(path, 0, func(st *State) error {
+		if st.NoticeShown {
+			if !st.InstallIDOptIn {
+				st.InstallID = ""
+			}
+			return nil
+		}
+		newInstall = strings.TrimSpace(st.InstallID) == "" && !st.InstallIDOptIn && !st.Disabled
+		if !st.InstallIDOptIn {
+			st.InstallID = ""
+		}
+		st.NoticeShown = true
+		marked = true
+		return nil
+	})
+	if err != nil {
+		return false, false, err
+	}
+	return marked, newInstall, nil
 }
 
 func loadState(path string) (State, error) {
@@ -387,6 +481,19 @@ func enabledFromState(st State) (bool, string) {
 		return false, "state"
 	}
 	return true, ""
+}
+
+var processOptOut atomic.Bool
+
+// SetProcessOptOut turns telemetry off for the rest of this process, as the
+// root --no-telemetry flag does. It does not change stored state.
+func SetProcessOptOut(optOut bool) {
+	processOptOut.Store(optOut)
+}
+
+// ProcessOptedOut reports whether SetProcessOptOut turned telemetry off.
+func ProcessOptedOut() bool {
+	return processOptOut.Load()
 }
 
 func environmentOptOutReason() string {

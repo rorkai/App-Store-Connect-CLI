@@ -85,6 +85,9 @@ func TestInstallIDCreateReuseAndReset(t *testing.T) {
 		}
 	}
 
+	if _, err := SetInstallIDEnabled(true); err != nil {
+		t.Fatalf("SetInstallIDEnabled(true) error = %v", err)
+	}
 	reset, err := ResetInstallID()
 	if err != nil {
 		t.Fatalf("ResetInstallID() error = %v", err)
@@ -337,6 +340,10 @@ func TestConcurrentStateUpdatesPreserveOptOutAndInstallID(t *testing.T) {
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
 	const concurrentUpdatePairs = 16
 	var wg sync.WaitGroup
 	errs := make(chan error, 2*concurrentUpdatePairs)
@@ -351,7 +358,10 @@ func TestConcurrentStateUpdatesPreserveOptOutAndInstallID(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			errs <- SetEnabled(false)
+			errs <- updateState(path, func(st *State) error {
+				st.Disabled = true
+				return nil
+			})
 		}()
 	}
 	wg.Wait()
@@ -369,8 +379,12 @@ func TestConcurrentStateUpdatesPreserveOptOutAndInstallID(t *testing.T) {
 	if status.Enabled || status.Reason != "state" {
 		t.Fatalf("expected opt-out to survive concurrent updates, got %+v", status)
 	}
-	if status.InstallID == "" {
-		t.Fatalf("expected install ID to survive concurrent updates, got %+v", status)
+	st, err := loadState(path)
+	if err != nil {
+		t.Fatalf("loadState() error = %v", err)
+	}
+	if st.InstallID == "" {
+		t.Fatalf("expected install ID to survive concurrent updates, got %+v", st)
 	}
 }
 

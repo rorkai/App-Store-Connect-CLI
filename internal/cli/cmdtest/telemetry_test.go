@@ -88,8 +88,85 @@ func TestTelemetryCommands(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("reset-id stderr = %q", stderr)
 	}
-	if !strings.Contains(stdout, "Telemetry install ID reset") {
+	if !strings.Contains(stdout, "No install ID is stored") {
 		t.Fatalf("reset-id stdout = %q", stdout)
+	}
+}
+
+type telemetryStatusJSON struct {
+	Enabled          bool   `json:"enabled"`
+	Reason           string `json:"reason"`
+	InstallIDEnabled bool   `json:"install_id_enabled"`
+	InstallID        string `json:"install_id"`
+}
+
+func readTelemetryStatus(t *testing.T) telemetryStatusJSON {
+	t.Helper()
+	stdout, stderr, code := runWithDeps(t, nil, "telemetry", "status", "--output", "json")
+	if code != 0 || stderr != "" {
+		t.Fatalf("status exit code = %d, stderr = %q", code, stderr)
+	}
+	var status telemetryStatusJSON
+	if err := json.Unmarshal([]byte(stdout), &status); err != nil {
+		t.Fatalf("status json error: %v\n%s", err, stdout)
+	}
+	return status
+}
+
+func TestTelemetryInstallIDIsOptIn(t *testing.T) {
+	setCmdtestHome(t)
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	if status := readTelemetryStatus(t); status.InstallIDEnabled || status.InstallID != "" {
+		t.Fatalf("default status = %+v, want no install ID", status)
+	}
+
+	stdout, stderr, code := runWithDeps(t, nil, "telemetry", "enable", "--install-id")
+	if code != 0 || stderr != "" {
+		t.Fatalf("enable --install-id exit code = %d, stderr = %q", code, stderr)
+	}
+	if !strings.Contains(stdout, "Telemetry enabled with install ID") {
+		t.Fatalf("enable --install-id stdout = %q", stdout)
+	}
+	status := readTelemetryStatus(t)
+	if !status.Enabled || !status.InstallIDEnabled || status.InstallID == "" {
+		t.Fatalf("status after opt-in = %+v", status)
+	}
+
+	stdout, stderr, code = runWithDeps(t, nil, "telemetry", "reset-id")
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Telemetry install ID reset") {
+		t.Fatalf("reset-id exit code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+	if reset := readTelemetryStatus(t); reset.InstallID == "" || reset.InstallID == status.InstallID {
+		t.Fatalf("install ID after reset = %q, was %q", reset.InstallID, status.InstallID)
+	}
+
+	stdout, stderr, code = runWithDeps(t, nil, "telemetry", "enable", "--install-id=false")
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Telemetry enabled without install ID") {
+		t.Fatalf("enable --install-id=false exit code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+	if status := readTelemetryStatus(t); !status.Enabled || status.InstallIDEnabled || status.InstallID != "" {
+		t.Fatalf("status after install ID opt-out = %+v", status)
+	}
+}
+
+func TestTelemetryOnAndOffAreAliases(t *testing.T) {
+	setCmdtestHome(t)
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	stdout, stderr, code := runWithDeps(t, nil, "telemetry", "on", "--install-id")
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Telemetry enabled with install ID") {
+		t.Fatalf("on exit code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+
+	stdout, stderr, code = runWithDeps(t, nil, "telemetry", "off")
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "Telemetry disabled") {
+		t.Fatalf("off exit code = %d, stdout = %q, stderr = %q", code, stdout, stderr)
+	}
+	if status := readTelemetryStatus(t); status.Enabled || status.Reason != "state" || status.InstallID != "" {
+		t.Fatalf("status after off = %+v, want disabled with no install ID", status)
 	}
 }
 

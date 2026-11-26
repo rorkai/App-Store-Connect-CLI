@@ -637,10 +637,11 @@ var selfLinkIdentifierFlagNames = map[string]bool{
 // selfLinkExcludedCommandTrees name command subtrees that do not address the
 // public App Store Connect API: private web-session endpoints (including the
 // web-session rating-reset commands), Apple Ads, StoreKit server APIs, the
-// notary service, credentials, and local Xcode tooling.
+// notary service, credentials, local Xcode tooling, and local telemetry
+// settings.
 var selfLinkExcludedCommandTrees = []string{
 	"asc web", "asc versions rating-reset", "asc ads", "asc storekit",
-	"asc notarization", "asc xcode", "asc auth",
+	"asc notarization", "asc xcode", "asc auth", "asc telemetry",
 }
 
 func TestSelfLinkEveryResourceIDFlagIsNormalized(t *testing.T) {

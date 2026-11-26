@@ -109,7 +109,7 @@ request and cannot be left on by mistake.
 
 - JWT minting is local. Apple Ads OAuth token exchange, web sign-in and
   two-factor calls, and team (provider) selection only establish a session.
-- Anonymous usage telemetry has its own opt-out and never touches account
+- Usage telemetry has its own opt-out and never touches account
   state.
 - Local-only commands never reach a transport.
 

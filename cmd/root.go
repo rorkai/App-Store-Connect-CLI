@@ -97,6 +97,7 @@ func newRootCommand(version string, d *shared.Deps, subcommands []*ffcli.Command
 	}
 
 	root.FlagSet.BoolVar(&versionRequested, "version", false, "Print version and exit")
+	root.FlagSet.Bool(noTelemetryFlagName, false, "Send no telemetry for this invocation (DO_NOT_TRACK=1 has the same effect)")
 	shared.BindRootFlags(root.FlagSet)
 
 	var (

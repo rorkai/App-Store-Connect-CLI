@@ -197,8 +197,8 @@ func TestBuildEventAPIOperationFields(t *testing.T) {
 			if !ok {
 				t.Fatal("BuildEventWithContext() returned no event")
 			}
-			if event.SchemaVersion != 6 {
-				t.Fatalf("SchemaVersion = %d, want 6", event.SchemaVersion)
+			if event.SchemaVersion != 8 {
+				t.Fatalf("SchemaVersion = %d, want 8", event.SchemaVersion)
 			}
 			if !reflect.DeepEqual(event.APIMethod, test.wantMethod) ||
 				!reflect.DeepEqual(event.APIPathTemplate, test.wantTemplate) ||

@@ -236,8 +236,9 @@ carried past flag parsing on purpose, so callers keep a plain `*string`.
   `asc auth --key-id`/`--issuer-id`, the Apple Ads OAuth IDs, Apple Developer
   team IDs for `xcodebuild`, the cached Apple Account value on
   `asc validate --apple-id`, `asc xcode install --device-id` (a local
-  CoreDevice identifier), and the `asc storekit` flags, which address
-  `api.storekit.apple.com` and local StoreKit configuration files.
+  CoreDevice identifier), the `asc storekit` flags, which address
+  `api.storekit.apple.com` and local StoreKit configuration files, and
+  `asc telemetry enable --install-id`, a switch for local telemetry state.
 - Flags whose resource type depends on another flag:
   `asc review items add --item-id` (and its `asc review items-add` alias)
   names one of five collections chosen by `--item-type`, and

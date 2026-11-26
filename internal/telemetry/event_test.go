@@ -140,8 +140,8 @@ func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.
 	if !ok {
 		t.Fatal("expected event")
 	}
-	if ev.SchemaVersion != 6 {
-		t.Fatalf("SchemaVersion = %d, want 6", ev.SchemaVersion)
+	if ev.SchemaVersion != 8 {
+		t.Fatalf("SchemaVersion = %d, want 8", ev.SchemaVersion)
 	}
 	if ev.InvocationShape != InvocationShapeLeaf || ev.ErrorKind == nil || *ev.ErrorKind != ErrorKindUnknownFlag ||
 		ev.FailureStage == nil || *ev.FailureStage != FailureStageParse {
@@ -597,6 +597,9 @@ func TestBuildEventReusesInstallIDAcrossLocalInvocationSources(t *testing.T) {
 	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
+	if _, err := SetInstallIDEnabled(true); err != nil {
+		t.Fatalf("SetInstallIDEnabled(true) error = %v", err)
+	}
 
 	terminalEvent, ok := BuildEventWithContext("asc builds list", "1.2.3", time.Second, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if !ok {
@@ -733,6 +736,9 @@ func TestBuildEventOmitsInstallIDForEphemeralAgentRuntime(t *testing.T) {
 func TestBuildEventTreatsLocalRorkProfileAsTerminal(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
+	if _, err := SetInstallIDEnabled(true); err != nil {
+		t.Fatalf("SetInstallIDEnabled(true) error = %v", err)
+	}
 
 	ev, ok := BuildEventWithContext("asc auth login", "1.2.3", time.Second, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if !ok {
@@ -762,6 +768,14 @@ func testBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
 	path, err := StatePath()
 	if err != nil {
 		t.Fatalf("StatePath() error = %v", err)
+	}
+	// Opted in with no ID yet is the only state in which building an event
+	// takes the state lock.
+	if err := updateState(path, func(st *State) error {
+		st.InstallIDOptIn = true
+		return nil
+	}); err != nil {
+		t.Fatalf("updateState() error = %v", err)
 	}
 	unlock, err := lockState(path, lockTimeout)
 	if err != nil {

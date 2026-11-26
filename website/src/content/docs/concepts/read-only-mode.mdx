@@ -66,7 +66,7 @@ The propagation is an inherited environment variable, not a sandbox. A step's sh
 * Reads that Apple transports as `POST`: analytics queries, Apple Ads `find`, `query`, `search`, and report endpoints, and Developer Portal listings proxied with `X-HTTP-Method-Override: GET`
 * Credential handling: JWT minting is local, and Apple Ads token exchange and web sign-in (password, two-factor code, resuming a cached session) only establish a session
 * Local-only commands: `asc auth`, `asc schema`, `asc workflow validate`, `asc search`, file inspection, and similar
-* Anonymous CLI usage telemetry, which is controlled separately and never touches account state
+* CLI usage telemetry, which is controlled separately and never touches account state
 
 ## Exit code and scripting
 

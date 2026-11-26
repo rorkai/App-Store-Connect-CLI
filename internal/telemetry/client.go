@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -40,6 +41,10 @@ func EmitWithContext(
 	exitCode int,
 	eventContext EventContext,
 ) {
+	if ProcessOptedOut() {
+		debugf("telemetry disabled by --no-telemetry")
+		return
+	}
 	commandPath := sanitizeCommandName(commandName)
 	if reason := environmentOptOutReason(); reason != "" {
 		if err := purgeDefaultSpool(); err != nil {
@@ -82,6 +87,16 @@ func EmitWithContext(
 		return
 	}
 
+	if !st.NoticeShown && !noticeExempt(ev.RuntimeContext) {
+		send, newInstall := showNotice()
+		if !send {
+			return
+		}
+		if newInstall && ev.RuntimeContext == RuntimeLocal {
+			*ev.FirstRun = true
+		}
+	}
+
 	store, err := defaultSpoolStore()
 	if err != nil {
 		debugf("telemetry spool unavailable: %v", err)
@@ -94,6 +109,39 @@ func EmitWithContext(
 	if err := startMaintenanceWorker(); err != nil {
 		debugf("telemetry worker start failed: %v", err)
 	}
+}
+
+const noticeText = `asc collects usage telemetry to help improve the CLI: the command name, version,
+OS, duration, and outcome. It never sends arguments, flag values, credentials,
+or account and app IDs, and it sends no persistent ID unless you run
+"asc telemetry enable --install-id".
+Turn it off with "asc telemetry disable", DO_NOT_TRACK=1, or --no-telemetry.
+Details: https://docs.asccli.sh/commands/telemetry
+`
+
+var noticeOutput io.Writer = os.Stderr
+
+// noticeExempt reports runtimes that Rork operates, whose telemetry the Rork
+// privacy policy covers; printing the notice there only adds it to every
+// sandbox's first command output.
+func noticeExempt(ctx RuntimeContext) bool {
+	return ctx == RuntimeRorkSandbox || ctx == RuntimeRorkGitHubWorkflow
+}
+
+// showNotice prints the one-time telemetry notice and reports whether this
+// event may be sent and whether it is the first from a new installation.
+// Nothing is sent until the notice is recorded as shown.
+func showNotice() (send, newInstall bool) {
+	marked, newInstall, err := markNoticeShown()
+	if err != nil {
+		debugf("telemetry notice not recorded: %v", err)
+		return false, false
+	}
+	if !marked {
+		return true, false
+	}
+	fmt.Fprint(noticeOutput, noticeText)
+	return true, newInstall
 }
 
 func loadCurrentState() (State, error) {

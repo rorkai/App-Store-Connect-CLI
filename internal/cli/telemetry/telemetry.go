@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strconv"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -17,21 +18,27 @@ func NewTelemetryCommand(d *shared.Deps) *ffcli.Command {
 		Name:       "telemetry",
 		ShortUsage: "asc telemetry <subcommand>",
 		ShortHelp:  "Manage CLI telemetry settings.",
-		LongHelp: `Manage pseudonymous CLI telemetry settings.
+		LongHelp: `Manage CLI telemetry settings.
 
 Telemetry is enabled by default and sends command-level usage events to help
-improve asc. Local events include a random installation ID so activity from one
-installation can be grouped over time. For "asc api" it also sends the HTTP
-method, the request path with every identifier replaced by {id} (or "other"),
-and the names of the query parameters; never their values, identifiers,
-headers, or bodies. It does not collect raw arguments, Apple account
-identifiers, app identifiers, bundle identifiers, usernames, hostnames, repo
-names, or file paths. Use "asc telemetry disable" to opt out.
+improve asc. asc prints a one-time notice before it sends the first event.
+Events carry no persistent ID unless you opt in with
+"asc telemetry enable --install-id", which stores a random installation ID so
+activity from one installation can be grouped over time. For "asc api" it also
+sends the HTTP method, the request path with every identifier replaced by {id}
+(or "other"), and the names of the query parameters; never their values,
+identifiers, headers, or bodies. It does not collect raw arguments, Apple
+account identifiers, app identifiers, bundle identifiers, usernames, hostnames,
+repo names, or file paths.
+
+Turn telemetry off with "asc telemetry disable" (alias "off"), DO_NOT_TRACK=1,
+ASC_TELEMETRY_DISABLED=1, or "asc --no-telemetry <command>" for one run.
 
 Examples:
   asc telemetry status
   asc telemetry disable
   asc telemetry enable
+  asc telemetry enable --install-id
   asc telemetry reset-id`,
 		FlagSet:   d.NewFlagSet("telemetry", flag.ExitOnError),
 		UsageFunc: d.DefaultUsageFunc,
@@ -85,30 +92,50 @@ func defaultStatusOutputFormat(d *shared.Deps) string {
 }
 
 func enableCommand(d *shared.Deps) *ffcli.Command {
-	return stateCommand(d, "enable", "Enable telemetry.", true)
-}
-
-func disableCommand(d *shared.Deps) *ffcli.Command {
-	return stateCommand(d, "disable", "Disable telemetry.", false)
-}
-
-func stateCommand(d *shared.Deps, name, help string, enabled bool) *ffcli.Command {
-	fs := d.NewFlagSet("telemetry "+name, flag.ExitOnError)
+	fs := d.NewFlagSet("telemetry enable", flag.ExitOnError)
+	installID := fs.Bool("install-id", false, "Also send a random installation ID that groups events from this installation; --install-id=false deletes it")
 	return &ffcli.Command{
-		Name:       name,
-		ShortUsage: "asc telemetry " + name,
-		ShortHelp:  help,
+		Name:       "enable",
+		ShortUsage: "asc telemetry enable [flags]",
+		ShortHelp:  "Enable telemetry.",
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := telemetry.SetEnabled(enabled); err != nil {
+			if err := telemetry.SetEnabled(true); err != nil {
 				return err
 			}
-			if enabled {
+			installIDSet := false
+			fs.Visit(func(f *flag.Flag) { installIDSet = installIDSet || f.Name == "install-id" })
+			if !installIDSet {
 				fmt.Fprintln(d.IO.Out, "Telemetry enabled")
-			} else {
-				fmt.Fprintln(d.IO.Out, "Telemetry disabled")
+				return nil
 			}
+			if _, err := telemetry.SetInstallIDEnabled(*installID); err != nil {
+				return err
+			}
+			if *installID {
+				fmt.Fprintln(d.IO.Out, "Telemetry enabled with install ID")
+			} else {
+				fmt.Fprintln(d.IO.Out, "Telemetry enabled without install ID")
+			}
+			return nil
+		},
+	}
+}
+
+func disableCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("telemetry disable", flag.ExitOnError)
+	return &ffcli.Command{
+		Name:       "disable",
+		ShortUsage: "asc telemetry disable",
+		ShortHelp:  "Disable telemetry and delete the install ID.",
+		FlagSet:    fs,
+		UsageFunc:  d.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if err := telemetry.SetEnabled(false); err != nil {
+				return err
+			}
+			fmt.Fprintln(d.IO.Out, "Telemetry disabled")
 			return nil
 		},
 	}
@@ -123,8 +150,13 @@ func resetIDCommand(d *shared.Deps) *ffcli.Command {
 		FlagSet:    fs,
 		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if _, err := telemetry.ResetInstallID(); err != nil {
+			id, err := telemetry.ResetInstallID()
+			if err != nil {
 				return err
+			}
+			if id == "" {
+				fmt.Fprintln(d.IO.Out, "No install ID is stored; telemetry events carry none")
+				return nil
 			}
 			fmt.Fprintln(d.IO.Out, "Telemetry install ID reset")
 			return nil
@@ -133,13 +165,10 @@ func resetIDCommand(d *shared.Deps) *ffcli.Command {
 }
 
 func printStatus(d *shared.Deps, status telemetry.Status) {
-	enabled := "false"
-	if status.Enabled {
-		enabled = "true"
-	}
 	rows := [][]string{
-		{"Enabled", enabled},
+		{"Enabled", strconv.FormatBool(status.Enabled)},
 		{"Reason", shared.OrNA(status.Reason)},
+		{"Install ID enabled", strconv.FormatBool(status.InstallIDEnabled)},
 		{"Install ID", shared.OrNA(status.InstallID)},
 		{"Endpoint", shared.OrNA(status.Endpoint)},
 		{"Path", status.Path},

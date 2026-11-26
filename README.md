@@ -217,11 +217,12 @@ available migration path and the command's long-term replacement.
 
 ## Privacy and telemetry
 
-`asc` sends pseudonymous command-level usage telemetry by default to help
-maintainers understand which commands are used and where reliability work is
-needed. Local events include a random installation ID, which lets events from
-one installation be grouped over time; it is not derived from an Apple account
-or machine identifier.
+`asc` sends command-level usage telemetry by default to help maintainers
+understand which commands are used and where reliability work is needed. It
+prints a one-time notice before the first event. Events carry no persistent
+identifier unless you opt in with `asc telemetry enable --install-id`, which
+stores a random installation ID that groups events from one installation; it
+is not derived from an Apple account or machine identifier.
 
 Telemetry includes the CLI version, operating system and architecture,
 registered command path, duration, runtime context, invocation source, a
@@ -239,12 +240,16 @@ Review or change telemetry at any time:
 ```bash
 asc telemetry status
 asc telemetry disable
+asc telemetry enable --install-id
 asc telemetry reset-id
 ```
 
-`ASC_TELEMETRY_DISABLED=1` and `DO_NOT_TRACK=1` also disable telemetry. See the
+`ASC_TELEMETRY_DISABLED=1` and `DO_NOT_TRACK=1` also disable telemetry, and
+`asc --no-telemetry <command>` disables it for one run. See the
 [telemetry reference](website/src/content/docs/commands/telemetry.mdx) for the exact event payload,
-runtime handling, collector endpoint, and all controls.
+runtime handling, collector endpoint, and all controls, and
+[Privacy](website/src/content/docs/resources/privacy.mdx) for who receives the data and how to
+request deletion.
 
 ## Support
 
