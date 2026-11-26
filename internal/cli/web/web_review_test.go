@@ -220,6 +220,40 @@ func TestBuildReviewShowTableRowsIncludesExpectedSections(t *testing.T) {
 	assertRowContains(t, rows, "Downloads", "Downloaded 1", ".asc/web-review/6567933550/submission-1/Screenshot-1.png")
 }
 
+func TestRenderReviewShowMarkdownPrintsMessageTextBelowTable(t *testing.T) {
+	d, stdout, _ := newWebTestDeps()
+	payload := reviewShowOutput{
+		AppID: "6567933550",
+		Threads: []reviewThreadDetails{{
+			Thread: webcore.ResolutionCenterThread{ID: "thread-1"},
+			Messages: []webcore.ResolutionCenterMessage{{
+				ID:          "message-1",
+				CreatedDate: "2026-02-24T08:45:26.513Z",
+				MessageBody: "Hello,<br><br>The app uses an entitlement.<br><br><h3>Guideline 2.4.5</h3>Describe how the app uses it.",
+				FromActor:   &webcore.ReviewActor{ID: "APPLE", ActorType: "APPLE"},
+			}},
+		}},
+	}
+
+	if err := renderReviewShowMarkdown(d, payload); err != nil {
+		t.Fatalf("renderReviewShowMarkdown() error = %v", err)
+	}
+
+	out := stdout.String()
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "|") && strings.Contains(line, "entitlement") {
+			t.Fatalf("message text belongs below the table, found in table row %q", line)
+		}
+	}
+	if !strings.Contains(out, "| Messages") || !strings.Contains(out, "APPLE") {
+		t.Fatalf("expected the message row to name its sender, got:\n%s", out)
+	}
+	want := "> Hello,\n>\n> The app uses an entitlement.\n>\n> Guideline 2.4.5\n> Describe how the app uses it.\n"
+	if !strings.Contains(out, want) {
+		t.Fatalf("expected message text with its paragraphs below the table:\n%s\ngot:\n%s", want, out)
+	}
+}
+
 func TestSummarizeMessageForTableStripsHTMLAndLinks(t *testing.T) {
 	message := webcore.ResolutionCenterMessage{
 		MessageBody: `Hello,<br><b>Review</b> message. See <a href="https://developer.apple.com/documentation/xcode/testing-a-release-build">Testing a Release Build</a>.`,
