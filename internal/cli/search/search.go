@@ -611,11 +611,9 @@ func scopedCanonicalIntent(queryTokens []string) (string, string, bool) {
 			return "asc review attachments-upload", "canonical:review-attachment-upload", true
 		}
 	}
-	// App Store Connect calls a version's review details "App Review
-	// Information", so that wording must reach the review details leaves
-	// instead of the many commands that also match "app" and "review".
-	// TestFlight has its own beta review details under "asc testflight review".
-	if tokenContains(queryTokens, "review") && tokenContainsAny(queryTokens, []string{"information", "info"}) && !testFlightContext(queryTokens) {
+	// "App Review Information" is App Store Connect's name for a version's review details.
+	if tokenContains(queryTokens, "review") && tokenContainsAny(queryTokens, []string{"information", "info"}) && !testFlightContext(queryTokens) &&
+		!tokenContainsAny(queryTokens, []string{"clip", "subscription", "iap", "purchase", "screenshot", "cancel", "status", "submit", "submission"}) {
 		switch {
 		case tokenContains(queryTokens, "create"):
 			return "asc review details-create", "canonical:review-details-create", true
