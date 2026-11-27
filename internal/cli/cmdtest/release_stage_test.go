@@ -133,7 +133,7 @@ func TestReleaseStage_ExplainsRefusedVersionCreate(t *testing.T) {
 	reg.Register(asctest.POST("/v1/appStoreVersions"), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"The provided entity includes a relationship with an invalid value","detail":"You cannot create a new version of the App in the current state."}]}`))
 	reg.Register(asctest.GET("/v1/apps/APP_123/appStoreVersions", "filter[platform]=IOS", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"VERSION_123","attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"REJECTED","appStoreState":"REJECTED","createdDate":"2026-11-03T18:45:51-08:00"}}]}`))
 
-	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), []string{
 		"release", "stage",
 		"--app", "APP_123",
 		"--version", "1.2.4",
@@ -143,6 +143,9 @@ func TestReleaseStage_ExplainsRefusedVersionCreate(t *testing.T) {
 	}...)
 	if !errors.Is(err, asc.ErrConflict) {
 		t.Fatalf("error = %v, want App Store Connect's 409", err)
+	}
+	if strings.Contains(stderr, "asc review submit") {
+		t.Fatalf("failed staging must not suggest submission: %q", stderr)
 	}
 	want := strings.Join([]string{
 		"IOS versions that are not live yet (an unreleased version usually blocks creating another):",

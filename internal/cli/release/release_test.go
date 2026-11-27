@@ -7,6 +7,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -687,7 +688,8 @@ func TestExecuteStage_ResumesCompletedCheckpoint(t *testing.T) {
 	}
 }
 
-func TestExecuteStage_SuccessPath(t *testing.T) {
+func TestReleaseStageCommandSuccessHandoff(t *testing.T) {
+	const versionID = "VERSION_123;echo"
 	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
@@ -704,7 +706,7 @@ func TestExecuteStage_SuccessPath(t *testing.T) {
 		return metadata.PushPlanResult{
 			AppID:     opts.AppID,
 			Version:   opts.Version,
-			VersionID: "VERSION_123",
+			VersionID: versionID,
 			Dir:       opts.Dir,
 			DryRun:    opts.DryRun,
 			Includes:  []string{"localizations"},
@@ -715,7 +717,7 @@ func TestExecuteStage_SuccessPath(t *testing.T) {
 		readinessCalled = true
 		return validation.Report{
 			AppID:     "APP_123",
-			VersionID: "VERSION_123",
+			VersionID: versionID,
 			Summary:   validation.Summary{Errors: 0, Warnings: 0, Infos: 1, Blocking: 0},
 			Checks: []validation.CheckResult{{
 				ID:           "privacy.publish_state.unverified",
@@ -729,15 +731,18 @@ func TestExecuteStage_SuccessPath(t *testing.T) {
 	}
 
 	http.DefaultTransport = releaseRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/preReleaseVersion" {
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"2.4.0","platform":"MAC_OS"}}}`)
+		}
 		if resp, ok := releaseBuildAppLinkageResponse(req); ok {
 			return resp, nil
 		}
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_123/appStoreVersions":
-			return releaseJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"VERSION_123","attributes":{"versionString":"2.4.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123/build":
+			return releaseJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":[{"type":"appStoreVersions","id":%q,"attributes":{"versionString":"2.4.0","platform":"MAC_OS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`, versionID))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/"+versionID+"/build":
 			return releaseJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/VERSION_123/relationships/build":
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/"+versionID+"/relationships/build":
 			return releaseJSONResponse(http.StatusNoContent, "")
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
@@ -746,26 +751,31 @@ func TestExecuteStage_SuccessPath(t *testing.T) {
 	testClient := newReleaseTestClient(t)
 	d.Client = func() (*asc.Client, error) { return testClient, nil }
 
-	result, err := executeStage(context.Background(), d, runOptions{
-		AppID:          "APP_123",
-		Version:        "2.4.0",
-		BuildID:        "BUILD_123",
-		MetadataDir:    "./metadata/version/2.4.0",
-		Platform:       "IOS",
-		Timeout:        releaseRunTimeout,
-		DryRun:         false,
-		Confirm:        true,
-		StrictValidate: false,
-		CheckpointFile: filepath.Join(t.TempDir(), "release-checkpoint.json"),
-	})
-	if err != nil {
-		t.Fatalf("executeStage error: %v", err)
+	cmd := newReleaseStageCommand(d)
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "APP_123", "--version", "2.4.0", "--build-id", "BUILD_123", "--platform", "MAC_OS",
+		"--metadata-dir", "./metadata/version/2.4.0", "--confirm", "--output", "json",
+		"--checkpoint-file", filepath.Join(t.TempDir(), "release-checkpoint.json"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Exec(context.Background(), nil); err != nil {
+		t.Fatalf("stage command error: %v", err)
+	}
+	var result runResult
+	if err := json.Unmarshal(d.IO.Out.(*bytes.Buffer).Bytes(), &result); err != nil {
+		t.Fatalf("stage stdout is not a JSON receipt: %v", err)
+	}
+	quotedVersionID, _ := shared.ShellQuote(versionID)
+	wantCommand := "asc review submit --app APP_123 --version-id " + quotedVersionID + " --build-id BUILD_123 --platform MAC_OS --confirm"
+	if stderr := d.IO.ErrOut.(*bytes.Buffer).String(); !strings.Contains(stderr, wantCommand) {
+		t.Fatalf("stage did not hand off its exact version and build: %q", stderr)
 	}
 	if result.Status != "ok" {
 		t.Fatalf("expected status ok, got %q", result.Status)
 	}
-	if result.VersionID != "VERSION_123" {
-		t.Fatalf("expected versionID VERSION_123, got %q", result.VersionID)
+	if result.VersionID != versionID {
+		t.Fatalf("expected versionID %q, got %q", versionID, result.VersionID)
 	}
 	if len(result.Steps) != 5 {
 		t.Fatalf("expected 5 steps, got %d", len(result.Steps))

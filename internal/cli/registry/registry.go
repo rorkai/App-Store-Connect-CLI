@@ -313,7 +313,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", func() *ffcli.Command {
 			return subscriptions.NewSubscriptionsCommand(d)
 		}),
-		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", func() *ffcli.Command {
+		commandFactory("submit", "Submission lifecycle tools; use `review submit` for an existing build.", func() *ffcli.Command {
 			return submit.NewSubmitCommand(d)
 		}),
 		commandFactory("validate", "Canonical App Store submission readiness report.", func() *ffcli.Command { return validate.NewValidateCommand(d) }),

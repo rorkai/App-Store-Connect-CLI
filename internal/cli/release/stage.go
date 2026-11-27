@@ -52,6 +52,10 @@ func newReleaseStageCommand(d *shared.Deps) *ffcli.Command {
 Stops before creating a review submission.
 Supports dry-run planning, step-level structured output, and checkpointed resume.
 
+After staging succeeds, submit the existing version and build with:
+  asc review submit --app "APP_ID" --version-id "VERSION_ID" --build-id "BUILD_ID" --platform "IOS" --confirm
+Use the version ID, build ID, and platform from the staging receipt.
+
 --copy-metadata-from copies version localization text only (description,
 keywords, promotional text, what's new, marketing and support URLs) into
 locales that already exist on the target version. Neither metadata source sets
@@ -171,6 +175,29 @@ Examples:
 				}
 				return shared.NewReportedError(runErr)
 			}
+			if result.DryRun || result.Status != "ok" {
+				return nil
+			}
+			rootFlags, ok := shared.RootFlagsForReinvocation()
+			if !ok {
+				return nil
+			}
+			command := append([]string{"asc"}, rootFlags...)
+			command = append(command, "review", "submit")
+			for _, selector := range []struct{ flag, value string }{
+				{"--app", result.AppID},
+				{"--version-id", result.VersionID},
+				{"--build-id", result.BuildID},
+				{"--platform", result.Platform},
+			} {
+				quoted, ok := shared.ShellQuote(selector.value)
+				if !ok || strings.TrimSpace(selector.value) == "" {
+					return nil
+				}
+				command = append(command, selector.flag, quoted)
+			}
+			command = append(command, "--confirm")
+			fmt.Fprintf(d.IO.ErrOut, "To submit this staged version and build for review:\n  %s\n", strings.Join(command, " "))
 			return nil
 		},
 	}

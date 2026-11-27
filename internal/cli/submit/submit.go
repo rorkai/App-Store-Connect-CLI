@@ -18,13 +18,17 @@ func NewSubmitCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "submit",
 		ShortUsage: "asc submit <subcommand> [flags]",
-		ShortHelp:  "Submission lifecycle tools; use `publish appstore --submit` to ship.",
+		ShortHelp:  "Submission lifecycle tools; use `review submit` for an existing build.",
 		LongHelp: `Submission lifecycle tools for App Store review.
 
 Use:
-  - asc publish appstore --submit for the canonical high-level App Store shipping path
+  - asc review submit for an already-uploaded build and prepared App Store version
+  - asc publish appstore --submit for the canonical high-level path with a new upload
   - asc validate for canonical readiness checks before submission
-  - asc submit status/cancel for lower-level review submission lifecycle work`,
+  - asc submit status/cancel for lower-level review submission lifecycle work
+
+Submit an existing version and build:
+  asc review submit --app "APP_ID" --version-id "VERSION_ID" --build-id "BUILD_ID" --platform "IOS" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
