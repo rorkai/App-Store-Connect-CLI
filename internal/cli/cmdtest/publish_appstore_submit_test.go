@@ -1,9 +1,11 @@
 package cmdtest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -15,6 +17,10 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
+
+func publishBuildUploadFileResponse(ipaSize int64) (*http.Response, error) {
+	return jsonResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":%d,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":%d,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`, ipaSize, ipaSize))
+}
 
 func respondToPublishAppLookup(t *testing.T, req *http.Request) (*http.Response, error, bool) {
 	t.Helper()
@@ -57,9 +63,7 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	ipaSize := writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	requests := newRequestLog(20)
 	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -75,8 +79,19 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
+			return publishBuildUploadFileResponse(ipaSize)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
+			want, err := os.ReadFile(ipaPath)
+			if err != nil {
+				t.Fatalf("read IPA fixture: %v", err)
+			}
+			got, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("read uploaded IPA: %v", err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Fatalf("uploaded IPA does not match fixture: got %d bytes, want %d", len(got), len(want))
+			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader("")),
@@ -217,9 +232,7 @@ func TestPublishAppStoreSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t
 	t.Setenv("ASC_APP_ID", "")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	ipaSize := writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	requests := newRequestLog(30)
 	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -232,7 +245,7 @@ func TestPublishAppStoreSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
+			return publishBuildUploadFileResponse(ipaSize)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -375,9 +388,7 @@ func runPublishAppStoreSubmitPreflightFailure(t *testing.T, localizations, appIn
 	t.Setenv("ASC_APP_ID", "")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	ipaSize := writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	buildAttachmentAttempted := false
 	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -389,7 +400,7 @@ func runPublishAppStoreSubmitPreflightFailure(t *testing.T, localizations, appIn
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
+			return publishBuildUploadFileResponse(ipaSize)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -481,9 +492,7 @@ func TestPublishAppStoreSubmitDryRunPrintsPlanWithoutMutations(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
@@ -580,9 +589,7 @@ func TestPublishAppStoreDryRunNumericAppIDDoesNotRequireAuth(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	reg := asctest.NewRegistry(t)
 	reg.Install()
@@ -647,9 +654,7 @@ func TestPublishAppStoreSubmitUsesFreshTimeoutBudgetsForPreflightAndSubmission(t
 	t.Setenv("ASC_TIMEOUT", "100ms")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	ipaSize := writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
@@ -670,7 +675,7 @@ func TestPublishAppStoreSubmitUsesFreshTimeoutBudgetsForPreflightAndSubmission(t
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
+			return publishBuildUploadFileResponse(ipaSize)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -789,9 +794,7 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 	t.Setenv("ASC_TIMEOUT", "100ms")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	ipaSize := writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
@@ -815,7 +818,7 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
+			return publishBuildUploadFileResponse(ipaSize)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -945,9 +948,7 @@ func TestPublishAppStoreSubmitDefaultPathHonorsASCTimeout(t *testing.T) {
 	stopErr := errors.New("stop after publish timeout budget capture")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	ipaSize := writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	var localizationBudget time.Duration
 	var subscriptionBudget time.Duration
@@ -961,7 +962,7 @@ func TestPublishAppStoreSubmitDefaultPathHonorsASCTimeout(t *testing.T) {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
+			return publishBuildUploadFileResponse(ipaSize)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -1067,9 +1068,7 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 	t.Setenv("ASC_APP_ID", "")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
-	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write ipa fixture: %v", err)
-	}
+	ipaSize := writeBuildUploadReconciliationIPA(t, ipaPath)
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
@@ -1092,7 +1091,7 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
+			return publishBuildUploadFileResponse(ipaSize)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
 			return &http.Response{
 				StatusCode: http.StatusOK,

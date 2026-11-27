@@ -58,7 +58,7 @@ func TestPublishTestFlightNormalizesTestNotesAndRecoveryPayload(t *testing.T) {
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-123",
-		"--ipa", "Demo.ipa",
+		"--ipa", writePublishIPA(t, "iPhoneOS"),
 		"--version", "1.2.3",
 		"--build-number", "42",
 		"--group", "External",

@@ -318,12 +318,15 @@ func TestValidatePKGPathRejectsSymlinkAndEmptyFile(t *testing.T) {
 }
 
 func TestResolveBundleInfoForIPAUsesProvidedValues(t *testing.T) {
-	version, buildNumber, err := ResolveBundleInfoForIPA("ignored.ipa", "1.2.3", "42")
+	ipaPath := writeTestIPA(t, map[string][]byte{
+		"Payload/Demo.app/Info.plist": buildInfoPlist(t, "1.0", "1"),
+	})
+	info, err := ResolveBundleInfoForIPA(ipaPath, "1.2.3", "42")
 	if err != nil {
 		t.Fatalf("ResolveBundleInfoForIPA() error: %v", err)
 	}
-	if version != "1.2.3" || buildNumber != "42" {
-		t.Fatalf("unexpected resolved values: version=%q build=%q", version, buildNumber)
+	if info.Version != "1.2.3" || info.BuildNumber != "42" {
+		t.Fatalf("unexpected resolved values: version=%q build=%q", info.Version, info.BuildNumber)
 	}
 }
 
@@ -333,12 +336,12 @@ func TestResolveBundleInfoForIPAFillsMissingBuildNumber(t *testing.T) {
 		"Payload/Demo.app/Info.plist": plistData,
 	})
 
-	version, buildNumber, err := ResolveBundleInfoForIPA(ipaPath, "1.2.3", "")
+	info, err := ResolveBundleInfoForIPA(ipaPath, "1.2.3", "")
 	if err != nil {
 		t.Fatalf("ResolveBundleInfoForIPA() error: %v", err)
 	}
-	if version != "1.2.3" || buildNumber != "45" {
-		t.Fatalf("unexpected resolved values: version=%q build=%q", version, buildNumber)
+	if info.Version != "1.2.3" || info.BuildNumber != "45" {
+		t.Fatalf("unexpected resolved values: version=%q build=%q", info.Version, info.BuildNumber)
 	}
 }
 
@@ -348,7 +351,7 @@ func TestResolveBundleInfoForIPAReportsMissingKeys(t *testing.T) {
 		"Payload/Demo.app/Info.plist": plistData,
 	})
 
-	_, _, err := ResolveBundleInfoForIPA(ipaPath, "", "")
+	_, err := ResolveBundleInfoForIPA(ipaPath, "", "")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

@@ -226,29 +226,30 @@ func appStorePlatformForIPA(value string) (asc.Platform, bool) {
 	}
 }
 
-// ResolveBundleInfoForIPA fills missing version/build-number values from the IPA
-// and preserves the existing CLI-facing error messages.
-func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (string, string, error) {
+// ResolveBundleInfoForIPA reads IPA metadata and fills missing version/build-number
+// values while preserving explicit overrides and CLI-facing error messages.
+func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInfo, error) {
 	versionValue := strings.TrimSpace(version)
 	buildNumberValue := strings.TrimSpace(buildNumber)
-	if versionValue == "" || buildNumberValue == "" {
-		info, err := ExtractBundleInfoFromIPA(ipaPath)
-		if err != nil {
-			missingFlags := make([]string, 0, 2)
-			if versionValue == "" {
-				missingFlags = append(missingFlags, "--version")
-			}
-			if buildNumberValue == "" {
-				missingFlags = append(missingFlags, "--build-number")
-			}
-			return "", "", fmt.Errorf("%s required (failed to extract from IPA: %w)", strings.Join(missingFlags, " and "), err)
-		}
+	info, err := ExtractBundleInfoFromIPA(ipaPath)
+	if err != nil {
+		missingFlags := make([]string, 0, 2)
 		if versionValue == "" {
-			versionValue = info.Version
+			missingFlags = append(missingFlags, "--version")
 		}
 		if buildNumberValue == "" {
-			buildNumberValue = info.BuildNumber
+			missingFlags = append(missingFlags, "--build-number")
 		}
+		if len(missingFlags) > 0 {
+			return IPABundleInfo{}, fmt.Errorf("%s required (failed to extract from IPA: %w)", strings.Join(missingFlags, " and "), err)
+		}
+		return IPABundleInfo{}, fmt.Errorf("failed to extract from IPA: %w", err)
+	}
+	if versionValue == "" {
+		versionValue = info.Version
+	}
+	if buildNumberValue == "" {
+		buildNumberValue = info.BuildNumber
 	}
 	if versionValue == "" || buildNumberValue == "" {
 		missingFields := make([]string, 0, 2)
@@ -261,9 +262,10 @@ func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (string, stri
 			missingFields = append(missingFields, "CFBundleVersion")
 			missingFlags = append(missingFlags, "--build-number")
 		}
-		return "", "", fmt.Errorf("missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
+		return IPABundleInfo{}, fmt.Errorf("missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and "))
 	}
-	return versionValue, buildNumberValue, nil
+	info.Version, info.BuildNumber = versionValue, buildNumberValue
+	return info, nil
 }
 
 func coercePlistValueToString(value any) string {
