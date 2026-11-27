@@ -165,7 +165,7 @@ Examples:
 					return d.UsageError("--build-id cannot be used with --upload-only")
 				}
 			}
-			if err := validateLocalBuildFlagUsage(d, localBuildMode, setFlags); err != nil {
+			if err := validateLocalBuildFlagUsage(d, localBuild, setFlags); err != nil {
 				return err
 			}
 			if localBuildMode {
@@ -183,7 +183,7 @@ Examples:
 			uploadMode := ipaValue != "" || pkgValue != ""
 			switch {
 			case localBuildMode:
-				if err := validateLocalBuildSelectors(d, localBuild); err != nil {
+				if err := validateLocalBuildSelectors(d, localBuild, buildNumberValue); err != nil {
 					return err
 				}
 				if ipaValue != "" {
@@ -698,7 +698,7 @@ Examples:
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			metadataDirValue := strings.TrimSpace(*metadataDir)
 			localBuildMode := localBuild.localBuildMode()
-			if err := validateLocalBuildFlagUsage(d, localBuildMode, setFlags); err != nil {
+			if err := validateLocalBuildFlagUsage(d, localBuild, setFlags); err != nil {
 				return err
 			}
 			if localBuildMode {
@@ -717,7 +717,7 @@ Examples:
 			}
 			switch {
 			case localBuildMode:
-				if err := validateLocalBuildSelectors(d, localBuild); err != nil {
+				if err := validateLocalBuildSelectors(d, localBuild, buildNumberValue); err != nil {
 					return err
 				}
 				if ipaValue != "" {

@@ -204,6 +204,26 @@ func resolveNextBuildNumberTo(ctx context.Context, stderr io.Writer, resolveApp 
 	}, nil
 }
 
+// ApplyBuildNumberFloor keeps next unless it must increase to exceed the local build.
+func ApplyBuildNumberFloor(next, local string) (string, error) {
+	candidate, err := parseBuildNumber(next, "next")
+	if err != nil {
+		return "", err
+	}
+	floor, err := parseBuildNumber(local, "local CURRENT_PROJECT_VERSION")
+	if err != nil {
+		return "", err
+	}
+	if candidate.Compare(floor) > 0 {
+		return next, nil
+	}
+	above, err := floor.Next()
+	if err != nil {
+		return "", err
+	}
+	return above.String(), nil
+}
+
 func resolveLatestBuildSelection(ctx context.Context, stderr io.Writer, resolveApp func(string) string, client *asc.Client, opts LatestBuildSelectionOptions, allowEmpty bool) (*latestBuildSelectionResult, error) {
 	if client == nil {
 		return nil, fmt.Errorf("build client is required")

@@ -56,9 +56,14 @@ type publishLocalBuildFlagValues struct {
 	archiveXcodebuildArg shared.MultiStringFlag
 	exportXcodebuildArg  shared.MultiStringFlag
 	generationFlagsSet   bool
+
+	localBuildNumberFloor *bool
+	target                *string
+	resolvedFloor         *localxcode.ArchiveBuildNumberFloor
 }
 
 type publishLocalBuildConfig struct {
+	BuildNumberFloor      *localxcode.ArchiveBuildNumberFloor
 	WorkspacePath         string
 	ProjectPath           string
 	Scheme                string
@@ -99,6 +104,8 @@ func bindPublishLocalBuildFlags(fs *flag.FlagSet) *publishLocalBuildFlagValues {
 	values.clean = fs.Bool("clean", false, "Run clean before local-build archive")
 	values.sourceProvenance = fs.Bool("source-provenance", false, "Include Git revision and dirty state observed in the --project checkout at build start; unavailable for workspaces or prebuilt inputs")
 	values.initialBuildNumber = fs.Int("initial-build-number", 1, "Initial build number when local-build mode auto-resolves a build number")
+	values.localBuildNumberFloor = fs.Bool("local-build-number-floor", false, "Choose an automatic build number above the selected project app target (requires --project)")
+	values.target = fs.String("target", "", "Application target for --local-build-number-floor (required when ambiguous)")
 	fs.Var(&values.archiveXcodebuildArg, "archive-xcodebuild-flag", "Pass a raw argument through to xcodebuild during local-build archive (repeatable)")
 	fs.Var(&values.exportXcodebuildArg, "export-xcodebuild-flag", "Pass a raw argument through to xcodebuild during local-build export (repeatable)")
 	return values
@@ -129,8 +136,11 @@ func (v *publishLocalBuildFlagValues) localBuildMode() bool {
 	return v.trimmedWorkspacePath() != "" || v.trimmedProjectPath() != ""
 }
 
-func validateLocalBuildFlagUsage(d *shared.Deps, localBuildMode bool, setFlags map[string]bool) error {
-	if localBuildMode {
+func validateLocalBuildFlagUsage(d *shared.Deps, values *publishLocalBuildFlagValues, setFlags map[string]bool) error {
+	if values.localBuildMode() {
+		if setFlags["target"] && !*values.localBuildNumberFloor {
+			return d.UsageError("--target requires --local-build-number-floor")
+		}
 		return nil
 	}
 	if setFlags["source-provenance"] {
@@ -146,6 +156,8 @@ func validateLocalBuildFlagUsage(d *shared.Deps, localBuildMode bool, setFlags m
 		"configuration",
 		"clean",
 		"initial-build-number",
+		"local-build-number-floor",
+		"target",
 		"archive-xcodebuild-flag",
 		"export-xcodebuild-flag",
 		"scheme",
@@ -211,7 +223,7 @@ func validatePublishExportXcodebuildArgs(d *shared.Deps, args []string) error {
 	return nil
 }
 
-func validateLocalBuildSelectors(d *shared.Deps, values *publishLocalBuildFlagValues) error {
+func validateLocalBuildSelectors(d *shared.Deps, values *publishLocalBuildFlagValues, explicitBuildNumber string) error {
 	if values == nil {
 		return d.UsageError("exactly one of --workspace or --project is required")
 	}
@@ -229,11 +241,31 @@ func validateLocalBuildSelectors(d *shared.Deps, values *publishLocalBuildFlagVa
 	if values.trimmedScheme() == "" {
 		return d.UsageError("--scheme is required")
 	}
+	values.resolvedFloor = nil
+	if values.localBuildNumberFloor == nil || !*values.localBuildNumberFloor {
+		return nil
+	}
+	if workspacePath != "" {
+		return d.UsageError("--local-build-number-floor requires --project; workspace target selection is unsupported")
+	}
+	if strings.TrimSpace(explicitBuildNumber) != "" {
+		return d.UsageError("--local-build-number-floor cannot be combined with --build-number")
+	}
+	configuration := firstNonEmpty(strings.TrimSpace(*values.configuration), "Release")
+	floor, err := localxcode.ReadArchiveBuildNumberFloor(publishOSPath(d, projectPath), *values.target, configuration, values.archiveXcodebuildArg)
+	if err == nil {
+		_, err = shared.ApplyBuildNumberFloor("1", floor.BuildNumber)
+	}
+	if err != nil {
+		return d.UsageErrorf("--local-build-number-floor: %v; select a resolvable app target/configuration or omit the flag and use --build-number", err)
+	}
+	values.resolvedFloor = floor
 	return nil
 }
 
 func resolveLocalBuildConfig(d *shared.Deps, values *publishLocalBuildFlagValues, platform, version, buildNumber string) (publishLocalBuildConfig, error) {
 	config := publishLocalBuildConfig{
+		BuildNumberFloor:      values.resolvedFloor,
 		WorkspacePath:         publishOSPath(d, values.trimmedWorkspacePath()),
 		ProjectPath:           publishOSPath(d, values.trimmedProjectPath()),
 		Scheme:                values.trimmedScheme(),
@@ -315,7 +347,11 @@ func resolvePublishBuildNumber(ctx context.Context, d *shared.Deps, client *asc.
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(result.NextBuildNumber), nil
+	next := strings.TrimSpace(result.NextBuildNumber)
+	if values.resolvedFloor != nil {
+		return shared.ApplyBuildNumberFloor(next, values.resolvedFloor.BuildNumber)
+	}
+	return next, nil
 }
 
 func runPublishLocalBuild(ctx context.Context, d *shared.Deps, client *asc.Client, appID, platform, version, buildNumber string, pollInterval, timeout time.Duration, timeoutOverride bool, config publishLocalBuildConfig) (*publishLocalBuildExecutionResult, error) {
@@ -370,6 +406,10 @@ func runPublishLocalBuild(ctx context.Context, d *shared.Deps, client *asc.Clien
 		return nil, fmt.Errorf("archive local build: %w", err)
 	}
 
+	if err := validatePublishFloorArtifact(config.BuildNumberFloor, buildNumber, archiveResult.BundleID, archiveResult.BuildNumber, "archive"); err != nil {
+		return nil, err
+	}
+
 	exportOptionsPath := strings.TrimSpace(config.ExportOptionsPath)
 	if exportOptionsPath == "" {
 		generatedPath, err := localxcode.UniqueExportOptionsPathForArchive(archiveResult.ArchivePath)
@@ -404,6 +444,9 @@ func runPublishLocalBuild(ctx context.Context, d *shared.Deps, client *asc.Clien
 	})
 	if err != nil {
 		return nil, fmt.Errorf("export local build: %w", err)
+	}
+	if err := validatePublishFloorArtifact(config.BuildNumberFloor, buildNumber, exportResult.BundleID, exportResult.BuildNumber, "export"); err != nil {
+		return nil, err
 	}
 	result := &publishLocalBuildExecutionResult{
 		Archive: &asc.PublishArchiveStageResult{
@@ -613,4 +656,11 @@ func collectSetFlags(fs *flag.FlagSet) map[string]bool {
 		setFlags[f.Name] = true
 	})
 	return setFlags
+}
+
+func validatePublishFloorArtifact(floor *localxcode.ArchiveBuildNumberFloor, expectedBuild, bundle, build, stage string) error {
+	if floor != nil && (strings.TrimSpace(bundle) != floor.BundleID || strings.TrimSpace(build) != expectedBuild) {
+		return fmt.Errorf("%s local build: app identity does not match --local-build-number-floor target %q configuration %q: expected bundle %q build %q, got bundle %q build %q; check --scheme, --target, --configuration and Info.plist build settings before publishing", stage, floor.Target, floor.Configuration, floor.BundleID, expectedBuild, bundle, build)
+	}
+	return nil
 }
