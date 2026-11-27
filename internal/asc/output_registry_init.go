@@ -363,6 +363,7 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(betaGroupsRows)
 	registerRows(buildBetaGroupMembershipRows)
 	registerRowsWithSingleResourceAdapter(betaTestersRows)
+	registerRows(betaTesterDevicesRows)
 	registerRowsWithSingleResourceAdapter(usersRows)
 	registerRowsWithSingleResourceAdapter(actorsRows)
 	registerRowsWithSingleResourceAdapter(devicesRows)
