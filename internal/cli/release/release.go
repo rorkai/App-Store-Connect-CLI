@@ -27,7 +27,10 @@ release stage prepares a version for review without submitting it. It orchestrat
   5. Attach selected build
   6. Run readiness checks
 
-For the canonical App Store shipping command, use:
+After staging, submit the existing version and build with:
+  asc review submit --app "APP_ID" --version-id "VERSION_ID" --build-id "BUILD_ID" --platform "IOS" --confirm
+
+For a new IPA upload and submission, use the canonical App Store shipping command:
   asc publish appstore --app "APP_ID" --ipa app.ipa --version "VERSION" --submit --confirm
 
 After submission, monitor progress with:
