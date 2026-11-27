@@ -12,13 +12,18 @@ func behaviorForCommand(path string) commandBehavior {
 	case "commands", "search", "capabilities", "schema", "version",
 		"apps list", "apps view", "app-clips review-details view",
 		"review details plan", "review details-for-version", "review details-get",
-		"catalog plan", "metadata validate":
+		"metadata validate":
 		return commandBehavior{WriteIntent: "none", HumanRequirement: "none"}
 	case "metadata pull":
 		return commandBehavior{WriteIntent: "local", HumanRequirement: "none"}
 	case "review details set", "review details-update", "review details-create",
 		"app-clips review-details create", "app-clips review-details update":
 		return commandBehavior{WriteIntent: "remote", HumanRequirement: "none"}
+	case "catalog plan":
+		return commandBehavior{
+			WriteIntent: "conditional", WriteCondition: "--out saves a reviewed plan to a local file.",
+			HumanRequirement: "none",
+		}
 	case "catalog apply":
 		return commandBehavior{
 			WriteIntent: "remote", HumanRequirement: "conditional",

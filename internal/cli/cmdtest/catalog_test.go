@@ -411,3 +411,90 @@ func TestCatalogSubscriptionPricingPreservesAdditionalTiers(t *testing.T) {
 		})
 	}
 }
+
+func TestCatalogSavedPlanRefusesDriftWithSameOperation(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	for _, name := range []string{"Old A", "Old B"} {
+		reg.Register(asctest.GET("/v1/apps/123/subscriptionGroups", "limit=200"), asctest.JSON(200, `{"data":[]}`))
+		reg.Register(asctest.GET("/v1/apps/123/inAppPurchasesV2", "limit=200"), asctest.JSON(200, fmt.Sprintf(
+			`{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"productId":"p","name":%q,"inAppPurchaseType":"CONSUMABLE"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2"}}`, name)))
+	}
+	manifestPath := catalogFile(t, `{"inAppPurchases":[{"productId":"p","name":"New","type":"CONSUMABLE"}]}`)
+	planPath := filepath.Join(t.TempDir(), "approved.json")
+	_, stderr, err := runCommand(t, []string{"catalog", "plan", "--app", "123", "--file", manifestPath, "--out", planPath, "--output", "json"})
+	if err != nil {
+		t.Fatalf("plan stderr=%q err=%v", stderr, err)
+	}
+	out, stderr, err := runCommand(t, []string{"catalog", "apply", "--app", "123", "--file", manifestPath, "--plan", planPath})
+	if !isUsageClassError(err) || out != "" || !strings.Contains(stderr, "plan drifted") {
+		t.Fatalf("apply stdout=%q stderr=%q err=%v", out, stderr, err)
+	}
+	if got := len(reg.Requests()); got != 4 {
+		t.Fatalf("expected four preflight GETs and no writes, got %d requests", got)
+	}
+}
+
+func TestCatalogApplyRefusesExplicitEmptyPlanBeforeHTTP(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	manifestPath := catalogFile(t, `{"groups":[{"referenceName":"Pro"}]}`)
+	out, stderr, err := runCommand(t, []string{"catalog", "apply", "--app", "123", "--file", manifestPath, "--plan", ""})
+	if !isUsageClassError(err) || out != "" || !strings.Contains(stderr, "--plan requires a file path") || len(reg.Requests()) != 0 {
+		t.Fatalf("stdout=%q stderr=%q err=%v requests=%v", out, stderr, err, reg.Requests())
+	}
+}
+
+func TestCatalogSavedPlanRefusesMissingAvailabilityDecision(t *testing.T) {
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+
+	groups := asctest.GET("/v1/apps/123/subscriptionGroups", "limit=200")
+	products := asctest.GET("/v1/apps/123/inAppPurchasesV2", "limit=200")
+	availability := asctest.GET("/v2/inAppPurchases/iap-1/inAppPurchaseAvailability")
+	for _, attributes := range []string{`{"availableInNewTerritories":false}`, `{"availableInNewTerritories":null}`} {
+		reg.Register(groups, asctest.JSON(200, `{"data":[]}`))
+		reg.Register(products, asctest.JSON(200, `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"productId":"p","name":"Purchase","inAppPurchaseType":"CONSUMABLE"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2"}}`))
+		reg.Register(availability, asctest.JSON(200, fmt.Sprintf(`{"data":{"type":"inAppPurchaseAvailabilities","id":"available","attributes":%s}}`, attributes)))
+	}
+	reg.Register(asctest.GET("/v1/inAppPurchaseAvailabilities/available/availableTerritories", "limit=200"),
+		asctest.JSON(200, `{"data":[{"type":"territories","id":"USA","attributes":{}}]}`))
+
+	manifestPath := catalogFile(t, `{"inAppPurchases":[{"productId":"p","name":"Purchase","type":"CONSUMABLE","availability":{"territories":["CAN","USA"],"availableInNewTerritories":false}}]}`)
+	planPath := filepath.Join(t.TempDir(), "approved.json")
+	_, stderr, err := runCommand(t, []string{"catalog", "plan", "--app", "123", "--file", manifestPath, "--out", planPath, "--output", "json"})
+	if err != nil {
+		t.Fatalf("plan stderr=%q err=%v", stderr, err)
+	}
+	out, stderr, err := runCommand(t, []string{"catalog", "apply", "--app", "123", "--file", manifestPath, "--plan", planPath, "--output", "json"})
+	if err == nil || !strings.Contains(err.Error(), "omitted availableInNewTerritories") || out != "" {
+		t.Fatalf("apply stdout=%q stderr=%q err=%v", out, stderr, err)
+	}
+	if got := len(reg.Requests()); got != 7 {
+		t.Fatalf("expected seven preflight GETs and no writes, got %d requests", got)
+	}
+}
+
+func TestCatalogPlanRefusesSymlinkedOutputParent(t *testing.T) {
+	other := t.TempDir()
+	link := filepath.Join(t.TempDir(), "linked")
+	if err := os.Symlink(other, link); err != nil {
+		t.Skipf("cannot create directory symlink: %v", err)
+	}
+	setupAuth(t)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/subscriptionGroups", "limit=200"), asctest.JSON(200, `{"data":[]}`))
+
+	manifestPath := catalogFile(t, `{"groups":[{"referenceName":"Pro"}]}`)
+	out, stderr, err := runCommand(t, []string{"catalog", "plan", "--app", "123", "--file", manifestPath, "--out", filepath.Join(link, "plan.json")})
+	if err == nil || !strings.Contains(err.Error(), "symlink") || out != "" {
+		t.Fatalf("plan stdout=%q stderr=%q err=%v", out, stderr, err)
+	}
+	if _, err := os.Stat(filepath.Join(other, "plan.json")); !os.IsNotExist(err) {
+		t.Fatalf("plan publication outside root returned %v", err)
+	}
+}

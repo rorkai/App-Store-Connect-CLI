@@ -50,8 +50,8 @@ func (c *Catalog) newCommandsCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Discover registered command families and their inputs.",
 		LongHelp: `List command families from the CLI registry. Use --family to describe
 an exact path and all its subcommands, including their flags and usage. An
-unknown write intent or human interaction means the command has no annotation.
-Command descriptions do not grant permission or replace runtime validation.
+unknown write intent or human interaction marks an unclassified command.
+Runtime validation and approval requirements still apply.
 
 Examples:
   asc commands --output json
