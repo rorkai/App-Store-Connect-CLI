@@ -751,6 +751,16 @@ func TestReleaseStageCommandSuccessHandoff(t *testing.T) {
 	testClient := newReleaseTestClient(t)
 	d.Client = func() (*asc.Client, error) { return testClient, nil }
 
+	rootFlags := flag.NewFlagSet("asc", flag.ContinueOnError)
+	shared.BindRootFlags(rootFlags)
+	t.Cleanup(func() { shared.BindRootFlags(flag.NewFlagSet("asc", flag.ContinueOnError)) })
+	if err := rootFlags.Parse([]string{
+		"--profile", "release key", "--strict-auth", "--report", "junit",
+		"--report-file", filepath.Join(t.TempDir(), "stage.xml"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
 	cmd := newReleaseStageCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "APP_123", "--version", "2.4.0", "--build-id", "BUILD_123", "--platform", "MAC_OS",
@@ -767,8 +777,9 @@ func TestReleaseStageCommandSuccessHandoff(t *testing.T) {
 		t.Fatalf("stage stdout is not a JSON receipt: %v", err)
 	}
 	quotedVersionID, _ := shared.ShellQuote(versionID)
-	wantCommand := "asc review submit --app APP_123 --version-id " + quotedVersionID + " --build-id BUILD_123 --platform MAC_OS --confirm"
-	if stderr := d.IO.ErrOut.(*bytes.Buffer).String(); !strings.Contains(stderr, wantCommand) {
+	quotedProfile, _ := shared.ShellQuote("release key")
+	wantCommand := "asc --profile " + quotedProfile + " --strict-auth review submit --app APP_123 --version-id " + quotedVersionID + " --build-id BUILD_123 --platform MAC_OS --confirm"
+	if stderr := d.IO.ErrOut.(*bytes.Buffer).String(); !strings.Contains(stderr, wantCommand) || strings.Contains(stderr, "--report") {
 		t.Fatalf("stage did not hand off its exact version and build: %q", stderr)
 	}
 	if result.Status != "ok" {

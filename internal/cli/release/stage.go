@@ -178,7 +178,7 @@ Examples:
 			if result.DryRun || result.Status != "ok" {
 				return nil
 			}
-			rootFlags, ok := shared.RootFlagsForReinvocation()
+			rootFlags, ok := shared.RootFlagsForNextCommand()
 			if !ok {
 				return nil
 			}

@@ -177,6 +177,16 @@ func SelectedProfile() string {
 // rendered as a copyable argument, so callers omit the suggestion entirely
 // rather than print a command that would run with a different value.
 func RootFlagsForReinvocation() (args []string, ok bool) {
+	return rootFlagsForReinvocation(true)
+}
+
+// RootFlagsForNextCommand preserves authentication flags without reusing the
+// report output path from a completed command.
+func RootFlagsForNextCommand() (args []string, ok bool) {
+	return rootFlagsForReinvocation(false)
+}
+
+func rootFlagsForReinvocation(includeReport bool) (args []string, ok bool) {
 	args = make([]string, 0, 8)
 	if profile := strings.TrimSpace(selectedProfile); profile != "" {
 		quoted, quotable := ShellQuote(profile)
@@ -187,6 +197,9 @@ func RootFlagsForReinvocation() (args []string, ok bool) {
 	}
 	if strictAuth {
 		args = append(args, "--strict-auth")
+	}
+	if !includeReport {
+		return args, true
 	}
 	// --debug, --api-debug, and --retry-log are deliberately omitted: they only
 	// add stderr diagnostics and never change what a command does, so repeating
