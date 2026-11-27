@@ -15,10 +15,7 @@ import (
 )
 
 func TestUploadBuildAndWaitForIDRecoversAmbiguousCommit(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "Demo.ipa")
-	if err := os.WriteFile(path, []byte("test"), 0o600); err != nil {
-		t.Fatalf("write IPA: %v", err)
-	}
+	path := writePublishIPA(t, "iPhoneOS")
 	fileInfo, err := os.Stat(path)
 	if err != nil {
 		t.Fatalf("stat IPA: %v", err)
@@ -27,10 +24,12 @@ func TestUploadBuildAndWaitForIDRecoversAmbiguousCommit(t *testing.T) {
 	buildUploadLookups := 0
 	swapTransport(t, publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1":
+			return publishCommandJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"bundleId":"com.example.app"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
 			return publishCommandJSONResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return publishCommandJSONResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"Demo.ipa","fileSize":4,"uti":"com.apple.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0}]}}}`)
+			return publishCommandJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"Demo.ipa","fileSize":%d,"uti":"com.apple.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":%d,"offset":0}]}}}`, fileInfo.Size(), fileInfo.Size()))
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
 			return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/buildUploadFiles/file-1":

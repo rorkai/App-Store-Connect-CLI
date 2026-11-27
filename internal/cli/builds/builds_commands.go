@@ -286,23 +286,8 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds upload: %w", err)
 				}
-				appResp, err := client.GetApp(requestCtx, resolvedAppID)
-				if err != nil {
-					return fmt.Errorf("builds upload: fetch selected app %q: %w", resolvedAppID, err)
-				}
-				if appResp == nil {
-					return fmt.Errorf("builds upload: fetch selected app %q: empty response", resolvedAppID)
-				}
-				appBundleID := strings.TrimSpace(appResp.Data.Attributes.BundleID)
-				if appBundleID == "" {
-					return fmt.Errorf("builds upload: selected app %q has no bundle ID", resolvedAppID)
-				}
-				if !strings.EqualFold(ipaBundleID, appBundleID) {
-					appName := strings.TrimSpace(appResp.Data.Attributes.Name)
-					if appName == "" {
-						appName = resolvedAppID
-					}
-					return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("builds upload: IPA bundle ID %q does not match selected app %q bundle ID %q", ipaBundleID, appName, appBundleID)), shared.DiagnosticInvalidInput, "--ipa")
+				if err := shared.ValidateIPAAppBundleID(requestCtx, client, resolvedAppID, ipaBundleID); err != nil {
+					return fmt.Errorf("builds upload: %w", err)
 				}
 			}
 
