@@ -711,6 +711,7 @@ func registerAllOutputRenderers() {
 	registerRows(customerReviewResponseRows)
 	registerRows(appEncryptionDeclarationBuildsUpdateResultRows)
 	registerRowsWithSingleResourceAdapter(androidToIosAppMappingDetailsRows)
+	registerRows(customPageScreenshotPlanRows)
 	registerRowsWithSingleResourceAdapter(appCustomProductPagesRows)
 	registerRowsWithSingleResourceAdapter(appCustomProductPageVersionsRows)
 	registerRowsWithSingleResourceAdapter(appCustomProductPageLocalizationsRows)
