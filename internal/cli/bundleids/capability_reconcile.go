@@ -17,8 +17,9 @@ import (
 )
 
 type desiredEntitlement struct {
-	spec  entitlementCapability
-	value any
+	identifierLinks []asc.CapabilityIdentifierLink
+	spec            entitlementCapability
+	value           any
 }
 
 func newBundleIDsCapabilitiesReconcileCommand(d *shared.Deps) *ffcli.Command {
@@ -30,6 +31,12 @@ func newBundleIDsCapabilitiesReconcileCommand(d *shared.Deps) *ffcli.Command {
 		LongHelp: `Reconcile bundle ID capabilities from an entitlements file.
 
 plan shows add, update, keep, and unmanaged actions. apply requires --confirm.
+Identifier linkage is reported separately as unverified because the public API
+cannot read group, merchant or container assignments. Apply changes capability
+states only; it does not assign identifiers. Use the explicit Developer Portal
+web read commands in the receipt to inspect links with the correct team and
+Portal resource identity. Do not infer absence from incomplete relationship data.
+
 Existing sub-feature settings, such as broadcast push, are preserved. Removal
 requires --allow-remove and only applies to capability types this mapping knows.
 
@@ -168,18 +175,21 @@ func readDesiredEntitlements(d *shared.Deps, path string, ignoreUnknown bool) ([
 				return nil, d.UsageErrorf("unsupported data protection entitlement value %q", value)
 			}
 		}
+		links := unverifiedEntitlementIdentifiers(key, raw[key])
 		if item.Capability != "" {
 			if index, ok := seen[item.Capability]; ok {
+				selected[index].identifierLinks = append(selected[index].identifierLinks, links...)
 				// Several entitlement keys can request one ASC capability. Retain
 				// the key that also determines its settings, if one is present.
 				if item.Settings != nil {
-					selected[index] = desiredEntitlement{spec: item, value: raw[key]}
+					selected[index].spec = item
+					selected[index].value = raw[key]
 				}
 				continue
 			}
 			seen[item.Capability] = len(selected)
 		}
-		selected = append(selected, desiredEntitlement{spec: item, value: raw[key]})
+		selected = append(selected, desiredEntitlement{spec: item, value: raw[key], identifierLinks: links})
 	}
 	return selected, nil
 }
@@ -270,7 +280,11 @@ func buildCapabilityReconcilePlan(bundleID string, desired []desiredEntitlement,
 		}
 		return actions[i].Capability+actions[i].Entitlement < actions[j].Capability+actions[j].Entitlement
 	})
-	return &asc.CapabilityReconcilePlan{BundleID: bundleID, Actions: actions}
+	plan := &asc.CapabilityReconcilePlan{BundleID: bundleID, Actions: actions}
+	for _, item := range desired {
+		plan.IdentifierLinks = append(plan.IdentifierLinks, item.identifierLinks...)
+	}
+	return plan
 }
 
 func resolveCapabilityBundleID(ctx context.Context, client *asc.Client, value string) (string, error) {
