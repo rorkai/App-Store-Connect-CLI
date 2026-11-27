@@ -544,7 +544,7 @@ Reference hierarchy:
 
 ## Acknowledgements
 
-Local screenshot framing uses Koubou (pinned to `0.20.0`) for deterministic device-frame rendering.
+Local screenshot framing uses Koubou `0.21.0`; `0.20.0` remains supported for existing frames. iPhone Duo frames require `0.21.0`.
 GitHub: https://github.com/bitomule/koubou
 
 Simulator UI automation for screenshot capture and interactions uses AXe CLI.

@@ -1,7 +1,6 @@
-# Device frame PNG stems shipped by Koubou v0.20.0.
-# Source: github.com/bitomule/Koubou tag v0.20.0, src/koubou/frames/*.png.
-# The release workflow packages that directory as frames-v0.20.0.tar.gz,
-# which `kou setup-frames` downloads. Regenerate when the Koubou pin changes.
+# Device frame PNG stems shipped by Koubou v0.21.0.
+# Release asset: frames-v0.21.0.tar.gz.
+# SHA-256: a8bb7579de3c9057ad993a591c68668ebc5a81c9a96164016230a4a193c36000
 AW Ultra 2 - Black + Alpine Loop Dark Green
 AW Ultra 2 - Black + Alpine Loop Navy
 AW Ultra 2 - Black + Alpine Loop Tan
@@ -243,3 +242,13 @@ iPhone Air - Sky Blue - Landscape
 iPhone Air - Sky Blue - Portrait
 iPhone Air - Space Black - Landscape
 iPhone Air - Space Black - Portrait
+iPhone Duo - Night Sky - Inner Open Landscape
+iPhone Duo - Night Sky - Inner Open Portrait
+iPhone Duo - Night Sky - Outer Closed Landscape
+iPhone Duo - Night Sky - Outer Closed Portrait
+iPhone Duo - Night Sky - Outer Open
+iPhone Duo - Star White - Inner Open Landscape
+iPhone Duo - Star White - Inner Open Portrait
+iPhone Duo - Star White - Outer Closed Landscape
+iPhone Duo - Star White - Outer Closed Portrait
+iPhone Duo - Star White - Outer Open

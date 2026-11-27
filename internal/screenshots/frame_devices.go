@@ -23,6 +23,11 @@ const (
 	FrameDeviceWatchSeries11 FrameDevice = "watch-series-11"
 	FrameDeviceWatchUltra3   FrameDevice = "watch-ultra-3"
 	FrameDeviceAppleTV       FrameDevice = "apple-tv"
+
+	FrameDeviceIPhoneDuoOuter          FrameDevice = "iphone-duo-outer"
+	FrameDeviceIPhoneDuoOuterLandscape FrameDevice = "iphone-duo-outer-landscape"
+	FrameDeviceIPhoneDuoInner          FrameDevice = "iphone-duo-inner"
+	FrameDeviceIPhoneDuoInnerLandscape FrameDevice = "iphone-duo-inner-landscape"
 )
 
 const (
@@ -50,6 +55,10 @@ var supportedFrameDevices = []FrameDevice{
 	FrameDeviceWatchSeries11,
 	FrameDeviceWatchUltra3,
 	FrameDeviceAppleTV,
+	FrameDeviceIPhoneDuoOuter,
+	FrameDeviceIPhoneDuoOuterLandscape,
+	FrameDeviceIPhoneDuoInner,
+	FrameDeviceIPhoneDuoInnerLandscape,
 }
 
 type frameColorVariant struct {
@@ -108,9 +117,8 @@ func frameColors(template string, labels ...string) []frameColorVariant {
 }
 
 // Keeps the existing asc device slugs while delegating rendering to pinned
-// Koubou v0.20.0 frame names. Every frame name and color variant below is
-// checked against testdata/koubou-0.20.0-frames.txt, the frame catalog that
-// Koubou v0.20.0 publishes as frames-v0.20.0.tar.gz.
+// Koubou v0.21.0 frame names. Every frame name and color variant below is
+// checked against testdata/koubou-0.21.0-frames.txt.
 var frameDeviceKoubouSpecs = map[FrameDevice]frameDeviceKoubouSpec{
 	FrameDeviceIPhoneAir: {
 		FrameName:   "iPhone Air - Light Gold - Portrait",
@@ -278,6 +286,42 @@ var frameDeviceKoubouSpecs = map[FrameDevice]frameDeviceKoubouSpec{
 		Family:       frameFamilyTV,
 		FrameWidth:   4300,
 		FrameHeight:  2780,
+	},
+	FrameDeviceIPhoneDuoOuter: {
+		FrameName:   "iPhone Duo - Night Sky - Outer Closed Portrait",
+		OutputSize:  "iPhoneDuo_Outer",
+		DisplayType: "APP_IPHONE_DUO",
+		Family:      frameFamilyIPhone,
+		FrameWidth:  1574,
+		FrameHeight: 2194,
+		Colors:      frameColors("iPhone Duo - %s - Outer Closed Portrait", "Night Sky", "Star White"),
+	},
+	FrameDeviceIPhoneDuoOuterLandscape: {
+		FrameName:   "iPhone Duo - Night Sky - Outer Closed Landscape",
+		OutputSize:  "iPhoneDuo_Outer_Landscape",
+		DisplayType: "APP_IPHONE_DUO",
+		Family:      frameFamilyIPhone,
+		FrameWidth:  2194,
+		FrameHeight: 1574,
+		Colors:      frameColors("iPhone Duo - %s - Outer Closed Landscape", "Night Sky", "Star White"),
+	},
+	FrameDeviceIPhoneDuoInner: {
+		FrameName:   "iPhone Duo - Night Sky - Inner Open Portrait",
+		OutputSize:  "iPhoneDuo_Inner",
+		DisplayType: "APP_IPHONE_DUO",
+		Family:      frameFamilyIPhone,
+		FrameWidth:  2247,
+		FrameHeight: 3093,
+		Colors:      frameColors("iPhone Duo - %s - Inner Open Portrait", "Night Sky", "Star White"),
+	},
+	FrameDeviceIPhoneDuoInnerLandscape: {
+		FrameName:   "iPhone Duo - Night Sky - Inner Open Landscape",
+		OutputSize:  "iPhoneDuo_Inner_Landscape",
+		DisplayType: "APP_IPHONE_DUO",
+		Family:      frameFamilyIPhone,
+		FrameWidth:  3093,
+		FrameHeight: 2247,
+		Colors:      frameColors("iPhone Duo - %s - Inner Open Landscape", "Night Sky", "Star White"),
 	},
 }
 
