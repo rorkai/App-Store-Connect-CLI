@@ -121,7 +121,7 @@ func TestExecuteCustomPageScreenshotUpload_SyncDeletesExistingScreenshotsAndReor
 	d := shared.DefaultDeps()
 	d.Client = func() (*asc.Client, error) { return client, nil }
 
-	result, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", dir, "IPHONE_65", true, true)
+	result, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", dir, "IPHONE_65", customPageScreenshotSyncOptions{Replace: true, Confirm: true})
 	if err != nil {
 		t.Fatalf("executeCustomPageScreenshotUpload() error: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestExecuteCustomPageScreenshotUploadFullSetQuotesReplacementPath(t *testin
 	d := shared.DefaultDeps()
 	d.Client = func() (*asc.Client, error) { return client, nil }
 
-	_, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", trickyPath, "IPHONE_65", false, false)
+	_, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", trickyPath, "IPHONE_65", customPageScreenshotSyncOptions{})
 	if err == nil {
 		t.Fatal("expected full screenshot set error")
 	}
