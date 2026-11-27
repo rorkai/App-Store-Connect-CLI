@@ -336,6 +336,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			newPricingScheduleGetCommand(d),
 			newPricingScheduleCreateCommand(d),
+			newPricingScheduleEditCommand(d),
 			newPricingScheduleManualPricesCommand(d),
 			newPricingScheduleAutomaticPricesCommand(d),
 		},
