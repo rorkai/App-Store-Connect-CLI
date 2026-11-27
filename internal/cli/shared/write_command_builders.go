@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -57,7 +58,17 @@ type AttributeFlag struct {
 	// explicit fields count as given when they appear on the command line,
 	// even blank, instead of when they are not blank.
 	explicit bool
-	set      func(value string, given bool)
+	// maxLength, when positive, is the most characters the trimmed value
+	// may have.
+	maxLength int
+	set       func(value string, given bool)
+}
+
+// WithMaxLength returns f with a limit of maxLength characters on its trimmed
+// value, checked before any request.
+func (f AttributeFlag) WithMaxLength(maxLength int) AttributeFlag {
+	f.maxLength = maxLength
+	return f
 }
 
 // RequiredStringFlag binds a string flag that must not be blank to target.
@@ -150,6 +161,9 @@ func buildWriteCommand(config WriteCommandConfig, verb string) *ffcli.Command {
 				value := strings.TrimSpace(*values[i])
 				if value == "" && field.required {
 					return d.RequiredFlag("--" + field.name)
+				}
+				if length := utf8.RuneCountInString(value); field.maxLength > 0 && length > field.maxLength {
+					return d.UsageErrorf("--%s must be at most %d characters (got %d)", field.name, field.maxLength, length)
 				}
 				fieldGiven := value != ""
 				if field.explicit {

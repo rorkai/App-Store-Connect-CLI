@@ -158,6 +158,33 @@ func TestBuildWriteCommands(t *testing.T) {
 			wantErr:    "flag: help requested",
 			wantStderr: "Error: at least one update flag is required (--note, --title, --summary)\n",
 		},
+		{
+			name: "create rejects a field longer than its maximum before any request",
+			configure: func(config *WriteCommandConfig, attrs *testWriteAttributes) {
+				config.Fields[0] = RequiredStringFlag(&attrs.Name, "name", "Name").WithMaxLength(5)
+			},
+			args:       []string{"--parent-id", "parent-1", "--name", "Item 42"},
+			wantErr:    "--name must be at most 5 characters (got 7)",
+			wantStderr: "Error: --name must be at most 5 characters (got 7)\n",
+		},
+		{
+			name: "create counts characters, not bytes, against the maximum",
+			configure: func(config *WriteCommandConfig, attrs *testWriteAttributes) {
+				config.Fields[0] = RequiredStringFlag(&attrs.Name, "name", "Name").WithMaxLength(5)
+			},
+			args:       []string{"--parent-id", "parent-1", "--name", " 夏祭りの日 "},
+			wantStdout: `{"id":"parent-1","name":"夏祭りの日"}` + "\n",
+		},
+		{
+			name:   "update rejects an optional field longer than its maximum",
+			update: true,
+			configure: func(config *WriteCommandConfig, attrs *testWriteAttributes) {
+				config.Fields[1] = OptionalStringFlag(&attrs.Title, "title", "Title").WithMaxLength(3)
+			},
+			args:       []string{"--id", "item-1", "--title", "Title"},
+			wantErr:    "--title must be at most 3 characters (got 5)",
+			wantStderr: "Error: --title must be at most 3 characters (got 5)\n",
+		},
 	}
 
 	for _, tt := range tests {

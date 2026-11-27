@@ -103,6 +103,21 @@ func TestAppEventsValidationErrors(t *testing.T) {
 			wantErr: "Error: --locale is required",
 		},
 		{
+			name:    "localizations create name over 30 characters",
+			args:    []string{"app-events", "localizations", "create", "--event-id", "EVENT_ID", "--locale", "en-US", "--name", "Your ritual now on every screen"},
+			wantErr: "Error: --name must be at most 30 characters (got 31)\n",
+		},
+		{
+			name:    "localizations create short description over 50 characters",
+			args:    []string{"app-events", "localizations", "create", "--event-id", "EVENT_ID", "--locale", "en-US", "--short-description", strings.Repeat("a", 51)},
+			wantErr: "Error: --short-description must be at most 50 characters (got 51)\n",
+		},
+		{
+			name:    "localizations update long description over 120 characters",
+			args:    []string{"app-events", "localizations", "update", "--localization-id", "LOC_ID", "--long-description", strings.Repeat("a", 121)},
+			wantErr: "Error: --long-description must be at most 120 characters (got 121)\n",
+		},
+		{
 			name:    "localizations update missing localization-id",
 			args:    []string{"app-events", "localizations", "update", "--name", "New Name"},
 			wantErr: "Error: --localization-id is required",

@@ -124,6 +124,13 @@ Examples:
 	})
 }
 
+// App Store Connect's character limits for an event localization.
+const (
+	appEventNameMaxLength             = 30
+	appEventShortDescriptionMaxLength = 50
+	appEventLongDescriptionMaxLength  = 120
+)
+
 // newAppEventLocalizationsCreateCommand returns the app event localizations create subcommand.
 func newAppEventLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.AppEventLocalizationCreateAttributes
@@ -143,9 +150,9 @@ Examples:
 		IDType:  "appEvents",
 		Fields: []shared.AttributeFlag{
 			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale (e.g., en-US)"),
-			shared.StringFlag(&attrs.Name, "name", "Localized name"),
-			shared.StringFlag(&attrs.ShortDescription, "short-description", "Short description"),
-			shared.StringFlag(&attrs.LongDescription, "long-description", "Long description"),
+			shared.StringFlag(&attrs.Name, "name", "Localized name, up to 30 characters").WithMaxLength(appEventNameMaxLength),
+			shared.StringFlag(&attrs.ShortDescription, "short-description", "Short description shown on the event card, up to 50 characters").WithMaxLength(appEventShortDescriptionMaxLength),
+			shared.StringFlag(&attrs.LongDescription, "long-description", "Long description shown on the event details page, up to 120 characters").WithMaxLength(appEventLongDescriptionMaxLength),
 		},
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateAppEventLocalization(ctx, id, attrs)
@@ -171,9 +178,9 @@ Examples:
 		IDUsage: "App event localization ID",
 		IDType:  "appEventLocalizations",
 		Fields: []shared.AttributeFlag{
-			shared.OptionalStringFlag(&attrs.Name, "name", "Localized name"),
-			shared.OptionalStringFlag(&attrs.ShortDescription, "short-description", "Short description"),
-			shared.OptionalStringFlag(&attrs.LongDescription, "long-description", "Long description"),
+			shared.OptionalStringFlag(&attrs.Name, "name", "Localized name, up to 30 characters").WithMaxLength(appEventNameMaxLength),
+			shared.OptionalStringFlag(&attrs.ShortDescription, "short-description", "Short description shown on the event card, up to 50 characters").WithMaxLength(appEventShortDescriptionMaxLength),
+			shared.OptionalStringFlag(&attrs.LongDescription, "long-description", "Long description shown on the event details page, up to 120 characters").WithMaxLength(appEventLongDescriptionMaxLength),
 		},
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateAppEventLocalization(ctx, id, attrs)

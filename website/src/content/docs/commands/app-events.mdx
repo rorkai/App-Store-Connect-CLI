@@ -314,6 +314,8 @@ asc app-events localizations delete \
 * Short description (50 characters max)
 * Long description (120 characters max)
 
+`localizations create` and `localizations update` check these limits before any request, so an overlong translation fails with the flag and its length instead of an App Store Connect error.
+
 ## Screenshots
 
 Upload event screenshots to showcase your event.
