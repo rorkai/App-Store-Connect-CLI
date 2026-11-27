@@ -49,8 +49,10 @@ func (c *Catalog) newCommandsCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc commands [--family PATH] [--output json]",
 		ShortHelp:  "Discover registered command families and their inputs.",
 		LongHelp: `List command families from the CLI registry. Use --family to describe
-an exact path and all its subcommands, including their flags and usage. An
-unknown write intent or human interaction marks an unclassified command.
+an exact path and its visible subcommands, including their flags and usage.
+Deprecated, removed, and compatibility aliases are omitted from listings;
+an exact alias path can still be inspected with --family.
+An unknown write intent or human interaction marks an unclassified command.
 Runtime validation and approval requirements still apply.
 
 Examples:
@@ -70,6 +72,9 @@ Examples:
 			path := strings.Fields(*family)
 			if len(path) == 0 {
 				for _, entry := range c.MetadataCommands() {
+					if shared.HiddenFromDiscovery(entry) {
+						continue
+					}
 					result.Families = append(result.Families, commandFamily{entry.Name, entry.ShortHelp})
 				}
 			} else {
@@ -106,10 +111,12 @@ func findExactCommand(commands []*ffcli.Command, path []string) *ffcli.Command {
 
 func appendCommandEntries(entries *[]commandEntry, command *ffcli.Command, path []string) {
 	entry := commandEntry{
-		Path:            path,
-		Usage:           command.ShortUsage,
-		Description:     command.ShortHelp,
-		HasChildren:     len(command.Subcommands) > 0,
+		Path:        path,
+		Usage:       command.ShortUsage,
+		Description: command.ShortHelp,
+		HasChildren: slices.ContainsFunc(command.Subcommands, func(child *ffcli.Command) bool {
+			return !shared.HiddenFromDiscovery(child)
+		}),
 		Flags:           []commandFlag{},
 		commandBehavior: behaviorForCommand(strings.Join(path, " ")),
 	}
@@ -123,7 +130,7 @@ func appendCommandEntries(entries *[]commandEntry, command *ffcli.Command, path 
 	}
 	*entries = append(*entries, entry)
 	for _, child := range command.Subcommands {
-		if child != nil {
+		if !shared.HiddenFromDiscovery(child) {
 			appendCommandEntries(entries, child, append(slices.Clone(path), child.Name))
 		}
 	}

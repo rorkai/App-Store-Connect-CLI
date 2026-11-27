@@ -332,7 +332,7 @@ func collectCommandDocs(commands []*ffcli.Command) []commandDoc {
 }
 
 func collectCommandDoc(docs *[]commandDoc, cmd *ffcli.Command, parents []string) {
-	if cmd == nil || hiddenCommand(cmd) {
+	if shared.HiddenFromDiscovery(cmd) {
 		return
 	}
 
@@ -1044,13 +1044,6 @@ func extractExamples(longHelp string) []string {
 		}
 	}
 	return examples
-}
-
-func hiddenCommand(cmd *ffcli.Command) bool {
-	shortHelp := strings.TrimSpace(cmd.ShortHelp)
-	return strings.HasPrefix(shortHelp, "DEPRECATED:") ||
-		strings.HasPrefix(shortHelp, "REMOVED:") ||
-		strings.HasPrefix(shortHelp, "Compatibility alias:")
 }
 
 func searchRows(results []SearchResult) [][]string {

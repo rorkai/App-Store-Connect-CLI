@@ -6,12 +6,43 @@ import (
 	"encoding/json"
 	"flag"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+func TestCommandInventoryOmitsRemovedAliasesFromFamilyExpansion(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	deps := shared.DefaultDeps()
+	deps.IO.Out, deps.IO.ErrOut = &stdout, &stderr
+	catalog := NewCatalogWithDeps("test", deps)
+	for _, family := range []string{"migrate", "migrate metadata"} {
+		stdout.Reset()
+		if err := catalog.newCommandsCommand(deps).ParseAndRun(context.Background(), []string{"--family", family}); err != nil {
+			t.Fatal(err)
+		}
+		var inventory commandInventory
+		if err := json.Unmarshal(stdout.Bytes(), &inventory); err != nil {
+			t.Fatal(err)
+		}
+		paths := make([]string, 0, len(inventory.Commands))
+		for _, entry := range inventory.Commands {
+			paths = append(paths, strings.Join(entry.Path, " "))
+		}
+		want := []string{"migrate", "migrate import", "migrate export", "migrate validate"}
+		if family == "migrate metadata" {
+			want = []string{"migrate metadata"}
+		}
+		slices.Sort(paths)
+		slices.Sort(want)
+		if !slices.Equal(paths, want) || stderr.Len() != 0 {
+			t.Fatalf("family %q: paths=%v want=%v stderr=%q", family, paths, want, &stderr)
+		}
+	}
+}
 
 func TestCommandInventoryOnlyMaterializesRequestedFamily(t *testing.T) {
 	requested := 0

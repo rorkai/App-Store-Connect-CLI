@@ -81,7 +81,7 @@ func completionNodes(rootSubcommands []*ffcli.Command, rootFlags *flag.FlagSet) 
 	var visit func(parentPath string, commands []*ffcli.Command)
 	visit = func(parentPath string, commands []*ffcli.Command) {
 		for _, command := range commands {
-			if hiddenCommand(command) {
+			if shared.HiddenFromDiscovery(command) {
 				continue
 			}
 			name := strings.TrimSpace(command.Name)
@@ -150,7 +150,7 @@ func withRootProfileFlag(fs *flag.FlagSet, flags, valueFlags []string) ([]string
 func visibleSubcommandNames(commands []*ffcli.Command) []string {
 	set := make(map[string]struct{}, len(commands))
 	for _, command := range commands {
-		if hiddenCommand(command) {
+		if shared.HiddenFromDiscovery(command) {
 			continue
 		}
 		name := strings.TrimSpace(command.Name)
@@ -164,16 +164,6 @@ func visibleSubcommandNames(commands []*ffcli.Command) []string {
 	}
 	sort.Strings(names)
 	return names
-}
-
-func hiddenCommand(command *ffcli.Command) bool {
-	if command == nil {
-		return true
-	}
-	shortHelp := strings.TrimSpace(command.ShortHelp)
-	return strings.HasPrefix(shortHelp, "DEPRECATED:") ||
-		strings.HasPrefix(shortHelp, "REMOVED:") ||
-		strings.HasPrefix(shortHelp, "Compatibility alias:")
 }
 
 func flagRequiresValue(commandFlag *flag.Flag) bool {
