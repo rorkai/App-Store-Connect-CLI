@@ -69,7 +69,7 @@ func TestResetConfigCacheForTestReloadsConfig(t *testing.T) {
 
 	setConfigLoaderForTest(func() (*config.Config, error) {
 		atomic.AddInt32(&calls, 1)
-		return &config.Config{}, nil
+		return &config.Config{RetryLog: "false"}, nil
 	})
 
 	if ResolveRetryLogEnabled() {

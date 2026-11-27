@@ -1,6 +1,10 @@
 package asc
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+)
 
 func TestResolveRetryLogEnabled_OverrideBeatsEnvAndConfig(t *testing.T) {
 	t.Setenv("ASC_RETRY_LOG", "1")
@@ -20,13 +24,15 @@ func TestResolveRetryLogEnabled_OverrideBeatsEnvAndConfig(t *testing.T) {
 }
 
 func TestResolveRetryLogEnabled_EnvBeatsConfig(t *testing.T) {
-	// We can't reliably set config in this unit without knowing config format/paths,
-	// but we can at least verify env toggles when no override is set.
-	SetRetryLogOverride(nil)
-
-	t.Setenv("ASC_RETRY_LOG", "")
-	if ResolveRetryLogEnabled() {
-		t.Fatal("expected empty ASC_RETRY_LOG to disable retry logging")
+	setConfigLoaderForTest(func() (*config.Config, error) {
+		return &config.Config{RetryLog: "on"}, nil
+	})
+	t.Cleanup(resetConfigCacheForTest)
+	for _, value := range []string{"", "0", " FALSE ", "no", "off"} {
+		t.Setenv("ASC_RETRY_LOG", value)
+		if ResolveRetryLogEnabled() {
+			t.Errorf("ASC_RETRY_LOG=%q should disable logging over an enabled config", value)
+		}
 	}
 
 	t.Setenv("ASC_RETRY_LOG", "1")
