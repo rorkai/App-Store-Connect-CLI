@@ -243,7 +243,7 @@ func ResolveBundleInfoForIPA(ipaPath, version, buildNumber string) (IPABundleInf
 		if len(missingFlags) > 0 {
 			return IPABundleInfo{}, fmt.Errorf("%s required (failed to extract from IPA: %w)", strings.Join(missingFlags, " and "), err)
 		}
-		return IPABundleInfo{}, fmt.Errorf("failed to extract from IPA: %w", err)
+		return IPABundleInfo{Version: versionValue, BuildNumber: buildNumberValue}, nil
 	}
 	if versionValue == "" {
 		versionValue = info.Version

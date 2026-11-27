@@ -1261,12 +1261,15 @@ func resolvePublishIPA(d *shared.Deps, ipaPath, version, buildNumber, platform s
 	} else if platformWasSet && platform != string(info.Platform) {
 		return nil, shared.IPABundleInfo{}, d.UsageErrorf("--platform %s does not match IPA platform %s", platform, info.Platform)
 	}
-	_, err = validatePublishPrebuiltArtifactPlatform(d, ipaPath, "", string(info.Platform), true)
+	_, err = validatePublishPrebuiltArtifactPlatform(d, ipaPath, "", string(info.Platform), platformWasSet)
 	return fileInfo, info, err
 }
 
 func validatePublishPrebuiltArtifactPlatform(d *shared.Deps, ipaPath, pkgPath, platform string, platformWasSet bool) (string, error) {
 	if strings.TrimSpace(ipaPath) != "" && platform == string(asc.PlatformMacOS) {
+		if !platformWasSet {
+			return "", d.UsageError("--ipa contains a macOS app; use --pkg with --version and --build-number")
+		}
 		return "", d.UsageError("--ipa is not supported with --platform MAC_OS; use --pkg with --version and --build-number")
 	}
 	if strings.TrimSpace(pkgPath) == "" {
