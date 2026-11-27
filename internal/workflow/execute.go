@@ -29,6 +29,7 @@ type RunOptions struct {
 	WorkflowFile string
 	StateDir     string
 	ResumeRunID  string
+	Progress     func(ProgressEvent)
 }
 
 // StepResult records one executed step.
@@ -185,6 +186,9 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 		result.Error = err.Error()
 		return result, err
 	}
+
+	r.emitProgress(ProgressEvent{Event: "run_started", Status: "running"})
+	defer func() { r.emitProgress(ProgressEvent{Event: "run_finished", Status: result.Status}) }()
 
 	env := mergeEnv(def.Env, wf.Env, r.opts.Params)
 	hookEnv := mergeEnv(fileEnv, env)
@@ -417,7 +421,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.Error = persisted.Error
 				sr.Attempts = cloneAttemptResults(persisted.Attempts)
 				sr.ContinuedOnError = true
-				r.result.Steps = append(r.result.Steps, sr)
+				r.recordStep(stepKey, sr)
 				if !step.ContinueOnError {
 					return errToleratedFailureReplayed
 				}
@@ -433,7 +437,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			if !pass {
 				sr.Status = "skipped"
 				sr.DurationMS = time.Since(stepStart).Milliseconds()
-				r.result.Steps = append(r.result.Steps, sr)
+				r.recordStep(stepKey, sr)
 				continue
 			}
 		}
@@ -445,7 +449,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.FailureReason = "invalid_policy"
 				sr.Error = "retry and timeout are only supported on run steps"
 				sr.DurationMS = time.Since(stepStart).Milliseconds()
-				r.result.Steps = append(r.result.Steps, sr)
+				r.recordStep(stepKey, sr)
 				r.failStep(step.Name, stepKey)
 				return err
 			}
@@ -454,7 +458,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.Status = "error"
 				sr.Error = fmt.Sprintf("max call depth %d exceeded", MaxCallDepth)
 				sr.DurationMS = time.Since(stepStart).Milliseconds()
-				r.result.Steps = append(r.result.Steps, sr)
+				r.recordStep(stepKey, sr)
 				r.failStep(step.Name, stepKey)
 				if err := r.continueOnError(ctx, step, stepKey, err); err != nil {
 					return err
@@ -468,7 +472,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.Status = "error"
 				sr.Error = fmt.Sprintf("unknown workflow %q", ref)
 				sr.DurationMS = time.Since(stepStart).Milliseconds()
-				r.result.Steps = append(r.result.Steps, sr)
+				r.recordStep(stepKey, sr)
 				r.failStep(step.Name, stepKey)
 				return err
 			}
@@ -482,7 +486,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 					sr.Status = "error"
 					sr.Error = err.Error()
 					sr.DurationMS = time.Since(stepStart).Milliseconds()
-					r.result.Steps = append(r.result.Steps, sr)
+					r.recordStep(stepKey, sr)
 					r.failStep(step.Name, stepKey)
 					if err := r.continueOnError(ctx, step, stepKey, wrapped); err != nil {
 						return err
@@ -513,7 +517,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.Outputs = cloneStringMap(persisted.Outputs)
 				sr.Attempts = cloneAttemptResults(persisted.Attempts)
 				sr.DurationMS = 0
-				r.result.Steps = append(r.result.Steps, sr)
+				r.recordStep(stepKey, sr)
 				if strings.TrimSpace(persisted.Name) != "" && len(persisted.Outputs) > 0 {
 					r.outputs[persisted.Name] = cloneStringMap(persisted.Outputs)
 					r.result.Outputs = cloneNestedStringMap(r.outputs)
@@ -526,7 +530,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			fmt.Fprintf(r.opts.Stderr, "[dry-run] step %d: %s\n", idx, step.Run)
 			sr.Status = "dry-run"
 			sr.DurationMS = time.Since(stepStart).Milliseconds()
-			r.result.Steps = append(r.result.Steps, sr)
+			r.recordStep(stepKey, sr)
 			continue
 		}
 
@@ -536,7 +540,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			sr.Status = "error"
 			sr.Error = err.Error()
 			sr.DurationMS = time.Since(stepStart).Milliseconds()
-			r.result.Steps = append(r.result.Steps, sr)
+			r.recordStep(stepKey, sr)
 			r.failStep(step.Name, stepKey)
 			if err := r.continueOnError(ctx, step, stepKey, wrapped); err != nil {
 				return err
@@ -546,7 +550,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 
 		if err := r.executeRunStep(ctx, workflowName, idx, stepKey, step, command, runEnv, &sr); err != nil {
 			sr.DurationMS = time.Since(stepStart).Milliseconds()
-			r.result.Steps = append(r.result.Steps, sr)
+			r.recordStep(stepKey, sr)
 			r.failStep(step.Name, stepKey)
 			if err := r.continueOnError(ctx, step, stepKey, err); err != nil {
 				return err
@@ -555,7 +559,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 		}
 
 		sr.DurationMS = time.Since(stepStart).Milliseconds()
-		r.result.Steps = append(r.result.Steps, sr)
+		r.recordStep(stepKey, sr)
 	}
 	return nil
 }

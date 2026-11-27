@@ -201,7 +201,9 @@ func TestRun_RetryEventuallySucceedsAndCapturesOnlySuccessfulOutput(t *testing.T
 		}
 	}`, counterPath))
 
+	var progress []ProgressEvent
 	opts := runOpts("main")
+	opts.Progress = func(event ProgressEvent) { progress = append(progress, event) }
 	opts.WorkflowFile = workflowPath
 	opts.StateDir = filepath.Join(dir, "runs")
 	result, err := Run(context.Background(), def, opts)
@@ -212,8 +214,15 @@ func TestRun_RetryEventuallySucceedsAndCapturesOnlySuccessfulOutput(t *testing.T
 	if step.Status != "ok" || len(step.Attempts) != 3 {
 		t.Fatalf("step = %+v, want three attempts and ok", step)
 	}
+	if len(progress) != 9 {
+		t.Fatalf("progress = %+v, want run boundaries, three attempts and one step result", progress)
+	}
 	wantStatuses := []string{"error", "error", "ok"}
 	for i, want := range wantStatuses {
+		start, finish := progress[1+i*2], progress[2+i*2]
+		if start.Event != "attempt_started" || finish.Event != "attempt_finished" || finish.RunID != result.RunID || finish.StepID != "main[1]" || finish.Invocation != 1 || finish.Attempt != i+1 || finish.Status != want {
+			t.Fatalf("attempt progress = %+v, %+v", start, finish)
+		}
 		if step.Attempts[i].Attempt != i+1 || step.Attempts[i].Invocation != 1 || step.Attempts[i].Status != want {
 			t.Fatalf("attempt %d = %+v, want invocation=1 attempt=%d status=%s", i, step.Attempts[i], i+1, want)
 		}
@@ -720,7 +729,9 @@ func TestRun_CancellationStopsDuringRetryDelay(t *testing.T) {
 		case <-ctx.Done():
 		}
 	}()
+	var progress []ProgressEvent
 	opts := runOpts("main")
+	opts.Progress = func(event ProgressEvent) { progress = append(progress, event) }
 	opts.Stderr = stderr
 	result, err := Run(ctx, def, opts)
 	if !errors.Is(err, context.Canceled) || errors.Is(err, ErrCommandFailed) {
@@ -730,6 +741,9 @@ func TestRun_CancellationStopsDuringRetryDelay(t *testing.T) {
 	case <-stderr.ready:
 	default:
 		t.Fatalf("runner never entered retry delay; stderr = %q", stderr.String())
+	}
+	if len(progress) != 5 || progress[3].StepID != "main[1]" || progress[3].FailureReason != "canceled" || progress[4].Event != "run_finished" || progress[4].Status != "error" {
+		t.Fatalf("canceled progress = %+v", progress)
 	}
 	step := result.Steps[0]
 	if step.FailureReason != "canceled" || len(step.Attempts) != 1 {
