@@ -308,7 +308,9 @@ func TestNotifySlackWithPayloadFile(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	payloadPath := filepath.Join(t.TempDir(), "release-payload.json")
+	payloadDir := t.TempDir()
+	t.Chdir(payloadDir)
+	payloadPath := filepath.Join(payloadDir, "release-payload.json")
 	if err := os.WriteFile(payloadPath, []byte(`{"status":"submitted","platform":"iOS"}`), 0o600); err != nil {
 		t.Fatalf("write payload file: %v", err)
 	}
@@ -388,7 +390,9 @@ func TestNotifySlackWithBlocksFile(t *testing.T) {
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	blocksPath := filepath.Join(t.TempDir(), "blocks.json")
+	blocksDir := t.TempDir()
+	t.Chdir(blocksDir)
+	blocksPath := filepath.Join(blocksDir, "blocks.json")
 	if err := os.WriteFile(blocksPath, []byte(`[{"type":"divider"}]`), 0o600); err != nil {
 		t.Fatalf("write blocks file: %v", err)
 	}
@@ -416,7 +420,9 @@ func TestNotifySlackWithBlocksFile(t *testing.T) {
 }
 
 func TestNotifySlackBlocksValidationErrors(t *testing.T) {
-	blocksPath := filepath.Join(t.TempDir(), "invalid.json")
+	blocksDir := t.TempDir()
+	t.Chdir(blocksDir)
+	blocksPath := filepath.Join(blocksDir, "invalid.json")
 	if err := os.WriteFile(blocksPath, []byte(`{"type":"section"}`), 0o600); err != nil {
 		t.Fatalf("write blocks file: %v", err)
 	}
@@ -438,8 +444,8 @@ func TestNotifySlackBlocksValidationErrors(t *testing.T) {
 		},
 		{
 			name:       "blocks file missing",
-			args:       []string{"--message", "hello", "--blocks-file", filepath.Join(t.TempDir(), "missing.json")},
-			wantErrMsg: "--blocks-file must be readable",
+			args:       []string{"--message", "hello", "--blocks-file", filepath.Join(blocksDir, "missing.json")},
+			wantErrMsg: "read --blocks-file",
 		},
 		{
 			name:       "blocks both set",
@@ -479,7 +485,9 @@ func TestNotifySlackBlocksValidationErrors(t *testing.T) {
 }
 
 func TestNotifySlackPayloadValidationErrors(t *testing.T) {
-	payloadPath := filepath.Join(t.TempDir(), "invalid-payload.json")
+	payloadDir := t.TempDir()
+	t.Chdir(payloadDir)
+	payloadPath := filepath.Join(payloadDir, "invalid-payload.json")
 	if err := os.WriteFile(payloadPath, []byte(`["not-an-object"]`), 0o600); err != nil {
 		t.Fatalf("write payload file: %v", err)
 	}
@@ -501,8 +509,8 @@ func TestNotifySlackPayloadValidationErrors(t *testing.T) {
 		},
 		{
 			name:       "payload file missing",
-			args:       []string{"--message", "hello", "--payload-file", filepath.Join(t.TempDir(), "missing-payload.json")},
-			wantErrMsg: "--payload-file must be readable",
+			args:       []string{"--message", "hello", "--payload-file", filepath.Join(payloadDir, "missing-payload.json")},
+			wantErrMsg: "read --payload-file",
 		},
 		{
 			name:       "payload both set",
@@ -746,4 +754,59 @@ func newNotifyTestDeps(transport http.RoundTripper) (*shared.Deps, *bytes.Buffer
 		Getwd:          os.Getwd,
 		HTTPTransport:  func() http.RoundTripper { return transport },
 	}, &stderr
+}
+
+func TestNotifySlackRefusesFilesOutsideWorkingDirectoryWithoutSending(t *testing.T) {
+	root := t.TempDir()
+	project := filepath.Join(root, "project")
+	if err := os.Mkdir(project, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(project)
+	outsidePayload := filepath.Join(root, "payload.json")
+	if err := os.WriteFile(outsidePayload, []byte(`{"status":"submitted"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	outsideBlocks := filepath.Join(root, "blocks.json")
+	if err := os.WriteFile(outsideBlocks, []byte(`[{"type":"divider"}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "payload file", args: []string{"--message", "Release submitted", "--payload-file", outsidePayload}},
+		{name: "blocks file", args: []string{"--message", "Release ready", "--blocks-file", outsideBlocks}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requests := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests++
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+			t.Setenv(slackWebhookEnvVar, server.URL)
+			t.Setenv(slackWebhookAllowLocalEnv, "1")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			d, stderr := newNotifyTestDeps(http.DefaultTransport)
+			cmd := newSlackCommand(d)
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.Parse(test.args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr := cmd.Run(context.Background())
+			if runErr == nil || !strings.Contains(runErr.Error(), "must be a regular file inside the working directory") {
+				t.Fatalf("error = %v, stderr = %q; want the working-directory refusal", runErr, stderr.String())
+			}
+			if !shared.IsReportedUsageError(runErr) {
+				t.Fatalf("error = %v, want a reported usage error (exit 2)", runErr)
+			}
+			if requests != 0 {
+				t.Fatalf("webhook requests = %d, want none after a refusal", requests)
+			}
+		})
+	}
 }

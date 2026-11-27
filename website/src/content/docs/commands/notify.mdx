@@ -35,9 +35,9 @@ ASC_SLACK_WEBHOOK=$WEBHOOK asc notify slack --message "Release v2.1 ready"
 * `--message` - Message to send to Slack (required)
 * `--thread-ts` - Parent message timestamp (thread\_ts) for posting a threaded reply
 * `--blocks-json` - Slack Block Kit JSON array
-* `--blocks-file` - Path to Slack Block Kit JSON array file
+* `--blocks-file` - Path to Slack Block Kit JSON array file inside the working directory
 * `--payload-json` - JSON object of release fields to include as Slack attachment fields
-* `--payload-file` - Path to JSON object file for release payload fields
+* `--payload-file` - Path to JSON object file for release payload fields, inside the working directory
 * `--pretext` - Optional text shown above attachment payload fields (requires `--payload-json`/`--payload-file`)
 * `--success` - Set attachment color to success (`true`) or failure (`false`, default: `true`)
 

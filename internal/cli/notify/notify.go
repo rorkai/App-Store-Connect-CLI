@@ -64,9 +64,9 @@ func slackFlags(fs *flag.FlagSet) (
 	message = fs.String("message", "", "Message to send to Slack")
 	threadTS = fs.String("thread-ts", "", "Parent message timestamp (thread_ts) for posting a threaded reply")
 	blocksJSON = fs.String("blocks-json", "", "Slack Block Kit JSON array")
-	blocksFile = fs.String("blocks-file", "", "Path to Slack Block Kit JSON array file")
+	blocksFile = fs.String("blocks-file", "", "Path to Slack Block Kit JSON array file inside the working directory")
 	payloadJSON = fs.String("payload-json", "", "JSON object of release fields to include as Slack attachment fields")
-	payloadFile = fs.String("payload-file", "", "Path to JSON object file for release payload fields")
+	payloadFile = fs.String("payload-file", "", "Path to JSON object file for release payload fields, inside the working directory")
 	pretext = fs.String("pretext", "", "Optional text shown above attachment payload fields (requires --payload-json/--payload-file)")
 	success = fs.Bool("success", true, "Set attachment color to success (true) or failure (false); requires --payload-json/--payload-file")
 	return
@@ -289,6 +289,17 @@ func resolveWebhook(flagValue string) string {
 	return ""
 }
 
+// readSlackWorkingDirectoryFile reads a --blocks-file or --payload-file that
+// must sit inside the working directory: its content is posted to Slack.
+func readSlackWorkingDirectoryFile(d *shared.Deps, flagName, hint, path string) ([]byte, error) {
+	file, err := d.OpenWorkingDirectoryFile(flagName, hint, path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
+
 func parseSlackBlocks(d *shared.Deps, blocksJSON string, blocksFile string) ([]json.RawMessage, error) {
 	blocksJSON = strings.TrimSpace(blocksJSON)
 	blocksFile = strings.TrimSpace(blocksFile)
@@ -302,9 +313,9 @@ func parseSlackBlocks(d *shared.Deps, blocksJSON string, blocksFile string) ([]j
 
 	source := "--blocks-json"
 	if blocksFile != "" {
-		data, err := os.ReadFile(d.OSPath(blocksFile))
+		data, err := readSlackWorkingDirectoryFile(d, "--blocks-file", "use --blocks-json, or copy the file into the project directory", blocksFile)
 		if err != nil {
-			return nil, fmt.Errorf("--blocks-file must be readable: %w", err)
+			return nil, err
 		}
 		blocksJSON = strings.TrimSpace(string(data))
 		source = "--blocks-file"
@@ -337,9 +348,9 @@ func parseSlackPayload(d *shared.Deps, payloadJSON string, payloadFile string) (
 
 	source := "--payload-json"
 	if payloadFile != "" {
-		data, err := os.ReadFile(d.OSPath(payloadFile))
+		data, err := readSlackWorkingDirectoryFile(d, "--payload-file", "use --payload-json, or copy the file into the project directory", payloadFile)
 		if err != nil {
-			return nil, fmt.Errorf("--payload-file must be readable: %w", err)
+			return nil, err
 		}
 		payloadJSON = strings.TrimSpace(string(data))
 		source = "--payload-file"

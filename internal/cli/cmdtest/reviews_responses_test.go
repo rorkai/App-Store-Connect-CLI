@@ -83,7 +83,9 @@ func TestReviewsUsageErrors(t *testing.T) {
 func writeReviewBatchFile(t *testing.T, body string) string {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "replies.json")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	path := filepath.Join(dir, "replies.json")
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatalf("write batch file: %v", err)
 	}
@@ -636,4 +638,33 @@ func reviewResponsePostBodies(reg *asctest.Registry) []string {
 		}
 	}
 	return bodies
+}
+
+func TestReviewsRespondBatchRefusesFileOutsideWorkingDirectoryWithoutRequests(t *testing.T) {
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	root := t.TempDir()
+	project := filepath.Join(root, "project")
+	if err := os.Mkdir(project, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(project)
+	outside := filepath.Join(root, "replies.json")
+	if err := os.WriteFile(outside, []byte(`{"replies":[{"response":"Thanks","reviewIds":["review-1"]}]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	reg := asctest.NewRegistry(t)
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "reviews", "respond-batch", "--app", "app-1", "--file", outside, "--confirm")
+	if code != cmd.ExitUsage {
+		t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitUsage, code, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--file must be a regular file inside the working directory") {
+		t.Fatalf("expected working-directory refusal, got %q", stderr)
+	}
+	if n := len(reg.Requests()); n != 0 {
+		t.Fatalf("requests = %d, want none after a refusal", n)
+	}
 }

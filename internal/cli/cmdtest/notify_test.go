@@ -177,7 +177,9 @@ func TestNotifySlackRejectsNullBlocksBeforeRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	nullBlocksFile := filepath.Join(t.TempDir(), "null-blocks.json")
+	nullBlocksDir := t.TempDir()
+	t.Chdir(nullBlocksDir)
+	nullBlocksFile := filepath.Join(nullBlocksDir, "null-blocks.json")
 	if err := os.WriteFile(nullBlocksFile, []byte("null"), 0o600); err != nil {
 		t.Fatalf("write null blocks file: %v", err)
 	}

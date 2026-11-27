@@ -13,7 +13,6 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
@@ -94,7 +93,7 @@ func newWebReviewDraftCreateCommand(d *shared.Deps) *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	message := fs.String("message", "", "Draft message body, at most 4,000 characters")
-	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file")
+	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file inside the working directory")
 	confirm := fs.Bool("confirm", false, "Confirm creating the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
@@ -105,7 +104,8 @@ func newWebReviewDraftCreateCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Create an unsent Resolution Center draft.",
 		LongHelp: `Create one unsent draft on an app-scoped Resolution Center thread.
 
-Exactly one of --message or --body-file is required. The body is preserved
+Exactly one of --message or --body-file is required. A --body-file must be a
+regular file inside the working directory. The body is preserved
 verbatim after blank-body validation. --confirm is required; this command does
 not send the draft or support attachments.
 
@@ -145,7 +145,7 @@ func newWebReviewDraftUpdateCommand(d *shared.Deps) *ffcli.Command {
 	threadID := fs.String("thread-id", "", "Resolution Center thread ID")
 	draftID := fs.String("draft-id", "", "Resolution Center draft message ID (defaults to the thread's one unsent draft)")
 	message := fs.String("message", "", "Draft message body, at most 4,000 characters")
-	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file")
+	bodyFile := fs.String("body-file", "", "Read the draft message body from a regular file inside the working directory")
 	confirm := fs.Bool("confirm", false, "Confirm updating the unsent draft")
 	authFlags := bindWebSessionFlags(fs)
 	output := d.BindOutputFlags(fs)
@@ -160,7 +160,8 @@ Resolution Center thread.
 A thread holds at most one unsent draft. --draft-id defaults to that draft;
 when given, it must match it.
 
-Exactly one of --message or --body-file is required. The body is preserved
+Exactly one of --message or --body-file is required. A --body-file must be a
+regular file inside the working directory. The body is preserved
 verbatim after blank-body validation. --confirm is required; this command does
 not send the draft or support attachments.
 
@@ -301,9 +302,9 @@ func readWebReviewDraftBody(d *shared.Deps, fs *flag.FlagSet, message, bodyFile 
 	if path == "-" {
 		return "", d.UsageError("--body-file does not support stdin")
 	}
-	file, err := rootfs.OpenFile(d.OSPath(path))
+	file, err := d.OpenWorkingDirectoryFile("--body-file", "use --message, or copy the file into the project directory", path)
 	if err != nil {
-		return "", fmt.Errorf("read --body-file: %w", err)
+		return "", d.UsageError(err.Error())
 	}
 	defer file.Close()
 	body, err := io.ReadAll(io.LimitReader(file, webReviewDraftBodyMaxBytes+1))
@@ -311,7 +312,7 @@ func readWebReviewDraftBody(d *shared.Deps, fs *flag.FlagSet, message, bodyFile 
 		return "", fmt.Errorf("read --body-file: %w", err)
 	}
 	if int64(len(body)) > webReviewDraftBodyMaxBytes {
-		return "", fmt.Errorf("--body-file exceeds the %d-byte size limit", webReviewDraftBodyMaxBytes)
+		return "", d.UsageError(fmt.Sprintf("--body-file exceeds the %d-byte size limit", webReviewDraftBodyMaxBytes))
 	}
 	if !utf8.Valid(body) {
 		return "", d.UsageError("--body-file must contain valid UTF-8")

@@ -332,7 +332,9 @@ func TestWebReviewReplyWarnsWhenDraftResponseIsLost(t *testing.T) {
 
 func TestWebReviewReplyTakesAppScopeAndBodyFile(t *testing.T) {
 	body := "Line one.\n\nLine two keeps its spacing.  \n"
-	bodyFile := filepath.Join(t.TempDir(), "reply.txt")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	bodyFile := filepath.Join(dir, "reply.txt")
 	if err := os.WriteFile(bodyFile, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
