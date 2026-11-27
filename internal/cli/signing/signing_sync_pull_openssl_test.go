@@ -2,6 +2,7 @@ package signing
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -12,8 +13,10 @@ import (
 	"strings"
 	"testing"
 
+	nativepkcs12 "golang.org/x/crypto/pkcs12"
 	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/artifacts/artifactstest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
@@ -53,9 +56,11 @@ func openSSLSourcePasswordFile(t *testing.T, password string) string {
 
 func TestSigningSyncPullOpenSSLSourceWritesUsableIdentity(t *testing.T) {
 	fixture := newOpenSSLImportFixture(t, 1)
-	if err := os.Rename(filepath.Join(fixture.dir, "certs", "development"), filepath.Join(fixture.dir, "certs", "developer_id_installer")); err != nil {
+	if err := os.RemoveAll(filepath.Join(fixture.dir, "certs", "development")); err != nil {
 		t.Fatal(err)
 	}
+	installer := addOpenSSLInstallerFixture(t, fixture.dir, "developer_id_installer", artifactstest.DeveloperIDInstallerLeaf)
+	installerPath := "identities/developer_id_installer/" + signingCertificateSHA256(installer) + ".p12"
 	outDir := filepath.Join(t.TempDir(), "pulled")
 
 	result, stderr, err := runOpenSSLSourcePull(t, "--repo", fixture.dir, "--password-file", openSSLSourcePasswordFile(t, importSourcePassword), "--output-dir", outDir)
@@ -63,12 +68,11 @@ func TestSigningSyncPullOpenSSLSourceWritesUsableIdentity(t *testing.T) {
 		t.Fatalf("pull: %v\nstderr=%s", err, stderr)
 	}
 	identityPath := "identities/distribution/" + fixture.distributionSHA + ".p12"
-	if result.SourceFormat != "openssl" || result.RepoURL != fixture.dir || !result.IdentityPresent || !reflect.DeepEqual(result.SensitiveFiles, []string{identityPath}) {
+	if result.SourceFormat != "openssl" || result.RepoURL != fixture.dir || !result.IdentityPresent || !reflect.DeepEqual(result.SensitiveFiles, []string{installerPath, identityPath}) {
 		t.Fatalf("result = %+v", result)
 	}
-	wantSkipped := []asc.SigningSyncSkippedEntry{{Path: "certs/developer_id_installer", Reason: "installer certificate folder; signing sync pull requires a provisioning-profile binding"}}
-	if !reflect.DeepEqual(result.Skipped, wantSkipped) || !strings.Contains(stderr, "Warning: skipping installer certificate folder certs/developer_id_installer") {
-		t.Fatalf("skipped = %+v, stderr = %q", result.Skipped, stderr)
+	if len(result.Skipped) != 0 || strings.Contains(stderr, "Warning: skipping") {
+		t.Fatalf("active installer was skipped: %+v, stderr=%s", result.Skipped, stderr)
 	}
 	for _, relPath := range result.Files {
 		info, err := os.Stat(filepath.Join(outDir, filepath.FromSlash(relPath)))
@@ -76,13 +80,21 @@ func TestSigningSyncPullOpenSSLSourceWritesUsableIdentity(t *testing.T) {
 			t.Fatalf("%s: mode %v, error %v; want 0600", relPath, info, err)
 		}
 	}
-	data, err := os.ReadFile(filepath.Join(outDir, filepath.FromSlash(identityPath)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	key, certificate, err := modernpkcs12.Decode(data, importSourcePassword)
-	if err != nil || !certificate.Equal(fixture.distribution) || !publicKeysEqual(key, fixture.distribution.PublicKey) {
-		t.Fatalf("pulled identity does not hold the source key pair under the pull password: %v", err)
+	for path, wanted := range map[string]*x509.Certificate{identityPath: fixture.distribution, installerPath: installer} {
+		data, err := os.ReadFile(filepath.Join(outDir, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		key, certificate, err := modernpkcs12.Decode(data, importSourcePassword)
+		if err != nil || !certificate.Equal(wanted) || !publicKeysEqual(key, wanted.PublicKey) {
+			t.Fatalf("pulled identity %s lost its source key pair: %v", path, err)
+		}
+		if path == installerPath {
+			key, certificate, err = nativepkcs12.Decode(data, importSourcePassword)
+			if err != nil || !certificate.Equal(wanted) || !publicKeysEqual(key, wanted.PublicKey) {
+				t.Fatalf("restored installer is not compatible with native PKCS#12 import: %v", err)
+			}
+		}
 	}
 
 	t.Run("a certificate no valid profile links is reported", func(t *testing.T) {

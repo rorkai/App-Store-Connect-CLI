@@ -705,8 +705,12 @@ func syncPullCommand(d *shared.Deps) *ffcli.Command {
 		Name:       "pull",
 		ShortUsage: "asc signing sync pull [--storage STORAGE] [storage options] [--source-format openssl] [--bundle-id ID | --targets-file PATH] [--profile-type TYPE] [--password-file PATH] [--output-dir DIR]",
 		ShortHelp:  "Pull and decrypt signing assets from the selected storage.",
-		FlagSet:    fs,
-		UsageFunc:  d.DefaultUsageFunc,
+		LongHelp: `A full pull restores currently valid standalone installer identities as well as profile-bound app signing assets.
+Bundle-specific pulls return only that bundle's profile-bound assets.
+
+Installer output uses password-protected PKCS#12 with 3DES and a SHA-1 MAC for native macOS import compatibility. Conversion happens in memory; no unencrypted private key is written. Stored identities and app identity output keep their existing encryption.`,
+		FlagSet:   fs,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			repo := strings.TrimSpace(*repoURL)
 			provided := providedSigningSyncFlags(fs)
@@ -820,7 +824,7 @@ func syncPullCommand(d *shared.Deps) *ffcli.Command {
 				return fmt.Errorf("signing sync pull: %w", err)
 			}
 			result, err := writeSigningPullFiles(d, SyncResult{Operation: "pull", RepoURL: transport.Locator(), Storage: transport.Storage()},
-				decrypted, outDir, selectedBundleIDs, profile, targetsProvided)
+				decrypted, pass, outDir, selectedBundleIDs, profile, targetsProvided)
 			if err != nil {
 				return err
 			}
@@ -831,13 +835,27 @@ func syncPullCommand(d *shared.Deps) *ffcli.Command {
 
 // writeSigningPullFiles applies the bundle selection, checks every
 // destination, and then writes the decrypted files under outDir.
-func writeSigningPullFiles(d *shared.Deps, result SyncResult, decrypted []decryptedSigningFile, outDir string, bundleIDs []string, profileType string, batch bool) (SyncResult, error) {
+func writeSigningPullFiles(d *shared.Deps, result SyncResult, decrypted []decryptedSigningFile, password, outDir string, bundleIDs []string, profileType string, batch bool) (SyncResult, error) {
 	var targets []SyncTargetResult
 	if len(bundleIDs) > 0 {
 		var err error
 		decrypted, targets, err = selectSigningPullFiles(d, decrypted, bundleIDs, profileType)
 		if err != nil {
 			return SyncResult{}, fmt.Errorf("signing sync pull: %w", err)
+		}
+	}
+	for index := range decrypted {
+		file := &decrypted[index]
+		if file.Metadata.Kind != installerIdentityKind {
+			continue
+		}
+		key, certificate, err := modernpkcs12.Decode(file.Plaintext, password)
+		if err != nil {
+			return SyncResult{}, fmt.Errorf("signing sync pull: decode installer identity: %w", err)
+		}
+		file.Plaintext, err = shared.EncodePKCS12Identity(shared.PKCS12EncodingLegacy, key, certificate, password)
+		if err != nil {
+			return SyncResult{}, fmt.Errorf("signing sync pull: encode installer identity for native import: %w", err)
 		}
 	}
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
@@ -914,7 +932,7 @@ func decryptAndValidateSigningFiles(d *shared.Deps, store *signingpkg.GitStore, 
 	}
 	filtered := decrypted[:0]
 	for _, file := range decrypted {
-		if file.Metadata.Kind == "pkcs12-identity" {
+		if file.Identity {
 			canonicalPath := strings.ReplaceAll(filepath.ToSlash(file.RelativePath), `\`, "/")
 			if _, active := activeIdentityPaths[canonicalPath]; !active {
 				continue
@@ -978,11 +996,11 @@ func validateDecryptedSigningFiles(d *shared.Deps, decrypted []decryptedSigningF
 		return nil, err
 	}
 	for _, file := range decrypted {
-		if file.Metadata.Kind != "pkcs12-identity" {
+		if !file.Identity {
 			continue
 		}
 		canonicalPath := strings.ReplaceAll(filepath.ToSlash(file.RelativePath), `\`, "/")
-		if _, active := activeIdentityPaths[canonicalPath]; !active {
+		if _, active := activeIdentityPaths[canonicalPath]; !active && file.Metadata.Kind != installerIdentityKind {
 			continue
 		}
 		_, certificate, err := modernpkcs12.Decode(file.Plaintext, password)
@@ -990,7 +1008,13 @@ func validateDecryptedSigningFiles(d *shared.Deps, decrypted []decryptedSigningF
 			return nil, fmt.Errorf("active identity core is not a decodable PKCS#12 identity")
 		}
 		if now := d.Now(); now.Before(certificate.NotBefore) || !now.Before(certificate.NotAfter) {
+			if file.Metadata.Kind == installerIdentityKind {
+				continue
+			}
 			return nil, fmt.Errorf("active identity certificate is not currently valid")
+		}
+		if file.Metadata.Kind == installerIdentityKind {
+			activeIdentityPaths[canonicalPath] = struct{}{}
 		}
 	}
 	return activeIdentityPaths, nil
@@ -1176,12 +1200,17 @@ func classifySigningFile(relPath string, plaintext []byte, metadata signingpkg.E
 		return false, false, nil
 	}
 	parts := strings.Split(canonicalPath, "/")
-	identityPath := len(parts) == 3 && parts[0] == "identities" &&
+	installerPath := len(parts) == 3 && parts[0] == "identities" && isInstallerIdentityCategory(parts[1]) && strings.HasSuffix(parts[2], ".p12")
+	identityKind := "pkcs12-identity"
+	if installerPath {
+		identityKind = installerIdentityKind
+	}
+	identityPath := installerPath || len(parts) == 3 && parts[0] == "identities" &&
 		(parts[1] == "distribution" || parts[1] == "development") && strings.HasSuffix(parts[2], ".p12")
 	identityLikePath := strings.HasSuffix(strings.ToLower(canonicalPath), ".p12") ||
 		strings.HasPrefix(strings.ToLower(canonicalPath), "identities/")
-	if identityLikePath || metadata.Kind == "pkcs12-identity" {
-		if !identityPath || metadata.Version != 1 || metadata.Kind != "pkcs12-identity" || !metadata.Sensitive {
+	if identityLikePath || metadata.Kind == "pkcs12-identity" || metadata.Kind == installerIdentityKind {
+		if !identityPath || metadata.Version != 1 || metadata.Kind != identityKind || !metadata.Sensitive {
 			return false, false, fmt.Errorf("identity path requires a versioned sensitive pkcs12-identity envelope")
 		}
 		fingerprint := strings.TrimSuffix(parts[2], ".p12")
@@ -1194,6 +1223,11 @@ func classifySigningFile(relPath string, plaintext []byte, metadata signingpkg.E
 		}
 		if !strings.EqualFold(signingCertificateSHA256(certificate), metadata.CertificateSHA256) || certificateTeamID(certificate) != metadata.TeamID {
 			return false, false, fmt.Errorf("identity certificate does not match authenticated metadata")
+		}
+		if installerPath {
+			if err := validateInstallerIdentityPurpose(certificate, parts[1]); err != nil {
+				return false, false, err
+			}
 		}
 		return true, true, nil
 	}
