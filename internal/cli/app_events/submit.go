@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -58,6 +59,8 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("app-events submit: %w", err)
 			}
+
+			warnIfAppEventMissingDeepLink(ctx, d, client, id)
 
 			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
@@ -114,4 +117,23 @@ Examples:
 			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// warnIfAppEventMissingDeepLink warns when the event has no deep link.
+// App Store Connect asks for one, but the API accepts an event without it, so
+// the warning is advisory and a failed lookup never blocks the submission.
+func warnIfAppEventMissingDeepLink(ctx context.Context, d *shared.Deps, client *asc.Client, eventID string) {
+	requestCtx, cancel := d.Timeout(ctx)
+	defer cancel()
+	lookupCtx, cancelLookup := shared.ContextWithTimeoutDuration(requestCtx, 5*time.Second)
+	defer cancelLookup()
+	event, err := client.GetAppEvent(lookupCtx, eventID)
+	if err != nil || event == nil {
+		return
+	}
+	if strings.TrimSpace(event.Data.Attributes.DeepLink) != "" {
+		return
+	}
+	safeID := shared.SanitizeTerminal(eventID)
+	fmt.Fprintf(d.IO.ErrOut, "Warning: app-events submit: event %q has no deep link; App Store Connect asks for one so Open on the event card leads to the event in your app. Set it while the event is editable. After submitting, remove the event from review before updating it. Update with: asc app-events update --event-id %s --deep-link \"URL\"\n", safeID, safeID)
 }
